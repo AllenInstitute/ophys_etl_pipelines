@@ -1,0 +1,17 @@
+[[source]]
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[dev-packages]
+bumpversion = "*"
+tox = "*"
+coverage = "*"
+sphinx = "1.7.0"
+cookiecutter = "*"
+sphinx-gallery = "*"
+pytest = "*"
+"ruamel.yaml" = "*"
+
+[packages]
+tifffile = "*"

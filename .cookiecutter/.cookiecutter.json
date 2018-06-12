@@ -1,0 +1,15 @@
+{
+    "_copy_without_render": [
+        "docs/aibs_sphinx"
+    ],
+    "_template": "pyproject_template/",
+    "email": "jedp@alleninstitute.org",
+    "full_name": "Jed Perkins",
+    "project_name": "mesoscope_2p",
+    "project_namespace": "",
+    "project_short_description": "Tools for reading 2-photon mesoscope data",
+    "project_slug": "mesoscope_2p",
+    "repo_url": "https://github.com/AllenInstitute/mesoscope_2p",
+    "user_name": "jfperkins",
+    "version": "0.1.0"
+}

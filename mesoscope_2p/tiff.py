@@ -1,4 +1,3 @@
-from collections import defaultdict
 from tifffile import TiffFile
 from .metadata import tiff_header_data
 
@@ -26,9 +25,14 @@ class RoiView(object):
     def __getitem__(self, key):
         if isinstance(key, int):
             index = self.offset + key*self.stride
-            return self._tiff.pages[index].asarray()
+            return self._tiff._tiff.pages[index].asarray()
         elif isinstance(key, slice):
-            return self._tiff.asarray(key=self._slice(key))
+            # range can be much faster than slice due to the way
+            # tifffile works
+            slc = self._slice(key)
+            if slc.stop is not None:
+                slc = range(slc.start, slc.stop, slc.step)
+            return self._tiff._tiff.asarray(key=slc)
         raise TypeError("{} is of unsupported type {}".format(key, type(key)))
 
     @property
@@ -46,6 +50,10 @@ class RoiView(object):
     @property
     def metadata(self):
         return self._tiff._scanfields[self._z]
+
+    @property
+    def dtype(self):
+        return self._tiff.pages[self.offset].dtype
 
     @property
     def shape(self):

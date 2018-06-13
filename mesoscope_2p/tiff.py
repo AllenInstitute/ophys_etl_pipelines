@@ -4,38 +4,53 @@ from .metadata import tiff_header_data
 
 
 class RoiView(object):
-    def __init__(self, tiff, offset, stride):
-        self._tiff = tiff
-        self._offset = offset
-        self._stride = stride
+    def __init__(self, meso_tiff, z):
+        self._tiff = meso_tiff
+        self._z = z
 
     def _slice(self, key):
         if key.start is None:
-            start = self._offset
+            start = self.offset
         else:
-            start = self._offset + key.start
+            start = self.offset + key.start
         if key.stop is None:
             stop = None
         else:
-            stop = self._offset + self._stride * key.stop
+            stop = self.offset + self.stride * key.stop
         if key.step is None:
-            step = self._stride
+            step = self.stride
         else:
-            step = key.step * self._stride
+            step = key.step * self.stride
         return slice(start, stop, step)
 
     def __getitem__(self, key):
         if isinstance(key, int):
-            index = self._offset + key*self._stride
+            index = self.offset + key*self.stride
             return self._tiff.pages[index].asarray()
         elif isinstance(key, slice):
             return self._tiff.asarray(key=self._slice(key))
         raise TypeError("{} is of unsupported type {}".format(key, type(key)))
 
     @property
+    def tiff(self):
+        return self._tiff
+
+    @property
+    def offset(self):
+        return self._tiff.page_offset(self._z)
+
+    @property
+    def stride(self):
+        return self._tiff.page_stride
+
+    @property
+    def metadata(self):
+        return self._tiff._scanfields[self._z]
+
+    @property
     def shape(self):
-        height, width = self._tiff.pages[self._offset].shape
-        t = int(len(self._tiff.pages) / self.page_stride)
+        height, width = self._tiff.shape_at_z(self._z)
+        t = int(self._tiff.n_pages / self._tiff.page_stride)
         return (t, height, width)
 
     def asarray(self):
@@ -61,29 +76,51 @@ class MesoscopeTiff(object):
             self._rois = self._roi_data["RoiGroups"]["imagingRoiGroup"]["rois"]
         except KeyError:
             self._rois = []
+        self._n_pages = None
         self._roi_Zs = set()
-        self._roi_dims = defaultdict(list)
+        self._scanfields = dict()
         self._source = source_tiff
         self._tiff = TiffFile(self._source)
-        #self._load_roi_helpers()
+        self._load_roi_helpers()
 
-    # TODO: Get this working for multiscope with duplicate Z and re-enable
-    # def _load_roi_helpers(self):
-    #     self._roi_Zs = set()
-    #     self._roi_dims = defaultdict(list)
-    #     for roi in self._rois:
-    #         if isinstance(roi["zs"], list):
-    #             for i, z in enumerate(roi["zs"]):
-    #                 res = roi["scanfields"][i]["pixelResolutionXY"]
-    #                 self._update_roi_data(z, res)
-    #         else:
-    #             z = roi["zs"]
-    #             res = roi["scanfields"]["pixelResolutionXY"]
-    #             self._update_roi_data(z, res)
+    # TODO: Get this working for multiscope with duplicate Z
+    def _load_roi_helpers(self):
+        self._roi_Zs = set()
+        self._scanfields = dict()
+        for roi in self._rois:
+            if isinstance(roi["zs"], list):
+                for i, z in enumerate(roi["zs"]):
+                    sf = roi["scanfields"][i]
+                    self._update_roi_data(z, sf)
+            else:
+                z = roi["zs"]
+                sf = roi["scanfields"]
+                self._update_roi_data(z, sf)
 
-    # def _update_roi_data(self, z, resolution):
-    #         self._roi_Zs.add(z)
-    #         self._roi_dims[z].append(resolution)
+    def _update_roi_data(self, z, scanfield):
+        self._roi_Zs.add(z)
+        self._scanfields[z] = scanfield
+
+    @property
+    def n_pages(self):
+        """Number of pages in the tiff.
+
+        Because the frame header for each frame can vary in size,
+        determining this requires seeking through the entire file frame
+        by frame and counting the number of pages. This can be extremely
+        slow for large files the first time.
+        """
+        if self._n_pages is None:
+            self._n_pages = len(self._tiff.pages)
+        return self._n_pages
+
+    @property
+    def frame_metadata(self):
+        return self._frame_data
+
+    @property
+    def roi_metadata(self):
+        return self._roi_data
 
     @property
     def num_volumes(self):
@@ -122,6 +159,9 @@ class MesoscopeTiff(object):
             return self.fast_Zs.index(z)
         raise ValueError("{} not in fast_Zs".format(z))
 
+    def shape_at_z(self, z):
+        return self._tiff.pages[self.page_offset(z)].shape
+
     # TODO: Get this working for duplicate Zs in multiscope
     # def lines_between_rois(self, z):
     #     n_rois = len(self._roi_dims[z])
@@ -140,7 +180,7 @@ class MesoscopeTiff(object):
         # TODO: get working for duplicate Zs
         #rbegin = self.y_offset(z, roi_num)
         #rend = rbegin + self._roi_dims[z][roi_num][1]
-        return RoiView(self._tiff, self.page_offset(z), self.page_stride)
+        return RoiView(self, z)
 
     def roi_data(self, z):
         return self.roi_view(z).asarray()

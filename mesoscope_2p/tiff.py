@@ -49,7 +49,7 @@ class RoiView(object):
 
     @property
     def metadata(self):
-        return self._tiff._scanfields[self._z]
+        return self._tiff.scanfields[self._z]
 
     @property
     def dtype(self):
@@ -121,6 +121,10 @@ class MesoscopeTiff(object):
         if self._n_pages is None:
             self._n_pages = len(self._tiff.pages)
         return self._n_pages
+
+    @property
+    def scanfields(self):
+        return self._scanfields
 
     @property
     def frame_metadata(self):

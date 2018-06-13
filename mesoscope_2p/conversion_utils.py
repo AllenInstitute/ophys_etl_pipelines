@@ -17,7 +17,6 @@ def dump_dict_as_attrs(h5fp, container_name, data):
             np_value = np.array(value)
             if np_value.dtype.type in (np.unicode_, np.object_):
                 np_value = np_value.astype("S")
-            print(key, np_value)
             container.attrs.create(key, data=np_value)
     return container
 

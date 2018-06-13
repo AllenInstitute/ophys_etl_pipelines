@@ -8,5 +8,5 @@ mesoscope_2p Installation
 
     $ git clone https://github.com/AllenInstitute/mesoscope_2p.git
     $ cd mesoscope_2p
-    $ pipenv install
+    $ python setup.py install
 

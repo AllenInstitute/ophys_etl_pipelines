@@ -3,6 +3,7 @@ import argparse
 import json
 import h5py
 from tifffile import imsave
+from mesoscope_2p.metadata import SI_stringify_floats
 from mesoscope_2p.tiff import MesoscopeTiff
 from mesoscope_2p.conversion_utils import dump_dict_as_attrs, scanfield_to_h5
 
@@ -21,13 +22,14 @@ def convert_to_h5(tiff_file, h5_file, scanfield_slice):
 
 def convert_to_tiffs(tiff_file, output_folder, scanfield_slice):
     meso_tiff = MesoscopeTiff(tiff_file)
-    header_data = meso_tiff.frame_metadata
+    header_data = meso_tiff.frame_metadata.copy()
     header_data.update(meso_tiff.roi_metadata)
     meta_file = os.path.join(output_folder, "metadata.json")
     if os.path.exists(meta_file):
         raise RuntimeError("Output file {} already exists".format(meta_file))
     with open(meta_file, "w") as f:
-        json.dump(header_data, f, indent=1)
+        json.dump(SI_stringify_floats(
+            header_data), f, indent=1, allow_nan=False)
     for z, scanfield in meso_tiff.scanfields.items():
         fname = os.path.join(output_folder, "scanfield_{}.tif".format(z))
         if os.path.exists(fname):

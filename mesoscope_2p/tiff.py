@@ -82,6 +82,8 @@ class MesoscopeTiff(object):
         self._frame_data, self._roi_data = tiff_header_data(source_tiff)
         try:
             self._rois = self._roi_data["RoiGroups"]["imagingRoiGroup"]["rois"]
+            if isinstance(self._rois, dict):
+                self._rois = [self._rois]
         except KeyError:
             self._rois = []
         self._n_pages = None

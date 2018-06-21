@@ -20,19 +20,19 @@ def convert_to_h5(tiff_file, h5_file, scanfield_slice):
         scanfield_to_h5(h5p, name, roi_view[scanfield_slice], scanfield)
 
 
-def convert_to_tiffs(tiff_file, output_folder, scanfield_slice):
+def convert_to_tiffs(tiff_file, output_folder, scanfield_slice, clobber=False):
     meso_tiff = MesoscopeTiff(tiff_file)
     header_data = meso_tiff.frame_metadata.copy()
     header_data.update(meso_tiff.roi_metadata)
     meta_file = os.path.join(output_folder, "metadata.json")
-    if os.path.exists(meta_file):
+    if os.path.exists(meta_file) and not clobber:
         raise RuntimeError("Output file {} already exists".format(meta_file))
     with open(meta_file, "w") as f:
         json.dump(SI_stringify_floats(
             header_data), f, indent=1, allow_nan=False)
     for z, scanfield in meso_tiff.scanfields.items():
         fname = os.path.join(output_folder, "scanfield_{}.tif".format(z))
-        if os.path.exists(fname):
+        if os.path.exists(fname) and not clobber:
             raise RuntimeError("Output file {} already exists".format(fname))
         imsave(fname, meso_tiff.roi_view(z)[scanfield_slice], bigtiff=True)
 
@@ -41,18 +41,27 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--input_file", type=str, required=True,
-        help="Source tiff file from the mesoscope")
+        help="Source tiff file from the mesoscope.")
     parser.add_argument(
         "--output_path", type=str, required=True,
         help=("Destination path, should be a filename for hdf5 or a folder for"
-              "tiffs"))
+              "tiffs."))
     parser.add_argument(
         "--frame_stop", type=int, default=None,
-        help="Frame of the scanfield to stop at")
+        help="Frame of the scanfield to stop at.")
     parser.add_argument(
         "--frame_step", type=int, default=None,
-        help="Get only every `frame_step` frames from each scanfield")
-    parser.add_argument("--as_tiff", action="store_true")
+        help="Get only every `frame_step` frames from each scanfield.")
+    parser.add_argument(
+        "--as_tiff", action="store_true",
+        help=("Flag to store output as tiff files. If this flag is provided "
+              "`output_path` is a folder where the files should go. Files "
+              "will not be overwritten unless `--clobber` is also set.")
+        )
+    parser.add_argument(
+        "--clobber", action="store_true",
+        help=("Flag to clobber existing output files.")
+    )
 
     args = parser.parse_args()
     slc = slice(None, args.frame_stop, args.frame_step)
@@ -60,10 +69,10 @@ def main():
         output_folder = args.output_path
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
-        convert_to_tiffs(args.input_file, output_folder, slc)
+        convert_to_tiffs(args.input_file, output_folder, slc, args.clobber)
     else:
         h5_file = args.output_path
-        if os.path.exists(h5_file):
+        if os.path.exists(h5_file) and not args.clobber:
             raise RuntimeError("Output file {} already exists".format(h5_file))
         convert_to_h5(args.input_file, h5_file, slc)
 

@@ -34,7 +34,7 @@ def convert_to_tiffs(tiff_file, output_folder, scanfield_slice):
         fname = os.path.join(output_folder, "scanfield_{}.tif".format(z))
         if os.path.exists(fname):
             raise RuntimeError("Output file {} already exists".format(fname))
-        imsave(fname, meso_tiff.roi_view(z)[scanfield_slice])
+        imsave(fname, meso_tiff.roi_view(z)[scanfield_slice], bigtiff=True)
 
 
 def main():

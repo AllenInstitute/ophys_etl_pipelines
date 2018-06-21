@@ -16,10 +16,9 @@ setup(
     packages = find_packages(),
     install_requires = requirements,
     include_package_data=True,
-    scripts=["scripts/extract_planes.py"],
     entry_points={
         'console_scripts': [
-            'extract_planes = extract_planes:main'
+            'extract_planes = mesoscope_2p.scripts.extract_planes:main'
         ]
     },
     setup_requires=['pytest-runner'],

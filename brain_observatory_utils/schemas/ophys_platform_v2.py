@@ -61,6 +61,8 @@ class PlatformV2(DefaultSchema):
         description="Base filename (without path) for eye tracking avi")
     behavior_video = Str(
         description="Base filename (without path) for behavior avi")
+    foraging_id = Int(
+        description="ID of associated foraging session")
 
     @classmethod
     def load_validated(cls, data):

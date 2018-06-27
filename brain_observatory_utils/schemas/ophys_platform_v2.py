@@ -1,5 +1,6 @@
 from argschema.schemas import DefaultSchema
 from argschema.fields import (Nested, Int, Float, Str, DateTime, Constant)
+from argschema.utils import load
 
 
 class BaseRegistrationItem(DefaultSchema):
@@ -60,6 +61,10 @@ class PlatformV2(DefaultSchema):
         description="Base filename (without path) for eye tracking avi")
     behavior_video = Str(
         description="Base filename (without path) for behavior avi")
+
+    @classmethod
+    def load_validated(cls, data):
+        return load(cls(), data)
 
 
 class DeepscopeSessionRegistration(DefaultSchema):

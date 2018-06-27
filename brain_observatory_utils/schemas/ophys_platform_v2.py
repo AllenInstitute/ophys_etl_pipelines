@@ -1,7 +1,6 @@
 from argschema.schemas import DefaultSchema
 from argschema.fields import (Nested, Int, Float, Str, DateTime, Constant)
-from argschema.utils import load
-
+from .base import BaseSchema
 
 class BaseRegistrationItem(DefaultSchema):
     x_offset = Int(
@@ -43,7 +42,7 @@ class ImageRegistrationItem(BaseRegistrationItem):
                      "upload directory"))
 
 
-class PlatformV2(DefaultSchema):
+class PlatformV2(BaseSchema):
     schema_version = Constant(
         2,
         required=True,
@@ -63,10 +62,6 @@ class PlatformV2(DefaultSchema):
         description="Base filename (without path) for behavior avi")
     foraging_id = Int(
         description="ID of associated foraging session")
-
-    @classmethod
-    def load_validated(cls, data):
-        return load(cls(), data)
 
 
 class DeepscopeSessionRegistration(DefaultSchema):

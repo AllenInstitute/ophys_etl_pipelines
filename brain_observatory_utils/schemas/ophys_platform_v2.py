@@ -42,6 +42,27 @@ class ImageRegistrationItem(BaseRegistrationItem):
                      "upload directory"))
 
 
+class ObservatoryObject(DefaultSchema):
+    rotation_x_deg = Float(
+        required=True,
+        description="Rotation about x in degrees")
+    rotation_y_deg = Float(
+        required=True,
+        description="Rotation about y in degrees")
+    rotation_z_deg = Float(
+        required=True,
+        description="Rotation about z in degrees")
+    center_x_mm = Float(
+        required=True,
+        description="X position in millimeters")
+    center_y_mm = Float(
+        required=True,
+        description="Y position in millimeters")
+    center_z_mm = Float(
+        required=True,
+        description="Z position in millimeters")
+
+
 class PlatformV2(BaseSchema):
     schema_version = Constant(
         2,
@@ -62,6 +83,10 @@ class PlatformV2(BaseSchema):
         description="Base filename (without path) for behavior avi")
     foraging_id = Int(
         description="ID of associated foraging session")
+    eye_camera_position = Nested(ObservatoryObject)
+    behavior_camera_position = Nested(ObservatoryObject)
+    led_position = Nested(ObservatoryObject)
+    screen_position = Nested(ObservatoryObject)
 
 
 class DeepscopeSessionRegistration(DefaultSchema):

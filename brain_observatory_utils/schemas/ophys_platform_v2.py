@@ -89,6 +89,21 @@ class PlatformV2(BaseSchema):
     screen_position = Nested(ObservatoryObject)
 
 
+class ImagingPlane(DefaultSchema):
+    targeted_structure_id = Int(
+        required=True,
+        description="LIMS ID of targeted structure")
+    targeted_depth = Float(
+        required=True,
+        description="Depth of imaging plane from surface in microns")
+    targeted_x = Float(
+        required=True,
+        description="Targeted x coordinate (microns) in gold reticle space")
+    targeted_y = Float(
+        required=True,
+        description="Targeted y coordinate (microns) in gold reticle space")
+
+
 class DeepscopeSessionRegistration(DefaultSchema):
     surface_vasculature = Nested(
         ImageRegistrationItem,
@@ -119,29 +134,14 @@ class DeepscopeExperimentRegistration(DefaultSchema):
         description="Registration info for surface_2p image")
 
 
-class ImagingPlane(DefaultSchema):
-    targeted_structure_id = Int(
-        required=True,
-        description="LIMS ID of targeted structure")
-    targeted_depth = Float(
-        required=True,
-        description="Depth of imaging plane from surface in microns")
-    targeted_x = Float(
-        required=True,
-        description="Targeted x coordinate (microns) in gold reticle space")
-    targeted_y = Float(
-        required=True,
-        description="Targeted y coordinate (microns) in gold reticle space")
-    registration = Nested(
-        DeepscopeExperimentRegistration,
-        required=True)
-
-
 class DeepscopePlane(ImagingPlane):
     slm_pattern_file = Str(
         required=True,
-        description=("base filename (without path) of slm pattern for this "
+        description=("Base filename (without path) of slm pattern for this "
                      "plane"))
+    registration = Nested(
+        DeepscopeExperimentRegistration,
+        required=True)
 
 
 class DeepscopeSchema(PlatformV2):
@@ -155,3 +155,64 @@ class DeepscopeSchema(PlatformV2):
     imaging_planes = Nested(
         DeepscopePlane,
         many=True)
+
+
+class MesoscopeSessionRegistration(DefaultSchema):
+    surface_vasculature = Nested(
+        ImageRegistrationItem,
+        required=True,
+        description="Registration info for epifluorescent vasculature image")
+    reticle_image = Nested(
+        ImageRegistrationItem,
+        required=True,
+        description="Registration info for reticle image")
+    surface_2p = Nested(
+        ImageRegistrationItem,
+        required=True,
+        description="Registration info for surface_2p image")
+
+
+class MesoscopePlane(ImagingPlane):
+    registration = Nested(
+        BaseRegistrationItem,
+        required=True,
+        description="Registration info for plane")
+    scanimage_roi_index = Int(
+        required=True,
+        description="ROI index for plane")
+    scanimage_scanfield_z = Float(
+        required=True,
+        description="Scanfield z depth for plane")
+    scanimage_power = Float(
+        required=True,
+        description="Power setting for plane")
+
+
+class MesoscopeSchema(PlatformV2):
+    schema_type = Constant(
+        "Mesoscope",
+        required=True,
+        description="Constant indicating this is a mesoscope experiment")
+    registration = Nested(
+        MesoscopeSessionRegistration,
+        required=True)
+    imaging_planes = Nested(
+        MesoscopePlane,
+        many=True)
+    local_z_stacks_tif = Str(
+        required=True,
+        description="Base filename (without path) of local zstacks tif")
+    timeseries_tif = Str(
+        required=True,
+        description="Base filename (without path) of timeseries tif")
+    depths_tif = Str(
+        required=True,
+        description="Base filename (without path) of averaged depths tif")
+    timeseries_roi_file = Str(
+        description="Base filename (without path) of timeseries roi file")
+    surface_roi_file = Str(
+        description="Base filename (without path) of surfac 2p roi file")
+    scanimage_config_file = Str(
+        description="Base filename (without path) of scanimage config file")
+    column_z_stacks_tif = Str(
+        description="Base filename (without path) of column zstack tif")

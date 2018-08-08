@@ -1,4 +1,4 @@
-from argschema.schemas import DefaultSchema
+from argschema.schemas import DefaultSchema, mm
 from argschema.fields import (Nested, Int, Float, Str, DateTime, Constant)
 from .base import BaseSchema
 
@@ -155,6 +155,18 @@ class DeepscopeSchema(PlatformV2):
     imaging_planes = Nested(
         DeepscopePlane,
         many=True)
+
+    @classmethod
+    def load_validated(cls, data):
+        prevalidated = super(DeepscopeSchema, cls).load_validated(data)
+        targeted_depths = set()
+        for plane in prevalidated.get("imaging_planes", []):
+            depth = int(plane["targeted_depth"])
+            if depth in targeted_depths:
+                raise mm.ValidationError("Got duplicate depth {}, depths must "
+                                         "be unique".format(depth))
+            targeted_depths.add(depth)
+        return prevalidated
 
 
 class MesoscopeSessionRegistration(DefaultSchema):

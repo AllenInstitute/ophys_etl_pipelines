@@ -200,6 +200,22 @@ class MesoscopePlane(ImagingPlane):
         description="Power setting for plane")
 
 
+class MesoscopeZPair(DefaultSchema):
+    local_z_stack_tif = Str(
+        required=True,
+        description=("Base filename (without path) of local zstack tif for "
+                     "this multiscope pair"))
+    column_z_stack_tif = Str(
+        required=True,
+        description=("Base filename (without path) of column zstack tif for "
+                     "this multiscope pair"))
+    imaging_planes = Nested(
+        MesoscopePlane,
+        description="The imaging planes for this z-pair",
+        required=True,
+        many=True)
+
+
 class MesoscopeSchema(PlatformV2):
     schema_type = Constant(
         "Mesoscope",
@@ -208,12 +224,10 @@ class MesoscopeSchema(PlatformV2):
     registration = Nested(
         MesoscopeSessionRegistration,
         required=True)
-    imaging_planes = Nested(
-        MesoscopePlane,
-        many=True)
-    local_z_stacks_tif = Str(
-        required=True,
-        description="Base filename (without path) of local zstacks tif")
+    imaging_plane_groups = Nested(
+        MesoscopeZPair,
+        many=True,
+        required=True)
     timeseries_tif = Str(
         required=True,
         description="Base filename (without path) of timeseries tif")
@@ -226,5 +240,3 @@ class MesoscopeSchema(PlatformV2):
         description="Base filename (without path) of surfac 2p roi file")
     scanimage_config_file = Str(
         description="Base filename (without path) of scanimage config file")
-    column_z_stacks_tif = Str(
-        description="Base filename (without path) of column zstack tif")

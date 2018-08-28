@@ -178,10 +178,6 @@ class MesoscopeSessionRegistration(DefaultSchema):
         ImageRegistrationItem,
         required=True,
         description="Registration info for reticle image")
-    surface_2p = Nested(
-        ImageRegistrationItem,
-        required=True,
-        description="Registration info for surface_2p image")
 
 
 class MesoscopePlane(ImagingPlane):
@@ -234,6 +230,9 @@ class MesoscopeSchema(PlatformV2):
     depths_tif = Str(
         required=True,
         description="Base filename (without path) of averaged depths tif")
+    surface_tif = Str(
+        required=True,
+        description="Base filename (without path) of averaged surface tif")
     timeseries_roi_file = Str(
         description="Base filename (without path) of timeseries roi file")
     surface_roi_file = Str(

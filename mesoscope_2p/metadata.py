@@ -100,3 +100,52 @@ def tiff_header_data(filename):
     frame_data = floatify_SI_float_strings(frame_data)
     roi_data = floatify_SI_float_strings(roi_data)
     return frame_data, roi_data
+
+
+class RoiMetadata(dict):
+    @property
+    def zs(self):
+        if isinstance(self["zs"], list):
+            return self["zs"]
+        else:
+            return [self["zs"]]
+
+    @property
+    def scanfields(self):
+        if isinstance(self["scanfields"], list):
+            return self["scanfields"]
+        else:
+            return [self["scanfields"]]
+
+    @property
+    def discrete_plane_mode(self):
+        return bool(self["discretePlaneMode"])
+
+    def plane_shape(self, z):
+        return self.scanfields[self.scan_index(z)]["pixelResolutionXY"]
+
+    def width(self, z):
+        return self.plane_shape(z)[0]
+
+    def height(self, z):
+        return self.plane_shape(z)[1]
+
+    def scan_index(self, z):
+        if not self.scanned_at_z(z):
+            raise ValueError(
+                "ROI not scanned at z = {}".format(z))
+        if not self.discrete_plane_mode:
+            return 0 # if interpolation between zs happens this is wrong, but currently this hasn't been tested
+        else:
+            return self.zs.index(z)
+
+    def scanned_at_z(self, z):
+        scanned = False
+        if self.discrete_plane_mode:
+            scanned = z in self.zs
+        else:
+            if len(self.zs) == 1:
+                scanned = True
+            else:
+                scanned = ((z >= min(self.zs)) and (z <= max(self.zs)))
+        return scanned

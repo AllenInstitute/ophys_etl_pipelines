@@ -1,21 +1,32 @@
 from tifffile import TiffFile
-from .metadata import tiff_header_data
+from .metadata import tiff_header_data, RoiMetadata
 
 
-class RoiView(object):
-    def __init__(self, meso_tiff, z):
+def flatten_list(flat_list, l):
+    for item in l:
+        if isinstance(item, list):
+            flatten_list(flat_list, item)
+        else:
+            flat_list.append(item)
+
+
+class PlaneView(object):
+    def __init__(self, meso_tiff, z, page_offset, y_offset, metadata):
         self._tiff = meso_tiff
         self._z = z
+        self._page_offset = page_offset
+        self._y_offset = y_offset
+        self._metadata = metadata
 
     def _slice(self, key):
         if key.start is None:
-            start = self.offset
+            start = self.page_offset
         else:
-            start = self.offset + key.start
+            start = self.page_offset + key.start
         if key.stop is None:
             stop = None
         else:
-            stop = self.offset + self.stride * key.stop
+            stop = self.page_offset + self.stride * key.stop
         if key.step is None:
             step = self.stride
         else:
@@ -24,24 +35,32 @@ class RoiView(object):
 
     def __getitem__(self, key):
         if isinstance(key, int):
-            index = self.offset + key*self.stride
-            return self._tiff._tiff.pages[index].asarray()
+            index = self.page_offset + key*self.stride
+            arr = self._tiff._tiff.pages[index].asarray()
         elif isinstance(key, slice):
             # range can be much faster than slice due to the way
             # tifffile works
             slc = self._slice(key)
             if slc.stop is not None:
                 slc = range(slc.start, slc.stop, slc.step)
-            return self._tiff._tiff.asarray(key=slc)
-        raise TypeError("{} is of unsupported type {}".format(key, type(key)))
+            arr =  self._tiff._tiff.asarray(key=slc)
+        else:
+            raise TypeError("{} is of unsupported type {}".format(key, type(key)))
+
+        h, _ = self.plane_shape
+        return arr[:,self.y_offset:self.y_offset + h, :]
 
     @property
-    def tiff(self):
-        return self._tiff
+    def z(self):
+        return self._z
 
     @property
-    def offset(self):
-        return self._tiff.page_offset(self._z)
+    def page_offset(self):
+        return self._page_offset
+
+    @property
+    def y_offset(self):
+        return self._y_offset
 
     @property
     def stride(self):
@@ -49,16 +68,20 @@ class RoiView(object):
 
     @property
     def metadata(self):
-        return self._tiff.scanfields[self._z]
+        return self._metadata
+
+    @property
+    def plane_shape(self):
+        return self.metadata.plane_shape(self.z)
 
     @property
     def dtype(self):
-        return self._tiff.pages[self.offset].dtype
+        return self._tiff.pages[self.page_offset].dtype
 
     @property
     def shape(self):
-        height, width = self._tiff.shape_at_z(self._z)
-        t = int(self._tiff.n_pages / self._tiff.page_stride)
+        height, width = self.plane_shape
+        t = int(self._tiff.n_pages / self.stride)
         return (t, height, width)
 
     def asarray(self):
@@ -80,36 +103,10 @@ class MesoscopeTiff(object):
     """
     def __init__(self, source_tiff):
         self._frame_data, self._roi_data = tiff_header_data(source_tiff)
-        try:
-            self._rois = self._roi_data["RoiGroups"]["imagingRoiGroup"]["rois"]
-            if isinstance(self._rois, dict):
-                self._rois = [self._rois]
-        except KeyError:
-            self._rois = []
         self._n_pages = None
-        self._roi_Zs = set()
-        self._scanfields = dict()
+        self._planes = None
         self._source = source_tiff
         self._tiff = TiffFile(self._source)
-        self._load_roi_helpers()
-
-    # TODO: Get this working for multiscope with duplicate Z
-    def _load_roi_helpers(self):
-        self._roi_Zs = set()
-        self._scanfields = dict()
-        for roi in self._rois:
-            if isinstance(roi["zs"], list):
-                for i, z in enumerate(roi["zs"]):
-                    sf = roi["scanfields"][i]
-                    self._update_roi_data(z, sf)
-            else:
-                z = roi["zs"]
-                sf = roi["scanfields"]
-                self._update_roi_data(z, sf)
-
-    def _update_roi_data(self, z, scanfield):
-        self._roi_Zs.add(z)
-        self._scanfields[z] = scanfield
 
     @property
     def n_pages(self):
@@ -125,8 +122,12 @@ class MesoscopeTiff(object):
         return self._n_pages
 
     @property
-    def scanfields(self):
-        return self._scanfields
+    def rois(self):
+        meta_rois = self.roi_metadata["RoiGroups"]["imagingRoiGroup"]["rois"]
+        if isinstance(meta_rois, list):
+            return [RoiMetadata(roi) for roi in meta_rois]
+        else:
+            return [RoiMetadata(meta_rois)]
 
     @property
     def frame_metadata(self):
@@ -138,63 +139,58 @@ class MesoscopeTiff(object):
 
     @property
     def num_volumes(self):
-        return self._frame_data["SI"]["hFastZ"]["numVolumes"]
+        return self.frame_metadata["SI"]["hFastZ"]["numVolumes"]
 
     @property
     def frames_per_volume(self):
-        return self._frame_data["SI"]["hFastZ"]["numFramesPerVolume"]
+        return self.frame_metadata["SI"]["hFastZ"]["numFramesPerVolume"]
 
     @property
-    def fast_Zs(self):
-        return self._frame_data["SI"]["hFastZ"]["userZs"]
+    def fast_zs(self):
+        fast_zs = self.frame_metadata["SI"]["hFastZ"]["userZs"]
+        if isinstance(fast_zs, list):
+            return fast_zs
+        else:
+            return [fast_zs]
+
+    def _flat_zs(self):
+        flat = []
+        flatten_list(flat, self.fast_zs)
+        return flat
 
     @property
     def is_multiscope(self):
-        return any([isinstance(z, list) for z in self.fast_Zs])
+        return any([isinstance(z, list) for z in self.fast_zs])
 
     @property
     def page_stride(self):
-        # TODO: handle duplicate Zs for multiscope
         if self.is_multiscope:
-            return(sum([len(zs) for zs in self.fast_Zs]))
+            return(sum([len(zs) for zs in self.fast_zs]))
         else:
-            return len(self.fast_Zs)
+            return len(self.fast_zs)
 
-    def page_offset(self, z):
-        # TODO: handle duplicate Zs for multiscope
-        if self.is_multiscope:
-            offset = 0
-            for i, zs in enumerate(self.fast_Zs):
-                try:
-                    return offset + zs.index(z)
-                except ValueError:
-                    offset += len(zs)
-        else:
-            return self.fast_Zs.index(z)
-        raise ValueError("{} not in fast_Zs".format(z))
+    @property
+    def planes(self):
+        if self._planes is None:
+            self._planes = []
+            page_offset = 0
+            for z in self._flat_zs():
+                scanned = [roi for roi in self.rois if roi.scanned_at_z(z)]
+                if len(scanned) > 1:
+                    iheight = sum([roi.height(z) for roi in scanned])
+                    pheight = self._tiff.pages[page_offset].shape[0]
+                    lines_between = (pheight - iheight) // (len(scanned) - 1)
+                else:
+                    lines_between = 0
+                y_offset = 0
+                for roi in scanned:
+                    self._planes.append(
+                        PlaneView(self, z, page_offset, y_offset, roi))
+                    y_offset += roi.height(z) + lines_between
+                page_offset += 1
+        
+        return self._planes
 
-    def shape_at_z(self, z):
-        return self._tiff.pages[self.page_offset(z)].shape
-
-    # TODO: Get this working for duplicate Zs in multiscope
-    # def lines_between_rois(self, z):
-    #     n_rois = len(self._roi_dims[z])
-    #     if n_rois == 1:
-    #         return 0
-    #     roi_y = sum([dim[1] for dim in self._roi_dims[z]])
-    #     page_y = self._tiff.pages[self.page_offset[z]].shape[0]
-    #     return int((page_y - roi_y) / (n_rois - 1))
-    
-    # def y_offset(self, z, roi_num):
-    #     roi_sum = sum([dim[1] for dim in self._roi_dims[z][:roi_num]])
-    #     z_offset = self.lines_between_rois(z)
-    #     return  roi_sum + z_offset*roi_num
-
-    def roi_view(self, z):
-        # TODO: get working for duplicate Zs
-        #rbegin = self.y_offset(z, roi_num)
-        #rend = rbegin + self._roi_dims[z][roi_num][1]
-        return RoiView(self, z)
-
-    def roi_data(self, z):
-        return self.roi_view(z).asarray()
+    @property
+    def mroi_enabled(self):
+        return bool(self.frame_metadata["SI"]["hRoiManager"]["mroiEnable"])

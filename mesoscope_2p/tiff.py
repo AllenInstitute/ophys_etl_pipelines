@@ -130,12 +130,27 @@ class MesoscopeTiff(object):
             return [RoiMetadata(meta_rois)]
 
     @property
+    def active_channels(self):
+        # get channels active - this is 1-indexing because MATLAB
+        channels = self.frame_metadata["SI"]["hChannels"]["channelsActive"]
+        if isinstance(channels, list):
+            res = []
+            flatten_list(res, channels)
+            return res
+        else:
+            return [channels]
+
+    @property
     def frame_metadata(self):
         return self._frame_data
 
     @property
     def roi_metadata(self):
         return self._roi_data
+
+    @property
+    def stack_zs(self):
+        return self.frame_metadata["SI"]["hStackManager"]["zs"]
 
     @property
     def num_volumes(self):
@@ -146,6 +161,10 @@ class MesoscopeTiff(object):
         return self.frame_metadata["SI"]["hFastZ"]["numFramesPerVolume"]
 
     @property
+    def is_zstack(self):
+        return self.frame_metadata["SI"]["hStackManager"]["numSlices"] > 1
+
+    @property
     def fast_zs(self):
         fast_zs = self.frame_metadata["SI"]["hFastZ"]["userZs"]
         if isinstance(fast_zs, list):
@@ -154,9 +173,13 @@ class MesoscopeTiff(object):
             return [fast_zs]
 
     def _flat_zs(self):
-        flat = []
-        flatten_list(flat, self.fast_zs)
-        return flat
+        if self.is_multiscope:
+            flat = []
+            for zs in self.fast_zs:
+                flat.extend([zs[i-1] for i in self.active_channels])
+            return flat
+        else:
+            return self.fast_zs
 
     @property
     def is_multiscope(self):
@@ -171,6 +194,8 @@ class MesoscopeTiff(object):
 
     @property
     def planes(self):
+        if self.is_zstack:
+            raise ValueError("Cannot extract planes for zstacks")
         if self._planes is None:
             self._planes = []
             page_offset = 0

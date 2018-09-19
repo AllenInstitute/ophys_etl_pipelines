@@ -1,6 +1,7 @@
 import os
 import numpy as np
 from .tiff import MesoscopeTiff
+from tifffile import imsave
 
 
 def dump_dict_as_attrs(h5fp, container_name, data):
@@ -21,16 +22,31 @@ def dump_dict_as_attrs(h5fp, container_name, data):
     return container
 
 
-def scanfield_to_h5(h5fp, dset_name, scanfield_data, scanfield_metadata,
-                    page_block_size=None, **h5_opts):
+def volume_to_h5(h5fp, volume, dset_name="data", page_block_size=None,
+                 **h5_opts):
     if page_block_size is None:
-        dset = h5fp.create_dataset(dset_name, data=scanfield_data[:],
+        dset = h5fp.create_dataset(dset_name, data=volume[:],
                                    **h5_opts)
     else:
-        dset = h5fp.create_dataset(dset_name, scanfield_data.shape,
-                                   dtype=scanfield_data.dtype, **h5_opts)
+        dset = h5fp.create_dataset(dset_name, volume.shape,
+                                   dtype=volume.dtype, **h5_opts)
         i = 0
-        while i < scanfield_data.shape[0]:
-            dset[i:i+page_block_size,:,:] = scanfield_data[i:i+page_block_size]
+        while i < volume.shape[0]:
+            dset[i:i+page_block_size,:,:] = volume[i:i+page_block_size]
             i += page_block_size
-    dump_dict_as_attrs(dset, None, scanfield_metadata)
+
+
+def volume_to_tif(filename, volume, projection_func=None):
+    if projection_func is not None:
+        array = projection_func(volume[:])
+        imsave(filename, array)
+    else:
+        imsave(filename, volume[:], bigtiff=True)
+
+
+def average_and_unsign(volume):
+    flat = np.mean(volume, axis=0)
+    out = np.empty(flat.shape, dtype=np.uint16)
+    out[:] = flat-flat.min()
+
+    return out

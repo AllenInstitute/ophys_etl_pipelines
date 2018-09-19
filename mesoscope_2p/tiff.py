@@ -76,7 +76,7 @@ class PlaneView(object):
 
     @property
     def dtype(self):
-        return self._tiff.pages[self.page_offset].dtype
+        return self._tiff.dtype
 
     @property
     def shape(self):
@@ -99,7 +99,7 @@ class MesoscopeTiff(object):
     * ROIs at the same Z are ordered top-to-bottom in the tiff page
       according to the order they appear in the metadata.
     * Different depth ROIs are saved in the tiff top-down according to
-      the hFastZ metadata ordering in interleaved fashion.
+      the hFastZ metadata.
     """
     def __init__(self, source_tiff):
         self._frame_data, self._roi_data = tiff_header_data(source_tiff)
@@ -145,6 +145,10 @@ class MesoscopeTiff(object):
         return self._frame_data
 
     @property
+    def dtype(self):
+        return self._tiff.pages[0].dtype
+
+    @property
     def roi_metadata(self):
         return self._roi_data
 
@@ -161,8 +165,12 @@ class MesoscopeTiff(object):
         return self.frame_metadata["SI"]["hFastZ"]["numFramesPerVolume"]
 
     @property
+    def num_slices(self):
+        return self.frame_metadata["SI"]["hStackManager"]["numSlices"]
+
+    @property
     def is_zstack(self):
-        return self.frame_metadata["SI"]["hStackManager"]["numSlices"] > 1
+        return self.num_slices > 1
 
     @property
     def fast_zs(self):

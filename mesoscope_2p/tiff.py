@@ -1,3 +1,4 @@
+import numpy as np
 from tifffile import TiffFile
 from .metadata import tiff_header_data, RoiMetadata
 
@@ -10,11 +11,12 @@ def flatten_list(flat_list, l):
             flat_list.append(item)
 
 
-class PlaneView(object):
-    def __init__(self, meso_tiff, z, page_offset, y_offset, metadata):
+class DataView(object):
+    def __init__(self, meso_tiff, zs, page_offset, y_offset, stride, metadata):
         self._tiff = meso_tiff
-        self._z = z
+        self._zs = zs
         self._page_offset = page_offset
+        self._stride = stride
         self._y_offset = y_offset
         self._metadata = metadata
 
@@ -51,10 +53,6 @@ class PlaneView(object):
         return arr[:,self.y_offset:self.y_offset + h, :]
 
     @property
-    def z(self):
-        return self._z
-
-    @property
     def page_offset(self):
         return self._page_offset
 
@@ -63,16 +61,20 @@ class PlaneView(object):
         return self._y_offset
 
     @property
-    def stride(self):
-        return self._tiff.page_stride
+    def zs(self):
+        return self._zs
 
     @property
     def metadata(self):
         return self._metadata
 
     @property
+    def stride(self):
+        return self._stride
+
+    @property
     def plane_shape(self):
-        return self.metadata.plane_shape(self.z)
+        return self.metadata.plane_shape(self.zs[0])
 
     @property
     def dtype(self):
@@ -105,6 +107,7 @@ class MesoscopeTiff(object):
         self._frame_data, self._roi_data = tiff_header_data(source_tiff)
         self._n_pages = None
         self._planes = None
+        self._volumes = None
         self._source = source_tiff
         self._tiff = TiffFile(self._source)
 
@@ -180,34 +183,43 @@ class MesoscopeTiff(object):
         else:
             return [fast_zs]
 
-    def _flat_zs(self):
-        if self.is_multiscope:
-            flat = []
-            for zs in self.fast_zs:
-                flat.extend([zs[i-1] for i in self.active_channels])
-            return flat
-        else:
-            return self.fast_zs
+    @property
+    def plane_scans(self):
+        return self.volume_scans.T.flatten()
+
+    @property
+    def volume_scans(self):
+        return np.array(self.stack_zs).T[np.array(self.active_channels) - 1]
+
+    @property
+    def plane_stride(self):
+        stride = 0
+        for z in self.plane_scans:
+            if any([roi for roi in self.rois if roi.scanned_at_z(z)]):
+                stride += 1
+
+        return stride
+
+    @property
+    def volume_stride(self):
+        stride = 0
+        for zs in self.volume_scans:
+            if any([roi for roi in self.rois if roi.volume_scanned(zs)]):
+                stride += 1
+
+        return stride
 
     @property
     def is_multiscope(self):
         return any([isinstance(z, list) for z in self.fast_zs])
 
     @property
-    def page_stride(self):
-        if self.is_multiscope:
-            return(sum([len(zs) for zs in self.fast_zs]))
-        else:
-            return len(self.fast_zs)
-
-    @property
-    def planes(self):
-        if self.is_zstack:
-            raise ValueError("Cannot extract planes for zstacks")
+    def plane_views(self):
+        self._planes = None
         if self._planes is None:
             self._planes = []
             page_offset = 0
-            for z in self._flat_zs():
+            for z in self.plane_scans:
                 scanned = [roi for roi in self.rois if roi.scanned_at_z(z)]
                 if len(scanned) > 1:
                     iheight = sum([roi.height(z) for roi in scanned])
@@ -218,11 +230,33 @@ class MesoscopeTiff(object):
                 y_offset = 0
                 for roi in scanned:
                     self._planes.append(
-                        PlaneView(self, z, page_offset, y_offset, roi))
+                        DataView(self, [z], page_offset, y_offset, self.plane_stride, roi))
                     y_offset += roi.height(z) + lines_between
                 page_offset += 1
         
         return self._planes
+
+    @property
+    def volume_views(self):
+        if self._volumes is None:
+            self._volumes = []
+            page_offset = 0
+            for zs in self.volume_scans:
+                scanned = [roi for roi in self.rois if roi.volume_scanned(zs)]
+                if len(scanned) > 1:
+                    iheight = sum([roi.height(zs[0]) for roi in scanned])
+                    pheight = self._tiff.pages[page_offset].shape[0]
+                    lines_between = (pheight - iheight) // (len(scanned) - 1)
+                else:
+                    lines_between = 0
+                y_offset = 0
+                for roi in scanned:
+                    self._volumes.append(
+                        DataView(self, zs, page_offset, y_offset, self.volume_stride, roi))
+                    y_offset += roi.height(zs[0]) + lines_between
+                page_offset += 1
+        
+        return self._volumes
 
     @property
     def mroi_enabled(self):

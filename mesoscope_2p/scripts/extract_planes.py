@@ -1,11 +1,10 @@
 import os
 import argparse
 import json
-import h5py
+import numpy as np
 from mesoscope_2p.metadata import SI_stringify_floats
 from mesoscope_2p.tiff import MesoscopeTiff
-from mesoscope_2p.conversion_utils import (volume_to_h5, volume_to_tif,
-                                           average_and_unsign)
+from mesoscope_2p.conversion_utils import volume_to_tif, average_and_unsign
 
 
 def get_outfile(plane, folder, prefix=None, extension="tif"):
@@ -13,7 +12,8 @@ def get_outfile(plane, folder, prefix=None, extension="tif"):
         name = plane.metadata["name"]
     else:
         name = "scanfield"
-    fname = "{}_{}.{}".format(name, plane.z, extension)
+    z = int(np.mean(plane.zs))
+    fname = "{}_{}.{}".format(name, z, extension)
     if prefix:
         fname = "{}_{}".format(prefix, fname)
     
@@ -30,25 +30,12 @@ def dump_metadata(filename, meso_tiff, clobber=False):
             header_data), f, indent=1, allow_nan=False)
 
 
-def convert_to_h5(tiff_file, output_folder, scanfield_slice, clobber=False,
-                  prefix=None, **h5_opts):
-    meso_tiff = MesoscopeTiff(tiff_file)
-    filename = os.path.join(output_folder, "{}_metadata.json".format(os.path.basename(tiff_file)))
-    dump_metadata(filename, meso_tiff, clobber=clobber)
-    for plane in meso_tiff.planes:
-        filename = get_outfile(plane, output_folder, prefix, "h5")
-        if os.path.exists(filename) and not clobber:
-            raise RuntimeError("Output file {} already exists".format(filename))
-        with h5py.File(filename, "w") as f:
-            volume_to_h5(f, plane[scanfield_slice], **h5_opts)
-
-
 def convert_to_tiffs(tiff_file, output_folder, scanfield_slice, clobber=False,
-                     prefix=None, projection_func=None):
+                     prefix=None, projection_func=None, view_attr="plane_views"):
     meso_tiff = MesoscopeTiff(tiff_file)
     filename = os.path.join(output_folder, "{}_metadata.json".format(os.path.basename(tiff_file)))
     dump_metadata(filename, meso_tiff, clobber=clobber)
-    for plane in meso_tiff.planes:
+    for plane in getattr(meso_tiff, view_attr):
         filename = get_outfile(plane, output_folder, prefix, "tif")
         if os.path.exists(filename) and not clobber:
             raise RuntimeError("Output file {} already exists".format(filename))
@@ -79,27 +66,27 @@ def main():
         "--clobber", action="store_true",
         help=("Flag to clobber existing output files."))
     parser.add_argument(
-        "--compression_level", type=int, default=None,
-        help=("Gzip compression level for hdf5, defaults to no compression. "
-              "Should be 1-9."))
-    parser.add_argument(
         "--averaged", action="store_true",
         help="Flag to compute averaged tif, if tif output.")
+    parser.add_argument(
+        "--as_stack", action="store_true",
+        help="Flag to extract as stacks.")
 
     args = parser.parse_args()
     slc = slice(None, args.frame_stop, args.frame_step)
     if not os.path.exists(args.output_path):
         os.makedirs(args.output_path)
-    if args.as_tiff:
-        if args.averaged:
-            projection_func = average_and_unsign
-        else:
-            projection_func = None
-        convert_to_tiffs(args.input_file, args.output_path, slc, args.clobber,
-                         args.prefix, projection_func)
+    if args.averaged:
+        projection_func = average_and_unsign
     else:
-        convert_to_h5(args.input_file, args.output_path, slc, args.clobber,
-                      args.prefix)
+        projection_func = None
+    if args.as_stack:
+        view_attr = "volume_views"
+    else:
+        view_attr = "plane_views"
+    convert_to_tiffs(args.input_file, args.output_path, slc, args.clobber,
+                     args.prefix, projection_func, view_attr)
+
 
 
 if __name__ == "__main__":

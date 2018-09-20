@@ -149,3 +149,14 @@ class RoiMetadata(dict):
             else:
                 scanned = ((z >= min(self.zs)) and (z <= max(self.zs)))
         return scanned
+
+    def volume_scanned(self, zs):
+        scanned  = False
+        if self.discrete_plane_mode:
+            scanned = all([z in self.zs for z in zs])
+        else:
+            if len(self.zs) == 1:
+                scanned = True
+            else:
+                scanned = all([min(self.zs) <= z <= max(self.zs) for z in zs])
+        return scanned

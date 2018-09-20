@@ -65,6 +65,10 @@ class DataView(object):
         return self._zs
 
     @property
+    def roi_index(self):
+        return self._tiff.rois.index(self.metadata)
+
+    @property
     def metadata(self):
         return self._metadata
 
@@ -208,6 +212,23 @@ class MesoscopeTiff(object):
                 stride += 1
 
         return stride
+
+    def nearest_volume(self, roi_index, z):
+        return self._nearest(roi_index, z)
+
+    def nearest_plane(self, roi_index, z):
+        return self._nearest(roi_index, z, list_attr="plane_views")
+
+    def _nearest(self, roi_index, z, list_attr="volume_views"):
+        best_err = 10000
+        view = None
+        for v in getattr(self, list_attr):
+            if v.roi_index == roi_index:
+                err = np.abs(z - np.mean(v.zs))
+                if err < best_err:
+                    view = v
+                    best_err = err
+        return view
 
     @property
     def is_multiscope(self):

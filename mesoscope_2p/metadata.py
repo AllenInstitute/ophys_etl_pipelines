@@ -130,10 +130,13 @@ class RoiMetadata(dict):
     def height(self, z):
         return self.plane_shape(z)[1]
 
-    def scan_index(self, z):
+    def scan_index(self, z, throw=True):
         if not self.scanned_at_z(z):
-            raise ValueError(
-                "ROI not scanned at z = {}".format(z))
+            if throw:
+                raise ValueError(
+                    "ROI not scanned at z = {}".format(z))
+            else:
+                return 0
         if not self.discrete_plane_mode:
             return 0 # if interpolation between zs happens this is wrong, but currently this hasn't been tested
         else:

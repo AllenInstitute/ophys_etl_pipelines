@@ -197,12 +197,7 @@ class MesoscopeTiff(object):
 
     @property
     def plane_stride(self):
-        stride = 0
-        for z in self.plane_scans:
-            if any([roi for roi in self.rois if roi.scanned_at_z(z)]):
-                stride += 1
-
-        return stride
+        return len(self.plane_scans)
 
     @property
     def volume_stride(self):

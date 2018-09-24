@@ -46,7 +46,8 @@ def volume_to_tif(filename, volume, projection_func=None):
 
 def average_and_unsign(volume):
     flat = np.mean(volume, axis=0)
-    out = np.empty(flat.shape, dtype=np.uint16)
-    out[:] = flat-flat.min()
+    img32 = np.array(flat, dtype=np.uint32)
+    max_intensity = np.max(flat)
+    min_intensity = np.min(flat)
 
-    return out
+    return ((img32 - min_intensity)*255.0/(max_intensity-min_intensity)).astype(np.uint8)

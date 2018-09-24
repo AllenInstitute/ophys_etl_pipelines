@@ -130,7 +130,7 @@ class RoiMetadata(dict):
     def height(self, z):
         return self.plane_shape(z)[1]
 
-    def scan_index(self, z, throw=True):
+    def scan_index(self, z, throw=False):
         if not self.scanned_at_z(z):
             if throw:
                 raise ValueError(

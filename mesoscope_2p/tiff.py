@@ -12,13 +12,15 @@ def flatten_list(flat_list, l):
 
 
 class DataView(object):
-    def __init__(self, meso_tiff, zs, page_offset, y_offset, stride, metadata):
+    def __init__(self, meso_tiff, zs, page_offset, y_offset, stride, metadata,
+                 flag_as_bad=False):
         self._tiff = meso_tiff
         self._zs = zs
         self._page_offset = page_offset
         self._stride = stride
         self._y_offset = y_offset
         self._metadata = metadata
+        self._flagged = flag_as_bad
 
     def _slice(self, key):
         if key.start is None:
@@ -51,6 +53,10 @@ class DataView(object):
 
         h, _ = self.plane_shape
         return arr[:,self.y_offset:self.y_offset + h, :]
+
+    @property
+    def flagged(self):
+        return self._flagged
 
     @property
     def page_offset(self):
@@ -244,6 +250,10 @@ class MesoscopeTiff(object):
                 else:
                     lines_between = 0
                 y_offset = 0
+                if not scanned:
+                    # pick a plane to extract when there is no data
+                    self._planes.append(
+                        DataView(self, [z], page_offset, y_offset, self.plane_stride, self.rois[0], True))
                 for roi in scanned:
                     self._planes.append(
                         DataView(self, [z], page_offset, y_offset, self.plane_stride, roi))

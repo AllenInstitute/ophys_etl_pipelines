@@ -16,6 +16,8 @@ def get_outfile(plane, folder, prefix=None, extension="tif"):
     fname = "{}_{}.{}".format(name, z, extension)
     if prefix:
         fname = "{}_{}".format(prefix, fname)
+    if plane.flagged:
+        fname = "{}_{}".format("flagged", fname)
     
     return os.path.join(folder, fname)
 

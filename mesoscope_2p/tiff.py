@@ -186,6 +186,30 @@ class MesoscopeTiff(object):
         return self.num_slices > 1
 
     @property
+    def frame_rate(self):
+        return self.frame_metadata["SI"]["hRoiManager"]["scanFrameRate"]
+
+    @property
+    def digital_sample_rate(self):
+        return self.frame_metadata["SI"]["hScan2D"]["sampleRate"]
+
+    @property
+    def pixel_sample_mask(self):
+        return np.array(self.frame_metadata["SI"]["hScan2D"]["mask"])
+
+    @property
+    def temporal_fill_fraction(self):
+        return self.frame_metadata["SI"]["hScan2D"]["fillFractionTemporal"]
+
+    @property
+    def uniform_sampling(self):
+        return self.frame_metadata["SI"]["hScan2D"]["uniformSampling"]
+
+    @property
+    def bidirectional(self):
+        return self.frame_metadata["SI"]["hScan2D"]["bidirectional"]
+
+    @property
     def fast_zs(self):
         fast_zs = self.frame_metadata["SI"]["hFastZ"]["userZs"]
         if isinstance(fast_zs, list):

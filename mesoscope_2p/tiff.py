@@ -210,6 +210,30 @@ class MesoscopeTiff(object):
         return self.frame_metadata["SI"]["hScan2D"]["bidirectional"]
 
     @property
+    def line_phase(self):
+        return self.frame_metadata["SI"]["hScan2D"]["linePhase"]
+
+    def frame_delay_mask(self, n_lines):
+        if self.uniform_sampling:
+            raise NotImplementedError("pixel delay mask not currently calculated for uniform sampling")
+        delay_template = np.cumsum(self.pixel_sample_mask/self.digital_sample_rate)
+        line_time = delay_template[-1] / self.temporal_fill_fraction
+        fill_fraction_offset = line_time * (1 - self.temporal_fill_fraction) / 2
+        delay_mask = []
+        t = self.line_phase + fill_fraction_offset
+        for line in range(n_lines):
+            line_delay = t + delay_template
+            if self.bidirectional:
+                if line % 2 == 1:
+                    line_delay = np.flip(line_delay, 0)
+                t += line_time
+            else:
+                t += 2*line_time
+            delay_mask.append(line_delay)
+
+        return np.vstack(delay_mask)
+
+    @property
     def fast_zs(self):
         fast_zs = self.frame_metadata["SI"]["hFastZ"]["userZs"]
         if isinstance(fast_zs, list):

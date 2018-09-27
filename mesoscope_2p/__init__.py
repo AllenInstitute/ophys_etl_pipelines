@@ -4,6 +4,6 @@
 
 __author__ = """Jed Perkins"""
 __email__ = 'jedp@alleninstitute.org'
-__version__ = '0.1.2'
+__version__ = '0.1.3'
 
 from .tiff import MesoscopeTiff

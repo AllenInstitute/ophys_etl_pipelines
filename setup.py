@@ -8,7 +8,7 @@ with open('test_requirements.txt','r') as f:
 
 setup(
     name = 'mesoscope_2p',
-    version = '0.1.2',
+    version = '0.1.3',
     description = """Tools for reading 2-photon mesoscope data""",
     author = "Jed Perkins",
     author_email = "jedp@alleninstitute.org",

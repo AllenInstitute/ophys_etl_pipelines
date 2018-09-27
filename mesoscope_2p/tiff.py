@@ -91,6 +91,10 @@ class DataView(object):
         return self._tiff.dtype
 
     @property
+    def delay_mask(self):
+        return self._tiff.frame_delay_mask(self.plane_shape[0])
+
+    @property
     def shape(self):
         height, width = self.plane_shape
         t = int(self._tiff.n_pages / self.stride)

@@ -6,8 +6,8 @@ from argschema import ArgSchemaParser
 from mesoscope_2p import MesoscopeTiff
 from mesoscope_2p.conversion_utils import (volume_to_h5, volume_to_tif, 
                                            average_and_unsign)
-from brain_observatory_utils.schema.split_mesoscope import (InputSchema,
-                                                            OutputSchema)
+from brain_observatory_utils.schemas.split_mesoscope import (InputSchema,
+                                                             OutputSchema)
 
 
 def conversion_output(volume, outfile, experiment_info):
@@ -108,7 +108,7 @@ def split_timeseries(input_tif, experiments):
             volume_to_h5(f, plane, page_chunk_size=1000, compression="gzip",
                          compression_opts=9)
 
-        outs[eid], meta = conversion_output(plane filename, exp)
+        outs[eid], meta = conversion_output(plane, filename, exp)
         if mt.is_multiscope:
             outs[eid]["sync_stride"] = plane.stride // 2
             outs[eid]["sync_offset"] = plane.page_offset // 2

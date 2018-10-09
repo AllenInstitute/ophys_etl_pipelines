@@ -102,6 +102,7 @@ class OutputSchema(DefaultSchema):
         TiffMetadataOutput,
         many=True)
     ready_to_archive = List(
+        Str,
         required=True)
     experiment_output = Nested(
         ExperimentOutput,

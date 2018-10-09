@@ -8,7 +8,7 @@ with open('test_requirements.txt','r') as f:
 
 setup(
     name = 'brain_observatory_utils',
-    version = '0.1.3',
+    version = '0.1.4',
     description = """Utilities for brain observatory pipelines""",
     author = "Jed Perkins",
     author_email = "jedp@alleninstitute.org",

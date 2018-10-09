@@ -202,7 +202,6 @@ class MesoscopeZPair(DefaultSchema):
         description=("Base filename (without path) of local zstack tif for "
                      "this multiscope pair"))
     column_z_stack_tif = Str(
-        required=True,
         description=("Base filename (without path) of column zstack tif for "
                      "this multiscope pair"))
     imaging_planes = Nested(
@@ -236,6 +235,38 @@ class MesoscopeSchema(PlatformV2):
     timeseries_roi_file = Str(
         description="Base filename (without path) of timeseries roi file")
     surface_roi_file = Str(
-        description="Base filename (without path) of surfac 2p roi file")
+        description="Base filename (without path) of surface 2p roi file")
     scanimage_config_file = Str(
         description="Base filename (without path) of scanimage config file")
+
+    @classmethod
+    def load_validated(cls, data):
+        loaded = super(MesoscopeSchema, cls).load_validated(data)
+        targets = set()
+        indices = set()
+        errors = set()
+        # Ensure .tif doesn't get in where it shouldn't, as it will break downsampling
+        for key in ["depths_tif", "surface_tif", "timeseries_tif"]:
+            if loaded[key].endswith(".tif"):
+                errors.add("{} file {} ends in .tif, will break downsampling".format(key, loaded[key]))
+        # validate that all imaging planes are unique
+        for group in loaded["imaging_plane_groups"]:
+            if group["local_z_stack_tif"].endswith(".tif"):
+                errors.add("local_z_stack_tif file {} ends in .tif, will break downsampling".format(group["local_z_stack_tif"]))
+            column = group.get("column_z_stack_tif", None)
+            if column is not None and column.endswith(".tif"):
+                errors.add("column_z_stack_tif file {} ends in .tif, will break downsampling".format(column))
+            for p in group["imaging_planes"]:
+                index = (p["scanimage_roi_index"], p["scanimage_scanfield_z"])
+                target = (int(p["targeted_x"]), int(p["targeted_y"]), int(p["targeted_depth"]))
+                if index in indices:
+                    errors.add("Scanfield plane at (roi, z) {} already defined".format(index))
+                indices.add(index)
+                if target in targets:
+                    errors.add("Targeted location (x, y, d) {} already defined".format(target))
+                targets.add(target)
+
+        if errors:
+            raise mm.ValidationError("\n".join(errors))
+
+        return loaded

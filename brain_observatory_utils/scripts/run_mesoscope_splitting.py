@@ -6,6 +6,7 @@ from argschema import ArgSchemaParser
 from mesoscope_2p import MesoscopeTiff
 from mesoscope_2p.conversion_utils import (volume_to_h5, volume_to_tif, 
                                            average_and_unsign)
+from mesoscope_2p.metadata import SI_stringify_floats
 from brain_observatory_utils.schemas.split_mesoscope import (InputSchema,
                                                              OutputSchema)
 
@@ -23,8 +24,8 @@ def conversion_output(volume, outfile, experiment_info):
     mt = volume._tiff
     height, width = volume.plane_shape
     meta_res = {"input_tif": mt._source,
-                "roi_metadata": mt.roi_metadata,
-                "scanimage_metadata": mt.frame_metadata}
+                "roi_metadata": SI_stringify_floats(mt.roi_metadata),
+                "scanimage_metadata": SI_stringify_floats(mt.frame_metadata)}
     out_res = {"filename": outfile,
                "resolution": experiment_info["resolution"],
                "offset_x": experiment_info["offset_x"],

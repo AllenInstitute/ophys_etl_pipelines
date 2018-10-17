@@ -57,6 +57,11 @@ class InputSchema(ArgSchema):
     plane_groups = Nested(
         PlaneGroup,
         many=True)
+    test_mode = Int(
+        default=0,
+        description=("Flag to run without actually splitting data. For testing"
+                     " runner mechanism and metadata. Testing of splitting "
+                     "is handled in testing for the mesoscope_2p package."))
 
 
 class TiffMetadataOutput(DefaultSchema):
@@ -88,7 +93,7 @@ class ExperimentOutput(DefaultSchema):
         required=True)
     local_z_stack = Nested(ImageFileOutput, required=True)
     surface_2p = Nested(ImageFileOutput, required=True)
-    depth_dp = Nested(ImageFileOutput, required=True)
+    depth_2p = Nested(ImageFileOutput, required=True)
     timeseries = Nested(ImageFileOutput, required=True)
     sync_offset = Int()
     sync_stride = Int()

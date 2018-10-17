@@ -10,6 +10,15 @@ from brain_observatory_utils.schemas.split_mesoscope import (InputSchema,
                                                              OutputSchema)
 
 
+def mock_h5(*args, **kwargs):
+    pass
+
+
+def mock_tif(filename, *args, **kwargs):
+    f = open(filename, "w")
+    f.close()
+
+
 def conversion_output(volume, outfile, experiment_info):
     mt = volume._tiff
     height, width = volume.plane_shape
@@ -30,7 +39,7 @@ def conversion_output(volume, outfile, experiment_info):
 def convert_column(input_tif, session_storage, experiment_info):
     mt = MesoscopeTiff(input_tif)
     if len(mt.volume_views) != 1:
-        raise ValueError("Expected 1 stack in {}, but found {}".format(input_tif. len(mt.volume_views)))
+        raise ValueError("Expected 1 stack in {}, but found {}".format(input_tif, len(mt.volume_views)))
     basename = os.path.basename(input_tif)
     h5_base = os.path.splitext(basename)[0] + ".h5"
     filename = os.path.join(session_storage, h5_base)
@@ -54,7 +63,7 @@ def split_z(input_tif, experiment_info):
     if stack is None:
         raise ValueError("Could not find stack to extract from {} for experiment {}".format(input_tif, eid))
 
-    logging.info("Got stack centered at z={} for target z={} in {}".format(np.mean(plane.zs), z, input_tif))
+    logging.info("Got stack centered at z={} for target z={} in {}".format(np.mean(stack.zs), z, input_tif))
 
     with h5py.File(filename, "w") as f:
         volume_to_h5(f, stack, compression="gzip",
@@ -122,6 +131,11 @@ def split_timeseries(input_tif, experiments):
 def main():
     mod = ArgSchemaParser(schema_type=InputSchema,
                           output_schema_type=OutputSchema)
+
+    if mod.args['test_mode']:
+        global volume_to_h5, volume_to_tif
+        volume_to_h5 = mock_h5
+        volume_to_tif = mock_tif
 
     stack_tifs = set()
     ready_to_archive = set()

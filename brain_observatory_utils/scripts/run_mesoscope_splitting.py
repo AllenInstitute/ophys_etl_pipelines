@@ -121,7 +121,7 @@ def split_timeseries(input_tif, experiments):
 
 def main():
     mod = ArgSchemaParser(schema_type=InputSchema,
-                          output_schema=OutputSchema)
+                          output_schema_type=OutputSchema)
 
     stack_tifs = set()
     ready_to_archive = set()

@@ -115,8 +115,7 @@ def split_timeseries(input_tif, experiments):
         logging.info("Got plane at z={} for target z={} in {}".format(np.mean(plane.zs), z, input_tif))
 
         with h5py.File(filename, "w") as f:
-            volume_to_h5(f, plane, page_block_size=1000, compression="gzip",
-                         compression_opts=9)
+            volume_to_h5(f, plane, compression="gzip", compression_opts=9)
 
         outs[eid], meta = conversion_output(plane, filename, exp)
         if mt.is_multiscope:

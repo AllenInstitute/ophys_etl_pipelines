@@ -81,7 +81,7 @@ class PlatformV2(BaseSchema):
         description="Base filename (without path) for eye tracking avi")
     behavior_video = Str(
         description="Base filename (without path) for behavior avi")
-    foraging_id = Int(
+    foraging_id = Str(
         description="ID of associated foraging session")
     eye_camera_position = Nested(ObservatoryObject)
     behavior_camera_position = Nested(ObservatoryObject)
@@ -158,14 +158,20 @@ class DeepscopeSchema(PlatformV2):
 
     @classmethod
     def load_validated(cls, data):
+        errors = set()
         prevalidated = super(DeepscopeSchema, cls).load_validated(data)
         targeted_depths = set()
         for plane in prevalidated.get("imaging_planes", []):
             depth = int(plane["targeted_depth"])
             if depth in targeted_depths:
-                raise mm.ValidationError("Got duplicate depth {}, depths must "
-                                         "be unique".format(depth))
+                errors.add("Got duplicate depth {}, depths must be unique".format(depth))
+            if depth < 0:
+                errors.add("Targeted depth {} is invalid, must be >= 0".format(depth))
             targeted_depths.add(depth)
+
+        if errors:
+            raise mm.ValidationError("\n".join(errors))
+
         return prevalidated
 
 
@@ -258,6 +264,8 @@ class MesoscopeSchema(PlatformV2):
                 errors.add("column_z_stack_tif file {} ends in .tif, will break downsampling".format(column))
             for p in group["imaging_planes"]:
                 index = (p["scanimage_roi_index"], p["scanimage_scanfield_z"])
+                if p["targeted_depth"] < 0:
+                    errors.add("Targeted depth {} is invalid, must be >= 0".format(p["targeted_depth"]))
                 target = (int(p["targeted_x"]), int(p["targeted_y"]), int(p["targeted_depth"]))
                 if index in indices:
                     errors.add("Scanfield plane at (roi, z) {} already defined".format(index))

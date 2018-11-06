@@ -10,4 +10,4 @@ default_context:
   project_slug: mesoscope_2p
   repo_url: https://github.com/AllenInstitute/mesoscope_2p
   user_name: jfperkins
-  version: version = 0.1.3
+  version: version = 0.1.4

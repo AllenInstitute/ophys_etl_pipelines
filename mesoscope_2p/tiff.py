@@ -117,13 +117,14 @@ class MesoscopeTiff(object):
     * Different depth ROIs are saved in the tiff top-down according to
       the hFastZ metadata.
     """
-    def __init__(self, source_tiff):
+    def __init__(self, source_tiff, cache=False):
         self._frame_data, self._roi_data = tiff_header_data(source_tiff)
         self._n_pages = None
         self._planes = None
         self._volumes = None
         self._source = source_tiff
         self._tiff = TiffFile(self._source)
+        self._tiff.pages.cache = cache
 
     @property
     def n_pages(self):

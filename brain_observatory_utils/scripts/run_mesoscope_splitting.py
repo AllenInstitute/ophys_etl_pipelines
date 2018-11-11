@@ -45,8 +45,15 @@ def convert_column(input_tif, session_storage, experiment_info, **h5_opts):
     basename = os.path.basename(input_tif)
     h5_base = os.path.splitext(basename)[0] + ".h5"
     filename = os.path.join(session_storage, h5_base)
+    stack = mt.volume_views[0]
+
+    if h5_opts:
+        chunks = (1,) + stack.plane_shape
+        h5_opts["chunks"] = chunks
+        logging.debug("Setting compression chunk size to {}".format(chunks))
+
     with h5py.File(filename, "w") as f:
-        volume_to_h5(f, mt.volume_views[0], **h5_opts)
+        volume_to_h5(f, stack, **h5_opts)
 
     return conversion_output(mt.volume_views[0], filename, experiment_info)
 
@@ -73,6 +80,11 @@ def split_z(input_tif, experiment_info, **h5_opts):
             np.mean(stack.zs), z, input_tif
         )
     )
+
+    if h5_opts:
+        chunks = (1,) + stack.plane_shape
+        h5_opts["chunks"] = chunks
+        logging.debug("Setting compression chunk size to {}".format(chunks))
 
     with h5py.File(filename, "w") as f:
         volume_to_h5(f, stack, **h5_opts)
@@ -136,6 +148,10 @@ def split_timeseries(input_tif, experiments, **h5_opts):
                 np.mean(plane.zs), z, input_tif
             )
         )
+        if h5_opts:
+            chunks = (1,) + plane.plane_shape
+            h5_opts["chunks"] = chunks
+            logging.debug("Setting compression chunk size to {}".format(chunks))
 
         with h5py.File(filename, "w") as f:
             volume_to_h5(f, plane, **h5_opts)

@@ -48,7 +48,7 @@ def convert_column(input_tif, session_storage, experiment_info, **h5_opts):
     stack = mt.volume_views[0]
 
     if h5_opts:
-        chunks = (1,) + stack.plane_shape
+        chunks = (1,) + tuple(stack.plane_shape)
         h5_opts["chunks"] = chunks
         logging.debug("Setting compression chunk size to {}".format(chunks))
 
@@ -82,7 +82,7 @@ def split_z(input_tif, experiment_info, **h5_opts):
     )
 
     if h5_opts:
-        chunks = (1,) + stack.plane_shape
+        chunks = (1,) + tuple(stack.plane_shape)
         h5_opts["chunks"] = chunks
         logging.debug("Setting compression chunk size to {}".format(chunks))
 
@@ -149,7 +149,7 @@ def split_timeseries(input_tif, experiments, **h5_opts):
             )
         )
         if h5_opts:
-            chunks = (1,) + plane.plane_shape
+            chunks = (1,) + tuple(plane.plane_shape)
             h5_opts["chunks"] = chunks
             logging.debug("Setting compression chunk size to {}".format(chunks))
 

@@ -1,0 +1,36 @@
+jobs:
+  build:
+    executor: python/default
+    steps:
+      - checkout
+      - python/load-cache
+      - python/install-deps
+      - python/save-cache
+      - run:
+          command: |
+            # pytest would be a dep in requirements.txt
+            python -m pytest --cov ophys_etl_pipelines --cov-report xml
+            bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
+          name: Test
+  lint:
+    executor: python/default
+    steps:
+      - checkout
+      - run: 
+          command: |
+            pip install flake8
+            # `|| true` to force exit code 0 even if no files found
+            CHANGED_PYFILES=$(git diff --name-only origin/master | grep .py || true)
+            echo "List of changed files:"
+            echo ${CHANGED_PYFILES}
+            echo ${CHANGED_PYFILES} | xargs -r flake8 --count
+          name: Lint
+
+orbs:
+  python: circleci/python@0.3
+version: 2.1
+workflows:
+  main:
+    jobs:
+      - build
+      - lint

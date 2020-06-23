@@ -1,6 +1,5 @@
 import argschema
 import suite2p
-import logging
 import pathlib
 import marshmallow as mm
 import h5py
@@ -132,7 +131,7 @@ class Suite2PWrapperOutputSchema(argschema.schemas.DefaultSchema):
 
 
 def copy_and_add_uid(srcdir: pathlib.Path, dstdir: pathlib.Path,
-                       basenames: List[str], uid: str = None) -> List[str]:
+                     basenames: List[str], uid: str = None) -> List[str]:
     """copy files matching basenames from a tree search of srcdir to
     dstdir with an optional unique id inserted into the basename.
 

@@ -27,7 +27,7 @@ jobs:
           name: Lint
 
 orbs:
-  python: circleci/python@0.1
+  python: circleci/python@0.3
 version: 2.1
 workflows:
   main:

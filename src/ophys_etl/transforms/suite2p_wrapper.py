@@ -125,7 +125,7 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
 class Suite2PWrapperOutputSchema(argschema.schemas.DefaultSchema):
     output_files = argschema.fields.Dict(
         keys=argschema.fields.Str,
-        values=argschema.fields.OutputFile,
+        values=argschema.fields.InputFile,
         required=True,
         description="retained output files from Suite2P")
 

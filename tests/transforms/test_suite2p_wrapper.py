@@ -42,7 +42,7 @@ def test_copy_and_add_uid(tmp_path, basenames, dstsubdir, exception):
 
     uid = "extra"
     if exception:
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match=r".* Expected 1 match."):
             dstfiles = suite2p_wrapper.copy_and_add_uid(
                     tmp_path,
                     other_dir,
@@ -113,7 +113,8 @@ def test_suite2p_wrapper(
     mpatcher = partial(monkeypatch.setattr, target=suite2p_wrapper)
     mpatcher(name="suite2p", value=mock_suite2p)
     if exception:
-        with pytest.raises(suite2p_wrapper.Suite2PWrapperException):
+        with pytest.raises(suite2p_wrapper.Suite2PWrapperException,
+                           match=r".*`nbinned`.*"):
             s = suite2p_wrapper.Suite2PWrapper(input_data=args, args=[])
         return
 

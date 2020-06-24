@@ -8,8 +8,9 @@ jobs:
       - python/save-cache
       - run:
           command: |
+            pip install .
             # pytest would be a dep in requirements.txt
-            python -m pytest --cov ophys_etl_pipelines --cov-report xml
+            python -m pytest --cov ophys_etl --cov-report xml
             bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
           name: Test
   lint:
@@ -20,7 +21,7 @@ jobs:
           command: |
             pip install flake8
             # `|| true` to force exit code 0 even if no files found
-            CHANGED_PYFILES=$(git diff --name-only origin/master | grep .py || true)
+            CHANGED_PYFILES=$(git diff --diff-filter AMR --name-only origin/master | grep .py || true)
             echo "List of changed files:"
             echo ${CHANGED_PYFILES}
             echo ${CHANGED_PYFILES} | xargs -r flake8 --count

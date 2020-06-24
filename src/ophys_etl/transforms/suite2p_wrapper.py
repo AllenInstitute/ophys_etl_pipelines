@@ -219,8 +219,11 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
         # make a tempdir for Suite2P's output
         with tempfile.TemporaryDirectory() as tdir:
             self.args['save_path0'] = tdir
+            self.logger.info(f"Running Suite2P with output going to {tdir}")
             suite2p.run_s2p.run_s2p(self.args)
 
+            self.logger.info(f"Suite2P complete. Copying output from {tdir} "
+                             f"to {self.args['output_dir']}")
             # copy over specified retained files to the output dir
             odir = pathlib.Path(self.args['output_dir'])
             odir.mkdir(parents=True, exist_ok=True)

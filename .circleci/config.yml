@@ -10,7 +10,7 @@ jobs:
           command: |
             pip install .
             # pytest would be a dep in requirements.txt
-            python -m pytest --cov ophys_etl_pipelines --cov-report xml
+            python -m pytest --cov ophys_etl --cov-report xml
             bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
           name: Test
   lint:

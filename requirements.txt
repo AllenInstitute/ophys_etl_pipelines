@@ -4,3 +4,4 @@ pytest
 pytest-cov
 argschema==2.0.1
 h5py
+matplotlib

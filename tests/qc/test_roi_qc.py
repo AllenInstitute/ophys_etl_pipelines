@@ -1,5 +1,4 @@
 from typing import Union
-
 import pytest
 
 import numpy as np
@@ -66,3 +65,33 @@ def test_plot_binarized_vs_weighted_roi(weighted_mask, binary_mask,
     assert plot_is_correct(w_trace_ax, matplotlib.lines.Line2D, weighted_trace)
 
     matplotlib.pyplot.close(obtained)
+
+
+@pytest.mark.parametrize("s2p_stat_fixture, ophys_movie_fixture", [
+    ({"frame_shape": (15, 15)},
+     {"movie_shape": (5, 15, 15)}),
+
+    ({},
+     {"movie_h5_key": "stuff",
+      "movie_shape": (5, 20, 20)})
+], indirect=["s2p_stat_fixture", "ophys_movie_fixture"])
+def test_roi_qc_report_generator(tmp_path,
+                                 s2p_stat_fixture,
+                                 ophys_movie_fixture):
+    stat_path, stat_fixture_params = s2p_stat_fixture
+    ophys_movie_path, ophys_movie_fixture_params = ophys_movie_fixture
+
+    args = {"ophys_movie_path": str(ophys_movie_path),
+            "suite2p_stat_path": str(stat_path),
+            "ophys_movie_h5_key": ophys_movie_fixture_params["movie_h5_key"],
+            "output_dir": str(tmp_path)}
+
+    g = roi_qc.RoiQcReportGenerator(input_data=args, args=[])
+    g.run()
+
+    experiment_dirname = ophys_movie_fixture_params["experiment_dirname"]
+    expected_pdf_savename = f"{experiment_dirname}_weighted_vs_binary_rois.pdf"
+    expected_savepath = tmp_path / expected_pdf_savename
+
+    assert expected_savepath.exists()
+    assert expected_savepath.stat().st_size > 0

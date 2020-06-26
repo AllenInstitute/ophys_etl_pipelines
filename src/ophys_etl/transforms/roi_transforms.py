@@ -73,3 +73,61 @@ def binarize_roi_mask(roi_mask: coo_matrix,
     binarized_mask.eliminate_zeros()
 
     return binarized_mask.astype(np.uint8)
+
+
+def roi_bounds(roi_mask: coo_matrix) -> Tuple[int, int, int, int]:
+    """Get slicing bounds that define the smallest rectangle that contains
+    all nonzero ROI elements.
+
+    Note: An empty roi_mask will return all zero bounds.
+
+    Parameters
+    ----------
+    roi_mask : coo_matrix
+        The ROI for which minimal slicing bounds should be determined.
+
+    Returns
+    -------
+    Tuple[int, int, int, int]
+        Slicing bounds to extract an ROI in the following order:
+        (min_row, max_row, min_col, max_col)
+    """
+
+    if roi_mask.row.size > 0 and roi_mask.col.size > 0:
+        min_row = roi_mask.row.min()
+        min_col = roi_mask.col.min()
+        # Need to add 1 to max indices to get correct slicing upper bound
+        max_row = roi_mask.row.max() + 1
+        max_col = roi_mask.col.max() + 1
+        return (min_row, max_row, min_col, max_col)
+    else:
+        return (0, 0, 0, 0)
+
+
+def crop_roi_mask(roi_mask: coo_matrix) -> coo_matrix:
+    """Crop ROI mask into smallest rectangle that fits all nonzero elements
+
+    Parameters
+    ----------
+    roi_mask : coo_matrix
+
+    Returns
+    -------
+    coo_matrix
+        A cropped ROI mask
+
+    Raises
+    ------
+    ValueError
+        Raised if an empty ROI mask is provided
+    """
+    if roi_mask.row.size > 0 and roi_mask.col.size > 0:
+        min_row, max_row, min_col, max_col = roi_bounds(roi_mask)
+    else:
+        raise ValueError("Cannot crop an empty ROI mask (or mask where all "
+                         "elements are zero)")
+
+    # Convert coo to csr matrix so we can take advantage of indexing
+    cropped_mask = roi_mask.tocsr()[min_row:max_row, min_col:max_col]
+
+    return cropped_mask.tocoo()

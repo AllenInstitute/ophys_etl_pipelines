@@ -1,4 +1,5 @@
 from pathlib import Path
+from timeit import default_timer as timer
 
 import argschema
 import h5py
@@ -24,12 +25,12 @@ def plot_binarized_vs_weighted_roi(weighted_mask: coo_matrix,
     fig = plt.figure(constrained_layout=True)
     gs = fig.add_gridspec(nrows=3, ncols=6)
 
+    # Plot ROIs
     binary_roi_ax = fig.add_subplot(gs[:-1, -3:])
     weighted_roi_ax = fig.add_subplot(gs[:-1, :-3],
                                       sharex=binary_roi_ax,
                                       sharey=binary_roi_ax)
 
-    # Plot ROIs
     weighted_roi_ax.set_xticks([])
     weighted_roi_ax.set_yticks([])
     weighted_roi_ax.set_title("Native Suite2P (weighted) ROI")
@@ -46,11 +47,11 @@ def plot_binarized_vs_weighted_roi(weighted_mask: coo_matrix,
                                         sharex=binary_trace_ax,
                                         sharey=binary_trace_ax)
 
-    weighted_trace_ax.set_ylabel("Fluorescence")
+    weighted_trace_ax.set_ylabel("Weighted F")
     weighted_trace_ax.set_xlabel("Frame Number")
     weighted_trace_ax.plot(range(len(weighted_trace)), weighted_trace)
 
-    binary_trace_ax.set_ylabel("Fluorescence")
+    binary_trace_ax.set_ylabel("Binarized F")
     binary_trace_ax.set_xlabel("Frame Number")
     binary_trace_ax.plot(range(len(binary_trace)), binary_trace)
 
@@ -95,12 +96,20 @@ class RoiQcReportGenerator(argschema.ArgSchemaParser):
         binary_rois = [binarize_roi_mask(w_roi) for w_roi in weighted_rois]
 
         # Extract traces
-        self.logger.info("Extracting traces, this may take a while...")
         with h5py.File(movie_path, "r") as movie_f:
             movie_frames = movie_f[self.args["ophys_movie_h5_key"]]
 
+            self.logger.info("Extracting weighted traces, please be patient.")
+            start = timer()
             weighted_traces = extract_traces(movie_frames, weighted_rois)
+            end = timer()
+            self.logger.info(f"Weighted trace extraction: {end - start} secs")
+
+            self.logger.info("Extracting binary traces, please be patient.")
+            start = timer()
             binary_traces = extract_traces(movie_frames, binary_rois)
+            end = timer()
+            self.logger.info(f"Binary trace extraction: {end - start} secs")
 
         # Crop ROIs
         cropped_weighted = [crop_roi_mask(w_roi) for w_roi in weighted_rois]
@@ -123,6 +132,7 @@ class RoiQcReportGenerator(argschema.ArgSchemaParser):
             fig = plot_binarized_vs_weighted_roi(w_roi, b_roi,
                                                  w_trace, b_trace)
             pdf.savefig(fig, dpi=400)
+            plt.close(fig)
         pdf.close()
         self.logger.info(f"Wrote {str(pdf_savepath)}")
 

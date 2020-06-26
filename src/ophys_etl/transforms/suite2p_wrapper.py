@@ -4,7 +4,7 @@ import pathlib
 import marshmallow as mm
 import h5py
 import tempfile
-from typing import List, Optional
+from typing import Dict, List, Optional
 import datetime
 import shutil
 
@@ -163,7 +163,7 @@ class Suite2PWrapperOutputSchema(argschema.schemas.DefaultSchema):
 
 def copy_and_add_uid(
         srcdir: pathlib.Path, dstdir: pathlib.Path,
-        basenames: List[str], uid: Optional[str] = None) -> List[str]:
+        basenames: List[str], uid: Optional[str] = None) -> Dict[str, str]:
     """copy files matching basenames from a tree search of srcdir to
     dstdir with an optional unique id inserted into the basename.
 

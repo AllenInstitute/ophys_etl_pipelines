@@ -35,11 +35,14 @@ def plot_binarized_vs_weighted_roi(weighted_mask: coo_matrix,
     weighted_roi_ax.set_yticks([])
     weighted_roi_ax.set_title("Native Suite2P (weighted) ROI")
     weighted_roi_ax.imshow(weighted_mask.toarray())
+    xmin, xmax, ymin, ymax = weighted_roi_ax.axis()
 
     binary_roi_ax.set_xticks([])
     binary_roi_ax.set_yticks([])
     binary_roi_ax.set_title("Binarized Suite2P ROI")
     binary_roi_ax.imshow(binary_mask.toarray())
+    binary_roi_ax.set_xlim(xmin, xmax)
+    binary_roi_ax.set_ylim(ymin, ymax)
 
     # Plot traces
     binary_trace_ax = fig.add_subplot(gs[-1, -3:])
@@ -49,11 +52,13 @@ def plot_binarized_vs_weighted_roi(weighted_mask: coo_matrix,
 
     weighted_trace_ax.set_ylabel("Weighted F")
     weighted_trace_ax.set_xlabel("Frame Number")
-    weighted_trace_ax.plot(range(len(weighted_trace)), weighted_trace)
+    weighted_trace_ax.plot(range(len(weighted_trace)), weighted_trace,
+                           linewidth=0.5)
 
     binary_trace_ax.set_ylabel("Binarized F")
     binary_trace_ax.set_xlabel("Frame Number")
-    binary_trace_ax.plot(range(len(binary_trace)), binary_trace)
+    binary_trace_ax.plot(range(len(binary_trace)), binary_trace,
+                         linewidth=0.25)
 
     return fig
 
@@ -113,7 +118,11 @@ class RoiQcReportGenerator(argschema.ArgSchemaParser):
 
         # Crop ROIs
         cropped_weighted = [crop_roi_mask(w_roi) for w_roi in weighted_rois]
-        cropped_binary = [crop_roi_mask(b_roi) for b_roi in binary_rois]
+        # Because the roi bounds can differ a bit between weighted and
+        # binarized rois, for display purposes we should binarize the cropped
+        # weighted rois.
+        cropped_binary = [binarize_roi_mask(cw_roi)
+                          for cw_roi in cropped_weighted]
 
         # Make binary vs weighted ROI comparison plots
         save_dir = Path(self.args["output_dir"])

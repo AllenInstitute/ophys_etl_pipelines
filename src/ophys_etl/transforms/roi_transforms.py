@@ -58,7 +58,7 @@ def binarize_roi_mask(roi_mask: coo_matrix,
     Returns
     -------
     coo_matrix
-        A binarized version of the coo_matrix in `np.uint8` format.
+        A binarized version of the coo_matrix.
     """
     if absolute_threshold is None:
         absolute_threshold = np.quantile(roi_mask.data, quantile)
@@ -72,7 +72,7 @@ def binarize_roi_mask(roi_mask: coo_matrix,
     binarized_mask.data[under_thresh] = 0
     binarized_mask.eliminate_zeros()
 
-    return binarized_mask.astype(np.uint8)
+    return binarized_mask
 
 
 def roi_bounds(roi_mask: coo_matrix) -> Tuple[int, int, int, int]:

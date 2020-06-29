@@ -64,12 +64,8 @@ def binarize_roi_mask(roi_mask: coo_matrix,
         absolute_threshold = np.quantile(roi_mask.data, quantile)
 
     binarized_mask = roi_mask.copy()
-
-    over_thresh = (binarized_mask.data > absolute_threshold)
-    under_thresh = np.logical_not(over_thresh)
-
-    binarized_mask.data[over_thresh] = 1
-    binarized_mask.data[under_thresh] = 0
+    binarized_mask.data = np.where(binarized_mask.data > absolute_threshold,
+                                   1, 0)
     binarized_mask.eliminate_zeros()
 
     return binarized_mask

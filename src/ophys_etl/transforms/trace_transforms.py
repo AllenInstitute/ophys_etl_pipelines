@@ -9,6 +9,18 @@ def extract_traces(movie_frames: np.ndarray, rois: List[coo_matrix],
                    block_size: int = 1000) -> np.ndarray:
     """Extract per ROI fluorescence traces from a movie.
 
+    NOTE: Because the AllenSDK extract traces function does a
+    mask size normalization and because it can't deal with weighted
+    or coo_matrix format ROIs, this is an alternative implementation
+    in order to make a fair comparison between traces generated using
+    binarized vs weighted ROI masks.
+
+    NOTE: The AllenSDK implementation should take precedence over this one.
+    If an extract traces implementation is required in the full production
+    pipeline.
+
+    See: allensdk.brain_observatory.roi_masks.py #409-468
+
     Parameters
     ----------
     movie_frames : np.ndarray

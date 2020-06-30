@@ -116,6 +116,25 @@ class RoiQcReportGenerator(argschema.ArgSchemaParser):
             end = timer()
             self.logger.info(f"Binary trace extraction: {end - start} secs")
 
+        # Determine ophys experiment name. This might be a bit fragile...
+        ophys_expt_name = movie_path.split("/")[-3]
+        save_dir = Path(self.args["output_dir"])
+
+        # Save rois and traces to npz file
+        data_name = f"{ophys_expt_name}_weighted_vs_binary_data.npz"
+        data_savepath = save_dir / data_name
+
+        binary_roi_data = np.asarray(binary_rois)
+        weighted_roi_data = np.asarray(weighted_rois)
+
+        np.savez(file=data_savepath,
+                 binarized_rois=binary_roi_data,
+                 binarized_roi_traces=binary_traces,
+                 weighted_rois=weighted_roi_data,
+                 weighted_roi_traces=weighted_traces)
+
+        self.logger.info(f"Wrote: {str(data_savepath)}")
+
         # Crop ROIs
         cropped_weighted = [crop_roi_mask(w_roi) for w_roi in weighted_rois]
         # Because the roi bounds can differ a bit between weighted and
@@ -125,10 +144,6 @@ class RoiQcReportGenerator(argschema.ArgSchemaParser):
                           for cw_roi in cropped_weighted]
 
         # Make binary vs weighted ROI comparison plots
-        save_dir = Path(self.args["output_dir"])
-
-        # This might be a bit fragile...
-        ophys_expt_name = movie_path.split("/")[-3]
         pdf_name = f"{ophys_expt_name}_weighted_vs_binary_rois.pdf"
         pdf_savepath = save_dir / pdf_name
         pdf = PdfPages(pdf_savepath)
@@ -137,13 +152,14 @@ class RoiQcReportGenerator(argschema.ArgSchemaParser):
                         weighted_traces, binary_traces)
 
         self.logger.info("Making roi comparison plots.")
-        for w_roi, b_roi, w_trace, b_trace in data_slug:
+        for roi_indx, (w_roi, b_roi, w_trace, b_trace) in enumerate(data_slug):
             fig = plot_binarized_vs_weighted_roi(w_roi, b_roi,
                                                  w_trace, b_trace)
+            fig.suptitle(f"ROI: {roi_indx}", fontsize=16)
             pdf.savefig(fig, dpi=400)
             plt.close(fig)
         pdf.close()
-        self.logger.info(f"Wrote {str(pdf_savepath)}")
+        self.logger.info(f"Wrote: {str(pdf_savepath)}")
 
 
 if __name__ == "__main__":  # pragma: no cover

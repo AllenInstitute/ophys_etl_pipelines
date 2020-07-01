@@ -1,9 +1,11 @@
 from pathlib import Path
 from timeit import default_timer as timer
+import re
 
 import argschema
 import h5py
 import matplotlib
+import marshmallow as mm
 import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
@@ -84,6 +86,23 @@ class RoiQcReportGeneratorSchema(argschema.ArgSchema):
         required=True,
         description="Directory to save binary vs weighted ROI comparison PDF.")
 
+    output_save_prefix = argschema.fields.String(
+        required=False,
+        default="output",
+        description=("Used to prefix the name of the output *.pdf and "
+                     "*.npz file. Default will result in "
+                     "{output}_weighted_vs_binary_data.npz and "
+                     "{output}_weighted_vs_binary_rois.pdf")
+    )
+
+    @mm.post_load
+    def update_output_save_prefix(self, data, **kwargs):
+        ophys_movie_path = data["ophys_movie_path"]
+        putative = re.findall(r"ophys_experiment_\d+", ophys_movie_path)
+        if len(putative) == 1 and type(putative[0]) is str:
+            data["output_save_prefix"] = putative[0]
+        return data
+
 
 class RoiQcReportGenerator(argschema.ArgSchemaParser):
     default_schema = RoiQcReportGeneratorSchema
@@ -116,12 +135,11 @@ class RoiQcReportGenerator(argschema.ArgSchemaParser):
             end = timer()
             self.logger.info(f"Binary trace extraction: {end - start} secs")
 
-        # Determine ophys experiment name. This might be a bit fragile...
-        ophys_expt_name = movie_path.split("/")[-3]
+        output_save_prefix = self.args["output_save_prefix"]
         save_dir = Path(self.args["output_dir"])
 
         # Save rois and traces to npz file
-        data_name = f"{ophys_expt_name}_weighted_vs_binary_data.npz"
+        data_name = f"{output_save_prefix}_weighted_vs_binary_data.npz"
         data_savepath = save_dir / data_name
 
         binary_roi_data = np.asarray(binary_rois)
@@ -144,7 +162,7 @@ class RoiQcReportGenerator(argschema.ArgSchemaParser):
                           for cw_roi in cropped_weighted]
 
         # Make binary vs weighted ROI comparison plots
-        pdf_name = f"{ophys_expt_name}_weighted_vs_binary_rois.pdf"
+        pdf_name = f"{output_save_prefix}_weighted_vs_binary_rois.pdf"
         pdf_savepath = save_dir / pdf_name
         pdf = PdfPages(pdf_savepath)
 

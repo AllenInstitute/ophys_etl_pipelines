@@ -1,4 +1,38 @@
+version: 2.1
+orbs:
+  singularity: singularity/singularity@1.0.10
+  python: circleci/python@0.3
 jobs:
+  singularity-image:
+    executor: singularity/machine
+    steps:
+      - checkout
+      - singularity/install-go:
+          go-version: '1.13'
+      - singularity/debian-install-3:
+          singularity-version: 3.5.0
+      - run:
+          # copied from singularity/build-image to add branch-specific build
+          name: Build Singularity Container
+          command: |
+            NOSUDO=false
+            which sudo || NOSUDO=true
+            if [[ "$NOSUDO" == "false" ]]; then
+                if [[ $EUID == 0 ]]; then export SUDO=""; else export SUDO="sudo"; fi
+            fi
+            if [ -f "$BASH_ENV" ]; then source $BASH_ENV; fi
+            $SUDO SINGULARITYENV_OPHYS_ETL_TAG=${CIRCLE_BRANCH} singularity build suite2p_container.img src/ophys_etl/transforms/suite2p_container.def
+      - run:
+          name: Run Singularity Container Smoke Test
+          command: |
+            mkdir smoke_output
+            singularity run ./suite2p_container.img python -m ophys_etl.transforms.suite2p_wrapper --h5py tests/transforms/resources/movie_100x100x100.h5 --output_dir smoke_output --bin_size 10 --log_level INFO --output_json smoke_output/output.json
+      - run:
+          name: Upload Singularity Image
+          command: |
+            echo ${SYLABS_TOKEN} | singularity remote login
+            singularity push -U suite2p_container.img library://allen_institute_pika/ophys_etl_pipelines/suite2p_container.img:${CIRCLE_BRANCH}
+
   build:
     executor: python/default
     steps:
@@ -13,11 +47,12 @@ jobs:
             python -m pytest --cov ophys_etl --cov-report xml
             bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
           name: Test
+
   lint:
     executor: python/default
     steps:
       - checkout
-      - run: 
+      - run:
           command: |
             pip install flake8
             # `|| true` to force exit code 0 even if no files found
@@ -27,11 +62,17 @@ jobs:
             echo ${CHANGED_PYFILES} | xargs -r flake8 --count
           name: Lint
 
-orbs:
-  python: circleci/python@0.3
-version: 2.1
 workflows:
-  main:
+  install_debian_3_example:
     jobs:
       - build
       - lint
+      - singularity-image:
+          requires:
+            - build
+            - lint
+          filters:
+            branches:
+              only:
+                - master
+                - /.*singularity.*/

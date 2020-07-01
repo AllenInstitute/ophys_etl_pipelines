@@ -107,8 +107,8 @@ def test_suite2p_wrapper(
         args['bin_size'] = bin_size
 
     mock_suite2p = MagicMock()
-    mock_suite2p.run_s2p.run_s2p = MagicMock()
-    mock_suite2p.run_s2p.run_s2p.side_effect = suite2p_side_effect
+    mock_suite2p.run_s2p = MagicMock()
+    mock_suite2p.run_s2p.side_effect = suite2p_side_effect
 
     mpatcher = partial(monkeypatch.setattr, target=suite2p_wrapper)
     mpatcher(name="suite2p", value=mock_suite2p)

@@ -1,6 +1,15 @@
 Bootstrap: docker
 From: continuumio/miniconda3:4.8.2
 
+%help
+    This container provides a working environment for Allen Institute
+    production source extraction with Suite2P:
+    https://github.com/MouseLand/suite2p
+    with the repo https://github.com/AllenInstitute/ophys_etl_pipelines
+    A typical usage is demonstrated by retrieveing the --help
+    from an internal module:
+    singularity run <image_name> python -m ophys_etl.transforms.suite2p_wrapper -h
+
 %post
     # these can be set during build like
     # sudo SINGULARITYENV_SUITE2P_TAG=0.7.5 singularity build ...
@@ -23,14 +32,14 @@ From: continuumio/miniconda3:4.8.2
     git checkout ${SUITE2P_TAG}
     conda env create -q -f environment.yml
     conda activate suite2p
-    pip install -q .
+    pip install --no-cache-dir -q .
 
     # install ophys_etl_pipelines
     cd ../
     git clone https://github.com/AllenInstitute/ophys_etl_pipelines
     cd ophys_etl_pipelines
     git checkout ${OPHYS_ETL_TAG}
-    pip install -q .
+    pip install --no-cache-dir -q .
 
     # clean up
     conda clean -q --all

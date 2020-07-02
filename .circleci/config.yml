@@ -63,7 +63,7 @@ jobs:
           name: Lint
 
 workflows:
-  install_debian_3_example:
+  main:
     jobs:
       - build
       - lint

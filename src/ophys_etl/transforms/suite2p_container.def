@@ -1,0 +1,53 @@
+Bootstrap: docker
+From: continuumio/miniconda3:4.8.2
+
+%help
+    This container provides a working environment for Allen Institute
+    production source extraction with Suite2P:
+    https://github.com/MouseLand/suite2p
+    with the repo https://github.com/AllenInstitute/ophys_etl_pipelines
+    A typical usage is demonstrated by retrieveing the --help
+    from an internal module:
+    singularity run <image_name> python -m ophys_etl.transforms.suite2p_wrapper -h
+
+%post
+    # these can be set during build like
+    # sudo SINGULARITYENV_SUITE2P_TAG=0.7.5 singularity build ...
+    SUITE2P_TAG=${SUITE2P_TAG:-0.7.5}
+    OPHYS_ETL_TAG=${OPHYS_ETL_TAG:-master}
+
+    export PATH=/opt/conda/bin:${PATH}
+
+    # initialize conda
+    CONDA_BASE=$(conda info --base)
+    . $CONDA_BASE/etc/profile.d/conda.sh
+
+    # make this variable available at runtime
+    echo "export CONDA_BASE=\"${CONDA_BASE}\"" >> $SINGULARITY_ENVIRONMENT
+
+    # install Suite2P
+    apt-get install -q -y libgl1-mesa-glx
+    git clone https://github.com/MouseLand/suite2p
+    cd suite2p
+    git checkout ${SUITE2P_TAG}
+    conda env create -q -f environment.yml
+    conda activate suite2p
+    pip install --no-cache-dir -q .
+
+    # install ophys_etl_pipelines
+    cd ../
+    git clone https://github.com/AllenInstitute/ophys_etl_pipelines
+    cd ophys_etl_pipelines
+    git checkout ${OPHYS_ETL_TAG}
+    pip install --no-cache-dir -q .
+
+    # clean up
+    conda clean -q --all
+    cd ../
+    rm -rf suite2p
+    rm -rf ophys_etl_pipelines
+
+%runscript
+   . $CONDA_BASE/etc/profile.d/conda.sh
+   conda activate suite2p
+   exec "$@"

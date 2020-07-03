@@ -31,6 +31,14 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             missing="data",
             default="data",
             description="key in h5py where data array is stored")
+    data_path = argschema.fields.List(
+            argschema.fields.Str,
+            cli_as_single_argument=True,
+            required=False,
+            default=[],
+            description=("Allen production specifies h5py as the source of "
+                         "the data, but Suite2P still wants this key in the "
+                         "args."))
     # s2p registration settings
     do_registration = argschema.fields.Int(
             default=0,
@@ -225,7 +233,7 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
         with tempfile.TemporaryDirectory() as tdir:
             self.args['save_path0'] = tdir
             self.logger.info(f"Running Suite2P with output going to {tdir}")
-            suite2p.run_s2p.run_s2p(self.args)
+            suite2p.run_s2p(self.args)
 
             self.logger.info(f"Suite2P complete. Copying output from {tdir} "
                              f"to {self.args['output_dir']}")

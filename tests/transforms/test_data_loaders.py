@@ -15,7 +15,7 @@ from ophys_etl.transforms.data_loaders import (get_max_correction_border,
                             'x': [-0.187, -0.555, -0.150,
                                   -0.159, 0.047, 0.964],
                             'y': [0.430, -1.096, -1.774,
-                                -2.773, -3.920, -4.633],
+                                  -2.773, -3.920, -4.633],
                             'correlation': [70002.9, 61688.8,
                                             48442.2, 39674.9,
                                             25735.2, 13894.7],
@@ -28,7 +28,7 @@ from ophys_etl.transforms.data_loaders import (get_max_correction_border,
                            motion_border(left=0.964, right=0.555, down=4.633,
                                          up=0.430),
                            False),
-                          ({}, (), True)])  # data doesn't matter file not written
+                          ({}, (), True)])  # doesn't matter file not written
 def test_get_max_correction_border_from_file(motion_correction_data,
                                              expected_max_border,
                                              x_fail):

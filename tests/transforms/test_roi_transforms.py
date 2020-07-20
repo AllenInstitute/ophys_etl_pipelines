@@ -6,6 +6,7 @@ from scipy.sparse import coo_matrix
 from ophys_etl.transforms import roi_transforms
 from ophys_etl.transforms.data_loaders import motion_border
 
+
 @pytest.mark.parametrize("s2p_stat_fixture", [
     {"frame_shape": (25, 25)},
 ], indirect=["s2p_stat_fixture"])
@@ -207,7 +208,8 @@ def test_coo_rois_to_old(coo_masks, max_correction_values,
                                'width': 2,
                                'height': 2,
                                'mask_matrix': np.array([[True, True],
-                                                        [True, True]]).tolist(),
+                                                        [True, True]]
+                                                       ).tolist(),
                            }, False),
                           (coo_matrix(([1, 1, 1, 1, 1, 1, 1, 1],
                                        ([0, 0, 0, 1, 1, 2, 2, 2],
@@ -220,7 +222,8 @@ def test_coo_rois_to_old(coo_masks, max_correction_values,
                                'height': 3,
                                'mask_matrix': np.array([[True, True, True],
                                                         [True, False, True],
-                                                        [True, True, True]]).tolist()
+                                                        [True, True, True]]
+                                                       ).tolist()
                            }, False),
                           (coo_matrix(([1, 1, 1, 1, 1],
                                        ([0, 0, 1, 1, 1],
@@ -232,7 +235,8 @@ def test_coo_rois_to_old(coo_masks, max_correction_values,
                                'width': 3,
                                'height': 2,
                                'mask_matrix': np.array([[False, True, True],
-                                                        [True, True, True]]).tolist()
+                                                        [True, True, True]]
+                                                       ).tolist()
                            }, False),
                           (coo_matrix(([1, 1, 1, 1, 1, 1, 1, 1],
                                       ([0, 0, 1, 1, 2, 2, 3, 3],
@@ -243,10 +247,14 @@ def test_coo_rois_to_old(coo_masks, max_correction_values,
                                'y': 0,
                                'width': 5,
                                'height': 4,
-                               'mask_matrix': np.array([[True, True, False, False, False],
-                                                        [True, True, False, False, False],
-                                                        [False, False, False, True, True],
-                                                        [False, False, False, True, True]]).tolist()
+                               'mask_matrix': np.array([[True, True, False,
+                                                         False, False],
+                                                        [True, True, False,
+                                                         False, False],
+                                                        [False, False, False,
+                                                         True, True],
+                                                        [False, False, False,
+                                                         True, True]]).tolist()
                            }, False),
                           (coo_matrix(([1, 1, 1, 1, 1],
                                        ([3, 4, 4, 5, 5],
@@ -283,20 +291,23 @@ def test_coo_mask_to_old_format(coo_mask, expected, raises_error):
                           ({'x': 10, 'y': 10, 'width': 2,
                             'height': 2, 'valid_roi': True,
                             'max_correction_up': 2,
-                            'max_correction_down': 15, 'max_correction_left': 2,
+                            'max_correction_down': 15,
+                            'max_correction_left': 2,
                             'max_correction_right': 2, 'exclusion_labels': []},
                            (20, 20), [7], False, False),
                           ({'x': 10, 'y': 10, 'width': 2,
                             'height': 2, 'valid_roi': True,
                             'max_correction_up': 2,
-                            'max_correction_down': 2, 'max_correction_left': 15,
+                            'max_correction_down': 2,
+                            'max_correction_left': 15,
                             'max_correction_right': 2, 'exclusion_labels': []},
                           (20, 20), [7], False, False),
                           ({'x': 10, 'y': 10, 'width': 2,
                             'height': 2, 'valid_roi': True,
                             'max_correction_up': 2,
                             'max_correction_down': 2, 'max_correction_left': 2,
-                            'max_correction_right': 15, 'exclusion_labels': []},
+                            'max_correction_right': 15, 'exclusion_labels': []
+                            },
                           (20, 20), [7], False, False),
                           ({'x': 10, 'y': 10, 'width': 2,
                             'height': 2, 'valid_roi': True,
@@ -321,7 +332,7 @@ def test_check_motion_exclusion(old_type_roi, movie_shape, expected_label,
     4: ROI fully out of motion correction bound in left direction
     5: ROI fully out of motion correction bound in right direction
     6: ROI edge on the motion correction border in the up direction
-    7: ROI halfway in and halfway out of motion correction border in down direction
+    7: ROI halfway in / out of motion correction border in down direction
     """
     roi_transforms._check_motion_exclusion(old_type_roi, movie_shape)
     assert old_type_roi['exclusion_labels'] == expected_label

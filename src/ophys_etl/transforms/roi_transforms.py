@@ -154,8 +154,8 @@ def coo_rois_to_old(coo_masks: List[coo_matrix],
     Returns
     -------
     List[Dict[str, Any]]
-        A list of dictionaries representing the ROIs in old segmentation format,
-        the data contained inside each one is as follows:
+        A list of dictionaries representing the ROIs in old segmentation
+        format, the data contained inside each one is as follows:
         {
             id: int
             x: int
@@ -169,16 +169,16 @@ def coo_rois_to_old(coo_masks: List[coo_matrix],
             max_correction_left: int
             max_correction_right: int
             mask_image_plane: int
-            exclusion_labels: List[int] codes are defined here http://confluence.corp.alleninstitute.org/pages/viewpage.action?spaceKey=IT&title=2019+Ophys+processing
+            exclusion_labels: List[int] codes are defined in 2019 Ophys Docs
         }
-        For details about specific values see design document,
-        http://confluence.corp.alleninstitute.org/display/IT/DRAFT%3A+2020+Ophys+Segmentation+Refactor+and+Update#DRAFT:2020OphysSegmentationRefactorandUpdate-3.Segmentation(Newworkflowstep)
-    """
+        For details about specific values see design document for 2020 Ophys
+        Segmentation Refactor and Update
+        """
     old_rois = []
     for temp_id, coo_mask in enumerate(coo_masks):
         old_roi = _coo_mask_to_old_format(coo_mask)
-        old_roi['id'] = temp_id  # this is popped off when writting to LIMs but is needed for AllenSDK class
-        old_roi['cell_specimen_id'] = temp_id  # this is rewritten after nway cell matching
+        old_roi['id'] = temp_id  # popped off writing to LIMs
+        old_roi['cell_specimen_id'] = temp_id  # updated post nway cellmatching
         old_roi['valid_roi'] = True
         old_roi['max_correction_up'] = max_correction_vals.up
         old_roi['max_correction_down'] = max_correction_vals.down
@@ -211,7 +211,7 @@ def _coo_mask_to_old_format(coo_mask: coo_matrix) -> Dict:
             'y': int (y location of upper left corner of roi in pixels)
             'width': int (width of the roi mask in pixels)
             'height': int (height of the roi mask in pixels)
-            'mask_matrix': List[List[bool]] (dense matrix of the roi mask in space)
+            'mask_matrix': List[List[bool]] (dense matrix of roi mask)
         }
     """
     x_most_left = min(coo_mask.col)
@@ -270,5 +270,5 @@ def _check_motion_exclusion(old_roi: Dict,
        old_roi['y'] <= old_roi['max_correction_up'] or
        furthest_right_pixel >= movie_width - old_roi['max_correction_right'] or
        furthest_down_pixel >= movie_height - old_roi['max_correction_down']):
-        old_roi['exclusion_labels'].append(7)  # code 7 corresponds to motion border error
+        old_roi['exclusion_labels'].append(7)  # code 7 = motion border error
         old_roi['valid_roi'] = False

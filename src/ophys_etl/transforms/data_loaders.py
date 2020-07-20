@@ -3,7 +3,6 @@ import numpy as np
 from collections import namedtuple
 
 from pathlib import Path
-from typing import Tuple
 
 motion_border = namedtuple('motion_border', 'left right up down')
 
@@ -57,9 +56,9 @@ def _get_max_correction_values(motion_corr_df: pd.DataFrame,
 
     Returns
     -------
-    Tuple[float, float, float, float]
-        A tuple containing the maximum correction values found during motion
-        correction workflow step. Saved with the direction is the order
+    motion_border
+        A named tuple containing the maximum correction values found during
+        motion correction workflow step. Saved with the direction is the order
         [Left, Right, Up, Down] and also with names.
 
     """

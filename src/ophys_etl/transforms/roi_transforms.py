@@ -1,7 +1,9 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 
 import numpy as np
 from scipy.sparse import coo_matrix
+
+from ophys_etl.transforms.data_loaders import motion_border
 
 
 def suite2p_rois_to_coo(suite2p_stats: np.ndarray,
@@ -127,3 +129,146 @@ def crop_roi_mask(roi_mask: coo_matrix) -> coo_matrix:
     cropped_mask = roi_mask.tocsr()[min_row:max_row, min_col:max_col]
 
     return cropped_mask.tocoo()
+
+
+def coo_rois_to_old(coo_masks: List[coo_matrix],
+                    max_correction_vals: motion_border,
+                    movie_shape: Tuple[int, int]) -> List[Dict[str, Any]]:
+    """
+    Converts coo formatted ROIs to old format from previous Ophys Segmentation
+    implementation. This is a required transformation as the next workflow
+    step, Extract Traces, expects ROIs in this format and to reduce work load
+    this will not be changed.
+    Parameters
+    ----------
+    coo_masks: List[coo_matrix]
+        A list of scipy coo_matrices representing ROI masks, each element of
+        list is a unique ROI.
+    max_correction_vals: motion_border
+        The max motion correction values identified in the motion correction
+        step of ophys segmentation pipeline
+    movie_shape: Tuple[int, int]
+        The frame shape of the movie from which ROIs were extracted in order
+        of: (height, width).
+
+    Returns
+    -------
+    List[Dict[str, Any]]
+        A list of dictionaries representing the ROIs in old segmentation format,
+        the data contained inside each one is as follows:
+        {
+            id: int
+            x: int
+            y: int
+            width: int
+            height: int
+            valid_roi: Bool
+            mask_matrix: List[List[Bool]]
+            max_correction_up: int
+            max_correction_down: int
+            max_correction_left: int
+            max_correction_right: int
+            mask_image_plane: int
+            exclusion_labels: List[int] codes are defined here http://confluence.corp.alleninstitute.org/pages/viewpage.action?spaceKey=IT&title=2019+Ophys+processing
+        }
+        For details about specific values see design document,
+        http://confluence.corp.alleninstitute.org/display/IT/DRAFT%3A+2020+Ophys+Segmentation+Refactor+and+Update#DRAFT:2020OphysSegmentationRefactorandUpdate-3.Segmentation(Newworkflowstep)
+    """
+    old_rois = []
+    for temp_id, coo_mask in enumerate(coo_masks):
+        old_roi = _coo_mask_to_old_format(coo_mask)
+        old_roi['id'] = temp_id  # this is popped off when writting to LIMs but is needed for AllenSDK class
+        old_roi['cell_specimen_id'] = temp_id  # this is rewritten after nway cell matching
+        old_roi['valid_roi'] = True
+        old_roi['max_correction_up'] = max_correction_vals.up
+        old_roi['max_correction_down'] = max_correction_vals.down
+        old_roi['max_correction_right'] = max_correction_vals.right
+        old_roi['max_correction_left'] = max_correction_vals.left
+        old_roi['mask_image_plane'] = 0
+        old_roi['exclusion_labels'] = []
+        _check_motion_exclusion(old_roi, movie_shape)
+        old_rois.append(old_roi)
+    return old_rois
+
+
+def _coo_mask_to_old_format(coo_mask: coo_matrix) -> Dict:
+    """
+    This functions transforms ROI mask data from COO format
+    to the old format used in older segmentation. This function
+    writes only the data associated with the mask.
+    Parameters
+    ----------
+    coo_mask: coo_matrix
+        The coo roi matrix to be converted to old segmentation mask format
+
+    Returns
+    -------
+    Dict:
+        A dictionary that contains the mask data from the coo matrix in the
+        old segmentation format
+        {
+            'x': int (x location of upper left corner of roi in pixels)
+            'y': int (y location of upper left corner of roi in pixels)
+            'width': int (width of the roi mask in pixels)
+            'height': int (height of the roi mask in pixels)
+            'mask_matrix': List[List[bool]] (dense matrix of the roi mask in space)
+        }
+    """
+    x_most_left = min(coo_mask.col)
+    y_most_up = min(coo_mask.row)
+    x_most_right = max(coo_mask.col)
+    y_most_down = max(coo_mask.row)
+    width = x_most_right - x_most_left + 1
+    height = y_most_down - y_most_up + 1
+    mask_matrix = coo_mask.toarray()[y_most_up:(y_most_down + 1),
+                                     x_most_left:(x_most_right + 1)]
+    mask_matrix = np.array(mask_matrix, dtype=bool)
+    old_roi = {
+        'x': x_most_left,
+        'y': y_most_up,
+        'width': width,
+        'height': height,
+        'mask_matrix': mask_matrix.tolist()
+    }
+    return old_roi
+
+
+def _check_motion_exclusion(old_roi: Dict,
+                            movie_shape: Tuple[int, int]):
+    """
+    Checks if roi in old styling needs to be excluded as it exists partly
+    or wholey outside the bounds of the motion correction border. Assigns
+    a string to the list of exclusion labels indicating outside of motion
+    border and labels ROI as invalid.
+    Parameters
+    ----------
+    old_roi: Dict
+        An ROI stored in old dictionary format that minimally contains the
+        following values.
+        {
+            'x': int (x location of upper left corner of roi in pixels)
+            'y': int (y location of upper left corner of roi in pixels)
+            'width': int (width of the roi mask in pixels)
+            'height': int (height of the roi mask in pixels)
+            'max_correction_up': int
+            'max_correction_down': int
+            'max_correction_left': int
+            'max_correction_right': int
+        }
+
+    movie_shape: Tuple[int, int]
+        The frame shape of the movie from which ROIs were extracted in order
+        of: (height, width).
+    Returns
+    -------
+
+    """
+    movie_height, movie_width = movie_shape[0], movie_shape[1]
+    furthest_right_pixel = old_roi['x'] + old_roi['width']
+    furthest_down_pixel = old_roi['y'] + old_roi['height']
+    if (old_roi['x'] <= old_roi['max_correction_left'] or
+       old_roi['y'] <= old_roi['max_correction_up'] or
+       furthest_right_pixel >= movie_width - old_roi['max_correction_right'] or
+       furthest_down_pixel >= movie_height - old_roi['max_correction_down']):
+        old_roi['exclusion_labels'].append(7)  # code 7 corresponds to motion border error
+        old_roi['valid_roi'] = False

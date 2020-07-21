@@ -1,4 +1,3 @@
-import tempfile
 import os
 
 import pytest
@@ -13,7 +12,7 @@ from ophys_etl.transforms.data_loaders import (get_max_correction_border,
 @pytest.mark.parametrize("motion_correction_fixture, x_fail",
                          [({}, False),
                           ({}, True)],
-                         indirect=['motion_correction_fixture'])  # doesn't matter file not written
+                         indirect=['motion_correction_fixture'])
 def test_get_max_correction_border_from_file(motion_correction_fixture,
                                              x_fail):
     motion_path, motion_fixture_params = motion_correction_fixture

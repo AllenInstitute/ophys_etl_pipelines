@@ -52,7 +52,7 @@ def test_binarize_and_convert_rois(s2p_stat_fixture, ophys_movie_fixture,
             converter.binarize_and_create()
     else:
         converter = BinarizerAndROICreator(input_data=args,
-                                       args=[])
+                                           args=[])
         converter.binarize_and_create()
 
         # assert file exists

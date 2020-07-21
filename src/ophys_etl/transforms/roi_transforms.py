@@ -180,10 +180,10 @@ def coo_rois_to_old(coo_masks: List[coo_matrix],
         old_roi['id'] = temp_id  # popped off writing to LIMs
         old_roi['cell_specimen_id'] = temp_id  # updated post nway cellmatching
         old_roi['valid_roi'] = True
-        old_roi['max_correction_up'] = max_correction_vals.up
-        old_roi['max_correction_down'] = max_correction_vals.down
-        old_roi['max_correction_right'] = max_correction_vals.right
-        old_roi['max_correction_left'] = max_correction_vals.left
+        old_roi['max_correction_up'] = int(max_correction_vals.up)
+        old_roi['max_correction_down'] = int(max_correction_vals.down)
+        old_roi['max_correction_right'] = int(max_correction_vals.right)
+        old_roi['max_correction_left'] = int(max_correction_vals.left)
         old_roi['mask_image_plane'] = 0
         old_roi['exclusion_labels'] = []
         _check_motion_exclusion(old_roi, movie_shape)
@@ -220,10 +220,10 @@ def _coo_mask_to_old_format(coo_mask: coo_matrix) -> Dict:
     mask_matrix = crop_roi_mask(coo_mask).toarray()
     mask_matrix = np.array(mask_matrix, dtype=bool)
     old_roi = {
-        'x': bounds[0],
-        'y': bounds[2],
-        'width': width,
-        'height': height,
+        'x': int(bounds[0]),
+        'y': int(bounds[2]),
+        'width': int(width),
+        'height': int(height),
         'mask_matrix': mask_matrix.tolist()
     }
     return old_roi

@@ -2,6 +2,8 @@ from pathlib import Path
 from typing import Tuple
 
 import h5py
+import pandas as pd
+from numpy.random import seed, uniform
 import pytest
 
 import numpy as np
@@ -35,7 +37,7 @@ def ophys_movie_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
     ophys_movie_path = processed_dir / movie_name
     with h5py.File(ophys_movie_path, "w") as f:
         f.create_dataset(movie_h5_key, data=movie_frames)
-    return (ophys_movie_path, fixture_params)
+    return ophys_movie_path, fixture_params
 
 
 @pytest.fixture
@@ -55,4 +57,34 @@ def s2p_stat_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
 
     stat_path = tmp_path / "stat.npy"
     np.save(stat_path, stats)
-    return (stat_path, fixture_params)
+    return stat_path, fixture_params
+
+
+@pytest.fixture()
+def motion_correction_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
+    """Fixture that allows parameterized mock motion correction video files
+    to be generated
+    """
+    abs_value_bound = request.param.get("abs_value_bound", 5.0)
+    motion_correction_rows = request.param.get("motion_correction_rows", 15)
+    random_seed = request.param.get("random_seed", 0)
+
+    fixture_params = {'abs_value_bound': abs_value_bound,
+                      'motion_correction_rows': motion_correction_rows,
+                      'random_seed': random_seed}
+
+    seed(random_seed)
+    x_correction_values = uniform(-abs_value_bound, abs_value_bound,
+                                  motion_correction_rows)
+    y_correction_values = uniform(-abs_value_bound, abs_value_bound,
+                                  motion_correction_rows)
+    motion_correction_data = {
+        'x': x_correction_values,
+        'y': y_correction_values
+    }
+
+    motion_correction_path = tmp_path / 'motion_correction.csv'
+    motion_corrected_df = pd.DataFrame.from_dict(motion_correction_data)
+
+    motion_corrected_df.to_csv(motion_correction_path)
+    return motion_correction_path, fixture_params

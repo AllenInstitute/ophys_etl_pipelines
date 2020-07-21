@@ -214,18 +214,14 @@ def _coo_mask_to_old_format(coo_mask: coo_matrix) -> Dict:
             'mask_matrix': List[List[bool]] (dense matrix of roi mask)
         }
     """
-    x_most_left = min(coo_mask.col)
-    y_most_up = min(coo_mask.row)
-    x_most_right = max(coo_mask.col)
-    y_most_down = max(coo_mask.row)
-    width = x_most_right - x_most_left + 1
-    height = y_most_down - y_most_up + 1
-    mask_matrix = coo_mask.toarray()[y_most_up:(y_most_down + 1),
-                                     x_most_left:(x_most_right + 1)]
+    bounds = roi_bounds(coo_mask)
+    height = bounds[1] - bounds[0]
+    width = bounds[3] - bounds[2]
+    mask_matrix = crop_roi_mask(coo_mask).toarray()
     mask_matrix = np.array(mask_matrix, dtype=bool)
     old_roi = {
-        'x': x_most_left,
-        'y': y_most_up,
+        'x': bounds[0],
+        'y': bounds[2],
         'width': width,
         'height': height,
         'mask_matrix': mask_matrix.tolist()

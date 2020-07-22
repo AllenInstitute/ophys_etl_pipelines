@@ -5,12 +5,13 @@ from argschema.fields import (List, InputFile, Str, OutputFile, Float,
                               Nested, Int, Bool)
 import marshmallow as mm
 import numpy as np
+import pandas as pd
 import h5py
 
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
                                                  suite2p_rois_to_coo,
                                                  coo_rois_to_old)
-from ophys_etl.transforms.data_loaders import get_max_correction_border
+from ophys_etl.transforms.data_loaders import get_max_correction_values
 
 
 class BinarizeAndCreationException(Exception):
@@ -60,9 +61,9 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
     )
 
     binary_quantile = Float(
-        default=None,
+        default=0.1,
         required=False,
-        allow_none=True,
+        allow_none=False,
         description=("The quantile against which an ROI is binarized. If not "
                      "provided will use default function value of 0.1.")
     )
@@ -123,12 +124,15 @@ class OldSegmentationROISchema(ArgSchema):
                                 description=("Max correction in pixels in the "
                                              "left direction"))
     mask_image_plane = Int(required=True,
-                           description=("What tiff file the ROI lie "
-                                        "within. this is being deprecated so "
-                                        "will always be assigned 0"))
+                           description=("The old segmentation pipeline stored "
+                                        "overlapping ROIs on separate image "
+                                        "planes. For compatibility purposes, "
+                                        "this field must be kept, but will "
+                                        "always be set to zero for the new "
+                                        "updated pipeline"))
     exclusion_labels = List(Int, required=True,
-                            description=("Codes for reasoning of exclusion of "
-                                         "an ROI"))
+                            description=("LIMS IDs used to track why a given "
+                                         "ROI is not considered a valid_roi"))
 
 
 class BinarizeAndCreateROIsOutputSchema(ArgSchema):
@@ -156,13 +160,9 @@ class BinarizerAndROICreator(ArgSchemaParser):
 
         binarized_coo_rois = []
         for coo_roi in coo_rois:
-            if self.args['binary_quantile'] is not None:
-                binary_mask = binarize_roi_mask(coo_roi,
-                                                self.args['abs_threshold'],
-                                                self.args['binary_quantile'])
-            else:
-                binary_mask = binarize_roi_mask(coo_roi,
-                                                self.args['abs_threshold'])
+            binary_mask = binarize_roi_mask(coo_roi,
+                                            self.args['abs_threshold'],
+                                            self.args['binary_quantile'])
             binarized_coo_rois.append(binary_mask)
         self.logger.info("Binarized ROIs from Suite2p, total binarized: "
                          f"{len(binarized_coo_rois)}")
@@ -170,9 +170,10 @@ class BinarizerAndROICreator(ArgSchemaParser):
         # load the motion correction values
         self.logger.info("Loading motion correction border values from "
                          f" {self.args['motion_correction_values']}")
-        motion_border = get_max_correction_border(
-            Path(self.args['motion_correction_values']),
-            self.args['maximum_motion_shift'])
+        motion_correction_df = pd.read_csv(
+            self.args['motion_correction_values'])
+        motion_border = get_max_correction_values(
+            motion_correction_df, self.args['maximum_motion_shift'])
 
         # create the rois
         self.logger.info("Transforming ROIs to old segmentation style.")

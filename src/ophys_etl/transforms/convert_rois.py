@@ -154,6 +154,6 @@ class BinarizerAndROICreator(ArgSchemaParser):
                     output_path=self.args['output_json'])
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: no cover
     roi_creator_and_binarizer = BinarizerAndROICreator()
     roi_creator_and_binarizer.binarize_and_create()

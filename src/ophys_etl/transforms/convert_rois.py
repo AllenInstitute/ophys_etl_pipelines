@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from argschema import ArgSchema, ArgSchemaParser
-from argschema.fields import (List, InputFile, Str, Dict, OutputFile, Float,
+from argschema.fields import (List, InputFile, Str, OutputFile, Float,
                               Nested, Int, Bool)
 import marshmallow as mm
 import numpy as np
@@ -108,14 +108,14 @@ class OldSegmentationROISchema(ArgSchema):
     height = Int(required=True,
                  description="Height of the ROI in pixels")
     valid_roi = Bool(required=True,
-                     description=("Boolean indicating if the ROI is a valid cell"
-                                  " or not"))
+                     description=("Boolean indicating if the ROI is a valid "
+                                  "cell or not"))
     mask_matrix = List(List(Bool), required=True,
                        description=("Bool nested list describing which pixels "
                                     "in the ROI area are part of the cell"))
     max_correction_up = Float(required=True,
-                              description=("Max correction in pixels in the up "
-                                           "direction"))
+                              description=("Max correction in pixels in the "
+                                           "up direction"))
     max_correction_down = Float(required=True,
                                 description=("Max correction in pixels in the "
                                              "down direction"))

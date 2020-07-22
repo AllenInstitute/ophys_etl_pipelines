@@ -1,7 +1,8 @@
 from pathlib import Path
 
 from argschema import ArgSchema, ArgSchemaParser
-from argschema.fields import List, InputFile, Str, Dict, OutputFile, Float
+from argschema.fields import (List, InputFile, Str, Dict, OutputFile, Float,
+                              Nested, Int, Bool)
 import marshmallow as mm
 import numpy as np
 import h5py
@@ -44,8 +45,8 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         default=30.0,
         required=False,
         allow_none=False,
-        description=("The maximum allowable motion shift for a frame before "
-                     "it is considered an anomaly and thrown out of "
+        description=("The maximum allowable motion shift for a frame in pixels"
+                     " before it is considered an anomaly and thrown out of "
                      "processing")
     )
 
@@ -94,11 +95,44 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         return data
 
 
+class OldSegmentationROISchema(ArgSchema):
+    id = Int(required=True,
+             description=("Unique ID of the ROI, get's overwritten writting "
+                          "to LIMS"))
+    x = Int(required=True,
+            description="X location of top left corner of ROI in pixels")
+    y = Int(required=True,
+            description="Y location of top left corner of ROI in pixels")
+    width = Int(required=True,
+                description="Width of the ROI in pixels")
+    height = Int(required=True,
+                 description="Height of the ROI in pixels")
+    valid_roi = Bool(required=True,
+                     description=("Boolean indicating if the ROI is a valid cell"
+                                  " or not"))
+    mask_matrix = List(List(Bool), required=True,
+                       description=("Bool nested list describing which pixels "
+                                    "in the ROI area are part of the cell"))
+    max_correction_up = Float(required=True,
+                              description=("Max correction in pixels in the up "
+                                           "direction"))
+    max_correction_down = Float(required=True,
+                                description=("Max correction in pixels in the "
+                                             "down direction"))
+    max_correction_left = Float(required=True,
+                                description=("Max correction in pixels in the "
+                                             "left direction"))
+    mask_image_plane = Int(required=True,
+                           description=("What tiff file the ROI lie "
+                                        "within. this is being deprecated so "
+                                        "will always be assigned 0"))
+    exclusion_labels = List(Int, required=True,
+                            description=("Codes for reasoning of exclusion of "
+                                         "an ROI"))
+
+
 class BinarizeAndCreateROIsOutputSchema(ArgSchema):
-    old_rois = List(Dict(keys=Str),
-                    required=True,
-                    description="Dictionary of ROIs in the old segmentation "
-                                "format.")
+    old_rois = Nested(OldSegmentationROISchema, many=True)
 
 
 class BinarizerAndROICreator(ArgSchemaParser):

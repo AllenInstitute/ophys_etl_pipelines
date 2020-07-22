@@ -179,10 +179,10 @@ def coo_rois_to_old(coo_masks: List[coo_matrix],
         old_roi = _coo_mask_to_old_format(coo_mask)
         old_roi['id'] = temp_id  # popped off writing to LIMs
         old_roi['cell_specimen_id'] = temp_id  # updated post nway cellmatching
-        old_roi['max_correction_up'] = int(max_correction_vals.up)
-        old_roi['max_correction_down'] = int(max_correction_vals.down)
-        old_roi['max_correction_right'] = int(max_correction_vals.right)
-        old_roi['max_correction_left'] = int(max_correction_vals.left)
+        old_roi['max_correction_up'] = max_correction_vals.up
+        old_roi['max_correction_down'] = max_correction_vals.down
+        old_roi['max_correction_right'] = max_correction_vals.right
+        old_roi['max_correction_left'] = max_correction_vals.left
         old_roi['mask_image_plane'] = 0
         old_roi['exclusion_labels'], old_roi['valid_roi'] = _check_exclusion(
             old_roi, movie_shape)

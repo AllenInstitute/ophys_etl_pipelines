@@ -63,7 +63,7 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
     binary_quantile = Float(
         default=0.1,
         required=False,
-        allow_none=False,
+        allow_none=True,
         description=("The quantile against which an ROI is binarized. If not "
                      "provided will use default function value of 0.1.")
     )

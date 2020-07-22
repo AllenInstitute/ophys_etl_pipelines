@@ -77,4 +77,5 @@ def test_binarize_and_convert_rois(s2p_stat_fixture, ophys_movie_fixture,
     with open(output_path) as open_output:
         rois = json.load(open_output)
         # assert all rois were written
-        assert len(rois) == len(stat_fixure_params['masks'])
+        assert len(rois['LIMS_compatible_rois']) == \
+               len(stat_fixure_params['masks'])

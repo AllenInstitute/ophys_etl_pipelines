@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from argschema import ArgSchema, ArgSchemaParser
+from argschema.schemas import DefaultSchema
 from argschema.fields import (List, InputFile, Str, OutputFile, Float,
                               Nested, Int, Bool)
 import marshmallow as mm
@@ -95,10 +96,13 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         return data
 
 
-class LIMSCompatibleROIFormat(ArgSchema):
+class LIMSCompatibleROIFormat(DefaultSchema):
     id = Int(required=True,
              description=("Unique ID of the ROI, get's overwritten writting "
                           "to LIMS"))
+    cell_specimen_id = Int(required=True,
+                           description="Id of cell across experiments "
+                                       "after nway cell matching")
     x = Int(required=True,
             description="X location of top left corner of ROI in pixels")
     y = Int(required=True,
@@ -122,6 +126,9 @@ class LIMSCompatibleROIFormat(ArgSchema):
     max_correction_left = Float(required=True,
                                 description=("Max correction in pixels in the "
                                              "left direction"))
+    max_correction_right = Float(required=True,
+                                 description="Max correction in the pixels in "
+                                             "the right direction")
     mask_image_plane = Int(required=True,
                            description=("The old segmentation pipeline stored "
                                         "overlapping ROIs on separate image "
@@ -134,12 +141,14 @@ class LIMSCompatibleROIFormat(ArgSchema):
                                          "ROI is not considered a valid_roi"))
 
 
-class BinarizeAndCreateROIsOutputSchema(ArgSchema):
-    LIMS_compatible_rois = Nested(LIMSCompatibleROIFormat, many=True)
+class BinarizeAndCreateROIsOutputSchema(DefaultSchema):
+    LIMS_compatible_rois = Nested(LIMSCompatibleROIFormat,
+                                  many=True)
 
 
 class BinarizerAndROICreator(ArgSchemaParser):
     default_schema = BinarizeAndCreateROIsInputSchema
+    default_output_schema = BinarizeAndCreateROIsOutputSchema
 
     def binarize_and_create(self):
         """
@@ -193,7 +202,11 @@ class BinarizerAndROICreator(ArgSchemaParser):
         self.logger.info("Writing old style ROIs to json file at "
                          f"{self.args['output_json']}")
 
-        self.output(LIMS_compatible_rois,
+        out_dict = {
+            'LIMS_compatible_rois': LIMS_compatible_rois
+        }
+
+        self.output(out_dict,
                     output_path=self.args['output_json'])
 
 

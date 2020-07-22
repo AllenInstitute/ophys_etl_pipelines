@@ -179,14 +179,13 @@ def coo_rois_to_old(coo_masks: List[coo_matrix],
         old_roi = _coo_mask_to_old_format(coo_mask)
         old_roi['id'] = temp_id  # popped off writing to LIMs
         old_roi['cell_specimen_id'] = temp_id  # updated post nway cellmatching
-        old_roi['valid_roi'] = True
         old_roi['max_correction_up'] = int(max_correction_vals.up)
         old_roi['max_correction_down'] = int(max_correction_vals.down)
         old_roi['max_correction_right'] = int(max_correction_vals.right)
         old_roi['max_correction_left'] = int(max_correction_vals.left)
         old_roi['mask_image_plane'] = 0
-        old_roi['exclusion_labels'] = []
-        _check_motion_exclusion(old_roi, movie_shape)
+        old_roi['exclusion_labels'], old_roi['valid_roi'] = _check_exclusion(
+            old_roi, movie_shape)
         old_rois.append(old_roi)
     return old_rois
 
@@ -229,13 +228,13 @@ def _coo_mask_to_old_format(coo_mask: coo_matrix) -> Dict:
     return old_roi
 
 
-def _check_motion_exclusion(old_roi: Dict,
-                            movie_shape: Tuple[int, int]):
+def _check_exclusion(old_roi: Dict,
+                     movie_shape: Tuple[int, int]) -> Tuple[List[int], bool]:
     """
-    Checks if roi in old styling needs to be excluded as it exists partly
-    or wholey outside the bounds of the motion correction border. Assigns
-    a string to the list of exclusion labels indicating outside of motion
-    border and labels ROI as invalid.
+    Checks if roi in old styling needs to be excluded as it breaks
+    one of the defined conditions within this function. Returns a list of
+    ints corresponding to the codes for exclusion. Also return a boolean
+    indicating if the roi is valid or not.
     Parameters
     ----------
     old_roi: Dict
@@ -257,8 +256,14 @@ def _check_motion_exclusion(old_roi: Dict,
         of: (height, width).
     Returns
     -------
-
+    Tuple[List[int]], bool]
+        The tuple contains a list of exclusion codes as it 0 index and
+        a bool indicating if the roi is valid as its 1 index value
     """
+    valid_roi = True
+    exclusion_labels = []
+
+    # check if roi exists partly or wholey outside motion border
     movie_height, movie_width = movie_shape[0], movie_shape[1]
     furthest_right_pixel = old_roi['x'] + old_roi['width']
     furthest_down_pixel = old_roi['y'] + old_roi['height']
@@ -266,5 +271,7 @@ def _check_motion_exclusion(old_roi: Dict,
        old_roi['y'] <= old_roi['max_correction_up'] or
        furthest_right_pixel >= movie_width - old_roi['max_correction_right'] or
        furthest_down_pixel >= movie_height - old_roi['max_correction_down']):
-        old_roi['exclusion_labels'].append(7)  # code 7 = motion border error
-        old_roi['valid_roi'] = False
+        exclusion_labels.append(7)  # code 7 = motion border error
+        valid_roi = False
+
+    return exclusion_labels, valid_roi

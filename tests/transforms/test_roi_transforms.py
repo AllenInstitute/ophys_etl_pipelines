@@ -277,53 +277,53 @@ def test_coo_mask_to_old_format(coo_mask, expected, raises_error):
 @pytest.mark.parametrize("old_type_roi, movie_shape, expected_label, "
                          "expected_valid, raises_error",
                          [({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2, 'valid_roi': True,
+                            'height': 2,
                             'max_correction_up': 2,
                             'max_correction_down': 2, 'max_correction_left': 2,
-                            'max_correction_right': 2, 'exclusion_labels': []},
+                            'max_correction_right': 2},
                           (20, 20), [], True, False),
                           ({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2, 'valid_roi': True,
+                            'height': 2,
                             'max_correction_up': 15,
                             'max_correction_down': 2, 'max_correction_left': 2,
-                            'max_correction_right': 2, 'exclusion_labels': []},
+                            'max_correction_right': 2},
                           (20, 20), [7], False, False),
                           ({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2, 'valid_roi': True,
+                            'height': 2,
                             'max_correction_up': 2,
                             'max_correction_down': 15,
                             'max_correction_left': 2,
-                            'max_correction_right': 2, 'exclusion_labels': []},
+                            'max_correction_right': 2},
                            (20, 20), [7], False, False),
                           ({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2, 'valid_roi': True,
+                            'height': 2,
                             'max_correction_up': 2,
                             'max_correction_down': 2,
                             'max_correction_left': 15,
-                            'max_correction_right': 2, 'exclusion_labels': []},
+                            'max_correction_right': 2},
                           (20, 20), [7], False, False),
                           ({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2, 'valid_roi': True,
+                            'height': 2,
                             'max_correction_up': 2,
                             'max_correction_down': 2, 'max_correction_left': 2,
-                            'max_correction_right': 15, 'exclusion_labels': []
+                            'max_correction_right': 15
                             },
                           (20, 20), [7], False, False),
                           ({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2, 'valid_roi': True,
+                            'height': 2,
                             'max_correction_up': 10,
                             'max_correction_down': 2, 'max_correction_left': 2,
-                            'max_correction_right': 2, 'exclusion_labels': []},
+                            'max_correction_right': 2},
                           (20, 20), [7], False, False),
                           ({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2, 'valid_roi': True,
+                            'height': 2,
                             'max_correction_up': 2,
                             'max_correction_down': 9, 'max_correction_left': 2,
-                            'max_correction_right': 2, 'exclusion_labels': []},
+                            'max_correction_right': 2},
                           (20, 20), [7], False, False)
                           ])
-def test_check_motion_exclusion(old_type_roi, movie_shape, expected_label,
-                                expected_valid, raises_error):
+def test_check_exclusion(old_type_roi, movie_shape, expected_label,
+                         expected_valid, raises_error):
     """
     Test Cases:
     1: ROI roughly centered in frame and not out of bounds
@@ -334,6 +334,7 @@ def test_check_motion_exclusion(old_type_roi, movie_shape, expected_label,
     6: ROI edge on the motion correction border in the up direction
     7: ROI halfway in / out of motion correction border in down direction
     """
-    roi_transforms._check_motion_exclusion(old_type_roi, movie_shape)
+    old_type_roi['exclusion_labels'], old_type_roi['valid_roi'] = \
+        roi_transforms._check_exclusion(old_type_roi, movie_shape)
     assert old_type_roi['exclusion_labels'] == expected_label
     assert old_type_roi['valid_roi'] == expected_valid

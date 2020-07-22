@@ -15,7 +15,7 @@ def get_max_correction_values(x_series: pd.Series, y_series: pd.Series,
     x_series: pd.Series:
         A series of movements in the x direction
     y_series: pd.Series:
-        A series of movements in the y direction 
+        A series of movements in the y direction
     max_shift: float
         Maximum shift to allow when considering motion correction. Any
         larger shifts are considered outliers.

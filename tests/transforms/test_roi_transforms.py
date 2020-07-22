@@ -190,12 +190,13 @@ def test_crop_roi_mask(mask, expected, raises_error):
                              'mask_image_plane': 0,
                              'exclusion_labels': []}],
                            False)])
-def test_coo_rois_to_old(coo_masks, max_correction_values,
-                         expected, raises_error):
-    old_rois = roi_transforms.coo_rois_to_old(coo_masks,
-                                              max_correction_values,
-                                              coo_masks[0].shape)
-    assert old_rois == expected
+def test_coo_rois_to_compatible(coo_masks, max_correction_values,
+                                expected, raises_error):
+    compatible_rois = roi_transforms.coo_rois_to_lims_compatible(
+        coo_masks,
+        max_correction_values,
+        coo_masks[0].shape)
+    assert compatible_rois == expected
 
 
 @pytest.mark.parametrize("coo_mask, expected, raises_error",
@@ -269,12 +270,13 @@ def test_coo_rois_to_old(coo_masks, max_correction_values,
                                                         [True, True],
                                                         [True, True]]).tolist()
                            }, False)])
-def test_coo_mask_to_old_format(coo_mask, expected, raises_error):
-    old_style_roi = roi_transforms._coo_mask_to_old_format(coo_mask)
-    assert old_style_roi == expected
+def test_coo_mask_to_compatible_format(coo_mask, expected, raises_error):
+    lims_compatible_roi = roi_transforms._coo_mask_to_LIMS_compatible_format(
+        coo_mask)
+    assert lims_compatible_roi == expected
 
 
-@pytest.mark.parametrize("old_type_roi, movie_shape, expected_label, "
+@pytest.mark.parametrize("lims_compatible_roi, movie_shape, expected_label, "
                          "expected_valid, raises_error",
                          [({'x': 10, 'y': 10, 'width': 2,
                             'height': 2,
@@ -322,7 +324,7 @@ def test_coo_mask_to_old_format(coo_mask, expected, raises_error):
                             'max_correction_right': 2},
                           (20, 20), [7], False, False)
                           ])
-def test_check_exclusion(old_type_roi, movie_shape, expected_label,
+def test_check_exclusion(lims_compatible_roi, movie_shape, expected_label,
                          expected_valid, raises_error):
     """
     Test Cases:
@@ -334,7 +336,8 @@ def test_check_exclusion(old_type_roi, movie_shape, expected_label,
     6: ROI edge on the motion correction border in the up direction
     7: ROI halfway in / out of motion correction border in down direction
     """
-    old_type_roi['exclusion_labels'], old_type_roi['valid_roi'] = \
-        roi_transforms._check_exclusion(old_type_roi, movie_shape)
-    assert old_type_roi['exclusion_labels'] == expected_label
-    assert old_type_roi['valid_roi'] == expected_valid
+    (lims_compatible_roi['exclusion_labels'],
+     lims_compatible_roi['valid_roi']) = roi_transforms._check_exclusion(
+        lims_compatible_roi, movie_shape)
+    assert lims_compatible_roi['exclusion_labels'] == expected_label
+    assert lims_compatible_roi['valid_roi'] == expected_valid

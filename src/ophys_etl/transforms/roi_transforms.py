@@ -133,7 +133,8 @@ def crop_roi_mask(roi_mask: coo_matrix) -> coo_matrix:
 
 def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
                                 max_correction_vals: motion_border,
-                                movie_shape: Tuple[int, int]) -> List[Dict[str, Any]]:
+                                movie_shape: Tuple[int, int]
+                                ) -> List[Dict[str, Any]]:
     """
     Converts coo formatted ROIs to lims compatible format.
     Parameters
@@ -265,8 +266,10 @@ def _check_exclusion(compatible_roi: Dict,
     furthest_down_pixel = compatible_roi['y'] + compatible_roi['height']
     if (compatible_roi['x'] <= compatible_roi['max_correction_left'] or
        compatible_roi['y'] <= compatible_roi['max_correction_up'] or
-       furthest_right_pixel >= movie_width - compatible_roi['max_correction_right'] or
-       furthest_down_pixel >= movie_height - compatible_roi['max_correction_down']):
+       furthest_right_pixel >= movie_width -
+            compatible_roi['max_correction_right'] or
+       furthest_down_pixel >= movie_height -
+            compatible_roi['max_correction_down']):
         exclusion_labels.append(7)  # code 7 = motion border error
         valid_roi = False
 

@@ -8,9 +8,10 @@ import numpy as np
 import pandas as pd
 import h5py
 
+
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
                                                  suite2p_rois_to_coo,
-                                                 coo_rois_to_old)
+                                                 coo_rois_to_lims_compatible)
 from ophys_etl.transforms.data_loaders import get_max_correction_values
 
 
@@ -62,8 +63,6 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
 
     binary_quantile = Float(
         default=0.1,
-        required=False,
-        allow_none=True,
         description=("The quantile against which an ROI is binarized. If not "
                      "provided will use default function value of 0.1.")
     )
@@ -81,7 +80,7 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         return data
 
     @mm.post_load()
-    def check_file_existance(self, data, **kwargs):
+    def check_file_existence(self, data, **kwargs):
         """
         have to check manually for existance of .h5 and .npy files because
         InputFile fails on these, at least on windows because of a use of
@@ -96,7 +95,7 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         return data
 
 
-class OldSegmentationROISchema(ArgSchema):
+class LIMSCompatibleROIFormat(ArgSchema):
     id = Int(required=True,
              description=("Unique ID of the ROI, get's overwritten writting "
                           "to LIMS"))
@@ -136,13 +135,20 @@ class OldSegmentationROISchema(ArgSchema):
 
 
 class BinarizeAndCreateROIsOutputSchema(ArgSchema):
-    old_rois = Nested(OldSegmentationROISchema, many=True)
+    LIMS_compatible_rois = Nested(LIMSCompatibleROIFormat, many=True)
 
 
 class BinarizerAndROICreator(ArgSchemaParser):
     default_schema = BinarizeAndCreateROIsInputSchema
 
     def binarize_and_create(self):
+        """
+        This function takes ROIs (regions of interest) outputted from
+        suite2p in a stat.npy file and converts them to a LIMS compatible
+        data format for storage and further processing. This process
+        binarizes the masks and then changes the formatting before writing
+        to a json output file.
+        """
 
         self.logger.name = type(self).__name__
         self.logger.setLevel(self.args.pop('log_level'))
@@ -173,19 +179,21 @@ class BinarizerAndROICreator(ArgSchemaParser):
         motion_correction_df = pd.read_csv(
             self.args['motion_correction_values'])
         motion_border = get_max_correction_values(
-            motion_correction_df, self.args['maximum_motion_shift'])
+            motion_correction_df['x'],
+            motion_correction_df['y'],
+            self.args['maximum_motion_shift'])
 
         # create the rois
-        self.logger.info("Transforming ROIs to old segmentation style.")
-        old_segmentation_rois = coo_rois_to_old(binarized_coo_rois,
-                                                motion_border,
-                                                movie_shape)
+        self.logger.info("Transforming ROIs to LIMS compatible style.")
+        LIMS_compatible_rois = coo_rois_to_lims_compatible(binarized_coo_rois,
+                                                           motion_border,
+                                                           movie_shape)
 
         # save the rois as a json file to output directory
         self.logger.info("Writing old style ROIs to json file at "
                          f"{self.args['output_json']}")
 
-        self.output(old_segmentation_rois,
+        self.output(LIMS_compatible_rois,
                     output_path=self.args['output_json'])
 
 

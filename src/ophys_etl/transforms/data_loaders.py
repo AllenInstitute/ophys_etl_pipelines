@@ -5,17 +5,17 @@ from collections import namedtuple
 motion_border = namedtuple('motion_border', 'left right up down')
 
 
-def get_max_correction_values(motion_corr_df: pd.DataFrame,
+def get_max_correction_values(x_series: pd.Series, y_series: pd.Series,
                               max_shift: float = 30.0) -> motion_border:
     """
-    Gets the max correction values in the cardinal directions from
-    a motion correction dataframe created during Motion Correction workflow
-    step.
+    Gets the max correction values in the cardinal directions from a series
+    of correction values in the x and y directions
     Parameters
     ----------
-    motion_corr_df: pd.DataFrame
-        The dataframe that contains the motion correction value calculated
-        during motion correction workflow step of ophys segmentation pipeline.
+    x_series: pd.Series:
+        A series of movements in the x direction
+    y_series: pd.Series:
+        A series of movements in the y direction 
     max_shift: float
         Maximum shift to allow when considering motion correction. Any
         larger shifts are considered outliers.
@@ -30,21 +30,15 @@ def get_max_correction_values(motion_corr_df: pd.DataFrame,
     """
     # validate if input columns match supported versions of motion correction
     # files
-    input_column_set = set(motion_corr_df.columns)
-    required_columns = {'x', 'y'}
-    if not required_columns.intersection(input_column_set) == required_columns:
-        raise KeyError("Required columns to compute max correction not in "
-                       f"input dataset. Supplied columns: {input_column_set}, "
-                       f"need columns {required_columns}")
     if max_shift <= 0:
         raise ValueError(f"Max Shift input: {max_shift}. A positive input"
                          f"input for max shift is required.")
 
     # filter based out analomies based on maximum_shift
-    x_no_outliers = motion_corr_df["x"][(motion_corr_df["x"] >= -max_shift) &
-                                        (motion_corr_df["x"] <= max_shift)]
-    y_no_outliers = motion_corr_df["y"][(motion_corr_df["y"] >= -max_shift) &
-                                        (motion_corr_df["y"] <= max_shift)]
+    x_no_outliers = x_series[(x_series >= -max_shift) &
+                             (x_series <= max_shift)]
+    y_no_outliers = y_series[(y_series >= -max_shift) &
+                             (y_series <= max_shift)]
     # calculate max border shifts
     right_shift = -1 * x_no_outliers.min()
     left_shift = x_no_outliers.max()

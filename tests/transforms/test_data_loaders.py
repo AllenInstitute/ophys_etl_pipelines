@@ -53,10 +53,13 @@ def test_get_max_correction_border(motion_correction_data, max_shift,
     motion_correction_df = pd.DataFrame.from_dict(motion_correction_data)
     if x_fail:
         with pytest.raises(expected_error):
-            get_max_correction_values(motion_correction_df,
+            get_max_correction_values(motion_correction_df['x'],
+                                      motion_correction_df['y'],
                                       max_shift=max_shift)
     else:
-        calculated_border = get_max_correction_values(motion_correction_df,
-                                                      max_shift=max_shift)
+        calculated_border = get_max_correction_values(
+            motion_correction_df['x'],
+            motion_correction_df['y'],
+            max_shift=max_shift)
         np.testing.assert_allclose(np.array(expected_motion_border),
                                    np.array(calculated_border))

@@ -43,8 +43,8 @@ def test_binarize_and_convert_rois_schema(s2p_stat_fixture,
     with pytest.raises(x_error):
         if file_remove:
             os.remove(args[file_remove])
-        converter = BinarizerAndROICreator(input_data=args,
-                                           args=[])
+        BinarizerAndROICreator(input_data=args,
+                               args=[])
 
 
 @pytest.mark.parametrize("s2p_stat_fixture, ophys_movie_fixture, "
@@ -68,7 +68,7 @@ def test_binarize_and_convert_rois(s2p_stat_fixture, ophys_movie_fixture,
     }
 
     converter = BinarizerAndROICreator(input_data=args,
-                                           args=[])
+                                       args=[])
     converter.binarize_and_create()
 
     # assert file exists

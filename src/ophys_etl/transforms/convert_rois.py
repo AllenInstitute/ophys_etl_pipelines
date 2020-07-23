@@ -199,7 +199,7 @@ class BinarizerAndROICreator(ArgSchemaParser):
                                                            movie_shape)
 
         # save the rois as a json file to output directory
-        self.logger.info("Writing old style ROIs to json file at "
+        self.logger.info("Writing LIMs compatible ROIs to json file at "
                          f"{self.args['output_json']}")
 
         out_dict = {

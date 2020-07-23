@@ -82,11 +82,6 @@ def motion_correction_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
                                   motion_correction_rows)
     x_correction_values = np.append(x_correction_values, included_values_x)
     y_correction_values = np.append(y_correction_values, included_values_y)
-    '''
-    for x_value in included_values_x:
-        x_correction_values = np.append(x_correction_values, x_value)
-    for y_value  in included_values_y:
-        y_correction_values = np.append(y_correction_values, y_value)'''
 
     motion_correction_data = {
         'x': x_correction_values,

@@ -1,0 +1,374 @@
+import h5py
+from argschema import ArgSchemaParser
+import pytest
+from marshmallow import ValidationError
+import json
+import numpy as np
+import math
+import os.path
+from scipy.sparse import coo_matrix
+
+from ophys_etl.transforms.classification import (
+    InferenceInputSchema, RoiJsonSchema, InferenceParser, downsample, main,
+    _munge_data)
+
+# ROI input data not used but needed to pass through to the module output
+# Define here and reuse for brevity
+additional_roi_json_data = {
+    "exclusion_labels": [1],
+    "max_correction_up": 0,
+    "max_correction_down": 0,
+    "max_correction_left": 0,
+    "max_correction_right": 0,
+    "valid_roi": True,
+}
+
+
+@pytest.fixture(scope="function")
+def mock_model():
+    def _create_mock_model(predict_fn):
+        class MockModel():
+            def __init__(self):
+                pass
+
+            def predict(self, x):
+                return predict_fn(x)
+        return MockModel()
+    return _create_mock_model
+
+
+@pytest.fixture(scope="function")
+def classifier_model(tmp_path):
+    with open(tmp_path / "hello.txt", "w") as f:
+        f.write("abc")
+    yield str(tmp_path / "hello.txt")
+
+
+@pytest.fixture(scope="function")
+def traces():
+    return [np.arange(100), np.arange(100), np.arange(100)]
+
+
+@pytest.fixture(scope="function")
+def metadata():
+    return {
+        "rig": "rig",
+        "depth": 100,
+        "full_genotype": "Vip",
+        "targeted_structure": "nAcc",
+    }
+
+
+@pytest.fixture(scope="function")
+def rois():
+    return [
+        {
+            "x": 1,
+            "y": 3,
+            "height": 3,
+            "width": 2,
+            "mask_matrix": [[False, True], [True, True], [True, True]],
+            **additional_roi_json_data
+        },
+        {
+            "x": 1,
+            "y": 3,
+            "height": 1,
+            "width": 4,
+            "mask_matrix": [[True, False, False, True]],
+            **additional_roi_json_data
+        },
+        {
+            "x": 9,
+            "y": 2,
+            "height": 2,
+            "width": 2,
+            "mask_matrix": [[True, False], [True, True]],
+            **additional_roi_json_data
+        }
+    ]
+
+
+@pytest.fixture(scope="function")
+def input_data(tmp_path, classifier_model, traces, rois, metadata):
+    trace_path = str(tmp_path / "trace.h5")
+    np_trace_path = str(tmp_path / "np_trace.h5")
+    trace_f = h5py.File(trace_path, "w")
+    trace_f["data"] = traces
+    np_trace_f = h5py.File(np_trace_path, "w")
+    np_trace_f["data"] = traces
+    trace_f.close()
+    np_trace_f.close()
+
+    roi_masks_path = str(tmp_path / "rois.json")
+
+    with open(roi_masks_path, "w") as f:
+        json.dump(rois, f)
+
+    schema_input = {
+        "neuropil_traces_path": np_trace_path,
+        "traces_path": trace_path,
+        "roi_masks_path": roi_masks_path,
+        "classifier_model_path": classifier_model,
+        "trace_sampling_fps": 1,
+        "downsample_to": 1,
+        "output_json": str(tmp_path / "output.json"),
+        **metadata
+    }
+    yield schema_input
+
+
+@pytest.fixture(scope="function")
+def h5_file(tmp_path):
+    fp = tmp_path / "test.h5"
+    with h5py.File(tmp_path / "test.h5", "w") as f:
+        f.create_dataset("data", (10,), dtype="i")
+        f["data"] == range(10)
+    return (str(fp), "data")
+
+
+@pytest.fixture(scope="function")
+def good_roi_json(tmp_path):
+    fp = tmp_path / "masks.json"
+    data = [
+        {
+            'x': 1,
+            'y': 2,
+            'width': 2,
+            'height': 2,
+            'mask': [[False, False], [True, False]],
+            'exclusion_labels': [],
+        }
+    ]
+    with open(fp, "w") as f:
+        json.dump(data, f)
+    return str(fp)
+
+
+@pytest.fixture(scope="function")
+def bad_roi_json(tmp_path):
+    fp = tmp_path / "masks.json"
+    data = [
+        {
+            'x': 1,
+            'y': 2,
+            'width': "a",
+            'height': 2,
+            'valid_roi': True,
+            'exclusion_labels': [],
+        }
+    ]
+    with open(fp, "w") as f:
+        json.dump(data, f)
+    return str(fp)
+
+
+@pytest.mark.parametrize(
+    "np_key, traces_key, error_text", [
+        (
+            "bale", "data",
+            "(neuropil_traces_data_key) was missing in h5 file",
+        ),
+        (
+            "data", "howl",
+            "(traces_data_key) was missing in h5 file",
+        ),
+    ]
+)
+def test_InferenceInputSchema_fails_wrong_h5_key(
+        np_key, traces_key, error_text, h5_file, good_roi_json,
+        classifier_model, tmp_path):
+    with pytest.raises(ValidationError) as e:
+        ArgSchemaParser(
+            input_data={
+                "neuropil_traces_path": h5_file[0],
+                "neuropil_traces_data_key": np_key,
+                "traces_path": h5_file[0], "traces_data_key": traces_key,
+                "roi_masks_path": good_roi_json,
+                "rig": "rig",
+                "targeted_structure": "nAcc",
+                "depth": 100,
+                "classifier_model_path": classifier_model,
+                "full_genotype": "vip",
+                "trace_sampling_fps": 5,
+                "output_json": str(tmp_path / "output.json"),
+                "downsample_to": 5},
+            schema_type=InferenceInputSchema,
+            args=[])
+    assert error_text in str(e.value)
+
+
+@pytest.mark.parametrize(
+    "np_key, traces_key", [
+        ("data", "data"),
+    ]
+)
+def test_InferenceInputSchema_succeeds_correct_h5_keys(
+        np_key, traces_key, h5_file, good_roi_json, classifier_model,
+        tmp_path):
+    ArgSchemaParser(
+        input_data={
+            "neuropil_traces_path": h5_file[0],
+            "neuropil_traces_data_key": np_key,
+            "traces_path": h5_file[0],
+            "traces_data_key": traces_key,
+            "roi_masks_path": good_roi_json,
+            "rig": "rig",
+            "targeted_structure": "nAcc",
+            "depth": 100,
+            "classifier_model_path": classifier_model,
+            "full_genotype": "vip",
+            "trace_sampling_fps": 5,
+            "downsample_to": 5,
+            "output_json": str(tmp_path / "output.json")
+            },
+        schema_type=InferenceInputSchema,
+        args=[])
+
+
+@pytest.mark.parametrize(
+    "data, expected_coo",
+    [
+        (
+            {"x": 1, "y": 1, "height": 3, "width": 1,
+             "mask_matrix": [[True], [False], [True]]},
+            coo_matrix(np.array([[1], [0], [1]]))
+        ),
+        (   # Empty
+            {"x": 100, "y": 34, "height": 0, "width": 0,
+             "mask_matrix": []},
+            coo_matrix(np.array([]))
+        ),
+    ]
+)
+def test_coo_roi_dump(data, expected_coo):
+    data.update(additional_roi_json_data)
+    rois = RoiJsonSchema().load(data)
+    expected_data = data.copy()
+    expected_data.update({"coo_roi": expected_coo})
+    for k, v in expected_data.items():
+        if k == "coo_roi":
+            np.testing.assert_array_equal(v.toarray(), rois[k].toarray())
+        elif isinstance(v, np.ndarray):
+            np.testing.assert_array_equal(v, rois[k])
+        else:
+            assert rois[k] == v
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"x": 1, "y": 1, "height": 5, "width": 1,    # height
+         "mask_matrix": [[True], [False], [True]]},
+        {"x": 1, "y": 1, "height": 3, "width": 2,    # width
+         "mask_matrix": [[True], [False], [True]]},
+    ]
+)
+def test_coo_roi_dump_raise_error_mismatch_dimensions(data):
+    with pytest.raises(ValidationError) as e:
+        data.update(additional_roi_json_data)
+        RoiJsonSchema().load(data)
+    assert "Data in mask matrix did not correspond" in str(e.value)
+
+
+@pytest.mark.parametrize(
+    "data,input_fps,output_fps,warns,expected",
+    [   # Nice and even
+        (np.arange(10), 4, 2, False, np.array(range(1, 18, 4))/2),
+        # Need to truncate
+        (np.arange(10), 5, 2, True, np.array(range(1, 14, 4))/2),
+    ]
+)
+def test_downsample(data, input_fps, output_fps, warns, expected):
+    with pytest.warns(None) as record:
+        actual = downsample(data, input_fps, output_fps)
+    if warns:
+        assert len(record) == 1
+        assert "Can't evenly downsample" in str(record[0].message)
+    np.testing.assert_array_equal(expected, actual)
+
+
+class TestFeatureExtractorModule:
+    def test_main_integration(self, monkeypatch, mock_model, input_data):
+        """Test main module runner including smoke test for FeatureExtractor
+        integration."""
+        # mock out the classifier loading and predictions (in a valid way)
+        def predict_fn(x):
+            predictions = np.tile([True, None, False], math.ceil(len(x)/3))
+            return predictions[:len(x)]
+
+        monkeypatch.setattr("joblib.load", lambda x: mock_model(predict_fn))
+        # Note for future devs -- `args=[]` is VERY important to pass when
+        # testing argschema modules using VSCode and probably other IDEs.
+        # If not, will exit during parsing with no good error
+        # (it's ingesting the command line args passed to the test runner)
+        parser = InferenceParser(input_data=input_data, args=[])
+        main(parser)
+        # Check outputs exist (contents are mock result)
+        assert os.path.exists(parser.args["output_json"])
+
+    def test_main_raises_value_error_unequal_predictions(
+            self, monkeypatch, mock_model, input_data):
+        monkeypatch.setattr(
+             "joblib.load", lambda x: mock_model(lambda y: [1]))
+        with pytest.raises(ValueError) as e:
+            main(InferenceParser(input_data=input_data, args=[]))
+        assert "Expected the number of predictions" in str(e.value)
+
+    def test_munge_data(self, input_data, traces, rois, metadata):
+        parser = InferenceParser(input_data=input_data, args=[])
+        roi_data = RoiJsonSchema(many=True).load(rois)
+        expected_rois = [coo_matrix(np.array(r["mask_matrix"])) for r in rois]
+        actual_rois, actual_metadata, actual_traces, actual_np_traces = (
+            _munge_data(parser, roi_data))
+        for ix, e_roi in enumerate(expected_rois):
+            np.testing.assert_array_equal(
+                e_roi.toarray(), actual_rois[ix].toarray(),
+                err_msg=("Expected ROIs did not equal actual ROIs from "
+                         f" _munge_data for index={ix}."))
+        np.testing.assert_array_equal(
+            traces, actual_traces,
+            err_msg=("Expected traces did not equal actual traces "
+                     "from _munge_data"))
+        np.testing.assert_array_equal(
+            traces, actual_np_traces,
+            err_msg=("Expected neuropil traces did not equal actual neuropil "
+                     "traces from _munge_data"))
+        assert [metadata]*len(rois) == actual_metadata
+
+
+def test_InferenceInputSchema_fails_invalid_roi(
+        input_data, bad_roi_json):
+    input_data.update({"roi_masks_path": bad_roi_json})
+    with pytest.raises(ValidationError) as e:
+        parser = ArgSchemaParser(
+            input_data=input_data,
+            schema_type=InferenceInputSchema,
+            args=[])
+        main(parser)
+    assert "Missing data for required field" in str(e.value)
+    assert "Not a valid integer" in str(e.value)
+
+
+class TestRoiJsonSchema:
+    def test_schema_makes_coos(self, rois):
+        expected = [coo_matrix(np.array(r["mask_matrix"])) for r in rois]
+        actual = RoiJsonSchema(many=True).load(rois)
+        for ix, e_roi in enumerate(expected):
+            np.testing.assert_array_equal(
+                actual[ix]["coo_roi"].toarray(), e_roi.toarray())
+
+    def test_schema_warns_empty(self, rois):
+        rois[0]["height"] = 0
+        rois[0]["width"] = 0
+        with pytest.warns(UserWarning) as record:
+            RoiJsonSchema(many=True).load(rois)
+        assert len(record) == 1
+        assert "Input data contains empty ROI" in str(record[0].message)
+
+    def test_schema_errors_shape_mismatch(self, rois):
+        rois[0]["height"] = 100
+        rois[0]["width"] = 29
+        with pytest.raises(ValidationError) as e:
+            RoiJsonSchema(many=True).load(rois)
+        assert "Data in mask matrix did not correspond" in str(e.value)

@@ -8,3 +8,4 @@ matplotlib
 pandas
 moto
 boto3
+croissant-ml

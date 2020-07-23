@@ -40,10 +40,10 @@ def get_max_correction_values(x_series: pd.Series, y_series: pd.Series,
     y_no_outliers = y_series[(y_series >= -max_shift) &
                              (y_series <= max_shift)]
     # calculate max border shifts
-    right_shift = -1 * x_no_outliers.min()
-    left_shift = x_no_outliers.max()
-    down_shift = -1 * y_no_outliers.min()
-    up_shift = y_no_outliers.max()
+    right_shift = np.max(-1 * x_no_outliers.min(), 0)
+    left_shift = np.max(x_no_outliers.max(), 0)
+    down_shift = np.max(-1 * y_no_outliers.min(), 0)
+    up_shift = np.max(y_no_outliers.max(), 0)
 
     max_border = motion_border(left=left_shift, right=right_shift,
                                up=up_shift, down=down_shift)

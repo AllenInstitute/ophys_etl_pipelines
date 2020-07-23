@@ -269,6 +269,19 @@ def test_coo_rois_to_compatible(coo_masks, max_correction_values,
                                'mask_matrix': np.array([[True, False],
                                                         [True, True],
                                                         [True, True]]).tolist()
+                           }, False),
+                          (coo_matrix(([1, 1, 1],
+                                       ([0, 0, 1],
+                                        [1, 2, 2])),
+                                      shape=(5, 5)),
+                           {
+                               'x': 1,
+                               'y': 0,
+                               'width': 2,
+                               'height': 2,
+                               'mask_matrix': np.array(
+                                   [[True, True],
+                                    [False, True]]).tolist()
                            }, False)])
 def test_coo_mask_to_compatible_format(coo_mask, expected, raises_error):
     lims_compatible_roi = roi_transforms._coo_mask_to_LIMS_compatible_format(

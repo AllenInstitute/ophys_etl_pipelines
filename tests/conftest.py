@@ -67,6 +67,8 @@ def motion_correction_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
     """
     abs_value_bound = request.param.get("abs_value_bound", 5.0)
     motion_correction_rows = request.param.get("motion_correction_rows", 15)
+    included_values_x = request.param.get("included_values_x", [])
+    included_values_y = request.param.get("included_values_y", [])
     random_seed = request.param.get("random_seed", 0)
 
     fixture_params = {'abs_value_bound': abs_value_bound,
@@ -78,6 +80,14 @@ def motion_correction_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
                                   motion_correction_rows)
     y_correction_values = uniform(-abs_value_bound, abs_value_bound,
                                   motion_correction_rows)
+    x_correction_values = np.append(x_correction_values, included_values_x)
+    y_correction_values = np.append(y_correction_values, included_values_y)
+    '''
+    for x_value in included_values_x:
+        x_correction_values = np.append(x_correction_values, x_value)
+    for y_value  in included_values_y:
+        y_correction_values = np.append(y_correction_values, y_value)'''
+
     motion_correction_data = {
         'x': x_correction_values,
         'y': y_correction_values

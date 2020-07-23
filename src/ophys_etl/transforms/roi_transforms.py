@@ -216,8 +216,8 @@ def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> Dict:
     mask_matrix = crop_roi_mask(coo_mask).toarray()
     mask_matrix = np.array(mask_matrix, dtype=bool)
     compatible_roi = {
-        'x': int(bounds[0]),
-        'y': int(bounds[2]),
+        'x': int(bounds[2]),
+        'y': int(bounds[0]),
         'width': int(width),
         'height': int(height),
         'mask_matrix': mask_matrix.tolist()

@@ -141,6 +141,7 @@ cython_debug/
 
 # VS code
 .vscode/
+.env
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json

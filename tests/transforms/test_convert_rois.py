@@ -3,6 +3,7 @@ import json
 import os
 
 import numpy as np
+from marshmallow.validate import ValidationError
 
 from ophys_etl.transforms.convert_rois import (BinarizerAndROICreator,
                                                BinarizeAndCreationException)
@@ -12,15 +13,19 @@ from ophys_etl.transforms.convert_rois import (BinarizerAndROICreator,
                          "motion_correction_fixture, binary_quantile, "
                          "abs_threshold, x_fail, file_remove, x_error",
                          [({}, {}, {}, -1, None,
-                           True, None, BinarizeAndCreationException),
+                           True, None, ValidationError),
                           ({}, {}, {}, 0.1, -1,
-                           True, None, BinarizeAndCreationException),
+                           True, None, ValidationError),
+                          ({}, {}, {}, 0.1, 1.5,
+                           True, None, ValidationError),
+                          ({}, {}, {}, 1.5, 0.1,
+                           True, None, ValidationError),
                           ({}, {}, {}, 0.1, None,
                            True, 'suite2p_stat_path',
-                           BinarizeAndCreationException),
+                           ValidationError),
                           ({}, {}, {}, 0.1, None,
                            True, 'motion_corrected_video',
-                           BinarizeAndCreationException)],
+                           ValidationError)],
                          indirect=["s2p_stat_fixture",
                                    "ophys_movie_fixture",
                                    "motion_correction_fixture"])

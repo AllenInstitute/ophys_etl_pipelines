@@ -4,7 +4,7 @@ from argschema import ArgSchema, ArgSchemaParser
 from argschema.schemas import DefaultSchema
 from argschema.fields import (List, InputFile, Str, OutputFile, Float,
                               Nested, Int, Bool)
-import marshmallow as mm
+from marshmallow.validate import Range
 import numpy as np
 import pandas as pd
 import h5py
@@ -24,12 +24,14 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
 
     suite2p_stat_path = Str(
         required=True,
+        validate=lambda x: Path(x).exists(),
         description=("Path to s2p output stat file containing ROIs generated "
                      "during source extraction")
     )
 
     motion_corrected_video = Str(
         required=True,
+        validate=lambda  x: Path(x).exists(),
         description=("Path to motion corrected video file *.h5")
     )
 
@@ -56,6 +58,7 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
     abs_threshold = Float(
         default=None,
         required=False,
+        validate=Range(min=0, max=1),
         allow_none=True,
         description=("The absolute threshold to binarize ROI masks against. "
                      "If not provided will use quantile to generate "
@@ -64,36 +67,10 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
 
     binary_quantile = Float(
         default=0.1,
+        validate=Range(min=0, max=1),
         description=("The quantile against which an ROI is binarized. If not "
                      "provided will use default function value of 0.1.")
     )
-
-    @mm.post_load()
-    def check_args(self, data, **kwargs):
-        if data['binary_quantile'] is not None:
-            if data['binary_quantile'] <= 0:
-                raise BinarizeAndCreationException("Binary quantile must be"
-                                                   "positive value")
-        if data['abs_threshold'] is not None:
-            if data['abs_threshold'] <= 0:
-                raise BinarizeAndCreationException("Abs threshold must be "
-                                                   "positive value")
-        return data
-
-    @mm.post_load()
-    def check_file_existence(self, data, **kwargs):
-        """
-        have to check manually for existance of .h5 and .npy files because
-        InputFile fails on these, at least on windows because of a use of
-        generic open() to check for existance.
-        """
-        if not Path(data['suite2p_stat_path']).exists():
-            raise BinarizeAndCreationException("suite2p_stat_path supplied "
-                                               "is not a valid path.")
-        if not Path(data['motion_corrected_video']).exists():
-            raise BinarizeAndCreationException("motion_corrected_video "
-                                               "supplied is not a valid path.")
-        return data
 
 
 class LIMSCompatibleROIFormat(DefaultSchema):

@@ -28,11 +28,9 @@ def get_max_correction_values(x_series: pd.Series, y_series: pd.Series,
         [Left, Right, Up, Down] and also with names.
 
     """
-    # validate if input columns match supported versions of motion correction
-    # files
-    if max_shift <= 0:
-        raise ValueError(f"Max Shift input: {max_shift}. A positive input"
-                         f"input for max shift is required.")
+    # take abs of max shift as we are considering both positive and negative
+    # directions
+    max_shift = abs(max_shift)
 
     # filter based out analomies based on maximum_shift
     x_no_outliers = x_series[(x_series >= -max_shift) &

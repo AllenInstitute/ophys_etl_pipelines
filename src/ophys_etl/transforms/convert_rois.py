@@ -31,7 +31,7 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
 
     motion_corrected_video = Str(
         required=True,
-        validate=lambda  x: Path(x).exists(),
+        validate=lambda x: Path(x).exists(),
         description=("Path to motion corrected video file *.h5")
     )
 

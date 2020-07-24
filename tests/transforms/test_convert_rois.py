@@ -5,8 +5,7 @@ import os
 import numpy as np
 from marshmallow.validate import ValidationError
 
-from ophys_etl.transforms.convert_rois import (BinarizerAndROICreator,
-                                               BinarizeAndCreationException)
+from ophys_etl.transforms.convert_rois import BinarizerAndROICreator
 
 
 @pytest.mark.parametrize("s2p_stat_fixture, ophys_movie_fixture, "

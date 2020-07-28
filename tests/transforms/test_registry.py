@@ -83,6 +83,11 @@ def test_register_active_model_raises_error_protected_name(name, connection):
         connection.register_active_model(name, "prod", 123, "s3://model/path")
 
 
+def test_register_active_model_raises_error_wrong_env(connection):
+    with pytest.raises(ValueError):
+        connection.register_active_model("tyra", "staging", 123, "path")
+
+
 @pytest.mark.parametrize(
     "env", ["prod", "stage", "dev"]
 )
@@ -134,3 +139,19 @@ def test_activate_model_fails_http_status_put(connection, monkeypatch):
 def test_activate_model_fails_no_model_exists(connection, monkeypatch):
     with pytest.raises(KeyError):
         connection.activate_model("tyra", "stage", "123")
+
+
+@pytest.mark.parametrize(
+    "env", ["dev", "stage", "prod"]
+)
+def test_activate_model_integration(env, connection):
+    connection._client.put_item(
+        TableName=connection._table_name,
+        Item={"model_name": {"S": "tyra"}, "timestamp": {"N": "123"},
+              "artifact_location": {"S": "s3://path/tyra"},
+              "mlflow_run_id": {"S": "aaa000"}}
+    )
+    response = connection.activate_model("tyra", env, "123")
+    assert "s3://path/tyra" == connection.get_active_model(env)
+    # Check boto3 response has metadata
+    assert "ResponseMetadata" in response.keys()

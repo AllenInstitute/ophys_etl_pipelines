@@ -209,8 +209,8 @@ class RegistryConnection(object):
             TableName=self._table_name,
             Item={"model_name": {"S": env},
                   "timestamp": {"N": "0"},
-                  "artifact_location": {"S": model["artifact_location"]},
-                  "mlflow_run_id": {"S": model["mlflow_run_id"]}})
+                  "artifact_location": model["artifact_location"],
+                  "mlflow_run_id": model["mlflow_run_id"]})
         if active_response["ResponseMetadata"]["HTTPStatusCode"] != 200:
             raise RuntimeError(
                 "Putting new active model in DynamoDB was unsuccessful. "

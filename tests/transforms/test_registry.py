@@ -10,7 +10,7 @@ def connection(scope="function"):
     mock_dynamo = mock_dynamodb2()
     mock_dynamo.start()
     table_name = "test-table"
-    client = boto3.client("dynamodb")
+    client = boto3.client("dynamodb", region_name="us-west-2")
     client.create_table(
         TableName=table_name,
         KeySchema=[

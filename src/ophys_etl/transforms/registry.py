@@ -7,6 +7,7 @@ class RegistryConnection(object):
     def __init__(
             self,
             table_name: str,
+            region: Optional[str] = "us-west-2",
             aws_access_key_id: Optional[str] = None,
             aws_secret_access_key: Optional[str] = None,
             aws_session_token: Optional[str] = None):
@@ -35,6 +36,7 @@ class RegistryConnection(object):
         """
         self._client = boto3.client(
             "dynamodb",
+            region_name=region,
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             aws_session_token=aws_session_token

@@ -1,0 +1,26 @@
+# Creates a DynamoDB table to store active classifier models
+
+AWSTemplateFormatVersion: "2010-09-09"
+
+Resources: 
+  modelRegistryTable: 
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        - 
+          AttributeName: "model_name"
+          AttributeType: "S"
+        - 
+          AttributeName: "timestamp"
+          AttributeType: "N"
+      BillingMode: "PAY_PER_REQUEST"
+      KeySchema:
+        - 
+          AttributeName: "model_name"
+          KeyType: "HASH"
+        - 
+          AttributeName: "timestamp"
+          KeyType: "RANGE"
+      PointInTimeRecoverySpecification: 
+        PointInTimeRecoveryEnabled: true
+      TableName: "ROIClassifierRegistry"

@@ -32,6 +32,9 @@ class RegistryConnection(object):
 
         Methods
         -------
+        * get_active_model
+        * register_active_model
+        * activate_model
 
         """
         self._client = boto3.client(

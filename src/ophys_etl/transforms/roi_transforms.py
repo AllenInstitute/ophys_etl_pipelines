@@ -1,7 +1,9 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
 
 import numpy as np
 from scipy.sparse import coo_matrix
+
+from ophys_etl.transforms.data_loaders import motion_border
 
 
 def suite2p_rois_to_coo(suite2p_stats: np.ndarray,
@@ -127,3 +129,148 @@ def crop_roi_mask(roi_mask: coo_matrix) -> coo_matrix:
     cropped_mask = roi_mask.tocsr()[min_row:max_row, min_col:max_col]
 
     return cropped_mask.tocoo()
+
+
+def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
+                                max_correction_vals: motion_border,
+                                movie_shape: Tuple[int, int]
+                                ) -> List[Dict[str, Any]]:
+    """
+    Converts coo formatted ROIs to lims compatible format.
+    Parameters
+    ----------
+    coo_masks: List[coo_matrix]
+        A list of scipy coo_matrices representing ROI masks, each element of
+        list is a unique ROI.
+    max_correction_vals: motion_border
+        The max motion correction values identified in the motion correction
+        step of ophys segmentation pipeline
+    movie_shape: Tuple[int, int]
+        The frame shape of the movie from which ROIs were extracted in order
+        of: (height, width).
+
+    Returns
+    -------
+    List[Dict[str, Any]]
+        A list of dictionaries representing the ROIs in lims compatible
+        format, the data contained inside each one is as follows:
+        {
+            id: int
+            x: int
+            y: int
+            width: int
+            height: int
+            valid_roi: Bool
+            mask_matrix: List[List[Bool]]
+            max_correction_up: int
+            max_correction_down: int
+            max_correction_left: int
+            max_correction_right: int
+            mask_image_plane: int
+            exclusion_labels: List[int] codes are defined in 2019 Ophys Docs
+        }
+        For details about specific values see design document for 2020 Ophys
+        Segmentation Refactor and Update
+        """
+    compatible_rois = []
+    for temp_id, coo_mask in enumerate(coo_masks):
+        compatible_roi = _coo_mask_to_LIMS_compatible_format(coo_mask)
+        compatible_roi['id'] = temp_id  # popped off writing to LIMs
+        compatible_roi['cell_specimen_id'] = temp_id
+        compatible_roi['max_correction_up'] = max_correction_vals.up
+        compatible_roi['max_correction_down'] = max_correction_vals.down
+        compatible_roi['max_correction_right'] = max_correction_vals.right
+        compatible_roi['max_correction_left'] = max_correction_vals.left
+        compatible_roi['mask_image_plane'] = 0
+        compatible_roi['exclusion_labels'], compatible_roi['valid_roi'] = \
+            _check_exclusion(compatible_roi, movie_shape)
+        compatible_rois.append(compatible_roi)
+    return compatible_rois
+
+
+def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> Dict:
+    """
+    This functions transforms ROI mask data from COO format
+    to the LIMS expected format.
+    Parameters
+    ----------
+    coo_mask: coo_matrix
+        The coo roi matrix to be converted
+
+    Returns
+    -------
+    Dict:
+        A dictionary that contains the mask data from the coo matrix in the
+        LIMS compatible segmentation format
+        {
+            'x': int (x location of upper left corner of roi in pixels)
+            'y': int (y location of upper left corner of roi in pixels)
+            'width': int (width of the roi mask in pixels)
+            'height': int (height of the roi mask in pixels)
+            'mask_matrix': List[List[bool]] (dense matrix of roi mask)
+        }
+    """
+    bounds = roi_bounds(coo_mask)
+    height = bounds[1] - bounds[0]
+    width = bounds[3] - bounds[2]
+    mask_matrix = crop_roi_mask(coo_mask).toarray()
+    mask_matrix = np.array(mask_matrix, dtype=bool)
+    compatible_roi = {
+        'x': int(bounds[2]),
+        'y': int(bounds[0]),
+        'width': int(width),
+        'height': int(height),
+        'mask_matrix': mask_matrix.tolist()
+    }
+    return compatible_roi
+
+
+def _check_exclusion(compatible_roi: Dict,
+                     movie_shape: Tuple[int, int]) -> Tuple[List[int], bool]:
+    """
+    Checks if roi in lims compatible styling needs to be excluded as it breaks
+    one of the defined conditions within this function. Returns a list of
+    ints corresponding to the codes for exclusion. Also return a boolean
+    indicating if the roi is valid or not.
+    Parameters
+    ----------
+    compatible_roi: Dict
+        An ROI stored in lims compatible dictionary format that minimally
+        contains the following values.
+        {
+            'x': int (x location of upper left corner of roi in pixels)
+            'y': int (y location of upper left corner of roi in pixels)
+            'width': int (width of the roi mask in pixels)
+            'height': int (height of the roi mask in pixels)
+            'max_correction_up': int
+            'max_correction_down': int
+            'max_correction_left': int
+            'max_correction_right': int
+        }
+
+    movie_shape: Tuple[int, int]
+        The frame shape of the movie from which ROIs were extracted in order
+        of: (height, width).
+    Returns
+    -------
+    Tuple[List[int]], bool]
+        The tuple contains a list of exclusion codes as it 0 index and
+        a bool indicating if the roi is valid as its 1 index value
+    """
+    valid_roi = True
+    exclusion_labels = []
+
+    # check if roi exists partly or wholey outside motion border
+    movie_height, movie_width = movie_shape[0], movie_shape[1]
+    furthest_right_pixel = compatible_roi['x'] + compatible_roi['width']
+    furthest_down_pixel = compatible_roi['y'] + compatible_roi['height']
+    if (compatible_roi['x'] <= compatible_roi['max_correction_left'] or
+       compatible_roi['y'] <= compatible_roi['max_correction_up'] or
+       furthest_right_pixel >= movie_width -
+            compatible_roi['max_correction_right'] or
+       furthest_down_pixel >= movie_height -
+            compatible_roi['max_correction_down']):
+        exclusion_labels.append(7)  # code 7 = motion border error
+        valid_roi = False
+
+    return exclusion_labels, valid_roi

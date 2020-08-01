@@ -7,6 +7,8 @@ import numpy as np
 import math
 import os.path
 from scipy.sparse import coo_matrix
+from moto import mock_s3
+import boto3
 
 from ophys_etl.transforms.classification import (
     InferenceInputSchema, RoiJsonSchema, InferenceParser, downsample, main,
@@ -47,6 +49,17 @@ def classifier_model(tmp_path):
 @pytest.fixture(scope="function")
 def traces():
     return [np.arange(100), np.arange(100), np.arange(100)]
+
+
+@pytest.fixture(scope="function")
+def s3_classifier(classifier_model):
+    s3 = mock_s3()
+    s3.start()
+    client = boto3.client("s3")
+    client.create_bucket(Bucket="mybucket")
+    client.upload_file(classifier_model, "mybucket", "hello.txt")
+    yield "s3://mybucket/hello.txt"
+    s3.stop()
 
 
 @pytest.fixture(scope="function")
@@ -335,6 +348,36 @@ class TestFeatureExtractorModule:
             err_msg=("Expected neuropil traces did not equal actual neuropil "
                      "traces from _munge_data"))
         assert [metadata]*len(rois) == actual_metadata
+
+
+def test_InferenceInputSchema_classifier_model_path(
+        classifier_model, s3_classifier, input_data, tmp_path):
+    ArgSchemaParser(
+        input_data=input_data,      # input_data has local classifier default
+        schema_type=InferenceInputSchema,
+        args=[])
+    s3_input = input_data.copy()
+    s3_input["classifier_model_path"] = s3_classifier
+    ArgSchemaParser(
+        input_data=s3_input,
+        schema_type=InferenceInputSchema,
+        args=[])
+    fake_s3 = input_data.copy()
+    fake_s3["classifier_model_path"] = "s3://my-bucket/fake-hello.txt"
+    with pytest.raises(ValidationError) as e:
+        ArgSchemaParser(
+            input_data=fake_s3,
+            schema_type=InferenceInputSchema,
+            args=[])
+    assert "does not exist" in str(e.value)
+    fake_local = input_data.copy()
+    fake_local["classifier_model_path"] = str(tmp_path / "hello-again.txt")
+    with pytest.raises(ValidationError) as e:
+        ArgSchemaParser(
+            input_data=fake_local,
+            schema_type=InferenceInputSchema,
+            args=[])
+    assert "does not exist" in str(e.value)
 
 
 def test_InferenceInputSchema_fails_invalid_roi(

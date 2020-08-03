@@ -176,27 +176,56 @@ def bad_roi_json(tmp_path):
     return str(fp)
 
 
-@pytest.mark.parametrize(
-    "np_key, traces_key, error_text", [
-        (
-            "bale", "data",
-            "(neuropil_traces_data_key) was missing in h5 file",
-        ),
-        (
-            "data", "howl",
-            "(traces_data_key) was missing in h5 file",
-        ),
-    ]
-)
-def test_InferenceInputSchema_fails_wrong_h5_key(
-        np_key, traces_key, error_text, h5_file, good_roi_json,
-        classifier_model, tmp_path):
-    with pytest.raises(ValidationError) as e:
+class TestInferenceInputSchema:
+
+    @pytest.mark.parametrize(
+        "np_key, traces_key, error_text", [
+            (
+                "bale", "data",
+                "(neuropil_traces_data_key) was missing in h5 file",
+            ),
+            (
+                "data", "howl",
+                "(traces_data_key) was missing in h5 file",
+            ),
+        ]
+    )
+    def test_fails_wrong_h5_key(
+            self, np_key, traces_key, error_text, h5_file, good_roi_json,
+            classifier_model, tmp_path):
+        with pytest.raises(ValidationError) as e:
+            ArgSchemaParser(
+                input_data={
+                    "neuropil_traces_path": h5_file[0],
+                    "neuropil_traces_data_key": np_key,
+                    "traces_path": h5_file[0], "traces_data_key": traces_key,
+                    "roi_masks_path": good_roi_json,
+                    "rig": "rig",
+                    "targeted_structure": "nAcc",
+                    "depth": 100,
+                    "classifier_model_path": classifier_model,
+                    "full_genotype": "vip",
+                    "trace_sampling_fps": 5,
+                    "output_json": str(tmp_path / "output.json"),
+                    "downsample_to": 5},
+                schema_type=InferenceInputSchema,
+                args=[])
+        assert error_text in str(e.value)
+
+    @pytest.mark.parametrize(
+        "np_key, traces_key", [
+            ("data", "data"),
+        ]
+    )
+    def test_succeeds_correct_h5_keys(
+            self, np_key, traces_key, h5_file, good_roi_json, classifier_model,
+            tmp_path):
         ArgSchemaParser(
             input_data={
                 "neuropil_traces_path": h5_file[0],
                 "neuropil_traces_data_key": np_key,
-                "traces_path": h5_file[0], "traces_data_key": traces_key,
+                "traces_path": h5_file[0],
+                "traces_data_key": traces_key,
                 "roi_masks_path": good_roi_json,
                 "rig": "rig",
                 "targeted_structure": "nAcc",
@@ -204,101 +233,72 @@ def test_InferenceInputSchema_fails_wrong_h5_key(
                 "classifier_model_path": classifier_model,
                 "full_genotype": "vip",
                 "trace_sampling_fps": 5,
-                "output_json": str(tmp_path / "output.json"),
-                "downsample_to": 5},
+                "downsample_to": 5,
+                "output_json": str(tmp_path / "output.json")
+                },
             schema_type=InferenceInputSchema,
             args=[])
-    assert error_text in str(e.value)
+
+    def test_classifier_model_path(
+            self, classifier_model, s3_classifier, input_data, tmp_path):
+        ArgSchemaParser(
+            input_data=input_data,    # input_data has local classifier default
+            schema_type=InferenceInputSchema,
+            args=[])
+        s3_input = input_data.copy()
+        s3_input["classifier_model_path"] = s3_classifier
+        ArgSchemaParser(
+            input_data=s3_input,
+            schema_type=InferenceInputSchema,
+            args=[])
+        fake_s3 = input_data.copy()
+        fake_s3["classifier_model_path"] = "s3://my-bucket/fake-hello.txt"
+        with pytest.raises(ValidationError) as e:
+            ArgSchemaParser(
+                input_data=fake_s3,
+                schema_type=InferenceInputSchema,
+                args=[])
+        assert "does not exist" in str(e.value)
+        fake_local = input_data.copy()
+        fake_local["classifier_model_path"] = str(tmp_path / "hello-again.txt")
+        with pytest.raises(ValidationError) as e:
+            ArgSchemaParser(
+                input_data=fake_local,
+                schema_type=InferenceInputSchema,
+                args=[])
+        assert "does not exist" in str(e.value)
+
+    def test_fails_invalid_roi(
+            self, input_data, bad_roi_json):
+        input_data.update({"roi_masks_path": bad_roi_json})
+        with pytest.raises(ValidationError) as e:
+            parser = ArgSchemaParser(
+                input_data=input_data,
+                schema_type=InferenceInputSchema,
+                args=[])
+            main(parser)
+        assert "Missing data for required field" in str(e.value)
+        assert "Not a valid integer" in str(e.value)
 
 
 @pytest.mark.parametrize(
-    "np_key, traces_key", [
-        ("data", "data"),
-    ]
-)
-def test_InferenceInputSchema_succeeds_correct_h5_keys(
-        np_key, traces_key, h5_file, good_roi_json, classifier_model,
-        tmp_path):
-    ArgSchemaParser(
-        input_data={
-            "neuropil_traces_path": h5_file[0],
-            "neuropil_traces_data_key": np_key,
-            "traces_path": h5_file[0],
-            "traces_data_key": traces_key,
-            "roi_masks_path": good_roi_json,
-            "rig": "rig",
-            "targeted_structure": "nAcc",
-            "depth": 100,
-            "classifier_model_path": classifier_model,
-            "full_genotype": "vip",
-            "trace_sampling_fps": 5,
-            "downsample_to": 5,
-            "output_json": str(tmp_path / "output.json")
-            },
-        schema_type=InferenceInputSchema,
-        args=[])
-
-
-@pytest.mark.parametrize(
-    "data, expected_coo",
+    "data,input_fps,output_fps,expected",
     [
-        (
-            {"x": 1, "y": 1, "height": 3, "width": 1,
-             "mask_matrix": [[True], [False], [True]]},
-            coo_matrix(np.array([[1], [0], [1]]))
-        ),
-        (   # Empty
-            {"x": 100, "y": 34, "height": 0, "width": 0,
-             "mask_matrix": []},
-            coo_matrix(np.array([]))
-        ),
+        (np.ones(10,), 10, 5, np.ones(5,)),
+        (np.ones(10,), 10, 3, np.ones(3,))
     ]
 )
-def test_coo_roi_dump(data, expected_coo):
-    data.update(additional_roi_json_data)
-    rois = RoiJsonSchema().load(data)
-    expected_data = data.copy()
-    expected_data.update({"coo_roi": expected_coo})
-    for k, v in expected_data.items():
-        if k == "coo_roi":
-            np.testing.assert_array_equal(v.toarray(), rois[k].toarray())
-        elif isinstance(v, np.ndarray):
-            np.testing.assert_array_equal(v, rois[k])
-        else:
-            assert rois[k] == v
-
-
-@pytest.mark.parametrize(
-    "data",
-    [
-        {"x": 1, "y": 1, "height": 5, "width": 1,    # height
-         "mask_matrix": [[True], [False], [True]]},
-        {"x": 1, "y": 1, "height": 3, "width": 2,    # width
-         "mask_matrix": [[True], [False], [True]]},
-    ]
-)
-def test_coo_roi_dump_raise_error_mismatch_dimensions(data):
-    with pytest.raises(ValidationError) as e:
-        data.update(additional_roi_json_data)
-        RoiJsonSchema().load(data)
-    assert "Data in mask matrix did not correspond" in str(e.value)
-
-
-@pytest.mark.parametrize(
-    "data,input_fps,output_fps,warns,expected",
-    [   # Nice and even
-        (np.arange(10), 4, 2, False, np.array(range(1, 18, 4))/2),
-        # Need to truncate
-        (np.arange(10), 5, 2, True, np.array(range(1, 14, 4))/2),
-    ]
-)
-def test_downsample(data, input_fps, output_fps, warns, expected):
-    with pytest.warns(None) as record:
-        actual = downsample(data, input_fps, output_fps)
-    if warns:
-        assert len(record) == 1
-        assert "Can't evenly downsample" in str(record[0].message)
+def test_downsample(data, input_fps, output_fps, expected):
+    actual = downsample(data, input_fps, output_fps)
     np.testing.assert_array_equal(expected, actual)
+
+
+def test_downsample_raises_error_greater_output_fps():
+    """Output FPS can't be greater than input FPS"""
+    with pytest.raises(
+            ValueError,
+            match=r'Output FPS can\'t be greater than input FPS'):
+        downsample(np.arange(10), 1, 5)
 
 
 class TestFeatureExtractorModule:
@@ -350,56 +350,52 @@ class TestFeatureExtractorModule:
         assert [metadata]*len(rois) == actual_metadata
 
 
-def test_InferenceInputSchema_classifier_model_path(
-        classifier_model, s3_classifier, input_data, tmp_path):
-    ArgSchemaParser(
-        input_data=input_data,      # input_data has local classifier default
-        schema_type=InferenceInputSchema,
-        args=[])
-    s3_input = input_data.copy()
-    s3_input["classifier_model_path"] = s3_classifier
-    ArgSchemaParser(
-        input_data=s3_input,
-        schema_type=InferenceInputSchema,
-        args=[])
-    fake_s3 = input_data.copy()
-    fake_s3["classifier_model_path"] = "s3://my-bucket/fake-hello.txt"
-    with pytest.raises(ValidationError) as e:
-        ArgSchemaParser(
-            input_data=fake_s3,
-            schema_type=InferenceInputSchema,
-            args=[])
-    assert "does not exist" in str(e.value)
-    fake_local = input_data.copy()
-    fake_local["classifier_model_path"] = str(tmp_path / "hello-again.txt")
-    with pytest.raises(ValidationError) as e:
-        ArgSchemaParser(
-            input_data=fake_local,
-            schema_type=InferenceInputSchema,
-            args=[])
-    assert "does not exist" in str(e.value)
-
-
-def test_InferenceInputSchema_fails_invalid_roi(
-        input_data, bad_roi_json):
-    input_data.update({"roi_masks_path": bad_roi_json})
-    with pytest.raises(ValidationError) as e:
-        parser = ArgSchemaParser(
-            input_data=input_data,
-            schema_type=InferenceInputSchema,
-            args=[])
-        main(parser)
-    assert "Missing data for required field" in str(e.value)
-    assert "Not a valid integer" in str(e.value)
-
-
 class TestRoiJsonSchema:
     def test_schema_makes_coos(self, rois):
         expected = [coo_matrix(np.array(r["mask_matrix"])) for r in rois]
         actual = RoiJsonSchema(many=True).load(rois)
         for ix, e_roi in enumerate(expected):
             np.testing.assert_array_equal(
-                actual[ix]["coo_roi"].toarray(), e_roi.toarray())
+                e_roi.toarray(), actual[ix]["coo_roi"].toarray())
+
+    @pytest.mark.parametrize(
+        "data, expected_coo",
+        [
+            (
+                {"x": 1, "y": 1, "height": 3, "width": 1,
+                 "mask_matrix": [[True], [False], [True]]},
+                coo_matrix(np.array([[1], [0], [1]]))
+            ),
+            (   # Empty
+                {"x": 100, "y": 34, "height": 0, "width": 0,
+                 "mask_matrix": []},
+                coo_matrix(np.array([]))
+            ),
+        ]
+    )
+    def test_coo_roi_dump_single(self, data, expected_coo):
+        """Cover the empty case, another unit test"""
+        data.update(additional_roi_json_data)
+        rois = RoiJsonSchema().load(data)
+        expected_data = data.copy()
+        expected_data.update({"coo_roi": expected_coo})
+        np.testing.assert_array_equal(
+            expected_data["coo_roi"].toarray(), rois["coo_roi"].toarray())
+
+    @pytest.mark.parametrize(
+        "data",
+        [
+            {"x": 1, "y": 1, "height": 5, "width": 1,    # height
+             "mask_matrix": [[True], [False], [True]]},
+            {"x": 1, "y": 1, "height": 3, "width": 2,    # width
+             "mask_matrix": [[True], [False], [True]]},
+        ]
+    )
+    def test_coo_roi_dump_raise_error_mismatch_dimensions(self, data):
+        with pytest.raises(ValidationError) as e:
+            data.update(additional_roi_json_data)
+            RoiJsonSchema().load(data)
+        assert "Data in mask matrix did not correspond" in str(e.value)
 
     def test_schema_warns_empty(self, rois):
         rois[0]["height"] = 0

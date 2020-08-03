@@ -6,6 +6,7 @@ import joblib
 import numpy as np
 from urllib.parse import urlparse
 from scipy.sparse import coo_matrix
+from scipy.signal import resample_poly
 from argschema import ArgSchema, ArgSchemaParser, fields
 from ophys_etl.schemas.fields import H5InputFile
 from croissant.features import FeatureExtractor
@@ -41,11 +42,18 @@ class RoiJsonSchema(Schema):
         FeatureExtractor. Input includes 'x' and 'y' fields
         which designate the cartesian coordinates of the top right corner,
         the width and height of the bounding box, and boolean values for
-        whether the mask pixel is contained.
-        The sparse matrix should technically include the shape of the input
-        movie (the values for 'x' and 'y' correspond to the position on
-        the input movie), but that's not important for our purposes since
-        we don't actually need to align with any movie data.
+        whether the mask pixel is contained. The returned coo_matrix
+        will contain all the data in the mask in the proper shape,
+        but essentially discards the 'x' and 'y' information (the
+        cartesian position of the masks is not important for the
+        below methods). Represented as a dense array, the mask data
+        would be "cropped" to the bounding box.
+
+        Note: If the methods were updated such that the position of
+        the mask relative to the input data *were*
+        important (say, if necessary to align the masks to the movie
+        from which they were created), then this function would require
+        the dimensions of the source movie.
         """
         shape = (data["height"], data["width"])
         arr = np.array(data["mask_matrix"]).astype("int")
@@ -95,7 +103,7 @@ class InferenceInputSchema(ArgSchema):
         required=True,
         description=("Path to json file of segmented ROI masks. The file "
                      "records must conform to the schema "
-                     "`RoiJsonRecordSchema`")
+                     "`RoiJsonSchema`")
     )
     rig = fields.Str(
         required=True,
@@ -236,11 +244,9 @@ def _munge_data(parser: InferenceParser, roi_data: list):
 
 
 def downsample(trace: np.ndarray, input_fps: int, output_fps: int):
-    """Downsample 1d array using an averaging strategy.
-    If a full bin cannot be populated, the data will be truncated
-    to approximate required output_fps.
-    Example: downsampling from 5 fps to 2 fps
-    for a trace with 13 points would need to drop the last data point.
+    """Downsample 1d array using scipy resample_poly.
+    See https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.resample_poly.html#scipy.signal.resample_poly    # noqa
+    for more information.
 
     Parameters
     ----------
@@ -253,24 +259,17 @@ def downsample(trace: np.ndarray, input_fps: int, output_fps: int):
     Returns
     -------
     np.ndarray
-        1d array of values, downsampled to output_fps (may be approximate)
+        1d array of values, downsampled to output_fps
     """
     if input_fps == output_fps:
         return trace
-    points = trace.shape[0]
-    output_size = math.floor(points * output_fps / input_fps)
-    bin_size = math.floor(points / output_size)
-    if points / output_size != bin_size:    # if the bin needed to be rounded
-        warnings.warn(f"Can't evenly downsample {points} points at "
-                      f"{input_fps} FPS to {output_fps} FPS. Output fps is "
-                      "approximate.")
-    truncate = points % output_size
-    if truncate != 0:
-        downsampled = (trace[:-truncate].reshape(output_size, bin_size)
-                       .mean(axis=1))
-    else:
-        downsampled = trace.reshape(output_size, bin_size).mean(axis=1)
-    return downsampled
+    elif output_fps > input_fps:
+        raise ValueError("Output FPS can't be greater than input FPS.")
+    gcd = math.gcd(input_fps, output_fps)
+    up = output_fps / gcd
+    down = input_fps / gcd
+    downsample = resample_poly(trace, up, down, axis=0, padtype="median")
+    return downsample
 
 
 def main(parser):

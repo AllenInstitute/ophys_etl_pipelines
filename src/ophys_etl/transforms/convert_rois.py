@@ -67,6 +67,14 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         description=("ROIs with fewer pixels than this will be labeled as "
                      "invalid and small size."))
 
+    linear_dimension_threshold = Int(
+        default=50,
+        validate=Range(min=0),
+        description=("ROIs with a linear dimension (height or width of "
+                     "the bounding box) larger than this will not be "
+                     "written to file")
+    )
+
 
 class BinarizerAndROICreator(ArgSchemaParser):
     default_schema = BinarizeAndCreateROIsInputSchema
@@ -96,12 +104,18 @@ class BinarizerAndROICreator(ArgSchemaParser):
 
         binarized_coo_rois = []
         for coo_roi in coo_rois:
-            binary_mask = binarize_roi_mask(coo_roi,
-                                            self.args['abs_threshold'],
-                                            self.args['binary_quantile'])
-            binarized_coo_rois.append(binary_mask)
+            # check if s2p border artifact
+            max_linear_dimension = max(coo_roi.col.ptp(),
+                                       coo_roi.row.ptp())
+            if (max_linear_dimension <
+                    self.args['linear_dimension_threshold']):
+                binary_mask = binarize_roi_mask(coo_roi,
+                                                self.args['abs_threshold'],
+                                                self.args['binary_quantile'])
+                binarized_coo_rois.append(binary_mask)
         self.logger.info("Binarized ROIs from Suite2p, total binarized: "
-                         f"{len(binarized_coo_rois)}")
+                         f"{len(binarized_coo_rois)}, total filtered: "
+                         f"{len(coo_rois) - len(binarized_coo_rois)}")
 
         # load the motion correction values
         self.logger.info("Loading motion correction border values from "

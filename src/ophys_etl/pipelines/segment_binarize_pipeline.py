@@ -28,7 +28,8 @@ class SegmentBinarize(argschema.ArgSchemaParser):
                 "output_dir": tmpdir.name,
                 "output_json": str(Suite2P_output),
                 "retain_files": ["stat.npy"],
-                "bin_size": 115
+                "bin_size": 115,
+                "log_level": self.args['log_level'],
                 }
         segment = Suite2PWrapper(input_data=segment_args, args=[])
         segment.run()
@@ -40,7 +41,7 @@ class SegmentBinarize(argschema.ArgSchemaParser):
         binarize_args = {"suite2p_stat_path": stat}
 
         for k in ['output_json', 'motion_corrected_video',
-                  'motion_correction_values']:
+                  'motion_correction_values', 'log_level']:
             binarize_args[k] = self.args[k]
 
         binarize = BinarizerAndROICreator(input_data=binarize_args, args=[])

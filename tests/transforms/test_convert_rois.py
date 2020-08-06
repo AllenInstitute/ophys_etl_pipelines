@@ -76,7 +76,6 @@ def test_binarize_and_convert_rois_schema(s2p_stat_fixture,
                                   'included_values_x': [-0.3, 0.3],
                                   'included_values_y': [-0.3, 0.3]}, [
                              {'id': 0,
-                              'cell_specimen_id': 0,
                               'x': 0,
                               'y': 0,
                               'height': 2,
@@ -90,11 +89,10 @@ def test_binarize_and_convert_rois_schema(s2p_stat_fixture,
                               'max_correction_left': 0.3,
                               'max_correction_right': 0.3,
                               'mask_image_plane': 0,
-                              'exclusion_labels': [7]
+                              'exclusion_labels': ["motion_border"]
                               },
                              {
                               'id': 1,
-                              'cell_specimen_id': 1,
                               'x': 1,
                               'y': 1,
                               'height': 2,
@@ -112,7 +110,6 @@ def test_binarize_and_convert_rois_schema(s2p_stat_fixture,
                               },
                              {
                               'id': 2,
-                              'cell_specimen_id': 2,
                               'x': 2,
                               'y': 1,
                               'height': 3,

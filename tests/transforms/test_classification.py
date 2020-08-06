@@ -8,6 +8,7 @@ import math
 import os.path
 from scipy.sparse import coo_matrix
 from moto import mock_s3
+from unittest.mock import patch
 import boto3
 
 from ophys_etl.transforms.classification import (
@@ -17,7 +18,7 @@ from ophys_etl.transforms.classification import (
 # ROI input data not used but needed to pass through to the module output
 # Define here and reuse for brevity
 additional_roi_json_data = {
-    "exclusion_labels": [1],
+    "exclusion_labels": ["motion_border"],
     "max_correction_up": 0,
     "max_correction_down": 0,
     "max_correction_left": 0,
@@ -267,6 +268,50 @@ class TestInferenceInputSchema:
                 schema_type=InferenceInputSchema,
                 args=[])
         assert "does not exist" in str(e.value)
+
+    def test_invalid_model_registry_env(self, input_data):
+        # This should run without error
+        ArgSchemaParser(input_data=input_data,
+                        schema_type=InferenceInputSchema,
+                        args=[])
+        # Now to test when the model_registry_env field is invalid
+        invalid_model_registry_env = input_data.copy()
+        invalid_model_registry_env["model_registry_env"] = "prode"
+        with pytest.raises(ValidationError) as e:
+            ArgSchemaParser(input_data=invalid_model_registry_env,
+                            schema_type=InferenceInputSchema,
+                            args=[])
+        assert "not a valid value for the 'model_registry_env'" in str(e.value)
+
+    @pytest.mark.parametrize("patch_input_data", [
+        ({}),
+        ({"model_registry_table_name": "Test1", "model_registry_env": "dev"}),
+        ({"model_registry_table_name": "Test2", "model_registry_env": "stage"})
+    ])
+    def test_determine_classifier_model_path(self, input_data,
+                                             classifier_model,
+                                             patch_input_data):
+        no_classifier_model_path = input_data.copy()
+        no_classifier_model_path.pop("classifier_model_path", None)
+        no_classifier_model_path.update(patch_input_data)
+
+        table_name = patch_input_data.get("model_registry_table_name",
+                                          "ROIClassifierRegistry")
+        env = patch_input_data.get("model_registry_env", "prod")
+
+        with patch("ophys_etl.transforms.classification.RegistryConnection",
+                   autospec=True) as MockRegistryConnection:
+            connection = MockRegistryConnection.return_value
+            connection.get_active_model.return_value = classifier_model
+
+            parser = ArgSchemaParser(input_data=no_classifier_model_path,
+                                     schema_type=InferenceInputSchema,
+                                     args=[])
+            args = parser.args
+
+            assert args["classifier_model_path"] == classifier_model
+            MockRegistryConnection.assert_called_with(table_name=table_name)
+            connection.get_active_model.assert_called_with(env=env)
 
     def test_fails_invalid_roi(
             self, input_data, bad_roi_json):

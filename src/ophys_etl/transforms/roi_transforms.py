@@ -167,7 +167,8 @@ def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
             max_correction_left: int
             max_correction_right: int
             mask_image_plane: int
-            exclusion_labels: List[int] codes are defined in 2019 Ophys Docs
+            exclusion_labels: List[str] name of exclusion labels are defined
+                              in 2019 Ophys Docs.
         }
         For details about specific values see design document for 2020 Ophys
         Segmentation Refactor and Update
@@ -176,7 +177,6 @@ def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
     for temp_id, coo_mask in enumerate(coo_masks):
         compatible_roi = _coo_mask_to_LIMS_compatible_format(coo_mask)
         compatible_roi['id'] = temp_id  # popped off writing to LIMs
-        compatible_roi['cell_specimen_id'] = temp_id
         compatible_roi['max_correction_up'] = max_correction_vals.up
         compatible_roi['max_correction_down'] = max_correction_vals.down
         compatible_roi['max_correction_right'] = max_correction_vals.right
@@ -226,7 +226,7 @@ def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> Dict:
 
 
 def _check_exclusion(compatible_roi: Dict,
-                     movie_shape: Tuple[int, int]) -> Tuple[List[int], bool]:
+                     movie_shape: Tuple[int, int]) -> Tuple[List[str], bool]:
     """
     Checks if roi in lims compatible styling needs to be excluded as it breaks
     one of the defined conditions within this function. Returns a list of
@@ -270,7 +270,7 @@ def _check_exclusion(compatible_roi: Dict,
             compatible_roi['max_correction_right'] or
        furthest_down_pixel >= movie_height -
             compatible_roi['max_correction_down']):
-        exclusion_labels.append(7)  # code 7 = motion border error
+        exclusion_labels.append('motion_border')
         valid_roi = False
 
     return exclusion_labels, valid_roi

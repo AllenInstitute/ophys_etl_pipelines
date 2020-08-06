@@ -21,55 +21,41 @@ class BinarizeAndCreationException(Exception):
 
 
 class BinarizeAndCreateROIsInputSchema(ArgSchema):
-
     suite2p_stat_path = Str(
         required=True,
         validate=lambda x: Path(x).exists(),
         description=("Path to s2p output stat file containing ROIs generated "
-                     "during source extraction")
-    )
-
+                     "during source extraction"))
     motion_corrected_video = Str(
         required=True,
         validate=lambda x: Path(x).exists(),
-        description=("Path to motion corrected video file *.h5")
-    )
-
+        description=("Path to motion corrected video file *.h5"))
     motion_correction_values = InputFile(
         required=True,
         description=("Path to motion correction values for each frame "
-                     "stored in .csv format")
-    )
-
+                     "stored in .csv format"))
     output_json = OutputFile(
         required=True,
-        description=("Path to a file to write output data.")
-    )
-
+        description=("Path to a file to write output data."))
     maximum_motion_shift = Float(
         missing=30.0,
         required=False,
         allow_none=False,
         description=("The maximum allowable motion shift for a frame in pixels"
                      " before it is considered an anomaly and thrown out of "
-                     "processing")
-    )
-
+                     "processing"))
     abs_threshold = Float(
         missing=None,
         required=False,
         allow_none=True,
         description=("The absolute threshold to binarize ROI masks against. "
                      "If not provided will use quantile to generate "
-                     "threshold.")
-    )
-
+                     "threshold."))
     binary_quantile = Float(
         missing=0.1,
         validate=Range(min=0, max=1),
         description=("The quantile against which an ROI is binarized. If not "
-                     "provided will use default function value of 0.1.")
-    )
+                     "provided will use default function value of 0.1."))
 
 
 class LIMSCompatibleROIFormat(DefaultSchema):

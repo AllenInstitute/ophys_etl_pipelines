@@ -47,7 +47,7 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
     )
 
     maximum_motion_shift = Float(
-        default=30.0,
+        missing=30.0,
         required=False,
         allow_none=False,
         description=("The maximum allowable motion shift for a frame in pixels"
@@ -56,7 +56,7 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
     )
 
     abs_threshold = Float(
-        default=None,
+        missing=None,
         required=False,
         validate=Range(min=0, max=1),
         allow_none=True,
@@ -66,7 +66,7 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
     )
 
     binary_quantile = Float(
-        default=0.1,
+        missing=0.1,
         validate=Range(min=0, max=1),
         description=("The quantile against which an ROI is binarized. If not "
                      "provided will use default function value of 0.1.")
@@ -77,9 +77,6 @@ class LIMSCompatibleROIFormat(DefaultSchema):
     id = Int(required=True,
              description=("Unique ID of the ROI, get's overwritten writting "
                           "to LIMS"))
-    cell_specimen_id = Int(required=True,
-                           description="Id of cell across experiments "
-                                       "after nway cell matching")
     x = Int(required=True,
             description="X location of top left corner of ROI in pixels")
     y = Int(required=True,
@@ -113,9 +110,12 @@ class LIMSCompatibleROIFormat(DefaultSchema):
                                         "this field must be kept, but will "
                                         "always be set to zero for the new "
                                         "updated pipeline"))
-    exclusion_labels = List(Int, required=True,
-                            description=("LIMS IDs used to track why a given "
-                                         "ROI is not considered a valid_roi"))
+    exclusion_labels = List(Str, required=True,
+                            description=("LIMS ExclusionLabel names used to "
+                                         "track why a given ROI is not "
+                                         "considered a valid_roi. (examples: "
+                                         "motion_border, "
+                                         "classified_as_not_cell)"))
 
 
 class BinarizeAndCreateROIsOutputSchema(DefaultSchema):

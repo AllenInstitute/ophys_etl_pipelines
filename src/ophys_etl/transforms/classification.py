@@ -9,15 +9,16 @@ from scipy.sparse import coo_matrix
 from scipy.signal import resample_poly
 from argschema import ArgSchema, ArgSchemaParser, fields
 from ophys_etl.schemas.fields import H5InputFile
+from ophys_etl.transforms.registry import RegistryConnection
 from croissant.features import FeatureExtractor
 from botocore.errorfactory import ClientError
-from marshmallow import post_load, ValidationError, Schema, validates
+from marshmallow import pre_load, post_load, ValidationError, Schema, validates
 import marshmallow.fields as mm_fields
 import warnings
 import os.path
 
 
-NOT_CELL_EXCLUSION_LABEL = -99999
+NOT_CELL_EXCLUSION_LABEL = "classified_as_not_cell"
 
 
 class RoiJsonSchema(Schema):
@@ -26,7 +27,7 @@ class RoiJsonSchema(Schema):
     y = mm_fields.Int(required=True)
     width = mm_fields.Int(required=True)
     height = mm_fields.Int(required=True)
-    exclusion_labels = mm_fields.List(mm_fields.Int(), required=True)
+    exclusion_labels = mm_fields.List(mm_fields.Str(), required=True)
     mask_matrix = mm_fields.List(
         mm_fields.List(mm_fields.Boolean()), required=True)
     max_correction_up = mm_fields.Int(required=True)
@@ -81,7 +82,6 @@ class InferenceInputSchema(ArgSchema):
     neuropil_traces_data_key = fields.Str(
         required=False,
         missing="data",
-        default="data",
         description=("Key in `neuropil_traces_path` h5 file where data array "
                      "is stored.")
     )
@@ -95,7 +95,6 @@ class InferenceInputSchema(ArgSchema):
     traces_data_key = fields.Str(
         required=False,
         missing="data",
-        default="data",
         description=("Key in `traces_path` h5 file where data array is "
                      "stored.")
     )
@@ -126,15 +125,20 @@ class InferenceInputSchema(ArgSchema):
         description=("Path to model. Can either be an s3 location or a "
                      "path on the local file system. The output of the model "
                      "should be 0 if the ROI is classified as not a cell, "
-                     "and 1 if the ROI is classified as a cell.")
+                     "and 1 if the ROI is classified as a cell. If this "
+                     "field is not provided, the classifier model registry "
+                     "DynamoDB will be queried.")
     )
     trace_sampling_fps = fields.Int(
-        required=True,
-        description="Sampling rate of trace (frames per second)."
+        required=False,
+        missing=31,
+        description=("Sampling rate of trace (frames per second). By default "
+                     "trace sampling rates are assumed to be 31 Hz (inherited "
+                     "from the source motion_corrected.h5 movie).")
     )
     downsample_to = fields.Int(
         required=False,
-        default=4,
+        missing=4,
         validate=lambda x: x > 0,
         description=("Target rate to downsample trace data (frames per "
                      "second). Will use average bin values for downsampling.")
@@ -143,6 +147,42 @@ class InferenceInputSchema(ArgSchema):
         required=True,
         description="Filepath to dump json output."
     )
+    model_registry_table_name = fields.Str(
+        required=False,
+        missing="ROIClassifierRegistry",
+        description=("The name of the DynamoDB table containing "
+                     "the ROI classifier model registry.")
+    )
+    model_registry_env = fields.Str(
+        required=False,
+        missing="prod",
+        description=("Which environment to query when searching for a "
+                     "classifier model path from the classifier model "
+                     "registry. Possible options are: ['dev', 'stage', 'prod]")
+    )
+
+    @pre_load
+    def determine_classifier_model_path(self, data: dict, **kwargs) -> dict:
+        if "classifier_model_path" not in data:
+            # Can't rely on field `missing` param as it doesn't get filled in
+            # until deserialization/validation. The get defaults should match
+            # the 'missing' param for the model_registry_table_name and
+            # model_registry_env fields.
+            table_name = data.get("model_registry_table_name",
+                                  "ROIClassifierRegistry")
+            model_env = data.get("model_registry_env", "prod")
+            model_registry = RegistryConnection(table_name=table_name)
+            model_path = model_registry.get_active_model(env=model_env)
+            data["classifier_model_path"] = model_path
+        return data
+
+    @validates("model_registry_env")
+    def validate_model_registry_env(self, env: str, **kwargs):
+        if env not in {'dev', 'stage', 'prod'}:
+            raise ValidationError(f"'{env}' is not a valid value for the "
+                                  f"'model_registry_env' field. Possible "
+                                  f"valid options are : "
+                                  f"['dev', 'stage', 'prod']")
 
     @validates("classifier_model_path")
     def validate_classifier_model_path(self, uri: str, **kwargs):
@@ -164,7 +204,7 @@ class InferenceInputSchema(ArgSchema):
                 raise ValidationError(f"File at '{uri}' does not exist.")
 
     @post_load
-    def check_keys_exist(self, data: dict, **kwargs):
+    def check_keys_exist(self, data: dict, **kwargs) -> dict:
         """ For h5 files, check that the passed key exists in the data. """
         pairs = [("neuropil_traces_path", "neuropil_traces_data_key"),
                  ("traces_path", "traces_data_key")]

@@ -58,7 +58,6 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
     abs_threshold = Float(
         missing=None,
         required=False,
-        validate=Range(min=0, max=1),
         allow_none=True,
         description=("The absolute threshold to binarize ROI masks against. "
                      "If not provided will use quantile to generate "

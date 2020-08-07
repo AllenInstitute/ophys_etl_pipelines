@@ -38,7 +38,7 @@ def test_output_schema_element():
 
 @pytest.mark.parametrize("s2p_stat_fixture, ophys_movie_fixture, "
                          "motion_correction_fixture, "
-                         "linear_dimension_threshold, expected_rois",
+                         "longest_edge_threshold, expected_rois",
                          [({'frame_shape': (5, 5),
                             'masks': [
                              np.array([[0.67, 0.87, 0.98, 0, 0],
@@ -116,7 +116,7 @@ def test_output_schema_element():
                                    "motion_correction_fixture"])
 def test_binarize_and_convert_rois(s2p_stat_fixture, ophys_movie_fixture,
                                    motion_correction_fixture,
-                                   linear_dimension_threshold,
+                                   longest_edge_threshold,
                                    expected_rois, tmp_path):
     stat_path, stat_fixure_params = s2p_stat_fixture
     movie_path, movie_fixture_params = ophys_movie_fixture
@@ -128,8 +128,8 @@ def test_binarize_and_convert_rois(s2p_stat_fixture, ophys_movie_fixture,
         'motion_corrected_video': str(movie_path),
         'motion_correction_values': str(motion_path),
         'output_json': str(output_path),
-        'npixel_threshold': 1
-        'linear_dimension_threshold': linear_dimension_threshold,
+        'npixel_threshold': 1,
+        'longest_edge_threshold': longest_edge_threshold,
         'output_json': str(output_path)
     }
 

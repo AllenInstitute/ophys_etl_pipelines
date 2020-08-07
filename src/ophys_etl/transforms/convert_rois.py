@@ -1,13 +1,15 @@
 from pathlib import Path
 
+from marshmallow import ValidationError
+from marshmallow.validate import Range
 from argschema import ArgSchema, ArgSchemaParser
 from argschema.schemas import DefaultSchema
 from argschema.fields import (List, InputFile, Str, OutputFile, Float,
-                              Nested, Int, Bool)
-from marshmallow.validate import Range
+                              Int, Bool)
 import numpy as np
 import pandas as pd
 import h5py
+import json
 
 
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
@@ -118,14 +120,8 @@ class LIMSCompatibleROIFormat(DefaultSchema):
                                          "classified_as_not_cell)"))
 
 
-class BinarizeAndCreateROIsOutputSchema(DefaultSchema):
-    LIMS_compatible_rois = Nested(LIMSCompatibleROIFormat,
-                                  many=True)
-
-
 class BinarizerAndROICreator(ArgSchemaParser):
     default_schema = BinarizeAndCreateROIsInputSchema
-    default_output_schema = BinarizeAndCreateROIsOutputSchema
 
     def binarize_and_create(self):
         """
@@ -171,20 +167,21 @@ class BinarizerAndROICreator(ArgSchemaParser):
 
         # create the rois
         self.logger.info("Transforming ROIs to LIMS compatible style.")
-        LIMS_compatible_rois = coo_rois_to_lims_compatible(binarized_coo_rois,
-                                                           motion_border,
-                                                           movie_shape)
+        compatible_rois = coo_rois_to_lims_compatible(binarized_coo_rois,
+                                                      motion_border,
+                                                      movie_shape)
+
+        # validate ROIs
+        errors = LIMSCompatibleROIFormat(many=True).validate(compatible_rois)
+        if any(errors):
+            raise ValidationError(f"Schema validation errors: {errors}")
 
         # save the rois as a json file to output directory
         self.logger.info("Writing LIMs compatible ROIs to json file at "
                          f"{self.args['output_json']}")
 
-        out_dict = {
-            'LIMS_compatible_rois': LIMS_compatible_rois
-        }
-
-        self.output(out_dict,
-                    output_path=self.args['output_json'])
+        with open(self.args['output_json'], 'w') as f:
+            json.dump(compatible_rois, f, indent=2)
 
 
 if __name__ == '__main__':  # pragma: no cover

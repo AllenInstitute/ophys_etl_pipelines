@@ -9,3 +9,4 @@ pandas
 moto
 boto3
 croissant-ml
+typing_extensions

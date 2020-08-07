@@ -1,9 +1,29 @@
-from typing import List, Optional, Tuple, Dict, Any
-
+from typing import List, Optional, Tuple
 import numpy as np
 from scipy.sparse import coo_matrix
-
+import sys
 from ophys_etl.transforms.data_loaders import motion_border
+
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
+
+
+class StandardROI(TypedDict):
+    id: int
+    x: int
+    y: int
+    width: int
+    height: int
+    valid_roi: bool
+    mask_matrix: List[List[bool]]
+    max_correction_up: int
+    max_correction_down: int
+    max_correction_left: int
+    max_correction_right: int
+    mask_image_plane: int
+    exclusion_labels: List[str]
 
 
 def suite2p_rois_to_coo(suite2p_stats: np.ndarray,
@@ -133,10 +153,12 @@ def crop_roi_mask(roi_mask: coo_matrix) -> coo_matrix:
 
 def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
                                 max_correction_vals: motion_border,
-                                movie_shape: Tuple[int, int]
-                                ) -> List[Dict[str, Any]]:
+                                movie_shape: Tuple[int, int],
+                                npixel_threshold: int,
+                                ) -> List[StandardROI]:
     """
     Converts coo formatted ROIs to lims compatible format.
+
     Parameters
     ----------
     coo_masks: List[coo_matrix]
@@ -148,47 +170,37 @@ def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
     movie_shape: Tuple[int, int]
         The frame shape of the movie from which ROIs were extracted in order
         of: (height, width).
+    npixel_threshold: int
+        ROIs with fewer pixels than this will be labeled as invalid and small
+        size
 
     Returns
     -------
-    List[Dict[str, Any]]
-        A list of dictionaries representing the ROIs in lims compatible
-        format, the data contained inside each one is as follows:
-        {
-            id: int
-            x: int
-            y: int
-            width: int
-            height: int
-            valid_roi: Bool
-            mask_matrix: List[List[Bool]]
-            max_correction_up: int
-            max_correction_down: int
-            max_correction_left: int
-            max_correction_right: int
-            mask_image_plane: int
-            exclusion_labels: List[str] name of exclusion labels are defined
-                              in 2019 Ophys Docs.
-        }
-        For details about specific values see design document for 2020 Ophys
-        Segmentation Refactor and Update
-        """
+    List[StandardROI]
+        converted rois into LIMS-standard form
+
+    """
     compatible_rois = []
     for temp_id, coo_mask in enumerate(coo_masks):
         compatible_roi = _coo_mask_to_LIMS_compatible_format(coo_mask)
-        compatible_roi['id'] = temp_id  # popped off writing to LIMs
+        compatible_roi['id'] = temp_id  # popped off when writing to LIMs
         compatible_roi['max_correction_up'] = max_correction_vals.up
         compatible_roi['max_correction_down'] = max_correction_vals.down
         compatible_roi['max_correction_right'] = max_correction_vals.right
         compatible_roi['max_correction_left'] = max_correction_vals.left
-        compatible_roi['mask_image_plane'] = 0
-        compatible_roi['exclusion_labels'], compatible_roi['valid_roi'] = \
-            _check_exclusion(compatible_roi, movie_shape)
+
+        labels = _check_exclusion(compatible_roi,
+                                  movie_shape,
+                                  npixel_threshold)
+        compatible_roi['exclusion_labels'] = labels
+        compatible_roi['valid_roi'] = not any(labels)
+
         compatible_rois.append(compatible_roi)
+
     return compatible_rois
 
 
-def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> Dict:
+def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> StandardROI:
     """
     This functions transforms ROI mask data from COO format
     to the LIMS expected format.
@@ -199,78 +211,111 @@ def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> Dict:
 
     Returns
     -------
-    Dict:
-        A dictionary that contains the mask data from the coo matrix in the
-        LIMS compatible segmentation format
-        {
-            'x': int (x location of upper left corner of roi in pixels)
-            'y': int (y location of upper left corner of roi in pixels)
-            'width': int (width of the roi mask in pixels)
-            'height': int (height of the roi mask in pixels)
-            'mask_matrix': List[List[bool]] (dense matrix of roi mask)
-        }
+    StandardROI
+
     """
     bounds = roi_bounds(coo_mask)
     height = bounds[1] - bounds[0]
     width = bounds[3] - bounds[2]
     mask_matrix = crop_roi_mask(coo_mask).toarray()
     mask_matrix = np.array(mask_matrix, dtype=bool)
-    compatible_roi = {
-        'x': int(bounds[2]),
-        'y': int(bounds[0]),
-        'width': int(width),
-        'height': int(height),
-        'mask_matrix': mask_matrix.tolist()
-    }
+    compatible_roi = StandardROI(
+        x=int(bounds[2]),
+        y=int(bounds[0]),
+        width=int(width),
+        height=int(height),
+        mask_matrix=mask_matrix.tolist(),
+        # following are placeholders
+        valid_roi=True,
+        mask_image_plane=0,
+        exclusion_labels=[],
+        id=-1,
+        max_correction_up=-1,
+        max_correction_down=-1,
+        max_correction_left=-1,
+        max_correction_right=-1)
     return compatible_roi
 
 
-def _check_exclusion(compatible_roi: Dict,
-                     movie_shape: Tuple[int, int]) -> Tuple[List[str], bool]:
+def _motion_exclusion(roi: StandardROI, movie_shape: Tuple[int, int]) -> bool:
     """
-    Checks if roi in lims compatible styling needs to be excluded as it breaks
-    one of the defined conditions within this function. Returns a list of
-    ints corresponding to the codes for exclusion. Also return a boolean
-    indicating if the roi is valid or not.
     Parameters
     ----------
-    compatible_roi: Dict
-        An ROI stored in lims compatible dictionary format that minimally
-        contains the following values.
-        {
-            'x': int (x location of upper left corner of roi in pixels)
-            'y': int (y location of upper left corner of roi in pixels)
-            'width': int (width of the roi mask in pixels)
-            'height': int (height of the roi mask in pixels)
-            'max_correction_up': int
-            'max_correction_down': int
-            'max_correction_left': int
-            'max_correction_right': int
-        }
-
+    roi: StandardROI
+        the ROI to check
     movie_shape: Tuple[int, int]
         The frame shape of the movie from which ROIs were extracted in order
         of: (height, width).
+
     Returns
     -------
-    Tuple[List[int]], bool]
-        The tuple contains a list of exclusion codes as it 0 index and
-        a bool indicating if the roi is valid as its 1 index value
+    valid: bool
+        whether this ROI is valid on motion exclusion
+
     """
-    valid_roi = True
+    furthest_right_pixel = roi['x'] + roi['width'] - 1
+    furthest_down_pixel = roi['y'] + roi['height'] - 1
+    right_limit = movie_shape[1] - roi['max_correction_right']
+    bottom_limit = movie_shape[0] - roi['max_correction_down']
+
+    valid = ((roi['x'] > roi['max_correction_left'] - 1) &
+             (roi['y'] > roi['max_correction_up'] - 1) &
+             (furthest_right_pixel < right_limit) &
+             (furthest_down_pixel < bottom_limit))
+
+    return valid
+
+
+def _small_size_exclusion(roi: StandardROI, npixel_threshold: int) -> bool:
+    """
+    Parameters
+    ----------
+    roi: StandardROI
+        the ROI to check
+    npixel_threshold: int
+        ROIs with fewer pixels than this will be labeled as invalid and small
+        size
+
+    Returns
+    -------
+    valid: bool
+        whether this ROI is valid on small size exclusion
+
+    """
+    npixels = sum([sum(i) for i in roi['mask_matrix']])
+    valid = npixels > npixel_threshold
+    return valid
+
+
+def _check_exclusion(compatible_roi: StandardROI,
+                     movie_shape: Tuple[int, int],
+                     npixel_threshold: int) -> List[str]:
+    """
+    Check ROI for different possible exclusions
+
+    Parameters
+    ----------
+    compatible_roi: StandardROI
+        the ROI to check
+    movie_shape: Tuple[int, int]
+        The frame shape of the movie from which ROIs were extracted in order
+        of: (height, width).
+    npixel_threshold: int
+        ROIs with fewer pixels than this will be labeled as invalid and small
+        size
+
+    Returns
+    -------
+    List[str]
+        list of exclusion codes, can be empty list
+
+    """
     exclusion_labels = []
 
-    # check if roi exists partly or wholey outside motion border
-    movie_height, movie_width = movie_shape[0], movie_shape[1]
-    furthest_right_pixel = compatible_roi['x'] + compatible_roi['width']
-    furthest_down_pixel = compatible_roi['y'] + compatible_roi['height']
-    if (compatible_roi['x'] <= compatible_roi['max_correction_left'] or
-       compatible_roi['y'] <= compatible_roi['max_correction_up'] or
-       furthest_right_pixel >= movie_width -
-            compatible_roi['max_correction_right'] or
-       furthest_down_pixel >= movie_height -
-            compatible_roi['max_correction_down']):
+    if not _motion_exclusion(compatible_roi, movie_shape):
         exclusion_labels.append('motion_border')
-        valid_roi = False
 
-    return exclusion_labels, valid_roi
+    if not _small_size_exclusion(compatible_roi, npixel_threshold):
+        exclusion_labels.append('small_size')
+
+    return exclusion_labels

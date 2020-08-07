@@ -56,6 +56,11 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         validate=Range(min=0, max=1),
         description=("The quantile against which an ROI is binarized. If not "
                      "provided will use default function value of 0.1."))
+    npixel_threshold = Int(
+        default=100,
+        required=False,
+        description=("ROIs with fewer pixels than this will be labeled as "
+                     "invalid and small size."))
 
 
 class LIMSCompatibleROIFormat(DefaultSchema):
@@ -156,9 +161,11 @@ class BinarizerAndROICreator(ArgSchemaParser):
 
         # create the rois
         self.logger.info("Transforming ROIs to LIMS compatible style.")
-        LIMS_compatible_rois = coo_rois_to_lims_compatible(binarized_coo_rois,
-                                                           motion_border,
-                                                           movie_shape)
+        LIMS_compatible_rois = coo_rois_to_lims_compatible(
+                binarized_coo_rois,
+                motion_border,
+                movie_shape,
+                self.args['npixel_threshold'])
 
         # save the rois as a json file to output directory
         self.logger.info("Writing LIMs compatible ROIs to json file at "
@@ -168,8 +175,7 @@ class BinarizerAndROICreator(ArgSchemaParser):
             'LIMS_compatible_rois': LIMS_compatible_rois
         }
 
-        self.output(out_dict,
-                    output_path=self.args['output_json'])
+        self.output(out_dict, indent=2)
 
 
 if __name__ == '__main__':  # pragma: no cover

@@ -4,7 +4,8 @@ from scipy.sparse import coo_matrix
 
 
 def filter_rois_by_longest_edge_length(coo_rois: List[coo_matrix],
-                                       longest_edge_threshold: int):
+                                       longest_edge_threshold: int) -> \
+        List[coo_matrix]:
     filtered_rois = []
     for coo_roi in coo_rois:
         # check if s2p border artifact

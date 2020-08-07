@@ -32,6 +32,7 @@ jobs:
           command: |
             echo ${SYLABS_TOKEN} | singularity remote login
             singularity push -U suite2p_container.img library://allen_institute_pika/ophys_etl_pipelines/suite2p_container.img:${CIRCLE_BRANCH}
+            singularity push -U suite2p_container.img library://allen_institute_pika/ophys_etl_pipelines/suite2p_container.img:latest
 
   build:
     executor: python/default

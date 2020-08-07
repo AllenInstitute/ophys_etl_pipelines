@@ -157,9 +157,9 @@ class BinarizerAndROICreator(ArgSchemaParser):
 
         # create the rois
         self.logger.info("Transforming ROIs to LIMS compatible style.")
-        compatible_rois = coo_rois_to_lims_compatible(binarized_coo_rois,
-                                                      motion_border,
-                                                      movie_shape)
+        compatible_rois = coo_rois_to_lims_compatible(
+                binarized_coo_rois, motion_border, movie_shape,
+                self.args['npixel_threshold'])
 
         # validate ROIs
         errors = LIMSCompatibleROIFormat(many=True).validate(compatible_rois)

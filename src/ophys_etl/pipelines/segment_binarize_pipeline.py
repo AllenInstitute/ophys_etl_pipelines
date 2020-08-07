@@ -1,13 +1,15 @@
 import argschema
 from ophys_etl.transforms.suite2p_wrapper import Suite2PWrapper
 from ophys_etl.transforms.convert_rois import BinarizerAndROICreator
+from ophys_etl.schemas.fields import H5InputFile
+
 import tempfile
 import pathlib
 import json
 
 
 class SegmentBinarizeSchema(argschema.ArgSchema):
-    motion_corrected_video = argschema.fields.InputFile(
+    motion_corrected_video = H5InputFile(
         required=True,
         description="hdf5 motion-correced video")
     motion_correction_values = argschema.fields.InputFile(

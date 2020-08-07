@@ -106,15 +106,15 @@ class BinarizerAndROICreator(ArgSchemaParser):
         # filter raw rois by longest edge in height and width
         edge_trsh = self.args['longest_edge_threshold']
         self.logger.info("Low pass filtering ROIs on height and width values")
-        linear_filtered_rois = filter_longest_edge_length(coo_rois,
+        filtered_rois = filter_longest_edge_length(coo_rois,
                                                           edge_trsh)
         self.logger.info("Filtered out "
-                         f"{len(coo_rois) - len(linear_filtered_rois)} "
+                         f"{len(coo_rois) - len(filtered_rois)} "
                          f"raw rois with longest edge threshold of "
                          f"{edge_trsh}")
 
         binarized_coo_rois = []
-        for filtered_coo_roi in linear_filtered_rois:
+        for filtered_coo_roi in filtered_rois:
             binary_mask = binarize_roi_mask(filtered_coo_roi,
                                             self.args['abs_threshold'],
                                             self.args['binary_quantile'])

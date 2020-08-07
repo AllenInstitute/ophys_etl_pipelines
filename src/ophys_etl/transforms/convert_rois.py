@@ -58,6 +58,11 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         validate=Range(min=0, max=1),
         description=("The quantile against which an ROI is binarized. If not "
                      "provided will use default function value of 0.1."))
+    npixel_threshold = Int(
+        default=100,
+        required=False,
+        description=("ROIs with fewer pixels than this will be labeled as "
+                     "invalid and small size."))
 
 
 class LIMSCompatibleROIFormat(DefaultSchema):

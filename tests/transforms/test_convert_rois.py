@@ -1,56 +1,38 @@
 import pytest
 import json
-import os
-
 import numpy as np
-from marshmallow.validate import ValidationError
+from ophys_etl.transforms.convert_rois import (
+        BinarizerAndROICreator, LIMSCompatibleROIFormat)
+from ophys_etl.transforms.roi_transforms import StandardROI
 
-from ophys_etl.transforms.convert_rois import BinarizerAndROICreator
 
+def test_output_schema_element():
+    """test that attempts to keep the TypedDict and subschema element in sync
+    """
+    s = StandardROI(
+            id=1,
+            x=23,
+            y=34,
+            width=128,
+            height=128,
+            valid_roi=True,
+            mask_matrix=[[True, True], [False, True]],
+            max_correction_up=12,
+            max_correction_down=12,
+            max_correction_left=12,
+            max_correction_right=12,
+            mask_image_plane=0,
+            exclusion_labels=['small_size', 'motion_border'])
 
-@pytest.mark.parametrize("s2p_stat_fixture, ophys_movie_fixture, "
-                         "motion_correction_fixture, binary_quantile, "
-                         "abs_threshold, x_fail, file_remove, x_error",
-                         [({}, {}, {}, -1, None,
-                           True, None, ValidationError),
-                          ({}, {}, {}, 0.1, -1,
-                           True, None, ValidationError),
-                          ({}, {}, {}, 0.1, 1.5,
-                           True, None, ValidationError),
-                          ({}, {}, {}, 1.5, 0.1,
-                           True, None, ValidationError),
-                          ({}, {}, {}, 0.1, None,
-                           True, 'suite2p_stat_path',
-                           ValidationError),
-                          ({}, {}, {}, 0.1, None,
-                           True, 'motion_corrected_video',
-                           ValidationError)],
-                         indirect=["s2p_stat_fixture",
-                                   "ophys_movie_fixture",
-                                   "motion_correction_fixture"])
-def test_binarize_and_convert_rois_schema(s2p_stat_fixture,
-                                          ophys_movie_fixture,
-                                          motion_correction_fixture,
-                                          binary_quantile, abs_threshold,
-                                          x_fail, file_remove, x_error,
-                                          tmp_path):
-    stat_path, stat_fixure_params = s2p_stat_fixture
-    movie_path, movie_fixture_params = ophys_movie_fixture
-    motion_path, motion_fixture_params = motion_correction_fixture
-    output_path = tmp_path / 'output.json'
-    args = {
-        'suite2p_stat_path': str(stat_path),
-        'motion_corrected_video': str(movie_path),
-        'motion_correction_values': str(motion_path),
-        'output_json': str(output_path),
-        'binary_quantile': binary_quantile,
-        'abs_threshold': abs_threshold
-    }
-    with pytest.raises(x_error):
-        if file_remove:
-            os.remove(args[file_remove])
-        BinarizerAndROICreator(input_data=args,
-                               args=[])
+    # does this example have exactly the keys specified in StandardROI?
+    assert set(list(s.keys())) == set(list(StandardROI.__annotations__.keys()))
+
+    # can't really validate the above, but we can check against our
+    # output schema
+    # validate the object with a marshmallow load()
+    subschema = LIMSCompatibleROIFormat()
+    subschema.load(s)
+    assert subschema.dump(s) == s
 
 
 @pytest.mark.parametrize("s2p_stat_fixture, ophys_movie_fixture, "
@@ -80,7 +62,7 @@ def test_binarize_and_convert_rois_schema(s2p_stat_fixture,
                               'y': 0,
                               'height': 2,
                               'width': 3,
-                              'valid_roi': False,
+                              'valid_roi': True,
                               'mask_matrix': np.array(
                                   [[True, True, True],
                                    [True, False, True]]).tolist(),
@@ -89,7 +71,7 @@ def test_binarize_and_convert_rois_schema(s2p_stat_fixture,
                               'max_correction_left': 0.3,
                               'max_correction_right': 0.3,
                               'mask_image_plane': 0,
-                              'exclusion_labels': ["motion_border"]
+                              'exclusion_labels': [],
                               },
                              {
                               'id': 1,
@@ -143,6 +125,7 @@ def test_binarize_and_convert_rois(s2p_stat_fixture, ophys_movie_fixture,
         'motion_corrected_video': str(movie_path),
         'motion_correction_values': str(motion_path),
         'output_json': str(output_path),
+        'npixel_threshold': 1
     }
 
     converter = BinarizerAndROICreator(input_data=args,

@@ -12,8 +12,9 @@ from marshmallow.validate import Range
 from ophys_etl.extractors.motion_correction import get_max_correction_values
 from ophys_etl.schemas.dense_roi import DenseROISchema
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
-                                                 coo_rois_to_lims_compatible,
-                                                 suite2p_rois_to_coo)
+                                                 suite2p_rois_to_coo,
+                                                 coo_rois_to_lims_compatible)
+from ophys_etl.filters.filters import filter_rois_by_longest_edge_length
 
 
 class BinarizeAndCreationException(Exception):
@@ -67,10 +68,10 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         description=("ROIs with fewer pixels than this will be labeled as "
                      "invalid and small size."))
 
-    linear_dimension_threshold = Int(
+    longest_edge_threshold = Int(
         default=50,
         validate=Range(min=0),
-        description=("ROIs with a linear dimension (height or width of "
+        description=("ROIs with a longest edge (height or width of "
                      "the bounding box) larger than this will not be "
                      "written to file")
     )
@@ -99,23 +100,29 @@ class BinarizerAndROICreator(ArgSchemaParser):
             movie_shape = open_vid['data'][0].shape
 
         # binarize the masks
-        self.logger.info("Binarizing the ROIs created by Suite2p.")
+        self.logger.info("Filtering and Binarizing the ROIs created by "
+                         "Suite2p.")
         coo_rois = suite2p_rois_to_coo(suite2p_stats, movie_shape)
 
+        # filter raw rois by linear dimension
+        edge_trsh = self.args['longest_edge_threshold']
+        self.logger.info("Linearly filtering ROIs to remove suite2p "
+                         "border artifacts")
+        linear_filtered_rois = filter_rois_by_longest_edge_length(coo_rois,
+                                                                  edge_trsh)
+        self.logger.info("Filtered out "
+                         f"{len(coo_rois) - len(linear_filtered_rois)} "
+                         f"raw rois with linear dimension threshold of "
+                         f"{edge_trsh}")
+
         binarized_coo_rois = []
-        for coo_roi in coo_rois:
-            # check if s2p border artifact
-            max_linear_dimension = max(coo_roi.col.ptp(),
-                                       coo_roi.row.ptp())
-            if (max_linear_dimension <
-                    self.args['linear_dimension_threshold']):
-                binary_mask = binarize_roi_mask(coo_roi,
-                                                self.args['abs_threshold'],
-                                                self.args['binary_quantile'])
-                binarized_coo_rois.append(binary_mask)
+        for filtered_coo_roi in linear_filtered_rois:
+            binary_mask = binarize_roi_mask(filtered_coo_roi,
+                                            self.args['abs_threshold'],
+                                            self.args['binary_quantile'])
+            binarized_coo_rois.append(binary_mask)
         self.logger.info("Binarized ROIs from Suite2p, total binarized: "
-                         f"{len(binarized_coo_rois)}, total filtered: "
-                         f"{len(coo_rois) - len(binarized_coo_rois)}")
+                         f"{len(binarized_coo_rois)}")
 
         # load the motion correction values
         self.logger.info("Loading motion correction border values from "

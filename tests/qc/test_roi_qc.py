@@ -1,9 +1,11 @@
+import matplotlib as mpl
+mpl.use('Agg')  # noqa
+import matplotlib
 from typing import Union
 import pytest
 
 import numpy as np
 from scipy.sparse import coo_matrix
-import matplotlib
 
 from ophys_etl.qc import roi_qc
 

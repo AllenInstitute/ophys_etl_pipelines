@@ -7,6 +7,8 @@ import h5py
 import matplotlib
 import marshmallow as mm
 import numpy as np
+import matplotlib as mpl
+mpl.use('Agg')  # noqa
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from scipy.sparse import coo_matrix

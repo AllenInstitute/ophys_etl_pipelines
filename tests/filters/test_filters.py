@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from scipy.sparse import coo_matrix
 
-from ophys_etl.filters.filters import filter_rois_by_longest_edge_length
+from ophys_etl.filters.filters import filter_longest_edge_length
 
 
 @pytest.mark.parametrize("coo_rois, longest_edge_thrsh, expected_rois",
@@ -81,8 +81,8 @@ def test_filter_rois_by_longest_edge_length(coo_rois, longest_edge_thrsh,
     7. Smaller than linear dimension thrsh in x and y, contiguous
     8. Smaller than linear dimension thrsh in x and y, non contiguous
     """
-    filtered_rois = filter_rois_by_longest_edge_length(coo_rois,
-                                                       longest_edge_thrsh)
+    filtered_rois = filter_longest_edge_length(coo_rois,
+                                               longest_edge_thrsh)
     # assume that test is true and the indices line up between calculated and
     # expected
     for i in range(len(filtered_rois)):

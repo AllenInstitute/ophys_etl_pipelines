@@ -14,7 +14,7 @@ from ophys_etl.schemas.dense_roi import DenseROISchema
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
                                                  suite2p_rois_to_coo,
                                                  coo_rois_to_lims_compatible)
-from ophys_etl.filters.filters import filter_rois_by_longest_edge_length
+from ophys_etl.filters.filters import filter_longest_edge_length
 
 
 class BinarizeAndCreationException(Exception):
@@ -71,9 +71,8 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
     longest_edge_threshold = Int(
         default=50,
         validate=Range(min=0),
-        description=("ROIs with a longest edge (height or width of "
-                     "the bounding box) larger than this will not be "
-                     "written to file")
+        description=("Low pass filter value to eliminate ROIs with either "
+                     "height or width greater than or equal to this value.")
     )
 
 
@@ -104,15 +103,14 @@ class BinarizerAndROICreator(ArgSchemaParser):
                          "Suite2p.")
         coo_rois = suite2p_rois_to_coo(suite2p_stats, movie_shape)
 
-        # filter raw rois by linear dimension
+        # filter raw rois by longest edge in height and width
         edge_trsh = self.args['longest_edge_threshold']
-        self.logger.info("Linearly filtering ROIs to remove suite2p "
-                         "border artifacts")
-        linear_filtered_rois = filter_rois_by_longest_edge_length(coo_rois,
-                                                                  edge_trsh)
+        self.logger.info("Low pass filtering ROIs on height and width values")
+        linear_filtered_rois = filter_longest_edge_length(coo_rois,
+                                                          edge_trsh)
         self.logger.info("Filtered out "
                          f"{len(coo_rois) - len(linear_filtered_rois)} "
-                         f"raw rois with linear dimension threshold of "
+                         f"raw rois with longest edge threshold of "
                          f"{edge_trsh}")
 
         binarized_coo_rois = []

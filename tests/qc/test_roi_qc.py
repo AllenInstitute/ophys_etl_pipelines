@@ -1,13 +1,11 @@
-import matplotlib as mpl
-mpl.use('Agg')  # noqa
-import matplotlib
 from typing import Union
 import pytest
-
-import numpy as np
-from scipy.sparse import coo_matrix
-
-from ophys_etl.qc import roi_qc
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib  # noqa: E402
+import numpy as np  # noqa: E402
+from scipy.sparse import coo_matrix  # noqa: E402
+from ophys_etl.qc import roi_qc  # noqa: E402
 
 
 PlotType = Union[matplotlib.lines.Line2D, matplotlib.image.AxesImage]

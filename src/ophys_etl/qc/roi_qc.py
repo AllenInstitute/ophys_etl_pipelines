@@ -1,24 +1,22 @@
 from pathlib import Path
 from timeit import default_timer as timer
 import re
-
 import argschema
 import h5py
 import matplotlib
 import marshmallow as mm
 import numpy as np
 import matplotlib as mpl
-mpl.use('Agg')  # noqa
-from matplotlib import pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
-from scipy.sparse import coo_matrix
-
-from ophys_etl.transforms.roi_transforms import (
+mpl.use('Agg')
+from matplotlib import pyplot as plt  # noqa: E402
+from matplotlib.backends.backend_pdf import PdfPages  # noqa: E402
+from scipy.sparse import coo_matrix  # noqa: E402
+from ophys_etl.transforms.roi_transforms import (  # noqa: E402
     suite2p_rois_to_coo,
     binarize_roi_mask,
     crop_roi_mask
 )
-from ophys_etl.transforms.trace_transforms import extract_traces
+from ophys_etl.transforms.trace_transforms import extract_traces  # noqa: E402
 
 
 def plot_binarized_vs_weighted_roi(weighted_mask: coo_matrix,

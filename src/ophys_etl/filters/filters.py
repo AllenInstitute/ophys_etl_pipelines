@@ -8,6 +8,8 @@ def filter_longest_edge_length(coo_matrices: List[coo_matrix],
     """
     Low pass filters list of coo_matrices by the longest distance in the
     height or width (whichever is greater) against a user defined threshold.
+    Matrix dimensions must be lower than edge_threshold, not equal to, to pass
+    through the filter.
     Parameters
     ----------
     coo_matrices:

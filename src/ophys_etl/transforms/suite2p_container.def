@@ -45,7 +45,6 @@ From: continuumio/miniconda3:4.8.2
     conda clean -q --all
     cd ../
     rm -rf suite2p
-    rm -rf ophys_etl_pipelines
 
 %runscript
    . $CONDA_BASE/etc/profile.d/conda.sh

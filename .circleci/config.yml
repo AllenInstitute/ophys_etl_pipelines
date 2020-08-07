@@ -25,7 +25,7 @@ jobs:
       - run:
           name: Run Singularity Container pytest
           command: |
-            singularity run ./suite2p_container.img python -m pytest
+            singularity run ./suite2p_container.img python -m pytest /ophys_etl_pipelines
       - run:
           name: Run Singularity Container Smoke Test
           command: |

@@ -62,34 +62,58 @@ def s2p_stat_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
 
 @pytest.fixture()
 def motion_correction_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
-    """Fixture that allows parameterized mock motion correction video files
-    to be generated
+    """Fixture that allows parameterized mock motion correction files (*.csv)
+    files to be generated.
+
+    Old-style motion files do *not* contain a header row (yikes D:)
+    You just have to know that they contain 9 columns with the following names:
+    ["index", "x", "y", "a", "b", "c", "d", "e", "f"]
+
+    New-style motion files may have more or fewer than 9 columns but will have
+    a header row (which contains at least one alphabetical character [a-zA-Z]).
     """
+    # Range of mock motion correction values to generate
     abs_value_bound = request.param.get("abs_value_bound", 5.0)
-    motion_correction_rows = request.param.get("motion_correction_rows", 15)
-    included_values_x = request.param.get("included_values_x", [])
-    included_values_y = request.param.get("included_values_y", [])
+    default_col_names = ["index", "x", "y", "a", "b", "c", "d", "e", "f"]
+    col_names = request.param.get("col_names", default_col_names)
+    num_rows = request.param.get("num_rows", 15)
+    required_x_values = request.param.get("required_x_values", [])
+    required_y_values = request.param.get("required_y_values", [])
+    deprecated_mode = request.param.get("deprecated_mode", False)
     random_seed = request.param.get("random_seed", 0)
 
-    fixture_params = {'abs_value_bound': abs_value_bound,
-                      'motion_correction_rows': motion_correction_rows,
-                      'random_seed': random_seed}
+    min_rows = max(len(required_x_values), len(required_y_values))
+    num_rows = min_rows if min_rows > num_rows else num_rows
 
     seed(random_seed)
-    x_correction_values = uniform(-abs_value_bound, abs_value_bound,
-                                  motion_correction_rows)
-    y_correction_values = uniform(-abs_value_bound, abs_value_bound,
-                                  motion_correction_rows)
-    x_correction_values = np.append(x_correction_values, included_values_x)
-    y_correction_values = np.append(y_correction_values, included_values_y)
+    motion_values = uniform(low=-abs_value_bound,
+                            high=abs_value_bound,
+                            size=(num_rows, 8))
 
-    motion_correction_data = {
-        'x': x_correction_values,
-        'y': y_correction_values
-    }
+    # Replace randomized motion values with required x and y values
+    motion_values[:len(required_x_values), 0] = np.array(required_x_values)
+    motion_values[:len(required_y_values), 1] = np.array(required_y_values)
 
+    # Insert indices as first 'column' of array
+    indices = list(range(num_rows))
+    motion_data = np.insert(motion_values, 0, indices, axis=1)
+
+    motion_corrected_df = pd.DataFrame(data=motion_data)
+    motion_corrected_df.columns = col_names
     motion_correction_path = tmp_path / 'motion_correction.csv'
-    motion_corrected_df = pd.DataFrame.from_dict(motion_correction_data)
 
-    motion_corrected_df.to_csv(motion_correction_path)
+    if deprecated_mode:
+        motion_corrected_df.to_csv(motion_correction_path,
+                                   index=False, header=False)
+    else:
+        motion_corrected_df.to_csv(motion_correction_path,
+                                   index=False)
+
+    fixture_params = {'abs_value_bound': abs_value_bound,
+                      'col_names': col_names,
+                      'num_rows': num_rows,
+                      'deprecated_mode': deprecated_mode,
+                      'random_seed': random_seed,
+                      'motion_data': motion_data}
+
     return motion_correction_path, fixture_params

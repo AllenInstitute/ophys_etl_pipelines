@@ -11,11 +11,10 @@ import pandas as pd
 import h5py
 import json
 
-
+from ophys_etl.extractors.motion_correction import get_max_correction_values
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
                                                  suite2p_rois_to_coo,
                                                  coo_rois_to_lims_compatible)
-from ophys_etl.transforms.data_loaders import get_max_correction_values
 
 
 class BinarizeAndCreationException(Exception):
@@ -35,7 +34,12 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
     motion_correction_values = InputFile(
         required=True,
         description=("Path to motion correction values for each frame "
-                     "stored in .csv format"))
+                     "stored in .csv format. This .csv file is expected to"
+                     "have a header row of either:\n"
+                     "['framenumber','x','y','correlation','kalman_x',"
+                     "'kalman_y']\n['framenumber','x','y','correlation',"
+                     "'input_x','input_y','kalman_x',"
+                     "'kalman_y','algorithm','type']"))
     output_json = OutputFile(
         required=True,
         description=("Path to a file to write output data."))
@@ -151,9 +155,9 @@ class BinarizerAndROICreator(ArgSchemaParser):
         motion_correction_df = pd.read_csv(
             self.args['motion_correction_values'])
         motion_border = get_max_correction_values(
-            motion_correction_df['x'],
-            motion_correction_df['y'],
-            self.args['maximum_motion_shift'])
+            x_series=motion_correction_df['x'],
+            y_series=motion_correction_df['y'],
+            max_shift=self.args['maximum_motion_shift'])
 
         # create the rois
         self.logger.info("Transforming ROIs to LIMS compatible style.")

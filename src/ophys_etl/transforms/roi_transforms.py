@@ -2,7 +2,7 @@ from typing import List, Optional, Tuple
 import numpy as np
 from scipy.sparse import coo_matrix
 import sys
-from ophys_etl.transforms.data_loaders import motion_border
+from ophys_etl.extractors.motion_correction import MotionBorder
 
 if sys.version_info >= (3, 8):
     from typing import TypedDict
@@ -152,7 +152,7 @@ def crop_roi_mask(roi_mask: coo_matrix) -> coo_matrix:
 
 
 def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
-                                max_correction_vals: motion_border,
+                                max_correction_vals: MotionBorder,
                                 movie_shape: Tuple[int, int],
                                 npixel_threshold: int,
                                 ) -> List[StandardROI]:
@@ -164,9 +164,10 @@ def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
     coo_masks: List[coo_matrix]
         A list of scipy coo_matrices representing ROI masks, each element of
         list is a unique ROI.
-    max_correction_vals: motion_border
-        The max motion correction values identified in the motion correction
-        step of ophys segmentation pipeline
+    max_correction_vals: MotionBorder
+        Named tuple containing the max motion correction values identified
+        in the motion correction step of ophys segmentation pipeline.
+        Name tuple has the following names: ['left', 'right', 'up', 'down'].
     movie_shape: Tuple[int, int]
         The frame shape of the movie from which ROIs were extracted in order
         of: (height, width).

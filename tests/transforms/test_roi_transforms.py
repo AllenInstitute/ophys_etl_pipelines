@@ -3,8 +3,8 @@ import pytest
 import numpy as np
 from scipy.sparse import coo_matrix
 
+from ophys_etl.extractors.motion_correction import MotionBorder
 from ophys_etl.transforms import roi_transforms
-from ophys_etl.transforms.data_loaders import motion_border
 
 
 @pytest.mark.parametrize("s2p_stat_fixture", [
@@ -153,61 +153,61 @@ def test_crop_roi_mask(mask, expected, raises_error):
 @pytest.mark.parametrize(
         "dense_mask, max_correction_vals, expected",
         [
-            ([[1]], motion_border(0, 0, 0, 0), True),
-            ([[1]], motion_border(1, 0, 0, 0), False),
-            ([[1]], motion_border(0, 1, 0, 0), False),
-            ([[1]], motion_border(0, 0, 1, 0), False),
-            ([[1]], motion_border(0, 0, 0, 1), False),
+            ([[1]], MotionBorder(0, 0, 0, 0), True),
+            ([[1]], MotionBorder(1, 0, 0, 0), False),
+            ([[1]], MotionBorder(0, 1, 0, 0), False),
+            ([[1]], MotionBorder(0, 0, 1, 0), False),
+            ([[1]], MotionBorder(0, 0, 0, 1), False),
             (
                 [[0, 0, 0],
                  [0, 1, 0],
-                 [0, 0, 0]], motion_border(1, 1, 1, 1), True),
+                 [0, 0, 0]], MotionBorder(1, 1, 1, 1), True),
             (
                 [[0, 1, 0],
                  [0, 1, 0],
-                 [0, 0, 0]], motion_border(1, 1, 0, 1), True),
+                 [0, 0, 0]], MotionBorder(1, 1, 0, 1), True),
             (
                 [[0, 1, 0],
                  [0, 1, 0],
-                 [0, 0, 0]], motion_border(1, 1, 1, 1), False),
+                 [0, 0, 0]], MotionBorder(1, 1, 1, 1), False),
             (
                 [[0, 0, 0],
                  [0, 1, 0],
-                 [0, 1, 0]], motion_border(1, 1, 1, 0), True),
+                 [0, 1, 0]], MotionBorder(1, 1, 1, 0), True),
             (
                 [[0, 0, 0],
                  [0, 1, 0],
-                 [0, 1, 0]], motion_border(1, 1, 1, 1), False),
+                 [0, 1, 0]], MotionBorder(1, 1, 1, 1), False),
             (
                 [[0, 0, 0],
                  [1, 1, 0],
-                 [0, 0, 0]], motion_border(0, 1, 1, 1), True),
+                 [0, 0, 0]], MotionBorder(0, 1, 1, 1), True),
             (
                 [[0, 0, 0],
                  [1, 1, 0],
-                 [0, 0, 0]], motion_border(1, 1, 1, 1), False),
+                 [0, 0, 0]], MotionBorder(1, 1, 1, 1), False),
             (
                 [[0, 0, 0],
                  [0, 1, 1],
-                 [0, 0, 0]], motion_border(1, 0, 1, 1), True),
+                 [0, 0, 0]], MotionBorder(1, 0, 1, 1), True),
             (
                 [[0, 0, 0],
                  [0, 1, 1],
-                 [0, 0, 0]], motion_border(1, 1, 1, 1), False),
+                 [0, 0, 0]], MotionBorder(1, 1, 1, 1), False),
             (
                 [[0, 0, 0, 0, 0, 0],
                  [0, 0, 0, 0, 0, 0],
                  [0, 0, 1, 1, 0, 0],
                  [0, 0, 1, 1, 0, 0],
                  [0, 0, 0, 0, 0, 0],
-                 [0, 0, 0, 0, 0, 0]], motion_border(2, 2, 2, 2), True),
+                 [0, 0, 0, 0, 0, 0]], MotionBorder(2, 2, 2, 2), True),
             (
                 [[0, 0, 0, 0, 0, 0],
                  [0, 0, 0, 0, 0, 0],
                  [0, 0, 1, 1, 0, 0],
                  [0, 0, 1, 1, 0, 0],
                  [0, 0, 0, 0, 0, 0],
-                 [0, 0, 0, 0, 0, 0]], motion_border(2, 3, 2, 2), False),
+                 [0, 0, 0, 0, 0, 0]], MotionBorder(2, 3, 2, 2), False),
                 ])
 def test_motion_exclusion(dense_mask, max_correction_vals, expected):
     coo = coo_matrix(dense_mask)
@@ -254,7 +254,7 @@ def test_small_size_exclusion(dense_mask, npixel_threshold, expected):
             coo_matrix(([1, 1, 1, 0], ([12, 13, 12, 13], [12, 12, 13, 13])),
                        shape=(20, 20))
            ],
-          motion_border(2.5, 2.5, 2.5, 2.5), 3,
+          MotionBorder(2.5, 2.5, 2.5, 2.5), 3,
           [{'id': 0,
             'x': 0,
             'y': 0,

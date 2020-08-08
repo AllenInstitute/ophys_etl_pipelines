@@ -7,15 +7,15 @@ from argschema.schemas import DefaultSchema
 from argschema.fields import (List, InputFile, Str, OutputFile, Float,
                               Int, Bool)
 import numpy as np
-import pandas as pd
 import h5py
 import json
 
-
+from ophys_etl.extractors.motion_correction import (
+    extract_motion_correction_data,
+    get_max_correction_values)
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
                                                  suite2p_rois_to_coo,
                                                  coo_rois_to_lims_compatible)
-from ophys_etl.transforms.data_loaders import get_max_correction_values
 
 
 class BinarizeAndCreationException(Exception):
@@ -148,12 +148,12 @@ class BinarizerAndROICreator(ArgSchemaParser):
         # load the motion correction values
         self.logger.info("Loading motion correction border values from "
                          f" {self.args['motion_correction_values']}")
-        motion_correction_df = pd.read_csv(
-            self.args['motion_correction_values'])
+        motion_correction_df = extract_motion_correction_data(
+            motion_filepath=self.args['motion_correction_values'])
         motion_border = get_max_correction_values(
-            motion_correction_df['x'],
-            motion_correction_df['y'],
-            self.args['maximum_motion_shift'])
+            x_series=motion_correction_df['x'],
+            y_series=motion_correction_df['y'],
+            max_shift=self.args['maximum_motion_shift'])
 
         # create the rois
         self.logger.info("Transforming ROIs to LIMS compatible style.")

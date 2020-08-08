@@ -55,8 +55,8 @@ def test_output_schema_element():
                                        [0, 0, 0.79, 0, 0],
                                        [0, 0, 0, 0, 0]])
                          ]}, {}, {'abs_value_bound': 0.25,
-                                  'included_values_x': [-0.3, 0.3],
-                                  'included_values_y': [-0.3, 0.3]}, [
+                                  'required_x_values': [-0.3, 0.3],
+                                  'required_y_values': [-0.3, 0.3]}, [
                              {'id': 0,
                               'x': 0,
                               'y': 0,

@@ -23,6 +23,10 @@ jobs:
             if [ -f "$BASH_ENV" ]; then source $BASH_ENV; fi
             $SUDO SINGULARITYENV_OPHYS_ETL_TAG=${CIRCLE_BRANCH} singularity build suite2p_container.img src/ophys_etl/transforms/suite2p_container.def
       - run:
+          name: Run Singularity Container pytest
+          command: |
+            singularity run ./suite2p_container.img python -m pytest /ophys_etl_pipelines
+      - run:
           name: Run Singularity Container Smoke Test
           command: |
             mkdir smoke_output
@@ -38,8 +42,10 @@ jobs:
                 singularity push -U suite2p_container.img library://allen_institute_pika/ophys_etl_pipelines/suite2p_container.img:develop
             fi
 
-  build:
-    executor: python/default
+  build377: &test-template
+    executor:
+      name: python/default
+      tag: "3.7.7"
     steps:
       - checkout
       - python/load-cache
@@ -52,6 +58,12 @@ jobs:
             python -m pytest --cov ophys_etl --cov-report xml
             bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
           name: Test
+
+  build38: 
+    <<: *test-template
+    executor:
+      name: python/default
+      tag: "3.8"
 
   lint:
     executor: python/default
@@ -70,11 +82,12 @@ jobs:
 workflows:
   main:
     jobs:
-      - build
+      - build377
+      - build38
       - lint
       - singularity-image:
           requires:
-            - build
+            - build377
             - lint
           filters:
             branches:

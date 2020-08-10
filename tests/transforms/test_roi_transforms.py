@@ -150,54 +150,151 @@ def test_crop_roi_mask(mask, expected, raises_error):
             obtained = roi_transforms.crop_roi_mask(coo_mask)
 
 
-@pytest.mark.parametrize("coo_masks, max_correction_values, "
-                         "expected, raises_error",
-                         [([coo_matrix(([1, 1, 1, 1], ([0, 1, 0, 1],
-                                                       [0, 0, 1, 1])),
-                                       shape=(20, 20)),
-                            coo_matrix(([1, 1, 1, 1], ([12, 13, 12, 13],
-                                                       [12, 12, 13, 13])),
-                                       shape=(20, 20))],
-                           motion_border(2.5, 2.5, 2.5, 2.5),
-                           [{'id': 0,
-                             'x': 0,
-                             'y': 0,
-                             'width': 2,
-                             'height': 2,
-                             'valid_roi': False,
-                             'mask_matrix': np.array([[True, True],
-                                                      [True, True]]).tolist(),
-                             'max_correction_up': 2.5,
-                             'max_correction_down': 2.5,
-                             'max_correction_left': 2.5,
-                             'max_correction_right': 2.5,
-                             'mask_image_plane': 0,
-                             'exclusion_labels': ["motion_border"]},
-                            {'id': 1,
-                             'x': 12,
-                             'y': 12,
-                             'width': 2,
-                             'height': 2,
-                             'valid_roi': True,
-                             'mask_matrix': np.array([[True, True],
-                                                      [True, True]]).tolist(),
-                             'max_correction_up': 2.5,
-                             'max_correction_down': 2.5,
-                             'max_correction_left': 2.5,
-                             'max_correction_right': 2.5,
-                             'mask_image_plane': 0,
-                             'exclusion_labels': []}],
-                           False)])
+@pytest.mark.parametrize(
+        "dense_mask, max_correction_vals, expected",
+        [
+            ([[1]], motion_border(0, 0, 0, 0), True),
+            ([[1]], motion_border(1, 0, 0, 0), False),
+            ([[1]], motion_border(0, 1, 0, 0), False),
+            ([[1]], motion_border(0, 0, 1, 0), False),
+            ([[1]], motion_border(0, 0, 0, 1), False),
+            (
+                [[0, 0, 0],
+                 [0, 1, 0],
+                 [0, 0, 0]], motion_border(1, 1, 1, 1), True),
+            (
+                [[0, 1, 0],
+                 [0, 1, 0],
+                 [0, 0, 0]], motion_border(1, 1, 0, 1), True),
+            (
+                [[0, 1, 0],
+                 [0, 1, 0],
+                 [0, 0, 0]], motion_border(1, 1, 1, 1), False),
+            (
+                [[0, 0, 0],
+                 [0, 1, 0],
+                 [0, 1, 0]], motion_border(1, 1, 1, 0), True),
+            (
+                [[0, 0, 0],
+                 [0, 1, 0],
+                 [0, 1, 0]], motion_border(1, 1, 1, 1), False),
+            (
+                [[0, 0, 0],
+                 [1, 1, 0],
+                 [0, 0, 0]], motion_border(0, 1, 1, 1), True),
+            (
+                [[0, 0, 0],
+                 [1, 1, 0],
+                 [0, 0, 0]], motion_border(1, 1, 1, 1), False),
+            (
+                [[0, 0, 0],
+                 [0, 1, 1],
+                 [0, 0, 0]], motion_border(1, 0, 1, 1), True),
+            (
+                [[0, 0, 0],
+                 [0, 1, 1],
+                 [0, 0, 0]], motion_border(1, 1, 1, 1), False),
+            (
+                [[0, 0, 0, 0, 0, 0],
+                 [0, 0, 0, 0, 0, 0],
+                 [0, 0, 1, 1, 0, 0],
+                 [0, 0, 1, 1, 0, 0],
+                 [0, 0, 0, 0, 0, 0],
+                 [0, 0, 0, 0, 0, 0]], motion_border(2, 2, 2, 2), True),
+            (
+                [[0, 0, 0, 0, 0, 0],
+                 [0, 0, 0, 0, 0, 0],
+                 [0, 0, 1, 1, 0, 0],
+                 [0, 0, 1, 1, 0, 0],
+                 [0, 0, 0, 0, 0, 0],
+                 [0, 0, 0, 0, 0, 0]], motion_border(2, 3, 2, 2), False),
+                ])
+def test_motion_exclusion(dense_mask, max_correction_vals, expected):
+    coo = coo_matrix(dense_mask)
+    roi = roi_transforms._coo_mask_to_LIMS_compatible_format(coo)
+    roi['max_correction_up'] = max_correction_vals.up
+    roi['max_correction_down'] = max_correction_vals.down
+    roi['max_correction_right'] = max_correction_vals.right
+    roi['max_correction_left'] = max_correction_vals.left
+
+    valid = roi_transforms._motion_exclusion(roi, coo.shape)
+
+    assert valid == expected
+
+
+@pytest.mark.parametrize(
+        "dense_mask, npixel_threshold, expected",
+        [
+            ([[1]], 0, True),
+            ([[1]], 1, False),
+            ([[0, 0, 0],
+              [0, 1, 0],
+              [0, 0, 0]], 4, False),
+            ([[0, 0, 0],
+              [0, 1, 1],
+              [0, 1, 1]], 4, False),
+            ([[0, 0, 0],
+              [1, 1, 1],
+              [0, 1, 1]], 4, True)
+            ])
+def test_small_size_exclusion(dense_mask, npixel_threshold, expected):
+    coo = coo_matrix(dense_mask)
+    roi = roi_transforms._coo_mask_to_LIMS_compatible_format(coo)
+
+    valid = roi_transforms._small_size_exclusion(roi, npixel_threshold)
+
+    assert valid == expected
+
+
+@pytest.mark.parametrize(
+        "coo_masks, max_correction_values, npixel_threshold, expected",
+        [([
+            coo_matrix(([1, 1, 1, 1], ([0, 1, 0, 1], [0, 0, 1, 1])),
+                       shape=(20, 20)),
+            coo_matrix(([1, 1, 1, 0], ([12, 13, 12, 13], [12, 12, 13, 13])),
+                       shape=(20, 20))
+           ],
+          motion_border(2.5, 2.5, 2.5, 2.5), 3,
+          [{'id': 0,
+            'x': 0,
+            'y': 0,
+            'width': 2,
+            'height': 2,
+            'valid_roi': False,
+            'mask_matrix': np.array([[True, True],
+                                     [True, True]]).tolist(),
+            'max_correction_up': 2.5,
+            'max_correction_down': 2.5,
+            'max_correction_left': 2.5,
+            'max_correction_right': 2.5,
+            'mask_image_plane': 0,
+            'exclusion_labels': ['motion_border']},
+           {'id': 1,
+            'x': 12,
+            'y': 12,
+            'width': 2,
+            'height': 2,
+            'valid_roi': False,
+            'mask_matrix': np.array([[True, True],
+                                     [True, False]]).tolist(),
+            'max_correction_up': 2.5,
+            'max_correction_down': 2.5,
+            'max_correction_left': 2.5,
+            'max_correction_right': 2.5,
+            'mask_image_plane': 0,
+            'exclusion_labels': ['small_size']}
+           ])])
 def test_coo_rois_to_compatible(coo_masks, max_correction_values,
-                                expected, raises_error):
+                                npixel_threshold, expected):
     compatible_rois = roi_transforms.coo_rois_to_lims_compatible(
         coo_masks,
         max_correction_values,
-        coo_masks[0].shape)
+        coo_masks[0].shape,
+        npixel_threshold=npixel_threshold)
     assert compatible_rois == expected
 
 
-@pytest.mark.parametrize("coo_mask, expected, raises_error",
+@pytest.mark.parametrize("coo_mask, expected",
                          [(coo_matrix(([1, 1, 1, 1], ([0, 1, 0, 1],
                                                       [0, 0, 1, 1])),
                                       shape=(20, 20)),
@@ -206,10 +303,8 @@ def test_coo_rois_to_compatible(coo_masks, max_correction_values,
                                'y': 0,
                                'width': 2,
                                'height': 2,
-                               'mask_matrix': np.array([[True, True],
-                                                        [True, True]]
-                                                       ).tolist(),
-                           }, False),
+                               'mask_matrix': [[True, True],
+                                               [True, True]]}),
                           (coo_matrix(([1, 1, 1, 1, 1, 1, 1, 1],
                                        ([0, 0, 0, 1, 1, 2, 2, 2],
                                         [0, 1, 2, 0, 2, 0, 1, 2])),
@@ -219,11 +314,9 @@ def test_coo_rois_to_compatible(coo_masks, max_correction_values,
                                'y': 0,
                                'width': 3,
                                'height': 3,
-                               'mask_matrix': np.array([[True, True, True],
-                                                        [True, False, True],
-                                                        [True, True, True]]
-                                                       ).tolist()
-                           }, False),
+                               'mask_matrix': [[True, True, True],
+                                               [True, False, True],
+                                               [True, True, True]]}),
                           (coo_matrix(([1, 1, 1, 1, 1],
                                        ([0, 0, 1, 1, 1],
                                         [1, 2, 0, 1, 2])),
@@ -233,10 +326,8 @@ def test_coo_rois_to_compatible(coo_masks, max_correction_values,
                                'y': 0,
                                'width': 3,
                                'height': 2,
-                               'mask_matrix': np.array([[False, True, True],
-                                                        [True, True, True]]
-                                                       ).tolist()
-                           }, False),
+                               'mask_matrix': [[False, True, True],
+                                               [True, True, True]]}),
                           (coo_matrix(([1, 1, 1, 1, 1, 1, 1, 1],
                                       ([0, 0, 1, 1, 2, 2, 3, 3],
                                        [0, 1, 0, 1, 3, 4, 3, 4])),
@@ -246,15 +337,14 @@ def test_coo_rois_to_compatible(coo_masks, max_correction_values,
                                'y': 0,
                                'width': 5,
                                'height': 4,
-                               'mask_matrix': np.array([[True, True, False,
-                                                         False, False],
-                                                        [True, True, False,
-                                                         False, False],
-                                                        [False, False, False,
-                                                         True, True],
-                                                        [False, False, False,
-                                                         True, True]]).tolist()
-                           }, False),
+                               'mask_matrix': [[True, True, False, False,
+                                                False],
+                                               [True, True, False, False,
+                                                False],
+                                               [False, False, False, True,
+                                                True],
+                                               [False, False, False, True,
+                                                True]]}),
                           (coo_matrix(([1, 1, 1, 1, 1],
                                        ([3, 4, 4, 5, 5],
                                         [3, 3, 4, 3, 4])),
@@ -264,10 +354,9 @@ def test_coo_rois_to_compatible(coo_masks, max_correction_values,
                                'y': 3,
                                'width': 2,
                                'height': 3,
-                               'mask_matrix': np.array([[True, False],
-                                                        [True, True],
-                                                        [True, True]]).tolist()
-                           }, False),
+                               'mask_matrix': [[True, False],
+                                               [True, True],
+                                               [True, True]]}),
                           (coo_matrix(([1, 1, 1],
                                        ([0, 0, 1],
                                         [1, 2, 2])),
@@ -277,78 +366,10 @@ def test_coo_rois_to_compatible(coo_masks, max_correction_values,
                                'y': 0,
                                'width': 2,
                                'height': 2,
-                               'mask_matrix': np.array(
-                                   [[True, True],
-                                    [False, True]]).tolist()
-                           }, False)])
-def test_coo_mask_to_compatible_format(coo_mask, expected, raises_error):
-    lims_compatible_roi = roi_transforms._coo_mask_to_LIMS_compatible_format(
-        coo_mask)
-    assert lims_compatible_roi == expected
-
-
-@pytest.mark.parametrize("lims_compatible_roi, movie_shape, expected_label, "
-                         "expected_valid, raises_error",
-                         [({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2,
-                            'max_correction_up': 2,
-                            'max_correction_down': 2, 'max_correction_left': 2,
-                            'max_correction_right': 2},
-                          (20, 20), [], True, False),
-                          ({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2,
-                            'max_correction_up': 15,
-                            'max_correction_down': 2, 'max_correction_left': 2,
-                            'max_correction_right': 2},
-                          (20, 20), ["motion_border"], False, False),
-                          ({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2,
-                            'max_correction_up': 2,
-                            'max_correction_down': 15,
-                            'max_correction_left': 2,
-                            'max_correction_right': 2},
-                           (20, 20), ["motion_border"], False, False),
-                          ({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2,
-                            'max_correction_up': 2,
-                            'max_correction_down': 2,
-                            'max_correction_left': 15,
-                            'max_correction_right': 2},
-                          (20, 20), ["motion_border"], False, False),
-                          ({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2,
-                            'max_correction_up': 2,
-                            'max_correction_down': 2, 'max_correction_left': 2,
-                            'max_correction_right': 15
-                            },
-                          (20, 20), ["motion_border"], False, False),
-                          ({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2,
-                            'max_correction_up': 10,
-                            'max_correction_down': 2, 'max_correction_left': 2,
-                            'max_correction_right': 2},
-                          (20, 20), ["motion_border"], False, False),
-                          ({'x': 10, 'y': 10, 'width': 2,
-                            'height': 2,
-                            'max_correction_up': 2,
-                            'max_correction_down': 9, 'max_correction_left': 2,
-                            'max_correction_right': 2},
-                          (20, 20), ["motion_border"], False, False)
+                               'mask_matrix': [[True, True],
+                                               [False, True]]})
                           ])
-def test_check_exclusion(lims_compatible_roi, movie_shape, expected_label,
-                         expected_valid, raises_error):
-    """
-    Test Cases:
-    1: ROI roughly centered in frame and not out of bounds
-    2: ROI fully out of motion correction bound in up direction
-    3: ROI fully out of motion correction bound in down direction
-    4: ROI fully out of motion correction bound in left direction
-    5: ROI fully out of motion correction bound in right direction
-    6: ROI edge on the motion correction border in the up direction
-    7: ROI halfway in / out of motion correction border in down direction
-    """
-    (lims_compatible_roi['exclusion_labels'],
-     lims_compatible_roi['valid_roi']) = roi_transforms._check_exclusion(
-        lims_compatible_roi, movie_shape)
-    assert lims_compatible_roi['exclusion_labels'] == expected_label
-    assert lims_compatible_roi['valid_roi'] == expected_valid
+def test_coo_mask_to_compatible_format(coo_mask, expected):
+    roi = roi_transforms._coo_mask_to_LIMS_compatible_format(coo_mask)
+    for k in expected:
+        assert roi[k] == expected[k]

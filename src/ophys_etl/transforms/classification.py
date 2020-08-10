@@ -1,24 +1,27 @@
-import h5py
-import boto3
 import json
 import math
-import joblib
-import numpy as np
+import os.path
+import tempfile
+import warnings
+from typing import Any
 from urllib.parse import urlparse
-from scipy.sparse import coo_matrix
-from scipy.signal import resample_poly
+
+import boto3
+import h5py
+import joblib
+import marshmallow.fields as mm_fields
+import numpy as np
 from argschema import ArgSchema, ArgSchemaParser, fields
 from botocore.errorfactory import ClientError
-from marshmallow import pre_load, post_load, ValidationError, Schema, validates
-import marshmallow.fields as mm_fields
-import warnings
-import os.path
+from marshmallow import Schema, ValidationError, post_load, pre_load, validates
+from marshmallow.validate import OneOf
+from scipy.signal import resample_poly
+from scipy.sparse import coo_matrix
 
+from croissant.features import FeatureExtractor
 from ophys_etl.schemas.dense_roi import DenseROISchema
 from ophys_etl.schemas.fields import H5InputFile
 from ophys_etl.transforms.registry import RegistryConnection
-from croissant.features import FeatureExtractor
-
 
 NOT_CELL_EXCLUSION_LABEL = "classified_as_not_cell"
 
@@ -145,6 +148,10 @@ class InferenceInputSchema(ArgSchema):
     )
     model_registry_env = fields.Str(
         required=False,
+        validate=OneOf({'dev', 'stage', 'prod'},
+                       error=("'{input}' is not a valid value for the "
+                              "'model_registry_env' field. Possible "
+                              "valid options are: {choices}")),
         missing="prod",
         description=("Which environment to query when searching for a "
                      "classifier model path from the classifier model "
@@ -165,14 +172,6 @@ class InferenceInputSchema(ArgSchema):
             model_path = model_registry.get_active_model(env=model_env)
             data["classifier_model_path"] = model_path
         return data
-
-    @validates("model_registry_env")
-    def validate_model_registry_env(self, env: str, **kwargs):
-        if env not in {'dev', 'stage', 'prod'}:
-            raise ValidationError(f"'{env}' is not a valid value for the "
-                                  f"'model_registry_env' field. Possible "
-                                  f"valid options are : "
-                                  f"['dev', 'stage', 'prod']")
 
     @validates("classifier_model_path")
     def validate_classifier_model_path(self, uri: str, **kwargs):
@@ -302,6 +301,36 @@ def downsample(trace: np.ndarray, input_fps: int, output_fps: int):
     return downsample
 
 
+def load_model(classifier_model_uri: str) -> Any:
+    """Load a classifier model given a valid URI.
+
+    Parameters
+    ----------
+    classifier_model_uri : str
+        A valid URI that points to either an AWS S3 resource or a
+        local filepath. URI validity is only guaranteed by the
+        'InferenceInputSchema'.
+
+    Returns
+    -------
+    Any
+        A loaded ROI classifier model.
+    """
+    if classifier_model_uri.startswith("s3://"):
+        s3 = boto3.client("s3")
+        parsed = urlparse(classifier_model_uri, allow_fragments=False)
+
+        with tempfile.TemporaryFile() as fp:
+            s3.download_fileobj(Bucket=parsed.netloc,
+                                Key=parsed.path.lstrip("/"),
+                                Fileobj=fp)
+            fp.seek(0)
+            model = joblib.load(fp)
+    else:
+        model = joblib.load(classifier_model_uri)
+    return model
+
+
 def main(parser):
     with open(parser.args["roi_masks_path"], "r") as f:
         raw_roi_data = json.load(f)
@@ -310,7 +339,7 @@ def main(parser):
     rois, metadata, traces, _ = _munge_data(parser, roi_data)
     # TODO: add neuropil traces later
     features = FeatureExtractor(rois, traces, metadata).run()
-    model = joblib.load(parser.args["classifier_model_path"])
+    model = load_model(parser.args["classifier_model_path"])
     predictions = model.predict(features)
     if len(predictions) != len(roi_data):
         raise ValueError(

@@ -1,20 +1,22 @@
-import h5py
-from argschema import ArgSchemaParser
-import pytest
-from marshmallow import ValidationError
 import json
-import numpy as np
 import math
 import os.path
-from scipy.sparse import coo_matrix
-from moto import mock_s3
 from unittest.mock import patch
+
 import boto3
-
-from ophys_etl.transforms.classification import (
-    InferenceInputSchema, SparseAndDenseROISchema, InferenceParser,
-    downsample, main, _munge_data)
-
+import h5py
+import joblib
+import numpy as np
+import pytest
+from argschema import ArgSchemaParser
+from marshmallow import ValidationError
+from moto import mock_s3
+from scipy.sparse import coo_matrix
+from ophys_etl.transforms.classification import (InferenceInputSchema,
+                                                 InferenceParser,
+                                                 SparseAndDenseROISchema,
+                                                 _munge_data, downsample,
+                                                 load_model, main)
 # ROI input data not used but needed to pass through to the module output
 # Define here and reuse for brevity
 additional_roi_json_data = {
@@ -346,6 +348,37 @@ def test_downsample_raises_error_greater_output_fps():
             ValueError,
             match=r'Output FPS can\'t be greater than input FPS'):
         downsample(np.arange(10), 1, 5)
+
+
+@pytest.fixture(scope="function")
+def joblib_model_fixture(tmp_path, request):
+    model_path = str(tmp_path / "my_model.joblib")
+    model_data = request.param.get("data", [1, 2, 3, 4])
+    joblib.dump(model_data, model_path)
+    return model_path, model_data
+
+
+@pytest.mark.parametrize("joblib_model_fixture, test_s3_uri", [
+    ({}, True),
+    ({"data": "42"}, True),
+
+    ({}, False),
+    ({"data": "42"}, False)
+], indirect=["joblib_model_fixture"])
+def test_load_model_with_s3_uri(joblib_model_fixture, test_s3_uri):
+    model_path, model_data = joblib_model_fixture
+
+    if test_s3_uri:
+        with mock_s3():
+            client = boto3.client("s3")
+            client.create_bucket(Bucket="mybucket")
+            client.upload_file(model_path, "mybucket", "my_model.joblib")
+            uri = "s3://mybucket/my_model.joblib"
+            obt = load_model(uri)
+    else:
+        uri = model_path
+        obt = load_model(uri)
+    assert obt == model_data
 
 
 class TestFeatureExtractorModule:

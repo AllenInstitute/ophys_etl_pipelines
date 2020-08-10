@@ -12,8 +12,8 @@ from marshmallow.validate import Range
 from ophys_etl.extractors.motion_correction import get_max_correction_values
 from ophys_etl.schemas.dense_roi import DenseROISchema
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
-                                                 suite2p_rois_to_coo,
-                                                 coo_rois_to_lims_compatible)
+                                                 coo_rois_to_lims_compatible,
+                                                 suite2p_rois_to_coo)
 from ophys_etl.filters.filters import filter_longest_edge_length
 
 
@@ -71,8 +71,8 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
     longest_edge_threshold = Int(
         default=50,
         validate=Range(min=0),
-        description=("Low pass filter value to eliminate ROIs with either "
-                     "height or width greater than or equal to this value.")
+        description=("Longest edge value that height and width of an ROI "
+                     "must be under in order to pass to processing")
     )
 
 
@@ -104,17 +104,19 @@ class BinarizerAndROICreator(ArgSchemaParser):
         coo_rois = suite2p_rois_to_coo(suite2p_stats, movie_shape)
 
         # filter raw rois by longest edge in height and width
-        edge_trsh = self.args['longest_edge_threshold']
-        self.logger.info("Low pass filtering ROIs on height and width values")
-        filtered_rois = filter_longest_edge_length(coo_rois,
-                                                   edge_trsh)
+        longest_edge_thrsh = self.args['longest_edge_threshold']
+        self.logger.info("Filtering out ROIs with height or width greater "
+                         f"than or equal to {longest_edge_thrsh}, "
+                         f"units in pixels")
+        filtered_coo_rois = filter_longest_edge_length(coo_rois,
+                                                       longest_edge_thrsh)
         self.logger.info("Filtered out "
-                         f"{len(coo_rois) - len(filtered_rois)} "
-                         f"raw rois with longest edge threshold of "
-                         f"{edge_trsh}")
+                         f"{len(coo_rois) - len(filtered_coo_rois)} "
+                         "ROIs with specified longest edge threshold "
+                         f"of {longest_edge_thrsh}")
 
         binarized_coo_rois = []
-        for filtered_coo_roi in filtered_rois:
+        for filtered_coo_roi in filtered_coo_rois:
             binary_mask = binarize_roi_mask(filtered_coo_roi,
                                             self.args['abs_threshold'],
                                             self.args['binary_quantile'])

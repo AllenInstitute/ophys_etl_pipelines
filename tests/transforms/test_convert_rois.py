@@ -1,15 +1,16 @@
 import pytest
 import json
 import numpy as np
-from ophys_etl.transforms.convert_rois import (
-        BinarizerAndROICreator, LIMSCompatibleROIFormat)
-from ophys_etl.transforms.roi_transforms import StandardROI
+
+from ophys_etl.transforms.convert_rois import BinarizerAndROICreator
+from ophys_etl.transforms.roi_transforms import DenseROI
+from ophys_etl.schemas.dense_roi import DenseROISchema
 
 
 def test_output_schema_element():
     """test that attempts to keep the TypedDict and subschema element in sync
     """
-    s = StandardROI(
+    s = DenseROI(
             id=1,
             x=23,
             y=34,
@@ -24,13 +25,13 @@ def test_output_schema_element():
             mask_image_plane=0,
             exclusion_labels=['small_size', 'motion_border'])
 
-    # does this example have exactly the keys specified in StandardROI?
-    assert set(list(s.keys())) == set(list(StandardROI.__annotations__.keys()))
+    # does this example have exactly the keys specified in DenseROI?
+    assert set(list(s.keys())) == set(list(DenseROI.__annotations__.keys()))
 
     # can't really validate the above, but we can check against our
     # output schema
     # validate the object with a marshmallow load()
-    subschema = LIMSCompatibleROIFormat()
+    subschema = DenseROISchema()
     subschema.load(s)
     assert subschema.dump(s) == s
 

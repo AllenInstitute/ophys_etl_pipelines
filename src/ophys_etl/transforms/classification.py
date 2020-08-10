@@ -8,33 +8,23 @@ from urllib.parse import urlparse
 from scipy.sparse import coo_matrix
 from scipy.signal import resample_poly
 from argschema import ArgSchema, ArgSchemaParser, fields
-from ophys_etl.schemas.fields import H5InputFile
-from ophys_etl.transforms.registry import RegistryConnection
-from croissant.features import FeatureExtractor
 from botocore.errorfactory import ClientError
 from marshmallow import pre_load, post_load, ValidationError, Schema, validates
 import marshmallow.fields as mm_fields
 import warnings
 import os.path
 
+from ophys_etl.schemas.dense_roi import DenseROISchema
+from ophys_etl.schemas.fields import H5InputFile
+from ophys_etl.transforms.registry import RegistryConnection
+from croissant.features import FeatureExtractor
+
 
 NOT_CELL_EXCLUSION_LABEL = "classified_as_not_cell"
 
 
-class RoiJsonSchema(Schema):
-    """ Schema of individual ROI records """
-    x = mm_fields.Int(required=True)
-    y = mm_fields.Int(required=True)
-    width = mm_fields.Int(required=True)
-    height = mm_fields.Int(required=True)
-    exclusion_labels = mm_fields.List(mm_fields.Str(), required=True)
-    mask_matrix = mm_fields.List(
-        mm_fields.List(mm_fields.Boolean()), required=True)
-    max_correction_up = mm_fields.Int(required=True)
-    max_correction_down = mm_fields.Int(required=True)
-    max_correction_left = mm_fields.Int(required=True)
-    max_correction_right = mm_fields.Int(required=True)
-    valid_roi = mm_fields.Boolean(required=True)
+class SparseAndDenseROISchema(DenseROISchema):
+    """Version of DenseROISchema which also includes ROIs in sparse format."""
     coo_roi = mm_fields.Field(required=False, load_only=True)
 
     @post_load
@@ -102,7 +92,7 @@ class InferenceInputSchema(ArgSchema):
         required=True,
         description=("Path to json file of segmented ROI masks. The file "
                      "records must conform to the schema "
-                     "`RoiJsonSchema`")
+                     "`DenseROISchema`")
     )
     rig = fields.Str(
         required=True,
@@ -220,7 +210,7 @@ class InferenceInputSchema(ArgSchema):
 class InferenceOutputSchema(Schema):
     """ Schema for output json (result of main module script) """
     classified_rois = fields.Nested(
-        RoiJsonSchema,
+        SparseAndDenseROISchema,
         many=True,
         required=True
     )
@@ -245,7 +235,7 @@ def _munge_data(parser: InferenceParser, roi_data: list):
     parser: InferenceParser
         An instance of InferenceParser
     roi_data: list
-        List of objects conforming to RoiJsonSchema
+        List of objects conforming to SparseAndDenseROISchema
     Returns
     -------
     tuple
@@ -315,7 +305,7 @@ def downsample(trace: np.ndarray, input_fps: int, output_fps: int):
 def main(parser):
     with open(parser.args["roi_masks_path"], "r") as f:
         raw_roi_data = json.load(f)
-    roi_input_schema = RoiJsonSchema(many=True)
+    roi_input_schema = SparseAndDenseROISchema(many=True)
     roi_data = roi_input_schema.load(raw_roi_data)
     rois, metadata, traces, _ = _munge_data(parser, roi_data)
     # TODO: add neuropil traces later

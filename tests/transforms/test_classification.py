@@ -12,8 +12,8 @@ from unittest.mock import patch
 import boto3
 
 from ophys_etl.transforms.classification import (
-    InferenceInputSchema, RoiJsonSchema, InferenceParser, downsample, main,
-    _munge_data)
+    InferenceInputSchema, SparseAndDenseROISchema, InferenceParser,
+    downsample, main, _munge_data)
 
 # ROI input data not used but needed to pass through to the module output
 # Define here and reuse for brevity
@@ -24,6 +24,8 @@ additional_roi_json_data = {
     "max_correction_left": 0,
     "max_correction_right": 0,
     "valid_roi": True,
+    "id": 42,
+    "mask_image_plane": 0
 }
 
 
@@ -375,7 +377,7 @@ class TestFeatureExtractorModule:
 
     def test_munge_data(self, input_data, traces, rois, metadata):
         parser = InferenceParser(input_data=input_data, args=[])
-        roi_data = RoiJsonSchema(many=True).load(rois)
+        roi_data = SparseAndDenseROISchema(many=True).load(rois)
         expected_rois = [coo_matrix(np.array(r["mask_matrix"])) for r in rois]
         actual_rois, actual_metadata, actual_traces, actual_np_traces = (
             _munge_data(parser, roi_data))
@@ -395,10 +397,10 @@ class TestFeatureExtractorModule:
         assert [metadata]*len(rois) == actual_metadata
 
 
-class TestRoiJsonSchema:
+class TestSparseAndDenseROISchema:
     def test_schema_makes_coos(self, rois):
         expected = [coo_matrix(np.array(r["mask_matrix"])) for r in rois]
-        actual = RoiJsonSchema(many=True).load(rois)
+        actual = SparseAndDenseROISchema(many=True).load(rois)
         for ix, e_roi in enumerate(expected):
             np.testing.assert_array_equal(
                 e_roi.toarray(), actual[ix]["coo_roi"].toarray())
@@ -421,7 +423,7 @@ class TestRoiJsonSchema:
     def test_coo_roi_dump_single(self, data, expected_coo):
         """Cover the empty case, another unit test"""
         data.update(additional_roi_json_data)
-        rois = RoiJsonSchema().load(data)
+        rois = SparseAndDenseROISchema().load(data)
         expected_data = data.copy()
         expected_data.update({"coo_roi": expected_coo})
         np.testing.assert_array_equal(
@@ -439,14 +441,14 @@ class TestRoiJsonSchema:
     def test_coo_roi_dump_raise_error_mismatch_dimensions(self, data):
         with pytest.raises(ValidationError) as e:
             data.update(additional_roi_json_data)
-            RoiJsonSchema().load(data)
+            SparseAndDenseROISchema().load(data)
         assert "Data in mask matrix did not correspond" in str(e.value)
 
     def test_schema_warns_empty(self, rois):
         rois[0]["height"] = 0
         rois[0]["width"] = 0
         with pytest.warns(UserWarning) as record:
-            RoiJsonSchema(many=True).load(rois)
+            SparseAndDenseROISchema(many=True).load(rois)
         assert len(record) == 1
         assert "Input data contains empty ROI" in str(record[0].message)
 
@@ -454,5 +456,5 @@ class TestRoiJsonSchema:
         rois[0]["height"] = 100
         rois[0]["width"] = 29
         with pytest.raises(ValidationError) as e:
-            RoiJsonSchema(many=True).load(rois)
+            SparseAndDenseROISchema(many=True).load(rois)
         assert "Data in mask matrix did not correspond" in str(e.value)

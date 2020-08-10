@@ -1,20 +1,19 @@
+import json
 from pathlib import Path
 
-from marshmallow import ValidationError
-from marshmallow.validate import Range
-from argschema import ArgSchema, ArgSchemaParser
-from argschema.schemas import DefaultSchema
-from argschema.fields import (List, InputFile, Str, OutputFile, Float,
-                              Int, Bool)
+import h5py
 import numpy as np
 import pandas as pd
-import h5py
-import json
+from argschema import ArgSchema, ArgSchemaParser
+from argschema.fields import Float, InputFile, Int, OutputFile, Str
+from marshmallow import ValidationError
+from marshmallow.validate import Range
 
 from ophys_etl.extractors.motion_correction import get_max_correction_values
+from ophys_etl.schemas.dense_roi import DenseROISchema
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
-                                                 suite2p_rois_to_coo,
-                                                 coo_rois_to_lims_compatible)
+                                                 coo_rois_to_lims_compatible,
+                                                 suite2p_rois_to_coo)
 
 
 class BinarizeAndCreationException(Exception):
@@ -69,51 +68,6 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
                      "invalid and small size."))
 
 
-class LIMSCompatibleROIFormat(DefaultSchema):
-    id = Int(required=True,
-             description=("Unique ID of the ROI, get's overwritten writting "
-                          "to LIMS"))
-    x = Int(required=True,
-            description="X location of top left corner of ROI in pixels")
-    y = Int(required=True,
-            description="Y location of top left corner of ROI in pixels")
-    width = Int(required=True,
-                description="Width of the ROI in pixels")
-    height = Int(required=True,
-                 description="Height of the ROI in pixels")
-    valid_roi = Bool(required=True,
-                     description=("Boolean indicating if the ROI is a valid "
-                                  "cell or not"))
-    mask_matrix = List(List(Bool), required=True,
-                       description=("Bool nested list describing which pixels "
-                                    "in the ROI area are part of the cell"))
-    max_correction_up = Float(required=True,
-                              description=("Max correction in pixels in the "
-                                           "up direction"))
-    max_correction_down = Float(required=True,
-                                description=("Max correction in pixels in the "
-                                             "down direction"))
-    max_correction_left = Float(required=True,
-                                description=("Max correction in pixels in the "
-                                             "left direction"))
-    max_correction_right = Float(required=True,
-                                 description="Max correction in the pixels in "
-                                             "the right direction")
-    mask_image_plane = Int(required=True,
-                           description=("The old segmentation pipeline stored "
-                                        "overlapping ROIs on separate image "
-                                        "planes. For compatibility purposes, "
-                                        "this field must be kept, but will "
-                                        "always be set to zero for the new "
-                                        "updated pipeline"))
-    exclusion_labels = List(Str, required=True,
-                            description=("LIMS ExclusionLabel names used to "
-                                         "track why a given ROI is not "
-                                         "considered a valid_roi. (examples: "
-                                         "motion_border, "
-                                         "classified_as_not_cell)"))
-
-
 class BinarizerAndROICreator(ArgSchemaParser):
     default_schema = BinarizeAndCreateROIsInputSchema
 
@@ -166,7 +120,7 @@ class BinarizerAndROICreator(ArgSchemaParser):
                 self.args['npixel_threshold'])
 
         # validate ROIs
-        errors = LIMSCompatibleROIFormat(many=True).validate(compatible_rois)
+        errors = DenseROISchema(many=True).validate(compatible_rois)
         if any(errors):
             raise ValidationError(f"Schema validation errors: {errors}")
 

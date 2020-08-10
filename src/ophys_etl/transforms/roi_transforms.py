@@ -1,7 +1,7 @@
+import sys
 from typing import List, Optional, Tuple
 import numpy as np
 from scipy.sparse import coo_matrix
-import sys
 from ophys_etl.extractors.motion_correction import MotionBorder
 
 if sys.version_info >= (3, 8):
@@ -10,7 +10,7 @@ else:
     from typing_extensions import TypedDict
 
 
-class StandardROI(TypedDict):
+class DenseROI(TypedDict):
     id: int
     x: int
     y: int
@@ -155,7 +155,7 @@ def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
                                 max_correction_vals: MotionBorder,
                                 movie_shape: Tuple[int, int],
                                 npixel_threshold: int,
-                                ) -> List[StandardROI]:
+                                ) -> List[DenseROI]:
     """
     Converts coo formatted ROIs to lims compatible format.
 
@@ -177,7 +177,7 @@ def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
 
     Returns
     -------
-    List[StandardROI]
+    List[DenseROI]
         converted rois into LIMS-standard form
 
     """
@@ -201,7 +201,7 @@ def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
     return compatible_rois
 
 
-def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> StandardROI:
+def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> DenseROI:
     """
     This functions transforms ROI mask data from COO format
     to the LIMS expected format.
@@ -212,7 +212,7 @@ def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> StandardROI:
 
     Returns
     -------
-    StandardROI
+    DenseROI
 
     """
     bounds = roi_bounds(coo_mask)
@@ -220,7 +220,7 @@ def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> StandardROI:
     width = bounds[3] - bounds[2]
     mask_matrix = crop_roi_mask(coo_mask).toarray()
     mask_matrix = np.array(mask_matrix, dtype=bool)
-    compatible_roi = StandardROI(
+    compatible_roi = DenseROI(
         x=int(bounds[2]),
         y=int(bounds[0]),
         width=int(width),
@@ -238,11 +238,11 @@ def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> StandardROI:
     return compatible_roi
 
 
-def _motion_exclusion(roi: StandardROI, movie_shape: Tuple[int, int]) -> bool:
+def _motion_exclusion(roi: DenseROI, movie_shape: Tuple[int, int]) -> bool:
     """
     Parameters
     ----------
-    roi: StandardROI
+    roi: DenseROI
         the ROI to check
     movie_shape: Tuple[int, int]
         The frame shape of the movie from which ROIs were extracted in order
@@ -267,11 +267,11 @@ def _motion_exclusion(roi: StandardROI, movie_shape: Tuple[int, int]) -> bool:
     return valid
 
 
-def _small_size_exclusion(roi: StandardROI, npixel_threshold: int) -> bool:
+def _small_size_exclusion(roi: DenseROI, npixel_threshold: int) -> bool:
     """
     Parameters
     ----------
-    roi: StandardROI
+    roi: DenseROI
         the ROI to check
     npixel_threshold: int
         ROIs with fewer pixels than this will be labeled as invalid and small
@@ -288,7 +288,7 @@ def _small_size_exclusion(roi: StandardROI, npixel_threshold: int) -> bool:
     return valid
 
 
-def _check_exclusion(compatible_roi: StandardROI,
+def _check_exclusion(compatible_roi: DenseROI,
                      movie_shape: Tuple[int, int],
                      npixel_threshold: int) -> List[str]:
     """
@@ -296,7 +296,7 @@ def _check_exclusion(compatible_roi: StandardROI,
 
     Parameters
     ----------
-    compatible_roi: StandardROI
+    compatible_roi: DenseROI
         the ROI to check
     movie_shape: Tuple[int, int]
         The frame shape of the movie from which ROIs were extracted in order

@@ -393,6 +393,13 @@ def test_load_model_with_s3_uri(joblib_model_fixture, test_s3_uri):
     assert obt == model_data
 
 
+def test_filtered_roi_loader(input_data):
+    parser = InferenceParser(input_data=input_data, args=[])
+    roi_data, excluded = filtered_roi_load(parser.args["roi_masks_path"])
+    assert len(roi_data) == 3
+    assert len(excluded) == 1
+
+
 class TestFeatureExtractorModule:
     def test_main_integration(self, monkeypatch, mock_model, input_data):
         """Test main module runner including smoke test for FeatureExtractor

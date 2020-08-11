@@ -331,11 +331,19 @@ def load_model(classifier_model_uri: str) -> Any:
     return model
 
 
-def main(parser):
-    with open(parser.args["roi_masks_path"], "r") as f:
+def filtered_roi_load(roi_masks_path):
+    with open(roi_masks_path, "r") as f:
         raw_roi_data = json.load(f)
     roi_input_schema = SparseAndDenseROISchema(many=True)
     roi_data = roi_input_schema.load(raw_roi_data)
+    excluded = [r for r in roi_data if r["exclusion_labels"]]
+    included = [r for r in roi_data if not r["exclusion_labels"]]
+    return included, excluded
+
+
+def main(parser):
+    roi_data, excluded_rois = filtered_roi_load(parser.args["roi_masks_path"])
+
     rois, metadata, traces, _ = _munge_data(parser, roi_data)
     # TODO: add neuropil traces later
     features = FeatureExtractor(rois, traces, metadata).run()
@@ -350,6 +358,9 @@ def main(parser):
         if prediction == 0:
             obj["exclusion_labels"].append(NOT_CELL_EXCLUSION_LABEL)
             obj["valid_roi"] = False
+
+    roi_data.extend(excluded_rois)
+
     output_data = {
         "classified_rois": roi_data,
         "classifier_model_path": parser.args["classifier_model_path"]

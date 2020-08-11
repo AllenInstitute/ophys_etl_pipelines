@@ -16,11 +16,11 @@ from ophys_etl.transforms.classification import (InferenceInputSchema,
                                                  InferenceParser,
                                                  SparseAndDenseROISchema,
                                                  _munge_data, downsample,
-                                                 load_model, main)
+                                                 load_model, main,
+                                                 filtered_roi_load)
 # ROI input data not used but needed to pass through to the module output
 # Define here and reuse for brevity
 additional_roi_json_data = {
-    "exclusion_labels": ["motion_border"],
     "max_correction_up": 0,
     "max_correction_down": 0,
     "max_correction_left": 0,
@@ -86,6 +86,7 @@ def rois():
             "height": 3,
             "width": 2,
             "mask_matrix": [[False, True], [True, True], [True, True]],
+            "exclusion_labels": [],
             **additional_roi_json_data
         },
         {
@@ -94,6 +95,7 @@ def rois():
             "height": 1,
             "width": 4,
             "mask_matrix": [[True, False, False, True]],
+            "exclusion_labels": [],
             **additional_roi_json_data
         },
         {
@@ -102,6 +104,16 @@ def rois():
             "height": 2,
             "width": 2,
             "mask_matrix": [[True, False], [True, True]],
+            "exclusion_labels": [],
+            **additional_roi_json_data
+        },
+        {
+            "x": 9,
+            "y": 2,
+            "height": 2,
+            "width": 2,
+            "mask_matrix": [[True, False], [True, True]],
+            "exclusion_labels": ["motion_border"],
             **additional_roi_json_data
         }
     ]
@@ -381,6 +393,13 @@ def test_load_model_with_s3_uri(joblib_model_fixture, test_s3_uri):
     assert obt == model_data
 
 
+def test_filtered_roi_loader(input_data):
+    parser = InferenceParser(input_data=input_data, args=[])
+    roi_data, excluded = filtered_roi_load(parser.args["roi_masks_path"])
+    assert len(roi_data) == 3
+    assert len(excluded) == 1
+
+
 class TestFeatureExtractorModule:
     def test_main_integration(self, monkeypatch, mock_model, input_data):
         """Test main module runner including smoke test for FeatureExtractor
@@ -410,8 +429,9 @@ class TestFeatureExtractorModule:
 
     def test_munge_data(self, input_data, traces, rois, metadata):
         parser = InferenceParser(input_data=input_data, args=[])
-        roi_data = SparseAndDenseROISchema(many=True).load(rois)
-        expected_rois = [coo_matrix(np.array(r["mask_matrix"])) for r in rois]
+        roi_data, excluded = filtered_roi_load(parser.args["roi_masks_path"])
+        expected_rois = [coo_matrix(np.array(r["mask_matrix"])) for r in rois
+                         if not r["exclusion_labels"]]
         actual_rois, actual_metadata, actual_traces, actual_np_traces = (
             _munge_data(parser, roi_data))
         for ix, e_roi in enumerate(expected_rois):
@@ -427,7 +447,7 @@ class TestFeatureExtractorModule:
             traces, actual_np_traces,
             err_msg=("Expected neuropil traces did not equal actual neuropil "
                      "traces from _munge_data"))
-        assert [metadata]*len(rois) == actual_metadata
+        assert [metadata]*len(expected_rois) == actual_metadata
 
 
 class TestSparseAndDenseROISchema:
@@ -456,6 +476,7 @@ class TestSparseAndDenseROISchema:
     def test_coo_roi_dump_single(self, data, expected_coo):
         """Cover the empty case, another unit test"""
         data.update(additional_roi_json_data)
+        data.update({"exclusion_labels": []})
         rois = SparseAndDenseROISchema().load(data)
         expected_data = data.copy()
         expected_data.update({"coo_roi": expected_coo})
@@ -474,6 +495,7 @@ class TestSparseAndDenseROISchema:
     def test_coo_roi_dump_raise_error_mismatch_dimensions(self, data):
         with pytest.raises(ValidationError) as e:
             data.update(additional_roi_json_data)
+            data.update({"exclusion_labels": []})
             SparseAndDenseROISchema().load(data)
         assert "Data in mask matrix did not correspond" in str(e.value)
 

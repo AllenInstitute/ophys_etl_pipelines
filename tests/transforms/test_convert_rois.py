@@ -76,7 +76,7 @@ def test_output_schema_element():
                                 'max_correction_left': 0.3,
                                 'max_correction_right': 0.3,
                                 'mask_image_plane': 0,
-                                'exclusion_labels': [],
+                                'exclusion_labels': ["motion_border"],
                                 },
                                {
                                    'id': 1,

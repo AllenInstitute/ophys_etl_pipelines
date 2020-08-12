@@ -15,9 +15,9 @@ class DenseROI(TypedDict):
     height: int
     valid_roi: bool
     mask_matrix: List[List[bool]]
-    max_correction_up: int
-    max_correction_down: int
-    max_correction_left: int
-    max_correction_right: int
+    max_correction_up: float
+    max_correction_down: float
+    max_correction_left: float
+    max_correction_right: float
     mask_image_plane: int
     exclusion_labels: List[str]

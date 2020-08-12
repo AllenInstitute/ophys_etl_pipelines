@@ -1,3 +1,4 @@
+import math
 from typing import List, Optional, Tuple
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -233,15 +234,17 @@ def _motion_exclusion(roi: DenseROI, movie_shape: Tuple[int, int]) -> bool:
         whether this ROI is valid on motion exclusion
 
     """
-    furthest_right_pixel = roi['x'] + roi['width'] - 1
-    furthest_down_pixel = roi['y'] + roi['height'] - 1
-    right_limit = movie_shape[1] - roi['max_correction_right']
-    bottom_limit = movie_shape[0] - roi['max_correction_down']
+    # A rightward shift reduces the 'valid' left border of the movie
+    l_inset = math.ceil(roi['max_correction_right'])
+    # Conversely, a leftward shift reduces the 'valid' right border
+    r_inset = math.floor(movie_shape[1] - roi['max_correction_left'])
+    t_inset = math.ceil(roi['max_correction_down'])
+    b_inset = math.floor(movie_shape[0] - roi['max_correction_up'])
 
-    valid = ((roi['x'] > roi['max_correction_left'] - 1) &
-             (roi['y'] > roi['max_correction_up'] - 1) &
-             (furthest_right_pixel < right_limit) &
-             (furthest_down_pixel < bottom_limit))
+    valid = ((roi['x'] >= l_inset)
+             & (roi['x'] + roi['width'] <= r_inset)
+             & (roi['y'] >= t_inset)
+             & (roi['y'] + roi['height'] <= b_inset))
 
     return valid
 

@@ -3,7 +3,7 @@ import math
 import os.path
 import tempfile
 import warnings
-from typing import Any
+from typing import Any, List, Tuple
 from urllib.parse import urlparse
 
 import boto3
@@ -19,11 +19,16 @@ from scipy.signal import resample_poly
 from scipy.sparse import coo_matrix
 
 from croissant.features import FeatureExtractor
+from ophys_etl.types import DenseROI
 from ophys_etl.schemas import DenseROISchema
 from ophys_etl.schemas.fields import H5InputFile
 from ophys_etl.transforms.registry import RegistryConnection
 
 NOT_CELL_EXCLUSION_LABEL = "classified_as_not_cell"
+
+
+class SparseAndDenseROI(DenseROI):
+    coo_roi: coo_matrix
 
 
 class SparseAndDenseROISchema(DenseROISchema):
@@ -78,6 +83,12 @@ class InferenceInputSchema(ArgSchema):
         description=("Key in `neuropil_traces_path` h5 file where data array "
                      "is stored.")
     )
+    neuropil_trace_names_key = fields.Str(
+        required=False,
+        missing="roi_names",
+        description=("Key in `neuropil_traces_path` h5 file which describes"
+                     "the roi name (id) associated with each trace.")
+    )
     traces_path = H5InputFile(
         required=True,
         description=(
@@ -90,6 +101,12 @@ class InferenceInputSchema(ArgSchema):
         missing="data",
         description=("Key in `traces_path` h5 file where data array is "
                      "stored.")
+    )
+    trace_names_key = fields.Str(
+        required=False,
+        missing="roi_names",
+        description=("Key in `traces_path` h5 file which describes"
+                     "the roi name (id) associated with each trace.")
     )
     roi_masks_path = fields.InputFile(
         required=True,
@@ -226,52 +243,6 @@ class InferenceParser(ArgSchemaParser):
     default_output_schema = InferenceOutputSchema
 
 
-def _munge_data(parser: InferenceParser, roi_data: list):
-    """
-    Format the input data for downstream processing.
-    Params
-    ------
-    parser: InferenceParser
-        An instance of InferenceParser
-    roi_data: list
-        List of objects conforming to SparseAndDenseROISchema
-    Returns
-    -------
-    tuple
-        rois (list of coo_matrices), metadata dictionary,
-        traces data (np.1darray) and neuropil traces data (np.1darray)
-    """
-    # Format metadata and multiply for input (all same)
-    metadata = [{
-        "depth": parser.args["depth"],
-        "full_genotype": parser.args["full_genotype"],
-        "targeted_structure": parser.args["targeted_structure"],
-        "rig": parser.args["rig"]
-        }] * len(roi_data)
-    rois = [r["coo_roi"] for r in roi_data]
-    traces = []
-    np_traces = []
-
-    traces_file = h5py.File(parser.args["traces_path"], "r")
-    np_traces_file = h5py.File(parser.args["neuropil_traces_path"], "r")
-    traces_data = traces_file[parser.args["traces_data_key"]]
-    np_traces_data = np_traces_file[parser.args["neuropil_traces_data_key"]]
-    for n in range(len(roi_data)):
-        # Downsample traces by accessing on axis that the h5 file should be
-        # more performant on
-        trace = downsample(
-            traces_data[n, :], parser.args["trace_sampling_fps"],
-            parser.args["downsample_to"])
-        np_trace = downsample(
-            np_traces_data[n, :], parser.args["trace_sampling_fps"],
-            parser.args["downsample_to"])
-        traces.append(trace)
-        np_traces.append(np_trace)
-    traces_file.close()
-    np_traces_file.close()
-    return rois, metadata, traces, np_traces
-
-
 def downsample(trace: np.ndarray, input_fps: int, output_fps: int):
     """Downsample 1d array using scipy resample_poly.
     See https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.resample_poly.html#scipy.signal.resample_poly    # noqa
@@ -299,6 +270,119 @@ def downsample(trace: np.ndarray, input_fps: int, output_fps: int):
     down = input_fps / gcd
     downsample = resample_poly(trace, up, down, axis=0, padtype="median")
     return downsample
+
+
+def filter_excluded_rois(rois: List[SparseAndDenseROI]
+                         ) -> Tuple[List[SparseAndDenseROI],
+                                    List[SparseAndDenseROI]]:
+    """Filter ROIs by presence or absence of "exclusion_labels".
+
+    Parameters
+    ----------
+    rois : List[SparseAndDenseROI]
+        A list of ROIs.
+
+    Returns
+    -------
+    Tuple[List[SparseAndDenseROI], List[SparseAndDenseROI]]
+        A tuple of: (included_rois, excluded_rois)
+    """
+    included, excluded = [], []
+    for r in rois:
+        excluded.append(r) if r["exclusion_labels"] else included.append(r)
+    return included, excluded
+
+
+def _munge_traces(roi_data: List[SparseAndDenseROI], trace_file_path: str,
+                  trace_data_key: str, trace_names_key: str,
+                  trace_sampling_fps: int, desired_rate: int
+                  ) -> List[np.ndarray]:
+    """Read trace data from h5 file (in proper order) and downsample it.
+
+    Parameters
+    ----------
+    roi_data : List[SparseAndDenseROI]
+        A list of ROIs that conform to the SparseAndDenseROISchema.
+    trace_file_path : str
+        Path to h5 file containing trace data.
+    trace_data_key : str
+        Key used to access trace data.
+    trace_names_key : str
+        Key used to access the ROI name (id) corresponding to each trace.
+    trace_sampling_fps : int
+        Sampling rate (in Hz) of trace data.
+    desired_rate : int
+        Desired sampling rate that trace data should be downsampled to.
+
+    Returns
+    -------
+    List[np.1darray]
+        A list of downsampled traces with each element corresponding to
+        an element in roi_data.
+    """
+    traces_file = h5py.File(trace_file_path, "r")
+    traces_data = traces_file[trace_data_key]
+
+    # A array of str(int) describing roi names (id) associated with each trace
+    # Example: ['0', '1', '10', '100', ..., '2', '20', '200', ...]
+    traces_id_order = traces_file[trace_names_key][:].astype(int)
+    traces_id_mapping = np.argsort(traces_id_order)
+
+    downsampled_traces = []
+    for roi in roi_data:
+        assert roi['id'] == traces_id_order[traces_id_mapping[roi['id']]]
+        trace_indx = traces_id_mapping[roi["id"]]
+        ds_trace = downsample(traces_data[trace_indx, :],
+                              trace_sampling_fps,
+                              desired_rate)
+        downsampled_traces.append(ds_trace)
+
+    traces_file.close()
+    return downsampled_traces
+
+
+MungedData = Tuple[List[coo_matrix], List[dict],
+                   List[np.ndarray], List[np.ndarray]]
+
+
+def _munge_data(parser: InferenceParser,
+                roi_data: List[SparseAndDenseROI]) -> MungedData:
+    """
+    Format the input data for downstream processing.
+    Params
+    ------
+    parser: InferenceParser
+        An instance of InferenceParser
+    roi_data: List[SparseAndDenseROI]
+        List of objects conforming to SparseAndDenseROISchema
+    Returns
+    -------
+    tuple: MungedData
+        rois (list of coo_matrices), metadata dictionary,
+        traces data (np.1darray) and neuropil traces data (np.1darray)
+    """
+    # Format metadata and multiply for input (all same)
+    metadata = [{
+        "depth": parser.args["depth"],
+        "full_genotype": parser.args["full_genotype"],
+        "targeted_structure": parser.args["targeted_structure"],
+        "rig": parser.args["rig"]
+        }] * len(roi_data)
+    rois = [r["coo_roi"] for r in roi_data]
+
+    traces = _munge_traces(roi_data, parser.args["traces_path"],
+                           parser.args["traces_data_key"],
+                           parser.args["trace_names_key"],
+                           parser.args["trace_sampling_fps"],
+                           parser.args["downsample_to"])
+
+    np_traces = _munge_traces(roi_data, parser.args["neuropil_traces_path"],
+                              parser.args["neuropil_traces_data_key"],
+                              parser.args["neuropil_trace_names_key"],
+                              parser.args["trace_sampling_fps"],
+                              parser.args["downsample_to"])
+
+    return rois, metadata, traces, np_traces
 
 
 def load_model(classifier_model_uri: str) -> Any:
@@ -331,19 +415,13 @@ def load_model(classifier_model_uri: str) -> Any:
     return model
 
 
-def filtered_roi_load(roi_masks_path):
-    with open(roi_masks_path, "r") as f:
-        raw_roi_data = json.load(f)
-    roi_input_schema = SparseAndDenseROISchema(many=True)
-    roi_data = roi_input_schema.load(raw_roi_data)
-    excluded = [r for r in roi_data if r["exclusion_labels"]]
-    included = [r for r in roi_data if not r["exclusion_labels"]]
-    return included, excluded
-
-
 def main(parser):
-    roi_data, excluded_rois = filtered_roi_load(parser.args["roi_masks_path"])
 
+    with open(parser.args["roi_masks_path"], "r") as f:
+        raw_roi_data = json.load(f)
+
+    roi_data = SparseAndDenseROISchema(many=True).load(raw_roi_data)
+    roi_data, excluded_rois = filter_excluded_rois(roi_data)
     rois, metadata, traces, _ = _munge_data(parser, roi_data)
     # TODO: add neuropil traces later
     features = FeatureExtractor(rois, traces, metadata).run()

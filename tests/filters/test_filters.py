@@ -63,14 +63,14 @@ def test_filter_rois_by_longest_edge_length(coo_rois, longest_edge_thrsh,
                                             expected_rois):
     """
     Test Cases (Included in the list of coo_matrices):
-    1. Larger than linear dimension thrsh in x direction, contiguous
-    2. Larger than linear dimension thrsh in y direction, contiguous
-    3. Larger than linear dimension thrsh in x and y, contiguous
-    4. Larger than linear dimension thrsh in x, non contiguous
-    5. Larger than linear dimension thrsh in y, non contiguous
-    6. Larger than linear dimension thrsh in x and y, non contiguous
-    7. Smaller than linear dimension thrsh in x and y, contiguous
-    8. Smaller than linear dimension thrsh in x and y, non contiguous
+    1. Larger than longest edge thrsh in x direction, contiguous
+    2. Larger than longest edge thrsh in y direction, contiguous
+    3. Larger than longest edge thrsh in x and y, contiguous
+    4. Larger than longest edge thrsh in x, non contiguous
+    5. Larger than longest edge thrsh in y, non contiguous
+    6. Larger than longest edge thrsh in x and y, non contiguous
+    7. Smaller than longest edge thrsh in x and y, contiguous
+    8. Smaller than longest edge thrsh in x and y, non contiguous
     """
     filtered_rois = filter_longest_edge_length(coo_rois,
                                                longest_edge_thrsh)

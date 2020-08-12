@@ -52,13 +52,44 @@ from ophys_etl.filters import filter_longest_edge_length
                                         [0, 1, 0, 0, 0],
                                         [0, 0, 1, 0, 0],
                                         [0, 0, 0, 0, 0],
-                                        [0, 0, 0, 0, 0]])
-                          )], 3, [coo_matrix(np.array(
+                                        [0, 0, 0, 0, 0]]))],
+                           3, [coo_matrix(np.array(
                               [[0, 0, 0, 0, 0],
                                [0, 1, 0, 0, 0],
                                [0, 0, 1, 0, 0],
                                [0, 0, 0, 0, 0],
-                               [0, 0, 0, 0, 0]]))])])
+                               [0, 0, 0, 0, 0]]))]),
+                          ([], 3, []),
+                          ([coo_matrix(
+                              np.array([[0, 0, 0, 0, 0],
+                                        [0, 1, 0, 0, 0],
+                                        [0, 0, 1, 0, 0],
+                                        [0, 0, 0, 0, 0],
+                                        [0, 0, 0, 0, 0]])),
+                            coo_matrix(
+                              np.array([[0, 0, 0, 0, 0],
+                                        [0, 1, 0.96, 0, 0],
+                                        [0, 0.67, 0.87, 0, 0],
+                                        [0, 0, 0, 0, 0],
+                                        [0, 0, 0, 0, 0]])),
+                            coo_matrix(
+                              np.array([[0, 1, 1, 1, 1],
+                                        [0, 1, 1, 1, 1],
+                                        [0, 1, 1, 1, 1],
+                                        [0, 1, 1, 1, 1],
+                                        [0, 0, 0, 0, 0]]))],
+                           3, [coo_matrix(
+                              np.array([[0, 0, 0, 0, 0],
+                                        [0, 1, 0, 0, 0],
+                                        [0, 0, 1, 0, 0],
+                                        [0, 0, 0, 0, 0],
+                                        [0, 0, 0, 0, 0]])),
+                               coo_matrix(
+                                   np.array([[0, 0, 0, 0, 0],
+                                             [0, 1, 0.96, 0, 0],
+                                             [0, 0.67, 0.87, 0, 0],
+                                             [0, 0, 0, 0, 0],
+                                             [0, 0, 0, 0, 0]]))])])
 def test_filter_rois_by_longest_edge_length(coo_rois, longest_edge_thrsh,
                                             expected_rois):
     """
@@ -71,6 +102,8 @@ def test_filter_rois_by_longest_edge_length(coo_rois, longest_edge_thrsh,
     6. Larger than longest edge thrsh in x and y, non contiguous
     7. Smaller than longest edge thrsh in x and y, contiguous
     8. Smaller than longest edge thrsh in x and y, non contiguous
+    9. Empty list
+    10. List with more than one element two trues and one false
     """
     filtered_rois = filter_longest_edge_length(coo_rois,
                                                longest_edge_thrsh)

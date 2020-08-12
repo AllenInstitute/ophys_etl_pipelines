@@ -67,7 +67,7 @@ def test_output_schema_element():
                                 'y': 0,
                                 'height': 2,
                                 'width': 3,
-                                'valid_roi': True,
+                                'valid_roi': False,
                                 'mask_matrix': np.array(
                                     [[True, True, True],
                                      [True, False, True]]).tolist(),

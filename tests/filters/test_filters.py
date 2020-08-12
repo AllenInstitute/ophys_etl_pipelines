@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from scipy.sparse import coo_matrix
 
-from ophys_etl.filters.filters import filter_longest_edge_length
+from ophys_etl.filters import filter_longest_edge_length
 
 
 @pytest.mark.parametrize("coo_rois, longest_edge_thrsh, expected_rois",

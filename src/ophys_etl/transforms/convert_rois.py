@@ -14,7 +14,7 @@ from ophys_etl.schemas.dense_roi import DenseROISchema
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
                                                  coo_rois_to_lims_compatible,
                                                  suite2p_rois_to_coo)
-from ophys_etl.filters.filters import filter_longest_edge_length
+from ophys_etl.filters import filter_longest_edge_length
 
 
 class BinarizeAndCreationException(Exception):

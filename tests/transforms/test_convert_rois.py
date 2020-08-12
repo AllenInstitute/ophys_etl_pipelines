@@ -3,8 +3,8 @@ import json
 import numpy as np
 
 from ophys_etl.transforms.convert_rois import BinarizerAndROICreator
-from ophys_etl.transforms.roi_transforms import DenseROI
-from ophys_etl.schemas.dense_roi import DenseROISchema
+from ophys_etl.types import DenseROI
+from ophys_etl.schemas import DenseROISchema
 
 
 def test_output_schema_element():

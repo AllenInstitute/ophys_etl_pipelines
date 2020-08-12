@@ -19,7 +19,7 @@ from scipy.signal import resample_poly
 from scipy.sparse import coo_matrix
 
 from croissant.features import FeatureExtractor
-from ophys_etl.schemas.dense_roi import DenseROISchema
+from ophys_etl.schemas import DenseROISchema
 from ophys_etl.schemas.fields import H5InputFile
 from ophys_etl.transforms.registry import RegistryConnection
 

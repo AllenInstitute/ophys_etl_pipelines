@@ -10,7 +10,7 @@ from marshmallow import ValidationError
 from marshmallow.validate import Range
 
 from ophys_etl.extractors.motion_correction import get_max_correction_values
-from ophys_etl.schemas.dense_roi import DenseROISchema
+from ophys_etl.schemas import DenseROISchema
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
                                                  coo_rois_to_lims_compatible,
                                                  suite2p_rois_to_coo)

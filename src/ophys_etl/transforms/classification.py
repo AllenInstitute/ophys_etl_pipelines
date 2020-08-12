@@ -244,9 +244,9 @@ def _munge_data(parser: InferenceParser, roi_data: list):
     # Format metadata and multiply for input (all same)
     metadata = [{
         "depth": parser.args["depth"],
-        "rig": parser.args["rig"],
+        "full_genotype": parser.args["full_genotype"],
         "targeted_structure": parser.args["targeted_structure"],
-        "full_genotype": parser.args["full_genotype"]
+        "rig": parser.args["rig"]
         }] * len(roi_data)
     rois = [r["coo_roi"] for r in roi_data]
     traces = []

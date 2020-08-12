@@ -29,6 +29,7 @@ def filter_longest_edge_length(coo_matrices: List[coo_matrix],
     for coo_roi in coo_matrices:
         max_row_or_col = max(coo_roi.col.ptp(),
                              coo_roi.row.ptp())
-        if max_row_or_col < edge_threshold:
+        # peak to peak gets actual length - 1
+        if (max_row_or_col + 1) < edge_threshold:
             filtered_rois.append(coo_roi)
     return filtered_rois

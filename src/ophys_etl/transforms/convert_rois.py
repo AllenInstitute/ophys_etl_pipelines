@@ -14,6 +14,7 @@ from ophys_etl.schemas.dense_roi import DenseROISchema
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
                                                  coo_rois_to_lims_compatible,
                                                  suite2p_rois_to_coo)
+from ophys_etl.filters import filter_longest_edge_length
 
 
 class BinarizeAndCreationException(Exception):
@@ -67,6 +68,13 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         description=("ROIs with fewer pixels than this will be labeled as "
                      "invalid and small size."))
 
+    longest_edge_threshold = Int(
+        default=50,
+        validate=Range(min=0),
+        description=("Longest edge value that height and width of an ROI "
+                     "must be under in order to pass to processing")
+    )
+
 
 class BinarizerAndROICreator(ArgSchemaParser):
     default_schema = BinarizeAndCreateROIsInputSchema
@@ -91,12 +99,25 @@ class BinarizerAndROICreator(ArgSchemaParser):
             movie_shape = open_vid['data'][0].shape
 
         # binarize the masks
-        self.logger.info("Binarizing the ROIs created by Suite2p.")
+        self.logger.info("Filtering and Binarizing the ROIs created by "
+                         "Suite2p.")
         coo_rois = suite2p_rois_to_coo(suite2p_stats, movie_shape)
 
+        # filter raw rois by longest edge in height and width
+        longest_edge_thrsh = self.args['longest_edge_threshold']
+        self.logger.info("Filtering out ROIs with height or width greater "
+                         f"than or equal to {longest_edge_thrsh}, "
+                         f"units in pixels")
+        filtered_coo_rois = filter_longest_edge_length(coo_rois,
+                                                       longest_edge_thrsh)
+        self.logger.info("Filtered out "
+                         f"{len(coo_rois) - len(filtered_coo_rois)} "
+                         "ROIs with specified longest edge threshold "
+                         f"of {longest_edge_thrsh}")
+
         binarized_coo_rois = []
-        for coo_roi in coo_rois:
-            binary_mask = binarize_roi_mask(coo_roi,
+        for filtered_coo_roi in filtered_coo_rois:
+            binary_mask = binarize_roi_mask(filtered_coo_roi,
                                             self.args['abs_threshold'],
                                             self.args['binary_quantile'])
             binarized_coo_rois.append(binary_mask)

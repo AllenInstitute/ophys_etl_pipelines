@@ -1,6 +1,7 @@
 import json
 import math
 import os.path
+import logging
 import tempfile
 import warnings
 from typing import Any, List, Tuple
@@ -23,6 +24,10 @@ from ophys_etl.types import DenseROI
 from ophys_etl.schemas import DenseROISchema
 from ophys_etl.schemas.fields import H5InputFile
 from ophys_etl.transforms.registry import RegistryConnection
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 NOT_CELL_EXCLUSION_LABEL = "classified_as_not_cell"
 
@@ -424,8 +429,12 @@ def main(parser):
     roi_data, excluded_rois = filter_excluded_rois(roi_data)
     rois, metadata, traces, _ = _munge_data(parser, roi_data)
     # TODO: add neuropil traces later
+    logger.info(f"Extracting features from '{len(rois)}' ROIs")
     features = FeatureExtractor(rois, traces, metadata).run()
+    logger.info(f"Using the following classifier model: "
+                f"{parser.args['classifier_model_path']}")
     model = load_model(parser.args["classifier_model_path"])
+    logger.info("Classifying ROIs with features")
     predictions = model.predict(features)
     if len(predictions) != len(roi_data):
         raise ValueError(
@@ -444,6 +453,7 @@ def main(parser):
         "classifier_model_path": parser.args["classifier_model_path"]
     }
     parser.output(output_data)
+    logger.info("ROI classification successfully completed!")
 
 
 if __name__ == "__main__":

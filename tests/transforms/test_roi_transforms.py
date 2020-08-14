@@ -152,12 +152,17 @@ def test_crop_roi_mask(mask, expected, raises_error):
 
 @pytest.mark.parametrize(
         "dense_mask, max_correction_vals, expected",
+        # MotionBorder in order of: [left, right, up, down]
         [
             ([[1]], MotionBorder(0, 0, 0, 0), True),
             ([[1]], MotionBorder(1, 0, 0, 0), False),
             ([[1]], MotionBorder(0, 1, 0, 0), False),
             ([[1]], MotionBorder(0, 0, 1, 0), False),
             ([[1]], MotionBorder(0, 0, 0, 1), False),
+            ([[1]], MotionBorder(0.2, 0, 0, 0), False),
+            ([[1]], MotionBorder(0, 0.2, 0, 0), False),
+            ([[1]], MotionBorder(0, 0, 0.2, 0), False),
+            ([[1]], MotionBorder(0, 0, 0, 0.2), False),
             (
                 [[0, 0, 0],
                  [0, 1, 0],
@@ -165,35 +170,51 @@ def test_crop_roi_mask(mask, expected, raises_error):
             (
                 [[0, 1, 0],
                  [0, 1, 0],
-                 [0, 0, 0]], MotionBorder(1, 1, 0, 1), True),
+                 [0, 0, 0]], MotionBorder(1, 1, 1, 0), True),
             (
                 [[0, 1, 0],
                  [0, 1, 0],
                  [0, 0, 0]], MotionBorder(1, 1, 1, 1), False),
             (
+                [[0, 1, 0],
+                 [0, 1, 0],
+                 [0, 0, 0]], MotionBorder(1, 1, 1, 0.2), False),
+            (
                 [[0, 0, 0],
                  [0, 1, 0],
-                 [0, 1, 0]], MotionBorder(1, 1, 1, 0), True),
+                 [0, 1, 0]], MotionBorder(1, 1, 0, 1), True),
             (
                 [[0, 0, 0],
                  [0, 1, 0],
                  [0, 1, 0]], MotionBorder(1, 1, 1, 1), False),
             (
                 [[0, 0, 0],
-                 [1, 1, 0],
-                 [0, 0, 0]], MotionBorder(0, 1, 1, 1), True),
+                 [0, 1, 0],
+                 [0, 1, 0]], MotionBorder(1, 1, 0.2, 1), False),
             (
                 [[0, 0, 0],
                  [1, 1, 0],
-                 [0, 0, 0]], MotionBorder(1, 1, 1, 1), False),
-            (
-                [[0, 0, 0],
-                 [0, 1, 1],
                  [0, 0, 0]], MotionBorder(1, 0, 1, 1), True),
             (
                 [[0, 0, 0],
+                 [1, 1, 0],
+                 [0, 0, 0]], MotionBorder(1, 1, 1, 1), False),
+            (
+                [[0, 0, 0],
+                 [1, 1, 0],
+                 [0, 0, 0]], MotionBorder(1, 0.2, 1, 1), False),
+            (
+                [[0, 0, 0],
+                 [0, 1, 1],
+                 [0, 0, 0]], MotionBorder(0, 1, 1, 1), True),
+            (
+                [[0, 0, 0],
                  [0, 1, 1],
                  [0, 0, 0]], MotionBorder(1, 1, 1, 1), False),
+            (
+                [[0, 0, 0],
+                 [0, 1, 1],
+                 [0, 0, 0]], MotionBorder(0.2, 1, 1, 1), False),
             (
                 [[0, 0, 0, 0, 0, 0],
                  [0, 0, 0, 0, 0, 0],

@@ -15,9 +15,9 @@ from scipy.sparse import coo_matrix
 from ophys_etl.transforms.classification import (InferenceInputSchema,
                                                  InferenceParser,
                                                  SparseAndDenseROISchema,
-                                                 _munge_data, downsample,
-                                                 load_model, main,
-                                                 filtered_roi_load)
+                                                 _munge_traces, _munge_data,
+                                                 downsample, load_model, main,
+                                                 filter_excluded_rois)
 # ROI input data not used but needed to pass through to the module output
 # Define here and reuse for brevity
 additional_roi_json_data = {
@@ -26,7 +26,6 @@ additional_roi_json_data = {
     "max_correction_left": 0,
     "max_correction_right": 0,
     "valid_roi": True,
-    "id": 42,
     "mask_image_plane": 0
 }
 
@@ -81,6 +80,7 @@ def metadata():
 def rois():
     return [
         {
+            "id": 0,
             "x": 1,
             "y": 3,
             "height": 3,
@@ -90,6 +90,7 @@ def rois():
             **additional_roi_json_data
         },
         {
+            "id": 1,
             "x": 1,
             "y": 3,
             "height": 1,
@@ -99,6 +100,7 @@ def rois():
             **additional_roi_json_data
         },
         {
+            "id": 2,
             "x": 9,
             "y": 2,
             "height": 2,
@@ -108,6 +110,7 @@ def rois():
             **additional_roi_json_data
         },
         {
+            "id": 3,
             "x": 9,
             "y": 2,
             "height": 2,
@@ -125,8 +128,10 @@ def input_data(tmp_path, classifier_model, traces, rois, metadata):
     np_trace_path = str(tmp_path / "np_trace.h5")
     trace_f = h5py.File(trace_path, "w")
     trace_f["data"] = traces
+    trace_f["roi_names"] = np.array(['0', '1', '2']).astype(np.string_)
     np_trace_f = h5py.File(np_trace_path, "w")
     np_trace_f["data"] = traces
+    np_trace_f["roi_names"] = np.array(['0', '1', '2']).astype(np.string_)
     trace_f.close()
     np_trace_f.close()
 
@@ -140,8 +145,8 @@ def input_data(tmp_path, classifier_model, traces, rois, metadata):
         "traces_path": trace_path,
         "roi_masks_path": roi_masks_path,
         "classifier_model_path": classifier_model,
-        "trace_sampling_fps": 1,
-        "downsample_to": 1,
+        "trace_sampling_rate": 1,
+        "desired_trace_sampling_rate": 1,
         "output_json": str(tmp_path / "output.json"),
         **metadata
     }
@@ -222,9 +227,9 @@ class TestInferenceInputSchema:
                     "depth": 100,
                     "classifier_model_path": classifier_model,
                     "full_genotype": "vip",
-                    "trace_sampling_fps": 5,
+                    "trace_sampling_rate": 5,
                     "output_json": str(tmp_path / "output.json"),
-                    "downsample_to": 5},
+                    "desired_trace_sampling_rate": 5},
                 schema_type=InferenceInputSchema,
                 args=[])
         assert error_text in str(e.value)
@@ -249,8 +254,8 @@ class TestInferenceInputSchema:
                 "depth": 100,
                 "classifier_model_path": classifier_model,
                 "full_genotype": "vip",
-                "trace_sampling_fps": 5,
-                "downsample_to": 5,
+                "trace_sampling_rate": 5,
+                "desired_trace_sampling_rate": 5,
                 "output_json": str(tmp_path / "output.json")
                 },
             schema_type=InferenceInputSchema,
@@ -362,6 +367,48 @@ def test_downsample_raises_error_greater_output_fps():
         downsample(np.arange(10), 1, 5)
 
 
+def test_filter_excluded_rois(rois):
+    included, excluded = filter_excluded_rois(rois)
+    assert included == rois[:-1]
+    assert excluded == [rois[-1]]
+
+
+@pytest.mark.parametrize("roi_data, trace_file_fixture, expected", [
+    # Case: Everything in order
+    ([{"id": 0}, {"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}],  # roi_data
+     {"trace_data": np.arange(100).reshape((5, 20)),  # trace_file_fixture
+      "trace_names": ['0', '1', '2', '3', '4']},
+     np.arange(100).reshape((5, 20))),  # expected
+
+    # Case: Trace names are not in numerical order
+    ([{"id": 0}, {"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}],
+     {"trace_data": np.arange(100).reshape((5, 20)),
+      "trace_names": ['1', '2', '0', '4', '3']},
+     np.arange(100).reshape((5, 20))[[2, 0, 1, 4, 3]]),
+
+    # Case: ROIs are not in numerical order
+    ([{"id": 4}, {"id": 2}, {"id": 1}, {"id": 3}, {"id": 0}],
+     {"trace_data": np.arange(100).reshape((5, 20)),
+      "trace_names": ['0', '1', '2', '3', '4']},
+     np.arange(100).reshape((5, 20))[[4, 2, 1, 3, 0]]),
+
+    # Case: Nothing is in order :(
+    ([{"id": 4}, {"id": 2}, {"id": 1}, {"id": 3}, {"id": 0}],
+     {"trace_data": np.arange(100).reshape((5, 20)),
+      "trace_names": ['1', '2', '0', '4', '3']},
+     np.arange(100).reshape((5, 20))[[3, 1, 0, 4, 2]]),
+
+], indirect=["trace_file_fixture"])
+def test_munge_traces(roi_data, trace_file_fixture, expected):
+    trace_file, fixture_params = trace_file_fixture
+    obt = _munge_traces(roi_data, trace_file,
+                        fixture_params['trace_data_key'],
+                        fixture_params['trace_names_key'],
+                        trace_sampling_rate=30,
+                        desired_trace_sampling_rate=30)
+    assert np.allclose(obt, expected)
+
+
 @pytest.fixture(scope="function")
 def joblib_model_fixture(tmp_path, request):
     model_path = str(tmp_path / "my_model.joblib")
@@ -393,13 +440,6 @@ def test_load_model_with_s3_uri(joblib_model_fixture, test_s3_uri):
     assert obt == model_data
 
 
-def test_filtered_roi_loader(input_data):
-    parser = InferenceParser(input_data=input_data, args=[])
-    roi_data, excluded = filtered_roi_load(parser.args["roi_masks_path"])
-    assert len(roi_data) == 3
-    assert len(excluded) == 1
-
-
 class TestFeatureExtractorModule:
     def test_main_integration(self, monkeypatch, mock_model, input_data):
         """Test main module runner including smoke test for FeatureExtractor
@@ -429,7 +469,12 @@ class TestFeatureExtractorModule:
 
     def test_munge_data(self, input_data, traces, rois, metadata):
         parser = InferenceParser(input_data=input_data, args=[])
-        roi_data, excluded = filtered_roi_load(parser.args["roi_masks_path"])
+
+        with open(parser.args["roi_masks_path"], "r") as f:
+            raw_roi_data = json.load(f)
+
+        roi_data = SparseAndDenseROISchema(many=True).load(raw_roi_data)
+        roi_data, excluded_rois = filter_excluded_rois(roi_data)
         expected_rois = [coo_matrix(np.array(r["mask_matrix"])) for r in rois
                          if not r["exclusion_labels"]]
         actual_rois, actual_metadata, actual_traces, actual_np_traces = (
@@ -476,7 +521,7 @@ class TestSparseAndDenseROISchema:
     def test_coo_roi_dump_single(self, data, expected_coo):
         """Cover the empty case, another unit test"""
         data.update(additional_roi_json_data)
-        data.update({"exclusion_labels": []})
+        data.update({"exclusion_labels": [], "id": 42})
         rois = SparseAndDenseROISchema().load(data)
         expected_data = data.copy()
         expected_data.update({"coo_roi": expected_coo})
@@ -495,7 +540,7 @@ class TestSparseAndDenseROISchema:
     def test_coo_roi_dump_raise_error_mismatch_dimensions(self, data):
         with pytest.raises(ValidationError) as e:
             data.update(additional_roi_json_data)
-            data.update({"exclusion_labels": []})
+            data.update({"exclusion_labels": [], "id": 42})
             SparseAndDenseROISchema().load(data)
         assert "Data in mask matrix did not correspond" in str(e.value)
 

@@ -3,8 +3,8 @@ import json
 import numpy as np
 
 from ophys_etl.transforms.convert_rois import BinarizerAndROICreator
-from ophys_etl.transforms.roi_transforms import DenseROI
-from ophys_etl.schemas.dense_roi import DenseROISchema
+from ophys_etl.types import DenseROI
+from ophys_etl.schemas import DenseROISchema
 
 
 def test_output_schema_element():
@@ -67,7 +67,7 @@ def test_output_schema_element():
                                 'y': 0,
                                 'height': 2,
                                 'width': 3,
-                                'valid_roi': True,
+                                'valid_roi': False,
                                 'mask_matrix': np.array(
                                     [[True, True, True],
                                      [True, False, True]]).tolist(),
@@ -76,7 +76,7 @@ def test_output_schema_element():
                                 'max_correction_left': 0.3,
                                 'max_correction_right': 0.3,
                                 'mask_image_plane': 0,
-                                'exclusion_labels': [],
+                                'exclusion_labels': ["motion_border"],
                                 },
                                {
                                    'id': 1,

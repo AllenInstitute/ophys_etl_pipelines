@@ -144,14 +144,14 @@ class InferenceInputSchema(ArgSchema):
                      "field is not provided, the classifier model registry "
                      "DynamoDB will be queried.")
     )
-    trace_sampling_fps = fields.Int(
+    trace_sampling_rate = fields.Int(
         required=False,
         missing=31,
         description=("Sampling rate of trace (frames per second). By default "
                      "trace sampling rates are assumed to be 31 Hz (inherited "
                      "from the source motion_corrected.h5 movie).")
     )
-    downsample_to = fields.Int(
+    desired_trace_sampling_rate = fields.Int(
         required=False,
         missing=4,
         validate=lambda x: x > 0,
@@ -300,7 +300,7 @@ def filter_excluded_rois(rois: List[SparseAndDenseROI]
 
 def _munge_traces(roi_data: List[SparseAndDenseROI], trace_file_path: str,
                   trace_data_key: str, trace_names_key: str,
-                  trace_sampling_fps: int, desired_rate: int
+                  trace_sampling_rate: int, desired_trace_sampling_rate: int
                   ) -> List[np.ndarray]:
     """Read trace data from h5 file (in proper order) and downsample it.
 
@@ -314,10 +314,11 @@ def _munge_traces(roi_data: List[SparseAndDenseROI], trace_file_path: str,
         Key used to access trace data.
     trace_names_key : str
         Key used to access the ROI name (id) corresponding to each trace.
-    trace_sampling_fps : int
+    trace_sampling_rate : int
         Sampling rate (in Hz) of trace data.
-    desired_rate : int
-        Desired sampling rate that trace data should be downsampled to.
+    desired_trace_sampling_rate : int
+        Desired sampling rate (in Hz) that trace data should be
+        downsampled to.
 
     Returns
     -------
@@ -328,7 +329,7 @@ def _munge_traces(roi_data: List[SparseAndDenseROI], trace_file_path: str,
     traces_file = h5py.File(trace_file_path, "r")
     traces_data = traces_file[trace_data_key]
 
-    # A array of str(int) describing roi names (id) associated with each trace
+    # An array of str(int) describing roi names (id) associated with each trace
     # Example: ['0', '1', '10', '100', ..., '2', '20', '200', ...]
     traces_id_order = traces_file[trace_names_key][:].astype(int)
     traces_id_mapping = np.argsort(traces_id_order)
@@ -338,8 +339,8 @@ def _munge_traces(roi_data: List[SparseAndDenseROI], trace_file_path: str,
         assert roi['id'] == traces_id_order[traces_id_mapping[roi['id']]]
         trace_indx = traces_id_mapping[roi["id"]]
         ds_trace = downsample(traces_data[trace_indx, :],
-                              trace_sampling_fps,
-                              desired_rate)
+                              trace_sampling_rate,
+                              desired_trace_sampling_rate)
         downsampled_traces.append(ds_trace)
 
     traces_file.close()
@@ -378,14 +379,14 @@ def _munge_data(parser: InferenceParser,
     traces = _munge_traces(roi_data, parser.args["traces_path"],
                            parser.args["traces_data_key"],
                            parser.args["trace_names_key"],
-                           parser.args["trace_sampling_fps"],
-                           parser.args["downsample_to"])
+                           parser.args["trace_sampling_rate"],
+                           parser.args["desired_trace_sampling_rate"])
 
     np_traces = _munge_traces(roi_data, parser.args["neuropil_traces_path"],
                               parser.args["neuropil_traces_data_key"],
                               parser.args["neuropil_trace_names_key"],
-                              parser.args["trace_sampling_fps"],
-                              parser.args["downsample_to"])
+                              parser.args["trace_sampling_rate"],
+                              parser.args["desired_trace_sampling_rate"])
 
     return rois, metadata, traces, np_traces
 

@@ -145,8 +145,8 @@ def input_data(tmp_path, classifier_model, traces, rois, metadata):
         "traces_path": trace_path,
         "roi_masks_path": roi_masks_path,
         "classifier_model_path": classifier_model,
-        "trace_sampling_fps": 1,
-        "downsample_to": 1,
+        "trace_sampling_rate": 1,
+        "desired_trace_sampling_rate": 1,
         "output_json": str(tmp_path / "output.json"),
         **metadata
     }
@@ -227,9 +227,9 @@ class TestInferenceInputSchema:
                     "depth": 100,
                     "classifier_model_path": classifier_model,
                     "full_genotype": "vip",
-                    "trace_sampling_fps": 5,
+                    "trace_sampling_rate": 5,
                     "output_json": str(tmp_path / "output.json"),
-                    "downsample_to": 5},
+                    "desired_trace_sampling_rate": 5},
                 schema_type=InferenceInputSchema,
                 args=[])
         assert error_text in str(e.value)
@@ -254,8 +254,8 @@ class TestInferenceInputSchema:
                 "depth": 100,
                 "classifier_model_path": classifier_model,
                 "full_genotype": "vip",
-                "trace_sampling_fps": 5,
-                "downsample_to": 5,
+                "trace_sampling_rate": 5,
+                "desired_trace_sampling_rate": 5,
                 "output_json": str(tmp_path / "output.json")
                 },
             schema_type=InferenceInputSchema,
@@ -404,8 +404,8 @@ def test_munge_traces(roi_data, trace_file_fixture, expected):
     obt = _munge_traces(roi_data, trace_file,
                         fixture_params['trace_data_key'],
                         fixture_params['trace_names_key'],
-                        trace_sampling_fps=30,
-                        desired_rate=30)
+                        trace_sampling_rate=30,
+                        desired_trace_sampling_rate=30)
     assert np.allclose(obt, expected)
 
 

@@ -30,7 +30,7 @@ def test_filter_rois_by_aspect_ratio_edge_cases():
     threshold = 0.2
     filtered = filter_by_aspect_ratio([], threshold)
     assert filtered == []
-    
+
     csmaller, clarger = coos_by_aspect(threshold)
 
     filtered = filter_by_aspect_ratio(csmaller[0:1], threshold)

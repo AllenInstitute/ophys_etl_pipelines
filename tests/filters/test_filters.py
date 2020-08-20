@@ -7,15 +7,11 @@ from ophys_etl.filters import filter_by_aspect_ratio
 
 def coos_by_aspect(threshold):
     width = 100
-    height = int(width * threshold)
-    while (height/width) <= threshold:
-        height += 1
+    height = int(np.ceil(width * threshold)) + 1
     mdense = np.ones((height, width))
     aspect_larger = [coo_matrix(mdense), coo_matrix(mdense.T)]
 
-    height = int(width * threshold)
-    while (height/width) >= threshold:
-        height -= 1
+    height = int(np.floor(width * threshold))
     mdense = np.ones((height, width))
     aspect_smaller = [coo_matrix(mdense), coo_matrix(mdense.T)]
     return aspect_smaller, aspect_larger

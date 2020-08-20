@@ -6,7 +6,7 @@ from scipy.sparse import coo_matrix
 def filter_by_aspect_ratio(coo_matrices: List[coo_matrix],
                            aspect_threshold: float) -> List[coo_matrix]:
     """
-    Returns a list where ROIs with aspect ratio < aspect_threshold are
+    Returns a list where ROIs with aspect ratio <= aspect_threshold are
     removed. Aspect ratio is min(heigh/width, width/height)
     Parameters
     ----------

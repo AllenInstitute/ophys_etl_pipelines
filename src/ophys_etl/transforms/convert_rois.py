@@ -14,7 +14,7 @@ from ophys_etl.schemas import DenseROISchema
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
                                                  coo_rois_to_lims_compatible,
                                                  suite2p_rois_to_coo)
-from ophys_etl.filters import filter_longest_edge_length
+from ophys_etl.filters import filter_by_aspect_ratio
 
 
 class BinarizeAndCreationException(Exception):
@@ -67,13 +67,12 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         required=False,
         description=("ROIs with fewer pixels than this will be labeled as "
                      "invalid and small size."))
-
-    longest_edge_threshold = Int(
-        default=50,
-        validate=Range(min=0),
-        description=("Longest edge value that height and width of an ROI "
-                     "must be under in order to pass to processing")
-    )
+    aspect_ratio_threshold = Float(
+        default=0.2,
+        required=False,
+        description=("ROIs whose aspect ratio is <= this value are "
+                     "not recorded. This captures a large majority of "
+                     "Suite2P-created artifacts from motion border"))
 
 
 class BinarizerAndROICreator(ArgSchemaParser):
@@ -103,17 +102,14 @@ class BinarizerAndROICreator(ArgSchemaParser):
                          "Suite2p.")
         coo_rois = suite2p_rois_to_coo(suite2p_stats, movie_shape)
 
-        # filter raw rois by longest edge in height and width
-        longest_edge_thrsh = self.args['longest_edge_threshold']
-        self.logger.info("Filtering out ROIs with height or width greater "
-                         f"than or equal to {longest_edge_thrsh}, "
-                         f"units in pixels")
-        filtered_coo_rois = filter_longest_edge_length(coo_rois,
-                                                       longest_edge_thrsh)
+        # filter raw rois by aspect ratio
+        filtered_coo_rois = filter_by_aspect_ratio(
+                coo_rois,
+                self.args['aspect_ratio_threshold'])
         self.logger.info("Filtered out "
                          f"{len(coo_rois) - len(filtered_coo_rois)} "
-                         "ROIs with specified longest edge threshold "
-                         f"of {longest_edge_thrsh}")
+                         "ROIs with aspect ratio <= "
+                         f"{self.args['aspect_ratio_threshold']}")
 
         binarized_coo_rois = []
         for filtered_coo_roi in filtered_coo_rois:

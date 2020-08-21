@@ -330,9 +330,9 @@ def _munge_traces(roi_data: List[SparseAndDenseROI], trace_file_path: str,
     traces_data = traces_file[trace_data_key]
 
     # An array of str(int) describing roi names (id) associated with each trace
-    # Example: ['0', '1', '10', '100', ..., '2', '20', '200', ...]
+    # Example: ['10', '100', ..., '2', '20', '200', ..., '3']
     traces_id_order = traces_file[trace_names_key][:].astype(int)
-    traces_id_mapping = np.argsort(traces_id_order)
+    traces_id_mapping = {val: ind for ind, val in enumerate(traces_id_order)}
 
     downsampled_traces = []
     for roi in roi_data:

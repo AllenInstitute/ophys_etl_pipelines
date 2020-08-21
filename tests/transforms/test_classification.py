@@ -374,29 +374,29 @@ def test_filter_excluded_rois(rois):
 
 
 @pytest.mark.parametrize("roi_data, trace_file_fixture, expected", [
-    # Case: Everything in order
-    ([{"id": 0}, {"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}],  # roi_data
+    # Case: ROI id order in segmentation output matches trace "roi_names" order
+    ([{"id": 10}, {"id": 100}, {"id": 20}, {"id": 200}, {"id": 3}],  # roi_data
      {"trace_data": np.arange(100).reshape((5, 20)),  # trace_file_fixture
-      "trace_names": ['0', '1', '2', '3', '4']},
+      "trace_names": ['10', '100', '20', '200', '3']},
      np.arange(100).reshape((5, 20))),  # expected
 
-    # Case: Trace names are not in numerical order
-    ([{"id": 0}, {"id": 1}, {"id": 2}, {"id": 3}, {"id": 4}],
+    # Case: ROI id order does not match order of trace "roi_names" (variant 1)
+    ([{"id": 10}, {"id": 100}, {"id": 20}, {"id": 200}, {"id": 3}],
      {"trace_data": np.arange(100).reshape((5, 20)),
-      "trace_names": ['1', '2', '0', '4', '3']},
-     np.arange(100).reshape((5, 20))[[2, 0, 1, 4, 3]]),
+      "trace_names": ['100', '20', '10', '200', '3']},
+     np.arange(100).reshape((5, 20))[[2, 0, 1, 3, 4]]),
 
-    # Case: ROIs are not in numerical order
-    ([{"id": 4}, {"id": 2}, {"id": 1}, {"id": 3}, {"id": 0}],
+    # Case: ROI id order does not match order of trace "roi_names" (variant 2)
+    ([{"id": 3}, {"id": 20}, {"id": 10}, {"id": 200}, {"id": 100}],
      {"trace_data": np.arange(100).reshape((5, 20)),
-      "trace_names": ['0', '1', '2', '3', '4']},
-     np.arange(100).reshape((5, 20))[[4, 2, 1, 3, 0]]),
+      "trace_names": ['10', '100', '20', '200', '3']},
+     np.arange(100).reshape((5, 20))[[4, 2, 0, 3, 1]]),
 
-    # Case: Nothing is in order :(
-    ([{"id": 4}, {"id": 2}, {"id": 1}, {"id": 3}, {"id": 0}],
+    # Case: ROI id order does not match order of trace "roi_names" (variant 3)
+    ([{"id": 3}, {"id": 20}, {"id": 10}, {"id": 200}, {"id": 100}],
      {"trace_data": np.arange(100).reshape((5, 20)),
-      "trace_names": ['1', '2', '0', '4', '3']},
-     np.arange(100).reshape((5, 20))[[3, 1, 0, 4, 2]]),
+      "trace_names": ['100', '20', '10', '200', '3']},
+     np.arange(100).reshape((5, 20))[[4, 1, 2, 3, 0]]),
 
 ], indirect=["trace_file_fixture"])
 def test_munge_traces(roi_data, trace_file_fixture, expected):

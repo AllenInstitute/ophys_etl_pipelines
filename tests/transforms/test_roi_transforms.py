@@ -5,6 +5,29 @@ from scipy.sparse import coo_matrix
 
 from ophys_etl.extractors.motion_correction import MotionBorder
 from ophys_etl.transforms import roi_transforms
+from ophys_etl.types import DenseROI
+
+
+def test_dense_to_extract():
+    d = DenseROI(
+            id=1,
+            x=23,
+            y=34,
+            width=128,
+            height=128,
+            valid_roi=True,
+            mask_matrix=[[True, True], [False, True]],
+            max_correction_up=12,
+            max_correction_down=12,
+            max_correction_left=12,
+            max_correction_right=12,
+            mask_image_plane=0,
+            exclusion_labels=['small_size', 'motion_border'])
+    e = roi_transforms.dense_to_extract(d)
+    for k in ['id', 'x', 'y', 'width', 'height']:
+        assert e[k] == d[k]
+    assert e['mask'] == d['mask_matrix']
+    assert e['valid'] == d['valid_roi']
 
 
 @pytest.mark.parametrize("s2p_stat_fixture", [

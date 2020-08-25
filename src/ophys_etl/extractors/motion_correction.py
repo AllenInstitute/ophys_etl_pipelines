@@ -2,6 +2,7 @@ from collections import namedtuple
 
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 MotionBorder = namedtuple('MotionBorder', ['left', 'right', 'up', 'down'])
 
@@ -57,3 +58,35 @@ def get_max_correction_values(x_series: pd.Series, y_series: pd.Series,
                          f"{max_border}, with max_shift {max_shift}")
 
     return max_border
+
+
+def get_max_correction_from_file(
+        input_csv: Path, max_shift: float = 30.0) -> MotionBorder:
+    """
+
+    Parameters
+    ----------
+    input_csv: Path
+        Path to motion correction values for each frame stored in .csv format.
+        This .csv file is expected to have a header row of either:
+        ['framenumber','x','y','correlation','kalman_x', 'kalman_y'] or
+        ['framenumber','x','y','correlation','input_x','input_y','kalman_x',
+         'kalman_y','algorithm','type']
+    max_shift: float
+        Maximum shift to allow when considering motion correction. Any
+        larger shifts are considered outliers.
+
+    Returns
+    -------
+    motion_border
+        A named tuple containing the maximum correction values found during
+        motion correction workflow step. Saved with the following direction
+        order [left, right, up, down].
+
+    """
+    motion_correction_df = pd.read_csv(input_csv)
+    motion_border = get_max_correction_values(
+        x_series=motion_correction_df['x'],
+        y_series=motion_correction_df['y'],
+        max_shift=max_shift)
+    return motion_border

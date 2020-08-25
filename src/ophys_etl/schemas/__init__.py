@@ -1,1 +1,2 @@
-from ophys_etl.schemas._dense_roi_schema import DenseROISchema  # noqa: F401
+from ophys_etl.schemas._roi_schema import (  # noqa: F401
+        DenseROISchema, ExtractROISchema)

@@ -3,13 +3,13 @@ from pathlib import Path
 
 import h5py
 import numpy as np
-import pandas as pd
 from argschema import ArgSchema, ArgSchemaParser
 from argschema.fields import Float, InputFile, Int, OutputFile, Str
 from marshmallow import ValidationError
 from marshmallow.validate import Range
 
-from ophys_etl.extractors.motion_correction import get_max_correction_values
+from ophys_etl.extractors.motion_correction import \
+        get_max_correction_from_file
 from ophys_etl.schemas import DenseROISchema
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
                                                  coo_rois_to_lims_compatible,
@@ -123,12 +123,9 @@ class BinarizerAndROICreator(ArgSchemaParser):
         # load the motion correction values
         self.logger.info("Loading motion correction border values from "
                          f" {self.args['motion_correction_values']}")
-        motion_correction_df = pd.read_csv(
-            self.args['motion_correction_values'])
-        motion_border = get_max_correction_values(
-            x_series=motion_correction_df['x'],
-            y_series=motion_correction_df['y'],
-            max_shift=self.args['maximum_motion_shift'])
+        motion_border = get_max_correction_from_file(
+            self.args['motion_correction_values'],
+            self.args['maximum_motion_shift'])
 
         # create the rois
         self.logger.info("Transforming ROIs to LIMS compatible style.")

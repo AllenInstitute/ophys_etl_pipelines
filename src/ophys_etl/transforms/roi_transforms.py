@@ -3,7 +3,33 @@ from typing import List, Optional, Tuple
 import numpy as np
 from scipy.sparse import coo_matrix
 from ophys_etl.extractors.motion_correction import MotionBorder
-from ophys_etl.types import DenseROI
+from ophys_etl.types import DenseROI, ExtractROI
+
+
+def dense_to_extract(roi: DenseROI) -> ExtractROI:
+    """reformat from expected output format from binarization
+    to expected input format of extract_traces
+
+    Parameters
+    ----------
+    roi: DenseROI
+        an ROI in the output format of binarization
+
+    Returns
+    -------
+    exroi: ExtractROI
+        an ROI in the input format for extract_traces
+
+    """
+    exroi = ExtractROI(
+            id=roi['id'],
+            x=roi['x'],
+            y=roi['y'],
+            width=roi['width'],
+            height=roi['height'],
+            valid=roi['valid_roi'],
+            mask=roi['mask_matrix'])
+    return exroi
 
 
 def suite2p_rois_to_coo(suite2p_stats: np.ndarray,

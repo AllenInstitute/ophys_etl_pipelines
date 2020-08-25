@@ -1,1 +1,1 @@
-from ophys_etl.types._dense_roi import DenseROI  # noqa: F401
+from ophys_etl.types._roi import DenseROI, ExtractROI  # noqa: F401

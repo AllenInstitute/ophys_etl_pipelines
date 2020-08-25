@@ -21,3 +21,15 @@ class DenseROI(TypedDict):
     max_correction_right: float
     mask_image_plane: int
     exclusion_labels: List[str]
+
+
+class ExtractROI(TypedDict):
+    """AllenSDK extract_traces expects this format
+    """
+    id: int
+    x: int
+    y: int
+    width: int
+    height: int
+    valid: bool
+    mask: List[List[bool]]

@@ -2,6 +2,30 @@ from marshmallow import Schema
 from marshmallow.fields import (List, Str, Float, Int, Bool)
 
 
+class ExtractROISchema(Schema):
+    """This ROI format is the expected input of AllenSDK's extract_traces
+    'rois' field
+    """
+
+    id = Int(required=True,
+             description=("Unique ID of the ROI, get's overwritten writting "
+                          "to LIMS"))
+    x = Int(required=True,
+            description="X location of top left corner of ROI in pixels")
+    y = Int(required=True,
+            description="Y location of top left corner of ROI in pixels")
+    width = Int(required=True,
+                description="Width of the ROI in pixels")
+    height = Int(required=True,
+                 description="Height of the ROI in pixels")
+    valid = Bool(required=True,
+                 description=("Boolean indicating if the ROI is a valid "
+                              "cell or not"))
+    mask = List(List(Bool), required=True,
+                description=("Bool nested list describing which pixels "
+                             "in the ROI area are part of the cell"))
+
+
 class DenseROISchema(Schema):
     """This ROI format is the expected output of Segmentation/Binarization
     and the expected input of Feature_extraction/Classification.

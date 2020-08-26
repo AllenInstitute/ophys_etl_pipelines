@@ -115,17 +115,19 @@ def roi_bounds(roi_mask: coo_matrix) -> Tuple[int, int, int, int]:
     Tuple[int, int, int, int]
         Slicing bounds to extract an ROI in the following order:
         (min_row, max_row, min_col, max_col)
+        or None if mask is empty
     """
 
-    if roi_mask.row.size > 0 and roi_mask.col.size > 0:
-        min_row = roi_mask.row.min()
-        min_col = roi_mask.col.min()
-        # Need to add 1 to max indices to get correct slicing upper bound
-        max_row = roi_mask.row.max() + 1
-        max_col = roi_mask.col.max() + 1
-        return (min_row, max_row, min_col, max_col)
-    else:
-        return (0, 0, 0, 0)
+    if roi_mask.row.size == 0 | roi_mask.col.size == 0:
+        return None
+
+    min_row = roi_mask.row.min()
+    min_col = roi_mask.col.min()
+    # Need to add 1 to max indices to get correct slicing upper bound
+    max_row = roi_mask.row.max() + 1
+    max_col = roi_mask.col.max() + 1
+
+    return (min_row, max_row, min_col, max_col)
 
 
 def crop_roi_mask(roi_mask: coo_matrix) -> coo_matrix:
@@ -138,21 +140,16 @@ def crop_roi_mask(roi_mask: coo_matrix) -> coo_matrix:
     Returns
     -------
     coo_matrix
-        A cropped ROI mask
+        A cropped ROI mask or None if coo_matrix is empty
 
-    Raises
-    ------
-    ValueError
-        Raised if an empty ROI mask is provided
     """
-    if roi_mask.row.size > 0 and roi_mask.col.size > 0:
-        min_row, max_row, min_col, max_col = roi_bounds(roi_mask)
-    else:
-        raise ValueError("Cannot crop an empty ROI mask (or mask where all "
-                         "elements are zero)")
+
+    bounds = roi_bounds(roi_mask)
+    if bounds is None:
+        return None
 
     # Convert coo to csr matrix so we can take advantage of indexing
-    cropped_mask = roi_mask.tocsr()[min_row:max_row, min_col:max_col]
+    cropped_mask = roi_mask.tocsr()[bounds[0]:bounds[1], bounds[2]:bounds[3]]
 
     return cropped_mask.tocoo()
 
@@ -190,6 +187,9 @@ def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
     compatible_rois = []
     for temp_id, coo_mask in enumerate(coo_masks):
         compatible_roi = _coo_mask_to_LIMS_compatible_format(coo_mask)
+        if compatible_roi is None:
+            continue
+
         compatible_roi['id'] = temp_id  # popped off when writing to LIMs
         compatible_roi['max_correction_up'] = max_correction_vals.up
         compatible_roi['max_correction_down'] = max_correction_vals.down
@@ -219,9 +219,13 @@ def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> DenseROI:
     Returns
     -------
     DenseROI
+       or None if the coo_mask is empty
 
     """
     bounds = roi_bounds(coo_mask)
+    if bounds is None:
+        return None
+
     height = bounds[1] - bounds[0]
     width = bounds[3] - bounds[2]
     mask_matrix = crop_roi_mask(coo_mask).toarray()

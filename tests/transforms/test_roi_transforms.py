@@ -92,7 +92,7 @@ def test_binarize_roi_mask(mask, expected, absolute_threshold, quantile):
                [0, 0, 0, 0, 0, 0],
                [0, 0, 0, 0, 0, 0],
                [0, 0, 0, 0, 0, 0]]),
-     (0, 0, 0, 0)),
+     None),
 
     (np.array([[1, 0, 0, 0, 0, 0],
                [0, 0, 0, 0, 0, 0],
@@ -130,7 +130,7 @@ def test_roi_bounds(mask, expected):
     assert obtained == expected
 
 
-@pytest.mark.parametrize("mask, expected, raises_error", [
+@pytest.mark.parametrize("mask, expected", [
     (np.array([[0, 0, 0, 0, 0, 0],
                [0, 0, 0, 0, 0, 0],
                [0, 0, 1, 1, 0, 0],
@@ -138,9 +138,7 @@ def test_roi_bounds(mask, expected):
                [0, 0, 0, 0, 0, 0],
                [0, 0, 0, 0, 0, 0]]),
      np.array([[1, 1],
-               [1, 1]]),
-     False),
-
+               [1, 1]])),
     (np.array([[0., 0., 0., 0., 0., 0.],
                [0., 1., 0., 0., 0., 0.],
                [0., 0., 2., 1., 0., 0.],
@@ -149,28 +147,22 @@ def test_roi_bounds(mask, expected):
                [0., 0., 0., 0., 0., 0.]]),
      np.array([[1., 0., 0.],
                [0., 2., 1.],
-               [0., 1., 1.]]),
-     False),
-
+               [0., 1., 1.]])),
     (np.array([[1.]]),
-     np.array([[1.]]),
-     False),
-
+     np.array([[1.]])),
     (np.array([[0., 0., 0., 0.],
                [0., 0., 0., 0.],
                [0., 0., 0., 0.]]),
-     None,  # Doesn't matter what this is
-     True)
+     None)
 ])
-def test_crop_roi_mask(mask, expected, raises_error):
+def test_crop_roi_mask(mask, expected):
     coo_mask = coo_matrix(mask)
 
-    if not raises_error:
-        obtained = roi_transforms.crop_roi_mask(coo_mask)
-        assert np.allclose(obtained.toarray(), expected)
+    obtained = roi_transforms.crop_roi_mask(coo_mask)
+    if expected is None:
+        assert obtained is None
     else:
-        with pytest.raises(ValueError, match="Cannot crop an empty ROI mask"):
-            obtained = roi_transforms.crop_roi_mask(coo_mask)
+        assert np.allclose(obtained.toarray(), expected)
 
 
 @pytest.mark.parametrize(
@@ -296,7 +288,9 @@ def test_small_size_exclusion(dense_mask, npixel_threshold, expected):
             coo_matrix(([1, 1, 1, 1], ([0, 1, 0, 1], [0, 0, 1, 1])),
                        shape=(20, 20)),
             coo_matrix(([1, 1, 1, 0], ([12, 13, 12, 13], [12, 12, 13, 13])),
-                       shape=(20, 20))
+                       shape=(20, 20)),
+            # this empty one should get filtered away
+            coo_matrix([[]])
            ],
           MotionBorder(2.5, 2.5, 2.5, 2.5), 3,
           [{'id': 0,

@@ -117,15 +117,16 @@ def roi_bounds(roi_mask: coo_matrix) -> Tuple[int, int, int, int]:
         (min_row, max_row, min_col, max_col)
     """
 
-    if roi_mask.row.size > 0 and roi_mask.col.size > 0:
-        min_row = roi_mask.row.min()
-        min_col = roi_mask.col.min()
-        # Need to add 1 to max indices to get correct slicing upper bound
-        max_row = roi_mask.row.max() + 1
-        max_col = roi_mask.col.max() + 1
-        return (min_row, max_row, min_col, max_col)
-    else:
-        return (0, 0, 0, 0)
+    if roi_mask.row.size == 0 | roi_mask.col.size == 0:
+        return None
+
+    min_row = roi_mask.row.min()
+    min_col = roi_mask.col.min()
+    # Need to add 1 to max indices to get correct slicing upper bound
+    max_row = roi_mask.row.max() + 1
+    max_col = roi_mask.col.max() + 1
+
+    return (min_row, max_row, min_col, max_col)
 
 
 def crop_roi_mask(roi_mask: coo_matrix) -> coo_matrix:
@@ -190,6 +191,9 @@ def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
     compatible_rois = []
     for temp_id, coo_mask in enumerate(coo_masks):
         compatible_roi = _coo_mask_to_LIMS_compatible_format(coo_mask)
+        if compatible_roi is None:
+            continue
+
         compatible_roi['id'] = temp_id  # popped off when writing to LIMs
         compatible_roi['max_correction_up'] = max_correction_vals.up
         compatible_roi['max_correction_down'] = max_correction_vals.down
@@ -222,6 +226,9 @@ def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix) -> DenseROI:
 
     """
     bounds = roi_bounds(coo_mask)
+    if bounds is None:
+        return None
+
     height = bounds[1] - bounds[0]
     width = bounds[3] - bounds[2]
     mask_matrix = crop_roi_mask(coo_mask).toarray()

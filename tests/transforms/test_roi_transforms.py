@@ -92,7 +92,7 @@ def test_binarize_roi_mask(mask, expected, absolute_threshold, quantile):
                [0, 0, 0, 0, 0, 0],
                [0, 0, 0, 0, 0, 0],
                [0, 0, 0, 0, 0, 0]]),
-     (0, 0, 0, 0)),
+     None),
 
     (np.array([[1, 0, 0, 0, 0, 0],
                [0, 0, 0, 0, 0, 0],
@@ -296,7 +296,9 @@ def test_small_size_exclusion(dense_mask, npixel_threshold, expected):
             coo_matrix(([1, 1, 1, 1], ([0, 1, 0, 1], [0, 0, 1, 1])),
                        shape=(20, 20)),
             coo_matrix(([1, 1, 1, 0], ([12, 13, 12, 13], [12, 12, 13, 13])),
-                       shape=(20, 20))
+                       shape=(20, 20)),
+            # this empty one should get filtered away
+            coo_matrix([[]])
            ],
           MotionBorder(2.5, 2.5, 2.5, 2.5), 3,
           [{'id': 0,

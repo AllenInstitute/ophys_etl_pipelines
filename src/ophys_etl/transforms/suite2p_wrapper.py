@@ -131,7 +131,7 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             argschema.fields.Str,
             cli_as_single_argument=True,
             required=True,
-            default=['stat.npy', 'F.npy'],
+            default=['stat.npy'],
             description=("only Suite2P output files with basenames in this "
                          "list will be retained. If 'all', a complete list "
                          "will be retained."))

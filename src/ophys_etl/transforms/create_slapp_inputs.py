@@ -168,16 +168,17 @@ def select_rois(experiments: List[Any], n_roi_total: int,
                 roi_list.append((experiment['experiment_id'], roi['id']))
 
     # randomly select some of them
-    rng = np.random.default_rng(seed=random_seed)
+    # compatible with numpy 1.16, forced by Suite2P dependencies
+    rng = np.random.RandomState(seed=random_seed)
+    indices = np.arange(len(roi_list))
     try:
-        subset = rng.choice(roi_list, n_roi_total, replace=False)
+        # in numpy 1.16, choice arg must be 1D
+        subinds = rng.choice(indices, n_roi_total, replace=False)
+        subset = [roi_list[i] for i in indices if i in subinds]
     except ValueError as ve:
         ve.args += ("perhaps you requested more ROIs than are available. "
                     f"{len(roi_list)} available {n_roi_total} requested", )
         raise
-
-    # np turned them all into int64
-    subset = [(int(a), int(b)) for a, b in subset]
 
     # group subset by experiment
     groups = {}

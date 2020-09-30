@@ -40,6 +40,7 @@ From: continuumio/miniconda3:4.8.2
     cd ophys_etl_pipelines
     git checkout ${OPHYS_ETL_TAG}
     pip install --no-cache-dir -q .
+    conda list
 
     # clean up
     conda clean -q --all

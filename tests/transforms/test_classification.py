@@ -148,11 +148,11 @@ class TestInferenceInputSchema:
         "np_key, traces_key, error_text", [
             (
                 "bale", "data",
-                "(neuropil_traces_data_key) was missing in h5 file",
+                "(neuropil_traces_data_key) missing in file",
             ),
             (
                 "data", "howl",
-                "(traces_data_key) was missing in h5 file",
+                "(traces_data_key) missing in file",
             ),
         ]
     )

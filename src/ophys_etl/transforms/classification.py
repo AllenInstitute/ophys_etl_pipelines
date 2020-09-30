@@ -237,11 +237,14 @@ def _munge_data(parser: InferenceParser,
                            parser.args["trace_sampling_rate"],
                            parser.args["desired_trace_sampling_rate"])
 
-    np_traces = _munge_traces(roi_data, parser.args["neuropil_traces_path"],
-                              parser.args["neuropil_traces_data_key"],
-                              parser.args["neuropil_trace_names_key"],
-                              parser.args["trace_sampling_rate"],
-                              parser.args["desired_trace_sampling_rate"])
+    np_traces = None
+    if "neuropil_traces_path" in parser.args:
+        np_traces = _munge_traces(roi_data,
+                                  parser.args["neuropil_traces_path"],
+                                  parser.args["neuropil_traces_data_key"],
+                                  parser.args["neuropil_trace_names_key"],
+                                  parser.args["trace_sampling_rate"],
+                                  parser.args["desired_trace_sampling_rate"])
 
     return rois, metadata, traces, np_traces
 

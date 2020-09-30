@@ -7,7 +7,7 @@ from ophys_etl.schemas.fields import H5InputFile
 
 class ClassifierSchema(argschema.ArgSchema):
     neuropil_traces_path = H5InputFile(
-        required=True,
+        required=False,
         description=("Path to neuropil traces from an experiment."))
     neuropil_traces_data_key = argschema.fields.Str(
         required=False,
@@ -61,9 +61,10 @@ class ClassifierSchema(argschema.ArgSchema):
         pairs = [("neuropil_traces_path", "neuropil_traces_data_key"),
                  ("traces_path", "traces_data_key")]
         for h5file, key in pairs:
-            with h5py.File(data[h5file], "r") as f:
-                if not data[key] in f.keys():
-                    raise mm.ValidationError(
-                        f"Key '{data[key]}' ({key}) was missing in h5 file "
-                        f"{data[h5file]} ({h5file}.")
+            if h5file in data:
+                with h5py.File(data[h5file], "r") as f:
+                    if not data[key] in f.keys():
+                        raise mm.ValidationError(
+                            f"Key '{data[key]}' ({key}) missing in file "
+                            f"{data[h5file]} ({h5file}).")
         return data

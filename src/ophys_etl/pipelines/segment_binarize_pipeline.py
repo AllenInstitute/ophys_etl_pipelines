@@ -1,5 +1,5 @@
 import json
-import pathlib
+from pathlib import Path
 import tempfile
 
 import marshmallow
@@ -12,26 +12,39 @@ from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
                                                   Suite2PWrapperSchema)
 
 
+class ConvertROIsInputSchema(BinarizeAndCreateROIsInputSchema):
+
+    # Override the default "suite2p_stat_field" required parameter of the
+    # BinarizeAndCreateROIsInputSchema.
+    # When run in pipeline, the suite2p_stat_path won't be known until
+    # after segmentation has run.
+    suite2p_stat_path = argschema.fields.Str(
+        required=False,
+        validate=lambda x: Path(x).exists(),
+        description=("Path to s2p output stat file containing ROIs generated "
+                     "during source extraction"))
+
+
 class SegmentBinarizeSchema(argschema.ArgSchema):
     suite2p_args = argschema.fields.Nested(Suite2PWrapperSchema,
                                            required=True)
-    convert_args = argschema.fields.Nested(BinarizeAndCreateROIsInputSchema,
-                                           required=False)
+    convert_args = argschema.fields.Nested(ConvertROIsInputSchema,
+                                           required=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.tmpdir = None
-        self.tmp_tempfile = None
 
     @marshmallow.pre_load
     def setup_default_suite2p_args(self, data: dict, **kwargs) -> dict:
 
+        # suite2p_args
         if "output_dir" not in data["suite2p_args"]:
             self.tmpdir = tempfile.TemporaryDirectory()
             data["suite2p_args"]["output_dir"] = self.tmpdir.name
 
         if "output_json" not in data["suite2p_args"]:
-            Suite2p_output = (pathlib.Path(data["suite2p_args"]["output_dir"])
+            Suite2p_output = (Path(data["suite2p_args"]["output_dir"])
                               / "Suite2P_output.json")
             data["suite2p_args"]["output_json"] = str(Suite2p_output)
 
@@ -40,31 +53,15 @@ class SegmentBinarizeSchema(argschema.ArgSchema):
 
         data["suite2p_args"]["log_level"] = data["log_level"]
 
-        if "convert_args" in data:
+        # convert_args
+        if "motion_corrected_video" not in data["convert_args"]:
             data["convert_args"]["motion_corrected_video"] = (
                 data["suite2p_args"]["h5py"])
 
-            if "output_json" not in data["convert_args"]:
-                data["convert_args"]["output_json"] = data["output_json"]
-
-            # Ugly hack to provide a temporary file for the suite2p_stat_path
-            # Because argschema schemas apparently don't handle "exclude" or
-            # "only" marshmallow params properly
-            self.tmp_tempfile = tempfile.NamedTemporaryFile()
-            data["convert_args"]["suite2p_stat_path"] = self.tmp_tempfile.name
-
-        return data
-
-    @marshmallow.post_load
-    def setup_default_convert_args(self, data: dict, **kwargs) -> dict:
-        """Setup convert args (relevant if no convert_args were passed)"""
-
-        if "convert_args" not in data:
-            data["convert_args"] = dict()
-            data["convert_args"]["motion_corrected_video"] = (
-                data["suite2p_args"]["h5py"])
+        if "output_json" not in data["convert_args"]:
             data["convert_args"]["output_json"] = data["output_json"]
-            data["convert_args"]["log_level"] = data["log_level"]
+
+        data["convert_args"]["log_level"] = data["log_level"]
 
         return data
 
@@ -92,10 +89,8 @@ class SegmentBinarize(argschema.ArgSchemaParser):
 
         # Clean up temporary directories and/or files created during
         # Schema invocation
-        if hasattr(self.schema, 'tmpdir') and self.schema.tmpdir:
+        if self.schema.tmpdir is not None:
             self.schema.tmpdir.cleanup()
-        if hasattr(self.schema, 'tmp_tmpfile') and self.schema.tmp_tmpfile:
-            self.schema.tmp_tmpfile.close()
 
 
 if __name__ == "__main__":  # pragma: nocover

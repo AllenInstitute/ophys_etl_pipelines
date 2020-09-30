@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Tuple
+from collections import namedtuple
 
 import h5py
 import pandas as pd
@@ -145,3 +146,58 @@ def trace_file_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
         f.create_dataset(trace_names_key, data=formatted_trace_names)
 
     return trace_path, fixture_params
+
+
+@pytest.fixture(scope="function")
+def rois_fixture():
+    additional_data = {
+        "max_correction_up": 0,
+        "max_correction_down": 0,
+        "max_correction_left": 0,
+        "max_correction_right": 0,
+        "valid_roi": True,
+        "mask_image_plane": 0}
+    rois = [
+        {
+            "id": 0,
+            "x": 1,
+            "y": 3,
+            "height": 3,
+            "width": 2,
+            "mask_matrix": [[False, True], [True, True], [True, True]],
+            "exclusion_labels": [],
+            **additional_data
+        },
+        {
+            "id": 1,
+            "x": 1,
+            "y": 3,
+            "height": 1,
+            "width": 4,
+            "mask_matrix": [[True, False, False, True]],
+            "exclusion_labels": [],
+            **additional_data
+        },
+        {
+            "id": 2,
+            "x": 9,
+            "y": 2,
+            "height": 2,
+            "width": 2,
+            "mask_matrix": [[True, False], [True, True]],
+            "exclusion_labels": [],
+            **additional_data
+        },
+        {
+            "id": 3,
+            "x": 9,
+            "y": 2,
+            "height": 2,
+            "width": 2,
+            "mask_matrix": [[True, False], [True, True]],
+            "exclusion_labels": ["motion_border"],
+            **additional_data
+        }
+    ]
+    mytuple = namedtuple('rois_tuple', ['additional_data', 'rois'])
+    return mytuple(additional_data=additional_data, rois=rois)

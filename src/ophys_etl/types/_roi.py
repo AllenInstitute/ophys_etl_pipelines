@@ -1,5 +1,7 @@
 import sys
 from typing import List
+from scipy.sparse import coo_matrix
+
 
 if sys.version_info >= (3, 8):
     from typing import TypedDict
@@ -21,6 +23,10 @@ class DenseROI(TypedDict):
     max_correction_right: float
     mask_image_plane: int
     exclusion_labels: List[str]
+
+
+class SparseAndDenseROI(DenseROI):
+    coo_roi: coo_matrix
 
 
 class ExtractROI(TypedDict):

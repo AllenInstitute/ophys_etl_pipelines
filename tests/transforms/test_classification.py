@@ -14,20 +14,10 @@ from moto import mock_s3
 from scipy.sparse import coo_matrix
 from ophys_etl.transforms.classification import (InferenceInputSchema,
                                                  InferenceParser,
-                                                 SparseAndDenseROISchema,
                                                  _munge_traces, _munge_data,
                                                  downsample, load_model, main,
                                                  filter_excluded_rois)
-# ROI input data not used but needed to pass through to the module output
-# Define here and reuse for brevity
-additional_roi_json_data = {
-    "max_correction_up": 0,
-    "max_correction_down": 0,
-    "max_correction_left": 0,
-    "max_correction_right": 0,
-    "valid_roi": True,
-    "mask_image_plane": 0
-}
+from ophys_etl.schemas import SparseAndDenseROISchema
 
 
 @pytest.fixture(scope="function")
@@ -77,53 +67,7 @@ def metadata():
 
 
 @pytest.fixture(scope="function")
-def rois():
-    return [
-        {
-            "id": 0,
-            "x": 1,
-            "y": 3,
-            "height": 3,
-            "width": 2,
-            "mask_matrix": [[False, True], [True, True], [True, True]],
-            "exclusion_labels": [],
-            **additional_roi_json_data
-        },
-        {
-            "id": 1,
-            "x": 1,
-            "y": 3,
-            "height": 1,
-            "width": 4,
-            "mask_matrix": [[True, False, False, True]],
-            "exclusion_labels": [],
-            **additional_roi_json_data
-        },
-        {
-            "id": 2,
-            "x": 9,
-            "y": 2,
-            "height": 2,
-            "width": 2,
-            "mask_matrix": [[True, False], [True, True]],
-            "exclusion_labels": [],
-            **additional_roi_json_data
-        },
-        {
-            "id": 3,
-            "x": 9,
-            "y": 2,
-            "height": 2,
-            "width": 2,
-            "mask_matrix": [[True, False], [True, True]],
-            "exclusion_labels": ["motion_border"],
-            **additional_roi_json_data
-        }
-    ]
-
-
-@pytest.fixture(scope="function")
-def input_data(tmp_path, classifier_model, traces, rois, metadata):
+def input_data(tmp_path, classifier_model, traces, rois_fixture, metadata):
     trace_path = str(tmp_path / "trace.h5")
     np_trace_path = str(tmp_path / "np_trace.h5")
     trace_f = h5py.File(trace_path, "w")
@@ -138,7 +82,7 @@ def input_data(tmp_path, classifier_model, traces, rois, metadata):
     roi_masks_path = str(tmp_path / "rois.json")
 
     with open(roi_masks_path, "w") as f:
-        json.dump(rois, f)
+        json.dump(rois_fixture.rois, f)
 
     schema_input = {
         "neuropil_traces_path": np_trace_path,
@@ -302,7 +246,7 @@ class TestInferenceInputSchema:
             ArgSchemaParser(input_data=invalid_model_registry_env,
                             schema_type=InferenceInputSchema,
                             args=[])
-        assert "not a valid value for the 'model_registry_env'" in str(e.value)
+        assert "provided for 'model_registry_env'" in str(e.value)
 
     @pytest.mark.parametrize("patch_input_data", [
         ({}),
@@ -367,10 +311,10 @@ def test_downsample_raises_error_greater_output_fps():
         downsample(np.arange(10), 1, 5)
 
 
-def test_filter_excluded_rois(rois):
-    included, excluded = filter_excluded_rois(rois)
-    assert included == rois[:-1]
-    assert excluded == [rois[-1]]
+def test_filter_excluded_rois(rois_fixture):
+    included, excluded = filter_excluded_rois(rois_fixture.rois)
+    assert included == rois_fixture.rois[:-1]
+    assert excluded == [rois_fixture.rois[-1]]
 
 
 @pytest.mark.parametrize("roi_data, trace_file_fixture, expected", [
@@ -467,7 +411,7 @@ class TestFeatureExtractorModule:
             main(InferenceParser(input_data=input_data, args=[]))
         assert "Expected the number of predictions" in str(e.value)
 
-    def test_munge_data(self, input_data, traces, rois, metadata):
+    def test_munge_data(self, input_data, traces, rois_fixture, metadata):
         parser = InferenceParser(input_data=input_data, args=[])
 
         with open(parser.args["roi_masks_path"], "r") as f:
@@ -475,7 +419,8 @@ class TestFeatureExtractorModule:
 
         roi_data = SparseAndDenseROISchema(many=True).load(raw_roi_data)
         roi_data, excluded_rois = filter_excluded_rois(roi_data)
-        expected_rois = [coo_matrix(np.array(r["mask_matrix"])) for r in rois
+        expected_rois = [coo_matrix(np.array(r["mask_matrix"]))
+                         for r in rois_fixture.rois
                          if not r["exclusion_labels"]]
         actual_rois, actual_metadata, actual_traces, actual_np_traces = (
             _munge_data(parser, roi_data))
@@ -493,68 +438,3 @@ class TestFeatureExtractorModule:
             err_msg=("Expected neuropil traces did not equal actual neuropil "
                      "traces from _munge_data"))
         assert [metadata]*len(expected_rois) == actual_metadata
-
-
-class TestSparseAndDenseROISchema:
-    def test_schema_makes_coos(self, rois):
-        expected = [coo_matrix(np.array(r["mask_matrix"])) for r in rois]
-        actual = SparseAndDenseROISchema(many=True).load(rois)
-        for ix, e_roi in enumerate(expected):
-            np.testing.assert_array_equal(
-                e_roi.toarray(), actual[ix]["coo_roi"].toarray())
-
-    @pytest.mark.parametrize(
-        "data, expected_coo",
-        [
-            (
-                {"x": 1, "y": 1, "height": 3, "width": 1,
-                 "mask_matrix": [[True], [False], [True]]},
-                coo_matrix(np.array([[1], [0], [1]]))
-            ),
-            (   # Empty
-                {"x": 100, "y": 34, "height": 0, "width": 0,
-                 "mask_matrix": []},
-                coo_matrix(np.array([]))
-            ),
-        ]
-    )
-    def test_coo_roi_dump_single(self, data, expected_coo):
-        """Cover the empty case, another unit test"""
-        data.update(additional_roi_json_data)
-        data.update({"exclusion_labels": [], "id": 42})
-        rois = SparseAndDenseROISchema().load(data)
-        expected_data = data.copy()
-        expected_data.update({"coo_roi": expected_coo})
-        np.testing.assert_array_equal(
-            expected_data["coo_roi"].toarray(), rois["coo_roi"].toarray())
-
-    @pytest.mark.parametrize(
-        "data",
-        [
-            {"x": 1, "y": 1, "height": 5, "width": 1,    # height
-             "mask_matrix": [[True], [False], [True]]},
-            {"x": 1, "y": 1, "height": 3, "width": 2,    # width
-             "mask_matrix": [[True], [False], [True]]},
-        ]
-    )
-    def test_coo_roi_dump_raise_error_mismatch_dimensions(self, data):
-        with pytest.raises(ValidationError) as e:
-            data.update(additional_roi_json_data)
-            data.update({"exclusion_labels": [], "id": 42})
-            SparseAndDenseROISchema().load(data)
-        assert "Data in mask matrix did not correspond" in str(e.value)
-
-    def test_schema_warns_empty(self, rois):
-        rois[0]["height"] = 0
-        rois[0]["width"] = 0
-        with pytest.warns(UserWarning) as record:
-            SparseAndDenseROISchema(many=True).load(rois)
-        assert len(record) == 1
-        assert "Input data contains empty ROI" in str(record[0].message)
-
-    def test_schema_errors_shape_mismatch(self, rois):
-        rois[0]["height"] = 100
-        rois[0]["width"] = 29
-        with pytest.raises(ValidationError) as e:
-            SparseAndDenseROISchema(many=True).load(rois)
-        assert "Data in mask matrix did not correspond" in str(e.value)

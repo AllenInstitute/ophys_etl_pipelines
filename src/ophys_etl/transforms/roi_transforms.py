@@ -75,7 +75,7 @@ def binarize_roi_mask(roi_mask: coo_matrix,
     roi_mask : coo_matrix
         An ROI mask in coo_matrix format.
     absolute_threshold : Optional[float], optional
-        ROI data (Suite2P weights) above the threshold will be
+        ROI data (Suite2P weights) above and equal to the threshold will be
         set to 1 and set to 0 otherwise. If None is provided, the threshold
         will be determined via quantile. By default None.
     quantile : float, optional
@@ -92,7 +92,7 @@ def binarize_roi_mask(roi_mask: coo_matrix,
         absolute_threshold = np.quantile(roi_mask.data, quantile)
 
     binarized_mask = roi_mask.copy()
-    binarized_mask.data = np.where(binarized_mask.data > absolute_threshold,
+    binarized_mask.data = np.where(binarized_mask.data >= absolute_threshold,
                                    1, 0)
     binarized_mask.eliminate_zeros()
 

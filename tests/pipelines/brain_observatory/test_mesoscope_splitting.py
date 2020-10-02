@@ -1,13 +1,13 @@
 import pytest
-from mock import MagicMock, PropertyMock
-from brain_observatory_utils.scripts.run_mesoscope_splitting import (
-    conversion_output)
+from mock import MagicMock
+from ophys_etl.pipelines.brain_observatory.scripts import (
+    run_mesoscope_splitting)
 
 
 @pytest.fixture
 def mock_volume():
     volume = MagicMock()
-    volume.plane_shape = (100,100)
+    volume.plane_shape = (100, 100)
 
     return volume
 
@@ -23,4 +23,5 @@ def exp_info():
 
 
 def test_conversion_output(mock_volume, exp_info):
-    o, m = conversion_output(mock_volume, "test.out", exp_info)
+    run_mesoscope_splitting.conversion_output(
+        mock_volume, "test.out", exp_info)

@@ -2,6 +2,7 @@ from argschema.schemas import DefaultSchema, mm
 from argschema.fields import (Nested, Int, Float, Str, DateTime, Constant)
 from .base import BaseSchema
 
+
 class BaseRegistrationItem(DefaultSchema):
     x_offset = Int(
         required=True,
@@ -164,9 +165,10 @@ class DeepscopeSchema(PlatformV2):
         for plane in prevalidated.get("imaging_planes", []):
             depth = int(plane["targeted_depth"])
             if depth in targeted_depths:
-                errors.add("Got duplicate depth {}, depths must be unique".format(depth))
+                errors.add(
+                    f"Got duplicate depth {depth}, depths must be unique")
             if depth < 0:
-                errors.add("Targeted depth {} is invalid, must be >= 0".format(depth))
+                errors.add(f"Targeted depth {depth} is invalid, must be >= 0")
             targeted_depths.add(depth)
 
         if errors:
@@ -251,27 +253,36 @@ class MesoscopeSchema(PlatformV2):
         targets = set()
         indices = set()
         errors = set()
-        # Ensure .tif doesn't get in where it shouldn't, as it will break downsampling
+        # Ensure .tif doesn't get in where it shouldn't (breaks downsampling)
         for key in ["depths_tif", "surface_tif", "timeseries_tif"]:
             if loaded[key].endswith(".tif"):
-                errors.add("{} file {} ends in .tif, will break downsampling".format(key, loaded[key]))
+                errors.add("{} file {} ends in .tif, will break downsampling"
+                           .format(key, loaded[key]))
         # validate that all imaging planes are unique
         for group in loaded["imaging_plane_groups"]:
             if group["local_z_stack_tif"].endswith(".tif"):
-                errors.add("local_z_stack_tif file {} ends in .tif, will break downsampling".format(group["local_z_stack_tif"]))
+                errors.add(("local_z_stack_tif file {} ends in .tif, will "
+                            "break downsampling")
+                           .format(group["local_z_stack_tif"]))
             column = group.get("column_z_stack_tif", None)
             if column is not None and column.endswith(".tif"):
-                errors.add("column_z_stack_tif file {} ends in .tif, will break downsampling".format(column))
+                errors.add(("column_z_stack_tif file {} ends in .tif, will "
+                            "break downsampling").format(column))
             for p in group["imaging_planes"]:
                 index = (p["scanimage_roi_index"], p["scanimage_scanfield_z"])
                 if p["targeted_depth"] < 0:
-                    errors.add("Targeted depth {} is invalid, must be >= 0".format(p["targeted_depth"]))
-                target = (int(p["targeted_x"]), int(p["targeted_y"]), int(p["targeted_depth"]))
+                    errors.add("Targeted depth {} is invalid, must be >= 0"
+                               .format(p["targeted_depth"]))
+                target = (int(p["targeted_x"]),
+                          int(p["targeted_y"]),
+                          int(p["targeted_depth"]))
                 if index in indices:
-                    errors.add("Scanfield plane at (roi, z) {} already defined".format(index))
+                    errors.add(
+                        f"Scanfield plane at (roi, z) {index} already defined")
                 indices.add(index)
                 if target in targets:
-                    errors.add("Targeted location (x, y, d) {} already defined".format(target))
+                    errors.add(f"Targeted location (x, y, d) {target} already "
+                               "defined")
                 targets.add(target)
 
         if errors:

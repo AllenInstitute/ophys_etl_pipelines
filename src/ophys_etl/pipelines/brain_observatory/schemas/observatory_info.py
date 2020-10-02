@@ -1,6 +1,7 @@
 from argschema.fields import Nested, Int, Str
 from .base import BaseSchema
 
+
 class ProjectSchema(BaseSchema):
     _MANY = True
     id = Int(
@@ -23,7 +24,7 @@ class ExperimentSchema(BaseSchema):
     storage_directory = Str(
         description="Storage directory")
     workflow_state = Str(
-        description = "Workflow state")
+        description="Workflow state")
 
 
 class SpecimenSchema(BaseSchema):
@@ -45,7 +46,7 @@ class SpecimenSchema(BaseSchema):
 
 
 class DonorInfoSchema(BaseSchema):
-    _MANY=True
+    _MANY = True
     id = Int(
         required=True,
         description="Donor ID")

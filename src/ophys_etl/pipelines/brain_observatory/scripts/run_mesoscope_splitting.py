@@ -3,12 +3,12 @@ import os
 import numpy as np
 import h5py
 from argschema import ArgSchemaParser
-from mesoscope_2p import MesoscopeTiff
-from mesoscope_2p.conversion_utils import (volume_to_h5, volume_to_tif, 
-                                           average_and_unsign)
-from mesoscope_2p.metadata import SI_stringify_floats
-from brain_observatory_utils.schemas.split_mesoscope import (InputSchema,
-                                                             OutputSchema)
+from ophys_etl.transforms.mesoscope_2p import MesoscopeTiff
+from ophys_etl.transforms.mesoscope_2p.conversion_utils import (
+    volume_to_h5, volume_to_tif, average_and_unsign)
+from ophys_etl.transforms.mesoscope_2p.metadata import SI_stringify_floats
+from ophys_etl.pipelines.brain_observatory.schemas.split_mesoscope import (
+    InputSchema, OutputSchema)
 
 
 def mock_h5(*args, **kwargs):
@@ -151,7 +151,8 @@ def split_timeseries(input_tif, experiments, **h5_opts):
         if h5_opts:
             chunks = (1,) + tuple(plane.plane_shape)
             h5_opts["chunks"] = chunks
-            logging.debug("Setting compression chunk size to {}".format(chunks))
+            logging.debug(
+                "Setting compression chunk size to {}".format(chunks))
 
         with h5py.File(filename, "w") as f:
             volume_to_h5(f, plane, **h5_opts)
@@ -206,7 +207,8 @@ def main():
                     output["column_stacks"].append(out)
                     output["file_metadata"].append(meta)
                 except ValueError as e:
-                    logging.error(e) # don't break on failed column stack conversion
+                    # don't break on failed column stack conversion
+                    logging.error(e)
                 stack_tifs.add(column_stack)
         for exp in plane_group["ophys_experiments"]:
             localz = plane_group["local_z_stack_tif"]
@@ -229,7 +231,7 @@ def main():
                                         **h5_opts)
 
     output["file_metadata"].extend([surf_meta, depth_meta, ts_meta])
-    
+
     exp_out = []
     for exp in experiments:
         eid = exp["experiment_id"]
@@ -253,6 +255,7 @@ def main():
     output["ready_to_archive"] = list(ready_to_archive)
 
     mod.output(output, indent=1)
+
 
 if __name__ == "__main__":
     main()

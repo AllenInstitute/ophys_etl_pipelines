@@ -1,6 +1,4 @@
-import os
 import numpy as np
-from .tiff import MesoscopeTiff
 from tifffile import imsave
 
 
@@ -32,7 +30,7 @@ def volume_to_h5(h5fp, volume, dset_name="data", page_block_size=None,
                                    dtype=volume.dtype, **h5_opts)
         i = 0
         while i < volume.shape[0]:
-            dset[i:i+page_block_size,:,:] = volume[i:i+page_block_size]
+            dset[i:i+page_block_size, :, :] = volume[i:i+page_block_size]
             i += page_block_size
 
 
@@ -50,4 +48,6 @@ def average_and_unsign(volume):
     max_intensity = np.max(flat)
     min_intensity = np.min(flat)
 
-    return ((img32 - min_intensity)*255.0/(max_intensity-min_intensity)).astype(np.uint8)
+    return ((img32 - min_intensity)
+            * 255.0
+            / (max_intensity-min_intensity)).astype(np.uint8)

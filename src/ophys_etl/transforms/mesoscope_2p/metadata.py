@@ -77,8 +77,9 @@ def _tiff_header_data_2017b_v1(fp):
         '<IIII', fp.read(16))
     if magic != SCANIMAGE_TIFF_MAGIC or version != SCANIMAGE_TIFF_VERSION:
         raise ValueError("File is not a ScanImage BigTIFF v3")
-    
-    frame_data = json.loads(stripnull(fp.read(frame_data_size)).decode('utf-8'))
+
+    frame_data = json.loads(
+        stripnull(fp.read(frame_data_size)).decode('utf-8'))
     roi_data = json.loads(stripnull(fp.read(roi_data_size)).decode('utf-8'))
 
     return frame_data, roi_data
@@ -86,7 +87,7 @@ def _tiff_header_data_2017b_v1(fp):
 
 def tiff_header_data(filename):
     """Extract ScanImage header data from a tiff.
-    
+
     http://scanimage.vidriotechnologies.com/display/SI2016/ScanImage+BigTiff+Specification
     """
     with open(filename, "rb") as f:
@@ -138,7 +139,9 @@ class RoiMetadata(dict):
             else:
                 return 0
         if not self.discrete_plane_mode:
-            return 0 # if interpolation between zs happens this is wrong, but currently this hasn't been tested
+            # if interpolation between zs happens this is wrong, but
+            # currently this hasn't been tested
+            return 0
         else:
             return self.zs.index(z)
 
@@ -154,7 +157,7 @@ class RoiMetadata(dict):
         return scanned
 
     def volume_scanned(self, zs):
-        scanned  = False
+        scanned = False
         if self.discrete_plane_mode:
             scanned = all([z in self.zs for z in zs])
         else:

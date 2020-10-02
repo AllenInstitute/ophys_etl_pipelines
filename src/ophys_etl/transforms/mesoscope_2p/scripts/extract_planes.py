@@ -2,9 +2,10 @@ import os
 import argparse
 import json
 import numpy as np
-from mesoscope_2p.metadata import SI_stringify_floats
-from mesoscope_2p.tiff import MesoscopeTiff
-from mesoscope_2p.conversion_utils import volume_to_tif, average_and_unsign
+from ophys_etl.transforms.mesoscope_2p.metadata import SI_stringify_floats
+from ophys_etl.transforms.mesoscope_2p.tiff import MesoscopeTiff
+from ophys_etl.transforms.mesoscope_2p.conversion_utils import (
+    volume_to_tif, average_and_unsign)
 
 
 def get_outfile(plane, folder, prefix=None, extension="tif"):
@@ -33,14 +34,17 @@ def dump_metadata(filename, meso_tiff, clobber=False):
 
 
 def convert_to_tiffs(tiff_file, output_folder, scanfield_slice, clobber=False,
-                     prefix=None, projection_func=None, view_attr="plane_views"):
+                     prefix=None, projection_func=None,
+                     view_attr="plane_views"):
     meso_tiff = MesoscopeTiff(tiff_file)
-    filename = os.path.join(output_folder, "{}_metadata.json".format(os.path.basename(tiff_file)))
+    filename = os.path.join(
+        output_folder, "{}_metadata.json".format(os.path.basename(tiff_file)))
     dump_metadata(filename, meso_tiff, clobber=clobber)
     for plane in getattr(meso_tiff, view_attr):
         filename = get_outfile(plane, output_folder, prefix, "tif")
         if os.path.exists(filename) and not clobber:
-            raise RuntimeError("Output file {} already exists".format(filename))
+            raise RuntimeError(
+                "Output file {} already exists".format(filename))
         volume_to_tif(filename, plane[scanfield_slice], projection_func)
 
 
@@ -88,7 +92,6 @@ def main():
         view_attr = "plane_views"
     convert_to_tiffs(args.input_file, args.output_path, slc, args.clobber,
                      args.prefix, projection_func, view_attr)
-
 
 
 if __name__ == "__main__":

@@ -3,8 +3,8 @@ from tifffile import TiffFile
 from .metadata import tiff_header_data, RoiMetadata
 
 
-def flatten_list(flat_list, l):
-    for item in l:
+def flatten_list(flat_list, nested_list):
+    for item in nested_list:
         if isinstance(item, list):
             flatten_list(flat_list, item)
         else:
@@ -47,12 +47,13 @@ class DataView(object):
             slc = self._slice(key)
             if slc.stop is not None:
                 slc = range(slc.start, slc.stop, slc.step)
-            arr =  self._tiff._tiff.asarray(key=slc)
+            arr = self._tiff._tiff.asarray(key=slc)
         else:
-            raise TypeError("{} is of unsupported type {}".format(key, type(key)))
+            raise TypeError(
+                "{} is of unsupported type {}".format(key, type(key)))
 
         h, _ = self.plane_shape
-        return arr[:,self.y_offset:self.y_offset + h, :]
+        return arr[:, self.y_offset:self.y_offset + h, :]
 
     @property
     def flagged(self):
@@ -106,7 +107,7 @@ class DataView(object):
 
 class MesoscopeTiff(object):
     """Class to represent 2-photon mesoscope data store.
-    
+
     Allows representation of individual ROIs in memory. All ROIs have
     the same width. Handles some seemingly Important features to
     understand are:
@@ -220,10 +221,15 @@ class MesoscopeTiff(object):
 
     def frame_delay_mask(self, n_lines):
         if self.uniform_sampling:
-            raise NotImplementedError("pixel delay mask not currently calculated for uniform sampling")
-        delay_template = np.cumsum(self.pixel_sample_mask/self.digital_sample_rate)
+            raise NotImplementedError(
+                "Pixel delay mask not currently calculated for uniform "
+                "sampling")
+        delay_template = np.cumsum(
+            self.pixel_sample_mask/self.digital_sample_rate)
         line_time = delay_template[-1] / self.temporal_fill_fraction
-        fill_fraction_offset = line_time * (1 - self.temporal_fill_fraction) / 2
+        fill_fraction_offset = (line_time
+                                * (1 - self.temporal_fill_fraction)
+                                / 2)
         delay_mask = []
         t = self.line_phase + fill_fraction_offset
         for line in range(n_lines):
@@ -306,13 +312,17 @@ class MesoscopeTiff(object):
                 if not scanned:
                     # pick a plane to extract when there is no data
                     self._planes.append(
-                        DataView(self, [z], page_offset, y_offset, self.plane_stride, self.rois[0], True))
+                        DataView(
+                            self, [z], page_offset, y_offset,
+                            self.plane_stride, self.rois[0], True))
                 for roi in scanned:
                     self._planes.append(
-                        DataView(self, [z], page_offset, y_offset, self.plane_stride, roi))
+                        DataView(
+                            self, [z], page_offset, y_offset,
+                            self.plane_stride, roi))
                     y_offset += roi.height(z) + lines_between
                 page_offset += 1
-        
+
         return self._planes
 
     @property
@@ -331,10 +341,12 @@ class MesoscopeTiff(object):
                 y_offset = 0
                 for roi in scanned:
                     self._volumes.append(
-                        DataView(self, zs, page_offset, y_offset, self.volume_stride, roi))
+                        DataView(
+                            self, zs, page_offset, y_offset,
+                            self.volume_stride, roi))
                     y_offset += roi.height(zs[0]) + lines_between
                 page_offset += 1
-        
+
         return self._volumes
 
     @property

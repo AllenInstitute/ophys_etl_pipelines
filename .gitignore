@@ -1,4 +1,6 @@
 # Sourced from: https://github.com/github/gitignore/blob/master/Python.gitignore
+# Sphinx gallery temp dir
+docs/auto_examples/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -10,6 +12,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+env/
 build/
 develop-eggs/
 dist/
@@ -147,6 +150,11 @@ cython_debug/
 !.vscode/launch.json
 !.vscode/extensions.json
 *.code-workspace
-
-# Local History for Visual Studio Code
+# ide specific 
+.idea/
 .history/
+
+# pyenv python configuration file
+.python-version
+
+

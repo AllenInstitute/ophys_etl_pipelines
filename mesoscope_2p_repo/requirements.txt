@@ -1,3 +1,0 @@
-tifffile
-h5py
-numpy

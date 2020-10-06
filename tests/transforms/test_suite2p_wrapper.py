@@ -79,7 +79,7 @@ def suite2p_side_effect(args):
 
 
 @pytest.mark.parametrize(
-        "retain_files, nbinned, bin_size, exception",
+        "retain_files, nbinned, movie_frame_rate, exception",
         [
             ([['stat.npy'], 10, None, False]),
             ([['stat.npy'], None, 10, False]),
@@ -88,7 +88,8 @@ def suite2p_side_effect(args):
             ([['all'], 10, None, False]),
             ])
 def test_suite2p_wrapper(
-        tmp_path, monkeypatch, retain_files, nbinned, bin_size, exception):
+        tmp_path, monkeypatch, retain_files, nbinned,
+        movie_frame_rate, exception):
     nframes = 100
     input_file = tmp_path / "input.h5py"
     with h5py.File(input_file, "w") as f:
@@ -103,8 +104,8 @@ def test_suite2p_wrapper(
 
     if nbinned is not None:
         args['nbinned'] = nbinned
-    if bin_size is not None:
-        args['bin_size'] = bin_size
+    if movie_frame_rate is not None:
+        args['movie_frame_rate'] = movie_frame_rate
 
     mock_suite2p = MagicMock()
     mock_suite2p.run_s2p = MagicMock()
@@ -121,7 +122,8 @@ def test_suite2p_wrapper(
     s = suite2p_wrapper.Suite2PWrapper(input_data=args, args=[])
     s.run()
 
-    if bin_size is not None:
+    if movie_frame_rate is not None:
+        bin_size = s.args['bin_duration'] * movie_frame_rate
         assert s.args['nbinned'] == int(nframes / bin_size)
 
     assert os.path.isfile(args['output_json'])

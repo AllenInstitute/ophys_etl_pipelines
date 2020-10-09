@@ -241,6 +241,16 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
                 nframes = f['data'].shape[0]
             bin_size = (self.args['bin_duration']
                         * self.args['movie_frame_rate'])
+
+            if bin_size > nframes:
+                raise Suite2PWrapperException(
+                    f"The desired frame bin duration "
+                    f"({self.args['bin_duration']} "
+                    f"seconds) and movie frame rate "
+                    f"({self.args['movie_frame_rate']} Hz) results in a bin "
+                    f"size ({bin_size} frames) larger than the number of "
+                    f"actual frames in the movie ({nframes})!")
+
             self.args['nbinned'] = int(nframes / bin_size)
             self.logger.info(f"Movie has {nframes} frames collected at "
                              f"{self.args['movie_frame_rate']} Hz. To get a "

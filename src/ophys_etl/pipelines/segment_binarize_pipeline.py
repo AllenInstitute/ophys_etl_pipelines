@@ -48,9 +48,6 @@ class SegmentBinarizeSchema(argschema.ArgSchema):
                               / "Suite2P_output.json")
             data["suite2p_args"]["output_json"] = str(Suite2p_output)
 
-        if "bin_size" not in data["suite2p_args"]:
-            data["suite2p_args"]["bin_size"] = 115
-
         data["suite2p_args"]["log_level"] = data["log_level"]
 
         # convert_args

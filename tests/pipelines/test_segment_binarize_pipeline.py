@@ -62,7 +62,9 @@ def test_segment_binarize_pipeline(tmp_path):
     outj_path = tmp_path / "output.json"
 
     args = {"suite2p_args": {
-                "h5py": str(h5path)},
+                "h5py": str(h5path),
+                "movie_frame_rate": 31.0,
+            },
             "convert_args": {
                 "motion_correction_values": str(mcvalues_path)},
             "output_json": str(outj_path)

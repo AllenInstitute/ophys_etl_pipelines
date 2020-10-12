@@ -2,7 +2,7 @@ import pytest
 import json
 import numpy as np
 
-from ophys_etl.transforms.convert_rois import BinarizerAndROICreator
+from ophys_etl.transforms.postprocess_rois import PostProcessROIs
 from ophys_etl.types import DenseROI
 from ophys_etl.schemas import DenseROISchema
 
@@ -139,12 +139,12 @@ def test_binarize_and_convert_rois(s2p_stat_fixture, ophys_movie_fixture,
         'motion_correction_values': str(motion_path),
         'output_json': str(output_path),
         'npixel_threshold': 1,
-        'aspect_ratio_threshold': aspect_threshold
+        'aspect_ratio_threshold': aspect_threshold,
+        'morphological_ops': False
     }
 
-    converter = BinarizerAndROICreator(input_data=args,
-                                       args=[])
-    converter.binarize_and_create()
+    converter = PostProcessROIs(input_data=args, args=[])
+    converter.run()
 
     # assert file exists
     assert output_path.exists()

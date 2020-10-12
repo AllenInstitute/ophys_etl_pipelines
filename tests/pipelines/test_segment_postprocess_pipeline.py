@@ -4,12 +4,12 @@ from unittest.mock import patch, Mock
 import pathlib
 import argschema
 import json
-import ophys_etl.transforms.convert_rois as crois
+import ophys_etl.transforms.postprocess_rois as post_rois
 
 import sys
 sys.modules['suite2p'] = Mock()
 import ophys_etl.transforms.suite2p_wrapper as s2pw  # noqa
-import ophys_etl.pipelines.segment_binarize_pipeline as sbpipe  # noqa
+import ophys_etl.pipelines.segment_postprocess_pipeline as sbpipe  # noqa
 
 
 class MockSuite2PWrapper(argschema.ArgSchemaParser):
@@ -33,21 +33,21 @@ class MockOutputSchema(argschema.schemas.DefaultSchema):
         required=True)
 
 
-class MockBinarizer(argschema.ArgSchemaParser):
-    default_schema = crois.BinarizeAndCreateROIsInputSchema
+class MockPostProcess(argschema.ArgSchemaParser):
+    default_schema = post_rois.PostProcessROIsInputSchema
     default_output_schema = MockOutputSchema
 
-    def binarize_and_create(self):
+    def run(self):
         self.output({'some_output': 'junk'})
 
 
 @patch(
-        'ophys_etl.pipelines.segment_binarize_pipeline.Suite2PWrapper',
+        'ophys_etl.pipelines.segment_postprocess_pipeline.Suite2PWrapper',
         MockSuite2PWrapper)
 @patch(
-        'ophys_etl.pipelines.segment_binarize_pipeline.BinarizerAndROICreator',
-        MockBinarizer)
-def test_segment_binarize_pipeline(tmp_path):
+        'ophys_etl.pipelines.segment_postprocess_pipeline.PostProcessROIs',
+        MockPostProcess)
+def test_segment_postprocess_pipeline(tmp_path):
     """tests that satisfying the pipeline schema satisfies the
     internal transform schema.
     """
@@ -70,7 +70,7 @@ def test_segment_binarize_pipeline(tmp_path):
             "output_json": str(outj_path)
             }
 
-    sbp = sbpipe.SegmentBinarize(input_data=args, args=[])
+    sbp = sbpipe.SegmentAndPostProcess(input_data=args, args=[])
     sbp.run()
 
     with open(outj_path, "r") as f:

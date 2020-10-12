@@ -4,7 +4,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 from argschema import ArgSchema, ArgSchemaParser
-from argschema.fields import Float, InputFile, Int, OutputFile, Str
+from argschema.fields import Float, InputFile, Int, OutputFile, Str, Bool
 from marshmallow import ValidationError
 from marshmallow.validate import Range
 
@@ -13,15 +13,16 @@ from ophys_etl.extractors.motion_correction import \
 from ophys_etl.schemas import DenseROISchema
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
                                                  coo_rois_to_lims_compatible,
-                                                 suite2p_rois_to_coo)
+                                                 suite2p_rois_to_coo,
+                                                 morphological_transform)
 from ophys_etl.filters import filter_by_aspect_ratio
 
 
-class BinarizeAndCreationException(Exception):
+class PostProcessException(Exception):
     pass
 
 
-class BinarizeAndCreateROIsInputSchema(ArgSchema):
+class PostProcessROIsInputSchema(ArgSchema):
     suite2p_stat_path = Str(
         required=True,
         validate=lambda x: Path(x).exists(),
@@ -73,12 +74,17 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         description=("ROIs whose aspect ratio is <= this value are "
                      "not recorded. This captures a large majority of "
                      "Suite2P-created artifacts from motion border"))
+    morphological_ops = Bool(
+        default=True,
+        required=False,
+        description=("whether to perform morphological operations after "
+                     "binarization"))
 
 
-class BinarizerAndROICreator(ArgSchemaParser):
-    default_schema = BinarizeAndCreateROIsInputSchema
+class PostProcessROIs(ArgSchemaParser):
+    default_schema = PostProcessROIsInputSchema
 
-    def binarize_and_create(self):
+    def run(self):
         """
         This function takes ROIs (regions of interest) outputted from
         suite2p in a stat.npy file and converts them to a LIMS compatible
@@ -133,6 +139,10 @@ class BinarizerAndROICreator(ArgSchemaParser):
                 binarized_coo_rois, motion_border, movie_shape,
                 self.args['npixel_threshold'])
 
+        if self.args['morphological_ops']:
+            compatible_rois = [morphological_transform(roi, shape=movie_shape)
+                               for roi in compatible_rois]
+
         # validate ROIs
         errors = DenseROISchema(many=True).validate(compatible_rois)
         if any(errors):
@@ -147,5 +157,5 @@ class BinarizerAndROICreator(ArgSchemaParser):
 
 
 if __name__ == '__main__':  # pragma: no cover
-    roi_creator_and_binarizer = BinarizerAndROICreator()
-    roi_creator_and_binarizer.binarize_and_create()
+    roi_post = PostProcessROIs()
+    roi_post.run()

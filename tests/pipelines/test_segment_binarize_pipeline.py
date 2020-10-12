@@ -4,7 +4,7 @@ from unittest.mock import patch, Mock
 import pathlib
 import argschema
 import json
-import ophys_etl.transforms.convert_rois as crois
+import ophys_etl.transforms.postprocess_rois as post_rois
 
 import sys
 sys.modules['suite2p'] = Mock()
@@ -33,11 +33,11 @@ class MockOutputSchema(argschema.schemas.DefaultSchema):
         required=True)
 
 
-class MockBinarizer(argschema.ArgSchemaParser):
-    default_schema = crois.BinarizeAndCreateROIsInputSchema
+class MockPostProcess(argschema.ArgSchemaParser):
+    default_schema = post_rois.PostProcessROIsInputSchema
     default_output_schema = MockOutputSchema
 
-    def binarize_and_create(self):
+    def run(self):
         self.output({'some_output': 'junk'})
 
 
@@ -45,8 +45,8 @@ class MockBinarizer(argschema.ArgSchemaParser):
         'ophys_etl.pipelines.segment_binarize_pipeline.Suite2PWrapper',
         MockSuite2PWrapper)
 @patch(
-        'ophys_etl.pipelines.segment_binarize_pipeline.BinarizerAndROICreator',
-        MockBinarizer)
+        'ophys_etl.pipelines.segment_binarize_pipeline.PostProcessROIs',
+        MockPostProcess)
 def test_segment_binarize_pipeline(tmp_path):
     """tests that satisfying the pipeline schema satisfies the
     internal transform schema.

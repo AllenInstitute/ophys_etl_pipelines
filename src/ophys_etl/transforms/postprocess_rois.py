@@ -18,11 +18,11 @@ from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
 from ophys_etl.filters import filter_by_aspect_ratio
 
 
-class BinarizeAndCreationException(Exception):
+class PostProcessException(Exception):
     pass
 
 
-class BinarizeAndCreateROIsInputSchema(ArgSchema):
+class PostProcessROIsInputSchema(ArgSchema):
     suite2p_stat_path = Str(
         required=True,
         validate=lambda x: Path(x).exists(),
@@ -81,10 +81,10 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
                      "binarization"))
 
 
-class BinarizerAndROICreator(ArgSchemaParser):
-    default_schema = BinarizeAndCreateROIsInputSchema
+class PostProcessROIs(ArgSchemaParser):
+    default_schema = PostProcessROIsInputSchema
 
-    def binarize_and_create(self):
+    def run(self):
         """
         This function takes ROIs (regions of interest) outputted from
         suite2p in a stat.npy file and converts them to a LIMS compatible
@@ -157,5 +157,5 @@ class BinarizerAndROICreator(ArgSchemaParser):
 
 
 if __name__ == '__main__':  # pragma: no cover
-    roi_creator_and_binarizer = BinarizerAndROICreator()
-    roi_creator_and_binarizer.binarize_and_create()
+    roi_post = PostProcessROIs()
+    roi_post.run()

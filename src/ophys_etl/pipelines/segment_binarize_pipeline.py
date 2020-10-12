@@ -6,13 +6,13 @@ import marshmallow
 import argschema
 
 
-from ophys_etl.transforms.convert_rois import (
-    BinarizeAndCreateROIsInputSchema, BinarizerAndROICreator)
+from ophys_etl.transforms.postprocess_rois import (
+    PostProcessROIsInputSchema, PostProcessROIs)
 from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
                                                   Suite2PWrapperSchema)
 
 
-class ConvertROIsInputSchema(BinarizeAndCreateROIsInputSchema):
+class ConvertROIsInputSchema(PostProcessROIsInputSchema):
 
     # Override the default "suite2p_stat_field" required parameter of the
     # BinarizeAndCreateROIsInputSchema.
@@ -81,8 +81,8 @@ class SegmentBinarize(argschema.ArgSchemaParser):
         if "suite2p_stat_path" not in convert_args:
             convert_args["suite2p_stat_path"] = stat_path
 
-        binarize = BinarizerAndROICreator(input_data=convert_args, args=[])
-        binarize.binarize_and_create()
+        postprocess = PostProcessROIs(input_data=convert_args, args=[])
+        postprocess.run()
 
         # Clean up temporary directories and/or files created during
         # Schema invocation

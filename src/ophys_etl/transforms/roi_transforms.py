@@ -38,7 +38,8 @@ def full_mask_constructor(mask_matrix: List[List[bool]], x: int, y: int,
     height, width = np.array(mask_matrix).shape
     mask = np.pad(mask_matrix,
                   pad_width=((y, shape[0] - height - y),
-                             (x, shape[1] - width - x)))
+                             (x, shape[1] - width - x)),
+                  mode='constant')
     return mask
 
 

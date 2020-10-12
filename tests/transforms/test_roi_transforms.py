@@ -6,6 +6,119 @@ from scipy.sparse import coo_matrix
 from ophys_etl.extractors.motion_correction import MotionBorder
 from ophys_etl.transforms import roi_transforms
 from ophys_etl.types import DenseROI
+from ophys_etl.schemas import DenseROISchema
+
+
+@pytest.mark.parametrize(
+    "np_mask_matrix, x, y, shape, expected, fail",
+    [
+        (
+            np.array([[0, 0, 1, 0],
+                      [0, 1, 1, 0],
+                      [0, 1, 1, 0],
+                      [0, 1, 1, 1]]).astype(bool),
+            2, 3, (7, 7),
+            np.array([[0, 0, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 1, 0, 0],
+                      [0, 0, 0, 1, 1, 0, 0],
+                      [0, 0, 0, 1, 1, 0, 0],
+                      [0, 0, 0, 1, 1, 1, 0]]).astype(bool),
+            False,
+        ),
+        (
+            np.array([[0, 0, 1, 0],
+                      [0, 1, 1, 0],
+                      [0, 1, 1, 0],
+                      [0, 1, 1, 1]]).astype(bool),
+            2, 3, (5, 5), None, True
+        ),
+    ]
+)
+def test_full_mask_constructor(np_mask_matrix, x, y, shape, expected, fail):
+    mask_matrix = [i.tolist() for i in np_mask_matrix]
+    if fail:
+        with pytest.raises(ValueError,
+                           match=r"index can't contain negative values"):
+            roi_transforms.full_mask_constructor(mask_matrix, x, y, shape)
+    else:
+        full_mask = roi_transforms.full_mask_constructor(mask_matrix,
+                                                         x, y, shape)
+        np.testing.assert_array_equal(full_mask, expected)
+
+
+@pytest.mark.parametrize(
+    "full_mask, roi, expected",
+    [
+        (
+            np.array([[0, 0, 0, 0, 0, 0, 0],
+                      [0, 0, 0, 0, 0, 0, 0],
+                      [0, 1, 0, 0, 0, 0, 0],
+                      [0, 1, 1, 0, 0, 0, 0],
+                      [0, 0, 1, 0, 0, 0, 0],
+                      [0, 0, 1, 1, 0, 0, 0],
+                      [0, 0, 0, 0, 0, 0, 0]]).astype(bool),
+            {
+                'extra key': "should propogate"
+            },
+            {
+                'x': 1,
+                'y': 2,
+                'width': 3,
+                'height': 4,
+                'extra key': "should propogate",
+                'mask_matrix': [[True, False, False],
+                                [True, True, False],
+                                [False, True, False],
+                                [False, True, True]]
+            }
+        )
+    ]
+)
+def test_roi_from_full_mask(full_mask, roi, expected):
+    new_roi = roi_transforms.roi_from_full_mask(roi, full_mask)
+    assert new_roi == expected
+
+
+@pytest.mark.parametrize(
+    "mask_matrix, fail",
+    [
+        (
+            [[True, True], [False, True]],
+            True,
+        ),
+        (
+            [[True, True, True, True],
+             [True, True, True, True],
+             [True, True, True, True],
+             [True, True, True, True]],
+            False
+        )
+    ]
+)
+def test_morphological_transform(mask_matrix, fail):
+    d = DenseROI(id=1, x=23, y=34, width=128, height=128, valid_roi=True,
+                 mask_matrix=mask_matrix,
+                 max_correction_up=12,
+                 max_correction_down=12,
+                 max_correction_left=12,
+                 max_correction_right=12,
+                 mask_image_plane=0,
+                 exclusion_labels=['small_size', 'motion_border'])
+    if fail:
+        with pytest.raises(ValueError, match=r".*had no pixels left"):
+            roi_transforms.morphological_transform(d, (50, 50))
+        return
+
+    morphed = roi_transforms.morphological_transform(d, (50, 50))
+    DenseROISchema().validate(morphed)
+
+    for k in ['id', 'valid_roi', 'mask_image_plane', 'exclusion_labels']:
+        assert morphed[k] == d[k]
+    for k in d.keys():
+        if 'max_correction' in k:
+            assert morphed[k] == d[k]
 
 
 def test_dense_to_extract():

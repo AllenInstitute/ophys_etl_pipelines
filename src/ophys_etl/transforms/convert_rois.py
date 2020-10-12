@@ -4,7 +4,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 from argschema import ArgSchema, ArgSchemaParser
-from argschema.fields import Float, InputFile, Int, OutputFile, Str
+from argschema.fields import Float, InputFile, Int, OutputFile, Str, Bool
 from marshmallow import ValidationError
 from marshmallow.validate import Range
 
@@ -13,7 +13,8 @@ from ophys_etl.extractors.motion_correction import \
 from ophys_etl.schemas import DenseROISchema
 from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
                                                  coo_rois_to_lims_compatible,
-                                                 suite2p_rois_to_coo)
+                                                 suite2p_rois_to_coo,
+                                                 morphological_transform)
 from ophys_etl.filters import filter_by_aspect_ratio
 
 
@@ -73,6 +74,11 @@ class BinarizeAndCreateROIsInputSchema(ArgSchema):
         description=("ROIs whose aspect ratio is <= this value are "
                      "not recorded. This captures a large majority of "
                      "Suite2P-created artifacts from motion border"))
+    morphological_ops = Bool(
+        default=True,
+        required=False,
+        description=("whether to perform morphological operations after "
+                     "binarization"))
 
 
 class BinarizerAndROICreator(ArgSchemaParser):
@@ -132,6 +138,10 @@ class BinarizerAndROICreator(ArgSchemaParser):
         compatible_rois = coo_rois_to_lims_compatible(
                 binarized_coo_rois, motion_border, movie_shape,
                 self.args['npixel_threshold'])
+
+        if self.args['morphological_ops']:
+            compatible_rois = [morphological_transform(roi, shape=movie_shape)
+                               for roi in compatible_rois]
 
         # validate ROIs
         errors = DenseROISchema(many=True).validate(compatible_rois)

@@ -9,7 +9,7 @@ import ophys_etl.transforms.postprocess_rois as post_rois
 import sys
 sys.modules['suite2p'] = Mock()
 import ophys_etl.transforms.suite2p_wrapper as s2pw  # noqa
-import ophys_etl.pipelines.segment_binarize_pipeline as sbpipe  # noqa
+import ophys_etl.pipelines.segment_postprocess_pipeline as sbpipe  # noqa
 
 
 class MockSuite2PWrapper(argschema.ArgSchemaParser):
@@ -42,12 +42,12 @@ class MockPostProcess(argschema.ArgSchemaParser):
 
 
 @patch(
-        'ophys_etl.pipelines.segment_binarize_pipeline.Suite2PWrapper',
+        'ophys_etl.pipelines.segment_postprocess_pipeline.Suite2PWrapper',
         MockSuite2PWrapper)
 @patch(
-        'ophys_etl.pipelines.segment_binarize_pipeline.PostProcessROIs',
+        'ophys_etl.pipelines.segment_postprocess_pipeline.PostProcessROIs',
         MockPostProcess)
-def test_segment_binarize_pipeline(tmp_path):
+def test_segment_postprocess_pipeline(tmp_path):
     """tests that satisfying the pipeline schema satisfies the
     internal transform schema.
     """
@@ -70,7 +70,7 @@ def test_segment_binarize_pipeline(tmp_path):
             "output_json": str(outj_path)
             }
 
-    sbp = sbpipe.SegmentBinarize(input_data=args, args=[])
+    sbp = sbpipe.SegmentAndPostProcess(input_data=args, args=[])
     sbp.run()
 
     with open(outj_path, "r") as f:

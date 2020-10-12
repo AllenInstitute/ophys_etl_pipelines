@@ -15,7 +15,7 @@ from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
 class ConvertROIsInputSchema(PostProcessROIsInputSchema):
 
     # Override the default "suite2p_stat_field" required parameter of the
-    # BinarizeAndCreateROIsInputSchema.
+    # PostProcessROIsInputSchema.
     # When run in pipeline, the suite2p_stat_path won't be known until
     # after segmentation has run.
     suite2p_stat_path = argschema.fields.Str(
@@ -25,7 +25,7 @@ class ConvertROIsInputSchema(PostProcessROIsInputSchema):
                      "during source extraction"))
 
 
-class SegmentBinarizeSchema(argschema.ArgSchema):
+class SegmentPostProcessSchema(argschema.ArgSchema):
     suite2p_args = argschema.fields.Nested(Suite2PWrapperSchema,
                                            required=True)
     convert_args = argschema.fields.Nested(ConvertROIsInputSchema,
@@ -63,8 +63,8 @@ class SegmentBinarizeSchema(argschema.ArgSchema):
         return data
 
 
-class SegmentBinarize(argschema.ArgSchemaParser):
-    default_schema = SegmentBinarizeSchema
+class SegmentAndPostProcess(argschema.ArgSchemaParser):
+    default_schema = SegmentPostProcessSchema
 
     def run(self):
 
@@ -91,5 +91,5 @@ class SegmentBinarize(argschema.ArgSchemaParser):
 
 
 if __name__ == "__main__":  # pragma: nocover
-    sbmod = SegmentBinarize()
+    sbmod = SegmentAndPostProcess()
     sbmod.run()

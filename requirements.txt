@@ -11,3 +11,4 @@ boto3
 croissant-ml
 typing_extensions
 tifffile
+scikit-image

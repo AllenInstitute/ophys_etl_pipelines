@@ -145,8 +145,12 @@ class PostProcessROIs(ArgSchemaParser):
         if self.args['morphological_ops']:
             compatible_rois = [morphological_transform(roi, shape=movie_shape)
                                for roi in compatible_rois]
+            n_rois = len(compatible_rois)
             # eliminate None
             compatible_rois = [roi for roi in compatible_rois if roi]
+            n_rois_morphed = len(compatible_rois)
+            self.logger.info("morphological transform reduced number of "
+                             f"ROIs from {n_rois} to {n_rois_morphed}")
 
         # validate ROIs
         errors = DenseROISchema(many=True).validate(compatible_rois)

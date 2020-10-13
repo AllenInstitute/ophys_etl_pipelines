@@ -63,10 +63,10 @@ def roi_from_full_mask(roi: DenseROI, mask: np.ndarray
     where = np.where(mask)
     if where[0].size == 0:
         return None
-    roi['x'] = where[1].min()
-    roi['width'] = where[1].ptp() + 1
-    roi['y'] = where[0].min()
-    roi['height'] = where[0].ptp() + 1
+    roi['x'] = int(where[1].min())
+    roi['width'] = int(where[1].ptp() + 1)
+    roi['y'] = int(where[0].min())
+    roi['height'] = int(where[0].ptp() + 1)
     list_mask = []
     for y in range(roi['y'], roi['y'] + roi['height']):
         list_mask.append(mask[y, roi['x']:(roi['x'] + roi['width'])].tolist())

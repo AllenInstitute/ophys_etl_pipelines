@@ -12,7 +12,7 @@ from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
                                                   Suite2PWrapperSchema)
 
 
-class ConvertROIsInputSchema(PostProcessROIsInputSchema):
+class PostProcessInputSchema(PostProcessROIsInputSchema):
 
     # Override the default "suite2p_stat_field" required parameter of the
     # PostProcessROIsInputSchema.
@@ -28,8 +28,8 @@ class ConvertROIsInputSchema(PostProcessROIsInputSchema):
 class SegmentPostProcessSchema(argschema.ArgSchema):
     suite2p_args = argschema.fields.Nested(Suite2PWrapperSchema,
                                            required=True)
-    convert_args = argschema.fields.Nested(ConvertROIsInputSchema,
-                                           required=True)
+    postprocess_args = argschema.fields.Nested(PostProcessInputSchema,
+                                               required=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -50,15 +50,15 @@ class SegmentPostProcessSchema(argschema.ArgSchema):
 
         data["suite2p_args"]["log_level"] = data["log_level"]
 
-        # convert_args
-        if "motion_corrected_video" not in data["convert_args"]:
-            data["convert_args"]["motion_corrected_video"] = (
+        # postprocess_args
+        if "motion_corrected_video" not in data["postprocess_args"]:
+            data["postprocess_args"]["motion_corrected_video"] = (
                 data["suite2p_args"]["h5py"])
 
-        if "output_json" not in data["convert_args"]:
-            data["convert_args"]["output_json"] = data["output_json"]
+        if "output_json" not in data["postprocess_args"]:
+            data["postprocess_args"]["output_json"] = data["output_json"]
 
-        data["convert_args"]["log_level"] = data["log_level"]
+        data["postprocess_args"]["log_level"] = data["log_level"]
 
         return data
 
@@ -73,15 +73,15 @@ class SegmentAndPostProcess(argschema.ArgSchemaParser):
         segment = Suite2PWrapper(input_data=suite2p_args, args=[])
         segment.run()
 
-        # binarize and output LIMS format
+        # postprocess and output LIMS format
         with open(suite2p_args["output_json"], "r") as f:
             stat_path = json.load(f)['output_files']['stat.npy']
 
-        convert_args = self.args['convert_args']
-        if "suite2p_stat_path" not in convert_args:
-            convert_args["suite2p_stat_path"] = stat_path
+        postprocess_args = self.args['postprocess_args']
+        if "suite2p_stat_path" not in postprocess_args:
+            postprocess_args["suite2p_stat_path"] = stat_path
 
-        postprocess = PostProcessROIs(input_data=convert_args, args=[])
+        postprocess = PostProcessROIs(input_data=postprocess_args, args=[])
         postprocess.run()
 
         # Clean up temporary directories and/or files created during

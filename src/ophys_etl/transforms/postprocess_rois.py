@@ -78,7 +78,10 @@ class PostProcessROIsInputSchema(ArgSchema):
         default=True,
         required=False,
         description=("whether to perform morphological operations after "
-                     "binarization"))
+                     "binarization. ROIs that are washed away to empty "
+                     "after this operation are eliminated from the record. "
+                     "This can apply to ROIs that were previously labeled "
+                     "as small size, for example."))
 
 
 class PostProcessROIs(ArgSchemaParser):
@@ -142,6 +145,8 @@ class PostProcessROIs(ArgSchemaParser):
         if self.args['morphological_ops']:
             compatible_rois = [morphological_transform(roi, shape=movie_shape)
                                for roi in compatible_rois]
+            # eliminate None
+            compatible_rois = [roi for roi in compatible_rois if roi]
 
         # validate ROIs
         errors = DenseROISchema(many=True).validate(compatible_rois)

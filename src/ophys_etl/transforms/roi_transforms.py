@@ -74,7 +74,8 @@ def roi_from_full_mask(roi: DenseROI, mask: np.ndarray
     return roi
 
 
-def morphological_transform(roi: DenseROI, shape: Tuple[int, int]) -> DenseROI:
+def morphological_transform(roi: DenseROI, shape: Tuple[int, int]
+                            ) -> Union[DenseROI, None]:
     """performs a closing followed by an opening to clean up pixelated
     appearance of ROIs
 
@@ -89,12 +90,7 @@ def morphological_transform(roi: DenseROI, shape: Tuple[int, int]) -> DenseROI:
     Returns
     -------
     roi: DenseROI
-        transformed roi
-
-    Raises
-    ------
-    ValueError
-        if the operation leaves no pixels
+        transformed roi or None if empty after transform
 
     """
 
@@ -103,9 +99,6 @@ def morphological_transform(roi: DenseROI, shape: Tuple[int, int]) -> DenseROI:
     mask = binary_closing(mask, selem=structuring_element)
     mask = binary_opening(mask, selem=structuring_element)
     new_roi = roi_from_full_mask(roi, mask)
-    if new_roi is None:
-        raise ValueError(f"roi {roi['id']} had no pixels left after "
-                         "morphological transform")
     return new_roi
 
 

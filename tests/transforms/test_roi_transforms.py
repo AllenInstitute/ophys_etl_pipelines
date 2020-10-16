@@ -82,7 +82,7 @@ def test_roi_from_full_mask(full_mask, roi, expected):
 
 
 @pytest.mark.parametrize(
-    "mask_matrix, fail",
+    "mask_matrix, expect_None",
     [
         (
             [[True, True], [False, True]],
@@ -97,7 +97,7 @@ def test_roi_from_full_mask(full_mask, roi, expected):
         )
     ]
 )
-def test_morphological_transform(mask_matrix, fail):
+def test_morphological_transform(mask_matrix, expect_None):
     d = DenseROI(id=1, x=23, y=34, width=128, height=128, valid_roi=True,
                  mask_matrix=mask_matrix,
                  max_correction_up=12,
@@ -106,9 +106,8 @@ def test_morphological_transform(mask_matrix, fail):
                  max_correction_right=12,
                  mask_image_plane=0,
                  exclusion_labels=['small_size', 'motion_border'])
-    if fail:
-        with pytest.raises(ValueError, match=r".*had no pixels left"):
-            roi_transforms.morphological_transform(d, (50, 50))
+    if expect_None:
+        assert roi_transforms.morphological_transform(d, (50, 50)) is None
         return
 
     morphed = roi_transforms.morphological_transform(d, (50, 50))

@@ -272,7 +272,7 @@ class SlappTransformInput(argschema.ArgSchemaParser):
             if 'local_ids' in experiment:
                 global_to_local = {}
                 for local in experiment['local_ids']:
-                    global_to_local[global_counter] = local
+                    global_to_local[local] = global_counter
                     global_counter += 1
                 experiment['local_to_global_roi_id_map'] = global_to_local
                 experiment.pop('local_ids')

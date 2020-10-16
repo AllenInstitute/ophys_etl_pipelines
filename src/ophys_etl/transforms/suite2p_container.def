@@ -26,6 +26,7 @@ From: continuumio/miniconda3:4.8.2
     echo "export CONDA_BASE=\"${CONDA_BASE}\"" >> $SINGULARITY_ENVIRONMENT
 
     # install Suite2P
+    apt-get update
     apt-get install -q -y libgl1-mesa-glx
     git clone https://github.com/MouseLand/suite2p
     cd suite2p

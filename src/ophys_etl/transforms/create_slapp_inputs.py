@@ -270,11 +270,11 @@ class SlappTransformInput(argschema.ArgSchemaParser):
         outjpaths = []
         for experiment in experiments:
             if 'local_ids' in experiment:
-                global_to_local = {}
+                local_to_global = {}
                 for local in experiment['local_ids']:
-                    global_to_local[local] = global_counter
-                    global_counter += 1
-                experiment['local_to_global_roi_id_map'] = global_to_local
+                    local_to_global[local] = global_counter
+                    local_to_global += 1
+                experiment['local_to_global_roi_id_map'] = local_to_global
                 experiment.pop('local_ids')
 
                 # validate

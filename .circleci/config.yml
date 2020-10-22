@@ -1,46 +1,34 @@
 version: 2.1
 orbs:
-  singularity: singularity/singularity@1.0.10
   python: circleci/python@0.3
 jobs:
-  singularity-image:
-    executor: singularity/machine
+  docker:
+    machine: true
     steps:
       - checkout
-      - singularity/install-go:
-          go-version: '1.13'
-      - singularity/debian-install-3:
-          singularity-version: 3.5.0
       - run:
-          # copied from singularity/build-image to add branch-specific build
-          name: Build Singularity Container
+          name: Build docker image
           command: |
-            NOSUDO=false
-            which sudo || NOSUDO=true
-            if [[ "$NOSUDO" == "false" ]]; then
-                if [[ $EUID == 0 ]]; then export SUDO=""; else export SUDO="sudo"; fi
-            fi
-            if [ -f "$BASH_ENV" ]; then source $BASH_ENV; fi
-            $SUDO SINGULARITYENV_OPHYS_ETL_TAG=${CIRCLE_BRANCH} singularity build suite2p_container.img src/ophys_etl/transforms/suite2p_container.def
+            docker build --build-arg OPHYS_ETL_TAG=${CIRCLE_BRANCH} --build-arg OPHYS_ETL_COMMIT_SHA=${CIRCLE_SHA1} -t alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} docker/
       - run:
-          name: Run Singularity Container pytest
+          name: Run docker image pytest
           command: |
-            singularity run ./suite2p_container.img python -m pytest /ophys_etl_pipelines
+            docker run alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} python -m pytest
       - run:
-          name: Run Singularity Container Smoke Test
+          name: Run docker image smoke test
           command: |
-            mkdir smoke_output
-            singularity run ./suite2p_container.img python -m ophys_etl.transforms.suite2p_wrapper --h5py tests/transforms/resources/movie_100x100x100.h5 --output_dir smoke_output --movie_frame_rate 1.0 --log_level INFO --output_json smoke_output/output.json
+            docker run alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} python -m ophys_etl.transforms.suite2p_wrapper --h5py tests/transforms/resources/movie_100x100x100.h5 --output_dir /tmp --movie_frame_rate 1.0 --log_level INFO --output_json /tmp/output.json
       - run:
-          name: Upload Singularity Image
+          name: Upload docker image
           command: |
-            echo ${SYLABS_TOKEN} | singularity remote login
+            echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
             if [ "$CIRCLE_BRANCH" = "main" ]
             then
-                singularity push -U suite2p_container.img library://allen_institute_pika/ophys_etl_pipelines/suite2p_container.img:latest
+                docker tag alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:main
             else
-                singularity push -U suite2p_container.img library://allen_institute_pika/ophys_etl_pipelines/suite2p_container.img:develop
+                docker tag alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:develop
             fi
+            docker push alleninstitutepika/ophys_etl_pipelines
 
   build377: &test-template
     executor:
@@ -85,7 +73,7 @@ workflows:
       - build377
       - build38
       - lint
-      - singularity-image:
+      - docker:
           requires:
             - build377
             - lint
@@ -93,4 +81,4 @@ workflows:
             branches:
               only:
                 - main
-                - /.*singularity.*/
+                - /.*dev.*/

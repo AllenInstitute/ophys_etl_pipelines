@@ -1,12 +1,14 @@
-import argschema
-import suite2p
+import datetime
+import os
 import pathlib
-import marshmallow as mm
-import h5py
+import shutil
 import tempfile
 from typing import Dict, List, Optional
-import datetime
-import shutil
+
+import argschema
+import h5py
+import marshmallow as mm
+import suite2p
 
 
 class Suite2PWrapperException(Exception):
@@ -234,6 +236,12 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
     def run(self):
         self.logger.name = type(self).__name__
         self.logger.setLevel(self.args.pop('log_level'))
+
+        # Should always exist as either a valid SHA or "unknown build"
+        # if running in docker container.
+        ophys_etl_commit_sha = os.environ.get("OPHYS_ETL_COMMIT_SHA",
+                                              "local build")
+        self.logger.info(f"OPHYS_ETL_COMMIT_SHA: {ophys_etl_commit_sha}")
 
         # determine nbinned from bin_duration and movie_frame_rate
         if 'nbinned' not in self.args:

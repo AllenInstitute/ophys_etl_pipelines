@@ -13,7 +13,7 @@ jobs:
       - run:
           name: Run docker image pytest
           command: |
-            docker run alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} python -m pytest
+                  docker run --entrypoint /bin/bash alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} -c "python -m pytest -m 'suite2p_only or suite2p_also'"
       - run:
           name: Run docker image smoke test
           command: |
@@ -43,7 +43,7 @@ jobs:
           command: |
             pip install .
             # pytest would be a dep in requirements.txt
-            python -m pytest --cov ophys_etl --cov-report xml
+            python -m pytest -m "not suite2p_only" --cov ophys_etl --cov-report xml
             bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN}
           name: Test
 
@@ -61,7 +61,7 @@ jobs:
           command: |
             pip install flake8
             # `|| true` to force exit code 0 even if no files found
-            CHANGED_PYFILES=$(git diff --diff-filter AMR --name-only origin/main | grep .py || true)
+            CHANGED_PYFILES=$(git diff --diff-filter AMR --name-only origin/main | grep '\.py' || true)
             echo "List of changed files:"
             echo ${CHANGED_PYFILES}
             echo ${CHANGED_PYFILES} | xargs -r flake8 --count

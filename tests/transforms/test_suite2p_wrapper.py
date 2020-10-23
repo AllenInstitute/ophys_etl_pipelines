@@ -17,6 +17,7 @@ suite2p_basenames = ['ops1.npy', 'data.bin', 'Fneu.npy', 'F.npy', 'iscell.npy',
                      'ops.npy', 'spks.npy', 'stat.npy']
 
 
+@pytest.mark.suite2p_also
 @pytest.mark.parametrize(
         "basenames, dstsubdir, exception",
         [
@@ -78,6 +79,7 @@ def suite2p_side_effect(args):
                 f.write('content')
 
 
+@pytest.mark.suite2p_only
 @pytest.mark.parametrize(
         "retain_files, nbinned, movie_frame_rate, exception",
         [

@@ -12,12 +12,19 @@ jobs:
             docker build --build-arg OPHYS_ETL_TAG=${CIRCLE_BRANCH} --build-arg OPHYS_ETL_COMMIT_SHA=${CIRCLE_SHA1} -t alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} docker/
       - run:
           name: Run docker image pytest
+          # docker runs should succeed with --read-only flag if expected to be
+          # run by singularity
+          # https://sylabs.io/guides/3.6/user-guide/singularity_and_docker.html#best-practices
           command: |
-                  docker run --entrypoint /bin/bash alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} -c "python -m pytest -m 'suite2p_only or suite2p_also'"
+                  set -e
+                  # set entrypoint like this so we can handle quotes
+                  docker run --entrypoint /bin/bash --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} -c "/envs/suite2p/bin/python -m pytest -m 'suite2p_only or suite2p_also'"
+                  docker run --entrypoint /bin/bash --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} -c "/envs/ophys_etl/bin/python -m pytest -m 'not suite2p_only'"
       - run:
           name: Run docker image smoke test
           command: |
-            docker run alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} python -m ophys_etl.transforms.suite2p_wrapper --h5py tests/transforms/resources/movie_100x100x100.h5 --output_dir /tmp --movie_frame_rate 1.0 --log_level INFO --output_json /tmp/output.json
+                  set -e
+                  docker run --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /envs/suite2p/bin/python -m ophys_etl.transforms.suite2p_wrapper --h5py tests/transforms/resources/movie_100x100x100.h5 --output_dir /tmp --movie_frame_rate 1.0 --log_level INFO --output_json /tmp/output.json
       - run:
           name: Upload docker image
           command: |
@@ -76,6 +83,7 @@ workflows:
       - docker:
           requires:
             - build377
+            - build38
             - lint
           filters:
             branches:

@@ -18,13 +18,13 @@ jobs:
           command: |
                   set -e
                   # set entrypoint like this so we can handle quotes
-                  docker run --entrypoint /bin/bash --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} -c "/envs/suite2p/bin/python -m pytest -m 'suite2p_only or suite2p_also'"
-                  docker run --entrypoint /bin/bash --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} -c "/envs/ophys_etl/bin/python -m pytest -m 'not suite2p_only'"
+                  docker run --entrypoint /bin/bash --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} -c "/envs/suite2p/bin/python -m pytest -m 'suite2p_only or suite2p_also' /repos/ophys_etl/tests"
+                  docker run --entrypoint /bin/bash --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} -c "/envs/ophys_etl/bin/python -m pytest -m 'not suite2p_only' /repos/ophys_etl/tests"
       - run:
           name: Run docker image smoke test
           command: |
                   set -e
-                  docker run --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /envs/suite2p/bin/python -m ophys_etl.transforms.suite2p_wrapper --h5py tests/transforms/resources/movie_100x100x100.h5 --output_dir /tmp --movie_frame_rate 1.0 --log_level INFO --output_json /tmp/output.json
+                  docker run --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /envs/suite2p/bin/python -m ophys_etl.transforms.suite2p_wrapper --h5py /repos/ophys_etl/tests/transforms/resources/movie_100x100x100.h5 --output_dir /tmp --movie_frame_rate 1.0 --log_level INFO --output_json /tmp/output.json
       - run:
           name: Upload docker image
           command: |

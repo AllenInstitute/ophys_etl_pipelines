@@ -118,10 +118,19 @@ def noise_std(x: np.ndarray, filter_length: int = 31) -> float:
     return robust_std(filtered_noise_1)
 
 
-def dff_trace(corrected_fluorescence_trace: np.ndarray,
-              long_filter_length: int,
-              short_filter_length: int) -> Tuple[np.ndarray, float, int]:
+def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
+                      long_filter_length: int,
+                      short_filter_length: int
+                      ) -> Tuple[np.ndarray, float, int]:
     """
+    Compute the "delta F over F" from the fluorescence trace.
+    Uses configurable length median filters to compute baseline for
+    baseline-subtraction and short timescale detrending.
+    Returns the artifact-corrected and detrended dF/F, along with
+    additional metadata for QA: the estimated standard deviation of
+    the noise ("sigma_dff") and the number of frames where the
+    computed baseline was less than the standard deviation of the noise.
+
     Parameters
     ----------
     corrected_fluorescence_trace: np.array

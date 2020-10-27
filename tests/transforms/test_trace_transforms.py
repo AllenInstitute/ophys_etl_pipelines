@@ -92,7 +92,7 @@ def test_noise_std(x, expected, monkeypatch):
 def test_dff_trace(monkeypatch):
     """
     Notes:
-    If we don't constrain this it's very unwieldy. Not using 
+    If we don't constrain this it's very unwieldy. Not using
     parametrization because these values need to be
     monkeypatched thoughtfully to make a unit test work out
     Isn't a great candidate for mock because most of the
@@ -102,7 +102,7 @@ def test_dff_trace(monkeypatch):
     monkeypatch.setattr(tx, "medfilt", lambda x, y: x-1.0)
     f_trace = np.array([1.1, 2., 3., 3., 3., 11.])    # 2 "small baseline"
 
-    dff, sigma, small_baseline = tx.dff_trace(f_trace, 1, 1)
+    dff, sigma, small_baseline = tx.compute_dff_trace(f_trace, 1, 1)
     assert 2 == small_baseline
     assert 1.0 == sigma     # monkeypatched noise_std
     np.testing.assert_array_equal(np.ones(6), dff)

@@ -4,6 +4,7 @@ from unittest.mock import patch, Mock
 import pathlib
 import argschema
 import json
+import pytest
 import ophys_etl.transforms.postprocess_rois as post_rois
 
 import sys
@@ -41,6 +42,7 @@ class MockPostProcess(argschema.ArgSchemaParser):
         self.output({'some_output': 'junk'})
 
 
+@pytest.mark.suite2p_only
 @patch(
         'ophys_etl.pipelines.segment_postprocess_pipeline.Suite2PWrapper',
         MockSuite2PWrapper)

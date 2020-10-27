@@ -60,7 +60,9 @@ def s3_classifier(classifier_model):
     s3 = mock_s3()
     s3.start()
     client = boto3.client("s3")
-    client.create_bucket(Bucket="mybucket")
+    client.create_bucket(Bucket="mybucket",
+                         CreateBucketConfiguration={
+                             'LocationConstraint': 'us-west-2'})
     client.upload_file(classifier_model, "mybucket", "hello.txt")
     yield "s3://mybucket/hello.txt"
     s3.stop()
@@ -430,7 +432,9 @@ def test_load_model_with_s3_uri(joblib_model_fixture, test_s3_uri):
     if test_s3_uri:
         with mock_s3():
             client = boto3.client("s3")
-            client.create_bucket(Bucket="mybucket")
+            client.create_bucket(Bucket="mybucket",
+                                 CreateBucketConfiguration={
+                                     'LocationConstraint': 'us-west-2'})
             client.upload_file(model_path, "mybucket", "my_model.joblib")
             uri = "s3://mybucket/my_model.joblib"
             obt = load_model(uri)

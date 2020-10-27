@@ -7,6 +7,7 @@ from ophys_etl.types import DenseROI
 from ophys_etl.schemas import DenseROISchema
 
 
+@pytest.mark.suite2p_also
 def test_output_schema_element():
     """test that attempts to keep the TypedDict and subschema element in sync
     """
@@ -36,6 +37,7 @@ def test_output_schema_element():
     assert subschema.dump(s) == s
 
 
+@pytest.mark.suite2p_also
 @pytest.mark.parametrize("s2p_stat_fixture, ophys_movie_fixture, "
                          "motion_correction_fixture, "
                          "aspect_threshold, expected_rois",

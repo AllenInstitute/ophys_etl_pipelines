@@ -138,7 +138,11 @@ class DffJob(ArgSchemaParser):
         # The traces can be large, so load them into memory 'row-wise' and
         #   rely on reference counting for cleanup.
         # Default in h5 is C order storage so this should be fairly efficient
-        for i in range(traces_dataset.shape[0]):
+        trace_len = traces_dataset.shape[0]
+        self.logger.info(f"Computing dff traces: 0/{trace_len}")
+        for i in range(trace_len):
+            if (i % 20 == 0) and (i != 0):
+                self.logger.info(f"Working on {i}/{trace_len}...")
             trace = traces_dataset[i, :]
             dff, sigma_dff, small_baseline = compute_dff_trace(
                 trace,
@@ -148,6 +152,7 @@ class DffJob(ArgSchemaParser):
             small_baselines[i] = small_baseline
             dff_dataset[i] = dff
 
+        self.logger.info("Dff traces complete.")
         # Clean up
         output_h5.close()
         input_h5.close()

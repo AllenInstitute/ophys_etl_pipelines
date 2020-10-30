@@ -1,14 +1,29 @@
 # Compute deltaF/F
+import time
+
 from argschema import ArgSchema, ArgSchemaParser, fields
+import h5py
 from marshmallow import post_load
 import numpy as np
-import h5py
 
 from ophys_etl.transforms.trace_transforms import compute_dff_trace
+from ophys_etl.schemas.fields import H5InputFile
+
+
+class DffJobOutputSchema(ArgSchema):
+    output_file = H5InputFile(
+        required=True,
+        description=("Path to output h5 file containing the df/f traces for "
+                     "each ROI.")
+    )
+    created_at = fields.Int(
+        required=True,
+        description=("Epoch time (in seconds) that the file was created.")
+    )
 
 
 class DffJobSchema(ArgSchema):
-    input_file = fields.InputFile(
+    input_file = H5InputFile(
         required=True,
         description=("Input h5 file containing fluorescence traces and the "
                      "associated ROI IDs (in datasets specified by the keys "
@@ -109,6 +124,7 @@ class DffJob(ArgSchemaParser):
     placeholder (empty dictionary).
     """
     default_schema = DffJobSchema
+    default_output_schema = DffJobOutputSchema
 
     def run(self):
         # Set up file and data pointers
@@ -157,8 +173,10 @@ class DffJob(ArgSchemaParser):
         output_h5.close()
         input_h5.close()
 
-        # Output json placeholder; no info saved in SDK pipeline
-        self.output({}, indent=2)
+        self.output({
+            "output_file": self.args["output_file"],
+            "created_at": int(time.time())
+            }, indent=2)
 
 
 if __name__ == "__main__":    # pragma: nocover

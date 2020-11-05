@@ -67,7 +67,7 @@ def test_segment_postprocess_pipeline(tmp_path):
                 "h5py": str(h5path),
                 "movie_frame_rate": 31.0,
             },
-            "convert_args": {
+            "postprocess_args": {
                 "motion_correction_values": str(mcvalues_path)},
             "output_json": str(outj_path)
             }

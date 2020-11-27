@@ -1,5 +1,6 @@
 import numpy as np
 import logging
+
 from tifffile import TiffFile
 from .metadata import tiff_header_data, RoiMetadata
 
@@ -277,7 +278,7 @@ class MesoscopeTiff(object):
     def volume_stride(self):
         stride = 0
         # this logic is probably incorrect if there are 2+ volume scans
-        #  with identical zs, but needs testing to confirm
+        # with identical zs, but needs testing to confirm
         for zs in self.volume_scans:
             if any([roi for roi in self.rois if roi.volume_scanned(zs)]):
                 stride += 1
@@ -341,8 +342,8 @@ class MesoscopeTiff(object):
         if self._volumes is None:
             self._volumes = []
             page_offset = 0
-             # this logic is probably incorrect if there are 2+ volume scans
-             #  with identical zs, but needs testing to confirm
+            # this logic is probably incorrect if there are 2+ volume scans
+            # with identical zs, but needs testing to confirm
             for zs in self.volume_scans:
                 scanned = [roi for roi in self.rois if roi.volume_scanned(zs)]
                 if len(scanned) > 1:

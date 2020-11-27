@@ -2,6 +2,7 @@ import os
 import argparse
 import json
 import numpy as np
+from hashlib import sha256
 from ophys_etl.transforms.mesoscope_2p.metadata import SI_stringify_floats
 from ophys_etl.transforms.mesoscope_2p.tiff import MesoscopeTiff
 from ophys_etl.transforms.mesoscope_2p.conversion_utils import (
@@ -10,7 +11,7 @@ from ophys_etl.transforms.mesoscope_2p.conversion_utils import (
 
 def get_outfile(plane, folder, prefix=None, extension="tif"):
     if plane.flagged:
-        name = "no_roi_match"
+        name = "no_roi_match" + sha256(plane.asarray()).hexdigest()
     elif plane.metadata["name"]:
         name = plane.metadata["name"]
     else:

@@ -134,7 +134,7 @@ def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
     Parameters
     ----------
     corrected_fluorescence_trace: np.array
-        1d numpy array of the corrected fluorescence trace
+        1d numpy array of the neuropil-corrected fluorescence trace
     long_filter_length: int
         Length (in number of elements) of the long median filter used
         to compute a rolling baseline. Must be an odd number.

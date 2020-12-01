@@ -152,7 +152,7 @@ def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
         filter) was less than or equal to the estimated noise of the
         `corrected_fluorescence_trace`.
     """
-    sigma_f = noise_std(corrected_fluorescence_trace)
+    sigma_f = noise_std(corrected_fluorescence_trace, short_filter_length)
 
     # Long timescale median filter for baseline subtraction
     baseline = medfilt(corrected_fluorescence_trace, long_filter_length)
@@ -160,7 +160,7 @@ def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
            / np.maximum(baseline, sigma_f))
     num_small_baseline_frames = np.sum(baseline <= sigma_f)
 
-    sigma_dff = noise_std(dff)
+    sigma_dff = noise_std(dff, short_filter_length)
 
     # Short timescale detrending
     filtered_dff = medfilt(dff, short_filter_length)

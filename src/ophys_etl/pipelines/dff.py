@@ -116,7 +116,7 @@ class DffJob(ArgSchemaParser):
     """
     This is the job runner for the dF/F computation from F (fluorescence)
     traces. The primary data input is the h5 file produced by neuropil
-    subtraction, which contains the "corrected fluorescence trace"
+    subtraction, which contains the neuropil-corrected fluorescence trace.
     (by default in the "CF" key).
 
     NOTE: There has historically been no data saved in the output json

@@ -98,7 +98,7 @@ def test_dff_trace(monkeypatch):
     Isn't a great candidate for mock because most of the
     logic pertains to filtering numpy arrays anyway.
     """
-    monkeypatch.setattr(tx, "noise_std", lambda x: 1.0)
+    monkeypatch.setattr(tx, "noise_std", lambda x, y: 1.0)
     monkeypatch.setattr(tx, "medfilt", lambda x, y: x-1.0)
     f_trace = np.array([1.1, 2., 3., 3., 3., 11.])    # 2 "small baseline"
 

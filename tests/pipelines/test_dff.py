@@ -29,7 +29,7 @@ def test_dff_job_run(tmp_path, trace_h5, monkeypatch):
         "output_json": str(tmp_path / "output_json.json"),
         "movie_frame_rate_hz": 10.0,
     }
-    expected_output = {"output_file": args["output_file"], 
+    expected_output = {"output_file": args["output_file"],
                        "created_at": 123456789}
 
     dff_job = DffJob(input_data=args, args=[])

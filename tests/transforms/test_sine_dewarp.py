@@ -1,5 +1,6 @@
 import h5py
 import numpy as np
+from pathlib import Path
 import pytest
 import warnings
 
@@ -115,12 +116,17 @@ def test_xdewarp_shape(random_sample_video, random_sample_xtable):
 
 
 def test_dewarp_regression():
+    old_path = Path(__file__).parent.joinpath(
+        'resources', 'dewarping_regression_test_output.h5')
+    input_path = Path(__file__).parent.joinpath(
+        'resources', 'dewarping_regression_test_input.h5')
+
     old_dewarped_video = h5py.File(
-        'tests/transforms/resources/dewarping_regression_test_output.h5', 'r'
+        old_path.resolve(), 'r'
     )
 
     input_video = h5py.File(
-        'tests/transforms/resources/dewarping_regression_test_input.h5', 'r'
+        input_path.resolve(), 'r'
     )
 
     xtable = sine_dewarp.create_xtable(

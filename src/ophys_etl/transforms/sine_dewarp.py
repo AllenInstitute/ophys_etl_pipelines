@@ -78,7 +78,7 @@ def noise_reduce(data: np.ndarray,
         data = data - nf
 
     elif 2 == noise_reduction:
-        nf = 1 * xtable['stdv_modevalue'] * (xindex[ind] - xindex[ind - 1] - 1)
+        nf = xtable['stdv_modevalue'] * (xindex[ind] - xindex[ind - 1] - 1)
         data = (data / (xindex[ind] - xindex[ind - 1])) - nf
 
     elif 3 == noise_reduction:
@@ -96,7 +96,7 @@ def xdewarp(imgin: np.ndarray,
             noise_reduction: int) -> np.ndarray:
     """
     Dewarp a single numpy array based on the information
-    specified in table and noise_reduction.
+    specified in xtable and noise_reduction.
 
     Parameters
     ----------
@@ -117,7 +117,7 @@ def xdewarp(imgin: np.ndarray,
         dewarping process applied to it
     """
 
-    maxlevel = 65535  # 16bit
+    maxlevel = 65535
 
     # Grab a few commonly used values from xtable to make code cleaner
     xindexL = xtable['xindexL']
@@ -151,11 +151,8 @@ def xdewarp(imgin: np.ndarray,
                 # Perform the desired noise reduction method
                 col = noise_reduce(col, xtable, j, xindexLB, noise_reduction)
 
-                # TODO: Check on this. Make sure it wasn't an
-                # error in the original code
-                if 0 != noise_reduction:
-                    low_mask = (col < 0)
-                    col[low_mask] = 0  # underflow?
+                low_mask = (col < 0)
+                col[low_mask] = 0  # underflow?
 
                 high_mask = (col > maxlevel)
                 col[high_mask] = maxlevel  # saturated?  for max image==1.0
@@ -185,11 +182,8 @@ def xdewarp(imgin: np.ndarray,
                 # Perform the desired noise reduction method
                 col = noise_reduce(col, xtable, j, xindexRB, noise_reduction)
 
-                # TODO: Check on this. Make sure it wasn't an
-                # error in the original code
-                if 0 != noise_reduction:
-                    low_mask = (col < 0)
-                    col[low_mask] = 0  # underflow?
+                low_mask = (col < 0)
+                col[low_mask] = 0  # underflow?
 
                 high_mask = (col > maxlevel)
                 col[high_mask] = maxlevel  # saturated?  for max image==1.0
@@ -247,7 +241,6 @@ def get_xindex(warped_pixels: float, scale: float) -> np.ndarray:
                 )
         )
 
-        # TODO: Should these also use int()?
         xindexB[j] = (
             (j + 0.5) - (
                 (scale) * (1.0 - math.sin(
@@ -267,6 +260,19 @@ def create_xtable(movie: np.ndarray,
                   noise_reduction: int) -> XTable:
     """
     Compute a number of statistics about the images to be dewarped.
+
+    From comment: The bgfactor variables are only relevant in the case where
+    no noise reduction will be performed. This is because they are only used
+    on the first handful of columns (where the xindex arrays are negative).
+    Also, once those arrays are not negative, dewarping works by creating
+    a new column that is actually a combination of columns from the input
+    image. This means that suddenly the new column will have higher values
+    than the column next to it, and hence will be much brighter. When noise
+    reduction is performed, the values of the new column will be reduced,
+    causing the brightness of that column to fall back to a similar range as
+    the previous column. But when noise reduction isn't performed, we need
+    to take care of this problem in another way. The solution here is to
+    brighten these early images by this particular factor.
 
     Parameters
     ----------
@@ -295,13 +301,11 @@ def create_xtable(movie: np.ndarray,
     """
 
     meanimg = np.mean(movie, axis=0)  # use avgimg to compute mode
-    meanimg = meanimg/256          # less noisy to get mode from 8bit histogram
-    meanimg = meanimg.astype(int)  # less noisy to get mode from 8bit histogram
+    meanimg = meanimg.astype(int)
 
     # full movie got Memory Error
-    stdvimg = np.std(movie[::8], axis=0)  # use avgimg to compute mode
-    stdvimg = stdvimg/256          # less noisy to get mode from 8bit histogram
-    stdvimg = stdvimg.astype(int)  # less noisy to get mode from 8bit histogram
+    stdvimg = np.std(movie[::8], axis=0)  # use stdvimg to compute mode
+    stdvimg = stdvimg.astype(int)
 
     # Left side
     xindexL, xindexLB = get_xindex(aL, bL)
@@ -313,17 +317,9 @@ def create_xtable(movie: np.ndarray,
     mean_modevalue = modelist[0]
     mean_minvalue = np.min(meanimg)
 
-    # IMPORTANT!: estmated modevalue is from 8bit img, convert back to 16bit
-    mean_modevalue = mean_modevalue * 256
-    mean_minvalue = mean_minvalue * 256
-
     modelist, stdv_maxcount = mode(stdvimg)
     stdv_modevalue = modelist[0]
     stdv_minvalue = np.min(stdvimg)
-
-    # IMPORTANT!: estmated modevalue is from 8bit img, convert back to 16bit
-    stdv_modevalue = stdv_modevalue * 256
-    stdv_minvalue = stdv_minvalue * 256
 
     j = 0
     while xindexLB[j] < 0.0 or xindexL[j] < 0:
@@ -339,8 +335,7 @@ def create_xtable(movie: np.ndarray,
         bgfactorR = xindexRB[j+1] - xindexRB[j]
         right_margin = j
 
-    # TODO: Check on this. Make sure it wasn't an
-    # error in the original code
+    # For an explanation, see the docstring
     if 0 != noise_reduction:
         bgfactorL = 1
         bgfactorR = 1
@@ -556,7 +551,6 @@ def run_dewarping(FOVwidth: int,
     movie_dtype = movie.dtype
     T, y_orig, x_orig = movie.shape
 
-    # IMPORTANT: estimated modevalue is from 8bit img but convert back to 16bit
     xtable = create_xtable(movie, aL, aR, bL, bR, noise_reduction)
 
     make_output_file(output_file, output_dataset, xtable,

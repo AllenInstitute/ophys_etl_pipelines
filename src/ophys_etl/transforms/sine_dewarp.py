@@ -568,10 +568,11 @@ def run_dewarping(FOVwidth: int,
         )
 
         # Chunk the movie up to prevent an error caused by multiprocessing
-        # returning too much data
+        # returning too much data. Use math.ceil in case there are fewer
+        # than chunk_size frame, then we just make one chunk.
         chunk_size = 1000
         movie_chunks = np.array_split(
-            movie, int(T / chunk_size), axis=0
+            movie, math.ceil(T / chunk_size), axis=0
         )
 
         # Use multiprocessing to dewarp one chunk of the movie at a time

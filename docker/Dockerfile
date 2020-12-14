@@ -6,7 +6,7 @@ LABEL description="This dockerfile provides a working environment for \
                    Allen Institute for Brain Science optical physiology data \
                    processing pipelines."
 
-ARG SUITE2P_TAG=0.7.5
+ARG SUITE2P_TAG=v0.9.3
 ARG OPHYS_ETL_TAG=main
 ARG OPHYS_ETL_COMMIT_SHA="unknown build"
 

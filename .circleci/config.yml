@@ -84,7 +84,6 @@ workflows:
           requires:
             - build377
             - build38
-            - lint
           filters:
             branches:
               only:

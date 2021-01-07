@@ -7,6 +7,7 @@ LABEL description="This dockerfile provides a working environment for \
                    processing pipelines."
 
 ARG SUITE2P_TAG=v0.9.3
+ARG LZEROCOMMIT=cdfaade68ceb6aa15ec5003c460de4e0575f1d5f
 ARG OPHYS_ETL_TAG=main
 ARG OPHYS_ETL_COMMIT_SHA="unknown build"
 
@@ -14,6 +15,7 @@ ENV OPHYS_ETL_COMMIT_SHA=${OPHYS_ETL_COMMIT_SHA}
 ENV CONDA_ENVS=/envs
 ENV SUITE2P_ENV=${CONDA_ENVS}/suite2p
 ENV OPHYS_ETL_ENV=${CONDA_ENVS}/ophys_etl
+ENV EVENT_DETECT_ENV=${CONDA_ENVS}/event_detection
 ENV NUMBA_CACHE_DIR=/tmp
 
 RUN mkdir ${CONDA_ENVS}
@@ -25,20 +27,33 @@ RUN mkdir ${CONDA_ENVS}
 # Install Suite2P (into conda environment named suite2p)
 WORKDIR /repos
 RUN apt-get -y update \
-    && apt-get -y install \
-        libgl1-mesa-glx \
+    # for Suite2P
+    && apt-get -y install libgl1-mesa-glx \
+    # for FastLZero
+    && apt-get -y install clang libhdf5-serial-dev g++ \
     && rm -rf /var/lib/apt/* \
     && git clone -b ${SUITE2P_TAG} https://github.com/MouseLand/suite2p ./suite2p \
     && conda env update --prefix ${SUITE2P_ENV} --file ./suite2p/environment.yml \
     && conda run --prefix ${SUITE2P_ENV} pip install --no-cache ./suite2p \
     && git clone -b ${OPHYS_ETL_TAG} https://github.com/AllenInstitute/ophys_etl_pipelines ./ophys_etl \
     && conda run --prefix ${SUITE2P_ENV} pip install --no-cache ./ophys_etl \
-    && conda clean --all \
     && echo "use for suite2p "$(conda run --prefix ${SUITE2P_ENV} which python) \
     && conda create --prefix ${OPHYS_ETL_ENV} python=3.8 \
     && conda run --prefix ${OPHYS_ETL_ENV} pip install --no-cache ./ophys_etl \
-    && conda clean --all \
     && echo "use for ophys_etl "$(conda run --prefix ${OPHYS_ETL_ENV} which python) \
+    && conda create --prefix ${EVENT_DETECT_ENV} python=3.8 \
+    && git clone https://github.com/jewellsean/FastLZeroSpikeInference ./lzero \
+    && cd /repos/lzero \
+    && git checkout ${LZEROCOMMIT} \
+    && cd python \
+    && cp -r ../src ./ \
+    && conda run --prefix ${EVENT_DETECT_ENV} python setup.py install \
+    && cd /repos \
+    && conda run --prefix ${EVENT_DETECT_ENV} pip install joblib \
+    && conda run --prefix ${EVENT_DETECT_ENV} pip install --no-cache ./ophys_etl \
+    && echo "use for event detection "$(conda run --prefix ${EVENT_DETECT_ENV} which python) \
+    && conda clean --all \
+    && rm -rf /repos/lzero \
     && rm -rf /repos/suite2p
 
 # leave /repos/ophys_etl so we can run tests

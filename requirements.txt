@@ -12,3 +12,12 @@ croissant-ml
 typing_extensions
 tifffile
 scikit-image
+marshmallow
+six
+joblib
+botocore
+jsonlines
+imageio
+mock
+setuptools
+opencv-python

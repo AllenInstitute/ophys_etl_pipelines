@@ -3,11 +3,18 @@ import h5py
 import os
 import warnings
 import numpy as np
+import json
+import marshmallow as mm
 from scipy.ndimage.filters import median_filter
 from scipy.signal import resample_poly
 from joblib import Parallel, delayed
 from FastLZeroSpikeInference import fast
+from ophys_etl.resources import event_decay_lookup_dict as decay_lookup
 from ophys_etl.schemas.fields import H5InputFile
+
+
+class EventDetectionException(Exception):
+    pass
 
 
 class EventDetectionInputSchema(argschema.ArgSchema):
@@ -17,9 +24,13 @@ class EventDetectionInputSchema(argschema.ArgSchema):
         description=("frame rate of the ophys video / trace. "
                      "used to upsample slower rates to 31Hz."))
     full_genotype = argschema.fields.Str(
-        required=True,
+        required=False,
         description=("full genotype of the specimen. Used to look "
-                     "up characteristic decay time."))
+                     "up characteristic decay time from "
+                     "ophys_etl.resources.event_decay_time_lookup"))
+    decay_time = argschema.fields.Float(
+        required=False,
+        description=("characteristic decay time [seconds]"))
     ophysdfftracefile = H5InputFile(
         required=True,
         description=("h5 file containing keys `data` (nROI x nframe) and "
@@ -34,6 +45,23 @@ class EventDetectionInputSchema(argschema.ArgSchema):
     output_event_file = argschema.fields.OutputFile(
         required=True,
         description="location for output of event detection.")
+
+    @mm.post_load
+    def get_decay_time(self, data, **kwargs):
+        if ('full_genotype' not in data) & ('decay_time' not in data):
+            raise EventDetectionException(
+                    "Must provide either `decay_time` or `full_genotype` "
+                    "for decay time lookup. "
+                    "Available lookup values are "
+                    f"\n{json.dumps(decay_lookup, indent=2)}")
+        if 'full_genotype' in data:
+            if data['full_genotype'] not in decay_lookup:
+                raise EventDetectionException(
+                        f"{data['full_genotype']} not available. "
+                        "Available lookup values are "
+                        f"\n{json.dumps(decay_lookup, indent=2)}")
+            data['decay_time'] = decay_lookup[data['full_genotype']]
+        return data
 
 
 def medfilt(x, s):
@@ -62,8 +90,6 @@ class L0_analysis:
     halflife_ms : half-life of the indicator in ms,
                   used to override lookup [default: None]
     sample_rate_hz : sampling rate of data in Hz
-    genotype : genotype of cell line
-               (use if passing raw data without specifying the halflife_ms)
     cache_directory : directory to cache estimated dffs and events
     manifest_file : Brain Observatory manifest to use
 
@@ -87,17 +113,11 @@ class L0_analysis:
                  median_filter_2=101,
                  halflife_ms=None,
                  sample_rate_hz=30,
-                 genotype='Unknown',
                  L0_constrain=True,
                  use_cache=False,
                  use_bisection=False,
                  infer_lambda=False,
                  compute_dff=False):
-
-        # try:
-        #     manifest_file = core.get_manifest_path()
-        # except:
-        #     manifest_file = None
 
         self.use_cache = use_cache
         self.use_bisection = use_bisection
@@ -106,14 +126,6 @@ class L0_analysis:
         self.L0_constrain = L0_constrain
         self.compute_dff = compute_dff
         self.infer_lambda = infer_lambda
-
-        # if type(dataset) is int:
-        #     if manifest_file is None:
-        #         boc = BrainObservatoryCache()
-        #     else:
-        #         boc = BrainObservatoryCache(manifest_file=manifest_file)
-        #     dataset = boc.get_ophys_experiment_data(
-        #             ophys_experiment_id=dataset)
 
         try:
             self.metadata = dataset.get_metadata()
@@ -125,7 +137,7 @@ class L0_analysis:
             self._num_small_baseline_frames = None
         except:
             self.metadata = {
-                    'genotype': genotype,
+                    #'genotype': genotype,
                     'ophys_experiment_id': 999}
             self._dff_traces = dataset
             self.num_cells = self._dff_traces[0]
@@ -158,19 +170,9 @@ class L0_analysis:
 
         self.sample_rate_hz = sample_rate_hz
         self.event_min_size = event_min_size
-
-        if halflife_ms is None:
-            self.halflife = self.get_halflife()
-        else:
-            self.halflife = halflife_ms
-
-        # if use_cache:
-        #    self.cache_directory = core.get_cache_path()
-        # else:
+        self.halflife = halflife_ms
         self.cache_directory = None
-
         self._fit_params = None
-
         self._gamma = None
         self.lambdas = []
 
@@ -271,31 +273,6 @@ class L0_analysis:
                                  (self.halflife * self.sample_rate_hz))
         return self._gamma
 
-    def get_halflife(self):
-        # dictionary of half-times optimized using mlspike
-        tau_dict = {'Slc17a7-IRES2-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/wt': 0.34692165705293476, r'Rbp4-Cre_KL100/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/Ai93(TITL-GCaMP6f)': 0.49535597274982857, r'Sst-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt': 0.46368295442535684, r'Emx1-IRES-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/wt': 0.31749611178499654, r'Rorb-IRES2-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/Ai93(TITL-GCaMP6f)': 0.46250902068149613, r'Cux2-CreERT2/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/Ai93(TITL-GCaMP6f)': 0.3754911091519805, r'Rbp4-Cre_KL100/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/wt': 0.4044960466719779, r'Pvalb-IRES-Cre/wt;Ai162(TIT2L-GC6s-ICL-tTA2)/wt': 0.7151958602965773, r'Cux2-CreERT2/Cux2-CreERT2;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/Ai93(TITL-GCaMP6f)': 0.37549617320767137, r'Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt': 0.5204879281347294, r'Ntsr1-Cre_GN220/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt': 0.37805579066156014, r'Rorb-IRES2-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/wt': 0.34649782454181666, r'Nr5a1-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/Ai93(TITL-GCaMP6f)': 0.4913509729796567, r'Fezf2-CreER/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt': 0.43341765485666695, r'Cux2-CreERT2/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/wt': 0.31745346442864547, r'Nr5a1-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/wt': 0.3486758576220145, r'Tlx3-Cre_PL56/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt': 0.3758760018089571, r'Scnn1a-Tg3-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/wt': 0.34910311595036125, r'Scnn1a-Tg3-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/Ai93(TITL-GCaMP6f)': 0.4623957420141657, r'Emx1-IRES-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)-hyg/wt': 0.309019326798255, r'Emx1-IRES-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/Ai93(TITL-GCaMP6f)': 0.3646779167076579, r'Slc17a7-IRES2-Cre/wt;Camk2a-tTA/wt;Ai94(TITL-GCaMP6s)/wt': 0.7375508677946965}
-
-        genotype = self.metadata['genotype']
-
-#         if 'Cux2' in genotype and 'Ai93' in genotype:
-#             return 239
-#         elif 'Emx1' in genotype and 'Ai96' in genotype:
-#             return 436
-#         elif 'tetO' in genotype and '6s' in genotype:
-#             return 348
-#         if 'Emx1' in genotype and 'Ai94' in genotype:
-#             return 649
-#         elif 'Emx1' in genotype and 'Ai93' in genotype:
-#             return 315
-#         elif 'Ai93' in genotype:
-#             return 315
-        if genotype in tau_dict.keys():
-            # converting decay time in [s] into half-time in ms
-            return 1000 * np.log(2) * tau_dict[genotype]
-        else:
-            warnings.warn("Genotype is unknown, assuming "
-                          "halflife of 315 ms for GCaMP6f!")
-            return 315
 
     def noise_std(self, x, filt_length=31):
         if any(np.isnan(x)):
@@ -509,16 +486,18 @@ class EventDetection(argschema.ArgSchemaParser):
                         self.args['valid_roi_ids'])).flatten()
             cids = f['roi_names'][inds]
             dff = f['data'][inds]
-        genotype = self.args['full_genotype']
+        #genotype = self.args['full_genotype']
         fs = self.args['movie_frame_rate_hz']
         uf = np.round(30.9 / fs)  # upsampling factor
 
         event_dict = {}
+        halflife_ms = 1000 * np.log(2) * self.args['decay_time']
+
         if uf == 1:  # If resampling is unnecessary (e.g. Scientifica sessions)
             l0a = L0_analysis(
                     dff,
                     sample_rate_hz=fs,
-                    genotype=genotype)  # needs to be array of arrays
+                    halflife_ms=halflife_ms)
             events = l0a.get_events()
             for n, event in enumerate(events):
                 event_mag = event[event > 0]  # event magnitudes
@@ -539,7 +518,7 @@ class EventDetection(argschema.ArgSchemaParser):
             l0a = L0_analysis(
                     dff30Hz,
                     sample_rate_hz=fs*uf,
-                    genotype=genotype)  # needs to be array of arrays
+                    halflife_ms=halflife_ms)
             events30Hz = l0a.get_events()
             events = np.zeros_like(dff)  # same size as the original dff
             for n, event30Hz in enumerate(events30Hz):

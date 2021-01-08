@@ -4,6 +4,7 @@ import os
 import numpy as np
 import json
 import marshmallow as mm
+from typing import Tuple
 from scipy.ndimage.filters import median_filter
 from scipy.signal import resample_poly
 from joblib import Parallel, delayed
@@ -376,6 +377,45 @@ class L0_analysis:
         print(*args, **kwargs)
 
 
+def trace_resample(traces: np.ndarray, input_rate: float,
+                   target_rate: float = 30.9) -> Tuple[np.ndarray, float]:
+    """determines a rounded upsample factor and upsamples the traces,
+    if applicable.
+
+    Parameters
+    ----------
+    traces: np.ndarray
+        ncell x nframe float
+    input_rate: float
+        sampling rate of traces [Hz]
+    target_rate: float
+        desired resampled rate [Hz]
+
+    Returns
+    -------
+    resampled_traces: np.ndarray
+        ncell x n_upsampled_frames float
+    upsample_factor: int
+        factor used to upsample
+
+    Raises
+    ------
+    NotImplementedError
+        for any target rate != 30.9Hz. Evaluation of results is needed
+        to generalize this function to other target rates.
+
+    """
+    if target_rate != 30.9:
+        raise NotImplementedError("spike inference has only been validated "
+                                  "at a target rate of 30.9Hz")
+    upsample_factor = np.round(target_rate / input_rate)
+    if upsample_factor == 1.0:
+        resampled_traces = traces
+    else:
+        resampled_traces = resample_poly(traces, upsample_factor, 1, axis=1)
+    return resampled_traces, upsample_factor
+
+
 class EventDetection(argschema.ArgSchemaParser):
     default_schema = EventDetectionInputSchema
 
@@ -394,48 +434,47 @@ class EventDetection(argschema.ArgSchemaParser):
             cids = f['roi_names'][inds]
             dff = f['data'][inds]
 
-        fs = self.args['movie_frame_rate_hz']
-        uf = np.round(30.9 / fs)  # upsampling factor
-
-        event_dict = {}
         halflife_ms = 1000 * np.log(2) * self.args['decay_time']
 
-        if uf == 1:  # If resampling is unnecessary (e.g. Scientifica sessions)
-            l0a = L0_analysis(
-                    dff,
-                    sample_rate_hz=fs,
-                    halflife_ms=halflife_ms)
-            events = l0a.get_events()
-            for n, event in enumerate(events):
-                event_mag = event[event > 0]  # event magnitudes
-                event_idx = np.where(event > 0)
-                event_dict[cids[n]] = {
-                        'mag': event_mag, 'idx': event_idx,
-                        'event_trace': event}  # linking events to cids
-        else:  # resampling is necessary (e.g. mesoscope sessions)
-            dff30Hz = resample_poly(dff, uf, 1, axis=1)
-            l0a = L0_analysis(
-                    dff30Hz,
-                    sample_rate_hz=fs*uf,
-                    halflife_ms=halflife_ms)
-            events30Hz = l0a.get_events()
-            events = np.zeros_like(dff)  # same size as the original dff
-            for n, event30Hz in enumerate(events30Hz):
+        upsampled_dff, upsample_factor = trace_resample(
+                traces=dff,
+                input_rate=self.args['movie_frame_rate_hz'],
+                target_rate=30.9)
+        upsampled_rate = self.args['movie_frame_rate_hz'] * upsample_factor
+
+        event_dict = {}
+
+        l0a = L0_analysis(
+                upsampled_dff,
+                sample_rate_hz=upsampled_rate,
+                halflife_ms=halflife_ms)
+        upsampled_events = l0a.get_events()
+
+        if upsample_factor == 1:
+            downsampled_events = upsampled_events
+        else:
+            downsampled_events = np.zeros_like(dff)  # same size as the original dff
+            for n, event30Hz in enumerate(upsampled_events):
                 event_mag = event30Hz[event30Hz > 0]  # upsampled
-                event_idx = np.where(event30Hz > 0)[0]  # upsampled
+                event_idx = np.where(event30Hz > 0)[0]
                 for i, ev in enumerate(event_idx):
-                    # downsample event magnitudes
-                    events[n, np.int(ev/uf)] += event_mag[i]
-                event_dict[cids[n]] = {
-                        'mag': event_mag, 'idx': event_idx,
-                        'event_trace': events[n, :]}  # linking events to cids
+                    downsampled_events[n, np.int(ev/upsample_factor)] += \
+                            event_mag[i]
+
+        for n, event30Hz in enumerate(upsampled_events):
+            event_mag = event30Hz[event30Hz > 0]
+            event_idx = np.where(event30Hz > 0)[0]
+            event_dict[cids[n]] = {
+                    'mag': event_mag,
+                    'idx': event_idx,
+                    'event_trace': downsampled_events[n, :]}
 
         with h5py.File(self.args['output_event_file'], "w") as f:
             f.create_dataset("dff", data=dff)
-            f.create_dataset("events", data=events)
+            f.create_dataset("events", data=downsampled_events)
             f.create_dataset("noise_stds", data=l0a._noise_stds)
             f.create_dataset("lambdas", data=l0a.lambdas)
-            f.create_dataset("upsampling_factor", data=uf)
+            f.create_dataset("upsampling_factor", data=upsample_factor)
             #f.create_dataset("event_dict", data=event_dict)
 
 

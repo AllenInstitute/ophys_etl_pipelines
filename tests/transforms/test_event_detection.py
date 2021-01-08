@@ -1,5 +1,6 @@
 import pytest
 import h5py
+import contextlib
 import numpy as np
 from collections import namedtuple
 try:
@@ -48,6 +49,26 @@ def dff_hdf5(tmp_path, request):
 
     with h5py.File(h5path, "r") as f:
         yield h5path, decay_time, rate, events
+
+
+@pytest.mark.event_detect_only
+@pytest.mark.parametrize("input_rate", [11.0, 30.9, 31.0])
+@pytest.mark.parametrize(
+        ("target_rate", "context"),
+        [
+            (30.9, contextlib.nullcontext()),
+            (100.0, pytest.raises(NotImplementedError))])
+def test_trace_resample(input_rate, target_rate, context):
+    rng = np.random.default_rng(42)
+    nframes = 1000
+    traces = rng.normal(loc=0.0, scale=1.0, size=(10, nframes))
+    with context:
+        resampled_traces, upsample_factor = emod.trace_resample(
+            traces, input_rate=input_rate, target_rate=target_rate)
+        if upsample_factor == 1:
+            np.testing.assert_array_equal(traces, resampled_traces)
+        else:
+            assert nframes * upsample_factor == resampled_traces.shape[1]
 
 
 @pytest.mark.event_detect_only

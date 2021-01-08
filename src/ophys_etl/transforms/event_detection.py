@@ -1,7 +1,6 @@
 import argschema
 import h5py
 import os
-import warnings
 import numpy as np
 import json
 import marshmallow as mm
@@ -90,8 +89,6 @@ class L0_analysis:
     halflife_ms : half-life of the indicator in ms,
                   used to override lookup [default: None]
     sample_rate_hz : sampling rate of data in Hz
-    cache_directory : directory to cache estimated dffs and events
-    manifest_file : Brain Observatory manifest to use
 
     Attributes
     ----------
@@ -114,12 +111,10 @@ class L0_analysis:
                  halflife_ms=None,
                  sample_rate_hz=30,
                  L0_constrain=True,
-                 use_cache=False,
                  use_bisection=False,
                  infer_lambda=False,
                  compute_dff=False):
 
-        self.use_cache = use_cache
         self.use_bisection = use_bisection
         self.median_filter_1 = median_filter_1
         self.median_filter_2 = median_filter_2
@@ -137,7 +132,6 @@ class L0_analysis:
             self._num_small_baseline_frames = None
         except:
             self.metadata = {
-                    #'genotype': genotype,
                     'ophys_experiment_id': 999}
             self._dff_traces = dataset
             self.num_cells = self._dff_traces[0]
@@ -171,7 +165,6 @@ class L0_analysis:
         self.sample_rate_hz = sample_rate_hz
         self.event_min_size = event_min_size
         self.halflife = halflife_ms
-        self.cache_directory = None
         self._fit_params = None
         self._gamma = None
         self.lambdas = []
@@ -184,95 +177,11 @@ class L0_analysis:
         return out
 
     @property
-    def trace_info_file(self):
-        return os.path.join(self.cache_directory, 'event_info_dictionary.h5')
-
-    @property
-    def evfile(self):
-        return os.path.join(self.cache_directory,
-                            str(self.metadata['ophys_experiment_id']) +
-                            '_' +
-                            str(self.event_min_size) + '_' +
-                            str(self.median_filter_1) + '_' +
-                            str(self.median_filter_2) + '_' +
-                            str(self.halflife) + '_' +
-                            str(self.sample_rate_hz) + '_' +
-                            str(self.L0_constrain) + '_' +
-                            str(self.use_bisection) + '_events.npz')
-
-    @property
-    def dff_file(self):
-        return os.path.join(self.cache_directory,
-                            str(self.metadata['ophys_experiment_id']) +
-                            '_' +
-                            str(self.median_filter_1) + '_' +
-                            str(self.median_filter_2) + '_' +
-                            str(self.halflife) + '_' +
-                            str(self.sample_rate_hz) + '_dff.npz')
-
-    @property
-    def dff_traces(self):
-        if (self.use_cache and self._dff_traces is None and
-                os.path.isfile(self.dff_file)):
-            self._dff_traces = np.load(self.dff_file)['dff']
-            self._noise_stds = np.load(self.dff_file)['noise_stds']
-            self._num_small_baseline_frames = np.load(
-                    self.dff_file)['num_small_baseline_frames']
-
-        elif self._dff_traces is None:
-            self.print('Computing df/f', end='', flush=True)
-            dff_traces = np.copy(self.corrected_fluorescence_traces)
-
-            num_small_baseline_frames = []
-            noise_stds = []
-
-            for dff in dff_traces:
-
-                sigma_f = self.noise_std(dff)
-
-                # long timescale median filter for baseline subtraction
-                tf = medfilt(dff, self.median_filter_1)
-                dff -= tf
-                dff /= np.maximum(tf, sigma_f)
-
-                num_small_baseline_frames.append(np.sum(tf <= sigma_f))
-
-                sigma_dff = self.noise_std(dff)
-                noise_stds.append(sigma_dff)
-
-                # short timescale detrending
-                tf = medfilt(dff, self.median_filter_2)
-                tf = np.minimum(tf, 2.5*sigma_dff)
-                dff -= tf
-
-                self.print('.', end='', flush=True)
-
-            self._dff_traces = dff_traces
-            self._noise_stds = noise_stds
-            self._num_small_baseline_frames = num_small_baseline_frames
-
-            if self.use_cache:
-                np.savez(
-                        self.dff_file,
-                        dff=dff_traces,
-                        noise_stds=np.array(noise_stds),
-                        num_small_baseline_frames=np.array(
-                            num_small_baseline_frames))
-            self.print('done!')
-
-        self.min_detected_event_sizes = [[]
-                                         for n in range(
-                                             self._dff_traces.shape[0])]
-        return (self._dff_traces, self._noise_stds,
-                self._num_small_baseline_frames)
-
-    @property
     def gamma(self):
         if self._gamma is None:
             self._gamma = np.exp(-np.log(2) * 1000 /
                                  (self.halflife * self.sample_rate_hz))
         return self._gamma
-
 
     def noise_std(self, x, filt_length=31):
         if any(np.isnan(x)):
@@ -299,24 +208,17 @@ class L0_analysis:
         if use_bisection is not None:
             self.use_bisection = use_bisection
 
-        if self.use_cache and os.path.isfile(self.evfile):
-            events = np.load(self.evfile)['ev']
-        else:
+        self.print('Calculating events in progress', flush=True)
 
-            self.print('Calculating events in progress', flush=True)
+        events = []
+        # parallelization written by PL
+        results = Parallel(n_jobs=40, prefer="threads")(delayed(self.get_event_trace)((n, dff)) for n, dff in enumerate(self.dff_traces[0]))
+        events = [result[0] for result in results]
+        events = np.array(events)
+        self.lambdas = [result[1] for result in results]
+        # end of parallelization written by PL
 
-            events = []
-            # parallelization written by PL
-            results = Parallel(n_jobs=40, prefer="threads")(delayed(self.get_event_trace)((n, dff)) for n, dff in enumerate(self.dff_traces[0]))
-            events = [result[0] for result in results]
-            events = np.array(events)
-            self.lambdas = [result[1] for result in results]
-            # end of parallelization written by PL
-
-            if self.use_cache:
-                np.savez(self.evfile, ev=events)
-
-            self.print('done!')
+        self.print('done!')
         return np.array(events)
 
     def get_event_trace(self, tpl, event_min_size=None,

@@ -177,6 +177,11 @@ class L0_analysis:
         return out
 
     @property
+    def dff_traces(self):
+        self.min_detected_event_sizes = [[] for n in range(self._dff_traces.shape[0])]
+        return self._dff_traces, self._noise_stds, self._num_small_baseline_frames
+
+    @property
     def gamma(self):
         if self._gamma is None:
             self._gamma = np.exp(-np.log(2) * 1000 /
@@ -388,7 +393,7 @@ class EventDetection(argschema.ArgSchemaParser):
                         self.args['valid_roi_ids'])).flatten()
             cids = f['roi_names'][inds]
             dff = f['data'][inds]
-        #genotype = self.args['full_genotype']
+
         fs = self.args['movie_frame_rate_hz']
         uf = np.round(30.9 / fs)  # upsampling factor
 

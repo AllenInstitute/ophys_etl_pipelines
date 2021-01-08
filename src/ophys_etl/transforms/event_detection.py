@@ -61,6 +61,7 @@ class EventDetectionInputSchema(argschema.ArgSchema):
                         "Available lookup values are "
                         f"\n{json.dumps(decay_lookup, indent=2)}")
             data['decay_time'] = decay_lookup[data['full_genotype']]
+        data['halflife_ms'] = 1000 * np.log(2) * data['decay_time']
         return data
 
 
@@ -426,30 +427,34 @@ class EventDetection(argschema.ArgSchemaParser):
                                               "local build")
         self.logger.info(f"OPHYS_ETL_COMMIT_SHA: {ophys_etl_commit_sha}")
 
+        # read in the input file
         with h5py.File(self.args['ophysdfftracefile'], 'r') as f:
-            inds = np.argwhere(
+            roi_names = f['roi_names'][()]
+            valid_roi_indices = np.argwhere(
                     np.isin(
-                        f['roi_names'][()],
+                        roi_names,
                         self.args['valid_roi_ids'])).flatten()
-            cids = f['roi_names'][inds]
-            dff = f['data'][inds]
+            dff = f['data'][valid_roi_indices]
+        valid_roi_names = roi_names[valid_roi_indices]
 
-        halflife_ms = 1000 * np.log(2) * self.args['decay_time']
-
+        # upsample to 30.9 Hz
         upsampled_dff, upsample_factor = trace_resample(
                 traces=dff,
                 input_rate=self.args['movie_frame_rate_hz'],
                 target_rate=30.9)
         upsampled_rate = self.args['movie_frame_rate_hz'] * upsample_factor
+        self.logger.info("upsampled traces from "
+                         f"{self.args['movie_frame_rate_hz']} to "
+                         f"{upsampled_rate}")
 
-        event_dict = {}
-
+        # run FastLZeroSpikeInference
         l0a = L0_analysis(
                 upsampled_dff,
                 sample_rate_hz=upsampled_rate,
-                halflife_ms=halflife_ms)
+                halflife_ms=self.args['halflife_ms'])
         upsampled_events = l0a.get_events()
 
+        # downsample events back to original rate
         if upsample_factor == 1:
             downsampled_events = upsampled_events
         else:
@@ -461,21 +466,26 @@ class EventDetection(argschema.ArgSchemaParser):
                     downsampled_events[n, np.int(ev/upsample_factor)] += \
                             event_mag[i]
 
-        for n, event30Hz in enumerate(upsampled_events):
-            event_mag = event30Hz[event30Hz > 0]
-            event_idx = np.where(event30Hz > 0)[0]
-            event_dict[cids[n]] = {
-                    'mag': event_mag,
-                    'idx': event_idx,
-                    'event_trace': downsampled_events[n, :]}
-
         with h5py.File(self.args['output_event_file'], "w") as f:
-            f.create_dataset("dff", data=dff)
             f.create_dataset("events", data=downsampled_events)
+            f.create_dataset("roi_names", data=valid_roi_names)
             f.create_dataset("noise_stds", data=l0a._noise_stds)
             f.create_dataset("lambdas", data=l0a.lambdas)
             f.create_dataset("upsampling_factor", data=upsample_factor)
-            #f.create_dataset("event_dict", data=event_dict)
+        self.logger.info(f"wrote {self.args['output_event_file']}")
+
+        # NOTE I think this should be provided by SDK API, if desired.
+        # Saving dictionaries in hdf5 isn't great, and this seems
+        # very redundant.
+        # event_dict = {}
+        # for n, event30Hz in enumerate(upsampled_events):
+        #     event_mag = event30Hz[event30Hz > 0]
+        #     event_idx = np.where(event30Hz > 0)[0]
+        #     event_dict[valid_roi_names[n]] = {
+        #             'mag': event_mag,
+        #             'idx': event_idx,
+        #             'event_trace': downsampled_events[n, :]}
+
 
 
 if __name__ == "__main__":  # pragma: no cover

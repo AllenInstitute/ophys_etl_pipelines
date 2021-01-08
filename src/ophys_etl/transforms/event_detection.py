@@ -412,14 +412,6 @@ class EventDetection(argschema.ArgSchemaParser):
                 event_dict[cids[n]] = {
                         'mag': event_mag, 'idx': event_idx,
                         'event_trace': event}  # linking events to cids
-            np.savez_compressed(
-                    self.args['output_event_file'],
-                    dff=dff,
-                    events=events,
-                    noise_stds=l0a._noise_stds,
-                    lambdas=l0a.lambdas,
-                    event_dict=event_dict,
-                    upsampling_factor=uf)
         else:  # resampling is necessary (e.g. mesoscope sessions)
             dff30Hz = resample_poly(dff, uf, 1, axis=1)
             l0a = L0_analysis(
@@ -437,14 +429,14 @@ class EventDetection(argschema.ArgSchemaParser):
                 event_dict[cids[n]] = {
                         'mag': event_mag, 'idx': event_idx,
                         'event_trace': events[n, :]}  # linking events to cids
-            np.savez_compressed(
-                    self.args['output_event_file'],
-                    dff=dff,
-                    events=events,
-                    noise_stds=l0a._noise_stds,
-                    lambdas=l0a.lambdas,
-                    event_dict=event_dict,
-                    upsampling_factor=uf)
+
+        with h5py.File(self.args['output_event_file'], "w") as f:
+            f.create_dataset("dff", data=dff)
+            f.create_dataset("events", data=events)
+            f.create_dataset("noise_stds", data=l0a._noise_stds)
+            f.create_dataset("lambdas", data=l0a.lambdas)
+            f.create_dataset("upsampling_factor", data=uf)
+            #f.create_dataset("event_dict", data=event_dict)
 
 
 if __name__ == "__main__":  # pragma: no cover

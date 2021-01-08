@@ -132,8 +132,8 @@ def test_EventDetection(dff_hdf5, tmp_path):
     ed = emod.EventDetection(input_data=args, args=[])
     ed.run()
 
-    with np.load(args['output_event_file'], allow_pickle=True) as f:
-        events = f['events']
+    with h5py.File(args['output_event_file'], "r") as f:
+        events = f['events'][()]
 
     # empirically, this test case has very small events at the end
     # truncate before comparing to expectations

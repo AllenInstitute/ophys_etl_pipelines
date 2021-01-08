@@ -117,7 +117,8 @@ def evaluate_components(traces, event_kernel=5, robust_std=False):
     erf = 1 - scipy.stats.norm.cdf(z)
 
     # use logarithm so that multiplication becomes sum
-    erf = np.log(erf)  # ToDo: Debug "RuntimeWarning: divide by zero encountered in log"
+    with np.errstate(divide='ignore'):  # suppress "Divide by zero" warning from np.log
+        erf = np.log(erf)  # ToDo: Debug "RuntimeWarning: divide by zero encountered in log"
 
     # build kernel for event detection
     filt = np.ones(event_kernel)

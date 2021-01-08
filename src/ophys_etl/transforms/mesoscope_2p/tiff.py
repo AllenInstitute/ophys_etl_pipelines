@@ -330,10 +330,10 @@ class MesoscopeTiff(object):
                     page_offset += 1
                 else:
                     logging.info("No scanned plane found for z=%s", z)
-        if page_offset != self.plane_stride:
-            raise ValueError(
-                "Number of page starts does not match striding, "
-                "extracted data will be incorrect")
+            if page_offset != self.plane_stride:
+                raise ValueError(
+                    "Number of page starts does not match striding, "
+                    "extracted data will be incorrect")
 
         return self._planes
 

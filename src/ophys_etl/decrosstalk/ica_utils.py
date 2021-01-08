@@ -29,8 +29,17 @@ def pearson_ica_in_to_out(signal_in, signal_out):
 def whiten_data(x):
     """
     Function to debias (subtract mean) and whiten the data
-    :param x:
+    :param x:  -- shaped NxM
     :return:
+        whitened_data  -- shaped NxM
+        whitening matrix -- shaped MxM
+        the mean of the columns of data -- shaped M
+
+    whitened data is such that np.corrcoef(whitened_data.transpose())
+    is approximately the MxM identity matrix
+
+    whitening_matrix is the transformation such that
+    np.dot(x, x-mean) = whitened_data
     """
     m = np.mean(x, axis=0)
     x = x - m
@@ -62,18 +71,19 @@ def fix_source_assignment(ica_input, ica_output):
     return ica_output_corrected, corrs, swapped_flag
 
 
-def run_ica(ica_input, iters):
+def run_ica(ica_input, iters, seed):
     # Whiten observations
     Ow, W, m = whiten_data(ica_input)
     alpha = 1
     beta = 1
     it = 0
     roi_demixed = False
+    rng = np.random.RandomState(seed)
 
     while not roi_demixed and it <= iters:
         if alpha > 0.3 or beta > 0.3 or alpha < 0 or beta < 0:
             ### Unmixing
-            ica = FastICA(whiten=False, max_iter=10000)
+            ica = FastICA(whiten=False, max_iter=10000, random_state=rng)
             ica.fit_transform(Ow)  # Reconstruct sources
             mixing_raw = ica.mixing_
 

@@ -259,9 +259,10 @@ def get_trace_events(traces_y0, th_ag, len_ne):
                            with {event_kernel}=5 (so, it is a threshold applied on a sum of log probabilities)
     :param len_ne: scalar; number of frames before and after each event that are taken to create traces_events
     :return:
-        traces_y0_evs: ndarray, size N (number of neurons); each neuron has size n, which is the size of the "active trace" for that neuron
+        a dict with keys
+        'trace': ndarray, size N (number of neurons); each neuron has size n, which is the size of the "active trace" for that neuron
                                 For each neuron, this array contains the trace values at the active events in that trace.
-        inds_final_all: ndarray, size number_of_neurons; indeces to apply on traces_y0 to get traces_y0_evs:
+        'events': ndarray, size number_of_neurons; indeces to apply on traces_y0 to get traces_y0_evs:
     """
 
     #  Andrea Giovannucci's method of identifying "exceptional" events
@@ -376,4 +377,5 @@ def get_trace_events(traces_y0, th_ag, len_ne):
     inds_final_all = np.array(inds_final_all, dtype=object)
     traces_y0_evs = np.array(traces_y0_evs, dtype=object)  # neurons
 
-    return traces_y0_evs, inds_final_all
+    return {'trace': traces_y0_evs,
+            'events': inds_final_all}

@@ -217,15 +217,14 @@ def test_get_trace_events():
         for len_ne in (10, 20, 30):
             for th_ag in (7, 14, 21):
                 suffix = 'len_ne_%.2d_th_ag_%.2d' % (len_ne, th_ag)
-                (trace_events,
-                 event_indices) = active_traces.get_trace_events(input_trace,
-                                                                 len_ne=len_ne,
-                                                                 th_ag=th_ag)
+                results = active_traces.get_trace_events(input_trace,
+                                                         len_ne=len_ne,
+                                                         th_ag=th_ag)
 
-                assert len(trace_events) == in_file['n_trace_%s' % suffix][()]
-                assert len(trace_events) == len(event_indices)
-                for i_ev in range(len(trace_events)):
+                assert len(results['trace']) == in_file['n_trace_%s' % suffix][()]
+                assert len(results['trace']) == len(results['events'])
+                for i_ev in range(len(results['trace'])):
                     trace_control = in_file['trace_events_%s_%d' % (suffix, i_ev)][()]
                     ind_control = in_file['event_indices_%s_%d' % (suffix, i_ev)][()]
-                    np.testing.assert_array_equal(trace_control, trace_events[i_ev])
-                    np.testing.assert_array_equal(ind_control, event_indices[i_ev])
+                    np.testing.assert_array_equal(trace_control, results['trace'][i_ev])
+                    np.testing.assert_array_equal(ind_control, results['events'][i_ev])

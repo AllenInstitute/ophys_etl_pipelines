@@ -188,10 +188,8 @@ class L0_analysis:
                  halflife_ms=None,
                  sample_rate_hz=30,
                  L0_constrain=True,
-                 use_bisection=False,
                  infer_lambda=False):
 
-        self.use_bisection = use_bisection
         self.median_filter_1 = median_filter_1
         self.median_filter_2 = median_filter_2
         self.L0_constrain = L0_constrain
@@ -236,12 +234,9 @@ class L0_analysis:
     def gamma(self):
         return calculate_gamma(self.halflife, self.sample_rate_hz)
 
-    def get_events(self, event_min_size=None, use_bisection=None):
+    def get_events(self, event_min_size=None):
         if event_min_size is not None:
             self.event_min_size = event_min_size
-
-        if use_bisection is not None:
-            self.use_bisection = use_bisection
 
         self.print('Calculating events in progress', flush=True)
 
@@ -260,8 +255,7 @@ class L0_analysis:
         self.print('done!')
         return np.array(events)
 
-    def get_event_trace(self, tpl, event_min_size=None,
-                        use_bisection=None):
+    def get_event_trace(self, tpl, event_min_size=None):
         # This function is for parallelisation of event detection
         n = tpl[0]
         dff = tpl[1]
@@ -280,9 +274,6 @@ class L0_analysis:
                     tmp = fast_lzero(
                             self.dff_traces[1][n],
                             self.gamma, penalty, self.L0_constrain)
-                elif self.use_bisection:
-                    (tmp, penalty) = self.bisection(
-                            tmp, self.dff_traces[1][n], self.event_min_size)
                 else:
                     (tmp, penalty) = self.bracket(
                             tmp, self.dff_traces[1][n], 0,
@@ -293,65 +284,6 @@ class L0_analysis:
             tmp = np.NaN*np.zeros(dff.shape)
             penalty = np.NaN
             return (tmp, penalty)
-
-    def bisection(self, dff, n, event_min_size,
-                  left=0., right=5., max_its=100, eps=.0001):
-
-        # find right endpoint with no events
-        tmp_right = fast_lzero(dff, self.gamma, right, self.L0_constrain)
-        nz_right = (tmp_right > 0)
-
-        # bisection for lambda minimizing num events < min size
-        it = 0
-        while it <= max_its:
-
-            it += 1
-            if (right - left) < eps:
-                break
-
-            mid = left + (right - left) / 2.
-
-            tmp_left = fast_lzero(dff, self.gamma, left, self.L0_constrain)
-            nz_left = (tmp_left > 0)
-            num_small_events_left = np.sum(
-                    tmp_left[nz_left] < n*event_min_size)
-
-            if num_small_events_left == 0:
-                break
-            else:
-                tmp_mid = fast_lzero(dff, self.gamma, mid, self.L0_constrain)
-                tmp_right = fast_lzero(dff, self.gamma, right,
-                                       self.L0_constrain)
-
-                nz_mid = (tmp_mid > 0)
-                nz_right = (tmp_right > 0)
-
-                if np.sum(nz_mid) > 0:
-                    num_small_events_mid = np.sum(
-                            tmp_mid[nz_mid] < n*event_min_size)
-                else:
-                    num_small_events_mid = -np.infty
-
-                if np.sum(nz_right) > 0:
-                    num_small_events_right = np.sum(
-                            tmp_right[nz_right] < n*event_min_size)
-                else:
-                    num_small_events_right = -np.infty
-
-                print('lambda_left: ' + str(left))
-                print('lambda_mid: ' + str(mid))
-                print('lambda_right: ' + str(right))
-                print('num events_left: ' + str(num_small_events_left))
-                print('num events_mid: ' + str(num_small_events_mid))
-                print('num events_right: ' + str(num_small_events_right))
-
-                if np.sign(num_small_events_mid) == \
-                        np.sign(num_small_events_left):
-                    left = mid
-                else:
-                    right = mid
-
-        return tmp_left, left
 
     def bracket(self, dff, n, s1, step,
                 step_min, event_min_size, bisect=False):

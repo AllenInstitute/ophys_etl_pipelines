@@ -23,4 +23,3 @@ event_decay_lookup_dict = \
       "Emx1-IRES-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/Ai93(TITL-GCaMP6f)": 0.365,
       "Slc17a7-IRES2-Cre/wt;Camk2a-tTA/wt;Ai94(TITL-GCaMP6s)/wt": 0.738
     }
-

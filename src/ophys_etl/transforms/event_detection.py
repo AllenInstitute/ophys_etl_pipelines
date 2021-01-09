@@ -7,6 +7,7 @@ import marshmallow as mm
 from typing import Tuple
 from scipy.ndimage.filters import median_filter
 from scipy.signal import resample_poly
+from scipy.stats import median_abs_deviation
 from joblib import Parallel, delayed
 from FastLZeroSpikeInference import fast
 from ophys_etl.resources import event_decay_lookup_dict as decay_lookup
@@ -61,12 +62,86 @@ class EventDetectionInputSchema(argschema.ArgSchema):
                         "Available lookup values are "
                         f"\n{json.dumps(decay_lookup, indent=2)}")
             data['decay_time'] = decay_lookup[data['full_genotype']]
-        data['halflife_ms'] = 1000 * np.log(2) * data['decay_time']
+        data['halflife_ms'] = calculate_halflife(data['decay_time'])
         return data
 
 
-def medfilt(x, s):
-    return median_filter(x, s, mode='constant')
+def fast_lzero(dat: np.ndarray, gamma: float,
+               penalty: float, constraint: bool) -> np.ndarray:
+    """runs fast spike inference and returns an array like the input trace
+    with data substituted by event magnitudes, shifted 1 index earlier
+
+    Parameters
+    ----------
+    dat: np.ndarray
+        fluorescence data
+    gamma: float
+        a scalar value for the AR(1) decay parameter; 0 < gam <= 1
+    penalty: float
+        tuning parameter lambda > 0
+    constraint: bool
+        constrained (true) or unconstrained (false) optimization
+
+    Returns
+    -------
+    out: np.ndarray
+        event magnitude array, same shape as dat
+
+    Notes
+    -----
+    https://github.com/jewellsean/FastLZeroSpikeInference/blob/cdfaade68ceb6aa15ec5003c460de4e0575f1d5f/python/FastLZeroSpikeInference/fast.py#L30  # noqa: E501
+
+    """
+    ev = fast.estimate_spikes(dat, gamma, penalty,
+                              constraint, estimate_calcium=True)
+    out = np.zeros(ev['dat'].shape)
+    out[ev['spikes'] - 1] = ev['pos_spike_mag']
+    return out
+
+
+def calculate_gamma(halflife: float, sample_rate: float) -> float:
+    """calculate gamma from halflife and sample rate
+    """
+    return np.exp(-np.log(2) * 1000 / (halflife * sample_rate))
+
+
+def calculate_halflife(decay_time: float) -> float:
+    return 1000 * np.log(2) * decay_time
+
+
+def mad_std_estimate(x):
+    """estimates the standard deviation by scipy.stats.median_abs_deviation
+    """
+    return 1.4826 * median_abs_deviation(x)
+
+
+def trace_noise_estimate(x: np.ndarray,
+                         filt_length: int = 31) -> float:
+    """estimates noise of a signal by detrending with a median filter,
+    removing positive spikes, eliminating outliers, and, using the
+    median absolute deviation estimator of standard deviation.
+
+    Parameters
+    ----------
+    x: np.ndarray
+        1-D array of values
+    filt_length: int
+        passed as size to scipy.ndimage.filters.mediam_filter
+
+    Returns
+    -------
+    float
+        estimate of the standard deviation. np.NaN if as NaN's are in
+        incoming data
+
+    """
+    if any(np.isnan(x)):
+        return np.NaN
+    x = x - median_filter(x, filt_length, mode='constant')
+    x = x[x < 1.5 * np.abs(x.min())]
+    rstd = mad_std_estimate(x)
+    x = x[abs(x) < 2.5 * rstd]
+    return mad_std_estimate(x)
 
 
 class L0_analysis:
@@ -114,55 +189,34 @@ class L0_analysis:
                  sample_rate_hz=30,
                  L0_constrain=True,
                  use_bisection=False,
-                 infer_lambda=False,
-                 compute_dff=False):
+                 infer_lambda=False):
 
         self.use_bisection = use_bisection
         self.median_filter_1 = median_filter_1
         self.median_filter_2 = median_filter_2
         self.L0_constrain = L0_constrain
-        self.compute_dff = compute_dff
         self.infer_lambda = infer_lambda
 
-        try:
-            self.metadata = dataset.get_metadata()
-            self.corrected_fluorescence_traces = \
-                dataset.get_corrected_fluorescence_traces()[1]
-            self.num_cells = self.corrected_fluorescence_traces.shape[0]
-            self._dff_traces = None
-            self._noise_stds = None
-            self._num_small_baseline_frames = None
-        except:
-            self.metadata = {
-                    'ophys_experiment_id': 999}
-            self._dff_traces = dataset
-            self.num_cells = self._dff_traces[0]
-            num_small_baseline_frames = []
-            noise_stds = []
+        self.metadata = {
+                'ophys_experiment_id': 999}
+        self._dff_traces = dataset
+        self.num_cells = self._dff_traces[0]
+        num_small_baseline_frames = []
+        noise_stds = []
 
-            for dff in self._dff_traces:
-                if self.compute_dff:
-                    sigma_f = self.noise_std(dff)
+        for dff in self._dff_traces:
+            sigma_dff = trace_noise_estimate(dff)
+            noise_stds.append(sigma_dff)
 
-                    # long timescale median filter for baseline subtraction
-                    tf = medfilt(dff, self.median_filter_1)
-                    dff -= tf
-                    dff /= np.maximum(tf, sigma_f)
+            # short timescale detrending
+            tf = median_filter(dff, self.median_filter_2, mode='constant')
+            tf = np.minimum(tf, 2.5*sigma_dff)
+            dff -= tf
 
-                    num_small_baseline_frames.append(np.sum(tf <= sigma_f))
+            self.print('.', end='', flush=True)
 
-                sigma_dff = self.noise_std(dff)
-                noise_stds.append(sigma_dff)
-
-                # short timescale detrending
-                tf = medfilt(dff, self.median_filter_2)
-                tf = np.minimum(tf, 2.5*sigma_dff)
-                dff -= tf
-
-                self.print('.', end='', flush=True)
-
-            self._noise_stds = noise_stds
-            self._num_small_baseline_frames = num_small_baseline_frames
+        self._noise_stds = noise_stds
+        self._num_small_baseline_frames = num_small_baseline_frames
 
         self.sample_rate_hz = sample_rate_hz
         self.event_min_size = event_min_size
@@ -171,42 +225,16 @@ class L0_analysis:
         self._gamma = None
         self.lambdas = []
 
-    def l0(self, dff, gamma, l, constraint):
-        ev = fast.estimate_spikes(dff, gamma, l, constraint,
-                                  estimate_calcium=True)
-        out = np.zeros(ev['dat'].shape)
-        out[ev['spikes']-1] = ev['pos_spike_mag']
-        return out
-
     @property
     def dff_traces(self):
-        self.min_detected_event_sizes = [[] for n in range(self._dff_traces.shape[0])]
-        return self._dff_traces, self._noise_stds, self._num_small_baseline_frames
+        self.min_detected_event_sizes = \
+                [[] for n in range(self._dff_traces.shape[0])]
+        return (self._dff_traces, self._noise_stds,
+                self._num_small_baseline_frames)
 
     @property
     def gamma(self):
-        if self._gamma is None:
-            self._gamma = np.exp(-np.log(2) * 1000 /
-                                 (self.halflife * self.sample_rate_hz))
-        return self._gamma
-
-    def noise_std(self, x, filt_length=31):
-        if any(np.isnan(x)):
-            return np.NaN
-        x = x - medfilt(x, filt_length)
-        # first pass removing big pos peak outliers
-        x = x[x < 1.5 * np.abs(x.min())]
-        rstd = self.robust_std(x)
-        # second pass removing remaining pos and neg peak outliers
-        x = x[abs(x) < 2.5*rstd]
-        return self.robust_std(x)
-
-    def robust_std(self, x):
-        '''
-        Robust estimate of std
-        '''
-        MAD = np.median(np.abs(x - np.median(x)))
-        return 1.4826*MAD
+        return calculate_gamma(self.halflife, self.sample_rate_hz)
 
     def get_events(self, event_min_size=None, use_bisection=None):
         if event_min_size is not None:
@@ -219,7 +247,11 @@ class L0_analysis:
 
         events = []
         # parallelization written by PL
-        results = Parallel(n_jobs=40, prefer="threads")(delayed(self.get_event_trace)((n, dff)) for n, dff in enumerate(self.dff_traces[0]))
+        results = Parallel(
+                n_jobs=40,
+                prefer="threads")(delayed(
+                    self.get_event_trace)(
+                        (n, dff)) for n, dff in enumerate(self.dff_traces[0]))
         events = [result[0] for result in results]
         events = np.array(events)
         self.lambdas = [result[1] for result in results]
@@ -236,37 +268,37 @@ class L0_analysis:
         try:
             if any(np.isnan(dff)):
                 tmp = np.NaN*np.zeros(dff.shape)
-                l = np.NaN
+                penalty = np.NaN
             else:
                 tmp = dff[:]
                 if self.infer_lambda:
                     # empirical lambda(noise_std) fit
                     fit = [3.63986409e+00, 1.81463579e-03, 3.56562092e-05]
-                    l = (fit[0] *
-                         self._noise_stds[n]**2 +
-                         fit[1] * self._noise_stds[n] + fit[2])
-                    tmp = self.l0(
+                    penalty = (fit[0] *
+                               self._noise_stds[n]**2 +
+                               fit[1] * self._noise_stds[n] + fit[2])
+                    tmp = fast_lzero(
                             self.dff_traces[1][n],
-                            self.gamma, l, self.L0_constrain)
+                            self.gamma, penalty, self.L0_constrain)
                 elif self.use_bisection:
-                    (tmp, l) = self.bisection(
+                    (tmp, penalty) = self.bisection(
                             tmp, self.dff_traces[1][n], self.event_min_size)
                 else:
-                    (tmp, l) = self.bracket(
+                    (tmp, penalty) = self.bracket(
                             tmp, self.dff_traces[1][n], 0,
                             .1, .0001, self.event_min_size)
-            return (tmp, l)
+            return (tmp, penalty)
         except Exception as e:
             print(e)
             tmp = np.NaN*np.zeros(dff.shape)
-            l = np.NaN
-            return (tmp, l)
+            penalty = np.NaN
+            return (tmp, penalty)
 
     def bisection(self, dff, n, event_min_size,
                   left=0., right=5., max_its=100, eps=.0001):
 
         # find right endpoint with no events
-        tmp_right = self.l0(dff, self.gamma, right, self.L0_constrain)
+        tmp_right = fast_lzero(dff, self.gamma, right, self.L0_constrain)
         nz_right = (tmp_right > 0)
 
         # bisection for lambda minimizing num events < min size
@@ -279,7 +311,7 @@ class L0_analysis:
 
             mid = left + (right - left) / 2.
 
-            tmp_left = self.l0(dff, self.gamma, left, self.L0_constrain)
+            tmp_left = fast_lzero(dff, self.gamma, left, self.L0_constrain)
             nz_left = (tmp_left > 0)
             num_small_events_left = np.sum(
                     tmp_left[nz_left] < n*event_min_size)
@@ -287,8 +319,9 @@ class L0_analysis:
             if num_small_events_left == 0:
                 break
             else:
-                tmp_mid = self.l0(dff, self.gamma, mid, self.L0_constrain)
-                tmp_right = self.l0(dff, self.gamma, right, self.L0_constrain)
+                tmp_mid = fast_lzero(dff, self.gamma, mid, self.L0_constrain)
+                tmp_right = fast_lzero(dff, self.gamma, right,
+                                       self.L0_constrain)
 
                 nz_mid = (tmp_mid > 0)
                 nz_right = (tmp_right > 0)
@@ -322,11 +355,11 @@ class L0_analysis:
 
     def bracket(self, dff, n, s1, step,
                 step_min, event_min_size, bisect=False):
-        l = s1 + step
-        if l < step:
-            l = step
+        penalty = s1 + step
+        if penalty < step:
+            penalty = step
             s1 += step
-        tmp = self.l0(dff, self.gamma, l, self.L0_constrain)
+        tmp = fast_lzero(dff, self.gamma, penalty, self.L0_constrain)
 
         if len(tmp[tmp > 0]) == 0 and bisect is True:
             return self.bracket(
@@ -342,12 +375,13 @@ class L0_analysis:
                 while (len(tmp[tmp > 0]) > 0 and
                        np.min(tmp[tmp > 0]) < n * event_min_size):
                     lasttmp = tmp[:]
-                    l += step
-                    tmp = self.l0(dff, self.gamma, l, self.L0_constrain)
+                    penalty += step
+                    tmp = fast_lzero(dff, self.gamma, penalty,
+                                     self.L0_constrain)
                 if len(tmp[tmp > 0]) == 0:
-                    return (lasttmp, l-step)
+                    return (lasttmp, penalty - step)
                 else:
-                    return (tmp, l)
+                    return (tmp, penalty)
 
         if len(tmp[tmp > 0]) == 0 and bisect is False:
             return self.bracket(
@@ -355,7 +389,8 @@ class L0_analysis:
                     step/10, step_min, event_min_size, True)
 
         if len(tmp[tmp > 0]) > 0 and np.min(tmp[tmp > 0]) < n * event_min_size:
-            return self.bracket(dff, n, l, step, step_min, event_min_size)
+            return self.bracket(dff, n, penalty,
+                                step, step_min, event_min_size)
 
         condition = (len(tmp[tmp > 0]) > 0 and
                      np.min(tmp[tmp > 0]) > n * event_min_size and
@@ -458,7 +493,7 @@ class EventDetection(argschema.ArgSchemaParser):
         if upsample_factor == 1:
             downsampled_events = upsampled_events
         else:
-            downsampled_events = np.zeros_like(dff)  # same size as the original dff
+            downsampled_events = np.zeros_like(dff)
             for n, event30Hz in enumerate(upsampled_events):
                 event_mag = event30Hz[event30Hz > 0]  # upsampled
                 event_idx = np.where(event30Hz > 0)[0]
@@ -485,7 +520,6 @@ class EventDetection(argschema.ArgSchemaParser):
         #             'mag': event_mag,
         #             'idx': event_idx,
         #             'event_trace': downsampled_events[n, :]}
-
 
 
 if __name__ == "__main__":  # pragma: no cover

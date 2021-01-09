@@ -179,7 +179,7 @@ def test_EventDetection(dff_hdf5, tmp_path):
 
         # check that they are in the right place:
         result_index = np.argwhere(result != 0).flatten()
-        np.testing.assert_allclose(result_index, expected.timestamps, atol=1)
+        np.testing.assert_array_equal(result_index, expected.timestamps)
 
 
 @pytest.mark.event_detect_only

@@ -69,7 +69,7 @@ class EventDetectionInputSchema(argschema.ArgSchema):
 def fast_lzero(dat: np.ndarray, gamma: float,
                penalty: float, constraint: bool) -> np.ndarray:
     """runs fast spike inference and returns an array like the input trace
-    with data substituted by event magnitudes, shifted 1 index earlier
+    with data substituted by event magnitudes
 
     Parameters
     ----------
@@ -95,7 +95,7 @@ def fast_lzero(dat: np.ndarray, gamma: float,
     ev = fast.estimate_spikes(dat, gamma, penalty,
                               constraint, estimate_calcium=True)
     out = np.zeros(ev['dat'].shape)
-    out[ev['spikes'] - 1] = ev['pos_spike_mag']
+    out[ev['spikes']] = ev['pos_spike_mag']
     return out
 
 

@@ -69,7 +69,7 @@ class EventDetectionInputSchema(argschema.ArgSchema):
                         "Available lookup values are "
                         f"\n{json.dumps(decay_lookup, indent=2)}")
             data['decay_time'] = decay_lookup[data['full_genotype']]
-        data['halflife_ms'] = calculate_halflife(data['decay_time'])
+        data['halflife'] = calculate_halflife(data['decay_time'])
         return data
 
 
@@ -107,19 +107,40 @@ def fast_lzero(penalty: float, dat: np.ndarray, gamma: float,
 
 
 def calculate_gamma(halflife: float, sample_rate: float) -> float:
-    """calculate gamma from halflife and sample rate
+    """calculate gamma from halflife and sample rate.
+
+    Parameters
+    ----------
+    halflife: float
+        halflife [seconds]
+    sample_rate: float
+        sample rate [Hz]
+
+    Returns
+    -------
+    gamma: float
+        attenuation factor from exponential decay over 1 time sample
+
     """
-    return np.exp(-np.log(2) * 1000 / (halflife * sample_rate))
+    lam = np.log(2) / (halflife * sample_rate)
+    gamma = np.exp(-lam)
+    return gamma
 
 
 def calculate_halflife(decay_time: float) -> float:
-    return 1000 * np.log(2) * decay_time
+    """conversion from decay_time to halflife
 
+    Parameters
+    ----------
+    decay_time: float
+        also known as mean lifetime in [seconds]
 
-def mad_std_estimate(x):
-    """estimates the standard deviation by scipy.stats.median_abs_deviation
+    Returns
+    -------
+    float
+        halflife in [seconds]
     """
-    return 1.4826 * median_abs_deviation(x)
+    return np.log(2) * decay_time
 
 
 def trace_noise_estimate(x: np.ndarray,
@@ -133,7 +154,7 @@ def trace_noise_estimate(x: np.ndarray,
     x: np.ndarray
         1-D array of values
     filt_length: int
-        passed as size to scipy.ndimage.filters.mediam_filter
+        passed as size to scipy.ndimage.filters.median_filter
 
     Returns
     -------
@@ -142,18 +163,16 @@ def trace_noise_estimate(x: np.ndarray,
         incoming data
 
     """
-    if any(np.isnan(x)):
-        return np.NaN
     x = x - median_filter(x, filt_length, mode='nearest')
     x = x[x < 1.5 * np.abs(x.min())]
-    rstd = mad_std_estimate(x)
+    rstd = median_abs_deviation(x, scale='normal')
     x = x[abs(x) < 2.5 * rstd]
-    return mad_std_estimate(x)
+    return median_abs_deviation(x, scale='normal')
 
 
 def fast_lzero_regularization_search_scipy(
         trace: np.ndarray, noise_estimate: float,
-        gamma: float) -> Tuple[np.ndarray, float]:
+        gamma: float, penalty_guess: float = 0.1) -> Tuple[np.ndarray, float]:
     """finds events through a regularization search, subject to the
     constraints of having n_events > 0 (establishing the upper bound for
     regularization penalty) and the smallest event magnitude near the noise
@@ -168,6 +187,8 @@ def fast_lzero_regularization_search_scipy(
         desired event magnitude.
     gamma: float
         a scalar value for the AR(1) decay parameter; 0 < gam <= 1
+    penalty_guess: float
+        initial guess for the regularization penalty
 
     Returns
     -------
@@ -214,7 +235,6 @@ def fast_lzero_regularization_search_scipy(
 
     # constrain number of events to be > 0 (i.e. >= 0.5)
     nonlinear_constraint = NonlinearConstraint(n_event_call, 0.5, np.inf)
-    penalty_guess = 0.1
     optimize_result = minimize(min_mag_call,
                                [penalty_guess],
                                method='trust-constr',
@@ -290,37 +310,44 @@ def bracket(dff, noise, s1, step, step_min, gamma, bisect=False):
                 step, step_min, gamma)
 
 
-def get_event_trace(dff, noise, gamma):
-    try:
-        if any(np.isnan(dff)):
-            # NOTE: from original code. A data survey shows that valid ROIs
-            # do not have NaN's in dff trace - confirm
-            events = np.NaN*np.zeros(dff.size)
-            penalty = np.NaN
-        else:
-            events, penalty = bracket(dff, noise, 0, .1, .0001, gamma)
-        return events, penalty
-    except Exception as e:
-        # NOTE: from original code. There is no indication why this is here
-        print(e)
-        tmp = np.NaN*np.zeros(dff.shape)
-        penalty = np.NaN
-        return (tmp, penalty)
-
-
 def estimate_noise_detrend(traces: np.ndarray,
                            filter_size: int) -> Tuple[np.ndarray, np.ndarray]:
-    noise_stds = []
-    for trace in traces:
-        sigma = trace_noise_estimate(trace)
-        noise_stds.append(sigma)
+    """Per-trace: estimates noise and median filters with a noise-based
+    clipping threshold of the median.
+
+    Parameters
+    ----------
+    traces: np.ndarray
+        ntrace x nframes, float
+    filter_size: int
+        length of median filter for detrending, passed to
+        scipy.ndimage.filters.median_filter as size.
+
+    Returns
+    -------
+    traces: np.ndarray
+        ntrace x nframes, detrended traces
+    sigmas: np.ndarray
+        size ntrace, float, estimate of trace noise
+
+    Notes
+    -----
+    original code used median_filter mode of 'constant' which pads for
+    the median calculation with zero. In many cases, this led to a small
+    detected event at the end of the trace. Changing to 'nearest' mode
+    eliminates this behavior.
+
+    """
+    sigmas = np.empty(shape=traces.shape[0])
+    for i, trace in enumerate(traces):
+        sigmas[i] = trace_noise_estimate(trace)
         trace_median = median_filter(trace, filter_size, mode='nearest')
         # NOTE the next line clips the median trace from above
-        # there is no explanation in the original code.
-        trace_median = np.minimum(trace_median, 2.5 * sigma)
+        # there is no stated motivation in the original code.
+        trace_median = np.minimum(trace_median, 2.5 * sigmas[i])
         trace -= trace_median
 
-    return traces, noise_stds
+    return traces, sigmas
 
 
 def get_events(traces, noise_estimates, gamma, legacy_bracket=False):
@@ -331,10 +358,6 @@ def get_events(traces, noise_estimates, gamma, legacy_bracket=False):
     else:
         results = [bracket(trace, sigma, 0, 0.1, 0.0001, gamma)
                    for trace, sigma in zip(traces, noise_estimates)]
-        # NOTE: function below has some NaN and exception handling
-        # that doesn't seem to be in play for production data
-        # results = [get_event_trace(trace, sigma, self.gamma)
-        #            for trace, sigma in zip(*self.dff_traces)]
 
     events = [result[0] for result in results]
     events = np.array(events)
@@ -393,8 +416,6 @@ class EventDetection(argschema.ArgSchemaParser):
 
         # read in the input file
         with h5py.File(self.args['ophysdfftracefile'], 'r') as f:
-            # NOTE: from a data survey, not all `ophysdfftracefiles` have
-            # the roi_names key. We need to figure out why.
             roi_names = f['roi_names'][()]
             valid_roi_indices = np.argwhere(
                     np.isin(
@@ -417,7 +438,7 @@ class EventDetection(argschema.ArgSchemaParser):
         short_median_filter = 101
         dff, noise_stds = estimate_noise_detrend(
                 upsampled_dff, short_median_filter)
-        gamma = calculate_gamma(self.args['halflife_ms'],
+        gamma = calculate_gamma(self.args['halflife'],
                                 upsampled_rate)
         upsampled_events, lambdas = get_events(
                 dff, noise_stds, gamma,

@@ -73,8 +73,8 @@ def fix_source_assignment(ica_input, ica_output):
 
 def run_ica(ica_input, iters, seed, verbose=False):
     """
-    ica_input -- an NxM numpy array; in the context of the decrosstalk
-    problem, N=the number of timesteps; M=2 (first column is signal;
+    ica_input -- an MxN numpy array; in the context of the decrosstalk
+    problem, N=the number of timesteps; M=2 (first row is signal;
     second is crosstalk)
 
     iters -- an int; the number of iterative loops to try to go through
@@ -93,13 +93,13 @@ def run_ica(ica_input, iters, seed, verbose=False):
     problem)
 
     mixing -- the mixing matrix that gets from ica_input to ica_output
-    np.dot(mixing, ica_output).transpose() will restore ica_input
+    np.dot(mixing, ica_output) will restore ica_input
 
     roi_demixed -- a boolean indicating whether or not the iteration to get
     the off-diagonal elements of the mixing matrix < 0.3 actually worked
     """
     # Whiten observations
-    Ow, W, m = whiten_data(ica_input)
+    Ow, W, m = whiten_data(ica_input.transpose())
     alpha = 1
     beta = 1
     it = 0
@@ -125,9 +125,9 @@ def run_ica(ica_input, iters, seed, verbose=False):
         beta = mixing[1, 0]
         it += 1
 
-    Sos = np.dot(ica_input, np.linalg.inv(mixing).T)  # recovering outputs using new mixing matrix
+    Sos = np.dot(np.linalg.inv(mixing), ica_input)  # recovering outputs using new mixing matrix
 
-    ica_output, corrs, swapped = fix_source_assignment(ica_input.T, Sos.T) # fixing source assignment ambiguity
+    ica_output, corrs, swapped = fix_source_assignment(ica_input, Sos) # fixing source assignment ambiguity
 
     if swapped:
         new_mixing = np.zeros((2,2), dtype=float)

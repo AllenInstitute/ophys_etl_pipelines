@@ -131,9 +131,9 @@ def test_run_ica():
 
     signal_2 *= 0.1
 
-    data0 = np.zeros((n_time, 2), dtype=float)
-    data0[:,0] = 0.9*signal_1+0.1*signal_2
-    data0[:,1] = 0.25*signal_1+0.75*signal_2
+    data0 = np.zeros((2, n_time), dtype=float)
+    data0[0,:] = 0.9*signal_1+0.1*signal_2
+    data0[1,:] = 0.25*signal_1+0.75*signal_2
 
     for seed in (9, 11):
         # seed 9 triggers swapped==True; I want to make sure
@@ -145,16 +145,16 @@ def test_run_ica():
         noise_1 = rng.random_sample(n_time)*0.05
         noise_2 = rng.random_sample(n_time)*0.05
         data = np.copy(data0)
-        data[:,0] += noise_1
-        data[:,1] += noise_2
+        data[0,:] += noise_1
+        data[1,:] += noise_2
         (unmixed_signals,
            mixing_matrix,
             converged,
             swapped) = ica_utils.run_ica(data, 1000, seed, verbose=True)
 
-        assert unmixed_signals.shape == data.transpose().shape
+        assert unmixed_signals.shape == data.shape
 
-        new_data = np.dot(mixing_matrix, unmixed_signals).transpose()
+        new_data = np.dot(mixing_matrix, unmixed_signals)
         np.testing.assert_array_almost_equal(new_data, data, decimal=10)
         if seed == 9:
             assert swapped

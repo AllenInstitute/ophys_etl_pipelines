@@ -96,7 +96,7 @@ def test_EventDetectionSchema(tmp_path):
             }
     parser = emod.EventDetection(input_data=args, args=[])
     assert parser.args['decay_time'] == dtime
-    assert 'halflife_ms' in parser.args
+    assert 'halflife' in parser.args
 
     # specifying valid genotype rather than decay time
     args.pop('decay_time')
@@ -105,7 +105,7 @@ def test_EventDetectionSchema(tmp_path):
     parser = emod.EventDetection(input_data=args, args=[])
     assert 'decay_time' in parser.args
     assert parser.args['decay_time'] == decay_lookup[key]
-    assert 'halflife_ms' in parser.args
+    assert 'halflife' in parser.args
 
     # non-existent genotype exception
     args['full_genotype'] = 'non-existent-genotype'

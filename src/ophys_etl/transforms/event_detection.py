@@ -171,8 +171,7 @@ def trace_noise_estimate(x: np.ndarray,
     Returns
     -------
     float
-        estimate of the standard deviation. np.NaN if as NaN's are in
-        incoming data
+        estimate of the standard deviation.
 
     """
     x = x - median_filter(x, filt_length, mode='nearest')
@@ -336,8 +335,7 @@ def fast_lzero_regularization_search_bracket(
                     base_penalty=base_penalty,
                     penalty_step=penalty_step)
         else:
-            while (n_events > 0 and
-                   min_event_mag < min_size):
+            while (n_events > 0 and min_event_mag < min_size):
                 last_flz_eval = np.copy(flz_eval)
                 penalty += penalty_step
                 flz_eval = fast_lzero(penalty, trace, gamma, L0_constrain)
@@ -482,7 +480,7 @@ def trace_resample(traces: np.ndarray, input_rate: float,
     ------
     NotImplementedError
         for any target rate != 30.9Hz. Evaluation of results is needed
-        to generalize this function to other target rates.
+        to generalize FastLZero to other target rates.
 
     """
     if target_rate != 30.9:

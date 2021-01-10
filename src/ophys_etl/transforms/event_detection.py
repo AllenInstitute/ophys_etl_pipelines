@@ -144,7 +144,7 @@ def trace_noise_estimate(x: np.ndarray,
     """
     if any(np.isnan(x)):
         return np.NaN
-    x = x - median_filter(x, filt_length, mode='constant')
+    x = x - median_filter(x, filt_length, mode='nearest')
     x = x[x < 1.5 * np.abs(x.min())]
     rstd = mad_std_estimate(x)
     x = x[abs(x) < 2.5 * rstd]
@@ -314,7 +314,7 @@ def estimate_noise_detrend(traces: np.ndarray,
     for trace in traces:
         sigma = trace_noise_estimate(trace)
         noise_stds.append(sigma)
-        trace_median = median_filter(trace, filter_size, mode='constant')
+        trace_median = median_filter(trace, filter_size, mode='nearest')
         # NOTE the next line clips the median trace from above
         # there is no explanation in the original code.
         trace_median = np.minimum(trace_median, 2.5 * sigma)

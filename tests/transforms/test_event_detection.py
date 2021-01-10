@@ -171,9 +171,6 @@ def test_EventDetection(dff_hdf5, tmp_path, legacy_bracket):
             assert k in keys
         events = f['events'][()]
 
-    # empirically, this test case has very small events at the end
-    # truncate before comparing to expectations
-    events = events[:, 0:950]
     for result, expected in zip(events, expected_events):
         nresult = np.count_nonzero(result)
         # check that the number of events match the expectation:

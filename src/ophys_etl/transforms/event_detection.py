@@ -447,8 +447,13 @@ def get_events(traces: np.ndarray, noise_estimates: np.ndarray,
     else:
         func = fast_lzero_regularization_search_scipy
 
-    pool = multiprocessing.Pool(ncpu)
+    # pytest-cov does not play nice with Pool context manager so explicit
+    # close/join to get code coverage report in subprocess calls
+    pool =  multiprocessing.Pool(ncpu)
     results = pool.starmap(func, args)
+    pool.close()
+    pool.join()
+
     events, lambdas = zip(*results)
     events = np.array(events)
     lambdas = np.array(lambdas)

@@ -8,7 +8,8 @@ from typing import Tuple
 from scipy.ndimage.filters import median_filter
 from scipy.signal import resample_poly
 from scipy.stats import median_abs_deviation
-from joblib import Parallel, delayed
+from scipy.optimize import NonlinearConstraint, minimize
+from functools import partial
 from FastLZeroSpikeInference import fast
 from ophys_etl.resources import event_decay_lookup_dict as decay_lookup
 from ophys_etl.schemas.fields import H5InputFile
@@ -46,6 +47,12 @@ class EventDetectionInputSchema(argschema.ArgSchema):
     output_event_file = argschema.fields.OutputFile(
         required=True,
         description="location for output of event detection.")
+    legacy_bracket = argschema.fields.Bool(
+        required=False,
+        default=False,
+        description=("whether to run the legacy recursive bracketing method "
+                     "for regularization search, vs. the new scipy-based "
+                     "search."))
 
     @mm.post_load
     def get_decay_time(self, data, **kwargs):
@@ -66,19 +73,19 @@ class EventDetectionInputSchema(argschema.ArgSchema):
         return data
 
 
-def fast_lzero(dat: np.ndarray, gamma: float,
-               penalty: float, constraint: bool) -> np.ndarray:
+def fast_lzero(penalty: float, dat: np.ndarray, gamma: float,
+               constraint: bool) -> np.ndarray:
     """runs fast spike inference and returns an array like the input trace
     with data substituted by event magnitudes
 
     Parameters
     ----------
+    penalty: float
+        tuning parameter lambda > 0
     dat: np.ndarray
         fluorescence data
     gamma: float
         a scalar value for the AR(1) decay parameter; 0 < gam <= 1
-    penalty: float
-        tuning parameter lambda > 0
     constraint: bool
         constrained (true) or unconstrained (false) optimization
 
@@ -144,205 +151,195 @@ def trace_noise_estimate(x: np.ndarray,
     return mad_std_estimate(x)
 
 
-class L0_analysis:
-    """
-    Class for performing L0 event detection using an automatically determined
-    lambda value. lambda is chosen by finding smallest lambda such that the
-    size of the smallest detected event is greater or equal to
-    event_min_size*robust std of noise. If such a lambda cannot be found, it
-    uses the largest lambda that returns some non-zero values.
+def fast_lzero_regularization_search_scipy(
+        trace: np.ndarray, noise_estimate: float,
+        gamma: float) -> Tuple[np.ndarray, float]:
+    """finds events through a regularization search, subject to the
+    constraints of having n_events > 0 (establishing the upper bound for
+    regularization penalty) and the smallest event magnitude near the noise
+    estimate.
 
     Parameters
     ----------
-    dataset : a dataset object (returned from get_ophys_experiment_data)
-              or ophys_experiment_id or raw data
-    event_min_size : smallest allowable event in units
-                     of noise std [default: 1.0]
-    median_filter_1 : the length of the window for long time scale median
-                      filter detrending to estimate dff from
-                      corrected_fluorescence_traces [default: 5401]
-    median_filter_2 : the length of the window for short time scale
-                      median filter detrending [default: 101]
-    halflife_ms : half-life of the indicator in ms,
-                  used to override lookup [default: None]
-    sample_rate_hz : sampling rate of data in Hz
+    trace: np.ndarray
+        the 1D trace data
+    noise_estimate: float
+        a std-dev estimate of the noise, used to establish the smallest
+        desired event magnitude.
+    gamma: float
+        a scalar value for the AR(1) decay parameter; 0 < gam <= 1
 
-    Attributes
-    ----------
-    noise_stds : estimates of the std of the noise for each trace
-    lambdas : chosen lambda for each trace
-    gamma : the gamma decay constant calculated from the half-life
-    dff_traces : detrended df/f traces
+    Returns
+    -------
+    events: np.ndarray
+        array of event magnitudes, the same size as trace
+    penalty: float
+        the optimized regularization parameter
 
-    Examples
-    --------
-    >>> l0a = L0_analysis(dataset)
-    >>> events = l0a.get_events()
+    Notes
+    -----
+    - The original code also had a parameter that would multiply noise
+    estimate. This parameter (event_min_size) was always set to 1.
+    If desired later, this can be added as an additional argument here.
+    - This search benefits from using established scipy.optimize methods,
+    making it readable, extensible, and thus maintainable. There is an
+    inefficiency in that `fast_lzero_partial` is executed twice per iteration,
+    (is this accurate? this depends how the underlying Trust region method is
+    searching the space) and a final time to retrieve the events. Since the
+    underlying optimization from FastLZeroSpikeInference is indeed fast
+    (a few seconds per trace), this seems like a reasonable tradeoff.
+    If one wanted to use this scipy-based method and avoid the repeat calls,
+    one could implement an lru_cache on the `fast_lzero` method, but, some
+    additional work to make the inputs and outputs hashable would be required.
 
     """
-    def __init__(self,
-                 dataset,
-                 event_min_size=1.,
-                 median_filter_1=5401,
-                 median_filter_2=101,
-                 halflife_ms=None,
-                 sample_rate_hz=30,
-                 L0_constrain=True,
-                 infer_lambda=False):
+    fast_lzero_partial = partial(fast_lzero, dat=trace,
+                                 gamma=gamma, constraint=True)
 
-        self.median_filter_1 = median_filter_1
-        self.median_filter_2 = median_filter_2
-        self.L0_constrain = L0_constrain
-        self.infer_lambda = infer_lambda
+    def n_event_call(penalty):
+        events = fast_lzero_partial(penalty)
+        n_events = np.count_nonzero(events)
+        return n_events
 
-        self.metadata = {
-                'ophys_experiment_id': 999}
-        self._dff_traces = dataset
-        self.num_cells = self._dff_traces[0]
-        num_small_baseline_frames = []
-        noise_stds = []
+    def min_mag_call(penalty):
+        events = fast_lzero_partial(penalty)
+        n_events = np.count_nonzero(events)
+        if n_events == 0:
+            # we want to drive regularization smaller
+            min_mag = noise_estimate * 1000
+        else:
+            min_mag = events[events > 0].min()
+        metric = np.power(min_mag - noise_estimate, 2)
+        return metric
 
-        for dff in self._dff_traces:
-            sigma_dff = trace_noise_estimate(dff)
-            noise_stds.append(sigma_dff)
+    # constrain number of events to be > 0 (i.e. >= 0.5)
+    nonlinear_constraint = NonlinearConstraint(n_event_call, 0.5, np.inf)
+    penalty_guess = 0.1
+    optimize_result = minimize(min_mag_call,
+                               [penalty_guess],
+                               method='trust-constr',
+                               constraints=nonlinear_constraint)
 
-            # short timescale detrending
-            tf = median_filter(dff, self.median_filter_2, mode='constant')
-            tf = np.minimum(tf, 2.5*sigma_dff)
-            dff -= tf
+    penalty = optimize_result.x[0]
+    events = fast_lzero_partial(penalty)
 
-            self.print('.', end='', flush=True)
+    return events, penalty
 
-        self._noise_stds = noise_stds
-        self._num_small_baseline_frames = num_small_baseline_frames
 
-        self.sample_rate_hz = sample_rate_hz
-        self.event_min_size = event_min_size
-        self.halflife = halflife_ms
-        self._fit_params = None
-        self._gamma = None
-        self.lambdas = []
+def bracket(dff, noise, s1, step, step_min, gamma, bisect=False):
+    # NOTE: in original code, 1.0 was parametrized, but it was unused
+    # and L0_constrain was set to True
+    min_size = 1.0 * noise
+    L0_constrain = True
 
-    @property
-    def dff_traces(self):
-        self.min_detected_event_sizes = \
-                [[] for n in range(self._dff_traces.shape[0])]
-        return (self._dff_traces, self._noise_stds,
-                self._num_small_baseline_frames)
+    penalty = s1 + step
+    if penalty < step:
+        penalty = step
+        s1 += step
+    tmp = fast_lzero(penalty, dff, gamma, penalty)
+    print(penalty, len(tmp[tmp > 0]), np.min(tmp[tmp > 0]))
 
-    @property
-    def gamma(self):
-        return calculate_gamma(self.halflife, self.sample_rate_hz)
+    if len(tmp[tmp > 0]) == 0 and bisect is True:
+        # if there are not events, move penalty down
+        # by half a step
+        return bracket(dff, noise, s1 - 5*step, step, step_min, gamma)
 
-    def get_events(self, event_min_size=None):
-        if event_min_size is not None:
-            self.event_min_size = event_min_size
-
-        self.print('Calculating events in progress', flush=True)
-
-        events = []
-        # parallelization written by PL
-        results = Parallel(
-                n_jobs=40,
-                prefer="threads")(delayed(
-                    self.get_event_trace)(
-                        (n, dff)) for n, dff in enumerate(self.dff_traces[0]))
-        events = [result[0] for result in results]
-        events = np.array(events)
-        self.lambdas = [result[1] for result in results]
-        # end of parallelization written by PL
-
-        self.print('done!')
-        return np.array(events)
-
-    def get_event_trace(self, tpl, event_min_size=None):
-        # This function is for parallelisation of event detection
-        n = tpl[0]
-        dff = tpl[1]
-        try:
-            if any(np.isnan(dff)):
-                tmp = np.NaN*np.zeros(dff.shape)
-                penalty = np.NaN
+    if step == step_min:
+        if np.min(tmp[tmp > 0]) > min_size and bisect is True:
+            return bracket(dff, noise, s1 - 5*step, step, step_min, gamma)
+        else:
+            while (len(tmp[tmp > 0]) > 0 and
+                   np.min(tmp[tmp > 0]) < min_size):
+                lasttmp = tmp[:]
+                penalty += step
+                tmp = fast_lzero(penalty, dff, gamma, L0_constrain)
+            if len(tmp[tmp > 0]) == 0:
+                return (lasttmp, penalty - step)
             else:
-                tmp = dff[:]
-                if self.infer_lambda:
-                    # empirical lambda(noise_std) fit
-                    fit = [3.63986409e+00, 1.81463579e-03, 3.56562092e-05]
-                    penalty = (fit[0] *
-                               self._noise_stds[n]**2 +
-                               fit[1] * self._noise_stds[n] + fit[2])
-                    tmp = fast_lzero(
-                            self.dff_traces[1][n],
-                            self.gamma, penalty, self.L0_constrain)
-                else:
-                    (tmp, penalty) = self.bracket(
-                            tmp, self.dff_traces[1][n], 0,
-                            .1, .0001, self.event_min_size)
-            return (tmp, penalty)
-        except Exception as e:
-            print(e)
-            tmp = np.NaN*np.zeros(dff.shape)
+                return (tmp, penalty)
+
+    if len(tmp[tmp > 0]) == 0 and bisect is False:
+        # if there are not events, move penalty down
+        # and shrink step size
+        return bracket(
+                dff, noise, s1 + .5*step - step/10,
+                step/10, step_min, gamma, bisect=True)
+
+    if len(tmp[tmp > 0]) > 0 and np.min(tmp[tmp > 0]) < min_size:
+        return bracket(dff, noise, penalty,
+                       step, step_min, gamma)
+
+    condition = (len(tmp[tmp > 0]) > 0 and
+                 np.min(tmp[tmp > 0]) > min_size and
+                 step > step_min and bisect is False)
+    if condition:
+        # there are events, we're not at minimum step
+        # move penalty down, reduce step size
+        return bracket(
+                dff, noise, s1 + .5 * step - step/10,
+                step/10, step_min, gamma, bisect=True)
+
+    condition = (len(tmp[tmp > 0]) > 0 and
+                 np.min(tmp[tmp > 0]) > min_size and
+                 step > step_min and bisect is True)
+    if condition:
+        # there are events, we're not at minimum step
+        # move penalty down, set bisect True
+        return bracket(
+                dff, noise, s1 - 5 * step,
+                step, step_min, gamma)
+
+
+def get_event_trace(dff, noise, gamma):
+    try:
+        if any(np.isnan(dff)):
+            # NOTE: from original code. A data survey shows that valid ROIs
+            # do not have NaN's in dff trace - confirm
+            events = np.NaN*np.zeros(dff.size)
             penalty = np.NaN
-            return (tmp, penalty)
+        else:
+            events, penalty = bracket(dff, noise, 0, .1, .0001, gamma)
+        return events, penalty
+    except Exception as e:
+        # NOTE: from original code. There is no indication why this is here
+        print(e)
+        tmp = np.NaN*np.zeros(dff.shape)
+        penalty = np.NaN
+        return (tmp, penalty)
 
-    def bracket(self, dff, n, s1, step,
-                step_min, event_min_size, bisect=False):
-        penalty = s1 + step
-        if penalty < step:
-            penalty = step
-            s1 += step
-        tmp = fast_lzero(dff, self.gamma, penalty, self.L0_constrain)
 
-        if len(tmp[tmp > 0]) == 0 and bisect is True:
-            return self.bracket(
-                    dff, n, s1 - 5*step,
-                    step, step_min, event_min_size)
+def estimate_noise_detrend(traces: np.ndarray,
+                           filter_size: int) -> Tuple[np.ndarray, np.ndarray]:
+    noise_stds = []
+    for trace in traces:
+        sigma = trace_noise_estimate(trace)
+        noise_stds.append(sigma)
+        trace_median = median_filter(trace, filter_size, mode='constant')
+        # NOTE the next line clips the median trace from above
+        # there is no explanation in the original code.
+        trace_median = np.minimum(trace_median, 2.5 * sigma)
+        trace -= trace_median
 
-        if step == step_min:
-            if np.min(tmp[tmp > 0]) > n * event_min_size and bisect is True:
-                return self.bracket(
-                        dff, n, s1 - 5*step,
-                        step, step_min, event_min_size)
-            else:
-                while (len(tmp[tmp > 0]) > 0 and
-                       np.min(tmp[tmp > 0]) < n * event_min_size):
-                    lasttmp = tmp[:]
-                    penalty += step
-                    tmp = fast_lzero(dff, self.gamma, penalty,
-                                     self.L0_constrain)
-                if len(tmp[tmp > 0]) == 0:
-                    return (lasttmp, penalty - step)
-                else:
-                    return (tmp, penalty)
+    return traces, noise_stds
 
-        if len(tmp[tmp > 0]) == 0 and bisect is False:
-            return self.bracket(
-                    dff, n, s1 + .5*step - step/10,
-                    step/10, step_min, event_min_size, True)
 
-        if len(tmp[tmp > 0]) > 0 and np.min(tmp[tmp > 0]) < n * event_min_size:
-            return self.bracket(dff, n, penalty,
-                                step, step_min, event_min_size)
+def get_events(traces, noise_estimates, gamma, legacy_bracket=False):
+    if not legacy_bracket:
+        results = [fast_lzero_regularization_search_scipy(
+                       trace=trace, noise_estimate=sigma, gamma=gamma)
+                   for trace, sigma in zip(traces, noise_estimates)]
+    else:
+        results = [bracket(trace, sigma, 0, 0.1, 0.0001, gamma)
+                   for trace, sigma in zip(traces, noise_estimates)]
+        # NOTE: function below has some NaN and exception handling
+        # that doesn't seem to be in play for production data
+        # results = [get_event_trace(trace, sigma, self.gamma)
+        #            for trace, sigma in zip(*self.dff_traces)]
 
-        condition = (len(tmp[tmp > 0]) > 0 and
-                     np.min(tmp[tmp > 0]) > n * event_min_size and
-                     step > step_min and bisect is False)
-        if condition:
-            return self.bracket(
-                    dff, n, s1 + .5 * step - step/10,
-                    step/10, step_min, event_min_size, True)
-
-        condition = (len(tmp[tmp > 0]) > 0 and
-                     np.min(tmp[tmp > 0]) > n * event_min_size and
-                     step > step_min and bisect is True)
-
-        if condition:
-            return self.bracket(
-                    dff, n, s1 - 5 * step,
-                    step, step_min, event_min_size)
-
-    def print(self, *args, **kwargs):
-        print(*args, **kwargs)
+    events = [result[0] for result in results]
+    events = np.array(events)
+    lambdas = [result[1] for result in results]
+    return np.array(events), lambdas
 
 
 def trace_resample(traces: np.ndarray, input_rate: float,
@@ -396,6 +393,8 @@ class EventDetection(argschema.ArgSchemaParser):
 
         # read in the input file
         with h5py.File(self.args['ophysdfftracefile'], 'r') as f:
+            # NOTE: from a data survey, not all `ophysdfftracefiles` have
+            # the roi_names key. We need to figure out why.
             roi_names = f['roi_names'][()]
             valid_roi_indices = np.argwhere(
                     np.isin(
@@ -415,11 +414,14 @@ class EventDetection(argschema.ArgSchemaParser):
                          f"{upsampled_rate}")
 
         # run FastLZeroSpikeInference
-        l0a = L0_analysis(
-                upsampled_dff,
-                sample_rate_hz=upsampled_rate,
-                halflife_ms=self.args['halflife_ms'])
-        upsampled_events = l0a.get_events()
+        short_median_filter = 101
+        dff, noise_stds = estimate_noise_detrend(
+                upsampled_dff, short_median_filter)
+        gamma = calculate_gamma(self.args['halflife_ms'],
+                                upsampled_rate)
+        upsampled_events, lambdas = get_events(
+                dff, noise_stds, gamma,
+                legacy_bracket=self.args['legacy_bracket'])
 
         # downsample events back to original rate
         if upsample_factor == 1:
@@ -436,8 +438,8 @@ class EventDetection(argschema.ArgSchemaParser):
         with h5py.File(self.args['output_event_file'], "w") as f:
             f.create_dataset("events", data=downsampled_events)
             f.create_dataset("roi_names", data=valid_roi_names)
-            f.create_dataset("noise_stds", data=l0a._noise_stds)
-            f.create_dataset("lambdas", data=l0a.lambdas)
+            f.create_dataset("noise_stds", data=noise_stds)
+            f.create_dataset("lambdas", data=lambdas)
             f.create_dataset("upsampling_factor", data=upsample_factor)
         self.logger.info(f"wrote {self.args['output_event_file']}")
 

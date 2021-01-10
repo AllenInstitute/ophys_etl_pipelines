@@ -449,7 +449,7 @@ def get_events(traces: np.ndarray, noise_estimates: np.ndarray,
 
     # pytest-cov does not play nice with Pool context manager so explicit
     # close/join to get code coverage report in subprocess calls
-    pool =  multiprocessing.Pool(ncpu)
+    pool = multiprocessing.Pool(ncpu)
     results = pool.starmap(func, args)
     pool.close()
     pool.join()
@@ -531,12 +531,12 @@ class EventDetection(argschema.ArgSchemaParser):
 
         # run FastLZeroSpikeInference
         short_median_filter = 101
-        dff, noise_stds = estimate_noise_detrend(
+        upsampled_dff, noise_stds = estimate_noise_detrend(
                 upsampled_dff, short_median_filter)
         gamma = calculate_gamma(self.args['halflife'],
                                 upsampled_rate)
         upsampled_events, lambdas = get_events(
-                traces=dff,
+                traces=upsampled_dff,
                 noise_estimates=noise_stds,
                 gamma=gamma,
                 ncpu=self.args['n_parallel_workers'],

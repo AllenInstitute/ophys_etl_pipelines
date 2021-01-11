@@ -123,7 +123,6 @@ def test_EventDetectionSchema(tmp_path):
 
 
 @pytest.mark.event_detect_only
-@pytest.mark.parametrize("legacy_bracket", [True, False])
 @pytest.mark.parametrize(
         "dff_hdf5",
         [
@@ -143,7 +142,7 @@ def test_EventDetectionSchema(tmp_path):
                         timestamps=[145, 212, 280, 310, 430, 600, 810],
                         magnitudes=[4.0, 5.0, 6.0, 5.0, 5.5, 5.0, 7.0])]
                     }], indirect=True)
-def test_EventDetection(dff_hdf5, tmp_path, legacy_bracket):
+def test_EventDetection(dff_hdf5, tmp_path):
     """This test runs the actual spike inference on fake data. The fake
     data is constructed by the dff_hdf5 fixture. This is an
     easy test, in that the SNR for the spikes is high, there is neither offset
@@ -159,7 +158,6 @@ def test_EventDetection(dff_hdf5, tmp_path, legacy_bracket):
             'valid_roi_ids': [123, 124],
             'output_event_file': str(tmp_path / "junk_output.h5"),
             'decay_time': decay_time,
-            'legacy_bracket': legacy_bracket
             }
     ed = emod.EventDetection(input_data=args, args=[])
     ed.run()

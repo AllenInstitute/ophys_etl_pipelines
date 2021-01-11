@@ -9,7 +9,6 @@ from typing import Tuple
 from scipy.ndimage.filters import median_filter
 from scipy.signal import resample_poly
 from scipy.stats import median_abs_deviation
-from scipy.optimize import NonlinearConstraint, minimize
 from functools import partial
 from FastLZeroSpikeInference import fast
 from ophys_etl.resources import event_decay_lookup_dict as decay_lookup
@@ -48,12 +47,6 @@ class EventDetectionInputSchema(argschema.ArgSchema):
     output_event_file = argschema.fields.OutputFile(
         required=True,
         description="location for output of event detection.")
-    legacy_bracket = argschema.fields.Bool(
-        required=False,
-        default=False,
-        description=("whether to run the legacy recursive bracketing method "
-                     "for regularization search, vs. the new scipy-based "
-                     "search."))
     n_parallel_workers = argschema.fields.Int(
         required=False,
         default=1,
@@ -179,83 +172,6 @@ def trace_noise_estimate(x: np.ndarray,
     rstd = median_abs_deviation(x, scale='normal')
     x = x[abs(x) < 2.5 * rstd]
     return median_abs_deviation(x, scale='normal')
-
-
-def fast_lzero_regularization_search_scipy(
-        trace: np.ndarray, noise_estimate: float,
-        gamma: float, penalty_guess: float = 0.1) -> Tuple[np.ndarray, float]:
-    """finds events through a regularization search, subject to the
-    constraints of having n_events > 0 (establishing the upper bound for
-    regularization penalty) and the smallest event magnitude near the noise
-    estimate.
-
-    Parameters
-    ----------
-    trace: np.ndarray
-        the 1D trace data
-    noise_estimate: float
-        a std-dev estimate of the noise, used to establish the smallest
-        desired event magnitude.
-    gamma: float
-        a scalar value for the AR(1) decay parameter; 0 < gam <= 1
-    penalty_guess: float
-        initial guess for the regularization penalty
-
-    Returns
-    -------
-    events: np.ndarray
-        array of event magnitudes, the same size as trace
-    penalty: float
-        the optimized regularization parameter
-
-    Notes
-    -----
-    - The original code also had a parameter that would multiply noise
-    estimate. This parameter (event_min_size) was always set to 1.
-    If desired later, this can be added as an additional argument here.
-    - This search benefits from using established scipy.optimize methods,
-    making it readable, extensible, and thus maintainable. There is an
-    inefficiency in that `fast_lzero_partial` is executed twice per iteration,
-    (is this accurate? this depends how the underlying Trust region method is
-    searching the space) and a final time to retrieve the events. Since the
-    underlying optimization from FastLZeroSpikeInference is indeed fast
-    (a few seconds per trace), this seems like a reasonable tradeoff.
-    If one wanted to use this scipy-based method and avoid the repeat calls,
-    one could implement an lru_cache on the `fast_lzero` method, but, some
-    additional work to make the inputs and outputs hashable would be required.
-
-    """
-    fast_lzero_partial = partial(fast_lzero, dat=trace,
-                                 gamma=gamma, constraint=True)
-
-    def n_event_call(penalty):
-        events = fast_lzero_partial(penalty)
-        n_events = np.count_nonzero(events)
-        return n_events
-
-    def min_mag_call(penalty):
-        events = fast_lzero_partial(penalty)
-        n_events = np.count_nonzero(events)
-        if n_events == 0:
-            # we want to drive regularization smaller
-            min_mag = noise_estimate * 1000
-        else:
-            min_mag = events[events > 0].min()
-        metric = np.power(min_mag - noise_estimate, 2)
-        return metric
-
-    # constrain number of events to be > 0 (i.e. >= 0.5)
-    nonlinear_constraint = NonlinearConstraint(n_event_call, 0.5, np.inf)
-    optimize_result = minimize(min_mag_call,
-                               [penalty_guess],
-                               method='trust-constr',
-                               constraints=nonlinear_constraint)
-
-    # get optimized result and call for results
-    penalty = optimize_result.x[0]
-    events = fast_lzero_partial(penalty)
-
-    return events, penalty
 
 
 def fast_lzero_regularization_search_bracket(
@@ -412,8 +328,7 @@ def estimate_noise_detrend(traces: np.ndarray,
 
 
 def get_events(traces: np.ndarray, noise_estimates: np.ndarray,
-               gamma: float, ncpu: int = 1,
-               legacy_bracket: bool = False) -> Tuple[np.ndarray, np.ndarray]:
+               gamma: float, ncpu: int = 1) -> Tuple[np.ndarray, np.ndarray]:
     """finds events through one of two methods for regularization search.
     parallelized by trace.
 
@@ -428,9 +343,6 @@ def get_events(traces: np.ndarray, noise_estimates: np.ndarray,
         attenuation factor from exponential decay in one sampling step.
     ncpu: int
         number or workers for the multiprocessing pool
-    legacy_bracket: bool
-        if True, uses the original 'bracket' method for searching
-        regularization space. if False, uses new scipy-based search.
 
     Returns
     -------
@@ -442,10 +354,7 @@ def get_events(traces: np.ndarray, noise_estimates: np.ndarray,
     """
     args = [(trace, sigma, gamma)
             for trace, sigma in zip(traces, noise_estimates)]
-    if legacy_bracket:
-        func = fast_lzero_regularization_search_bracket
-    else:
-        func = fast_lzero_regularization_search_scipy
+    func = fast_lzero_regularization_search_bracket
 
     # pytest-cov does not play nice with Pool context manager so explicit
     # close/join to get code coverage report in subprocess calls
@@ -539,8 +448,7 @@ class EventDetection(argschema.ArgSchemaParser):
                 traces=upsampled_dff,
                 noise_estimates=noise_stds,
                 gamma=gamma,
-                ncpu=self.args['n_parallel_workers'],
-                legacy_bracket=self.args['legacy_bracket'])
+                ncpu=self.args['n_parallel_workers'])
 
         # downsample events back to original rate
         if upsample_factor == 1:

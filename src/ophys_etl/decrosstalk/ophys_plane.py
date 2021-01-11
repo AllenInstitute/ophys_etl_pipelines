@@ -88,6 +88,36 @@ class OphysROI(object):
         return copy.deepcopy(self._mask_matrix)
 
 
+class OphysMovie(object):
+
+    def __init__(self, movie_path, motion_border):
+        """
+        Parameters
+        ----------
+        movie_path -- path to the motion corrected movie file
+
+        motion_border -- dict defining the border of the valid region
+        within each frame, e.g.
+            {
+                "y1": 19.0758,
+                "y0": 22.3232,
+                "x0": 9.16988,
+                "x1": 7.79272
+             }
+        """
+
+        self._path = movie_path
+        self._motion_border = copy.deepcopy(motion_border)
+
+    @property
+    def path(self):
+        return self._path
+
+    @property
+    def motion_border(self):
+        return copy.deepcopy(self._motion_border)
+
+
 class OphysPlane(object):
 
     def __init__(self,
@@ -116,8 +146,7 @@ class OphysPlane(object):
         """
 
         self._experiment_id = experiment_id
-        self._movie_path = movie_path
-        self._motion_border = copy.deepcopy(motion_border)
+        self._movie = OphysMovie(movie_path, motion_border)
         self._roi_list = copy.deepcopy(roi_list)
 
     @property
@@ -125,12 +154,8 @@ class OphysPlane(object):
         return self._experiment_id
 
     @property
-    def movie_path(self):
-        return self._movie_path
-
-    @property
-    def motion_border(self):
-        return copy.deepcopy(self._motion_border)
+    def movie(self):
+        return self._movie
 
     @property
     def roi_list(self):

@@ -1,4 +1,8 @@
+import h5py
 import copy
+import numpy as np
+
+import ophys_etl.decrosstalk.roi_masks as roi_masks
 
 class OphysROI(object):
 
@@ -31,7 +35,7 @@ class OphysROI(object):
         self._width = width
         self._height = height
         self._valid_roi = valid_roi
-        self._mask_matrix = copy.deepcopy(mask_matrix)
+        self._mask_matrix = np.array(mask_matrix, dtype=bool)
 
     @classmethod
     def from_schema_dict(cls, schema_dict):
@@ -108,6 +112,7 @@ class OphysMovie(object):
 
         self._path = movie_path
         self._motion_border = copy.deepcopy(motion_border)
+        self._data = None  # this is where the data from the movie file will be stored
 
     @property
     def path(self):
@@ -116,6 +121,67 @@ class OphysMovie(object):
     @property
     def motion_border(self):
         return copy.deepcopy(self._motion_border)
+
+    def load_movie_data(self):
+        """
+        Load the data from self._path; store te data in self._data
+        """
+        with h5py.File(self.path, mode='r') as in_file:
+            self._data = in_file['data'][()]
+
+    @property
+    def data(self):
+        if self._data is None:
+            self.load_movie_data()
+        return self._data
+
+
+    def get_trace(self, roi_list):
+        """
+        Extract the traces from a movie as defined by the ROIs in roi_list
+
+t        Parameters
+        ----------
+        roi_list -- a list of OphysROI instantiations specifying the ROIs to extract
+        traces from
+
+        Returns
+        -------
+        output -- a dict such that
+            output['roi'][5678] = np.array of trace values for ROI defined as roi_id=5678
+            output['neuropil'][5678] = np.array of trace values defined in the neuropil around roi_id=5678
+        """
+        motion_border = [self._motion_border['x0'], self._motion_border['x1'],
+                         self._motion_border['y0'], self._motion_border['y1']]
+
+        height = self.data.shape[1]
+        width = self.data.shape[2]
+
+        roi_mask_list = []
+        for roi in roi_list:
+            pixels = np.argwhere(roi.mask_matrix)
+            pixels[:,0] += roi.y0
+            pixels[:,1] += roi.x0
+            mask = roi_masks.create_roi_mask(width, height, motion_border,
+                                             pix_list=pixels[:,[1,0]],
+                                             label=str(roi.roi_id),
+                                             mask_group=-1)
+
+            roi_mask_list.append(mask)
+
+
+        (roi_traces,
+         neuropil_traces,
+         exclustions) = roi_masks.calculate_roi_and_neuropil_traces(self.data,
+                                                                    roi_mask_list,
+                                                                    motion_border)
+        output = {}
+        output['roi'] = {}
+        output['neuropil'] = {}
+        for i_roi, roi in enumerate(roi_list):
+            output['roi'][roi.roi_id] = roi_traces[i_roi]
+            output['neuropil'][roi.roi_id] = neuropil_traces[i_roi]
+        return output
 
 
 class OphysPlane(object):

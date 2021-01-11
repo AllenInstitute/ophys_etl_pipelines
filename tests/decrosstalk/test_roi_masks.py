@@ -35,6 +35,9 @@
 #
 import numpy as np
 import pandas as pd
+import h5py
+import tempfile
+import os
 import pytest
 import ophys_etl.decrosstalk.roi_masks as roi_masks
 
@@ -148,7 +151,7 @@ def roi_mask_list(image_dims, motion_border):
     for ii in range(10):
         pixels = base_pixels + ii * 10
         masks.append(roi_masks.create_roi_mask(
-            image_dims['width'], 
+            image_dims['width'],
             image_dims['height'],
             motion_border,
             pix_list=pixels,
@@ -167,9 +170,9 @@ def neuropil_masks(roi_mask_list, motion_border):
 
     for roi_mask in roi_mask_list:
         neuropil_masks.append(roi_masks.create_neuropil_mask(
-            roi_mask, 
-            motion_border, 
-            combined_mask, 
+            roi_mask,
+            motion_border,
+            combined_mask,
             roi_mask.label
         ))
     return neuropil_masks
@@ -194,8 +197,47 @@ def test_calculate_traces(video, roi_mask_list):
     assert np.all(roi_traces[4, :] == 1)
     assert np.all(roi_traces[6, :] == 2)
     assert np.all(np.isnan(roi_traces[9, :]))
-    
+
     pd.testing.assert_frame_equal(expected_exclusions, pd.DataFrame(exclusions), check_like=True)
+
+
+def test_calculate_roi_and_neuropil_traces(video, roi_mask_list, motion_border):
+
+    (roi_traces,
+     neuropil_traces,
+         exclusions) = roi_masks.calculate_roi_and_neuropil_traces(video, roi_mask_list, motion_border)
+
+    assert np.all(np.isnan(roi_traces[0, :]))
+    assert np.all(roi_traces[4, :] == 1)
+    assert np.all(roi_traces[6, :] == 2)
+    assert np.all(np.isnan(roi_traces[9, :]))
+
+    # test that reading from an h5 file gives the same result
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    tmp_dir = os.path.join(this_dir, 'tmp')
+    assert os.path.isdir(tmp_dir)
+    tmp_filename = tempfile.mkstemp(prefix='motion_video',
+                                    suffix='.h5',
+                                    dir=tmp_dir)[1]
+
+    with h5py.File(tmp_filename, mode='w') as out_file:
+        out_file.create_dataset('data', data=video)
+
+    try:
+        (roi_traces,
+         neuropil_traces,
+             exclusions) = roi_masks.calculate_roi_and_neuropil_traces(tmp_filename,
+                                                                       roi_mask_list,
+                                                                       motion_border)
+
+        assert np.all(np.isnan(roi_traces[0, :]))
+        assert np.all(roi_traces[4, :] == 1)
+        assert np.all(roi_traces[6, :] == 2)
+        assert np.all(np.isnan(roi_traces[9, :]))
+    except:
+        raise
+    finally:
+        os.unlink(tmp_filename)
 
 
 def test_validate_masks(roi_mask_list, neuropil_masks):

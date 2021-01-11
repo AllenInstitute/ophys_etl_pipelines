@@ -205,7 +205,31 @@ def test_find_event_gaps():
     assert last_gap[8] == []
 
 
-def test_get_trace_events():
+def test_get_trace_events_worker_method():
+    """
+    Test output of _get_trace_events against outputs generated with the prototype
+    """
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    data_dir = os.path.join(this_dir, 'data')
+    data_filename = os.path.join(data_dir, 'evaluate_components_data.h5')
+    with h5py.File(data_filename, mode='r') as in_file:
+        input_trace = in_file['input_trace'][()]
+        for len_ne in (10, 20, 30):
+            for th_ag in (7, 14, 21):
+                suffix = 'len_ne_%.2d_th_ag_%.2d' % (len_ne, th_ag)
+                results = active_traces.get_traces_evs(input_trace,
+                                                       len_ne=len_ne,
+                                                       th_ag=th_ag)
+
+                assert len(results['trace']) == in_file['n_trace_%s' % suffix][()]
+                assert len(results['trace']) == len(results['events'])
+                for i_ev in range(len(results['trace'])):
+                    trace_control = in_file['trace_events_%s_%d' % (suffix, i_ev)][()]
+                    ind_control = in_file['event_indices_%s_%d' % (suffix, i_ev)][()]
+                    np.testing.assert_array_equal(trace_control, results['trace'][i_ev])
+                    np.testing.assert_array_equal(ind_control, results['events'][i_ev])
+
+def test_get_trace_events_wrapper_method():
     """
     Test output of get_trace_events against outputs generated with the prototype
     """
@@ -218,8 +242,8 @@ def test_get_trace_events():
             for th_ag in (7, 14, 21):
                 suffix = 'len_ne_%.2d_th_ag_%.2d' % (len_ne, th_ag)
                 results = active_traces.get_trace_events(input_trace,
-                                                         len_ne=len_ne,
-                                                         th_ag=th_ag)
+                                                         {'len_ne':len_ne,
+                                                          'th_ag':th_ag})
 
                 assert len(results['trace']) == in_file['n_trace_%s' % suffix][()]
                 assert len(results['trace']) == len(results['events'])

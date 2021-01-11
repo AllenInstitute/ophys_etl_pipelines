@@ -238,7 +238,7 @@ def find_event_gaps(evs):
     return gap_evs_all, begs_evs, ends_evs, gap_evs, bgap_evs, egap_evs
 
 
-def get_trace_events(traces_y0, th_ag, len_ne):
+def get_traces_evs(traces_y0, th_ag, len_ne):
     """
     Function to get an "active trace" i.e. a trace made by extracting and concatenating the active parts of the input trace
 
@@ -379,3 +379,19 @@ def get_trace_events(traces_y0, th_ag, len_ne):
 
     return {'trace': traces_y0_evs,
             'events': inds_final_all}
+
+
+def get_trace_events(traces, threshold_parameters):
+    """
+    Wrapper around event detection code.
+
+    Params:
+    -------
+    traces -- an NxM numpy array. N is the number of ROIs. M is the number of timesteps.
+    Contains the trace flux values
+
+    threshold_parameters -- a dict of event detection parameters that will be passed
+    to the the actual event detection code
+    """
+
+    return get_traces_evs(traces, **threshold_parameters)

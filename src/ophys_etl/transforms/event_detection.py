@@ -52,6 +52,27 @@ class EventDetectionInputSchema(argschema.ArgSchema):
         default=1,
         description=("number of parallel workers. If set to -1 "
                      "is set to multiprocessing.cpu_count()."))
+    short_median_filter = argschema.fields.Float(
+        required=False,
+        default=1.0,
+        description=("median filter length used to detrend data "
+                     "during noise estimation [seconds]."))
+    long_median_filter = argschema.fields.Float(
+        required=False,
+        default=3.2,
+        description=("median filter length used to detrend data "
+                     "before passing to FastLZero. [seconds]"))
+
+    @mm.post_load
+    def get_noise_multiplier(self, data, **kwargs):
+        if np.round(data['movie_frame_rate_hz'] / 11.0) == 1:
+            data['noise_multiplier'] = 3.0
+        elif np.round(data['movie_frame_rate_hz'] / 31.0) == 1:
+            data['noise_multiplier'] = 1.0
+        else:
+            raise EventDetectionException("event detection only validated "
+                                          "with frame rates of 11 or 31Hz.")
+        return data
 
     @mm.post_load
     def cpu_to_the_max(self, data, **kwargs):
@@ -148,8 +169,7 @@ def calculate_halflife(decay_time: float) -> float:
     return np.log(2) * decay_time
 
 
-def trace_noise_estimate(x: np.ndarray,
-                         filt_length: int = 31) -> float:
+def trace_noise_estimate(x: np.ndarray, filt_length: int) -> float:
     """estimates noise of a signal by detrending with a median filter,
     removing positive spikes, eliminating outliers, and, using the
     median absolute deviation estimator of standard deviation.
@@ -287,8 +307,9 @@ def fast_lzero_regularization_search_bracket(
                 bisect=not bisect)
 
 
-def estimate_noise_detrend(traces: np.ndarray,
-                           filter_size: int) -> Tuple[np.ndarray, np.ndarray]:
+def estimate_noise_detrend(traces: np.ndarray, short_filter_size: int,
+                           long_filter_size: int
+                           ) -> Tuple[np.ndarray, np.ndarray]:
     """Per-trace: estimates noise and median filters with a noise-based
     clipping threshold of the median.
 
@@ -296,9 +317,12 @@ def estimate_noise_detrend(traces: np.ndarray,
     ----------
     traces: np.ndarray
         ntrace x nframes, float
-    filter_size: int
-        length of median filter for detrending, passed to
-        scipy.ndimage.filters.median_filter as size.
+    short_filter_size: int
+        length of short median filter for detrending during noise estimation,
+        passed to scipy.ndimage.filters.median_filter as size.
+    long_filter_size: int
+        length of short median filter for detrending data,
+        passed to scipy.ndimage.filters.median_filter as size.
 
     Returns
     -------
@@ -317,8 +341,8 @@ def estimate_noise_detrend(traces: np.ndarray,
     """
     sigmas = np.empty(shape=traces.shape[0])
     for i, trace in enumerate(traces):
-        sigmas[i] = trace_noise_estimate(trace)
-        trace_median = median_filter(trace, filter_size, mode='nearest')
+        sigmas[i] = trace_noise_estimate(trace, short_filter_size)
+        trace_median = median_filter(trace, long_filter_size, mode='nearest')
         # NOTE the next line clips the median trace from above
         # there is no stated motivation in the original code.
         trace_median = np.minimum(trace_median, 2.5 * sigmas[i])
@@ -397,9 +421,6 @@ def trace_resample(traces: np.ndarray, input_rate: float,
         to generalize FastLZero to other target rates.
 
     """
-    if target_rate != 30.9:
-        raise NotImplementedError("spike inference has only been validated "
-                                  "at a target rate of 30.9Hz")
     upsample_factor = np.round(target_rate / input_rate)
     if upsample_factor == 1.0:
         resampled_traces = traces
@@ -428,25 +449,31 @@ class EventDetection(argschema.ArgSchemaParser):
             dff = f['data'][valid_roi_indices]
         valid_roi_names = roi_names[valid_roi_indices]
 
-        # upsample to 30.9 Hz
+        # set rates the same, i.e. never upsample
+        self.logger.warning("hard-coded not to upsample")
         upsampled_dff, upsample_factor = trace_resample(
                 traces=dff,
                 input_rate=self.args['movie_frame_rate_hz'],
-                target_rate=30.9)
+                target_rate=self.args['movie_frame_rate_hz'])
         upsampled_rate = self.args['movie_frame_rate_hz'] * upsample_factor
         self.logger.info("upsampled traces from "
                          f"{self.args['movie_frame_rate_hz']} to "
                          f"{upsampled_rate}")
 
         # run FastLZeroSpikeInference
-        short_median_filter = 101
+        short_filter_samples = \
+            int(self.args['short_median_filter'] * upsampled_rate)
+        long_filter_samples = \
+            int(self.args['long_median_filter'] * upsampled_rate)
         upsampled_dff, noise_stds = estimate_noise_detrend(
-                upsampled_dff, short_median_filter)
+                upsampled_dff,
+                short_filter_size=short_filter_samples,
+                long_filter_size=long_filter_samples)
         gamma = calculate_gamma(self.args['halflife'],
                                 upsampled_rate)
         upsampled_events, lambdas = get_events(
                 traces=upsampled_dff,
-                noise_estimates=noise_stds,
+                noise_estimates=noise_stds * self.args['noise_multiplier'],
                 gamma=gamma,
                 ncpu=self.args['n_parallel_workers'])
 

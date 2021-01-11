@@ -64,7 +64,8 @@ def dff_hdf5(tmp_path, request):
         ("target_rate", "context"),
         [
             (30.9, contextlib.nullcontext()),
-            (100.0, pytest.raises(NotImplementedError))])
+            # (100.0, pytest.raises(NotImplementedError))
+            ])
 def test_trace_resample(input_rate, target_rate, context):
     rng = np.random.default_rng(42)
     nframes = 1000
@@ -127,19 +128,19 @@ def test_EventDetectionSchema(tmp_path):
         "dff_hdf5",
         [
             {
-                "sigma": 0.1,
+                "sigma": 1.0,
                 "decay_time": 0.415,
                 "offset": 0.0,
                 "nframes": 1000,
-                "rate": 31.0,
+                "rate": 11.0,
                 "events": [
                     Events(
                         id=123,
-                        timestamps=[45, 112, 232, 410, 490, 700, 850],
+                        timestamps=[45, 112, 232, 410, 490, 650, 850],
                         magnitudes=[4.0, 5.0, 6.0, 5.0, 5.5, 5.0, 7.0]),
                     Events(
                         id=124,
-                        timestamps=[145, 212, 280, 310, 430, 600, 810],
+                        timestamps=[145, 212, 280, 310, 430, 600, 890],
                         magnitudes=[4.0, 5.0, 6.0, 5.0, 5.5, 5.0, 7.0])]
                     }], indirect=True)
 def test_EventDetection(dff_hdf5, tmp_path):
@@ -171,19 +172,19 @@ def test_EventDetection(dff_hdf5, tmp_path):
 
     for result, expected in zip(events, expected_events):
         nresult = np.count_nonzero(result)
+        result_index = np.argwhere(result != 0).flatten()
         # check that the number of events match the expectation:
         assert nresult == len(expected.timestamps)
 
         # check that they are in the right place:
-        result_index = np.argwhere(result != 0).flatten()
         np.testing.assert_array_equal(result_index, expected.timestamps)
 
 
 @pytest.mark.event_detect_only
-def test_fast_lzero():
+@pytest.mark.parametrize("rate", [11.0, 31.0])
+def test_fast_lzero(rate):
     decay_time = 0.4
     nframes = 1000
-    rate = 30.9
     timestamps = [45, 112, 232, 410, 490, 700, 850]
     magnitudes = [4.0, 5.0, 6.0, 5.0, 5.5, 5.0, 7.0]
     data = sum_events(nframes, timestamps, magnitudes, decay_time, rate)
@@ -214,5 +215,5 @@ def test_trace_noise_estimate(frac_outliers, threshold):
     x += rng.standard_normal(npts) * sigma
     inds = rng.integers(0, npts, size=int(frac_outliers * npts))
     x[inds] *= 100
-    rstd = emod.trace_noise_estimate(x)
+    rstd = emod.trace_noise_estimate(x, filt_length)
     assert np.abs(rstd - sigma) < threshold

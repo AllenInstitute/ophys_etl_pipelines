@@ -441,7 +441,7 @@ class EventDetection(argschema.ArgSchemaParser):
 
         # read in the input file
         with h5py.File(self.args['ophysdfftracefile'], 'r') as f:
-            roi_names = f['roi_names'][()]
+            roi_names = f['roi_names'][()].astype('int')
             valid_roi_indices = np.argwhere(
                     np.isin(
                         roi_names,

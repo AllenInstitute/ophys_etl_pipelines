@@ -64,6 +64,18 @@ class EventDetectionInputSchema(argschema.ArgSchema):
                      "before passing to FastLZero. [seconds]"))
 
     @mm.post_load
+    def check_dff_h5_keys(self, data, **kwargs):
+        with h5py.File(data['ophysdfftracefile'], 'r') as f:
+            if 'roi_names' not in list(f.keys()):
+                raise EventDetectionException(
+                        f"DFF trace file {data['ophysdfftracefile']} "
+                        "does not have the key 'roi_names', which indicates "
+                        "it has come from an old version of creating "
+                        "DFF traces < April, 2019. Consider recreating the "
+                        "DFF file with a current version of that module.")
+        return data
+
+    @mm.post_load
     def get_noise_multiplier(self, data, **kwargs):
         if np.round(data['movie_frame_rate_hz'] / 11.0) == 1:
             data['noise_multiplier'] = 3.0

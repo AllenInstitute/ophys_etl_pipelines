@@ -80,10 +80,19 @@ def test_trace_resample(input_rate, target_rate, context):
 
 
 @pytest.mark.event_detect_only
-def test_EventDetectionSchema(tmp_path):
+@pytest.mark.parametrize(
+        "missing_field, context",
+        [
+            (False, contextlib.nullcontext()),
+            (True, pytest.raises(
+                emod.EventDetectionException,
+                match=r".*does not have the key 'roi_names'.*"))])
+def test_EventDetectionSchema(tmp_path, missing_field, context):
     fpath = tmp_path / "junk_input.h5"
     with h5py.File(fpath, "w") as f:
         f.create_dataset("data", data=[1, 2, 3.14])
+        if not missing_field:
+            f.create_dataset("roi_names", data=[5, 6, 7, 8])
 
     dtime = 1.234
 
@@ -95,32 +104,35 @@ def test_EventDetectionSchema(tmp_path):
             'output_event_file': str(tmp_path / "junk_output.hdf5"),
             'decay_time': dtime
             }
-    parser = emod.EventDetection(input_data=args, args=[])
-    assert parser.args['decay_time'] == dtime
-    assert 'halflife' in parser.args
+    with context:
+        parser = emod.EventDetection(input_data=args, args=[])
+        assert parser.args['decay_time'] == dtime
+        assert 'halflife' in parser.args
 
     # specifying valid genotype rather than decay time
     args.pop('decay_time')
     key = "Slc17a7-IRES2-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/wt"
     args['full_genotype'] = key
-    parser = emod.EventDetection(input_data=args, args=[])
-    assert 'decay_time' in parser.args
-    assert parser.args['decay_time'] == decay_lookup[key]
-    assert 'halflife' in parser.args
-
-    # non-existent genotype exception
-    args['full_genotype'] = 'non-existent-genotype'
-    with pytest.raises(
-            emod.EventDetectionException,
-            match=r".*not available.*"):
+    with context:
         parser = emod.EventDetection(input_data=args, args=[])
+        assert 'decay_time' in parser.args
+        assert parser.args['decay_time'] == decay_lookup[key]
+        assert 'halflife' in parser.args
 
-    # neither arg supplied
-    args.pop('full_genotype')
-    with pytest.raises(
-            emod.EventDetectionException,
-            match=r"Must provide either.*"):
-        parser = emod.EventDetection(input_data=args, args=[])
+    if not missing_field:
+        # non-existent genotype exception
+        args['full_genotype'] = 'non-existent-genotype'
+        with pytest.raises(
+                emod.EventDetectionException,
+                match=r".*not available.*"):
+            parser = emod.EventDetection(input_data=args, args=[])
+
+        # neither arg supplied
+        args.pop('full_genotype')
+        with pytest.raises(
+                emod.EventDetectionException,
+                match=r"Must provide either.*"):
+            parser = emod.EventDetection(input_data=args, args=[])
 
 
 @pytest.mark.event_detect_only

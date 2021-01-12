@@ -51,7 +51,7 @@ class PlanePairSchema(argschema.ArgSchema):
                  cli_as_single_argument=True)
 
 
-class DecrosstalkSchema(argschema.ArgSchema):
+class DecrosstalkInputSchema(argschema.ArgSchema):
 
     ophys_session_id = argschema.fields.Int(
                            description='ophys_session_id',

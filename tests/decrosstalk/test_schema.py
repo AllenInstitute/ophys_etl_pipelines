@@ -5,7 +5,7 @@ import json
 import ophys_etl.decrosstalk.decrosstalk_schema as decrosstalk_schema
 
 class DummyDecrosstalkLoader(argschema.ArgSchemaParser):
-    default_schema = decrosstalk_schema.DecrosstalkSchema
+    default_schema = decrosstalk_schema.DecrosstalkInputSchema
 
 class DummyROILoader(argschema.ArgSchemaParser):
     default_schema = decrosstalk_schema.RoiSchema

@@ -1,8 +1,18 @@
 import h5py
 import copy
+import os
+import json
 import numpy as np
 
+import logging
+
+import ophys_etl.decrosstalk.decrosstalk_utils as decrosstalk_utils
+import ophys_etl.decrosstalk.ica_utils as ica_utils
 import ophys_etl.decrosstalk.roi_masks as roi_masks
+import ophys_etl.decrosstalk.io_utils as io_utils
+import ophys_etl.decrosstalk.active_traces as active_traces
+
+logger = logging.getLogger(__name__)
 
 class OphysROI(object):
 
@@ -211,9 +221,15 @@ class OphysPlane(object):
         roi_list -- a list of OphysROIs indicating the ROIs in this movie
         """
 
+
+        self._trace_threshold_params={'len_ne':20, 'th_ag':14}
         self._experiment_id = experiment_id
         self._movie = OphysMovie(movie_path, motion_border)
         self._roi_list = copy.deepcopy(roi_list)
+
+    @property
+    def trace_threshold_params(self):
+        return copy.deepcopy(self._trace_threshold_params)
 
     @property
     def experiment_id(self):
@@ -276,3 +292,284 @@ class OphysPlane(object):
                    movie_path=schema_dict['motion_corrected_stack'],
                    motion_border=schema_dict['motion_border'],
                    roi_list=roi_list)
+
+    def run_decrosstalk(self, other_plane, cache_dir=None, clobber=False):
+
+        final_output = {}
+        final_output['decrosstalk_invalid_raw_trace'] = []
+        final_output['decrosstalk_invalid_unmixed_trace'] = []
+        final_output['decrosstalk_ghost_roi_ids'] = []
+
+        if cache_dir is not None:
+            base_fname = os.path.join(cache_dir,
+                                      '%d_%d_{suffix}' % (self.experiment_id, other_plane.experiment_id))
+
+        raw_traces = self.get_raw_traces(other_plane)
+
+        if cache_dir is not None:
+            raw_trace_fname = base_fname.format(suffix='raw.h5')
+            io_utils.write_to_h5(raw_trace_fname,
+                                 raw_traces,
+                                 clobber=clobber)
+
+
+        raw_trace_validation = decrosstalk_utils.validate_traces(raw_traces)
+        if cache_dir is not None:
+            validation_fname = base_fname.format(suffix='valid.json')
+            if not clobber and os.path.exists(validation_fname):
+                raise RuntimeError("\n%s\nalready exists" % validation_fname)
+            with open(validation_fname, 'w') as out_file:
+                out_file.write(json.dumps(raw_trace_validation, indent=2, sort_keys=True))
+
+        # cull invalid traces
+        invalid_raw_trace = []
+        for roi_id in raw_trace_validation:
+            if not raw_trace_validation[roi_id]:
+                invalid_raw_trace.append(roi_id)
+                raw_traces['roi'].pop(roi_id)
+                raw_traces['neuropil'].pop(roi_id)
+        final_output['decrosstalk_invalid_raw_trace'] = invalid_raw_trace
+
+        if len(raw_traces['roi']) == 0:
+            msg = 'No raw traces were valid when applying '
+            msg += 'decrosstalk to ophys_experiment_id: %d (%d)' % (self.experiment_id,
+                                                                    other_plane.experiment_id)
+            logger.error(msg)
+            return final_output
+
+        raw_trace_events = self.get_trace_events(raw_traces['roi'])
+        if cache_dir is not None:
+            raw_events_fname = base_fname.format(suffix='raw_at.h5')
+            io_utils.write_to_h5(raw_events_fname,
+                                 raw_trace_events,
+                                 clobber=clobber)
+
+        del raw_trace_events
+
+        ica_converged, unmixed_traces = self.unmix_all_ROIs(raw_traces)
+        if cache_dir is not None:
+            unmixed_fname = base_fname.format(suffix='out.h5')
+            io_utils.write_to_h5(unmixed_fname,
+                                 unmixed_traces,
+                                 clobber=clobber)
+
+        if not ica_converged:
+            msg = 'ICA did not converge for any ROIs when '
+            msg += 'applying decrosstalk to ophys_experiment_id: %d (%d)' % (self.experiment_id,
+                                                                             other_plane.experiment_id)
+            logger.error(msg)
+            return final_output
+
+        unmixed_trace_validation = decrosstalk_utils.validate_traces(unmixed_traces)
+        if cache_dir is not None:
+            unmixed_validation_fname = base_fname.format(suffix='out_valid.json')
+            if not clobber and os.path.exists(unmixed_validation_fname):
+                raise RuntimeError("\n%s\nalready exists" % unmixed_validation_fname)
+            with open(unmixed_validation_fname, 'w') as out_file:
+                out_file.write(json.dumps(unmixed_trace_validation, indent=2, sort_keys=True))
+
+        # cull invalid traces
+        invalid_unmixed_trace = []
+        for roi_id in unmixed_trace_validation:
+            if not unmixed_trace_validation[roi_id]:
+                invalid_unmixed_trace.append(roi_id)
+                unmixed_traces['roi'].pop(roi_id)
+                unmixed_traces['neuropil'].pop(roi_id)
+        final_output['decrosstalk_invalid_unmixed_trace'] = invalid_unmixed_trace
+
+        if len(unmixed_traces['roi']) == 0:
+            msg = 'No unmixed traces were valid when applying '
+            msg += 'decrosstalk to ophys_experiment_id: %d (%d)' % (self.experiment_id,
+                                                                    other_plane.experiment_id)
+            return final_output
+
+        unmixed_trace_events = self.get_trace_events(unmixed_traces['roi'])
+        if cache_dir is not None:
+            unmixed_events_fname = base_fname.format(suffix='out_at.h5')
+            io_utils.write_to_h5(unmixed_events_fname,
+                                 unmixed_trace_events,
+                                 clobber=clobber)
+
+        independent_events = {}
+        ghost_roi_id = []
+        for roi_id in unmixed_trace_events:
+            signal = unmixed_trace_events[roi_id]['signal']
+            crosstalk = unmixed_trace_events[roi_id]['crosstalk']
+
+            (is_a_cell,
+             local_ind_events) = decrosstalk_utils.validate_cell_crosstalk(signal, crosstalk)
+
+            local = {'is_a_cell': is_a_cell,
+                     'independent_events': local_ind_events}
+
+            independent_events[roi_id] = local
+            if not is_a_cell:
+                ghost_roi_id.append(roi_id)
+        final_output['decrosstalk_ghost_roi_ids'] = ghost_roi_id
+
+        if cache_dir is not None:
+            ind_event_fname = base_fname.format(suffix='valid_ct.h5')
+            io_utils.write_to_h5(ind_event_fname,
+                                 independent_events,
+                                 clobber=clobber)
+
+        return final_output
+
+    def get_raw_traces(self, other_plane):
+        """
+        Get the raw signal and crosstalk traces comparing this plane to another plane
+
+        Parameters
+        ----------
+        other_plane -- another instance of OphysPlane which will be taken as the source
+        of crosstalk for this plane
+
+        Returns
+        -------
+        A dict of raw traces such that
+            output['roi'][5678]['signal'] is the raw signal trace for ROI 5678
+            output['roi'][5678]['crosstalk'] is the raw crosstalk trace for ROI 5678
+            output['neuropil'][5678]['signal'] is the raw signal trace for the neuropil around ROI 5678
+            output['neuropil'][5678]['crosstalk'] is the raw crosstalk trace for the neuropil around ROI 5678
+        """
+
+        signal_traces = self.movie.get_trace(self.roi_list)
+        crosstalk_traces = other_plane.movie.get_trace(self.roi_list)
+
+        output = {}
+        output['roi'] = {}
+        output['neuropil'] = {}
+        for roi_id in signal_traces['roi'].keys():
+            output['roi'][roi_id] = {}
+            output['neuropil'][roi_id] = {}
+            output['roi'][roi_id]['signal'] = signal_traces['roi'][roi_id]
+            output['roi'][roi_id]['crosstalk'] = crosstalk_traces['roi'][roi_id]
+            output['neuropil'][roi_id]['signal'] = signal_traces['neuropil'][roi_id]
+            output['neuropil'][roi_id]['crosstalk'] = crosstalk_traces['neuropil'][roi_id]
+
+        return output
+
+    def unmix_ROI(self, roi_traces, seed=None, iters=10):
+        # roi_traces is a dict that such that
+        # roi_traces['signal'] is a numpy array containing the signal trace
+        # roi_traces['crosstalk'] is a numpy array containing the crosstalk trace
+        #
+        # (basically: this is get_raw_traces.output['roi'][5678])
+
+        ica_input = np.array([roi_traces['signal'], roi_traces['crosstalk']])
+        assert ica_input.shape == (2, len(roi_traces['signal']))
+
+        (unmixed_signals,
+           mixing_matrix,
+              roi_demixed) = ica_utils.run_ica(ica_input, seed=seed, iters=iters)
+
+        assert unmixed_signals.shape == ica_input.shape
+
+        output = {}
+        output['mixing_matrix'] = mixing_matrix
+        output['signal'] = unmixed_signals[0,:]
+        output['crosstalk'] = unmixed_signals[1,:]
+        output['use_avg_mixing_matrix'] = not roi_demixed
+
+        return output
+
+    def unmix_all_ROIs(self, raw_roi_traces):
+
+        output = {}
+        output['roi'] = {}
+        output['neuropil'] = {}
+
+        # first pass naively unmixing ROIs with ICA
+        for roi_id in raw_roi_traces['roi'].keys():
+            output['neuropil'][roi_id] = {}
+
+            unmixed_roi = self.unmix_ROI(raw_roi_traces['roi'][roi_id],
+                                         seed=roi_id,
+                                         iters=10)
+
+            output['roi'][roi_id] = unmixed_roi
+
+        # calculate avg mixing matrix from successful iterations
+        alpha_arr = np.array([min(output['roi'][roi_id]['mixing_matrix'][0,0],
+                                  output['roi'][roi_id]['mixing_matrix'][0,1])
+                              for roi_id in output['roi'].keys()
+                              if not output['roi'][roi_id]['use_avg_mixing_matrix']])
+        beta_arr = np.array([min(output['roi'][roi_id]['mixing_matrix'][1,0],
+                                 output['roi'][roi_id]['mixing_matrix'][1,1])
+                             for roi_id in output['roi'].keys()
+                             if not output['roi'][roi_id]['use_avg_mixing_matrix']])
+
+        assert alpha_arr.shape == beta_arr.shape
+        if len(alpha_arr) == 0:
+            return False, output
+
+        mean_alpha = alpha_arr.mean()
+        mean_beta = beta_arr.mean()
+        mean_mixing_matrix = np.zeros((2,2), dtype=float)
+        mean_mixing_matrix[0,0] = 1.0-mean_alpha
+        mean_mixing_matrix[0,1] = mean_alpha
+        mean_mixing_matrix[1,0] = mean_beta
+        mean_mixing_matrix[1,1] = 1.0-mean_beta
+        inv_mean_mixing_matrix = np.linalg.inv(mean_mixing_matrix)
+
+        for roi_id in raw_roi_traces['roi'].keys():
+            inv_mixing_matrix = None
+            mixing_matrix = None
+            if not output['roi'][roi_id]['use_avg_mixing_matrix']:
+                mixing_matrix = output['roi'][roi_id]['mixing_matrix']
+                inv_mixing_matrix = np.linalg.inv(mixing_matrix)
+            else:
+                mixing_matrix = mean_mixing_matrix
+                inv_mixing_matrix = inv_mean_mixing_matrix
+
+                # assign missing outputs to ROIs that failed to converge
+                output['roi'][roi_id]['mixing_matrix'] = mixing_matrix
+                unmixed_signals = np.dot(inv_mixing_matrix,
+                                         np.array([raw_roi_traces['roi'][roi_id]['signal'],
+                                                   raw_roi_traces['roi'][roi_id]['crosstalk']]))
+                output['roi'][roi_id]['signal'] = unmixed_signals[0,:]
+                output['roi'][roi_id]['crosstalk'] = unmixed_signals[1,:]
+
+            # assign outputs to 'neuropils'
+            unmixed_signals = np.dot(inv_mixing_matrix,
+                                     np.array([raw_roi_traces['neuropil'][roi_id]['signal'],
+                                               raw_roi_traces['neuropil'][roi_id]['crosstalk']]))
+            output['neuropil'][roi_id]['signal'] = unmixed_signals[0,:]
+            output['neuropil'][roi_id]['crosstalk'] = unmixed_signals[1,:]
+
+        return True, output
+
+    def get_trace_events(self, trace_dict):
+        """
+        trace_dict is a dict such that
+            trace_dict[roi_id]['signal'] is the signal channel for ROI roi_id
+            trace_dict[roi_id]['crosstalk'] is the crosstalk channel for ROI roi_id
+
+        Returns
+        -------
+        out_dict such that
+            out_dict[roi_id]['signal']['trace'] is the trace of the signal channel events
+            out_dict[roi_id]['signal']['events'] is the timestep events of the signal channel events
+            out_dict[roi_id]['crosstalk']['trace'] is the trace of the signal channel events
+            out_dict[roi_id]['crosstalk']['events'] is the timestep events of the signal channel events
+        """
+        roi_id_list = list(trace_dict.keys())
+
+        data_arr = np.array([trace_dict[roi_id]['signal'] for roi_id in roi_id_list])
+        signal_event_dict = active_traces.get_trace_events(data_arr, self.trace_threshold_params)
+
+        data_arr = np.array([trace_dict[roi_id]['crosstalk'] for roi_id in roi_id_list])
+        crosstalk_event_dict = active_traces.get_trace_events(data_arr, self.trace_threshold_params)
+
+        output = {}
+        for i_roi, roi_id in enumerate(roi_id_list):
+            local_dict = {}
+            local_dict['signal'] = {}
+            local_dict['crosstalk'] = {}
+            local_dict['signal']['trace'] = signal_event_dict['trace'][i_roi]
+            local_dict['signal']['events'] = signal_event_dict['events'][i_roi]
+            local_dict['crosstalk']['trace'] = crosstalk_event_dict['trace'][i_roi]
+            local_dict['crosstalk']['events'] = crosstalk_event_dict['events'][i_roi]
+            output[roi_id] = local_dict
+
+        return output

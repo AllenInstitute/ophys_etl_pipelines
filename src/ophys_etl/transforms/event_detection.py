@@ -194,6 +194,31 @@ def trace_noise_estimate(x: np.ndarray, filt_length: int) -> float:
     return median_abs_deviation(x, scale='normal')
 
 
+def count_and_minmag(events: np.ndarray) -> Tuple[int, float]:
+    """from an array of events count the number of events
+    and get the minimum magnitude
+
+    Parameters
+    ----------
+    events: np.ndarray
+        size nframes, zeros where no event, otherwise magnitude
+
+    Returns
+    -------
+    n_events: int
+        number of nonzero entries
+    min_event_mag: float
+        magnitude of smallest non-zero event
+
+    """
+    n_events = len(events[events > 0])
+    if n_events == 0:
+        min_event_mag = 0.0
+    else:
+        min_event_mag = np.min(events[events > 0])
+    return n_events, min_event_mag
+
+
 def fast_lzero_regularization_search_bracket(
         trace: np.ndarray, noise_estimate: np.ndarray, gamma: float,
         base_penalty: float = 0, penalty_step: float = 0.1,
@@ -255,8 +280,7 @@ def fast_lzero_regularization_search_bracket(
         penalty = penalty_step
         base_penalty += penalty_step
     flz_eval = fast_lzero(penalty, trace, gamma, L0_constrain)
-    n_events = len(flz_eval[flz_eval > 0])
-    min_event_mag = np.min(flz_eval[flz_eval > 0])
+    n_events, min_event_mag = count_and_minmag(flz_eval)
 
     if n_events == 0 and bisect is True:
         base_penalty -= 5 * penalty_step
@@ -275,8 +299,7 @@ def fast_lzero_regularization_search_bracket(
                 last_flz_eval = np.copy(flz_eval)
                 penalty += penalty_step
                 flz_eval = fast_lzero(penalty, trace, gamma, L0_constrain)
-                n_events = len(flz_eval[flz_eval > 0])
-                min_event_mag = np.min(flz_eval[flz_eval > 0])
+                n_events, min_event_mag = count_and_minmag(flz_eval)
             if n_events == 0:
                 return (last_flz_eval, penalty - penalty_step)
             else:

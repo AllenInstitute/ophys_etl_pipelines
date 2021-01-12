@@ -1,4 +1,5 @@
 import argschema
+import tempfile
 import os
 import json
 import ophys_etl.decrosstalk.decrosstalk_schema as decrosstalk_schema
@@ -14,6 +15,15 @@ class DummyPlaneLoader(argschema.ArgSchemaParser):
 
 class DummyPlanePairLoader(argschema.ArgSchemaParser):
     default_schema = decrosstalk_schema.PlanePairSchema
+
+class DummySchemaOutput(argschema.ArgSchemaParser):
+    default_output_schema = decrosstalk_schema.DecrosstalkOutputSchema
+
+    def run(self):
+        output = {'decrosstalk_invalid_raw_trace':[],
+                  'decrosstalk_invalid_unmixed_trace':[1,2,3,4],
+                  'decrosstalk_ghost_roi_ids':[]}
+        self.output(output)
 
 def get_schema_data():
     this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -44,3 +54,19 @@ def test_plane_pair_schema():
 def test_decrosstalk_schema():
     schema_data = get_schema_data()
     dummy = DummyDecrosstalkLoader(input_data=schema_data, args=[])
+
+def test_output_schema():
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    tmp_dir = os.path.join(this_dir, 'tmp')
+    assert os.path.isdir(tmp_dir)
+    tmp_fname = tempfile.mkstemp(prefix='output_schema_test_',
+                                 suffix='.json',
+                                 dir=tmp_dir)[1]
+    try:
+        dummy = DummySchemaOutput(args=['--output_json', '%s' % tmp_fname])
+        dummy.run()
+    except:
+        raise
+    finally:
+        if os.path.exists(tmp_fname):
+            os.unlink(tmp_fname)

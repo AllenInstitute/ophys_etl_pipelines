@@ -1,3 +1,4 @@
+import marshmallow.exceptions
 import argschema
 
 
@@ -65,3 +66,44 @@ class DecrosstalkSchema(argschema.ArgSchema):
                         description='list of plane pairs',
                         required=True,
                         cli_as_single_argument=True)
+
+
+def validate_list_of_ints(input_list):
+    """
+    Validator for DecrosstalkOutputSchema.
+    Checks that input_list is, indeed, a list of ints.
+    """
+    if not isinstance(input_list, list):
+        return False
+    for ii in input_list:
+        if not isinstance(ii, int):
+            raise marshmallow.exceptions.ValidationError("Did not contain ints")
+    return True
+
+class DecrosstalkOutputSchema(argschema.ArgSchema):
+    # All Lists are lists of argschema.fields.Field because
+    # this was the only way I could get argschema to not
+    # automatically cast non-int numeric types into ints.
+    # The call to validate_list_of_ints will make sure that
+    # the lists do, indeed, need to contain ints.
+
+    decrosstalk_invalid_raw_trace = argschema.fields.List(
+                                       argschema.fields.Field,
+                                       description='IDs of ROIs ruled invalid based on raw trace',
+                                       required=True,
+                                       cli_as_single_argument=True,
+                                       validate=validate_list_of_ints)
+
+    decrosstalk_invalid_unmixed_trace = argschema.fields.List(
+                                           argschema.fields.Field,
+                                           description='IDs of ROIs ruled invalid based on unmixed trace',
+                                           required=True,
+                                           cli_as_single_argument=True,
+                                           validate=validate_list_of_ints)
+
+    decrosstalk_ghost_roi_ids = argschema.fields.List(
+                                    argschema.fields.Field,
+                                    description='IDs of ROIs ruled invalid because all activity is due to crosstalk',
+                                    required=True,
+                                    cli_as_single_argument=True,
+                                    validate=validate_list_of_ints)

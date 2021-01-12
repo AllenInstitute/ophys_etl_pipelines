@@ -139,23 +139,31 @@ def test_validate_cell_crosstalk(sig_indices,
 
 def test_validate_raw_traces():
 
+    t1 = np.arange(10).astype(float)
+    t2 = np.arange(20).astype(float)
+
     traces_dict = {}
     traces_dict['roi'] = {}
     traces_dict['neuropil'] = {}
 
-    traces_dict['roi'][0] = np.arange(20, dtype=float)
-    traces_dict['neuropil'][0] = np.arange(30, 50, 1, dtype=float)
+    for roi_id in range(9):
+        traces_dict['roi'][roi_id] = {}
+        traces_dict['neuropil'][roi_id] = {}
+        for k in ('signal', 'crosstalk'):
+            traces_dict['roi'][roi_id][k] = np.copy(t1)
+            traces_dict['neuropil'][roi_id][k] = np.copy(t1)
 
-    traces_dict['roi'][1] = np.arange(20, dtype=float)
-    traces_dict['neuropil'][1] = np.arange(10, dtype=float)
+    traces_dict['roi'][1]['signal'] = np.copy(t2)
+    traces_dict['roi'][2]['crosstalk'] = np.copy(t2)
+    traces_dict['neuropil'][3]['signal'] = np.copy(t2)
+    traces_dict['neuropil'][4]['crosstalk'] = np.copy(t2)
 
-    traces_dict['roi'][2] = np.arange(10, dtype=float)
-    traces_dict['roi'][2][5] = np.NaN
-    traces_dict['neuropil'][2] = np.arange(10, dtype=float)
+    traces_dict['roi'][5]['signal'][4] = np.NaN
+    traces_dict['roi'][6]['crosstalk'][4] = np.NaN
+    traces_dict['neuropil'][7]['signal'][4] = np.NaN
+    traces_dict['neuropil'][8]['crosstalk'][4] = np.NaN
 
-    traces_dict['roi'][3] = np.arange(10, dtype=float)
-    traces_dict['neuropil'][3] = np.arange(10, dtype=float)
-    traces_dict['neuropil'][3][4] = np.NaN
-
-    result = decrosstalk_utils.validate_traces(traces_dict)
-    assert result == {0: True, 1:False, 2:False, 3:False}
+    results = decrosstalk_utils.validate_traces(traces_dict)
+    assert results == {0:True, 1:False, 2:False, 3:False,
+                       4:False, 5:False, 6:False, 7:False,
+                       8:False}

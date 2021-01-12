@@ -9,8 +9,11 @@ def validate_traces(trace_dict):
     Parameters
     -----------
     trace_dict contains the traces to be validated. It has a structure like:
-    trace_dict['roi'][5678] = np.array of trace values for ROI defined as roi_id=5678
-    trace_dict['neuropil'][5678] = np.array of trace values defined in the neuropil around roi_id=5678
+    trace_dict['roi'][5678]['signal'] = np.array of trace of signal values for ROI defined as roi_id=5678
+    trace_dict['roi'][5678]['crosstalk'] = np.array of trace of crosstalk values for ROI defined as roi_id=5678
+    trace_dict['neuropil'][5678]['signal'] = np.array of trace of signal values defined in the neuropil around roi_id=5678
+    trace_dict['neuropil'][5678]['crosstalk'] = np.array of trace of crosstalk values defined in the neuropil around roi_id=5678
+
 
     Returns
     -------
@@ -19,18 +22,30 @@ def validate_traces(trace_dict):
     """
     output_dict = {}
     for roi_id in trace_dict['roi'].keys():
-        roi_trace = trace_dict['roi'][roi_id]
-        neuropil_trace = trace_dict['neuropil'][roi_id]
-        if roi_trace.shape != neuropil_trace.shape:
-            output_dict[roi_id] = False
-            continue
-        if np.isnan(roi_trace).any():
-            output_dict[roi_id] = False
-            continue
-        if np.isnan(neuropil_trace).any():
-            output_dict[roi_id] = False
-            continue
-        output_dict[roi_id] = True
+        roi_s_trace = trace_dict['roi'][roi_id]['signal']
+        roi_c_trace = trace_dict['roi'][roi_id]['crosstalk']
+        neuropil_s_trace = trace_dict['neuropil'][roi_id]['signal']
+        neuropil_c_trace = trace_dict['neuropil'][roi_id]['crosstalk']
+
+        is_valid = True
+
+        for test_trace in (roi_c_trace,
+                           neuropil_s_trace,
+                           neuropil_c_trace):
+            if test_trace.shape != roi_s_trace.shape:
+                is_valid = False
+                break
+
+        if is_valid:
+            for test_trace in (roi_s_trace,
+                               roi_c_trace,
+                               neuropil_s_trace,
+                               neuropil_c_trace):
+
+                if np.isnan(test_trace).any():
+                    is_valid = False
+
+        output_dict[roi_id] = is_valid
 
     return output_dict
 

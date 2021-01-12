@@ -150,7 +150,7 @@ class OphysMovie(object):
         """
         Extract the traces from a movie as defined by the ROIs in roi_list
 
-t        Parameters
+        Parameters
         ----------
         roi_list -- a list of OphysROI instantiations specifying the ROIs to extract
         traces from
@@ -346,6 +346,8 @@ class OphysPlane(object):
 
         del raw_trace_events
 
+        raw_trace_crosstalk_ratio = self.get_crosstalk_data(raw_traces['roi'])
+
         ica_converged, unmixed_traces = self.unmix_all_ROIs(raw_traces)
         if cache_dir is not None:
             unmixed_fname = base_fname.format(suffix='out.h5')
@@ -390,6 +392,8 @@ class OphysPlane(object):
                                  unmixed_trace_events,
                                  clobber=clobber)
 
+        unmixed_trace_crosstalk_ratio = self.get_crosstalk_data(unmixed_traces['roi'])
+
         independent_events = {}
         ghost_roi_id = []
         for roi_id in unmixed_trace_events:
@@ -412,6 +416,17 @@ class OphysPlane(object):
             io_utils.write_to_h5(ind_event_fname,
                                  independent_events,
                                  clobber=clobber)
+
+            crosstalk_ratio = {}
+            for roi_id in unmixed_trace_crosstalk_ratio:
+                crosstalk_ratio[roi_id] = {'raw': raw_trace_crosstalk_ratio[roi_id],
+                                           'unmixed': unmixed_trace_crosstalk_ratio[roi_id]}
+
+            crosstalk_ratio_fname = base_fname.format(suffix='crosstalk.json')
+            if os.path.exists(crosstalk_ratio_fname) and not clobber:
+                raise RuntimeError("\n%s\nalready exists" % crosstalk_ratio_fname)
+            with open(crosstalk_ratio_fname, 'w') as out_file:
+                out_file.write(json.dumps(crosstalk_ratio, indent=2, sort_keys=True))
 
         return final_output
 
@@ -572,4 +587,20 @@ class OphysPlane(object):
             local_dict['crosstalk']['events'] = crosstalk_event_dict['events'][i_roi]
             output[roi_id] = local_dict
 
+        return output
+
+    def get_crosstalk_data(self, trace_dict):
+        """
+        trace_dict that contains
+            trace_dict[roi_id]['signal']['trace']
+            trace_dict[roi_id]['crosstalk']['trace']
+
+        returns a dict keyed on roi_id with 100*slope relating
+        signal to crosstalk
+        """
+        output = {}
+        for roi_id in trace_dict.keys():
+            results = decrosstalk_utils.get_crosstalk_data(trace_dict[roi_id]['signal'],
+                                                           trace_dict[roi_id]['crosstalk'])
+            output[roi_id] = 100*results['slope']
         return output

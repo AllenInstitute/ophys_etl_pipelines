@@ -1,4 +1,31 @@
 import numpy as np
+import scipy.stats
+
+def get_crosstalk_data(signal, crosstalk):
+    """
+    Use linear regression to calculate the ratio between signal
+    and crosstalk in an ROI.
+
+    Parameters
+    ----------
+    signal -- np.array of signal trace
+    crosstalk -- np.array of crosstalk trace
+
+    Returns
+    -------
+    A dict
+        {'slope': the linear regression slope relating signal to crosstalk,
+         'offset': the offset form linear regression,
+         'r_value': the Pearson's R-coefficient from linear regression}
+    """
+    (slope,
+     offset,
+     r_value,
+     p_value,
+     std_err) = scipy.stats.linregress(signal, crosstalk)
+
+    return {'slope': slope, 'offset': offset, 'r_value': r_value}
+
 
 def validate_traces(trace_dict):
     """

@@ -136,3 +136,26 @@ def test_validate_cell_crosstalk(sig_indices,
         assert not is_valid_roi
         assert len(ind_events['trace']) == 0
         assert len(ind_events['events']) == 0
+
+def test_validate_raw_traces():
+
+    traces_dict = {}
+    traces_dict['roi'] = {}
+    traces_dict['neuropil'] = {}
+
+    traces_dict['roi'][0] = np.arange(20, dtype=float)
+    traces_dict['neuropil'][0] = np.arange(30, 50, 1, dtype=float)
+
+    traces_dict['roi'][1] = np.arange(20, dtype=float)
+    traces_dict['neuropil'][1] = np.arange(10, dtype=float)
+
+    traces_dict['roi'][2] = np.arange(10, dtype=float)
+    traces_dict['roi'][2][5] = np.NaN
+    traces_dict['neuropil'][2] = np.arange(10, dtype=float)
+
+    traces_dict['roi'][3] = np.arange(10, dtype=float)
+    traces_dict['neuropil'][3] = np.arange(10, dtype=float)
+    traces_dict['neuropil'][3][4] = np.NaN
+
+    result = decrosstalk_utils.validate_traces(traces_dict)
+    assert result == {0: True, 1:False, 2:False, 3:False}

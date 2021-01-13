@@ -53,16 +53,18 @@ class EventDetectionInputSchema(argschema.ArgSchema):
         default=1,
         description=("number of parallel workers. If set to -1 "
                      "is set to multiprocessing.cpu_count()."))
-    short_median_filter = argschema.fields.Float(
+    noise_median_filter = argschema.fields.Float(
         required=False,
         default=1.0,
         description=("median filter length used to detrend data "
-                     "during noise estimation [seconds]."))
-    long_median_filter = argschema.fields.Float(
+                     "during noise estimation [seconds]. Typically "
+                     "shorter than 'trace_median_filter'."))
+    trace_median_filter = argschema.fields.Float(
         required=False,
         default=3.2,
         description=("median filter length used to detrend data "
-                     "before passing to FastLZero. [seconds]"))
+                     "before passing to FastLZero. [seconds]. Typically "
+                     "longer than 'noise_median_filter'."))
     noise_multiplier = argschema.fields.Float(
         required=False,
         description=("manual specification of noise multiplier. If not "
@@ -361,8 +363,8 @@ def fast_lzero_regularization_search_bracket(
                 bisect=not bisect)
 
 
-def estimate_noise_detrend(traces: np.ndarray, short_filter_size: int,
-                           long_filter_size: int
+def estimate_noise_detrend(traces: np.ndarray, noise_filter_size: int,
+                           trace_filter_size: int
                            ) -> Tuple[np.ndarray, np.ndarray]:
     """Per-trace: estimates noise and median filters with a noise-based
     clipping threshold of the median.
@@ -371,11 +373,11 @@ def estimate_noise_detrend(traces: np.ndarray, short_filter_size: int,
     ----------
     traces: np.ndarray
         ntrace x nframes, float
-    short_filter_size: int
-        length of short median filter for detrending during noise estimation,
+    noise_filter_size: int
+        length of median filter for detrending during noise estimation,
         passed to scipy.ndimage.filters.median_filter as size.
-    long_filter_size: int
-        length of short median filter for detrending data,
+    trace_filter_size: int
+        length of median filter for detrending data,
         passed to scipy.ndimage.filters.median_filter as size.
 
     Returns
@@ -395,8 +397,8 @@ def estimate_noise_detrend(traces: np.ndarray, short_filter_size: int,
     """
     sigmas = np.empty(shape=traces.shape[0])
     for i, trace in enumerate(traces):
-        sigmas[i] = trace_noise_estimate(trace, short_filter_size)
-        trace_median = median_filter(trace, long_filter_size, mode='nearest')
+        sigmas[i] = trace_noise_estimate(trace, noise_filter_size)
+        trace_median = median_filter(trace, trace_filter_size, mode='nearest')
         # NOTE the next line clips the median trace from above
         # there is no stated motivation in the original code.
         trace_median = np.minimum(trace_median, 2.5 * sigmas[i])
@@ -515,14 +517,14 @@ class EventDetection(argschema.ArgSchemaParser):
                          f"{upsampled_rate}")
 
         # run FastLZeroSpikeInference
-        short_filter_samples = \
-            int(self.args['short_median_filter'] * upsampled_rate)
-        long_filter_samples = \
-            int(self.args['long_median_filter'] * upsampled_rate)
+        noise_filter_samples = \
+            int(self.args['noise_median_filter'] * upsampled_rate)
+        trace_filter_samples = \
+            int(self.args['trace_median_filter'] * upsampled_rate)
         upsampled_dff, noise_stds = estimate_noise_detrend(
                 upsampled_dff,
-                short_filter_size=short_filter_samples,
-                long_filter_size=long_filter_samples)
+                noise_filter_size=noise_filter_samples,
+                trace_filter_size=trace_filter_samples)
         gamma = calculate_gamma(self.args['halflife'],
                                 upsampled_rate)
         upsampled_events, lambdas = get_events(

@@ -344,9 +344,10 @@ class OphysPlane(object):
                                  raw_trace_events,
                                  clobber=clobber)
 
-        del raw_trace_events
+        raw_trace_crosstalk_ratio = self.get_crosstalk_data(raw_traces['roi'],
+                                                            raw_trace_events)
 
-        raw_trace_crosstalk_ratio = self.get_crosstalk_data(raw_traces['roi'])
+        del raw_trace_events
 
         ica_converged, unmixed_traces = self.unmix_all_ROIs(raw_traces)
         if cache_dir is not None:
@@ -432,7 +433,8 @@ class OphysPlane(object):
             with open(invalid_at_fname, 'w') as out_file:
                 out_file.write(json.dumps(invalid_active_trace, indent=2, sort_keys=True))
 
-        unmixed_trace_crosstalk_ratio = self.get_crosstalk_data(unmixed_traces['roi'])
+        unmixed_trace_crosstalk_ratio = self.get_crosstalk_data(unmixed_traces['roi'],
+                                                                unmixed_trace_events)
 
         independent_events = {}
         ghost_roi_id = []
@@ -636,18 +638,26 @@ class OphysPlane(object):
 
         return output
 
-    def get_crosstalk_data(self, trace_dict):
+    def get_crosstalk_data(self, trace_dict, events_dict):
         """
         trace_dict that contains
-            trace_dict[roi_id]['signal']['trace']
-            trace_dict[roi_id]['crosstalk']['trace']
+            trace_dict[roi_id]['signal']
+            trace_dict[roi_id]['crosstalk']
+
+        events_dict that contains
+            events_dict[roi_id]['signal']['trace']
+            events_dict[roi_id]['signal']['events']
+            events_dict[roi_id]['crosstalk']['trace']
+            events_dict[roi_id]['crosstalk']['events']
 
         returns a dict keyed on roi_id with 100*slope relating
         signal to crosstalk
         """
         output = {}
         for roi_id in trace_dict.keys():
-            results = decrosstalk_utils.get_crosstalk_data(trace_dict[roi_id]['signal'],
-                                                           trace_dict[roi_id]['crosstalk'])
+            signal = events_dict[roi_id]['signal']['trace']
+            full_crosstalk = trace_dict[roi_id]['crosstalk']
+            crosstalk = full_crosstalk[events_dict[roi_id]['signal']['events']]
+            results = decrosstalk_utils.get_crosstalk_data(signal, crosstalk)
             output[roi_id] = 100*results['slope']
         return output

@@ -387,11 +387,42 @@ class OphysPlane(object):
             return final_output
 
         unmixed_trace_events = self.get_trace_events(unmixed_traces['roi'])
+
+        # Sometimes, unmixed_trace_events will return an array of NaNs.
+        # Until we can debug that behavior, we will log those errors,
+        # store the relevaten ROIs as decrosstalk_invalid_unmixed_trace,
+        # and cull those ROIs from the data
+
+        invalid_active_trace = set()
+        for roi_id in unmixed_trace_events.keys():
+            local_traces = unmixed_trace_events[roi_id]
+            for channel in ('signal', 'crosstalk'):
+                nan_trace = np.isnan(local_traces[channel]['trace']).any()
+                nan_events = np.isnan(local_traces[channel]['events']).any()
+                if nan_trace or nan_events:
+                    msg = 'ophys_experiment_id: %d (%d) ; ' % (self.experiment_id,
+                                                             other_plane.experiment_id)
+                    msg += 'roi_id: %d ; ' % roi_id
+                    msg += 'channel: %s ; ' % channel
+                    msg += 'NaNs in active trace: %s ; ' % str(nan_trace)
+                    msg += 'NaNs in active trace events: %s ' % str(nan_events)
+                    logger.error(msg)
+                    if channel=='signal':
+                        invalid_active_trace.add(roi_id)
+
         if cache_dir is not None:
             unmixed_events_fname = base_fname.format(suffix='out_at.h5')
             io_utils.write_to_h5(unmixed_events_fname,
                                  unmixed_trace_events,
                                  clobber=clobber)
+
+        # remove ROIs with NaNs in their independent signal events
+        # from the data being processed
+        for roi_id in invalid_active_trace:
+            final_output['decrosstalk_invalid_unmixed_trace'].append(roi_id)
+            unmixed_trace_events.pop(roi_id)
+            unmixed_traces['roi'].pop(roi_id)
+            unmixed_traces['neuropil'].pop(roi_id)
 
         unmixed_trace_crosstalk_ratio = self.get_crosstalk_data(unmixed_traces['roi'])
 

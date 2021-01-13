@@ -18,13 +18,11 @@ def get_crosstalk_data(signal, crosstalk):
          'offset': the offset form linear regression,
          'r_value': the Pearson's R-coefficient from linear regression}
     """
-    (slope,
-     offset,
-     r_value,
-     p_value,
-     std_err) = scipy.stats.linregress(signal, crosstalk)
+    result = scipy.stats.linregress(signal, crosstalk)
 
-    return {'slope': slope, 'offset': offset, 'r_value': r_value}
+    return {'slope': result.slope,
+            'offset': result.intercept,
+            'r_value': result.rvalue}
 
 
 def validate_traces(trace_dict):

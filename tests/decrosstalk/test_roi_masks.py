@@ -41,6 +41,11 @@ import os
 import pytest
 import ophys_etl.decrosstalk.roi_masks as roi_masks
 
+def get_tmp_dir():
+    this_dir = os.path.dirname(os.path.abspath(__file__))
+    tmp_dir = os.path.join(this_dir, 'tmp')
+    assert os.path.isdir(tmp_dir)
+
 
 def test_init_by_pixels():
     a = np.array([[0, 0], [1, 1], [1, 0]])
@@ -213,9 +218,7 @@ def test_calculate_roi_and_neuropil_traces(video, roi_mask_list, motion_border):
     assert np.all(np.isnan(roi_traces[9, :]))
 
     # test that reading from an h5 file gives the same result
-    this_dir = os.path.dirname(os.path.abspath(__file__))
-    tmp_dir = os.path.join(this_dir, 'tmp')
-    assert os.path.isdir(tmp_dir)
+    tmp_dir = get_tmp_dir()
     tmp_filename = tempfile.mkstemp(prefix='motion_video',
                                     suffix='.h5',
                                     dir=tmp_dir)[1]

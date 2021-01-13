@@ -4,6 +4,7 @@ import os
 import numpy as np
 import json
 import multiprocessing
+import warnings
 import marshmallow as mm
 from typing import Tuple
 from scipy.ndimage.filters import median_filter
@@ -84,13 +85,19 @@ class EventDetectionInputSchema(argschema.ArgSchema):
     def get_noise_multiplier(self, data, **kwargs):
         if 'noise_multiplier' in data:
             return data
+        val_11hz = 3.0
+        val_31hz = 1.0
         if np.round(data['movie_frame_rate_hz'] / 11.0) == 1:
-            data['noise_multiplier'] = 3.0
+            data['noise_multiplier'] = val_11hz
         elif np.round(data['movie_frame_rate_hz'] / 31.0) == 1:
-            data['noise_multiplier'] = 1.0
+            data['noise_multiplier'] = val_31hz
         else:
-            raise EventDetectionException("event detection only validated "
-                                          "with frame rates of 11 or 31Hz.")
+            raise EventDetectionException(
+                "You did not specify 'noise_multiplier'. In that case, the "
+                "multiplier is selected by 'movie_frame_rate_hz' but only "
+                "freqeuncies around 11Hz and 31Hz have specified values: "
+                f"({val_11hz}, {val_31hz}) respectively. You specified a "
+                f"'movie_frame_rate' of {data['movie_frame_rate_hz']}")
         return data
 
     @mm.post_load
@@ -113,7 +120,13 @@ class EventDetectionInputSchema(argschema.ArgSchema):
                         f"{data['full_genotype']} not available. "
                         "Available lookup values are "
                         f"\n{json.dumps(decay_lookup, indent=2)}")
-            data['decay_time'] = decay_lookup[data['full_genotype']]
+            lookup = decay_lookup[data['full_genotype']]
+            if 'decay_time' in data:
+                warnings.warn("You specified a decay_time of "
+                              f"{data['decay_time']} but that is being "
+                              "overridden by a lookup by genotype to give "
+                              f"a decay time of {lookup}.")
+            data['decay_time'] = lookup
         data['halflife'] = calculate_halflife(data['decay_time'])
         return data
 
@@ -239,7 +252,7 @@ def count_and_minmag(events: np.ndarray) -> Tuple[int, float]:
 
 
 def fast_lzero_regularization_search_bracket(
-        trace: np.ndarray, noise_estimate: np.ndarray, gamma: float,
+        trace: np.ndarray, min_size: float, gamma: float,
         base_penalty: float = 0, penalty_step: float = 0.1,
         step_min: float = 0.0001,
         bisect=False) -> Tuple[np.ndarray, np.ndarray]:
@@ -252,9 +265,9 @@ def fast_lzero_regularization_search_bracket(
     ----------
     trace: np.ndarray
         the 1D trace data
-    noise_estimate: float
-        a std-dev estimate of the noise, used to establish the smallest
-        desired event magnitude.
+    min_size: float
+        a target for the minimum amplitude magnitude. This is typically a
+        multiple of an estimate of the noise.
     gamma: float
         a scalar value for the AR(1) decay parameter; 0 < gam <= 1
     base_penalty: float
@@ -285,12 +298,11 @@ def fast_lzero_regularization_search_bracket(
     here to True.
 
     """
-    min_size = 1.0 * noise_estimate
     L0_constrain = True
 
     # these args are immutable through the recursion
     recursive_partial = partial(fast_lzero_regularization_search_bracket,
-                                trace, noise_estimate, gamma,
+                                trace, min_size, gamma,
                                 step_min=step_min)
 
     # evaluate fast_lzero at one point

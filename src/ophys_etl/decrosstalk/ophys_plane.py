@@ -383,6 +383,7 @@ class OphysPlane(object):
             msg = 'No unmixed traces were valid when applying '
             msg += 'decrosstalk to ophys_experiment_id: %d (%d)' % (self.experiment_id,
                                                                     other_plane.experiment_id)
+            logger.error(msg)
             return final_output
 
         unmixed_trace_events = self.get_trace_events(unmixed_traces['roi'])

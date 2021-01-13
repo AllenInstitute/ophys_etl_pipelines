@@ -502,7 +502,14 @@ class OphysPlane(object):
                                          seed=roi_id,
                                          iters=10)
 
-            output['roi'][roi_id] = unmixed_roi
+            if not unmixed_roi['use_avg_mixing_matrix']:
+                output['roi'][roi_id] = unmixed_roi
+            else:
+                output['roi'][roi_id] = {'use_avg_mixing_matrix':True}
+                for k in unmixed_roi.keys():
+                    if k == 'use_avg_mixing_matrix':
+                        continue
+                    output['roi'][roi_id]['poorly_converged_%s' % k] = unmixed_roi[k]
 
         # calculate avg mixing matrix from successful iterations
         alpha_arr = np.array([min(output['roi'][roi_id]['mixing_matrix'][0,0],

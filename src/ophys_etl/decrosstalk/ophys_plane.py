@@ -393,22 +393,16 @@ class OphysPlane(object):
         # store the relevaten ROIs as decrosstalk_invalid_unmixed_trace,
         # and cull those ROIs from the data
 
-        invalid_active_trace = set()
+        invalid_active_trace = {}
+        invalid_active_trace['signal'] = []
+        invalid_active_trace['crosstalk'] = []
         for roi_id in unmixed_trace_events.keys():
             local_traces = unmixed_trace_events[roi_id]
             for channel in ('signal', 'crosstalk'):
                 nan_trace = np.isnan(local_traces[channel]['trace']).any()
                 nan_events = np.isnan(local_traces[channel]['events']).any()
                 if nan_trace or nan_events:
-                    msg = 'ophys_experiment_id: %d (%d) ; ' % (self.experiment_id,
-                                                             other_plane.experiment_id)
-                    msg += 'roi_id: %d ; ' % roi_id
-                    msg += 'channel: %s ; ' % channel
-                    msg += 'NaNs in active trace: %s ; ' % str(nan_trace)
-                    msg += 'NaNs in active trace events: %s ' % str(nan_events)
-                    logger.error(msg)
-                    if channel=='signal':
-                        invalid_active_trace.add(roi_id)
+                    invalid_active_trace[channel].append(roi_id)
 
         if cache_dir is not None:
             unmixed_events_fname = base_fname.format(suffix='out_at.h5')
@@ -416,13 +410,27 @@ class OphysPlane(object):
                                  unmixed_trace_events,
                                  clobber=clobber)
 
-        # remove ROIs with NaNs in their independent signal events
-        # from the data being processed
-        for roi_id in invalid_active_trace:
-            final_output['decrosstalk_invalid_unmixed_trace'].append(roi_id)
-            unmixed_trace_events.pop(roi_id)
-            unmixed_traces['roi'].pop(roi_id)
-            unmixed_traces['neuropil'].pop(roi_id)
+
+        if len(invalid_active_trace['signal'])>0 or len(invalid_active_trace['crosstalk'])>0:
+            msg = 'ophys_experiment_id: %d (%d) ' % (self.experiment_id,
+                                                     other_plane.experiment_id)
+            msg += 'had ROIs with active event channels that contained NaNs'
+            logger.error(msg)
+
+            # remove ROIs with NaNs in their independent signal events
+            # from the data being processed
+            for roi_id in invalid_active_trace['signal']:
+                final_output['decrosstalk_invalid_unmixed_trace'].append(roi_id)
+                unmixed_trace_events.pop(roi_id)
+                unmixed_traces['roi'].pop(roi_id)
+                unmixed_traces['neuropil'].pop(roi_id)
+
+        if cache_dir is not None:
+            invalid_at_fname = base_fname.format(suffix='invalid_at.json')
+            if os.path.exists(invalid_at_fname) and not clobber:
+                raise RuntimeError("\n%s\nexists" % invalid_at_fname)
+            with open(invalid_at_fname, 'w') as out_file:
+                out_file.write(json.dumps(invalid_active_trace, indent=2, sort_keys=True))
 
         unmixed_trace_crosstalk_ratio = self.get_crosstalk_data(unmixed_traces['roi'])
 

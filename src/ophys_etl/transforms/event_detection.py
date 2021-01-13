@@ -62,6 +62,11 @@ class EventDetectionInputSchema(argschema.ArgSchema):
         default=3.2,
         description=("median filter length used to detrend data "
                      "before passing to FastLZero. [seconds]"))
+    noise_multiplier = argschema.fields.Float(
+        required=False,
+        description=("manual specification of noise multiplier. If not "
+                     "provided, will be defaulted by `get_noise_multiplier` "
+                     "post_load below."))
 
     @mm.post_load
     def check_dff_h5_keys(self, data, **kwargs):
@@ -77,6 +82,8 @@ class EventDetectionInputSchema(argschema.ArgSchema):
 
     @mm.post_load
     def get_noise_multiplier(self, data, **kwargs):
+        if 'noise_multiplier' in data:
+            return data
         if np.round(data['movie_frame_rate_hz'] / 11.0) == 1:
             data['noise_multiplier'] = 3.0
         elif np.round(data['movie_frame_rate_hz'] / 31.0) == 1:

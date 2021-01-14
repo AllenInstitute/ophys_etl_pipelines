@@ -226,6 +226,7 @@ class OphysPlane(object):
         self._experiment_id = experiment_id
         self._movie = OphysMovie(movie_path, motion_border)
         self._roi_list = copy.deepcopy(roi_list)
+        self.new_style_output = False
 
     @property
     def trace_threshold_params(self):
@@ -305,26 +306,34 @@ class OphysPlane(object):
         final_output[raw_key] = []
         final_output[unmixed_key] = []
 
-        if cache_dir is not None:
-            base_fname = os.path.join(cache_dir,
-                                      '%d_%d_{suffix}' % (self.experiment_id, other_plane.experiment_id))
-
         raw_traces = self.get_raw_traces(other_plane)
 
+        output_kwargs = {'cache_dir': cache_dir,
+                         'signal_plane': self,
+                         'crosstalk_plane': other_plane,
+                         'clobber': clobber}
+
         if cache_dir is not None:
-            raw_trace_fname = base_fname.format(suffix='raw.h5')
-            io_utils.write_to_h5(raw_trace_fname,
-                                 raw_traces,
-                                 clobber=clobber)
+            if self.new_style_output:
+                writer_class = io_utils.RawH5Writer
+            else:
+                writer_class = io_utils.RawH5WriterOld
+            writer = writer_class(data=raw_traces, **output_kwargs)
+            writer.run()
+            del writer
+            del writer_class
 
 
         raw_trace_validation = decrosstalk_utils.validate_traces(raw_traces)
         if cache_dir is not None:
-            validation_fname = base_fname.format(suffix='valid.json')
-            if not clobber and os.path.exists(validation_fname):
-                raise RuntimeError("\n%s\nalready exists" % validation_fname)
-            with open(validation_fname, 'w') as out_file:
-                out_file.write(json.dumps(raw_trace_validation, indent=2, sort_keys=True))
+            if self.new_style_output:
+                writer_class = io_utils.ValidJsonWriter
+            else:
+                writer_class = io_utils.ValidJsonWriterOld
+            writer = writer_class(data=raw_trace_validation, **output_kwargs)
+            writer.run()
+            del writer
+            del writer_class
 
         # cull invalid traces
         invalid_raw_trace = []
@@ -344,10 +353,14 @@ class OphysPlane(object):
 
         raw_trace_events = self.get_trace_events(raw_traces['roi'])
         if cache_dir is not None:
-            raw_events_fname = base_fname.format(suffix='raw_at.h5')
-            io_utils.write_to_h5(raw_events_fname,
-                                 raw_trace_events,
-                                 clobber=clobber)
+            if self.new_style_output:
+                writer_class = io_utils.RawATH5Writer
+            else:
+                writer_class = io_utils.RawATH5WriterOld
+            writer = writer_class(data=raw_trace_events, **output_kwargs)
+            writer.run()
+            del writer
+            del writer_class
 
         raw_trace_crosstalk_ratio = self.get_crosstalk_data(raw_traces['roi'],
                                                             raw_trace_events)
@@ -356,10 +369,14 @@ class OphysPlane(object):
 
         ica_converged, unmixed_traces = self.unmix_all_ROIs(raw_traces)
         if cache_dir is not None:
-            unmixed_fname = base_fname.format(suffix='out.h5')
-            io_utils.write_to_h5(unmixed_fname,
-                                 unmixed_traces,
-                                 clobber=clobber)
+            if self.new_style_output:
+                writer_class = io_utils.OutH5Writer
+            else:
+                writer_class = io_utils.OutH5WriterOld
+            writer = writer_class(data=unmixed_traces, **output_kwargs)
+            writer.run()
+            del writer
+            del writer_class
 
         if not ica_converged:
             msg = 'ICA did not converge for any ROIs when '
@@ -370,11 +387,14 @@ class OphysPlane(object):
 
         unmixed_trace_validation = decrosstalk_utils.validate_traces(unmixed_traces)
         if cache_dir is not None:
-            unmixed_validation_fname = base_fname.format(suffix='out_valid.json')
-            if not clobber and os.path.exists(unmixed_validation_fname):
-                raise RuntimeError("\n%s\nalready exists" % unmixed_validation_fname)
-            with open(unmixed_validation_fname, 'w') as out_file:
-                out_file.write(json.dumps(unmixed_trace_validation, indent=2, sort_keys=True))
+            if self.new_style_output:
+                writer_class = io_utils.OutValidJsonWriter
+            else:
+                writer_class = io_utils.OutValidJsonWriterOld
+            writer = writer_class(data=unmixed_trace_validation, **output_kwargs)
+            writer.run()
+            del writer
+            del writer_class
 
         # cull invalid traces
         invalid_unmixed_trace = []
@@ -411,11 +431,15 @@ class OphysPlane(object):
                     invalid_active_trace[channel].append(roi_id)
 
         if cache_dir is not None:
-            unmixed_events_fname = base_fname.format(suffix='out_at.h5')
-            io_utils.write_to_h5(unmixed_events_fname,
-                                 unmixed_trace_events,
-                                 clobber=clobber)
-
+            if self.new_style_output:
+                writer_class = io_utils.OutATH5Writer
+            else:
+                writer_class = io_utils.OutATH5WriterOld
+            writer = writer_class(data=unmixed_trace_events,
+                                  **output_kwargs)
+            writer.run()
+            del writer
+            del writer_class
 
         if len(invalid_active_trace['signal'])>0 or len(invalid_active_trace['crosstalk'])>0:
             msg = 'ophys_experiment_id: %d (%d) ' % (self.experiment_id,
@@ -432,11 +456,9 @@ class OphysPlane(object):
                 unmixed_traces['neuropil'].pop(roi_id)
 
         if cache_dir is not None:
-            invalid_at_fname = base_fname.format(suffix='invalid_at.json')
-            if os.path.exists(invalid_at_fname) and not clobber:
-                raise RuntimeError("\n%s\nexists" % invalid_at_fname)
-            with open(invalid_at_fname, 'w') as out_file:
-                out_file.write(json.dumps(invalid_active_trace, indent=2, sort_keys=True))
+            writer = io_utils.InvalidATJsonWriter(data=invalid_active_trace, **output_kwargs)
+            writer.run()
+            del writer
 
         unmixed_trace_crosstalk_ratio = self.get_crosstalk_data(unmixed_traces['roi'],
                                                                 unmixed_trace_events)
@@ -459,21 +481,29 @@ class OphysPlane(object):
         final_output[ghost_key] = ghost_roi_id
 
         if cache_dir is not None:
-            ind_event_fname = base_fname.format(suffix='valid_ct.h5')
-            io_utils.write_to_h5(ind_event_fname,
-                                 independent_events,
-                                 clobber=clobber)
+            if self.new_style_output:
+                writer_class = io_utils.ValidCTH5Writer
+            else:
+                writer_class = io_utils.ValidCTH5WriterOld
+            writer = writer_class(data=independent_events,
+                                  **output_kwargs)
+            writer.run()
+            del writer
+            del writer_class
 
             crosstalk_ratio = {}
             for roi_id in unmixed_trace_crosstalk_ratio:
                 crosstalk_ratio[roi_id] = {'raw': raw_trace_crosstalk_ratio[roi_id],
                                            'unmixed': unmixed_trace_crosstalk_ratio[roi_id]}
 
-            crosstalk_ratio_fname = base_fname.format(suffix='crosstalk.json')
-            if os.path.exists(crosstalk_ratio_fname) and not clobber:
-                raise RuntimeError("\n%s\nalready exists" % crosstalk_ratio_fname)
-            with open(crosstalk_ratio_fname, 'w') as out_file:
-                out_file.write(json.dumps(crosstalk_ratio, indent=2, sort_keys=True))
+            if self.new_style_output:
+                writer_class = io_utils.CrosstalkJsonWriter
+            else:
+                writer_class = io_utils.CrosstalkJsonWriterOld
+            writer = writer_class(data=crosstalk_ratio, **output_kwargs)
+            writer.run()
+            del writer
+            del writer_class
 
         return final_output
 
@@ -543,7 +573,6 @@ class OphysPlane(object):
 
         # first pass naively unmixing ROIs with ICA
         for roi_id in raw_roi_traces['roi'].keys():
-            output['neuropil'][roi_id] = {}
 
             unmixed_roi = self.unmix_ROI(raw_roi_traces['roi'][roi_id],
                                          seed=roi_id,
@@ -603,6 +632,8 @@ class OphysPlane(object):
             unmixed_signals = np.dot(inv_mixing_matrix,
                                      np.array([raw_roi_traces['neuropil'][roi_id]['signal'],
                                                raw_roi_traces['neuropil'][roi_id]['crosstalk']]))
+
+            output['neuropil'][roi_id] = {}
             output['neuropil'][roi_id]['signal'] = unmixed_signals[0,:]
             output['neuropil'][roi_id]['crosstalk'] = unmixed_signals[1,:]
 

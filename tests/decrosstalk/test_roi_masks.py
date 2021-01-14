@@ -258,3 +258,50 @@ def test_validate_masks(roi_mask_list, neuropil_masks):
     })
     pd.testing.assert_frame_equal(expected_exclusions, pd.DataFrame(obtained), check_like=True)
 
+
+def test_roi_on_motion_border():
+    """
+    Test that ROIs which overlap the motion border of a movie result in traces
+    that are full of NaNs
+    """
+
+    tmp_dir = get_tmp_dir()
+    movie_data = np.zeros((23, 100, 130))
+    movie_data[:, 0:40, 0:40] = 3.0
+    movie_data[:, 0:40, 90:] = 4.0
+    movie_data[:, 60:, 0:40] = 5.0
+    movie_data[:, 40:, 90:] = 6.0
+
+    motion_border = {'x0': 2.0,
+                     'x1': 3.0,
+                     'y0': 4.0,
+                     'y1': 5.0}
+
+    motion_border_list = [motion_border['x0'], motion_border['x1'],
+                          motion_border['y0'], motion_border['y1']]
+
+    mask_list = []
+
+    pix_list = np.array([[120,10], [120,11], [121,10], [121,11]])
+    movie_data[:, pix_list[:,1], pix_list[:,0]] = 14.0
+
+    mask = roi_masks.create_roi_mask(130, 100,
+                                     motion_border_list,
+                                     pix_list=pix_list,
+                                     label='roi_0')
+    mask_list.append(mask)
+
+    pix_list = np.array([[126,10], [126,11], [127,10], [127,11]])
+    mask = roi_masks.create_roi_mask(130, 100,
+                                     motion_border_list,
+                                     pix_list=pix_list,
+                                     label='roi_1')
+    mask_list.append(mask)
+
+    (roi_trace,
+     neuropil_trace,
+     exc) = roi_masks.calculate_roi_and_neuropil_traces(movie_data, mask_list, motion_border_list)
+
+    np.testing.assert_array_equal(roi_trace[0,:], 14.0*np.ones(23, dtype=float))
+    np.testing.assert_array_equal(neuropil_trace[0,:], 4.0*np.ones(23, dtype=float))
+    np.testing.assert_array_equal(roi_trace[1,:], np.NaN*np.ones(23, dtype=float))

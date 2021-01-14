@@ -33,7 +33,7 @@ class EventDetectionInputSchema(argschema.ArgSchema):
                      "ophys_etl.resources.event_decay_time_lookup"))
     decay_time = argschema.fields.Float(
         required=False,
-        description=("characteristic decay time [seconds]"))
+        description="characteristic decay time [seconds]")
     ophysdfftracefile = H5InputFile(
         required=True,
         description=("h5 file containing keys `data` (nROI x nframe) and "
@@ -145,7 +145,7 @@ def fast_lzero(penalty: float, dat: np.ndarray, gamma: float,
     dat: np.ndarray
         fluorescence data
     gamma: float
-        a scalar value for the AR(1) decay parameter; 0 < gam <= 1
+        a scalar value for the AR(1) decay parameter; 0 < gamma <= 1
     constraint: bool
         constrained (true) or unconstrained (false) optimization
 
@@ -224,7 +224,7 @@ def trace_noise_estimate(x: np.ndarray, filt_length: int) -> float:
     x = x - median_filter(x, filt_length, mode='nearest')
     x = x[x < 1.5 * np.abs(x.min())]
     rstd = median_abs_deviation(x, scale='normal')
-    x = x[abs(x) < 2.5 * rstd]
+    x = x[np.abs(x) < 2.5 * rstd]
     return median_abs_deviation(x, scale='normal')
 
 
@@ -328,7 +328,7 @@ def fast_lzero_regularization_search_bracket(
                     base_penalty=base_penalty,
                     penalty_step=penalty_step)
         else:
-            while (n_events > 0 and min_event_mag < min_size):
+            while n_events > 0 and min_event_mag < min_size:
                 last_flz_eval = np.copy(flz_eval)
                 penalty += penalty_step
                 flz_eval = fast_lzero(penalty, trace, gamma, L0_constrain)

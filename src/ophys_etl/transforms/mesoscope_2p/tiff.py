@@ -363,10 +363,10 @@ class MesoscopeTiff(object):
                     page_offset += 1
                 else:
                     logging.info("No scanned volume found for zs=%s", zs)
-        if page_offset != self.volume_stride:
-            raise ValueError(
-                "Number of page starts does not match striding, "
-                "extracted data will be incorrect")
+            if page_offset != self.volume_stride:
+                raise ValueError(
+                    "Number of page starts does not match striding, "
+                    "extracted data will be incorrect")
 
         return self._volumes
 

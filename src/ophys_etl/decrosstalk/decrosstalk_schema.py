@@ -87,14 +87,14 @@ class DecrosstalkOutputSchema(argschema.ArgSchema):
     # The call to validate_list_of_ints will make sure that
     # the lists do, indeed, need to contain ints.
 
-    decrosstalk_invalid_raw_trace = argschema.fields.List(
+    decrosstalk_raw_exclusion_label = argschema.fields.List(
                                        argschema.fields.Field,
                                        description='IDs of ROIs ruled invalid based on raw trace',
                                        required=True,
                                        cli_as_single_argument=True,
                                        validate=validate_list_of_ints)
 
-    decrosstalk_invalid_unmixed_trace = argschema.fields.List(
+    decrosstalk_unmixed_exclusion_label = argschema.fields.List(
                                            argschema.fields.Field,
                                            description='IDs of ROIs ruled invalid based on unmixed trace',
                                            required=True,

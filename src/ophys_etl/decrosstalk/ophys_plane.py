@@ -296,9 +296,14 @@ class OphysPlane(object):
     def run_decrosstalk(self, other_plane, cache_dir=None, clobber=False):
 
         final_output = {}
-        final_output['decrosstalk_invalid_raw_trace'] = []
-        final_output['decrosstalk_invalid_unmixed_trace'] = []
-        final_output['decrosstalk_ghost_roi_ids'] = []
+
+        ghost_key = 'decrosstalk_ghost_roi_ids'
+        raw_key = 'decrosstalk_raw_exclusion_label'
+        unmixed_key = 'decrosstalk_unmixed_exclusion_label'
+
+        final_output[ghost_key] = []
+        final_output[raw_key] = []
+        final_output[unmixed_key] = []
 
         if cache_dir is not None:
             base_fname = os.path.join(cache_dir,
@@ -328,7 +333,7 @@ class OphysPlane(object):
                 invalid_raw_trace.append(roi_id)
                 raw_traces['roi'].pop(roi_id)
                 raw_traces['neuropil'].pop(roi_id)
-        final_output['decrosstalk_invalid_raw_trace'] = invalid_raw_trace
+        final_output[raw_key] += invalid_raw_trace
 
         if len(raw_traces['roi']) == 0:
             msg = 'No raw traces were valid when applying '
@@ -378,7 +383,7 @@ class OphysPlane(object):
                 invalid_unmixed_trace.append(roi_id)
                 unmixed_traces['roi'].pop(roi_id)
                 unmixed_traces['neuropil'].pop(roi_id)
-        final_output['decrosstalk_invalid_unmixed_trace'] = invalid_unmixed_trace
+        final_output[unmixed_key] = invalid_unmixed_trace
 
         if len(unmixed_traces['roi']) == 0:
             msg = 'No unmixed traces were valid when applying '
@@ -421,7 +426,7 @@ class OphysPlane(object):
             # remove ROIs with NaNs in their independent signal events
             # from the data being processed
             for roi_id in invalid_active_trace['signal']:
-                final_output['decrosstalk_invalid_unmixed_trace'].append(roi_id)
+                final_output[unmixed_key].append(roi_id)
                 unmixed_trace_events.pop(roi_id)
                 unmixed_traces['roi'].pop(roi_id)
                 unmixed_traces['neuropil'].pop(roi_id)
@@ -451,7 +456,7 @@ class OphysPlane(object):
             independent_events[roi_id] = local
             if not is_a_cell:
                 ghost_roi_id.append(roi_id)
-        final_output['decrosstalk_ghost_roi_ids'] = ghost_roi_id
+        final_output[ghost_key] = ghost_roi_id
 
         if cache_dir is not None:
             ind_event_fname = base_fname.format(suffix='valid_ct.h5')

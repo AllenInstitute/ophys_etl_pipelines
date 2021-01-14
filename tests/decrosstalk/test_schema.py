@@ -20,8 +20,8 @@ class DummySchemaOutput(argschema.ArgSchemaParser):
     default_output_schema = decrosstalk_schema.DecrosstalkOutputSchema
 
     def run(self):
-        output = {'decrosstalk_invalid_raw_trace':[],
-                  'decrosstalk_invalid_unmixed_trace':[1,2,3,4],
+        output = {'decrosstalk_raw_exclusion_label':[],
+                  'decrosstalk_unmixed_exclusion_label':[1,2,3,4],
                   'decrosstalk_ghost_roi_ids':[]}
         self.output(output)
 

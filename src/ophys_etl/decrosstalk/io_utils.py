@@ -30,6 +30,7 @@ def _write_data_to_h5(file_handle, data_dict):
             file_handle.create_dataset(str(key), data=value)
     return None
 
+
 def write_to_h5(file_name, data_dict, clobber=False):
     """
     Write a nested dict to an HDF5 file, treating each level of
@@ -61,8 +62,9 @@ def write_to_h5(file_name, data_dict, clobber=False):
         raise RuntimeError(msg)
 
     if os.path.exists(file_name) and not clobber:
-        raise RuntimeError("\n%s\nalready exists; use clobber=True to overwrite" %
-                           file_name)
+        msg = "\n%s\nalready exists; " % file_name
+        msg += "use clobber=True to overwrite"
+        raise RuntimeError(msg)
     with h5py.File(file_name, mode='w') as file_handle:
         _write_data_to_h5(file_handle, data_dict)
     return None
@@ -90,7 +92,8 @@ class OutputWriter(object):
         self.clobber = clobber
 
     def run(self):
-        raise NotImplementedError("Calling OutputWriter.run(); should call child class")
+        msg = "Calling OutputWriter.run(); should call child class"
+        raise NotImplementedError(msg)
 
 
 class OldOutputWriter(OutputWriter):
@@ -112,8 +115,8 @@ class OldOutputWriter(OutputWriter):
         e2 = self.crosstalk_plane.experiment_id
         out_dir = os.path.join(self.cache_dir,
                                '%s_%d_%d' % (prefix,
-                                             min(e1,e2),
-                                             max(e1,e2)))
+                                             min(e1, e2),
+                                             max(e1, e2)))
 
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
@@ -128,31 +131,38 @@ class OldOutputWriter(OutputWriter):
         elif prefix == 'neuropil':
             out_dir = self.neuropil_dir
         else:
-            raise RuntimeError("confused by prefix\n%s\nin OldOutputWriter.get_sub_dir" % prefix)
+            msg = "confused by prefix\n%s\n" % prefix
+            msg += "in OldOutputWriter.get_sub_dir"
+            raise RuntimeError(msg)
         return out_dir
 
 
 class ValidJsonWriter(OutputWriter):
     def run(self):
         out_fname = os.path.join(self.cache_dir,
-                                 '%d_%d_valid.json' % (self.signal_plane.experiment_id,
-                                                       self.crosstalk_plane.experiment_id))
+                                 '%d_%d_valid.json' %
+                                 (self.signal_plane.experiment_id,
+                                  self.crosstalk_plane.experiment_id))
         write_basic_json(out_fname, self.data, clobber=self.clobber)
 
 
 class ValidJsonWriterOld(OldOutputWriter):
     def run(self):
         for dirname in (self.roi_dir, self.neuropil_dir):
-            out_fname = os.path.join(dirname, '%d_valid.json' % self.signal_plane.experiment_id)
+            out_fname = os.path.join(dirname,
+                                     '%d_valid.json' %
+                                     self.signal_plane.experiment_id)
             write_basic_json(out_fname, self.data, clobber=self.clobber)
 
 
 class RawH5Writer(OutputWriter):
     def run(self):
         out_fname = os.path.join(self.cache_dir,
-                                 '%d_%d_raw.h5' % (self.signal_plane.experiment_id,
-                                                   self.crosstalk_plane.experiment_id))
+                                 '%d_%d_raw.h5' %
+                                 (self.signal_plane.experiment_id,
+                                  self.crosstalk_plane.experiment_id))
         write_to_h5(out_fname, self.data, clobber=self.clobber)
+
 
 class RawH5WriterOld(OldOutputWriter):
 
@@ -160,15 +170,23 @@ class RawH5WriterOld(OldOutputWriter):
         out_dir = self.get_sub_dir(prefix)
         roi_names = np.array([roi_id for roi_id in self.data[prefix].keys()])
         roi_names = np.sort(roi_names)
-        local_data = np.zeros((2, len(roi_names), len(self.data[prefix][roi_names[0]]['signal'])), dtype=float)
+
+        local_data = np.zeros((2,
+                               len(roi_names),
+                               len(self.data[prefix][roi_names[0]]['signal'])),
+                              dtype=float)
+
         for i_roi, roi_id in enumerate(roi_names):
-            local_data[0,i_roi,:] = self.data[prefix][roi_id]['signal']
-            local_data[1,i_roi,:] = self.data[prefix][roi_id]['crosstalk']
+            local_data[0, i_roi, :] = self.data[prefix][roi_id]['signal']
+            local_data[1, i_roi, :] = self.data[prefix][roi_id]['crosstalk']
 
-        results = {'roi_names':roi_names, 'data':local_data}
-        out_fname = os.path.join(out_dir, '%d_raw.h5' % self.signal_plane.experiment_id)
-        write_to_h5(out_fname, {'roi_names':roi_names, 'data':local_data}, clobber=self.clobber)
-
+        results = {'roi_names': roi_names, 'data': local_data}
+        out_fname = os.path.join(out_dir,
+                                 '%d_raw.h5' %
+                                 self.signal_plane.experiment_id)
+        write_to_h5(out_fname,
+                    results,
+                    clobber=self.clobber)
 
     def run(self):
         for prefix in ('roi', 'neuropil'):
@@ -178,42 +196,52 @@ class RawH5WriterOld(OldOutputWriter):
 class RawATH5Writer(OutputWriter):
     def run(self):
         out_fname = os.path.join(self.cache_dir,
-                                 '%d_%d_raw_at.h5' % (self.signal_plane.experiment_id,
-                                                    self.crosstalk_plane.experiment_id))
+                                 '%d_%d_raw_at.h5' %
+                                 (self.signal_plane.experiment_id,
+                                  self.crosstalk_plane.experiment_id))
         write_to_h5(out_fname, self.data, clobber=self.clobber)
 
 
 class RawATH5WriterOld(OldOutputWriter):
 
     def _get_at_outname(self):
-        out_fname = os.path.join(self.roi_dir, '%d_raw_at.h5' % self.signal_plane.experiment_id)
+        out_fname = os.path.join(self.roi_dir,
+                                 '%d_raw_at.h5' %
+                                 self.signal_plane.experiment_id)
         return out_fname
 
     def run(self):
-        local_data = {}
+        output = {}
         for roi_id in self.data.keys():
-            local_data['%d_signal_trace' % roi_id] = self.data[roi_id]['signal']['trace']
-            local_data['%d_signal_events' % roi_id] = self.data[roi_id]['signal']['events']
-            local_data['%d_signal_valid' % roi_id] = True
-            local_data['%d_crosstalk_trace' % roi_id] = self.data[roi_id]['crosstalk']['trace']
-            local_data['%d_crosstalk_events' % roi_id] = self.data[roi_id]['crosstalk']['trace']
-            local_data['%d_crosstalk_valid' % roi_id] = np.logical_and(np.isfinite(self.data[roi_id]['crosstalk']['trace']).all(),
-                                                                       np.isfinite(self.data[roi_id]['crosstalk']['events']).all())
-        write_to_h5(self._get_at_outname(), local_data, clobber=self.clobber)
+            data = self.data[roi_id]
+            output['%d_signal_trace' % roi_id] = data['signal']['trace']
+            output['%d_signal_events' % roi_id] = data['signal']['events']
+            output['%d_signal_valid' % roi_id] = True
+            output['%d_crosstalk_trace' % roi_id] = data['crosstalk']['trace']
+            _events_key = '%d_crosstalk_events' % roi_id
+            output[_events_key] = data['crosstalk']['events']
+            f_trace = np.isfinite(data['crosstalk']['trace']).all()
+            f_ev = np.isfinite(data['crosstalk']['events']).all()
+            f_ct = np.logical_and(f_trace, f_ev)
+            output['%d_crosstalk_valid' % roi_id] = f_ct
+        write_to_h5(self._get_at_outname(), output, clobber=self.clobber)
 
 
 class OutATH5WriterOld(RawATH5WriterOld):
 
     def _get_at_outname(self):
-        out_fname = os.path.join(self.roi_dir, '%d_out_at.h5' % self.signal_plane.experiment_id)
+        out_fname = os.path.join(self.roi_dir,
+                                 '%d_out_at.h5' %
+                                 self.signal_plane.experiment_id)
         return out_fname
 
 
 class OutH5Writer(OutputWriter):
     def run(self):
         out_fname = os.path.join(self.cache_dir,
-                                 '%d_%d_out.h5' % (self.signal_plane.experiment_id,
-                                                   self.crosstalk_plane.experiment_id))
+                                 '%d_%d_out.h5' %
+                                 (self.signal_plane.experiment_id,
+                                  self.crosstalk_plane.experiment_id))
         write_to_h5(out_fname, self.data, clobber=self.clobber)
 
 
@@ -222,22 +250,25 @@ class OutH5WriterOld(OldOutputWriter):
         local_data = {}
         roi_names = np.array([roi_id for roi_id in self.data[prefix].keys()])
         roi_names = np.sort(roi_names)
+
         if len(roi_names) == 0:
-           return {}
-        is_valid = False
+            return {}
+
         if 'signal' not in self.data[prefix][roi_names[0]]:
             for roi in roi_names:
                 if 'signal' in self.data[prefix][roi]:
-                    raise RuntimeError("confused; some ROIs have signal; some do not")
+                    raise RuntimeError("confused; some ROIs have signal; "
+                                       "some do not")
             return {}
         n_t = len(self.data[prefix][roi_names[0]]['signal'])
         signal_data = np.zeros((len(roi_names), n_t), dtype=float)
         crosstalk_data = np.zeros((len(roi_names), n_t), dtype=float)
         demixed = np.zeros(len(roi_names), dtype=bool)
         for i_roi, roi_id in enumerate(roi_names):
-            signal_data[i_roi,:] = self.data[prefix][roi_id]['signal']
-            crosstalk_data[i_roi,:] = self.data[prefix][roi_id]['crosstalk']
-            demixed = not self.data['roi'][roi_id]['use_avg_mixing_matrix']
+            signal_data[i_roi, :] = self.data[prefix][roi_id]['signal']
+            crosstalk_data[i_roi, :] = self.data[prefix][roi_id]['crosstalk']
+            _demixed = not self.data['roi'][roi_id]['use_avg_mixing_matrix']
+            demixed[i_roi] = _demixed
 
         local_data['roi_names'] = roi_names
         local_data['data_signal'] = signal_data
@@ -252,14 +283,23 @@ class OutH5WriterOld(OldOutputWriter):
             return
 
         out_dir = self.get_sub_dir('neuropil')
-        out_fname = os.path.join(out_dir, '%d_out.h5' % self.signal_plane.experiment_id)
-        write_to_h5(out_fname, self._get_channels('neuropil'), clobber=self.clobber)
+
+        out_fname = os.path.join(out_dir,
+                                 '%d_out.h5' %
+                                 self.signal_plane.experiment_id)
+
+        write_to_h5(out_fname,
+                    self._get_channels('neuropil'),
+                    clobber=self.clobber)
 
         out_dir = self.get_sub_dir('roi')
-        out_fname = os.path.join(out_dir, '%d_out.h5' % self.signal_plane.experiment_id)
-        local_mix = np.zeros((len(roi_data['roi_names']),2,2),dtype=float)
+        out_fname = os.path.join(out_dir, '%d_out.h5' %
+                                 self.signal_plane.experiment_id)
+
+        local_mix = np.zeros((len(roi_data['roi_names']), 2, 2), dtype=float)
         for i_roi, roi_id in enumerate(roi_data['roi_names']):
-            local_mix[i_roi,:,:] = self.data['roi'][roi_id]['mixing_matrix']
+            local_mix[i_roi, :, :] = self.data['roi'][roi_id]['mixing_matrix']
+
         roi_data['mixing_matrix'] = local_mix
         write_to_h5(out_fname, roi_data, clobber=self.clobber)
 
@@ -267,16 +307,18 @@ class OutH5WriterOld(OldOutputWriter):
 class OutATH5Writer(OutputWriter):
     def run(self):
         out_fname = os.path.join(self.cache_dir,
-                                 '%d_%d_out_at.h5' % (self.signal_plane.experiment_id,
-                                                   self.crosstalk_plane.experiment_id))
+                                 '%d_%d_out_at.h5' %
+                                 (self.signal_plane.experiment_id,
+                                  self.crosstalk_plane.experiment_id))
         write_to_h5(out_fname, self.data, clobber=self.clobber)
 
 
 class OutValidJsonWriter(OutputWriter):
     def run(self):
         out_fname = os.path.join(self.cache_dir,
-                                 '%d_%d_out_valid.json' % (self.signal_plane.experiment_id,
-                                                           self.crosstalk_plane.experiment_id))
+                                 '%d_%d_out_valid.json' %
+                                 (self.signal_plane.experiment_id,
+                                  self.crosstalk_plane.experiment_id))
         write_basic_json(out_fname, self.data, clobber=self.clobber)
 
 
@@ -284,34 +326,39 @@ class OutValidJsonWriterOld(OldOutputWriter):
     def run(self):
         for prefix in ('roi', 'neuropil'):
             out_fname = os.path.join(self.get_sub_dir(prefix),
-                                     '%d_out_valid.json' % (self.signal_plane.experiment_id))
+                                     '%d_out_valid.json' %
+                                     (self.signal_plane.experiment_id))
             write_basic_json(out_fname, self.data, clobber=self.clobber)
 
 
 class InvalidATJsonWriter(OutputWriter):
     def run(self):
         out_fname = os.path.join(self.cache_dir,
-                                '%d_%d_invalid_at.json' % (self.signal_plane.experiment_id,
-                                                           self.crosstalk_plane.experiment_id))
+                                 '%d_%d_invalid_at.json' %
+                                 (self.signal_plane.experiment_id,
+                                  self.crosstalk_plane.experiment_id))
         write_basic_json(out_fname, self.data, clobber=self.clobber)
 
 
 class CrosstalkJsonWriter(OutputWriter):
     def run(self):
         out_fname = os.path.join(self.cache_dir,
-                                '%d_%d_crosstalk.json' % (self.signal_plane.experiment_id,
-                                                          self.crosstalk_plane.experiment_id))
+                                 '%d_%d_crosstalk.json' %
+                                 (self.signal_plane.experiment_id,
+                                  self.crosstalk_plane.experiment_id))
         write_basic_json(out_fname, self.data, clobber=self.clobber)
 
 
 class CrosstalkJsonWriterOld(OldOutputWriter):
     def run(self):
         out_fname = os.path.join(self.get_sub_dir('roi'),
-                                '%d_crosstalk.json' % (self.signal_plane.experiment_id))
+                                 '%d_crosstalk.json' %
+                                 (self.signal_plane.experiment_id))
 
         local_data = {}
         for roi_id in self.data:
-            local_data[roi_id] = [self.data[roi_id]['raw'], self.data[roi_id]['unmixed']]
+            local_data[roi_id] = [self.data[roi_id]['raw'],
+                                  self.data[roi_id]['unmixed']]
 
         write_basic_json(out_fname, local_data, clobber=self.clobber)
 
@@ -319,15 +366,19 @@ class CrosstalkJsonWriterOld(OldOutputWriter):
 class ValidCTH5Writer(OutputWriter):
     def run(self):
         out_fname = os.path.join(self.cache_dir,
-                                 '%d_%d_valid_ct.h5' % (self.signal_plane.experiment_id,
-                                                        self.crosstalk_plane.experiment_id))
+                                 '%d_%d_valid_ct.h5' %
+                                 (self.signal_plane.experiment_id,
+                                  self.crosstalk_plane.experiment_id))
+
         write_to_h5(out_fname, self.data, clobber=self.clobber)
 
 
 class ValidCTH5WriterOld(OldOutputWriter):
     def run(self):
         out_dir = self.get_sub_dir('roi')
-        out_fname = os.path.join(out_dir, '%d_valid_ct.json' % self.signal_plane.experiment_id)
+        out_fname = os.path.join(out_dir,
+                                 '%d_valid_ct.json' %
+                                 self.signal_plane.experiment_id)
         local_data = {}
         for roi_id in self.data:
             local_data[roi_id] = self.data[roi_id]['is_a_cell']

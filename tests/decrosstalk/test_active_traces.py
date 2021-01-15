@@ -81,9 +81,9 @@ def test_evaluate_components():
                  test_erfc) = active_traces.evaluate_components(input_trace,
                                                                 robust_std=robust,
                                                                 event_kernel=event_kernel)
-                np.testing.assert_array_equal(test_comp, control_comp)
-                np.testing.assert_array_equal(test_fitness, control_fitness)
-                np.testing.assert_array_equal(test_erfc, control_erfc)
+                np.testing.assert_array_almost_equal(test_comp, control_comp, decimal=10)
+                np.testing.assert_array_almost_equal(test_fitness, control_fitness, decimal=10)
+                np.testing.assert_array_almost_equal(test_erfc, control_erfc, decimal=10)
 
 
 def test_find_event_gaps():
@@ -226,8 +226,12 @@ def test_get_trace_events_worker_method():
                 for i_ev in range(len(results['trace'])):
                     trace_control = in_file['trace_events_%s_%d' % (suffix, i_ev)][()]
                     ind_control = in_file['event_indices_%s_%d' % (suffix, i_ev)][()]
-                    np.testing.assert_array_equal(trace_control, results['trace'][i_ev])
-                    np.testing.assert_array_equal(ind_control, results['events'][i_ev])
+                    np.testing.assert_array_almost_equal(trace_control,
+                                                         results['trace'][i_ev],
+                                                         decimal=10)
+                    np.testing.assert_array_almost_equal(ind_control,
+                                                         results['events'][i_ev],
+                                                         decimal=10)
 
 def test_get_trace_events_wrapper_method():
     """
@@ -250,5 +254,9 @@ def test_get_trace_events_wrapper_method():
                 for i_ev in range(len(results['trace'])):
                     trace_control = in_file['trace_events_%s_%d' % (suffix, i_ev)][()]
                     ind_control = in_file['event_indices_%s_%d' % (suffix, i_ev)][()]
-                    np.testing.assert_array_equal(trace_control, results['trace'][i_ev])
-                    np.testing.assert_array_equal(ind_control, results['events'][i_ev])
+                    np.testing.assert_array_almost_equal(trace_control,
+                                                         results['trace'][i_ev],
+                                                         decimal=10)
+                    np.testing.assert_array_almost_equal(ind_control,
+                                                         results['events'][i_ev],
+                                                         decimal=10)

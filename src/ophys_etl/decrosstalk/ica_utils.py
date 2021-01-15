@@ -5,7 +5,7 @@ from sklearn.decomposition import FastICA
 
 __all__ = ["whiten_data",
            "fix_source_assignment",
-           "pearsion_ica_in_to_out",
+           "pearson_ica_in_to_out",
            "run_ica"]
 
 
@@ -16,9 +16,18 @@ def pearson_ica_in_to_out(signal_in, signal_out):
     :param signal_out:
     :return:
     """
-    assert signal_in.shape == signal_out.shape, "Shape of inputs doesn't align"
-    assert signal_in.shape[0] < signal_in.shape[1], f"Shape of input is reversed : {signal_in.shape}, use input.T"
-    assert signal_out.shape[0] < signal_out.shape[1], f"Shape of input is reversed : {signal_in.shape}, use input.T"
+
+    if signal_in.shape != signal_out.shape:
+        msg = "\nShape of inputs doesn't align\n"
+        msg += "singal_in %s\n" % str(signal_in.shape)
+        msg += "signal_out %s\n" % str(signal_out.shape)
+        raise RuntimeError(msg)
+
+    if signal_in.shape[0] >= signal_in.shape[1]:
+        msg = "\nShape of input is reversed: "
+        msg += "%s\nuse input.T" % str(signal_in.shape)
+        raise RuntimeError(msg)
+
     cor_0_0, _ = pearsonr(signal_out[0, :], signal_in[0, :])
     cor_0_1, _ = pearsonr(signal_out[0, :], signal_in[1, :])
     cor_1_0, _ = pearsonr(signal_out[1, :], signal_in[0, :])
@@ -108,15 +117,21 @@ def run_ica(ica_input, iters, seed, verbose=False):
 
     while not roi_demixed and it <= iters:
         if alpha > 0.3 or beta > 0.3 or alpha < 0 or beta < 0:
-            ### Unmixing
+            # Unmixing
             ica = FastICA(whiten=False, max_iter=10000, random_state=rng)
             ica.fit_transform(Ow)  # Reconstruct sources
             mixing_raw = ica.mixing_
 
             # correcting for scale and offset:
-            M_hat = np.dot(np.linalg.inv(W), mixing_raw)  # applying inverse of whitening matrix
-            scale = np.dot(np.linalg.inv(M_hat), np.array([1, 1]))  # computing scaling matrix
-            mixing = M_hat * scale # applying scaling matrix
+
+            # applying inverse of whitening matrix
+            M_hat = np.dot(np.linalg.inv(W), mixing_raw)
+
+            # computing scaling matrix
+            scale = np.dot(np.linalg.inv(M_hat), np.array([1, 1]))
+
+            # applying scaling matrix
+            mixing = M_hat * scale
 
         else:
             roi_demixed = True
@@ -125,14 +140,18 @@ def run_ica(ica_input, iters, seed, verbose=False):
         beta = mixing[1, 0]
         it += 1
 
-    Sos = np.dot(np.linalg.inv(mixing), ica_input)  # recovering outputs using new mixing matrix
+    # recovering outputs using new mixing matrix
+    Sos = np.dot(np.linalg.inv(mixing), ica_input)
 
-    ica_output, corrs, swapped = fix_source_assignment(ica_input, Sos) # fixing source assignment ambiguity
+    # fixing source assignment ambiguity
+    (ica_output,
+     corrs,
+     swapped) = fix_source_assignment(ica_input, Sos)
 
     if swapped:
-        new_mixing = np.zeros((2,2), dtype=float)
-        new_mixing[:,1] = mixing[:,0]
-        new_mixing[:,0] = mixing[:,1]
+        new_mixing = np.zeros((2, 2), dtype=float)
+        new_mixing[:, 1] = mixing[:, 0]
+        new_mixing[:, 0] = mixing[:, 1]
         mixing = new_mixing
 
     if verbose:

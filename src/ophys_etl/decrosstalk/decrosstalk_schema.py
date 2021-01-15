@@ -9,9 +9,10 @@ class RoiSchema(argschema.ArgSchema):
     width = argschema.fields.Int(description='width', required=True)
     height = argschema.fields.Int(description='height', required=True)
     valid_roi = argschema.fields.Bool(description='validity', required=True)
-    mask_matrix = argschema.fields.List(argschema.fields.List(argschema.fields.Bool),
-                            description='mask',
-                            cli_as_single_argument=True)
+    mask_matrix = argschema.fields.List(
+                        argschema.fields.List(argschema.fields.Bool),
+                        description='mask',
+                        cli_as_single_argument=True)
 
 
 class PlaneSchema(argschema.ArgSchema):
@@ -77,8 +78,10 @@ def validate_list_of_ints(input_list):
         return False
     for ii in input_list:
         if not isinstance(ii, int):
-            raise marshmallow.exceptions.ValidationError("Did not contain ints")
+            msg = 'Did not contain ints'
+            raise marshmallow.exceptions.ValidationError(msg)
     return True
+
 
 class DecrosstalkOutputSchema(argschema.ArgSchema):
     # All Lists are lists of argschema.fields.Field because
@@ -89,21 +92,30 @@ class DecrosstalkOutputSchema(argschema.ArgSchema):
 
     decrosstalk_raw_exclusion_label = argschema.fields.List(
                                        argschema.fields.Field,
-                                       description='IDs of ROIs ruled invalid based on raw trace',
+                                       description='IDs of ROIs '
+                                                   'ruled invalid '
+                                                   'based on raw '
+                                                   'trace',
                                        required=True,
                                        cli_as_single_argument=True,
                                        validate=validate_list_of_ints)
 
     decrosstalk_unmixed_exclusion_label = argschema.fields.List(
                                            argschema.fields.Field,
-                                           description='IDs of ROIs ruled invalid based on unmixed trace',
+                                           description='IDs of ROIs '
+                                                       'ruled invalid '
+                                                       'based on unmixed '
+                                                       'trace',
                                            required=True,
                                            cli_as_single_argument=True,
                                            validate=validate_list_of_ints)
 
     decrosstalk_ghost_roi_ids = argschema.fields.List(
                                     argschema.fields.Field,
-                                    description='IDs of ROIs ruled invalid because all activity is due to crosstalk',
+                                    description='IDs of ROIs ruled '
+                                                'invalid because '
+                                                'all activity is due '
+                                                'to crosstalk',
                                     required=True,
                                     cli_as_single_argument=True,
                                     validate=validate_list_of_ints)

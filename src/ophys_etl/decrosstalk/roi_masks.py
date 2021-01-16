@@ -74,7 +74,8 @@ class Mask(object):
 
     @property
     def overlaps_motion_border(self):
-        # flags like this are now in self.flags, patch for backwards compatibility
+        # flags like this are now in self.flags,
+        # patch for backwards compatibility
         return 'overlaps_motion_border' in self.flags
 
     def __init__(self, image_w, image_h, label, mask_group):
@@ -101,7 +102,11 @@ class Mask(object):
         self.flags = set([])
 
     def __str__(self):
-        return "%s: TL=%d,%d w,h=%d,%d\n%s" % (self.label, self.x, self.y, self.width, self.height, str(self.mask))
+        msg = "%s: " % self.label
+        msg += "TL=%d,%d " % (self.x, self.y)
+        msg += "w,h=%d,%d " % (self.width, self.height)
+        msg += "\n%s" % str(self.mask)
+        return msg
 
     def init_by_pixels(self, border, pix_list):
         '''
@@ -132,11 +137,14 @@ class Mask(object):
         numpy 2D array [img_rows][img_cols]
         '''
         mask = np.zeros((self.img_rows, self.img_cols))
-        mask[self.y:self.y + self.height, self.x:self.x + self.width] = self.mask
+        mask[self.y:self.y + self.height,
+             self.x:self.x + self.width] = self.mask
         return mask
 
 
-def create_roi_mask(image_w, image_h, border, pix_list=None, roi_mask=None, label=None, mask_group=-1):
+def create_roi_mask(image_w, image_h, border,
+                    pix_list=None, roi_mask=None,
+                    label=None, mask_group=-1):
     '''
     Conveninece function to create and initializes an RoiMask
 
@@ -271,7 +279,7 @@ def create_neuropil_mask(roi, border, combined_binary_mask, label=None):
         The ROI that the neuropil masks will be based on
 
     border: float[4]
-        Border widths on the [right, left, down, up] sides. The resulting 
+        Border widths on the [right, left, down, up] sides. The resulting
         neuropil mask will not include pixels falling into a border.
 
     combined_binary_mask
@@ -331,7 +339,7 @@ class NeuropilMask(Mask):
         Parameters
         ----------
         border: float[4]
-            Border widths on the [right, left, down, up] sides. The resulting 
+            Border widths on the [right, left, down, up] sides. The resulting
             neuropil mask will not include pixels falling into a border.
         array: integer[image height][image width]
             Image-sized array that describes the mask. Active parts of the
@@ -377,6 +385,7 @@ class NeuropilMask(Mask):
         # make copy of mask
         self.mask = array[top:bottom + 1, left:right + 1]
 
+
 def validate_mask(mask):
     '''Check a given roi or neuropil mask for (a subset of) disqualifying problems.
     '''
@@ -404,7 +413,7 @@ def validate_mask(mask):
         })
 
     return exclusions
-    
+
 
 def calculate_traces(stack, mask_list, block_size=1000):
     '''
@@ -434,14 +443,17 @@ def calculate_traces(stack, mask_list, block_size=1000):
     exclusions = []
 
     for i, mask in enumerate(mask_list):
-        
+
         current_exclusions = validate_mask(mask)
         if len(current_exclusions) > 0:
-            traces[i,:] = np.nan
+            traces[i, :] = np.nan
             valid_masks[i] = False
             exclusions.extend(current_exclusions)
-            reasons = ", ".join([item["exclusion_label_name"] for item in current_exclusions])
-            logging.warning("unable to extract traces for mask \"{}\": {} ".format(mask.label, reasons))
+            reasons = ", ".join([item["exclusion_label_name"]
+                                 for item in current_exclusions])
+            msg = "unable to extract traces for mask "
+            msg += "\"{}\": {} ".format(mask.label, reasons)
+            logging.warning(msg)
             continue
 
         if not isinstance(mask.mask, np.ndarray):
@@ -459,19 +471,21 @@ def calculate_traces(stack, mask_list, block_size=1000):
                 continue
 
             mask = mask_list[i]
-            subframe = frames[:,mask.y:mask.y + mask.height, 
-                                mask.x:mask.x + mask.width]
+            subframe = frames[:,
+                              mask.y:mask.y + mask.height,
+                              mask.x:mask.x + mask.width]
 
             total = subframe[:, mask.mask].sum(axis=1)
             traces[i, frame_num:frame_num+block_size] = total / mask_areas[i]
 
     return traces, exclusions
 
+
 def calculate_roi_and_neuropil_traces(movie_h5, roi_mask_list, motion_border):
     """ get roi and neuropil masks """
 
-    # a combined binary mask for all ROIs (this is used to 
-    #   subtracted ROIs from annuli
+    # a combined binary mask for all ROIs (this is used to
+    # subtracted ROIs from annuli)
     mask_array = create_roi_mask_array(roi_mask_list)
     combined_mask = mask_array.max(axis=0)
 
@@ -480,11 +494,16 @@ def calculate_roi_and_neuropil_traces(movie_h5, roi_mask_list, motion_border):
     # create neuropil masks for the central ROIs
     neuropil_masks = []
     for m in roi_mask_list:
-        nmask = create_neuropil_mask(m, motion_border, combined_mask, "neuropil for " + m.label)
+        nmask = create_neuropil_mask(m,
+                                     motion_border,
+                                     combined_mask,
+                                     "neuropil for " + m.label)
         neuropil_masks.append(nmask)
 
     num_rois = len(roi_mask_list)
-    combined_list = roi_mask_list + neuropil_masks #  read the large image stack only once
+
+    #  read the large image stack only once
+    combined_list = roi_mask_list + neuropil_masks
 
     if isinstance(movie_h5, np.ndarray):
         stack_frames = movie_h5
@@ -492,7 +511,9 @@ def calculate_roi_and_neuropil_traces(movie_h5, roi_mask_list, motion_border):
         with h5py.File(movie_h5, "r") as movie_f:
             stack_frames = movie_f["data"][()]
 
-    logging.info("Calculating %d traces (neuropil + ROI) over %d frames" % (len(combined_list), len(stack_frames)))
+    msg = "Calculating %d traces " % len(combined_list)
+    msg += "(neuropil + ROI) over %d frames" % len(stack_frames)
+    logging.info(msg)
     traces, exclusions = calculate_traces(stack_frames, combined_list)
 
     roi_traces = traces[:num_rois]
@@ -523,4 +544,3 @@ def create_roi_mask_array(rois):
     else:
         masks = None
     return masks
-

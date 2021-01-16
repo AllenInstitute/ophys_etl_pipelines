@@ -1,18 +1,17 @@
 import h5py
 import copy
-import os
-import json
 import numpy as np
 
 import logging
 
-import ophys_etl.decrosstalk.decrosstalk_utils as decrosstalk_utils
+import ophys_etl.decrosstalk.decrosstalk_utils as d_utils
 import ophys_etl.decrosstalk.ica_utils as ica_utils
 import ophys_etl.decrosstalk.roi_masks as roi_masks
 import ophys_etl.decrosstalk.io_utils as io_utils
 import ophys_etl.decrosstalk.active_traces as active_traces
 
 logger = logging.getLogger(__name__)
+
 
 class OphysROI(object):
 
@@ -59,8 +58,8 @@ class OphysROI(object):
            "y": ,  # an int
            "width": ,  # an int
            "height": ,  # an int
-           "valid_roi": ,  # boolean (not actually used; a part of the ROI, though
-           "mask_matrix": [[]]  # 2-D array of booleans indicating pixels of mask
+           "valid_roi": ,  # boolean
+           "mask_matrix": [[]]  # 2-D array of booleans
         }
         """
 
@@ -71,7 +70,6 @@ class OphysROI(object):
                    height=schema_dict['height'],
                    valid_roi=schema_dict['valid_roi'],
                    mask_matrix=schema_dict['mask_matrix'])
-
 
     @property
     def roi_id(self):
@@ -122,7 +120,9 @@ class OphysMovie(object):
 
         self._path = movie_path
         self._motion_border = copy.deepcopy(motion_border)
-        self._data = None  # this is where the data from the movie file will be stored
+
+        # this is where the data from the movie file will be stored
+        self._data = None
 
     @property
     def path(self):
@@ -145,21 +145,24 @@ class OphysMovie(object):
             self.load_movie_data()
         return self._data
 
-
     def get_trace(self, roi_list):
         """
         Extract the traces from a movie as defined by the ROIs in roi_list
 
         Parameters
         ----------
-        roi_list -- a list of OphysROI instantiations specifying the ROIs to extract
-        traces from
+        roi_list -- a list of OphysROI instantiations
+                    specifying the ROIs from which to
+                    extract traces
 
         Returns
         -------
         output -- a dict such that
-            output['roi'][5678] = np.array of trace values for ROI defined as roi_id=5678
-            output['neuropil'][5678] = np.array of trace values defined in the neuropil around roi_id=5678
+
+            output['roi'][roi_id] = np.array of trace values for the ROI
+
+            output['neuropil'][roi_id] = np.array of trace values defined
+                                         in the neuropil around the ROI
         """
         motion_border = [self._motion_border['x0'], self._motion_border['x1'],
                          self._motion_border['y0'], self._motion_border['y1']]
@@ -170,21 +173,21 @@ class OphysMovie(object):
         roi_mask_list = []
         for roi in roi_list:
             pixels = np.argwhere(roi.mask_matrix)
-            pixels[:,0] += roi.y0
-            pixels[:,1] += roi.x0
+            pixels[:, 0] += roi.y0
+            pixels[:, 1] += roi.x0
             mask = roi_masks.create_roi_mask(width, height, motion_border,
-                                             pix_list=pixels[:,[1,0]],
+                                             pix_list=pixels[:, [1, 0]],
                                              label=str(roi.roi_id),
                                              mask_group=-1)
 
             roi_mask_list.append(mask)
 
+        _traces = roi_masks.calculate_roi_and_neuropil_traces(self.data,
+                                                              roi_mask_list,
+                                                              motion_border)
+        roi_traces = _traces[0]
+        neuropil_traces = _traces[1]
 
-        (roi_traces,
-         neuropil_traces,
-         exclustions) = roi_masks.calculate_roi_and_neuropil_traces(self.data,
-                                                                    roi_mask_list,
-                                                                    motion_border)
         output = {}
         output['roi'] = {}
         output['neuropil'] = {}
@@ -205,7 +208,8 @@ class OphysPlane(object):
         """
         Parameters
         ----------
-        experiment_id -- an integer uniquely identifying this experimental plane
+        experiment_id -- an integer uniquely identifying
+                         this experimental plane
 
         movie_path -- path to the motion corrected movie file
 
@@ -221,8 +225,7 @@ class OphysPlane(object):
         roi_list -- a list of OphysROIs indicating the ROIs in this movie
         """
 
-
-        self._trace_threshold_params={'len_ne':20, 'th_ag':14}
+        self._trace_threshold_params = {'len_ne': 20, 'th_ag': 14}
         self._experiment_id = experiment_id
         self._movie = OphysMovie(movie_path, motion_border)
         self._roi_list = copy.deepcopy(roi_list)
@@ -255,8 +258,8 @@ class OphysPlane(object):
 
         {  # start of ophys_experiment
          "ophys_experiment_id": ,# an int
-         "motion_corrected_stack": ,  # path to h5 file containing motion corrected image stack
-         "motion_border": {  # border widths - pixels outside the border are considered invalid
+         "motion_corrected_stack": ,  # path to h5 movie file
+         "motion_border": {  # border widths
                  "x0": ,  # a float
                  "x1": ,  # a float
                  "y0": ,  # a float
@@ -269,8 +272,8 @@ class OphysPlane(object):
                  "y": ,  # an int
                  "width": ,  # an int
                  "height": ,  # an int
-                 "valid_roi": ,  # boolean (not actually used; a part of the ROI, though
-                 "mask_matrix": [[]]  # 2-D array of booleans indicating pixels of mask
+                 "valid_roi": ,  # boolean
+                 "mask_matrix": [[]]  # 2-D array of booleans
                },  # end of individual ROI,
                {
                  "id":  ,
@@ -323,8 +326,7 @@ class OphysPlane(object):
             del writer
             del writer_class
 
-
-        raw_trace_validation = decrosstalk_utils.validate_traces(raw_traces)
+        raw_trace_validation = d_utils.validate_traces(raw_traces)
         if cache_dir is not None:
             if self.new_style_output:
                 writer_class = io_utils.ValidJsonWriter
@@ -346,8 +348,9 @@ class OphysPlane(object):
 
         if len(raw_traces['roi']) == 0:
             msg = 'No raw traces were valid when applying '
-            msg += 'decrosstalk to ophys_experiment_id: %d (%d)' % (self.experiment_id,
-                                                                    other_plane.experiment_id)
+            msg += 'decrosstalk to ophys_experiment_id: '
+            msg += '%d (%d)' % (self.experiment_id,
+                                other_plane.experiment_id)
             logger.error(msg)
             return final_output
 
@@ -380,18 +383,20 @@ class OphysPlane(object):
 
         if not ica_converged:
             msg = 'ICA did not converge for any ROIs when '
-            msg += 'applying decrosstalk to ophys_experiment_id: %d (%d)' % (self.experiment_id,
-                                                                             other_plane.experiment_id)
+            msg += 'applying decrosstalk to ophys_experiment_id: '
+            msg += '%d (%d)' % (self.experiment_id,
+                                other_plane.experiment_id)
             logger.error(msg)
             return final_output
 
-        unmixed_trace_validation = decrosstalk_utils.validate_traces(unmixed_traces)
+        unmixed_trace_validation = d_utils.validate_traces(unmixed_traces)
         if cache_dir is not None:
             if self.new_style_output:
                 writer_class = io_utils.OutValidJsonWriter
             else:
                 writer_class = io_utils.OutValidJsonWriterOld
-            writer = writer_class(data=unmixed_trace_validation, **output_kwargs)
+            writer = writer_class(data=unmixed_trace_validation,
+                                  **output_kwargs)
             writer.run()
             del writer
             del writer_class
@@ -407,8 +412,9 @@ class OphysPlane(object):
 
         if len(unmixed_traces['roi']) == 0:
             msg = 'No unmixed traces were valid when applying '
-            msg += 'decrosstalk to ophys_experiment_id: %d (%d)' % (self.experiment_id,
-                                                                    other_plane.experiment_id)
+            msg += 'decrosstalk to ophys_experiment_id: '
+            msg += '%d (%d)' % (self.experiment_id,
+                                other_plane.experiment_id)
             logger.error(msg)
             return final_output
 
@@ -441,7 +447,9 @@ class OphysPlane(object):
             del writer
             del writer_class
 
-        if len(invalid_active_trace['signal'])>0 or len(invalid_active_trace['crosstalk'])>0:
+        n_sig = len(invalid_active_trace['signal'])
+        n_ct = len(invalid_active_trace['crosstalk'])
+        if n_sig > 0 or n_ct > 0:
             msg = 'ophys_experiment_id: %d (%d) ' % (self.experiment_id,
                                                      other_plane.experiment_id)
             msg += 'had ROIs with active event channels that contained NaNs'
@@ -456,12 +464,13 @@ class OphysPlane(object):
                 unmixed_traces['neuropil'].pop(roi_id)
 
         if cache_dir is not None:
-            writer = io_utils.InvalidATJsonWriter(data=invalid_active_trace, **output_kwargs)
+            writer = io_utils.InvalidATJsonWriter(data=invalid_active_trace,
+                                                  **output_kwargs)
             writer.run()
             del writer
 
-        unmixed_trace_crosstalk_ratio = self.get_crosstalk_data(unmixed_traces['roi'],
-                                                                unmixed_trace_events)
+        unmixed_ct_ratio = self.get_crosstalk_data(unmixed_traces['roi'],
+                                                   unmixed_trace_events)
 
         independent_events = {}
         ghost_roi_id = []
@@ -470,10 +479,10 @@ class OphysPlane(object):
             crosstalk = unmixed_trace_events[roi_id]['crosstalk']
 
             (is_a_cell,
-             local_ind_events) = decrosstalk_utils.validate_cell_crosstalk(signal, crosstalk)
+             ind_events) = d_utils.validate_cell_crosstalk(signal, crosstalk)
 
             local = {'is_a_cell': is_a_cell,
-                     'independent_events': local_ind_events}
+                     'independent_events': ind_events}
 
             independent_events[roi_id] = local
             if not is_a_cell:
@@ -492,9 +501,10 @@ class OphysPlane(object):
             del writer_class
 
             crosstalk_ratio = {}
-            for roi_id in unmixed_trace_crosstalk_ratio:
-                crosstalk_ratio[roi_id] = {'raw': raw_trace_crosstalk_ratio[roi_id],
-                                           'unmixed': unmixed_trace_crosstalk_ratio[roi_id]}
+            for roi_id in unmixed_ct_ratio:
+                _out = {'raw': raw_trace_crosstalk_ratio[roi_id],
+                        'unmixed': unmixed_ct_ratio[roi_id]}
+                crosstalk_ratio[roi_id] = _out
 
             if self.new_style_output:
                 writer_class = io_utils.CrosstalkJsonWriter
@@ -509,20 +519,27 @@ class OphysPlane(object):
 
     def get_raw_traces(self, other_plane):
         """
-        Get the raw signal and crosstalk traces comparing this plane to another plane
+        Get the raw signal and crosstalk traces comparing
+        this plane to another plane
 
         Parameters
         ----------
-        other_plane -- another instance of OphysPlane which will be taken as the source
-        of crosstalk for this plane
+        other_plane -- another instance of OphysPlane which will
+        be taken as the source of crosstalk for this plane
 
         Returns
         -------
         A dict of raw traces such that
-            output['roi'][5678]['signal'] is the raw signal trace for ROI 5678
-            output['roi'][5678]['crosstalk'] is the raw crosstalk trace for ROI 5678
-            output['neuropil'][5678]['signal'] is the raw signal trace for the neuropil around ROI 5678
-            output['neuropil'][5678]['crosstalk'] is the raw crosstalk trace for the neuropil around ROI 5678
+            output['roi'][roi_id]['signal'] is the raw signal trace for ROI
+
+            output['roi'][roi_id]['crosstalk'] is the raw crosstalk
+                                               trace for ROI
+
+            output['neuropil'][roi_od]['signal'] is the raw signal trace for
+                                                 the neuropil around ROI
+
+            output['neuropil'][roi_id]['crosstalk'] is the raw crosstalk trace
+                                                    for the neuropil around ROI
         """
 
         signal_traces = self.movie.get_trace(self.roi_list)
@@ -532,19 +549,25 @@ class OphysPlane(object):
         output['roi'] = {}
         output['neuropil'] = {}
         for roi_id in signal_traces['roi'].keys():
-            output['roi'][roi_id] = {}
-            output['neuropil'][roi_id] = {}
-            output['roi'][roi_id]['signal'] = signal_traces['roi'][roi_id]
-            output['roi'][roi_id]['crosstalk'] = crosstalk_traces['roi'][roi_id]
-            output['neuropil'][roi_id]['signal'] = signal_traces['neuropil'][roi_id]
-            output['neuropil'][roi_id]['crosstalk'] = crosstalk_traces['neuropil'][roi_id]
+            _roi = {}
+            _neuropil = {}
+
+            _roi['signal'] = signal_traces['roi'][roi_id]
+            _roi['crosstalk'] = crosstalk_traces['roi'][roi_id]
+            output['roi'][roi_id] = _roi
+
+            _neuropil['signal'] = signal_traces['neuropil'][roi_id]
+            _neuropil['crosstalk'] = crosstalk_traces['neuropil'][roi_id]
+            output['neuropil'][roi_id] = _neuropil
 
         return output
 
     def unmix_ROI(self, roi_traces, seed=None, iters=10):
         # roi_traces is a dict that such that
-        # roi_traces['signal'] is a numpy array containing the signal trace
-        # roi_traces['crosstalk'] is a numpy array containing the crosstalk trace
+        # roi_traces['signal'] is a numpy array
+        #                      containing the signal trace
+        # roi_traces['crosstalk'] is a numpy array
+        #                         containing the crosstalk trace
         #
         # (basically: this is get_raw_traces.output['roi'][5678])
 
@@ -552,15 +575,17 @@ class OphysPlane(object):
         assert ica_input.shape == (2, len(roi_traces['signal']))
 
         (unmixed_signals,
-           mixing_matrix,
-              roi_demixed) = ica_utils.run_ica(ica_input, seed=seed, iters=iters)
+         mixing_matrix,
+         roi_demixed) = ica_utils.run_ica(ica_input,
+                                          seed=seed,
+                                          iters=iters)
 
         assert unmixed_signals.shape == ica_input.shape
 
         output = {}
         output['mixing_matrix'] = mixing_matrix
-        output['signal'] = unmixed_signals[0,:]
-        output['crosstalk'] = unmixed_signals[1,:]
+        output['signal'] = unmixed_signals[0, :]
+        output['crosstalk'] = unmixed_signals[1, :]
         output['use_avg_mixing_matrix'] = not roi_demixed
 
         return output
@@ -578,24 +603,27 @@ class OphysPlane(object):
                                          seed=roi_id,
                                          iters=10)
 
+            _out = {}
             if not unmixed_roi['use_avg_mixing_matrix']:
-                output['roi'][roi_id] = unmixed_roi
+                _out = unmixed_roi
             else:
-                output['roi'][roi_id] = {'use_avg_mixing_matrix':True}
+                _out = {'use_avg_mixing_matrix': True}
                 for k in unmixed_roi.keys():
                     if k == 'use_avg_mixing_matrix':
                         continue
-                    output['roi'][roi_id]['poorly_converged_%s' % k] = unmixed_roi[k]
+                    _out['poorly_converged_%s' % k] = unmixed_roi[k]
+            output['roi'][roi_id] = _out
 
         # calculate avg mixing matrix from successful iterations
-        alpha_arr = np.array([min(output['roi'][roi_id]['mixing_matrix'][0,0],
-                                  output['roi'][roi_id]['mixing_matrix'][0,1])
-                              for roi_id in output['roi'].keys()
-                              if not output['roi'][roi_id]['use_avg_mixing_matrix']])
-        beta_arr = np.array([min(output['roi'][roi_id]['mixing_matrix'][1,0],
-                                 output['roi'][roi_id]['mixing_matrix'][1,1])
-                             for roi_id in output['roi'].keys()
-                             if not output['roi'][roi_id]['use_avg_mixing_matrix']])
+        _out = output['roi']
+        alpha_arr = np.array([min(_out[roi_id]['mixing_matrix'][0, 0],
+                                  _out[roi_id]['mixing_matrix'][0, 1])
+                              for roi_id in _out.keys()
+                              if not _out[roi_id]['use_avg_mixing_matrix']])
+        beta_arr = np.array([min(_out[roi_id]['mixing_matrix'][1, 0],
+                                 _out[roi_id]['mixing_matrix'][1, 1])
+                             for roi_id in _out.keys()
+                             if not _out[roi_id]['use_avg_mixing_matrix']])
 
         assert alpha_arr.shape == beta_arr.shape
         if len(alpha_arr) == 0:
@@ -603,11 +631,11 @@ class OphysPlane(object):
 
         mean_alpha = alpha_arr.mean()
         mean_beta = beta_arr.mean()
-        mean_mixing_matrix = np.zeros((2,2), dtype=float)
-        mean_mixing_matrix[0,0] = 1.0-mean_alpha
-        mean_mixing_matrix[0,1] = mean_alpha
-        mean_mixing_matrix[1,0] = mean_beta
-        mean_mixing_matrix[1,1] = 1.0-mean_beta
+        mean_mixing_matrix = np.zeros((2, 2), dtype=float)
+        mean_mixing_matrix[0, 0] = 1.0-mean_alpha
+        mean_mixing_matrix[0, 1] = mean_alpha
+        mean_mixing_matrix[1, 0] = mean_beta
+        mean_mixing_matrix[1, 1] = 1.0-mean_beta
         inv_mean_mixing_matrix = np.linalg.inv(mean_mixing_matrix)
 
         for roi_id in raw_roi_traces['roi'].keys():
@@ -622,54 +650,67 @@ class OphysPlane(object):
 
                 # assign missing outputs to ROIs that failed to converge
                 output['roi'][roi_id]['mixing_matrix'] = mixing_matrix
+                _roi_traces = raw_roi_traces['roi'][roi_id]
                 unmixed_signals = np.dot(inv_mixing_matrix,
-                                         np.array([raw_roi_traces['roi'][roi_id]['signal'],
-                                                   raw_roi_traces['roi'][roi_id]['crosstalk']]))
-                output['roi'][roi_id]['signal'] = unmixed_signals[0,:]
-                output['roi'][roi_id]['crosstalk'] = unmixed_signals[1,:]
+                                         np.array([_roi_traces['signal'],
+                                                   _roi_traces['crosstalk']]))
+                output['roi'][roi_id]['signal'] = unmixed_signals[0, :]
+                output['roi'][roi_id]['crosstalk'] = unmixed_signals[1, :]
 
             # assign outputs to 'neuropils'
+            _np_traces = raw_roi_traces['neuropil'][roi_id]
             unmixed_signals = np.dot(inv_mixing_matrix,
-                                     np.array([raw_roi_traces['neuropil'][roi_id]['signal'],
-                                               raw_roi_traces['neuropil'][roi_id]['crosstalk']]))
+                                     np.array([_np_traces['signal'],
+                                               _np_traces['crosstalk']]))
 
             output['neuropil'][roi_id] = {}
-            output['neuropil'][roi_id]['signal'] = unmixed_signals[0,:]
-            output['neuropil'][roi_id]['crosstalk'] = unmixed_signals[1,:]
+            output['neuropil'][roi_id]['signal'] = unmixed_signals[0, :]
+            output['neuropil'][roi_id]['crosstalk'] = unmixed_signals[1, :]
 
         return True, output
 
     def get_trace_events(self, trace_dict):
         """
         trace_dict is a dict such that
-            trace_dict[roi_id]['signal'] is the signal channel for ROI roi_id
-            trace_dict[roi_id]['crosstalk'] is the crosstalk channel for ROI roi_id
+            trace_dict[roi_id]['signal'] is the signal channel
+            trace_dict[roi_id]['crosstalk'] is the crosstalk channel
 
         Returns
         -------
         out_dict such that
-            out_dict[roi_id]['signal']['trace'] is the trace of the signal channel events
-            out_dict[roi_id]['signal']['events'] is the timestep events of the signal channel events
-            out_dict[roi_id]['crosstalk']['trace'] is the trace of the signal channel events
-            out_dict[roi_id]['crosstalk']['events'] is the timestep events of the signal channel events
+            out_dict[roi_id]['signal']['trace'] is the trace of
+                                                the signal channel events
+
+            out_dict[roi_id]['signal']['events'] is the timestep events of
+                                                 the signal channel events
+
+            out_dict[roi_id]['crosstalk']['trace'] is the trace of
+                                                   the signal channel events
+
+            out_dict[roi_id]['crosstalk']['events'] is the timestep events of
+                                                    the signal channel events
         """
         roi_id_list = list(trace_dict.keys())
 
-        data_arr = np.array([trace_dict[roi_id]['signal'] for roi_id in roi_id_list])
-        signal_event_dict = active_traces.get_trace_events(data_arr, self.trace_threshold_params)
+        data_arr = np.array([trace_dict[roi_id]['signal']
+                             for roi_id in roi_id_list])
+        sig_dict = active_traces.get_trace_events(data_arr,
+                                                  self.trace_threshold_params)
 
-        data_arr = np.array([trace_dict[roi_id]['crosstalk'] for roi_id in roi_id_list])
-        crosstalk_event_dict = active_traces.get_trace_events(data_arr, self.trace_threshold_params)
+        data_arr = np.array([trace_dict[roi_id]['crosstalk']
+                             for roi_id in roi_id_list])
+        ct_dict = active_traces.get_trace_events(data_arr,
+                                                 self.trace_threshold_params)
 
         output = {}
         for i_roi, roi_id in enumerate(roi_id_list):
             local_dict = {}
             local_dict['signal'] = {}
             local_dict['crosstalk'] = {}
-            local_dict['signal']['trace'] = signal_event_dict['trace'][i_roi]
-            local_dict['signal']['events'] = signal_event_dict['events'][i_roi]
-            local_dict['crosstalk']['trace'] = crosstalk_event_dict['trace'][i_roi]
-            local_dict['crosstalk']['events'] = crosstalk_event_dict['events'][i_roi]
+            local_dict['signal']['trace'] = sig_dict['trace'][i_roi]
+            local_dict['signal']['events'] = sig_dict['events'][i_roi]
+            local_dict['crosstalk']['trace'] = ct_dict['trace'][i_roi]
+            local_dict['crosstalk']['events'] = ct_dict['events'][i_roi]
             output[roi_id] = local_dict
 
         return output
@@ -694,6 +735,6 @@ class OphysPlane(object):
             signal = events_dict[roi_id]['signal']['trace']
             full_crosstalk = trace_dict[roi_id]['crosstalk']
             crosstalk = full_crosstalk[events_dict[roi_id]['signal']['events']]
-            results = decrosstalk_utils.get_crosstalk_data(signal, crosstalk)
+            results = d_utils.get_crosstalk_data(signal, crosstalk)
             output[roi_id] = 100*results['slope']
         return output

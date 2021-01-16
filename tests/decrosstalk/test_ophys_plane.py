@@ -29,7 +29,7 @@ def test_roi_instantiation():
         pair = meta_pair['planes']
         for plane in pair:
             for roi_args in plane['rois']:
-                roi = ophys_plane.OphysROI.from_schema_dict(roi_args)
+                _ = ophys_plane.OphysROI.from_schema_dict(roi_args)
                 ct += 1
     assert ct == 8
 
@@ -39,6 +39,6 @@ def test_plane_instantiation():
     ct = 0
     for pair in schema_dict['coupled_planes']:
         for plane_args in pair['planes']:
-            plane = ophys_plane.OphysPlane.from_schema_dict(plane_args)
+            _ = ophys_plane.OphysPlane.from_schema_dict(plane_args)
             ct += 1
     assert ct == 4

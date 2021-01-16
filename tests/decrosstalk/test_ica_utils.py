@@ -17,26 +17,26 @@ def test_whiten_data():
     tol = 1.0e-10
     n_dimensions = 4
     rng = np.random.RandomState(2358)
-    
+
     evec = np.zeros((n_dimensions, n_dimensions), dtype=float)
     for ii in range(n_dimensions):
-        v = rng.normal(0,1,size=n_dimensions)
+        v = rng.normal(0, 1, size=n_dimensions)
         for jj in range(ii):
-            dot_product = np.dot(v, evec[jj,:])
-            v -= dot_product*evec[jj,:]
+            dot_product = np.dot(v, evec[jj, :])
+            v -= dot_product*evec[jj, :]
         norm = np.sqrt(np.sum(v**2))
-        assert norm>0.0
+        assert norm > 0.0
         v /= norm
-        evec[ii,:] = v
+        evec[ii, :] = v
 
     n_samples = 1000
     eigen_data = np.zeros((n_samples, n_dimensions), dtype=float)
     sigma = np.random.random_sample(n_dimensions)*5.0+1.0
     mean = np.random.random_sample(n_dimensions)*5.0-2.5
     for i_dim in range(n_dimensions):
-        eigen_data[:,i_dim] = rng.normal(mean[i_dim],
-                                         sigma[i_dim],
-                                         size=n_samples)
+        eigen_data[:, i_dim] = rng.normal(mean[i_dim],
+                                          sigma[i_dim],
+                                          size=n_samples)
 
     data = np.zeros((n_samples, n_dimensions), dtype=float)
     for i_sample in range(n_samples):
@@ -47,22 +47,22 @@ def test_whiten_data():
 
     (new_data,
      transformation,
-                mean) = ica_utils.whiten_data(data)
+     mean) = ica_utils.whiten_data(data)
 
     np.testing.assert_array_equal(data0, data)
 
     for i_dim in range(n_dimensions):
-        assert np.abs(mean[i_dim]-np.mean(data[:, i_dim]))<tol
+        assert np.abs(mean[i_dim]-np.mean(data[:, i_dim])) < tol
 
     corr_coef = np.corrcoef(new_data.transpose())
     old_corr_coef = np.corrcoef(data.transpose())
     for ii in range(n_dimensions):
-        assert np.abs(1.0-corr_coef[ii,ii])<tol
+        assert np.abs(1.0-corr_coef[ii, ii]) < tol
         for jj in range(n_dimensions):
-            if jj==ii:
+            if jj == ii:
                 continue
-            assert np.abs(corr_coef[ii,jj])<tol
-            assert np.abs(old_corr_coef[ii,jj])>tol
+            assert np.abs(corr_coef[ii, jj]) < tol
+            assert np.abs(old_corr_coef[ii, jj]) > tol
 
     # check that the transformation returned works as advertized
     for ii in range(n_dimensions):
@@ -132,8 +132,8 @@ def test_run_ica():
     signal_2 *= 0.1
 
     data0 = np.zeros((2, n_time), dtype=float)
-    data0[0,:] = 0.9*signal_1+0.1*signal_2
-    data0[1,:] = 0.25*signal_1+0.75*signal_2
+    data0[0, :] = 0.9*signal_1+0.1*signal_2
+    data0[1, :] = 0.25*signal_1+0.75*signal_2
 
     for seed in (9, 11):
         # seed 9 triggers swapped==True; I want to make sure
@@ -145,12 +145,12 @@ def test_run_ica():
         noise_1 = rng.random_sample(n_time)*0.05
         noise_2 = rng.random_sample(n_time)*0.05
         data = np.copy(data0)
-        data[0,:] += noise_1
-        data[1,:] += noise_2
+        data[0, :] += noise_1
+        data[1, :] += noise_2
         (unmixed_signals,
-           mixing_matrix,
-            converged,
-            swapped) = ica_utils.run_ica(data, 1000, seed, verbose=True)
+         mixing_matrix,
+         converged,
+         swapped) = ica_utils.run_ica(data, 1000, seed, verbose=True)
 
         assert unmixed_signals.shape == data.shape
 
@@ -162,20 +162,20 @@ def test_run_ica():
             assert not swapped
             assert converged
 
-        r10, _ = scipy.stats.pearsonr(signal_1, unmixed_signals[0,:])
-        r11, _ = scipy.stats.pearsonr(signal_1, unmixed_signals[1,:])
-        r20, _ = scipy.stats.pearsonr(signal_2, unmixed_signals[0,:])
-        r21, _ = scipy.stats.pearsonr(signal_2, unmixed_signals[1,:])
+        r10, _ = scipy.stats.pearsonr(signal_1, unmixed_signals[0, :])
+        r11, _ = scipy.stats.pearsonr(signal_1, unmixed_signals[1, :])
+        r20, _ = scipy.stats.pearsonr(signal_2, unmixed_signals[0, :])
+        r21, _ = scipy.stats.pearsonr(signal_2, unmixed_signals[1, :])
 
         # check that first independent component recreates to first signal
-        assert r10>r11
-        assert r10>0.9
-        assert r11<0.05
-        assert r10>r20
+        assert r10 > r11
+        assert r10 > 0.9
+        assert r11 < 0.05
+        assert r10 > r20
 
         # check that second independent component recreates second signal
-        assert r21>r20
-        assert r21>r11
-        assert r21>0.6
-        assert r20<0.1
-        assert r21>r11
+        assert r21 > r20
+        assert r21 > r11
+        assert r21 > 0.6
+        assert r20 < 0.1
+        assert r21 > r11

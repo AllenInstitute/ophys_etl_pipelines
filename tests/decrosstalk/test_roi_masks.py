@@ -41,6 +41,7 @@ import os
 import pytest
 import ophys_etl.decrosstalk.roi_masks as roi_masks
 
+
 def get_tmp_dir():
     this_dir = os.path.dirname(os.path.abspath(__file__))
     tmp_dir = os.path.join(this_dir, 'tmp')
@@ -99,11 +100,18 @@ def test_create_neuropil_mask():
     roi_mask = np.zeros((image_height, image_width), dtype=np.uint8)
     roi_mask[40:45, 30:35] = 1
 
-    combined_binary_mask = np.zeros((image_height, image_width), dtype=np.uint8)
+    combined_binary_mask = np.zeros((image_height, image_width),
+                                    dtype=np.uint8)
     combined_binary_mask[:, 45:] = 1
 
-    roi = roi_masks.create_roi_mask(image_w=image_width, image_h=image_height, border=border, roi_mask=roi_mask)
-    obtained = roi_masks.create_neuropil_mask(roi, border, combined_binary_mask)
+    roi = roi_masks.create_roi_mask(image_w=image_width,
+                                    image_h=image_height,
+                                    border=border,
+                                    roi_mask=roi_mask)
+
+    obtained = roi_masks.create_neuropil_mask(roi,
+                                              border,
+                                              combined_binary_mask)
 
     expected_mask = np.zeros((58-27, 45-17), dtype=np.uint8)
     expected_mask[:, :] = 1
@@ -122,14 +130,22 @@ def test_create_empty_neuropil_mask():
     # border = [image_width-1, 0, image_height-1, 0]
     border = [5, 5, 5, 5]
 
-    roi_mask = np.zeros((image_height, image_width), dtype=np.uint8)
+    roi_mask = np.zeros((image_height, image_width),
+                        dtype=np.uint8)
     roi_mask[40:45, 30:35] = 1
 
-    combined_binary_mask = np.zeros((image_height, image_width), dtype=np.uint8)
+    combined_binary_mask = np.zeros((image_height, image_width),
+                                    dtype=np.uint8)
     combined_binary_mask[:, :] = 1
 
-    roi = roi_masks.create_roi_mask(image_w=image_width, image_h=image_height, border=border, roi_mask=roi_mask)
-    obtained = roi_masks.create_neuropil_mask(roi, border, combined_binary_mask)
+    roi = roi_masks.create_roi_mask(image_w=image_width,
+                                    image_h=image_height,
+                                    border=border,
+                                    roi_mask=roi_mask)
+
+    obtained = roi_masks.create_neuropil_mask(roi,
+                                              border,
+                                              combined_binary_mask)
 
     assert obtained.mask is None
     assert 'zero_pixels' in obtained.flags
@@ -146,6 +162,7 @@ def image_dims():
 @pytest.fixture
 def motion_border():
     return [5.0, 5.0, 5.0, 5.0]
+
 
 @pytest.fixture
 def roi_mask_list(image_dims, motion_border):
@@ -166,6 +183,7 @@ def roi_mask_list(image_dims, motion_border):
 
     return masks
 
+
 @pytest.fixture
 def neuropil_masks(roi_mask_list, motion_border):
     neuropil_masks = []
@@ -181,6 +199,7 @@ def neuropil_masks(roi_mask_list, motion_border):
             roi_mask.label
         ))
     return neuropil_masks
+
 
 @pytest.fixture
 def video(image_dims):
@@ -203,14 +222,20 @@ def test_calculate_traces(video, roi_mask_list):
     assert np.all(roi_traces[6, :] == 2)
     assert np.all(np.isnan(roi_traces[9, :]))
 
-    pd.testing.assert_frame_equal(expected_exclusions, pd.DataFrame(exclusions), check_like=True)
+    pd.testing.assert_frame_equal(expected_exclusions,
+                                  pd.DataFrame(exclusions),
+                                  check_like=True)
 
 
-def test_calculate_roi_and_neuropil_traces(video, roi_mask_list, motion_border):
+def test_calculate_roi_and_neuropil_traces(video,
+                                           roi_mask_list,
+                                           motion_border):
 
-    (roi_traces,
-     neuropil_traces,
-         exclusions) = roi_masks.calculate_roi_and_neuropil_traces(video, roi_mask_list, motion_border)
+    _t = roi_masks.calculate_roi_and_neuropil_traces(video,
+                                                     roi_mask_list,
+                                                     motion_border)
+
+    roi_traces = _t[0]
 
     assert np.all(np.isnan(roi_traces[0, :]))
     assert np.all(roi_traces[4, :] == 1)
@@ -227,17 +252,17 @@ def test_calculate_roi_and_neuropil_traces(video, roi_mask_list, motion_border):
         out_file.create_dataset('data', data=video)
 
     try:
-        (roi_traces,
-         neuropil_traces,
-             exclusions) = roi_masks.calculate_roi_and_neuropil_traces(tmp_filename,
-                                                                       roi_mask_list,
-                                                                       motion_border)
+        _t = roi_masks.calculate_roi_and_neuropil_traces(tmp_filename,
+                                                         roi_mask_list,
+                                                         motion_border)
+
+        roi_traces = _t[0]
 
         assert np.all(np.isnan(roi_traces[0, :]))
         assert np.all(roi_traces[4, :] == 1)
         assert np.all(roi_traces[6, :] == 2)
         assert np.all(np.isnan(roi_traces[9, :]))
-    except:
+    except:  # noqa: E722
         raise
     finally:
         os.unlink(tmp_filename)
@@ -254,9 +279,14 @@ def test_validate_masks(roi_mask_list, neuropil_masks):
 
     expected_exclusions = pd.DataFrame({
         'roi_id': ['0', '3', '9', '7'],
-        'exclusion_label_name': ['motion_border', 'empty_roi_mask', 'motion_border', 'empty_neuropil_mask']
+        'exclusion_label_name': ['motion_border',
+                                 'empty_roi_mask',
+                                 'motion_border',
+                                 'empty_neuropil_mask']
     })
-    pd.testing.assert_frame_equal(expected_exclusions, pd.DataFrame(obtained), check_like=True)
+    pd.testing.assert_frame_equal(expected_exclusions,
+                                  pd.DataFrame(obtained),
+                                  check_like=True)
 
 
 def test_roi_on_motion_border():
@@ -265,7 +295,6 @@ def test_roi_on_motion_border():
     that are full of NaNs
     """
 
-    tmp_dir = get_tmp_dir()
     movie_data = np.zeros((23, 100, 130))
     movie_data[:, 0:40, 0:40] = 3.0
     movie_data[:, 0:40, 90:] = 4.0
@@ -282,8 +311,8 @@ def test_roi_on_motion_border():
 
     mask_list = []
 
-    pix_list = np.array([[120,10], [120,11], [121,10], [121,11]])
-    movie_data[:, pix_list[:,1], pix_list[:,0]] = 14.0
+    pix_list = np.array([[120, 10], [120, 11], [121, 10], [121, 11]])
+    movie_data[:, pix_list[:, 1], pix_list[:, 0]] = 14.0
 
     mask = roi_masks.create_roi_mask(130, 100,
                                      motion_border_list,
@@ -291,7 +320,7 @@ def test_roi_on_motion_border():
                                      label='roi_0')
     mask_list.append(mask)
 
-    pix_list = np.array([[126,10], [126,11], [127,10], [127,11]])
+    pix_list = np.array([[126, 10], [126, 11], [127, 10], [127, 11]])
     mask = roi_masks.create_roi_mask(130, 100,
                                      motion_border_list,
                                      pix_list=pix_list,
@@ -300,8 +329,13 @@ def test_roi_on_motion_border():
 
     (roi_trace,
      neuropil_trace,
-     exc) = roi_masks.calculate_roi_and_neuropil_traces(movie_data, mask_list, motion_border_list)
+     exc) = roi_masks.calculate_roi_and_neuropil_traces(movie_data,
+                                                        mask_list,
+                                                        motion_border_list)
 
-    np.testing.assert_array_equal(roi_trace[0,:], 14.0*np.ones(23, dtype=float))
-    np.testing.assert_array_equal(neuropil_trace[0,:], 4.0*np.ones(23, dtype=float))
-    np.testing.assert_array_equal(roi_trace[1,:], np.NaN*np.ones(23, dtype=float))
+    np.testing.assert_array_equal(roi_trace[0, :],
+                                  14.0*np.ones(23, dtype=float))
+    np.testing.assert_array_equal(neuropil_trace[0, :],
+                                  4.0*np.ones(23, dtype=float))
+    np.testing.assert_array_equal(roi_trace[1, :],
+                                  np.NaN*np.ones(23, dtype=float))

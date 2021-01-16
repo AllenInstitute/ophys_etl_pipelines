@@ -4,26 +4,32 @@ import os
 import json
 import ophys_etl.decrosstalk.decrosstalk_schema as decrosstalk_schema
 
+
 class DummyDecrosstalkLoader(argschema.ArgSchemaParser):
     default_schema = decrosstalk_schema.DecrosstalkInputSchema
+
 
 class DummyROILoader(argschema.ArgSchemaParser):
     default_schema = decrosstalk_schema.RoiSchema
 
+
 class DummyPlaneLoader(argschema.ArgSchemaParser):
     default_schema = decrosstalk_schema.PlaneSchema
 
+
 class DummyPlanePairLoader(argschema.ArgSchemaParser):
     default_schema = decrosstalk_schema.PlanePairSchema
+
 
 class DummySchemaOutput(argschema.ArgSchemaParser):
     default_output_schema = decrosstalk_schema.DecrosstalkOutputSchema
 
     def run(self):
-        output = {'decrosstalk_raw_exclusion_label':[],
-                  'decrosstalk_unmixed_exclusion_label':[1,2,3,4],
-                  'decrosstalk_ghost_roi_ids':[]}
+        output = {'decrosstalk_raw_exclusion_label': [],
+                  'decrosstalk_unmixed_exclusion_label': [1, 2, 3, 4],
+                  'decrosstalk_ghost_roi_ids': []}
         self.output(output)
+
 
 def get_schema_data():
     this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -36,24 +42,29 @@ def get_schema_data():
         example_data = json.load(in_file)
     return example_data
 
+
 def test_roi_schema():
     schema_data = get_schema_data()
     roi = schema_data['coupled_planes'][0]['planes'][0]['rois'][0]
-    dummy = DummyROILoader(input_data=roi, args=[])
+    _ = DummyROILoader(input_data=roi, args=[])
+
 
 def test_plane_schema():
     schema_data = get_schema_data()
     plane = schema_data['coupled_planes'][0]['planes'][0]
-    dummy = DummyPlaneLoader(input_data=plane, args=[])
+    _ = DummyPlaneLoader(input_data=plane, args=[])
+
 
 def test_plane_pair_schema():
     schema_data = get_schema_data()
     plane_pair = schema_data['coupled_planes'][0]
-    dummy = DummyPlanePairLoader(input_data=plane_pair, args=[])
+    _ = DummyPlanePairLoader(input_data=plane_pair, args=[])
+
 
 def test_decrosstalk_schema():
     schema_data = get_schema_data()
-    dummy = DummyDecrosstalkLoader(input_data=schema_data, args=[])
+    _ = DummyDecrosstalkLoader(input_data=schema_data, args=[])
+
 
 def test_output_schema():
     this_dir = os.path.dirname(os.path.abspath(__file__))
@@ -65,7 +76,7 @@ def test_output_schema():
     try:
         dummy = DummySchemaOutput(args=['--output_json', '%s' % tmp_fname])
         dummy.run()
-    except:
+    except:  # noqa: E722
         raise
     finally:
         if os.path.exists(tmp_fname):

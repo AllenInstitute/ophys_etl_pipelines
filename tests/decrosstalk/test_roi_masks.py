@@ -37,15 +37,11 @@ import numpy as np
 import pandas as pd
 import h5py
 import tempfile
-import os
 import pytest
 import ophys_etl.decrosstalk.roi_masks as roi_masks
 
-
-def get_tmp_dir():
-    this_dir = os.path.dirname(os.path.abspath(__file__))
-    tmp_dir = os.path.join(this_dir, 'tmp')
-    assert os.path.isdir(tmp_dir)
+from .utils import teardown_function  # noqa F401
+from .utils import get_tmp_dir
 
 
 def test_init_by_pixels():
@@ -231,6 +227,8 @@ def test_calculate_roi_and_neuropil_traces(video,
                                            roi_mask_list,
                                            motion_border):
 
+    test_calculate_roi_and_neuropil_traces._temp_files = []
+
     _t = roi_masks.calculate_roi_and_neuropil_traces(video,
                                                      roi_mask_list,
                                                      motion_border)
@@ -248,24 +246,21 @@ def test_calculate_roi_and_neuropil_traces(video,
                                     suffix='.h5',
                                     dir=tmp_dir)[1]
 
+    test_calculate_roi_and_neuropil_traces._temp_files.append(tmp_filename)
+
     with h5py.File(tmp_filename, mode='w') as out_file:
         out_file.create_dataset('data', data=video)
 
-    try:
-        _t = roi_masks.calculate_roi_and_neuropil_traces(tmp_filename,
-                                                         roi_mask_list,
-                                                         motion_border)
+    _t = roi_masks.calculate_roi_and_neuropil_traces(tmp_filename,
+                                                     roi_mask_list,
+                                                     motion_border)
 
-        roi_traces = _t[0]
+    roi_traces = _t[0]
 
-        assert np.all(np.isnan(roi_traces[0, :]))
-        assert np.all(roi_traces[4, :] == 1)
-        assert np.all(roi_traces[6, :] == 2)
-        assert np.all(np.isnan(roi_traces[9, :]))
-    except:  # noqa: E722
-        raise
-    finally:
-        os.unlink(tmp_filename)
+    assert np.all(np.isnan(roi_traces[0, :]))
+    assert np.all(roi_traces[4, :] == 1)
+    assert np.all(roi_traces[6, :] == 2)
+    assert np.all(np.isnan(roi_traces[9, :]))
 
 
 def test_validate_masks(roi_mask_list, neuropil_masks):

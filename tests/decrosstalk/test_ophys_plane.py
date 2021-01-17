@@ -2,6 +2,8 @@ import os
 import json
 from ophys_etl.decrosstalk import ophys_plane
 
+from .utils import get_data_dir
+
 
 def get_ophys_test_schema():
     """
@@ -11,8 +13,7 @@ def get_ophys_test_schema():
     The dict is artificially constructed to have 2 pairs of planes,
     each plane containing 2 ROIs.
     """
-    this_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(this_dir, 'data')
+    data_dir = get_data_dir()
     data_file_name = os.path.join(data_dir,
                                   'ophys_plane_instantiation_data.json')
 

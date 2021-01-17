@@ -1,8 +1,10 @@
-import os
 import tempfile
 import h5py
 import numpy as np
 import ophys_etl.decrosstalk.ophys_plane as ophys_plane
+
+from .utils import teardown_function  # noqa F401
+from .utils import get_tmp_dir
 
 
 def _create_ophys_test_data(tmp_filename):
@@ -90,17 +92,10 @@ def _run_ophys_movie_test(tmp_filename):
 
 
 def test_ophys_movie():
-    this_dir = os.path.dirname(os.path.abspath(__file__))
-    tmp_dir = os.path.join(this_dir, 'tmp')
-    assert os.path.isdir(tmp_dir)
+    test_ophys_movie._temp_files = []
+    tmp_dir = get_tmp_dir()
     tmp_filename = tempfile.mkstemp(prefix='ophys_movie_filename',
                                     suffix='.h5',
                                     dir=tmp_dir)[1]
-
-    try:
-        _run_ophys_movie_test(tmp_filename)
-    except:  # noqa: E722
-        raise
-    finally:
-        if os.path.exists(tmp_filename):
-            os.unlink(tmp_filename)
+    test_ophys_movie._temp_files.append(tmp_filename)
+    _run_ophys_movie_test(tmp_filename)

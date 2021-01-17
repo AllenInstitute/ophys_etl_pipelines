@@ -5,6 +5,8 @@ from numpy.testing import assert_array_almost_equal as np_almost_equal
 from numpy.testing import assert_array_equal as np_equal
 import ophys_etl.decrosstalk.active_traces as at
 
+from .utils import get_data_dir
+
 
 def test_mode_calculation():
     """
@@ -68,8 +70,7 @@ def test_evaluate_components():
     Test evaluate_components by comparing to inputs and outputs used
     with prototype
     """
-    this_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(this_dir, 'data')
+    data_dir = get_data_dir()
     data_filename = os.path.join(data_dir, 'evaluate_components_data.h5')
     with h5py.File(data_filename, mode='r') as in_file:
         input_trace = in_file['input_trace'][()]
@@ -217,8 +218,7 @@ def test_get_trace_events_worker_method():
     Test output of _get_trace_events against
     outputs generated with the prototype
     """
-    this_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(this_dir, 'data')
+    data_dir = get_data_dir()
     data_filename = os.path.join(data_dir, 'evaluate_components_data.h5')
     with h5py.File(data_filename, mode='r') as in_file:
         input_trace = in_file['input_trace'][()]
@@ -254,8 +254,7 @@ def test_get_trace_events_wrapper_method():
     Test output of get_trace_events against
     outputs generated with the prototype
     """
-    this_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(this_dir, 'data')
+    data_dir = get_data_dir()
     data_filename = os.path.join(data_dir, 'evaluate_components_data.h5')
     with h5py.File(data_filename, mode='r') as in_file:
         input_trace = in_file['input_trace'][()]

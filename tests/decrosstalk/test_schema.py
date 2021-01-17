@@ -4,6 +4,10 @@ import os
 import json
 import ophys_etl.decrosstalk.decrosstalk_schema as decrosstalk_schema
 
+from .utils import teardown_function  # noqa F401
+from .utils import get_data_dir
+from .utils import get_tmp_dir
+
 
 class DummyDecrosstalkLoader(argschema.ArgSchemaParser):
     default_schema = decrosstalk_schema.DecrosstalkInputSchema
@@ -32,9 +36,7 @@ class DummySchemaOutput(argschema.ArgSchemaParser):
 
 
 def get_schema_data():
-    this_dir = os.path.dirname(os.path.abspath(__file__))
-    data_dir = os.path.join(this_dir, 'data')
-    assert os.path.isdir(data_dir)
+    data_dir = get_data_dir()
     schema_fname = os.path.join(data_dir,
                                 'ophys_plane_instantiation_data.json')
 
@@ -67,17 +69,12 @@ def test_decrosstalk_schema():
 
 
 def test_output_schema():
-    this_dir = os.path.dirname(os.path.abspath(__file__))
-    tmp_dir = os.path.join(this_dir, 'tmp')
-    assert os.path.isdir(tmp_dir)
+    test_output_schema._temp_files = []
+    tmp_dir = get_tmp_dir()
     tmp_fname = tempfile.mkstemp(prefix='output_schema_test_',
                                  suffix='.json',
                                  dir=tmp_dir)[1]
-    try:
-        dummy = DummySchemaOutput(args=['--output_json', '%s' % tmp_fname])
-        dummy.run()
-    except:  # noqa: E722
-        raise
-    finally:
-        if os.path.exists(tmp_fname):
-            os.unlink(tmp_fname)
+    test_output_schema._temp_files.append(tmp_fname)
+
+    dummy = DummySchemaOutput(args=['--output_json', '%s' % tmp_fname])
+    dummy.run()

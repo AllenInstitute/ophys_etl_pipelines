@@ -216,7 +216,10 @@ class RawATH5WriterOld(OldOutputWriter):
             data = self.data[roi_id]
             output['%d_signal_trace' % roi_id] = data['signal']['trace']
             output['%d_signal_events' % roi_id] = data['signal']['events']
-            output['%d_signal_valid' % roi_id] = True
+            signal_valid = True
+            if np.isnan(data['signal']['trace']).any():
+                signal_valid = False
+            output['%d_signal_valid' % roi_id] = signal_valid
             output['%d_crosstalk_trace' % roi_id] = data['crosstalk']['trace']
             _events_key = '%d_crosstalk_events' % roi_id
             output[_events_key] = data['crosstalk']['events']

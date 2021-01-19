@@ -4,9 +4,7 @@ import os
 import json
 import ophys_etl.decrosstalk.decrosstalk_schema as decrosstalk_schema
 
-from .utils import teardown_function  # noqa F401
 from .utils import get_data_dir
-from .utils import get_tmp_dir
 
 
 class DummyDecrosstalkLoader(argschema.ArgSchemaParser):
@@ -68,12 +66,11 @@ def test_decrosstalk_schema():
     _ = DummyDecrosstalkLoader(input_data=schema_data, args=[])
 
 
-def test_output_schema():
+def test_output_schema(tmpdir):
     test_output_schema._temp_files = []
-    tmp_dir = get_tmp_dir()
     tmp_fname = tempfile.mkstemp(prefix='output_schema_test_',
                                  suffix='.json',
-                                 dir=tmp_dir)[1]
+                                 dir=tmpdir)[1]
     test_output_schema._temp_files.append(tmp_fname)
 
     dummy = DummySchemaOutput(args=['--output_json', '%s' % tmp_fname])

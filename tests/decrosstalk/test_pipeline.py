@@ -4,34 +4,37 @@ import numpy as np
 import h5py
 from ophys_etl.decrosstalk.ophys_plane import OphysPlane
 
-from .utils import teardown_function  # noqa F401
-from .utils import get_tmp_dir
 from .utils import get_data_dir
 
 
-def setup_function(function):
+def create_data(tmpdir):
     """
     Setup for test_full_pipeline.
 
-    Writes movie files to
-    tests/decrosstalk/tmp/pipeline_test_input
+    Writes movie files to a temporary directory
 
-    Adds members to test_full_pipeline:
-       _input_dir -- absolute path to input directory
-       _session -- dict representing input for decrosstalking pipeline
+    Creates a dict mimicking the input data required by the
+    decrosstalking pipeline.
 
-    Also populates test_full_pipeline._temp_files with names
-    of temporary files created for input
+    Parameters
+    ----------
+    tmpdir -- a parent temporary directory wher input_dir
+    will be created
+
+    Returns
+    -------
+    The dict mimicking the input schema for the decrosstalking
+    pipeline.
     """
 
     data_dir = get_data_dir()
 
-    parent_tmp = get_tmp_dir()
-    input_dir = os.path.join(parent_tmp,
+    parent_tmp = tmpdir
+    input_dir = os.path.join(tmpdir,
                              'pipeline_test_input')
 
-    function._input_dir = input_dir
-    function._temp_files = []
+    if not os.path.exists(input_dir):
+        os.makedirs(input_dir)
 
     nt = 10000  # truncate signals in memory
 
@@ -54,13 +57,6 @@ def setup_function(function):
     movie_fname_1 = tempfile.mkstemp(dir=input_dir,
                                      prefix='movie_0_',
                                      suffix='.h5')[1]
-
-    base_m_0 = os.path.basename(movie_fname_0)
-    function._temp_files.append(os.path.join(input_dir,
-                                             base_m_0))
-    base_m_1 = os.path.basename(movie_fname_1)
-    function._temp_files.append(os.path.join(input_dir,
-                                             base_m_1))
 
     roi0 = {}
     roi0['id'] = 0
@@ -135,10 +131,10 @@ def setup_function(function):
     pair['planes'] = [plane0, plane1]
     session['coupled_planes'].append(pair)
 
-    function._session = session
+    return session
 
 
-def test_full_pipeline():
+def test_full_pipeline(tmpdir):
     """
     Test that OphysPlane.run_decrosstalk() can run
     as expected in production.
@@ -147,7 +143,7 @@ def test_full_pipeline():
     Does not validate contents of those files.
     """
 
-    session = test_full_pipeline._session
+    session = create_data(tmpdir)
 
     pair = session['coupled_planes'][0]['planes']
     plane0 = OphysPlane.from_schema_dict(pair[0])
@@ -177,14 +173,6 @@ def test_full_pipeline():
             expected_files.append(fname)
 
     output_dir = session['qc_output_dir']
-    for fname in expected_files:
-        test_full_pipeline._temp_files.append(os.path.join(output_dir,
-                                                           fname))
-    test_full_pipeline._temp_files.append(os.path.join(output_dir,
-                                                       '0_1_invalid_at.json'))
-    test_full_pipeline._temp_files.append(os.path.join(output_dir,
-                                                       '1_0_invalid_at.json'))
-
     for fname in expected_files:
         full_name = os.path.join(output_dir, fname)
         msg = 'could not find %s' % full_name

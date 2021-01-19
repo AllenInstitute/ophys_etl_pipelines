@@ -3,9 +3,6 @@ import h5py
 import numpy as np
 import ophys_etl.decrosstalk.ophys_plane as ophys_plane
 
-from .utils import teardown_function  # noqa F401
-from .utils import get_tmp_dir
-
 
 def _create_ophys_test_data(tmp_filename):
     """
@@ -91,11 +88,10 @@ def _run_ophys_movie_test(tmp_filename):
                                   np.zeros(200, dtype=float))
 
 
-def test_ophys_movie():
+def test_ophys_movie(tmpdir):
     test_ophys_movie._temp_files = []
-    tmp_dir = get_tmp_dir()
     tmp_filename = tempfile.mkstemp(prefix='ophys_movie_filename',
                                     suffix='.h5',
-                                    dir=tmp_dir)[1]
+                                    dir=tmpdir)[1]
     test_ophys_movie._temp_files.append(tmp_filename)
     _run_ophys_movie_test(tmp_filename)

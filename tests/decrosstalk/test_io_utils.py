@@ -4,11 +4,8 @@ import tempfile
 import h5py
 import ophys_etl.decrosstalk.io_utils as io_utils
 
-from .utils import teardown_function  # noqa F401
-from .utils import get_tmp_dir
 
-
-def test_write_to_h5():
+def test_write_to_h5(tmpdir):
 
     test_write_to_h5._temp_files = []
 
@@ -22,10 +19,9 @@ def test_write_to_h5():
     data['second_dir']['sub3']['b'] = np.array([1.2, 4.3])
     data['second_dir']['sub3']['c'] = True
 
-    tmp_dir = get_tmp_dir()
     tmp_fname = tempfile.mkstemp(prefix='write_h5_test_',
                                  suffix='.h5',
-                                 dir=tmp_dir)[1]
+                                 dir=tmpdir)[1]
 
     # because mkstemp opens a connection to the file
     if os.path.exists(tmp_fname):

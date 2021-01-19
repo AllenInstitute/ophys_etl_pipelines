@@ -141,74 +141,54 @@ def test_find_event_gaps():
     trace_flags[8, 70] = True
     trace_flags[8, 96:] = True
 
-    (event_gaps,
-     pre_onset,
+    (pre_onset,
      last_event,
-     event_gaps_intermediate,
      first_gap,
      last_gap) = at.find_event_gaps(trace_flags)
 
     # first neuron has no events; verify that all entries are NaNs
-    assert np.isnan(event_gaps[0])
     assert np.isnan(pre_onset[0])
     assert np.isnan(last_event[0])
-    assert np.isnan(event_gaps_intermediate[0])
     assert np.isnan(first_gap[0])
     assert np.isnan(last_gap[0])
 
-    np_equal(event_gaps[1], np.array([5, 22, 21, 12]))
     np_equal(pre_onset[1], np.array([33, 65]))
     np_equal(last_event[1], np.array([11, 44]))
-    np_equal(event_gaps_intermediate[1], np.array([22, 21]))
     assert first_gap[1] == [5]
     assert last_gap[1] == [12]
 
-    np_equal(event_gaps[2], np.array([17, 11, 39, 29]))
     np_equal(pre_onset[2], np.array([29, 69]))
     np_equal(last_event[2], np.array([18, 30]))
-    np_equal(event_gaps_intermediate[2], np.array([11, 39]))
     assert first_gap[2] == [17]
     assert last_gap[2] == [29]
 
-    np_equal(event_gaps[3], np.array([99]))
     np_equal(pre_onset[3], np.array([]))
     np_equal(last_event[3], np.array([]))
-    np_equal(event_gaps_intermediate[3], np.array([]))
     assert first_gap[3] == []  # is this really what we want?
     assert last_gap[3] == [99]
 
-    np_equal(event_gaps[4], np.array([97]))
     np_equal(pre_onset[4], np.array([]))
     np_equal(last_event[4], np.array([]))
-    np_equal(event_gaps_intermediate[4], np.array([]))
     assert first_gap[4] == []
     assert last_gap[4] == [97]
 
-    np_equal(event_gaps[5], np.array([97]))
     np_equal(pre_onset[5], np.array([]))
     np_equal(last_event[5], np.array([]))
-    np_equal(event_gaps_intermediate[5], np.array([]))
     assert first_gap[5] == [97]
     assert last_gap[5] == []
 
-    np_equal(event_gaps[6], np.array([17, 11, 39, 26]))
     np_equal(pre_onset[6], np.array([29, 69, 96]))
     np_equal(last_event[6], np.array([18, 30, 70]))
-    np_equal(event_gaps_intermediate[6], np.array([11, 39, 26]))
     assert first_gap[6] == [17]
     assert last_gap[6] == []
 
-    np_equal(event_gaps[7], np.array([15, 11, 39, 29]))
     np_equal(pre_onset[7], np.array([16, 29, 69]))
     np_equal(last_event[7], np.array([1, 18, 30]))
-    np_equal(event_gaps_intermediate[7], np.array([15, 11, 39]))
     assert first_gap[7] == []
     assert last_gap[7] == [29]
 
-    np_equal(event_gaps[8], np.array([15, 11, 39, 25]))
     np_equal(pre_onset[8], np.array([16, 29, 69, 95]))
     np_equal(last_event[8], np.array([1, 18, 30, 70]))
-    np_equal(event_gaps_intermediate[8], np.array([15, 11, 39, 25]))
     assert first_gap[8] == []
     assert last_gap[8] == []
 

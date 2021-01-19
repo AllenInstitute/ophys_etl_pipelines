@@ -173,13 +173,10 @@ def find_event_gaps(evs):
     :param evs: boolean; neurons x frames, indicates if there was an event.
                          (it can be 1 for several continuous frames too)
     :return:
-        gap_evs_all: includes the gap before the 1st event and the gap before
-                     the last event too, in addition to inter-event gaps
         begs_evs: index of event onsets, excluding the 1st events.
                   (in fact these are 1 index before the actual event onset;
                   since they are computed on the difference trace ('d'))
         ends_evs: index of event offsets, excluding the last event
-        gap_evs: includes only gap between events
         bgap_evs: number of frames before the first event
         egap_evs: number of frames after the last event
     """
@@ -274,7 +271,7 @@ def find_event_gaps(evs):
     bgap_evs = np.array(bgap_evs, dtype=object)
     egap_evs = np.array(egap_evs, dtype=object)
 
-    return gap_evs_all, begs_evs, ends_evs, gap_evs, bgap_evs, egap_evs
+    return begs_evs, ends_evs, bgap_evs, egap_evs
 
 
 def get_traces_evs(traces_y0, th_ag, len_ne):
@@ -320,7 +317,7 @@ def get_traces_evs(traces_y0, th_ag, len_ne):
     evs = (erfc >= th_ag)  # neurons x frames
 
     # find gaps between events for each neuron
-    [_, begs_evs, ends_evs, _, bgap_evs, egap_evs] = find_event_gaps(evs)
+    [begs_evs, ends_evs, bgap_evs, egap_evs] = find_event_gaps(evs)
 
     # set traces_evs, ie a trace that contains mostly
     # the active parts of the input trace #

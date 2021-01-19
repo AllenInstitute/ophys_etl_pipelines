@@ -180,98 +180,45 @@ def find_event_gaps(evs):
         bgap_evs: number of frames before the first event
         egap_evs: number of frames after the last event
     """
-    d = np.diff(evs.astype(int), axis=1)
-    begs = np.array(np.nonzero(d == 1))
-    ends = np.array(np.nonzero(d == -1))
-    gap_evs_all = []
-    gap_evs = []
-    begs_evs = []
-    ends_evs = []
-    bgap_evs = []
-    egap_evs = []
-    for iu in range(evs.shape[0]):
-        # make sure there are events in the trace of unit iu
-        if sum(evs[iu]) > 0:
-            # indeces belong to "d" (the difference trace)
-            begs_this_n = begs[1, begs[0] == iu]
-            ends_this_n = ends[1, ends[0] == iu]
+    n_time = evs.shape[1]
+    event_beginnings = []
+    event_endings = []
+    first_gap = []
+    final_gap = []
+    for i_neuron in range(evs.shape[0]):
+        beginnings = np.where(np.logical_and(evs[i_neuron, 1:],
+                              np.logical_not(evs[i_neuron, :-1])))[0]
 
-            # gap between event onsets will be
-            # begs(next event) - ends(current event)
-            if not evs[iu, 0] and not evs[iu, -1]:  # normal case
-                b = begs_this_n[1:]
-                e = ends_this_n[:-1]
-                # after how many frames the first event happened
-                bgap = [begs_this_n[0] + 1]
-                # how many frames with no event exist after the last event
-                egap = [evs.shape[1] - ends_this_n[-1] - 1]
+        if not evs[i_neuron, 0]:
+            beginnings = beginnings[1:]
 
-            # first event was already going when the recording started.
-            elif evs[iu, 0] and not evs[iu, -1]:
-                # len(begs_this_n)+1 == len(ends_this_n):
-                b = begs_this_n
-                e = ends_this_n[:-1]
+        endings = np.where(np.logical_and(evs[i_neuron, :-1],
+                           np.logical_not(evs[i_neuron, 1:])))[0]
 
-                bgap = []
-                egap = [evs.shape[1] - ends_this_n[-1] - 1]
+        if not evs[i_neuron, -1]:
+            endings = endings[:-1]
 
-            # last event was still going on when the recording ended.
-            elif not evs[iu, 0] and evs[iu, -1]:
-                # len(begs_this_n) == len(ends_this_n)+1:
-                b = begs_this_n[1:]
-                e = ends_this_n
+        active = np.where(evs[i_neuron, :])[0]
+        n_active = len(active)
+        if not evs[i_neuron, 0] and n_active > 0:
+            _first_gap = [active.min()]
+        else:
+            _first_gap = []
 
-                bgap = [begs_this_n[0] + 1]
-                egap = []
+        if not evs[i_neuron, -1] and n_active > 0:
+            _final_gap = [n_time-1-active.max()]
+        else:
+            _final_gap = []
 
-            # first event and last event were happening when the
-            # recording started and ended.
-            elif evs[iu, 0] and evs[iu, -1]:
-                b = begs_this_n
-                e = ends_this_n
+        event_beginnings.append(beginnings)
+        event_endings.append(endings)
+        first_gap.append(_first_gap)
+        final_gap.append(_final_gap)
 
-                bgap = []
-                egap = []
-
-            else:
-                sys.exit('doesnt make sense! plot d to debug')
-
-            gap_this_n = b - e
-            # includes all gaps, before the 1st event, between events,
-            # and after the last event.
-            gap_this = np.concatenate((bgap, gap_this_n, egap)).astype(int)
-
-        else:  # there are no events in this neuron; set everything to nan
-            gap_this = np.nan
-            gap_this_n = np.nan
-            b = np.nan
-            e = np.nan
-            bgap = np.nan
-            egap = np.nan
-
-        # includes the gap before the 1st event and
-        # the gap before the last event too.
-        gap_evs_all.append(gap_this)
-
-        # only includes gaps between events: b - e
-        gap_evs.append(gap_this_n)
-
-        begs_evs.append(b)
-        ends_evs.append(e)
-        bgap_evs.append(bgap)
-        egap_evs.append(egap)
-
-    # size: number of neurons;
-    # each element shows the gap between
-    # events for a given neuron
-    gap_evs_all = np.array(gap_evs_all, dtype=object)
-    gap_evs = np.array(gap_evs, dtype=object)
-    begs_evs = np.array(begs_evs, dtype=object)
-    ends_evs = np.array(ends_evs, dtype=object)
-    bgap_evs = np.array(bgap_evs, dtype=object)
-    egap_evs = np.array(egap_evs, dtype=object)
-
-    return begs_evs, ends_evs, bgap_evs, egap_evs
+    return (np.array(event_beginnings, dtype=object),
+            np.array(event_endings, dtype=object),
+            np.array(first_gap, dtype=object),
+            np.array(final_gap, dtype=object))
 
 
 def get_traces_evs(traces_y0, th_ag, len_ne):

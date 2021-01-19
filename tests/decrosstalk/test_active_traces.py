@@ -147,10 +147,10 @@ def test_find_event_gaps():
      last_gap) = at.find_event_gaps(trace_flags)
 
     # first neuron has no events; verify that all entries are NaNs
-    assert np.isnan(pre_onset[0])
-    assert np.isnan(last_event[0])
-    assert np.isnan(first_gap[0])
-    assert np.isnan(last_gap[0])
+    np_equal(pre_onset[0], np.array([]))
+    np_equal(last_event[0], np.array([]))
+    assert first_gap[0] == []
+    assert last_gap[0] == []
 
     np_equal(pre_onset[1], np.array([33, 65]))
     np_equal(last_event[1], np.array([11, 44]))

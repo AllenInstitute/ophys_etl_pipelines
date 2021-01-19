@@ -1,6 +1,5 @@
 from pathlib import Path
 import pytest
-from tifffile import TiffFile
 
 import numpy as np
 
@@ -21,30 +20,36 @@ def example_tiff():
 
     return t
 
+
 def test_plane_stride(example_tiff):
     assert 2 == example_tiff.plane_stride
+
 
 def test_plane_scans(example_tiff):
     correct_value = np.array([-190,    0, -110,    0])
     np.testing.assert_array_equal(
         example_tiff.plane_scans, correct_value)
 
+
 def test_plane_views(example_tiff):
     assert 2 == len(example_tiff.plane_views)
+
 
 def test_fast_zs(example_tiff):
     correct_value = np.array([[-190, 0], [-110, 0]])
     np.testing.assert_array_equal(
         example_tiff.fast_zs, correct_value)
 
+
 def test_volume_scans(example_tiff):
     correct_value = np.array([[-190, -110], [0, 0]])
     np.testing.assert_array_equal(
         example_tiff.volume_scans, correct_value)
 
+
 def test_volume_stride(example_tiff):
     assert 0 == example_tiff.volume_stride
 
+
 def test_volume_views(example_tiff):
     assert 0 == len(example_tiff.volume_views)
-

@@ -86,12 +86,12 @@ def test_fix_source_assignment():
 
     data_0 = np.array([signal_1, signal_2])
     data_1 = np.array([signal_1, signal_2])
-    new_data, corr, flag = ica_utils.fix_source_assignment(data_0, data_1)
+    new_data, flag = ica_utils.fix_source_assignment(data_0, data_1)
     assert not flag
     np.testing.assert_array_equal(new_data, data_0)
 
     data_2 = np.array([signal_2, signal_1])
-    new_data, corr, flag = ica_utils.fix_source_assignment(data_0, data_2)
+    new_data, flag = ica_utils.fix_source_assignment(data_0, data_2)
     assert flag
     np.testing.assert_array_equal(new_data, data_0)
     assert not np.array_equal(new_data, data_2)
@@ -102,12 +102,12 @@ def test_fix_source_assignment():
     assert not np.array_equal(signal_4, signal_2)
 
     data_3 = np.array([signal_3, signal_4])
-    new_data, corr, flag = ica_utils.fix_source_assignment(data_0, data_3)
+    new_data, flag = ica_utils.fix_source_assignment(data_0, data_3)
     assert not flag
     np.testing.assert_array_equal(data_3, new_data)
 
     data_4 = np.array([signal_4, signal_3])
-    new_data, corr, flag = ica_utils.fix_source_assignment(data_0, data_4)
+    new_data, flag = ica_utils.fix_source_assignment(data_0, data_4)
     assert flag
     np.testing.assert_array_equal(data_3, new_data)
 

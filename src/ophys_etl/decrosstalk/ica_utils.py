@@ -77,7 +77,7 @@ def fix_source_assignment(ica_input, ica_output):
         a[1, :] = b
         ica_out_swapped = copy.deepcopy(a)
         ica_output_corrected = copy.deepcopy(ica_out_swapped)
-    return ica_output_corrected, corrs, swapped_flag
+    return ica_output_corrected, swapped_flag
 
 
 def run_ica(ica_input, iters, seed, verbose=False):
@@ -145,7 +145,6 @@ def run_ica(ica_input, iters, seed, verbose=False):
 
     # fixing source assignment ambiguity
     (ica_output,
-     corrs,
      swapped) = fix_source_assignment(ica_input, Sos)
 
     if swapped:

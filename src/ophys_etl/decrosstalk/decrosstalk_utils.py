@@ -39,17 +39,18 @@ def validate_traces(trace_dict):
         trace_dict['roi'][roi_id]['signal'] = np.array of trace of signal
                                               values for ROI
 
-    trace_dict['roi'][roi_id]['crosstalk'] = np.array of trace of crosstalk
-                                             values for ROI
+        trace_dict['roi'][roi_id]['crosstalk'] = np.array of trace of
+                                                 crosstalk values for ROI
 
-    trace_dict['neuropil'][roi_id]['signal'] = np.array of trace of signal
-                                               values defined in the neuropil
-                                               around ROI
+        trace_dict['neuropil'][roi_id]['signal'] = np.array of trace of
+                                                   signal values defined
+                                                   in the neuropil
+                                                   around ROI
 
-    trace_dict['neuropil'][roi_id]['crosstalk'] = np.array of trace of
-                                                  crosstalk values defined in
-                                                  the neuropil around ROI
-
+        trace_dict['neuropil'][roi_id]['crosstalk'] = np.array of trace of
+                                                      crosstalk values
+                                                      defined in the
+                                                      neuropil around ROI
 
     Returns
     -------
@@ -100,9 +101,12 @@ def find_independent_events(signal_events, crosstalk_events, window=2):
         signal_events: a dict
             signal_events['trace'] is an array of the trace flux
                                    values of the signal channel
+
             signal_events['events'] is an array of the timestamp
                                     indices of the signal channel
+
         crosstalk_events: a dict (same structure as signal_events)
+
         window (int): the amount of blurring to use (default=2)
 
     Returns:
@@ -133,6 +137,7 @@ def validate_cell_crosstalk(signal_events, crosstalk_events, window=2):
         signal_events: a dict
             signal_events['trace'] is an array of the trace
                                    flux values of the signal channel
+
             signal_events['events'] is an array of the timestamp
                                     indices of the signal channel
 

@@ -482,7 +482,12 @@ def calculate_traces(stack, mask_list, block_size=1000):
 
 
 def calculate_roi_and_neuropil_traces(movie_h5, roi_mask_list, motion_border):
-    """ get roi and neuropil masks """
+    """
+    get roi and neuropil masks
+
+    Note: movie_h5 can be a path to an HDF5 file or a numpy array
+    containing the stacked movie data
+    """
 
     # a combined binary mask for all ROIs (this is used to
     # subtracted ROIs from annuli)

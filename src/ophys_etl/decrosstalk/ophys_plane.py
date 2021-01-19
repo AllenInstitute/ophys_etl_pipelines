@@ -298,6 +298,38 @@ class OphysPlane(object):
                    roi_list=roi_list)
 
     def run_decrosstalk(self, other_plane, cache_dir=None, clobber=False):
+        """
+        Actually run the decrosstalking pipeline against another OphysPlane
+
+        Parameters
+        ----------
+        other_plane -- the OphysPlane characterizing the crosstalk for this
+        plane
+
+        cache_dir -- the directory in which to write the QC output
+        (if None, the output does not get written)
+
+        clobber -- a boolean indicating whether or not to overwrite
+        pre-existing output files (default: False)
+
+        Returns
+        -------
+        A dict listing the ROI IDs of ROIs that were ruled invalid
+        for different reasons, namely:
+            'decrosstalk_ghost_roi_ids' -- ROIs that are ghosts
+
+            'decrosstalk_raw_exlucion_lable' -- ROIs with invalid
+                                                raw traces
+
+            'decrosstalk_unmixed_exclusion_label' -- ROIs with invalid
+                                                     unmixed traces
+        """
+
+        # kwargs for output classes that write QC output
+        output_kwargs = {'cache_dir': cache_dir,
+                         'signal_plane': self,
+                         'crosstalk_plane': other_plane,
+                         'clobber': clobber}
 
         final_output = {}
 
@@ -309,12 +341,10 @@ class OphysPlane(object):
         final_output[raw_key] = []
         final_output[unmixed_key] = []
 
-        raw_traces = self.get_raw_traces(other_plane)
+        ###############################
+        # extract raw traces
 
-        output_kwargs = {'cache_dir': cache_dir,
-                         'signal_plane': self,
-                         'crosstalk_plane': other_plane,
-                         'clobber': clobber}
+        raw_traces = self.get_raw_traces(other_plane)
 
         if cache_dir is not None:
             if self.new_style_output:
@@ -337,7 +367,7 @@ class OphysPlane(object):
             del writer
             del writer_class
 
-        # cull invalid traces
+        # remove invalid raw traces
         invalid_raw_trace = []
         for roi_id in raw_trace_validation:
             if not raw_trace_validation[roi_id]:
@@ -354,6 +384,9 @@ class OphysPlane(object):
             logger.error(msg)
             return final_output
 
+        #########################################
+        # detect activity in raw traces
+
         raw_trace_events = self.get_trace_events(raw_traces['roi'])
         if cache_dir is not None:
             if self.new_style_output:
@@ -369,6 +402,10 @@ class OphysPlane(object):
                                                             raw_trace_events)
 
         del raw_trace_events
+
+        ###########################################################
+        # use Independent Component Analysis to separate out signal
+        # and crosstalk
 
         ica_converged, unmixed_traces = self.unmix_all_ROIs(raw_traces)
         if cache_dir is not None:
@@ -401,7 +438,7 @@ class OphysPlane(object):
             del writer
             del writer_class
 
-        # cull invalid traces
+        # remove invalid unmixed traces
         invalid_unmixed_trace = []
         for roi_id in unmixed_trace_validation:
             if not unmixed_trace_validation[roi_id]:
@@ -417,6 +454,9 @@ class OphysPlane(object):
                                 other_plane.experiment_id)
             logger.error(msg)
             return final_output
+
+        ###################################################
+        # Detect activity in unmixed traces
 
         unmixed_trace_events = self.get_trace_events(unmixed_traces['roi'])
 
@@ -471,6 +511,11 @@ class OphysPlane(object):
 
         unmixed_ct_ratio = self.get_crosstalk_data(unmixed_traces['roi'],
                                                    unmixed_trace_events)
+
+        ########################################################
+        # For each ROI, assess whether or not it is a "ghost"
+        # (i.e. whether any of its activity is due to the signal,
+        # independent of the crosstalk; if not, it is a ghost)
 
         independent_events = {}
         ghost_roi_id = []
@@ -563,13 +608,37 @@ class OphysPlane(object):
         return output
 
     def unmix_ROI(self, roi_traces, seed=None, iters=10):
-        # roi_traces is a dict that such that
-        # roi_traces['signal'] is a numpy array
-        #                      containing the signal trace
-        # roi_traces['crosstalk'] is a numpy array
-        #                         containing the crosstalk trace
-        #
-        # (basically: this is get_raw_traces.output['roi'][5678])
+        """
+        Unmix the signal and crosstalk traces for a single ROI
+
+        Parameters
+        ----------
+        roi_traces is a dict that such that
+            roi_traces['signal'] is a numpy array
+                                 containing the signal trace
+            roi_traces['crosstalk'] is a numpy array
+                                    containing the crosstalk trace
+
+        seed is an int used to seed the random number generator
+        that sklearn.decompositions.FastICA uses
+
+        iters is an int indicating the number of iterations of
+        FastICA to run before giving up on convegence.
+
+        Returns
+        -------
+        A dict such that
+            output['mixing_matrix'] -- the mixing matrix that transforms
+                                       the unmixed signals back into the data
+            output['signal'] -- is the unmixed signal
+            output['crosstalk'] -- is the unmixed crosstalk
+            output['use_avg_mixing_matrix'] -- a boolean; if True, ICA
+                                               did not actually converge;
+                                               we must discard these results
+                                               and unmix the signal and
+                                               crosstalk using the average
+                                               mixing matrix for the plane
+        """
 
         ica_input = np.array([roi_traces['signal'], roi_traces['crosstalk']])
         assert ica_input.shape == (2, len(roi_traces['signal']))
@@ -591,6 +660,45 @@ class OphysPlane(object):
         return output
 
     def unmix_all_ROIs(self, raw_roi_traces):
+        """
+        Unmix all of the ROIs in this OphysPlane.
+
+        Parameters
+        ----------
+        raw_roi_traces is a dict
+            raw_roi_traces['roi'][roi_id]['signal'] is the raw signal
+                                                    for the ROI
+
+            raw_roi_traces['roi'][roi_id]['crosstalk'] is the raw crosstalk
+                                                       for the ROI
+
+            raw_roi_traces['neuropil'][roi_id]['signal'] is the raw signal
+                                                   for the neuropil around
+                                                   the ROI
+
+            raw_roi_traces['neuropil'][roi_id]['crosstalk'] is the raw
+                                                   crosstalk for the
+                                                   neuropil around the ROI
+
+        Returns
+        -------
+        A dict such that
+
+            output['roi'][roi_id]['mixing_matrix'] -- the ROI's mixing matrix
+            output['roi'][roi_id]['signal'] -- the ROI's unmixed signal
+            output['roi'][roi_id]['crosstalk'] -- the ROI's unmixed crosstalk
+            output['roi'][roi_id]['use_avg_mixing_matrix'] -- a boolean
+
+                    If True, the ROI was demixed using the average mixing
+                    matrix for the OphysPlane. In that case, the unconverged
+                    mixing_matrix, signal, and crosstalk will be stored in
+                    'poorly_converged_mixing_matrix', 'poorly_converged_signal'
+                    and 'poorly_converged_crosstalk'
+
+            output['neuropil'][roi_id]['signal'] -- neuropil's unmixed signal
+            output['neuropil'][roi_id]['crosstalk'] -- neuropil's unmixed
+                                                       crosstalk
+        """
 
         output = {}
         output['roi'] = {}

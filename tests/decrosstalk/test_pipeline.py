@@ -10,6 +10,19 @@ from .utils import get_data_dir
 
 
 def setup_function(function):
+    """
+    Setup for test_full_pipeline.
+
+    Writes movie files to
+    tests/decrosstalk/tmp/pipeline_test_input
+
+    Adds members to test_full_pipeline:
+       _input_dir -- absolute path to input directory
+       _session -- dict representing input for decrosstalking pipeline
+
+    Also populates test_full_pipeline._temp_files with names
+    of temporary files created for input
+    """
 
     data_dir = get_data_dir()
 
@@ -126,6 +139,13 @@ def setup_function(function):
 
 
 def test_full_pipeline():
+    """
+    Test that OphysPlane.run_decrosstalk() can run
+    as expected in production.
+
+    Only verifies that expected outputs are created.
+    Does not validate contents of those files.
+    """
 
     session = test_full_pipeline._session
 

@@ -5,20 +5,28 @@ import numpy as np
 
 
 def _write_data_to_h5(file_handle, data_dict):
-    # utility to write nested dicts to h5py files
-    # (this may already exist in allensdk; haven't checked)
+    """
+    Utility to write nested dicts to h5py files
 
-    # this will create an hdf5 file in which nested dicts
-    # appear as nested directories, i.e.
-    #
-    # data['a'] = True
-    # data['b'] = {'c': False, 'd':np.array([1,2,3,4])}
-    #
-    # would result in and hdf5 file with
-    #
-    # data['a'] = True
-    # data['b/c'] = False
-    # data['b/d'] = np.array([1,2,3,4])
+    This will result in an hdf5 file in which nested dicts
+    appear as nested directories, i.e.
+
+    data['a'] = True
+    data['b'] = {'c': False, 'd':np.array([1,2,3,4])}
+
+    would result in and hdf5 file with
+
+    data['a'] = True
+    data['b/c'] = False
+    data['b/d'] = np.array([1,2,3,4])
+
+    Parameters
+    ----------
+    file_handle -- a file handle pointing to the file in
+    which we are writing
+
+    data_dict -- the dict of data to be written
+    """
 
     key_list = list(data_dict.keys())
     for key in key_list:
@@ -71,10 +79,41 @@ def write_to_h5(file_name, data_dict, clobber=False):
 
 
 def write_basic_json(out_fname, data, clobber=False):
+    """
+    Write data to a json file
+
+    Parameters
+    ----------
+    out_fname -- name of the file to write
+
+    data -- data to be written
+
+    clobber -- boolean; if True, overwrite preexisting
+    out_fname; otherwise, raise an exception if out_fname
+    already exists (default=False)
+    """
     if not clobber and os.path.exists(out_fname):
         raise RuntimeError("\n%s\nalready exists" % out_fname)
     with open(out_fname, 'w') as out_file:
         out_file.write(json.dumps(data, indent=2, sort_keys=True))
+
+
+# The classes below are implemented to allow us to quickly
+# switch between different output data models (the "old style"
+# around which the prototype was written and the "new style"
+# which will hopefully be easier to work with in the future).
+#
+# Each class writes a different output file. They all accept
+# the same arguments in their constructors.
+#
+# cache_dir -- the parent output dir for the ophys_experimental_session
+# signal_plane -- the OphysPlane of the "signal"
+# crosstalk_plane -- the OphysPlane of the "crosstalk"
+# clobber -- a boolean indicating whether or not to overwrite existing files
+# data -- whatever data needs to be written in the output file.
+#
+# Each class implements its own run() method which actually writes
+# the file(s) for which it is responsible.
 
 
 class OutputWriter(object):

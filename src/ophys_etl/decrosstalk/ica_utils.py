@@ -12,9 +12,25 @@ __all__ = ["whiten_data",
 def pearson_ica_in_to_out(signal_in, signal_out):
     """
     Function to compute correlations between two vectors (traces in our case)
-    :param signal_in:
-    :param signal_out:
-    :return:
+
+    Parameters:
+    -----------
+
+    signal_in -- a 2xN numpy array representing the input signals.
+    N is the number of timesteps. signal_in[0,:] is the input
+    'signal'; signal_in[1,:] is the input 'crosstalk'
+
+    signal_out -- a 2xN numpy array representing the output signals.
+    N is the number of timesteps. signal_in[0,:] is the output
+    'signal'; signal_in[1,:] is the output 'crosstalk'
+
+    Returns
+    -------
+    A list of Pearson's R correlation coefficents;
+        [Corr(signal_in[0,:], signal_out[0,:]),
+         Corr(signal_in[1,:], signal_out[0,:]),
+         Corr(signal_in[0,:], signal_out[1,:]),
+         Corr(signal_in[1,:], signal_out[1,:])]
     """
 
     if signal_in.shape != signal_out.shape:
@@ -37,11 +53,16 @@ def pearson_ica_in_to_out(signal_in, signal_out):
 
 def whiten_data(x):
     """
-    Function to debias (subtract mean) and whiten the data
-    :param x:  -- shaped NxM
+    Function to debias (subtract mean) and whiten* the data
+
+    :param x:  -- shaped NxM where N is the number of timesteps
+                  per signal and M is the number of signals
+
     :return:
         whitened_data  -- shaped NxM
+
         whitening matrix -- shaped MxM
+
         the mean of the columns of data -- shaped M
 
     whitened data is such that np.corrcoef(whitened_data.transpose())
@@ -60,10 +81,27 @@ def whiten_data(x):
 
 def fix_source_assignment(ica_input, ica_output):
     """
-    Function to fix source assignment ambiguity of ICA
-    :param ica_input:
-    :param ica_output:
-    :return:
+    Function to rearrange the rows of ica_output so that
+    the first row is the one that most strongly resembles
+    the the first row of ica_input
+
+    Parameters
+    ----------
+    ica_input -- an NxM numpy array where N is the number of
+    channels (2; one for "signal", one for "crosstalk") and
+    M is the number of timesteps. This was the input to the
+    ICA decomposition.
+
+    ica_output -- an NxM numpy array. This was the output of
+    the initial ICA decomposition
+
+    Returns
+    -------
+    An NxM numpy array created by rearranging (if necessary)
+    the rows of ica_output.
+
+    A boolean that is true if the rows of ica_output had to
+    be swapped.
     """
     corrs = pearson_ica_in_to_out(ica_input, ica_output)
     swapped_flag = False

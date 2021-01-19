@@ -282,16 +282,6 @@ def get_traces_evs(traces_y0, th_ag, len_ne):
     Function to get an "active trace" i.e. a trace made by extracting
     and concatenating the active parts of the input trace
 
-    example use:
-        len_ne = 20
-        th_ag = 10
-        [traces_y0_evs, inds_final_all] = get_traces_evs(traces_y0,
-                                                         th_ag,
-                                                         len_ne)
-
-        or, if need to re-apply to a different input vector:
-        traces_active[neuron_y] = traces[neuron_y][inds_final_all[neuron_y]]
-
     Farzaneh Najafi
     March 2020
 

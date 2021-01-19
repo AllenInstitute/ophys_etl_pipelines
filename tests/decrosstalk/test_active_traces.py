@@ -149,48 +149,48 @@ def test_find_event_gaps():
     # first neuron has no events; verify that all entries are NaNs
     np_equal(pre_onset[0], np.array([]))
     np_equal(last_event[0], np.array([]))
-    assert first_gap[0] == []
-    assert last_gap[0] == []
+    assert first_gap[0] is None
+    assert last_gap[0] is None
 
     np_equal(pre_onset[1], np.array([33, 65]))
     np_equal(last_event[1], np.array([11, 44]))
-    assert first_gap[1] == [5]
-    assert last_gap[1] == [12]
+    assert first_gap[1] == 5
+    assert last_gap[1] == 12
 
     np_equal(pre_onset[2], np.array([29, 69]))
     np_equal(last_event[2], np.array([18, 30]))
-    assert first_gap[2] == [17]
-    assert last_gap[2] == [29]
+    assert first_gap[2] == 17
+    assert last_gap[2] == 29
 
     np_equal(pre_onset[3], np.array([]))
     np_equal(last_event[3], np.array([]))
-    assert first_gap[3] == []  # is this really what we want?
-    assert last_gap[3] == [99]
+    assert first_gap[3] is None  # is this really what we want?
+    assert last_gap[3] == 99
 
     np_equal(pre_onset[4], np.array([]))
     np_equal(last_event[4], np.array([]))
-    assert first_gap[4] == []
-    assert last_gap[4] == [97]
+    assert first_gap[4] is None
+    assert last_gap[4] == 97
 
     np_equal(pre_onset[5], np.array([]))
     np_equal(last_event[5], np.array([]))
-    assert first_gap[5] == [97]
-    assert last_gap[5] == []
+    assert first_gap[5] == 97
+    assert last_gap[5] is None
 
     np_equal(pre_onset[6], np.array([29, 69, 96]))
     np_equal(last_event[6], np.array([18, 30, 70]))
-    assert first_gap[6] == [17]
-    assert last_gap[6] == []
+    assert first_gap[6] == 17
+    assert last_gap[6] is None
 
     np_equal(pre_onset[7], np.array([16, 29, 69]))
     np_equal(last_event[7], np.array([1, 18, 30]))
-    assert first_gap[7] == []
-    assert last_gap[7] == [29]
+    assert first_gap[7] is None
+    assert last_gap[7] == 29
 
     np_equal(pre_onset[8], np.array([16, 29, 69, 95]))
     np_equal(last_event[8], np.array([1, 18, 30, 70]))
-    assert first_gap[8] == []
-    assert last_gap[8] == []
+    assert first_gap[8] is None
+    assert last_gap[8] is None
 
 
 def test_get_trace_events_worker_method():

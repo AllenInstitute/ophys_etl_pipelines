@@ -201,14 +201,14 @@ def find_event_gaps(evs):
         active = np.where(evs[i_neuron, :])[0]
         n_active = len(active)
         if not evs[i_neuron, 0] and n_active > 0:
-            _first_gap = [active.min()]
+            _first_gap = active.min()
         else:
-            _first_gap = []
+            _first_gap = None
 
         if not evs[i_neuron, -1] and n_active > 0:
-            _final_gap = [n_time-1-active.max()]
+            _final_gap = n_time-1-active.max()
         else:
-            _final_gap = []
+            _final_gap = None
 
         event_beginnings.append(beginnings)
         event_endings.append(endings)
@@ -314,9 +314,9 @@ def get_traces_evs(traces_y0, th_ag, len_ne):
 
             evs_inds = np.argwhere(evs[iu]).flatten()  # includes ALL events.
 
-            if len(bgap_evs[iu]) > 0:
+            if bgap_evs[iu] is not None:
                 # get len_ne frames before the 1st event
-                ind1 = np.arange(np.array(bgap_evs[iu]) - len_ne, bgap_evs[iu])
+                ind1 = np.arange(bgap_evs[iu] - len_ne, bgap_evs[iu])
                 # if the 1st event is immediately followed by more events,
                 # add those to ind1, because they dont appear in any of the
                 # other vars that we are concatenating below.
@@ -331,9 +331,9 @@ def get_traces_evs(traces_y0, th_ag, len_ne):
                 #            jj = ends_evs[iu][0]
                 ind1 = evs_inds[:jj + 1]
 
-            if len(egap_evs[iu]) > 0:
+            if egap_evs[iu] is not None:
                 # get len_ne frames after the last event
-                indl = np.arange(evs.shape[1] - np.array(egap_evs[iu]) - 1,
+                indl = np.arange(evs.shape[1] - egap_evs[iu] - 1,
                                  min(evs.shape[1], evs.shape[1] -
                                      np.array(egap_evs[iu]) + len_ne))
                 # if the last event is immediately preceded by

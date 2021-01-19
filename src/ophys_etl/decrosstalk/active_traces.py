@@ -221,37 +221,11 @@ def find_event_gaps(evs):
             np.array(final_gap, dtype=object))
 
 
-def get_traces_evs(traces_y0, th_ag, len_ne):
+def _trace_to_flag(traces_y0, th_ag):
     """
-    Function to get an "active trace" i.e. a trace made by extracting
-    and concatenating the active parts of the input trace
-
-    Farzaneh Najafi
-    March 2020
-
-    :param traces_y0: numpy.array of size NxM
-                      N : number of neurons (rois), M: number of timestamps
-
-    :param th_ag: scalar : threshold to find events on the trace;
-                           the higher the more strict on what we call an event.
-                           This threshold is applied to the negative of the
-                           {erfc} array returned by evaluate_components with
-                           {event_kernel}=5 (so, it is a threshold applied on
-                           a sum of log probabilities)
-
-    :param len_ne: scalar; number of frames before and after each event that
-                           are taken to create traces_events
-
-    :return:
-        a dict with keys
-        'trace': ndarray, size N (number of neurons);
-                          each neuron has size n, which is the size of the
-                          "active trace" for that neuron. For each neuron,
-                          this array contains the trace values at the active
-                          events in that trace.
-
-        'events': ndarray, size number_of_neurons;
-                  indices to apply on traces_y0 to get traces_y0_evs:
+    Take traces_y0 (np.array of trace values for each neuron) and th_ag;
+    return array of boolean flags indicating which timesteps are a part
+    of events and which are not
     """
 
     #  Andrea Giovannucci's method of identifying "exceptional" events
@@ -262,6 +236,16 @@ def get_traces_evs(traces_y0, th_ag, len_ne):
 
     # applying threshold
     evs = (erfc >= th_ag)  # neurons x frames
+
+    return evs
+
+
+def _flag_to_events(traces_y0, evs, len_ne):
+    """
+    take traces_y0, evs (produced by _trace_to_flag) and
+    len_ne; return ragged array of traces and timestamps
+    indicating where events are.
+    """
 
     # find gaps between events for each neuron
     [begs_evs, ends_evs, bgap_evs, egap_evs] = find_event_gaps(evs)
@@ -389,8 +373,47 @@ def get_traces_evs(traces_y0, th_ag, len_ne):
     inds_final_all = np.array(inds_final_all, dtype=object)
     traces_y0_evs = np.array(traces_y0_evs, dtype=object)  # neurons
 
-    return {'trace': traces_y0_evs,
-            'events': inds_final_all}
+    return traces_y0_evs, inds_final_all
+
+
+def get_traces_evs(traces_y0, th_ag, len_ne):
+    """
+    Function to get an "active trace" i.e. a trace made by extracting
+    and concatenating the active parts of the input trace
+
+    Farzaneh Najafi
+    March 2020
+
+    :param traces_y0: numpy.array of size NxM
+                      N : number of neurons (rois), M: number of timestamps
+
+    :param th_ag: scalar : threshold to find events on the trace;
+                           the higher the more strict on what we call an event.
+                           This threshold is applied to the negative of the
+                           {erfc} array returned by evaluate_components with
+                           {event_kernel}=5 (so, it is a threshold applied on
+                           a sum of log probabilities)
+
+    :param len_ne: scalar; number of frames before and after each event that
+                           are taken to create traces_events
+
+    :return:
+        a dict with keys
+        'trace': ndarray, size N (number of neurons);
+                          each neuron has size n, which is the size of the
+                          "active trace" for that neuron. For each neuron,
+                          this array contains the trace values at the active
+                          events in that trace.
+
+        'events': ndarray, size number_of_neurons;
+                  indices to apply on traces_y0 to get traces_y0_evs:
+    """
+
+    evs = _trace_to_flag(traces_y0, th_ag)
+    traces, inds = _flag_to_events(traces_y0, evs, len_ne)
+
+    return {'trace': traces,
+            'events': inds}
 
 
 def get_trace_events(traces, threshold_parameters):

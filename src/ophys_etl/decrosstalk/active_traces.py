@@ -1,11 +1,9 @@
 import numpy as np
 import scipy.stats
-import sys
 
 __all__ = ['get_trace_events',
            'evaluate_components',
-           'mode_robust',
-           'find_event_gaps']
+           'mode_robust']
 
 
 def mode_robust(input_data, axis=None, d_type=None):
@@ -247,133 +245,56 @@ def _flag_to_events(traces_y0, evs, len_ne):
     indicating where events are.
     """
 
-    # find gaps between events for each neuron
-    [begs_evs, ends_evs, bgap_evs, egap_evs] = find_event_gaps(evs)
+    n_neurons = traces_y0.shape[0]
+    n_time = traces_y0.shape[1]
 
-    # set traces_evs, ie a trace that contains mostly
-    # the active parts of the input trace #
-    traces_y0_evs = []
-    inds_final_all = []
+    # initialize arrays of indices for finding
+    # the len_ne pixels to either side of events
+    # in trace
+    index_minus = {}
+    index_plus = {}
+    for dx in range(1, len_ne+1, 1):
+        _plus = np.arange(n_time-dx, dtype=int)
+        _minus = np.arange(dx, n_time, dtype=int)
+        assert _minus.shape == _plus.shape
+        index_minus[dx] = _minus
+        index_plus[dx] = _plus
 
-    for iu in range(traces_y0.shape[0]):
+    # adjust evs so that the timesteps
+    # that are len_ne to either side of "natural"
+    # events are also marked as events
+    new_evs = np.copy(evs)
+    for i_neuron in range(n_neurons):
+        active_mask = new_evs[i_neuron, :]
 
-        if sum(evs[iu]) > 0:
+        # get len_ne to either side of every event
+        extra_indices = []
+        for dx in range(1, len_ne+1, 1):
+            _minus = index_minus[dx]
+            _plus = index_plus[dx]
+            valid_minus = np.where(active_mask[_minus])[0]
+            valid_minus = _minus[valid_minus] - dx
 
-            enow = ends_evs[iu]
-            bnow = begs_evs[iu]
-            e_aft = []
-            b_bef = []
-            for ig in range(len(bnow)):
-                e_aft.append(np.arange(enow[ig],
-                                       min(evs.shape[1], enow[ig] + len_ne)))
-                b_bef.append(np.arange(bnow[ig] + 1 - len_ne,
-                                       min(evs.shape[1], bnow[ig] + 2)))
+            valid_plus = np.where(active_mask[_plus])[0]
+            valid_plus = _plus[valid_plus]+dx
 
-            e_aft = np.array(e_aft, dtype=object)
-            b_bef = np.array(b_bef, dtype=object)
+            extra_indices.append(valid_plus)
+            extra_indices.append(valid_minus)
+        extra_indices = np.unique(np.concatenate(extra_indices))
+        new_evs[i_neuron, extra_indices] = True
 
-            if len(e_aft) > 1:
-                e_aft_u = np.hstack(e_aft)
-            else:
-                e_aft_u = []
+    traces_out = []
+    events_out = []
 
-            if len(b_bef) > 1:
-                b_bef_u = np.hstack(b_bef)
-            else:
-                b_bef_u = []
+    for i_neuron in range(n_neurons):
+        _traces = traces_y0[i_neuron, new_evs[i_neuron, :]]
+        _events = np.where(new_evs[i_neuron, :])[0]
 
-            # below sets frames that cover the duration of all events,
-            # but excludes the first and last event
-            ev_dur = []
-            for ig in range(len(bnow) - 1):
-                ev_dur.append(np.arange(bnow[ig], enow[ig + 1]))
+        traces_out.append(_traces)
+        events_out.append(_events)
 
-            ev_dur = np.array(ev_dur, dtype=object)
-
-            if len(ev_dur) > 1:
-                ev_dur_u = np.hstack(ev_dur)
-            else:
-                ev_dur_u = []
-            # ev_dur_u.shape
-
-            evs_inds = np.argwhere(evs[iu]).flatten()  # includes ALL events.
-
-            if bgap_evs[iu] is not None:
-                # get len_ne frames before the 1st event
-                ind1 = np.arange(bgap_evs[iu] - len_ne, bgap_evs[iu])
-                # if the 1st event is immediately followed by more events,
-                # add those to ind1, because they dont appear in any of the
-                # other vars that we are concatenating below.
-                if len(ends_evs[iu]) > 1:
-                    ii = np.argwhere(
-                        np.in1d(evs_inds, ends_evs[iu][0])).squeeze()
-                    ind1 = np.concatenate((ind1, evs_inds[:ii]))
-            else:
-                # first event was already going when the
-                # recording started; add these events to ind1
-                jj = np.argwhere(np.in1d(evs_inds, ends_evs[iu][0])).squeeze()
-                #            jj = ends_evs[iu][0]
-                ind1 = evs_inds[:jj + 1]
-
-            if egap_evs[iu] is not None:
-                # get len_ne frames after the last event
-                indl = np.arange(evs.shape[1] - egap_evs[iu] - 1,
-                                 min(evs.shape[1], evs.shape[1] -
-                                     np.array(egap_evs[iu]) + len_ne))
-                # if the last event is immediately preceded by
-                # more events, add those to indl,
-                # because they dont appear in any
-                # of the other vars that we are concatenating
-                # below.
-                if len(begs_evs[iu]) > 1:
-                    # find the fist event of the last event bout
-                    ii = np.argwhere(
-                        np.in1d(evs_inds, 1 + begs_evs[iu][-1])).squeeze()
-                    indl = np.concatenate((evs_inds[ii:], indl))
-            else:
-                # last event was already going when the recording ended;
-                # add these events to ind1
-                jj = np.argwhere(
-                    np.in1d(evs_inds, begs_evs[iu][-1] + 1)).squeeze()
-                indl = evs_inds[jj:]
-
-            inds_final = np.unique(np.concatenate(
-                (e_aft_u, b_bef_u, ev_dur_u, ind1, indl))).astype(int)
-
-            # all evs_inds must exist in inds_final,
-            # otherwise something is wrong!
-            if not np.in1d(evs_inds, inds_final).all():
-                # there was only one event bout in the trace
-                if not np.array([len(e_aft) > 1,
-                                 len(b_bef) > 1,
-                                 len(ev_dur) > 1]).all():
-                    inds_final = np.unique(np.concatenate(
-                        (inds_final, evs_inds))).astype(int)
-                else:
-                    print(np.in1d(evs_inds, inds_final))
-                    msg = 'error in neuron %d! ' % iu
-                    msg += 'some of the events dont exist in inds_final! '
-                    msg += 'all events must exist in inds_final!'
-                    sys.exit(msg)
-
-            # to avoid the negative values that can happen due to
-            # taking 20 frames before an even
-            inds_final = inds_final[inds_final >= 0]
-            traces_y0_evs_now = traces_y0[iu][inds_final]
-
-        else:
-            # there are no events in the neuron;
-            # assign a nan vector of length 10 to the following vars
-            inds_final = np.full((10,), np.nan)
-            traces_y0_evs_now = np.full((10,), np.nan)
-
-        inds_final_all.append(inds_final)
-        traces_y0_evs.append(traces_y0_evs_now)  # neurons
-
-    inds_final_all = np.array(inds_final_all, dtype=object)
-    traces_y0_evs = np.array(traces_y0_evs, dtype=object)  # neurons
-
-    return traces_y0_evs, inds_final_all
+    return (np.array(traces_out, dtype=object),
+            np.array(events_out, dtype=object))
 
 
 def get_traces_evs(traces_y0, th_ag, len_ne):

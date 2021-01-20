@@ -193,73 +193,106 @@ def test_find_event_gaps():
     assert last_gap[8] is None
 
 
-def test_get_trace_events_worker_method():
-    """
-    Test output of _get_trace_events against
-    outputs generated with the prototype
-    """
-    data_dir = get_data_dir()
-    data_filename = os.path.join(data_dir, 'evaluate_components_data.h5')
-    with h5py.File(data_filename, mode='r') as in_file:
-        input_trace = in_file['input_trace'][()]
-        for len_ne in (10, 20, 30):
-            for th_ag in (7, 14, 21):
-                suffix = 'len_ne_%.2d_th_ag_%.2d' % (len_ne, th_ag)
-                results = at.get_traces_evs(input_trace,
-                                            len_ne=len_ne,
-                                            th_ag=th_ag)
+def test_flag_to_events():
 
-                n_results = len(results['trace'])
-                assert n_results == in_file['n_trace_%s' % suffix][()]
-                assert n_results == len(results['events'])
-                for i_ev in range(len(results['trace'])):
+    rng = np.random.RandomState(77123)
 
-                    trace_control = in_file['trace_events_%s_%d' %
-                                            (suffix, i_ev)][()]
+    n_t = 30
+    input_events = []
+    input_traces = []
+    output_events = []
 
-                    ind_control = in_file['event_indices_%s_%d' %
-                                          (suffix, i_ev)][()]
+    len_ne = 2
 
-                    np_almost_equal(trace_control,
-                                    results['trace'][i_ev],
-                                    decimal=10)
+    ff = np.zeros(n_t, dtype=bool)
+    ff[:10] = True
+    tt = rng.random_sample(n_t)
+    input_events.append(ff)
+    input_traces.append(tt)
+    output_events.append(np.arange(12, dtype=int))
 
-                    np_almost_equal(ind_control,
-                                    results['events'][i_ev],
-                                    decimal=10)
+    ff = np.zeros(n_t, dtype=bool)
+    ff[:10] = True
+    ff[18:22] = True
+    tt = rng.random_sample(n_t)
+    input_events.append(ff)
+    input_traces.append(tt)
+    output_events.append(np.concatenate([np.arange(12, dtype=int),
+                                         np.arange(16, 24, dtype=int)]))
 
+    ff = np.zeros(n_t, dtype=bool)
+    ff[:10] = True
+    ff[18:22] = True
+    ff[27:] = True
+    tt = rng.random_sample(n_t)
+    input_events.append(ff)
+    input_traces.append(tt)
+    output_events.append(np.concatenate([np.arange(12, dtype=int),
+                                         np.arange(16, 24, dtype=int),
+                                         np.arange(25, n_t, dtype=int)]))
 
-def test_get_trace_events_wrapper_method():
-    """
-    Test output of get_trace_events against
-    outputs generated with the prototype
-    """
-    data_dir = get_data_dir()
-    data_filename = os.path.join(data_dir, 'evaluate_components_data.h5')
-    with h5py.File(data_filename, mode='r') as in_file:
-        input_trace = in_file['input_trace'][()]
-        for len_ne in (10, 20, 30):
-            for th_ag in (7, 14, 21):
-                suffix = 'len_ne_%.2d_th_ag_%.2d' % (len_ne, th_ag)
-                results = at.get_trace_events(input_trace,
-                                              {'len_ne': len_ne,
-                                               'th_ag': th_ag})
+    ff = np.zeros(n_t, dtype=bool)
+    ff[5:10] = True
+    ff[18:22] = True
+    ff[27:] = True
+    tt = rng.random_sample(n_t)
+    input_events.append(ff)
+    input_traces.append(tt)
+    output_events.append(np.concatenate([np.arange(3, 12, dtype=int),
+                                         np.arange(16, 24, dtype=int),
+                                         np.arange(25, n_t, dtype=int)]))
 
-                n_results = len(results['trace'])
-                assert n_results == in_file['n_trace_%s' % suffix][()]
-                assert n_results == len(results['events'])
-                for i_ev in range(len(results['trace'])):
+    ff = np.zeros(n_t, dtype=bool)
+    ff[5:10] = True
+    ff[18:21] = True
+    ff[26] = True
+    tt = rng.random_sample(n_t)
+    input_events.append(ff)
+    input_traces.append(tt)
+    output_events.append(np.concatenate([np.arange(3, 12, dtype=int),
+                                         np.arange(16, 23, dtype=int),
+                                         np.arange(24, 29, dtype=int)]))
 
-                    trace_control = in_file['trace_events_%s_%d' %
-                                            (suffix, i_ev)][()]
+    ff = np.zeros(n_t, dtype=bool)
+    ff[5:10] = True
+    ff[18:21] = True
+    ff[23:25] = True
+    tt = rng.random_sample(n_t)
+    input_events.append(ff)
+    input_traces.append(tt)
+    output_events.append(np.concatenate([np.arange(3, 12, dtype=int),
+                                         np.arange(16, 27, dtype=int)]))
 
-                    ind_control = in_file['event_indices_%s_%d' %
-                                          (suffix, i_ev)][()]
+    ff = np.zeros(n_t, dtype=bool)
+    ff[:10] = True
+    ff[12:15] = True
+    ff[23:25] = True
+    tt = rng.random_sample(n_t)
+    input_events.append(ff)
+    input_traces.append(tt)
+    output_events.append(np.concatenate([np.arange(17, dtype=int),
+                                         np.arange(21, 27, dtype=int)]))
 
-                    np_almost_equal(trace_control,
-                                    results['trace'][i_ev],
-                                    decimal=10)
+    ff = np.zeros(n_t, dtype=bool)
+    ff[5:10] = True
+    ff[18:21] = True
+    ff[23:] = True
+    tt = rng.random_sample(n_t)
+    input_events.append(ff)
+    input_traces.append(tt)
+    output_events.append(np.concatenate([np.arange(3, 12, dtype=int),
+                                         np.arange(16, n_t, dtype=int)]))
 
-                    np_almost_equal(ind_control,
-                                    results['events'][i_ev],
-                                    decimal=10)
+    input_traces = np.array(input_traces)
+    input_events = np.array(input_events)
+
+    (test_traces,
+     test_events) = at._flag_to_events(input_traces,
+                                       input_events,
+                                       len_ne=len_ne)
+
+    for ii in range(len(input_traces)):
+        np_equal(test_events[ii], output_events[ii])
+        np_almost_equal(test_traces[ii],
+                        input_traces[ii][output_events[ii]],
+                        decimal=10)

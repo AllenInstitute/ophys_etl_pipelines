@@ -38,7 +38,7 @@ def get_crosstalk_data(signal, crosstalk):
 def validate_traces(trace_dict):
     """
     Check a traces_dict for validity.
-    Validity is defined as neuropile and roi traces having the same shape.
+    Validity is defined as neuropil and roi traces having the same shape.
     No NaNs appearing in any trace.
 
     Parameters

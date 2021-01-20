@@ -172,6 +172,9 @@ def test_full_pipeline(tmpdir):
             fname = 'neuropil_0_1/%s_%s' % (prefix, suffix)
             expected_files.append(fname)
 
+    expected_files.append('0_1_invalid_flags.json')
+    expected_files.append('1_0_invalid_flags.json')
+
     output_dir = session['qc_output_dir']
     for fname in expected_files:
         full_name = os.path.join(output_dir, fname)

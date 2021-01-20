@@ -619,6 +619,10 @@ class OphysPlane(object):
             del writer
             del writer_class
 
+        writer = io_utils.InvalidFlagWriter(data=roi_flags,
+                                            **output_kwargs)
+        writer.run()
+
         return roi_flags, unmixed_traces
 
     def get_raw_traces(self, other_plane):

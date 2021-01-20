@@ -429,3 +429,12 @@ class ValidCTH5WriterOld(OldOutputWriter):
         for roi_id in self.data:
             local_data[roi_id] = self.data[roi_id]['is_a_cell']
         write_basic_json(out_fname, local_data, clobber=self.clobber)
+
+
+class InvalidFlagWriter(OutputWriter):
+    def run(self):
+        out_fname = os.path.join(self.cache_dir,
+                                 '%d_%d_invalid_flags.json' %
+                                 (self.signal_plane.experiment_id,
+                                  self.crosstalk_plane.experiment_id))
+        write_basic_json(out_fname, self.data, clobber=self.clobber)

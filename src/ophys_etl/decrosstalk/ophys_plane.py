@@ -704,7 +704,6 @@ class OphysPlane(object):
         """
 
         ica_input = np.array([roi_traces['signal'], roi_traces['crosstalk']])
-        assert ica_input.shape == (2, len(roi_traces['signal']))
 
         (unmixed_signals,
          mixing_matrix,

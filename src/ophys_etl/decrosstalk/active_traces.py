@@ -165,60 +165,6 @@ def evaluate_components(traces, event_kernel=5, robust_std=False):
     return idx_components, fitness, erfc
 
 
-def find_event_gaps(evs):
-    """
-    function to find gaps between events
-    :param evs: boolean; neurons x frames, indicates if there was an event.
-                         (it can be 1 for several continuous frames too)
-    :return:
-        begs_evs: index of event onsets, excluding the 1st events.
-                  (in fact these are 1 index before the actual event onset;
-                  since they are computed on the difference trace ('d'))
-        ends_evs: index of event offsets, excluding the last event
-        bgap_evs: number of frames before the first event
-        egap_evs: number of frames after the last event
-    """
-    n_time = evs.shape[1]
-    event_beginnings = []
-    event_endings = []
-    first_gap = []
-    final_gap = []
-    for i_neuron in range(evs.shape[0]):
-        beginnings = np.where(np.logical_and(evs[i_neuron, 1:],
-                              np.logical_not(evs[i_neuron, :-1])))[0]
-
-        if not evs[i_neuron, 0]:
-            beginnings = beginnings[1:]
-
-        endings = np.where(np.logical_and(evs[i_neuron, :-1],
-                           np.logical_not(evs[i_neuron, 1:])))[0]
-
-        if not evs[i_neuron, -1]:
-            endings = endings[:-1]
-
-        active = np.where(evs[i_neuron, :])[0]
-        n_active = len(active)
-        if not evs[i_neuron, 0] and n_active > 0:
-            _first_gap = active.min()
-        else:
-            _first_gap = None
-
-        if not evs[i_neuron, -1] and n_active > 0:
-            _final_gap = n_time-1-active.max()
-        else:
-            _final_gap = None
-
-        event_beginnings.append(beginnings)
-        event_endings.append(endings)
-        first_gap.append(_first_gap)
-        final_gap.append(_final_gap)
-
-    return (np.array(event_beginnings, dtype=object),
-            np.array(event_endings, dtype=object),
-            np.array(first_gap, dtype=object),
-            np.array(final_gap, dtype=object))
-
-
 def _trace_to_flag(traces_y0, th_ag):
     """
     Take traces_y0 (np.array of trace values for each neuron) and th_ag;

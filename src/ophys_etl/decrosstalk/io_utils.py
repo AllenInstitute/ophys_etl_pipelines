@@ -324,23 +324,27 @@ class OutH5WriterOld(OldOutputWriter):
         if len(roi_data) == 0:
             return
 
+        neuropil_data = self._get_channels('neuropil')
+
+        local_mix = np.zeros((len(roi_data['roi_names']), 2, 2), dtype=float)
+        for i_roi, roi_id in enumerate(roi_data['roi_names']):
+            local_mix[i_roi, :, :] = self.data['roi'][roi_id]['mixing_matrix']
+
         out_dir = self.get_sub_dir('neuropil')
 
         out_fname = os.path.join(out_dir,
                                  '%d_out.h5' %
                                  self.signal_plane.experiment_id)
 
+        neuropil_data['mixing_matrix'] = local_mix
+
         write_to_h5(out_fname,
-                    self._get_channels('neuropil'),
+                    neuropil_data,
                     clobber=self.clobber)
 
         out_dir = self.get_sub_dir('roi')
         out_fname = os.path.join(out_dir, '%d_out.h5' %
                                  self.signal_plane.experiment_id)
-
-        local_mix = np.zeros((len(roi_data['roi_names']), 2, 2), dtype=float)
-        for i_roi, roi_id in enumerate(roi_data['roi_names']):
-            local_mix[i_roi, :, :] = self.data['roi'][roi_id]['mixing_matrix']
 
         roi_data['mixing_matrix'] = local_mix
         write_to_h5(out_fname, roi_data, clobber=self.clobber)

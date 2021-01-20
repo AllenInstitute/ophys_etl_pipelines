@@ -1,29 +1,23 @@
 import os
-from ophys_etl.decrosstalk.ophys_plane import OphysPlane
+from ophys_etl.transforms.decrosstalk_wrapper import DecrosstalkWrapper
 
 from .utils import create_data
 
 
 def test_run_decrosstalk(tmpdir):
     """
-    Test that OphysPlane.run_decrosstalk() can run
-    as expected in production.
+    Test that ophys_etl/transforms/decrosstalk_wrapper
+    runs as expected
 
     Only verifies that expected outputs are created.
     Does not validate contents of those files.
     """
 
     session = create_data(tmpdir)
-
-    pair = session['coupled_planes'][0]['planes']
-    plane0 = OphysPlane.from_schema_dict(pair[0])
-    plane1 = OphysPlane.from_schema_dict(pair[1])
-    plane0.run_decrosstalk(plane1,
-                           cache_dir=session['qc_output_dir'],
-                           clobber=True)
-    plane1.run_decrosstalk(plane0,
-                           cache_dir=session['qc_output_dir'],
-                           clobber=True)
+    output_json = os.path.join(tmpdir, 'test_output.json')
+    wrapper = DecrosstalkWrapper(input_data=session,
+                                 args=['--output_json', output_json])
+    wrapper.run()
 
     roi_suffixes = ['raw.h5', 'raw_at.h5', 'out.h5', 'out_at.h5',
                     'valid.json', 'out_valid.json', 'crosstalk.json',
@@ -44,6 +38,17 @@ def test_run_decrosstalk(tmpdir):
 
     expected_files.append('0_1_invalid_flags.json')
     expected_files.append('1_0_invalid_flags.json')
+    expected_files.append(output_json)
+
+    for pair in session['coupled_planes']:
+        for plane in pair['planes']:
+            roi_name = plane['output_roi_trace_file']
+            np_name = plane['output_neuropil_trace_file']
+            assert roi_name != np_name
+            assert roi_name not in expected_files
+            assert np_name not in expected_files
+            expected_files.append(roi_name)
+            expected_files.append(np_name)
 
     output_dir = session['qc_output_dir']
     for fname in expected_files:

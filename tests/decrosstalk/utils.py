@@ -40,6 +40,9 @@ def create_data(tmpdir):
     input_dir = os.path.join(tmpdir,
                              'pipeline_test_input')
 
+    output_dir = os.path.join(parent_tmp,
+                              'pipeline_test_output')
+
     if not os.path.exists(input_dir):
         os.makedirs(input_dir)
 
@@ -100,12 +103,22 @@ def create_data(tmpdir):
                                'y0': 3, 'y1': 3}
     plane0['rois'] = [roi0, roi1]
 
+    roi_fname = os.path.join(output_dir, 'roi_trace_0.h5')
+    np_fname = os.path.join(output_dir, 'neuropil_trace_0.h5')
+    plane0['output_roi_trace_file'] = roi_fname
+    plane0['output_neuropil_trace_file'] = np_fname
+
     plane1 = {}
     plane1['ophys_experiment_id'] = 1
     plane1['motion_corrected_stack'] = movie_fname_1
     plane1['motion_border'] = {'x0': 3, 'x1': 2,
                                'y0': 3, 'y1': 3}
     plane1['rois'] = [roi0, roi1]
+
+    roi_fname = os.path.join(output_dir, 'roi_trace_1.h5')
+    np_fname = os.path.join(output_dir, 'neuropil_trace_1.h5')
+    plane1['output_roi_trace_file'] = roi_fname
+    plane1['output_neuropil_trace_file'] = np_fname
 
     movie_0 = np.zeros((nt, ny, nx), dtype=float)
     movie_1 = np.zeros((nt, ny, nx), dtype=float)
@@ -124,9 +137,6 @@ def create_data(tmpdir):
         out_file.create_dataset('data', data=movie_0)
     with h5py.File(movie_fname_1, 'w') as out_file:
         out_file.create_dataset('data', data=movie_1)
-
-    output_dir = os.path.join(parent_tmp,
-                              'pipeline_test_output')
 
     session = {}
     session['ophys_session_id'] = 0

@@ -145,7 +145,19 @@ def run_ica(ica_input, iters, seed, verbose=False):
     roi_demixed -- a boolean indicating whether or not the iteration to get
     the off-diagonal elements of the mixing matrix < 0.3 actually worked
     """
+
     # Whiten observations
+    #
+    # NOTE: we whiten the data by hand and then call
+    # FastICA() with whiten=False to avoid running
+    # afoul of this bug in sklearn
+    #
+    # https://github.com/scikit-learn/scikit-learn/issues/17162
+    #
+    # after this issue is resolved in sklearn, we can
+    # revisit the possibility of using sklearn.FastICA's
+    # internal whitening
+
     Ow, W, m = whiten_data(ica_input.transpose())
     alpha = 1
     beta = 1

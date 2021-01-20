@@ -8,7 +8,6 @@ import warnings
 import marshmallow as mm
 from typing import Tuple
 from scipy.ndimage.filters import median_filter
-from scipy.signal import resample_poly
 from scipy.stats import median_abs_deviation
 from functools import partial
 from FastLZeroSpikeInference import fast
@@ -87,7 +86,9 @@ class EventDetectionInputSchema(argschema.ArgSchema):
     def get_noise_multiplier(self, data, **kwargs):
         if 'noise_multiplier' in data:
             return data
-        val_11hz = 3.0
+        # NOTE 11Hz value found empirically to behave well compared
+        # to 31Hz data sub-sampled to 11Hz.
+        val_11hz = 1.4
         val_31hz = 1.0
         if np.round(data['movie_frame_rate_hz'] / 11.0) == 1:
             data['noise_multiplier'] = val_11hz
@@ -449,42 +450,6 @@ def get_events(traces: np.ndarray, noise_estimates: np.ndarray,
     return events, lambdas
 
 
-def trace_resample(traces: np.ndarray, input_rate: float,
-                   target_rate: float = 30.9) -> Tuple[np.ndarray, float]:
-    """determines a rounded upsample factor and upsamples the traces,
-    if applicable.
-
-    Parameters
-    ----------
-    traces: np.ndarray
-        ncell x nframe float
-    input_rate: float
-        sampling rate of traces [Hz]
-    target_rate: float
-        desired resampled rate [Hz]
-
-    Returns
-    -------
-    resampled_traces: np.ndarray
-        ncell x n_upsampled_frames float
-    upsample_factor: int
-        factor used to upsample
-
-    Raises
-    ------
-    NotImplementedError
-        for any target rate != 30.9Hz. Evaluation of results is needed
-        to generalize FastLZero to other target rates.
-
-    """
-    upsample_factor = np.round(target_rate / input_rate)
-    if upsample_factor == 1.0:
-        resampled_traces = traces
-    else:
-        resampled_traces = resample_poly(traces, upsample_factor, 1, axis=1)
-    return resampled_traces, upsample_factor
-
-
 class EventDetection(argschema.ArgSchemaParser):
     default_schema = EventDetectionInputSchema
 
@@ -505,65 +470,29 @@ class EventDetection(argschema.ArgSchemaParser):
             dff = f['data'][valid_roi_indices]
         valid_roi_names = roi_names[valid_roi_indices]
 
-        # set rates the same, i.e. never upsample
-        self.logger.warning("hard-coded not to upsample")
-        upsampled_dff, upsample_factor = trace_resample(
-                traces=dff,
-                input_rate=self.args['movie_frame_rate_hz'],
-                target_rate=self.args['movie_frame_rate_hz'])
-        upsampled_rate = self.args['movie_frame_rate_hz'] * upsample_factor
-        self.logger.info("upsampled traces from "
-                         f"{self.args['movie_frame_rate_hz']} to "
-                         f"{upsampled_rate}")
-
         # run FastLZeroSpikeInference
-        noise_filter_samples = \
-            int(self.args['noise_median_filter'] * upsampled_rate)
-        trace_filter_samples = \
-            int(self.args['trace_median_filter'] * upsampled_rate)
-        upsampled_dff, noise_stds = estimate_noise_detrend(
-                upsampled_dff,
+        noise_filter_samples = int(self.args['noise_median_filter'] *
+                                   self.args['movie_frame_rate_hz'])
+        trace_filter_samples = int(self.args['trace_median_filter'] *
+                                   self.args['movie_frame_rate_hz'])
+        dff, noise_stds = estimate_noise_detrend(
+                dff,
                 noise_filter_size=noise_filter_samples,
                 trace_filter_size=trace_filter_samples)
         gamma = calculate_gamma(self.args['halflife'],
-                                upsampled_rate)
-        upsampled_events, lambdas = get_events(
-                traces=upsampled_dff,
+                                self.args['movie_frame_rate_hz'])
+        events, lambdas = get_events(
+                traces=dff,
                 noise_estimates=noise_stds * self.args['noise_multiplier'],
                 gamma=gamma,
                 ncpu=self.args['n_parallel_workers'])
 
-        # downsample events back to original rate
-        if upsample_factor == 1:
-            downsampled_events = upsampled_events
-        else:
-            downsampled_events = np.zeros_like(dff)
-            for n, event30Hz in enumerate(upsampled_events):
-                event_mag = event30Hz[event30Hz > 0]  # upsampled
-                event_idx = np.where(event30Hz > 0)[0]
-                for i, ev in enumerate(event_idx):
-                    downsampled_events[n, np.int(ev/upsample_factor)] += \
-                            event_mag[i]
-
         with h5py.File(self.args['output_event_file'], "w") as f:
-            f.create_dataset("events", data=downsampled_events)
+            f.create_dataset("events", data=events)
             f.create_dataset("roi_names", data=valid_roi_names)
             f.create_dataset("noise_stds", data=noise_stds)
             f.create_dataset("lambdas", data=lambdas)
-            f.create_dataset("upsampling_factor", data=upsample_factor)
         self.logger.info(f"wrote {self.args['output_event_file']}")
-
-        # NOTE I think this should be provided by SDK API, if desired.
-        # Saving dictionaries in hdf5 isn't great, and this seems
-        # very redundant.
-        # event_dict = {}
-        # for n, event30Hz in enumerate(upsampled_events):
-        #     event_mag = event30Hz[event30Hz > 0]
-        #     event_idx = np.where(event30Hz > 0)[0]
-        #     event_dict[valid_roi_names[n]] = {
-        #             'mag': event_mag,
-        #             'idx': event_idx,
-        #             'event_trace': downsampled_events[n, :]}
 
 
 if __name__ == "__main__":  # pragma: no cover

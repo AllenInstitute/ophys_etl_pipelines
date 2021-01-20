@@ -40,6 +40,7 @@ def dff_hdf5(tmp_path, request):
     nframes = request.param.get("nframes")
     events = request.param.get("events")
     rate = request.param.get("rate")
+    noise_mult = request.param.get("noise_multiplier")
 
     rng = np.random.default_rng(42)
     data = rng.normal(loc=offset, scale=sigma, size=(len(events), nframes))
@@ -55,28 +56,7 @@ def dff_hdf5(tmp_path, request):
         f.create_dataset("roi_names", data=names)
 
     with h5py.File(h5path, "r") as f:
-        yield h5path, decay_time, rate, events
-
-
-@pytest.mark.event_detect_only
-@pytest.mark.parametrize("input_rate", [11.0, 30.9, 31.0])
-@pytest.mark.parametrize(
-        ("target_rate", "context"),
-        [
-            (30.9, contextlib.nullcontext()),
-            # (100.0, pytest.raises(NotImplementedError))
-            ])
-def test_trace_resample(input_rate, target_rate, context):
-    rng = np.random.default_rng(42)
-    nframes = 1000
-    traces = rng.normal(loc=0.0, scale=1.0, size=(10, nframes))
-    with context:
-        resampled_traces, upsample_factor = emod.trace_resample(
-            traces, input_rate=input_rate, target_rate=target_rate)
-        if upsample_factor == 1:
-            np.testing.assert_array_equal(traces, resampled_traces)
-        else:
-            assert nframes * upsample_factor == resampled_traces.shape[1]
+        yield h5path, decay_time, rate, events, noise_mult
 
 
 @pytest.mark.event_detect_only
@@ -84,7 +64,7 @@ def test_trace_resample(input_rate, target_rate, context):
         ("rate", "specify_multiplier", "multiplier", "expected"),
         [
             (11.0, True, 12, 12),
-            (11.0, False, None, 3.0),
+            (11.0, False, None, 1.4),
             (31.0, True, 2.4, 2.4),
             (31.0, False, None, 1.0),
             ])
@@ -187,17 +167,36 @@ def test_EventDetectionSchema_decay_time(tmp_path):
                 "decay_time": 0.415,
                 "offset": 0.0,
                 "nframes": 1000,
-                "rate": 11.0,
+                "rate": 31.0,
+                "noise_multiplier": 1.0,
                 "events": [
                     Events(
                         id=123,
-                        timestamps=[45, 112, 232, 410, 490, 650, 850],
+                        timestamps=[145, 212, 280, 310, 430, 600, 890],
                         magnitudes=[4.0, 5.0, 6.0, 5.0, 5.5, 5.0, 7.0]),
                     Events(
                         id=124,
-                        timestamps=[145, 212, 280, 310, 430, 600, 890],
+                        timestamps=[45, 112, 232, 410, 490, 650, 850],
                         magnitudes=[4.0, 5.0, 6.0, 5.0, 5.5, 5.0, 7.0])]
-                    }], indirect=True)
+                    },
+            {
+                "sigma": 1.0,
+                "decay_time": 0.415,
+                "offset": 0.0,
+                "nframes": 1000,
+                "rate": 11.0,
+                "noise_multiplier": 3.0,
+                "events": [
+                    Events(
+                        id=123,
+                        timestamps=[145, 212, 280, 310, 430, 600, 890],
+                        magnitudes=[4.0, 5.0, 6.0, 5.0, 5.5, 5.0, 7.0]),
+                    Events(
+                        id=124,
+                        timestamps=[45, 112, 232, 410, 490, 650, 850],
+                        magnitudes=[4.0, 5.0, 6.0, 5.0, 5.5, 5.0, 7.0])]
+                    },
+            ], indirect=True)
 def test_EventDetection(dff_hdf5, tmp_path):
     """This test runs the actual spike inference on fake data. The fake
     data is constructed by the dff_hdf5 fixture. This is an
@@ -206,7 +205,7 @@ def test_EventDetection(dff_hdf5, tmp_path):
     and, some false spikes are ignored at the end.
     """
 
-    dff_path, decay_time, rate, expected_events = dff_hdf5
+    dff_path, decay_time, rate, expected_events, noise_mult = dff_hdf5
 
     args = {
             'movie_frame_rate_hz': rate,
@@ -214,14 +213,14 @@ def test_EventDetection(dff_hdf5, tmp_path):
             'valid_roi_ids': [123, 124],
             'output_event_file': str(tmp_path / "junk_output.h5"),
             'decay_time': decay_time,
+            'noise_multiplier': noise_mult
             }
     ed = emod.EventDetection(input_data=args, args=[])
     ed.run()
 
     with h5py.File(args['output_event_file'], "r") as f:
         keys = list(f.keys())
-        for k in ['events', 'roi_names', 'noise_stds',
-                  'lambdas', 'upsampling_factor']:
+        for k in ['events', 'roi_names', 'noise_stds', 'lambdas']:
             assert k in keys
         events = f['events'][()]
 
@@ -229,6 +228,9 @@ def test_EventDetection(dff_hdf5, tmp_path):
         nresult = np.count_nonzero(result)
         result_index = np.argwhere(result != 0).flatten()
         # check that the number of events match the expectation:
+        print(result_index)
+        print(expected.timestamps)
+        print(ed.args['noise_multiplier'])
         assert nresult == len(expected.timestamps)
 
         # check that they are in the right place:

@@ -10,7 +10,7 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
     default_output_schema = decrosstalk_schema.DecrosstalkOutputSchema
 
     def run(self):
-        clobber = False
+        clobber = True
 
         cache_dir = self.args['qc_output_dir']
         if not os.path.exists(cache_dir):

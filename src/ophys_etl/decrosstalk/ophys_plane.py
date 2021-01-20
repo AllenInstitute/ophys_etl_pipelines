@@ -446,7 +446,8 @@ class OphysPlane(object):
                                                             raw_trace_events)
 
         # remove ROIs with invalid active raw traces
-        for roi_id in raw_trace_events:
+        roi_id_list = list(raw_trace_events.keys())
+        for roi_id in roi_id_list:
             signal = raw_trace_events[roi_id]['signal']['trace']
             if len(signal) == 0 or np.isnan(signal).any():
                 roi_flags[raw_active_key].append(roi_id)

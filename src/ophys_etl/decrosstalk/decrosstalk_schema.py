@@ -2,7 +2,7 @@ import marshmallow.exceptions
 import argschema
 
 
-class RoiSchema(argschema.ArgSchema):
+class RoiSchema(argschema.schemas.DefaultSchema):
     id = argschema.fields.Int(description='ID', required=True)
     x = argschema.fields.Int(description='x origin', required=True)
     y = argschema.fields.Int(description='y origin', required=True)
@@ -15,7 +15,7 @@ class RoiSchema(argschema.ArgSchema):
                         cli_as_single_argument=True)
 
 
-class PlaneSchema(argschema.ArgSchema):
+class PlaneSchema(argschema.schemas.DefaultSchema):
 
     ophys_experiment_id = argschema.fields.Int(
                              description='experiment ID',
@@ -43,7 +43,7 @@ class PlaneSchema(argschema.ArgSchema):
                 cli_as_single_argument=True)
 
 
-class PlanePairSchema(argschema.ArgSchema):
+class PlanePairSchema(argschema.schemas.DefaultSchema):
 
     ophys_imaging_plane_group_id = argschema.fields.Int(
                                     description='group ID',
@@ -91,7 +91,7 @@ def validate_list_of_ints(input_list):
     return True
 
 
-class PlaneOutputSchema(argschema.ArgSchema):
+class PlaneOutputSchema(argschema.schemas.DefaultSchema):
 
     ophys_experiment_id = argschema.fields.Int(
                              description='experiment ID',
@@ -143,7 +143,7 @@ class PlaneOutputSchema(argschema.ArgSchema):
                                       validate=validate_list_of_ints)
 
 
-class PlanePairOutputSchema(argschema.ArgSchema):
+class PlanePairOutputSchema(argschema.schemas.DefaultSchema):
 
     ophys_imaging_plane_group_id = argschema.fields.Int(
                                     description='group ID',

@@ -504,7 +504,7 @@ class OphysPlane(object):
                 invalid_unmixed_trace.append(roi_id)
                 unmixed_traces['roi'].pop(roi_id)
                 unmixed_traces['neuropil'].pop(roi_id)
-        roi_flags[unmixed_key] = invalid_unmixed_trace
+        roi_flags[unmixed_key] += invalid_unmixed_trace
 
         if len(unmixed_traces['roi']) == 0:
             msg = 'No unmixed traces were valid when applying '
@@ -591,7 +591,7 @@ class OphysPlane(object):
             independent_events[roi_id] = local
             if not is_a_cell:
                 ghost_roi_id.append(roi_id)
-        roi_flags[ghost_key] = ghost_roi_id
+        roi_flags[ghost_key] += ghost_roi_id
 
         if cache_dir is not None:
             if self.new_style_output:

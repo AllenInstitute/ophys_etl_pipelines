@@ -48,6 +48,9 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
                          "Allen production case, we are providing motion-"
                          "corrected videos, so we skip Suite2P's own "
                          "registration."))
+    reg_tif = argschema.fields.Bool(
+            default=False,
+            description="whether to save registered tiffs")
     # s2p cell detection settings
     roidetect = argschema.fields.Bool(
             default=True,
@@ -147,7 +150,7 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             argschema.fields.Str,
             cli_as_single_argument=True,
             required=True,
-            default=['stat.npy'],
+            default=['stat.npy', '*.tif'],
             description=("only Suite2P output files with basenames in this "
                          "list will be retained. If 'all', a complete list "
                          "will be retained."))
@@ -180,7 +183,7 @@ class ExistingFile(argschema.fields.InputFile):
 class Suite2PWrapperOutputSchema(argschema.schemas.DefaultSchema):
     output_files = argschema.fields.Dict(
         keys=argschema.fields.Str,
-        values=ExistingFile,
+        values=argschema.fields.List(ExistingFile),
         required=True,
         description="retained output files from Suite2P")
 
@@ -213,18 +216,24 @@ def copy_and_add_uid(
 
     for basename in basenames:
         result = list(srcdir.rglob(basename))
+        if len(result) == 0:
+            # case for copying *.tif when non-existent
+            continue
         if len(result) != 1:
-            raise ValueError(f"{len(result)} matches found in {srcdir} "
-                             f"for {basename}. Expected 1 match.")
-        dstbasename = result[0].name
-        if uid is not None:
-            dstbasename = result[0].stem + f"_{uid}" + result[0].suffix
+            if "*" not in basename:
+                raise ValueError(f"{len(result)} matches found in {srcdir} "
+                                 f"for {basename}. Expected 1 match.")
+        copied_files[basename] = []
+        for iresult in result:
+            dstbasename = iresult.name
+            if uid is not None:
+                dstbasename = iresult.stem + f"_{uid}" + iresult.suffix
 
-        dstfile = dstdir / dstbasename
+            dstfile = dstdir / dstbasename
 
-        shutil.copyfile(result[0], dstfile)
+            shutil.copyfile(iresult, dstfile)
 
-        copied_files[basename] = str(dstfile)
+            copied_files[basename].append(str(dstfile))
 
     return copied_files
 

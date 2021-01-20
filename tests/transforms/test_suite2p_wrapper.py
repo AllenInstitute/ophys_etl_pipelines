@@ -58,7 +58,7 @@ def test_copy_and_add_uid(tmp_path, basenames, dstsubdir, exception):
 
         for bname in basenames:
             src = Path(srcfiles[bname])
-            dst = Path(dstfiles[bname])
+            dst = Path(dstfiles[bname][0])
             assert filecmp.cmp(src, dst)
             assert dst.name == src.stem + f"_{uid}" + src.suffix
 
@@ -138,5 +138,5 @@ def test_suite2p_wrapper(
 
     for fname in file_list:
         assert fname in list(outj['output_files'].keys())
-        assert os.path.isfile(outj['output_files'][fname])
-        assert s.now in outj['output_files'][fname]
+        assert os.path.isfile(outj['output_files'][fname][0])
+        assert s.now in outj['output_files'][fname][0]

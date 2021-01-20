@@ -388,6 +388,20 @@ class OphysPlane(object):
         # detect activity in raw traces
 
         raw_trace_events = self.get_trace_events(raw_traces['roi'])
+
+        # For each ROI, calculate a random seed based on the flux
+        # in all timestamps *not* chosen as events (presumably,
+        # random noise)
+        roi_to_seed = {}
+        two_to_32 = 2**32
+        for roi_id in raw_trace_events:
+            flux_mask = np.ones(len(raw_traces['roi'][roi_id]['signal']),
+                                dtype=bool)
+            flux_mask[raw_trace_events[roi_id]['signal']['events']] = False
+            _flux = np.abs(raw_traces['roi'][roi_id]['signal'][flux_mask])
+            flux_sum = np.round(_flux.sum()).astype(int)
+            roi_to_seed[roi_id] = flux_sum % two_to_32
+
         if cache_dir is not None:
             if self.new_style_output:
                 writer_class = io_utils.RawATH5Writer
@@ -407,7 +421,9 @@ class OphysPlane(object):
         # use Independent Component Analysis to separate out signal
         # and crosstalk
 
-        ica_converged, unmixed_traces = self.unmix_all_ROIs(raw_traces)
+        (ica_converged,
+         unmixed_traces) = self.unmix_all_ROIs(raw_traces,
+                                               seed_lookup=roi_to_seed)
         if cache_dir is not None:
             if self.new_style_output:
                 writer_class = io_utils.OutH5Writer
@@ -659,7 +675,7 @@ class OphysPlane(object):
 
         return output
 
-    def unmix_all_ROIs(self, raw_roi_traces):
+    def unmix_all_ROIs(self, raw_roi_traces, seed_lookup=None):
         """
         Unmix all of the ROIs in this OphysPlane.
 
@@ -679,6 +695,8 @@ class OphysPlane(object):
             raw_roi_traces['neuropil'][roi_id]['crosstalk'] is the raw
                                                    crosstalk for the
                                                    neuropil around the ROI
+
+        seed_lookup is a dict that maps roi_id to a seed for np.RandomState
 
         Returns
         -------
@@ -708,7 +726,7 @@ class OphysPlane(object):
         for roi_id in raw_roi_traces['roi'].keys():
 
             unmixed_roi = self.unmix_ROI(raw_roi_traces['roi'][roi_id],
-                                         seed=roi_id,
+                                         seed=seed_lookup[roi_id],
                                          iters=10)
 
             _out = {}

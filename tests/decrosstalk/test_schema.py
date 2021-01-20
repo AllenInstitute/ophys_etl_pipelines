@@ -41,18 +41,30 @@ class DummySchemaOutput(argschema.ArgSchemaParser):
         self.output(output)
 
 
-def get_schema_data():
+def get_schema_data(tmpdir):
     data_dir = get_data_dir()
     schema_fname = os.path.join(data_dir,
                                 'ophys_plane_instantiation_data.json')
 
     with open(schema_fname, 'rb') as in_file:
         example_data = json.load(in_file)
+
+    # Because the input schema is going to verify that the
+    # motion_corrected_stack file actually exists, we must
+    # create it in tmp
+    dummy_fname = os.path.join(tmpdir, 'dummy_movie.h5')
+    with open(dummy_fname, 'w') as out_file:
+        out_file.write('hi')
+
+    for pair in example_data['coupled_planes']:
+        for plane in pair['planes']:
+            plane['motion_corrected_stack'] = dummy_fname
+
     return example_data
 
 
-def test_decrosstalk_schema():
-    schema_data = get_schema_data()
+def test_decrosstalk_schema(tmpdir):
+    schema_data = get_schema_data(tmpdir)
     _ = DummyDecrosstalkLoader(input_data=schema_data, args=[])
 
 

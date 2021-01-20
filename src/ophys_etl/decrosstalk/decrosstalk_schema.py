@@ -29,7 +29,7 @@ class PlaneSchema(argschema.schemas.DefaultSchema):
                              description='Path to neuropil trace file',
                              required=True)
 
-    motion_corrected_stack = argschema.fields.Str(
+    motion_corrected_stack = argschema.fields.InputFile(
                         description='path to motion corrected movie',
                         required=True)
 

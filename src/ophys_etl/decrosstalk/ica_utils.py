@@ -157,7 +157,7 @@ def run_ica(ica_input, iters, seed, verbose=False):
         if alpha > 0.3 or beta > 0.3 or alpha < 0 or beta < 0:
             # Unmixing
             ica = FastICA(whiten=False, max_iter=10000, random_state=rng)
-            ica.fit_transform(Ow)  # Reconstruct sources
+            ica.fit(Ow)  # Reconstruct sources
             mixing_raw = ica.mixing_
 
             # correcting for scale and offset:

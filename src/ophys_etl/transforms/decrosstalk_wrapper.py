@@ -1,4 +1,6 @@
 import os
+import h5py
+import numpy as np
 import argschema
 import ophys_etl.decrosstalk.ophys_plane as ophys_plane
 import ophys_etl.decrosstalk.decrosstalk_schema as decrosstalk_schema
@@ -19,25 +21,76 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
             raise RuntimeError("\n%s\nis not a dir" % cache_dir)
 
         final_output = {}
+        final_output['ophys_session_id'] = self.args['ophys_session_id']
+
+        coupled_planes = []
 
         for meta_pair in self.args['coupled_planes']:
-            pair = meta_pair['planes']
-            plane_0 = ophys_plane.OphysPlane.from_schema_dict(pair[0])
-            plane_1 = ophys_plane.OphysPlane.from_schema_dict(pair[1])
+            output_pair = {}
 
-            out_0 = plane_0.run_decrosstalk(plane_1,
-                                            cache_dir=cache_dir,
-                                            clobber=clobber)
-            out_1 = plane_1.run_decrosstalk(plane_0,
-                                            cache_dir=cache_dir,
-                                            clobber=clobber)
-            for field in out_0.keys():
-                if field not in final_output:
-                    final_output[field] = []
-                final_output[field] += out_0[field]
-                final_output[field] += out_1[field]
+            imaging_id = meta_pair['ophys_imaging_plane_group_id']
+            output_pair['ophys_imaging_plane_group_id'] = imaging_id
 
-        self.output(final_output)
+            group_order = meta_pair['group_order']
+            output_pair['group_order'] = group_order
+
+            input_pair = meta_pair['planes']
+            plane_A = ophys_plane.OphysPlane.from_schema_dict(input_pair[0])
+            plane_B = ophys_plane.OphysPlane.from_schema_dict(input_pair[1])
+
+            plane_pair = []
+            plane_group_A = (plane_A, input_pair[0])
+            plane_group_B = (plane_B, input_pair[1])
+
+            for p_pair in [(plane_group_A, plane_group_B),
+                           (plane_group_B, plane_group_A)]:
+                plane_0 = p_pair[0][0]
+                plane_1 = p_pair[1][0]
+                output_schema = p_pair[0][1]
+
+                p0 = {}
+                p0['ophys_experiment_id'] = plane_0.experiment_id
+
+                roi_fname = output_schema['output_roi_trace_file']
+                p0['output_roi_trace_file'] = roi_fname
+
+                neuropil_fname = output_schema['output_neuropil_trace_file']
+                p0['output_neuropil_trace_file'] = neuropil_fname
+                (flags_0,
+                 traces_0) = plane_0.run_decrosstalk(plane_1,
+                                                     cache_dir=cache_dir,
+                                                     clobber=clobber)
+
+                invalid_roi = set()
+                for field in flags_0.keys():
+                    p0[field] = flags_0[field]
+                    for roi_id in flags_0[field]:
+                        invalid_roi.add(roi_id)
+                plane_pair.append(p0)
+
+                for k in ('roi', 'neuropil'):
+                    out_fname = output_schema['output_%s_trace_file' % k]
+                    if k not in traces_0:
+                        continue
+                    data = []
+                    roi_names = []
+                    roi_list = list(traces_0[k].keys())
+                    roi_list.sort()
+                    for roi_id in roi_list:
+                        if roi_id not in invalid_roi:
+                            roi_names.append(roi_id)
+                            data.append(traces_0[k][roi_id]['signal'])
+                    roi_names = np.array(roi_names)
+                    data = np.array(data)
+                    with h5py.File(out_fname, 'w') as out_file:
+                        out_file.create_dataset('roi_names', data=roi_names)
+                        out_file.create_dataset('data', data=data)
+
+            output_pair['planes'] = plane_pair
+            coupled_planes.append(output_pair)
+
+        final_output['coupled_planes'] = coupled_planes
+        self.output(final_output, indent=2, sort_keys=True)
 
 
 if __name__ == "__main__":

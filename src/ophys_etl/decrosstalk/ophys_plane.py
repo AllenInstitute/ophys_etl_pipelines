@@ -314,15 +314,41 @@ class OphysPlane(object):
 
         Returns
         -------
-        A dict listing the ROI IDs of ROIs that were ruled invalid
-        for different reasons, namely:
-            'decrosstalk_ghost_roi_ids' -- ROIs that are ghosts
+        roi_flags -- a dict listing the ROI IDs of ROIs that were
+        ruled invalid for different reasons, namely:
 
-            'decrosstalk_raw_exlucion_lable' -- ROIs with invalid
-                                                raw traces
+            'decrosstalk_ghost' -- ROIs that are ghosts
 
-            'decrosstalk_unmixed_exclusion_label' -- ROIs with invalid
-                                                     unmixed traces
+            'decrosstalk_invalid_raw' -- ROIs with invalid
+                                         raw traces
+
+            'decrosstalk_invalid_raw_active' -- ROIs with invalid
+                                                raw active traces
+
+            'decrosstalk_invalid_unmixed' -- ROIs with invalid
+                                             unmixed traces
+
+            'decrosstalk_invalid_unmixed_active' -- ROIs with invalid
+                                                    unmixed active traces
+
+        unmixed_traces -- a dict such that
+            unmixed_traces['roi'][roi_id]['mixing_matrix'] -- the ROI's
+                                                           mixing matrix
+            unmixed_traces['roi'][roi_id]['signal'] -- the ROI's unmixed signal
+            unmixed_traces['roi'][roi_id]['crosstalk'] -- the ROI's unmixed
+                                                           crosstalk
+            unmixed_traces['roi'][roi_id]['use_avg_mixing_matrix'] -- a boolean
+
+                    If True, the ROI was demixed using the average mixing
+                    matrix for the OphysPlane. In that case, the unconverged
+                    mixing_matrix, signal, and crosstalk will be stored in
+                    'poorly_converged_mixing_matrix', 'poorly_converged_signal'
+                    and 'poorly_converged_crosstalk'
+
+            unmixed_traces['neuropil'][roi_id]['signal'] -- neuropil's
+                                                        unmixed signal
+            unmixed_traces['neuropil'][roi_id]['crosstalk'] -- neuropil's
+                                                         unmixed crosstalk
         """
 
         # kwargs for output classes that write QC output
@@ -331,15 +357,19 @@ class OphysPlane(object):
                          'crosstalk_plane': other_plane,
                          'clobber': clobber}
 
-        final_output = {}
+        roi_flags = {}
 
-        ghost_key = 'decrosstalk_ghost_roi_ids'
-        raw_key = 'decrosstalk_raw_exclusion_label'
-        unmixed_key = 'decrosstalk_unmixed_exclusion_label'
+        ghost_key = 'decrosstalk_ghost'
+        raw_key = 'decrosstalk_invalid_raw'
+        raw_active_key = 'decrosstalk_invalid_raw_active'
+        unmixed_key = 'decrosstalk_invalid_unmixed'
+        unmixed_active_key = 'decrosstalk_invalid_unmixed_active'
 
-        final_output[ghost_key] = []
-        final_output[raw_key] = []
-        final_output[unmixed_key] = []
+        roi_flags[ghost_key] = []
+        roi_flags[raw_key] = []
+        roi_flags[unmixed_key] = []
+        roi_flags[raw_active_key] = []
+        roi_flags[unmixed_active_key] = []
 
         ###############################
         # extract raw traces
@@ -374,7 +404,7 @@ class OphysPlane(object):
                 invalid_raw_trace.append(roi_id)
                 raw_traces['roi'].pop(roi_id)
                 raw_traces['neuropil'].pop(roi_id)
-        final_output[raw_key] += invalid_raw_trace
+        roi_flags[raw_key] += invalid_raw_trace
 
         if len(raw_traces['roi']) == 0:
             msg = 'No raw traces were valid when applying '
@@ -382,7 +412,7 @@ class OphysPlane(object):
             msg += '%d (%d)' % (self.experiment_id,
                                 other_plane.experiment_id)
             logger.error(msg)
-            return final_output
+            return roi_flags, {}
 
         #########################################
         # detect activity in raw traces
@@ -415,6 +445,15 @@ class OphysPlane(object):
         raw_trace_crosstalk_ratio = self.get_crosstalk_data(raw_traces['roi'],
                                                             raw_trace_events)
 
+        # remove ROIs with invalid active raw traces
+        for roi_id in raw_trace_events:
+            signal = raw_trace_events[roi_id]['signal']['trace']
+            if len(signal) == 0 or np.isnan(signal).any():
+                roi_flags[raw_active_key].append(roi_id)
+                raw_trace_events.pop(roi_id)
+                raw_traces['roi'].pop(roi_id)
+                raw_traces['neuropil'].pop(roi_id)
+
         del raw_trace_events
 
         ###########################################################
@@ -435,12 +474,15 @@ class OphysPlane(object):
             del writer_class
 
         if not ica_converged:
+            for roi_id in unmixed_traces['roi']:
+                roi_flags[unmixed_key].append(roi_id)
+
             msg = 'ICA did not converge for any ROIs when '
             msg += 'applying decrosstalk to ophys_experiment_id: '
             msg += '%d (%d)' % (self.experiment_id,
                                 other_plane.experiment_id)
             logger.error(msg)
-            return final_output
+            return roi_flags, unmixed_traces
 
         unmixed_trace_validation = d_utils.validate_traces(unmixed_traces)
         if cache_dir is not None:
@@ -461,7 +503,7 @@ class OphysPlane(object):
                 invalid_unmixed_trace.append(roi_id)
                 unmixed_traces['roi'].pop(roi_id)
                 unmixed_traces['neuropil'].pop(roi_id)
-        final_output[unmixed_key] = invalid_unmixed_trace
+        roi_flags[unmixed_key] = invalid_unmixed_trace
 
         if len(unmixed_traces['roi']) == 0:
             msg = 'No unmixed traces were valid when applying '
@@ -469,7 +511,7 @@ class OphysPlane(object):
             msg += '%d (%d)' % (self.experiment_id,
                                 other_plane.experiment_id)
             logger.error(msg)
-            return final_output
+            return roi_flags, unmixed_traces
 
         ###################################################
         # Detect activity in unmixed traces
@@ -514,7 +556,7 @@ class OphysPlane(object):
             # remove ROIs with NaNs in their independent signal events
             # from the data being processed
             for roi_id in invalid_active_trace['signal']:
-                final_output[unmixed_key].append(roi_id)
+                roi_flags[unmixed_active_key].append(roi_id)
                 unmixed_trace_events.pop(roi_id)
                 unmixed_traces['roi'].pop(roi_id)
                 unmixed_traces['neuropil'].pop(roi_id)
@@ -548,7 +590,7 @@ class OphysPlane(object):
             independent_events[roi_id] = local
             if not is_a_cell:
                 ghost_roi_id.append(roi_id)
-        final_output[ghost_key] = ghost_roi_id
+        roi_flags[ghost_key] = ghost_roi_id
 
         if cache_dir is not None:
             if self.new_style_output:
@@ -576,7 +618,7 @@ class OphysPlane(object):
             del writer
             del writer_class
 
-        return final_output
+        return roi_flags, unmixed_traces
 
     def get_raw_traces(self, other_plane):
         """

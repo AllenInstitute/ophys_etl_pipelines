@@ -21,6 +21,14 @@ class PlaneSchema(argschema.ArgSchema):
                              description='experiment ID',
                              required=True)
 
+    output_roi_trace_file = argschema.fields.Str(
+                       description='Path to ROI trace file',
+                       required=True)
+
+    output_neuropil_trace_file = argschema.fields.Str(
+                             description='Path to neuropil trace file',
+                             required=True)
+
     motion_corrected_stack = argschema.fields.Str(
                         description='path to motion corrected movie',
                         required=True)
@@ -83,6 +91,75 @@ def validate_list_of_ints(input_list):
     return True
 
 
+class PlaneOutputSchema(argschema.ArgSchema):
+
+    ophys_experiment_id = argschema.fields.Int(
+                             description='experiment ID',
+                             required=True)
+
+    output_roi_trace_file = argschema.fields.Str(
+                               description='Path to ROI trace file',
+                               required=True)
+
+    output_neuropil_trace_file = argschema.fields.Str(
+                                   description='Path to neuropil trace file',
+                                   required=True)
+
+    decrosstalk_invalid_raw = argschema.fields.List(
+                                  argschema.fields.Field,
+                                  description='IDs of ROIs ruled invalid '
+                                              'based on raw trace',
+                                  required=True,
+                                  validate=validate_list_of_ints)
+
+    decrosstalk_invalid_raw_active = argschema.fields.List(
+                                  argschema.fields.Field,
+                                  description='IDs of ROIs ruled invalid '
+                                              'based on raw active trace',
+                                  required=True,
+                                  validate=validate_list_of_ints)
+
+    decrosstalk_invalid_unmixed = argschema.fields.List(
+                                        argschema.fields.Field,
+                                        description='IDs of ROIs ruled '
+                                                    'invalid based on '
+                                                    'unmixed trace',
+                                        required=True,
+                                        validate=validate_list_of_ints)
+
+    decrosstalk_invalid_unmixed_active = argschema.fields.List(
+                                           argschema.fields.Field,
+                                           description='IDs of ROIs ruled '
+                                                       'invalid based on'
+                                                       'unmixed active trace',
+                                           required=True,
+                                           validate=validate_list_of_ints)
+
+    decrosstalk_ghost = argschema.fields.List(
+                                      argschema.fields.Field,
+                                      description='IDs of ROIs ruled invalid '
+                                                  'to be ghosts',
+                                      required=True,
+                                      validate=validate_list_of_ints)
+
+
+class PlanePairOutputSchema(argschema.ArgSchema):
+
+    ophys_imaging_plane_group_id = argschema.fields.Int(
+                                    description='group ID',
+                                    required=True)
+
+    group_order = argschema.fields.Int(
+                      description='order of group in session',
+                      required=True)
+
+    planes = argschema.fields.List(
+                 argschema.fields.Nested(PlaneOutputSchema),
+                 description='planes',
+                 required=True,
+                 cli_as_single_argument=True)
+
+
 class DecrosstalkOutputSchema(argschema.ArgSchema):
     # All Lists are lists of argschema.fields.Field because
     # this was the only way I could get argschema to not
@@ -90,32 +167,12 @@ class DecrosstalkOutputSchema(argschema.ArgSchema):
     # The call to validate_list_of_ints will make sure that
     # the lists do, indeed, need to contain ints.
 
-    decrosstalk_raw_exclusion_label = argschema.fields.List(
-                                       argschema.fields.Field,
-                                       description='IDs of ROIs '
-                                                   'ruled invalid '
-                                                   'based on raw '
-                                                   'trace',
-                                       required=True,
-                                       cli_as_single_argument=True,
-                                       validate=validate_list_of_ints)
+    ophys_session_id = argschema.fields.Int(
+                           description='ophys_session_id',
+                           required=True)
 
-    decrosstalk_unmixed_exclusion_label = argschema.fields.List(
-                                           argschema.fields.Field,
-                                           description='IDs of ROIs '
-                                                       'ruled invalid '
-                                                       'based on unmixed '
-                                                       'trace',
-                                           required=True,
-                                           cli_as_single_argument=True,
-                                           validate=validate_list_of_ints)
-
-    decrosstalk_ghost_roi_ids = argschema.fields.List(
-                                    argschema.fields.Field,
-                                    description='IDs of ROIs ruled '
-                                                'invalid because '
-                                                'all activity is due '
-                                                'to crosstalk',
-                                    required=True,
-                                    cli_as_single_argument=True,
-                                    validate=validate_list_of_ints)
+    coupled_planes = argschema.fields.List(
+                            argschema.fields.Nested(PlanePairOutputSchema),
+                            description='list of plane pairs',
+                            required=True,
+                            cli_as_single_argument=True)

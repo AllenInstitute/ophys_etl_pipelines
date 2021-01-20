@@ -7,6 +7,8 @@
       "group_order": 0,
       "planes": [
         {
+          "output_roi_trace_file": "path/to/a/file",
+          "output_neuropil_trace_file": "path/to/a/file",
           "ophys_experiment_id": 1059792822,
           "motion_corrected_stack": "/allen/programs/braintv/production/visualbehavior/prod4/specimen_1024040087/ophys_session_1059645950/ophys_experiment_1059792822/processed/motion_corrected_video.h5",
           "motion_border": {
@@ -663,6 +665,8 @@
           ]
         },
         {
+          "output_roi_trace_file": "path/to/a/file",
+          "output_neuropil_trace_file": "path/to/a/file",
           "ophys_experiment_id": 1059792820,
           "motion_corrected_stack": "/allen/programs/braintv/production/visualbehavior/prod4/specimen_1024040087/ophys_session_1059645950/ophys_experiment_1059792820/processed/motion_corrected_video.h5",
           "motion_border": {
@@ -1199,6 +1203,8 @@
       "group_order": 1,
       "planes": [
         {
+          "output_roi_trace_file": "path/to/a/file",
+          "output_neuropil_trace_file": "path/to/a/file",
           "ophys_experiment_id": 1059792826,
           "motion_corrected_stack": "/allen/programs/braintv/production/visualbehavior/prod4/specimen_1024040087/ophys_session_1059645950/ophys_experiment_1059792826/processed/motion_corrected_video.h5",
           "motion_border": {
@@ -2021,6 +2027,8 @@
           ]
         },
         {
+          "output_roi_trace_file": "path/to/a/file",
+          "output_neuropil_trace_file": "path/to/a/file",
           "ophys_experiment_id": 1059792824,
           "motion_corrected_stack": "/allen/programs/braintv/production/visualbehavior/prod4/specimen_1024040087/ophys_session_1059645950/ophys_experiment_1059792824/processed/motion_corrected_video.h5",
           "motion_border": {

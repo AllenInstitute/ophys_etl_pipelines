@@ -27,9 +27,29 @@ class DummySchemaOutput(argschema.ArgSchemaParser):
     default_output_schema = decrosstalk_schema.DecrosstalkOutputSchema
 
     def run(self):
-        output = {'decrosstalk_raw_exclusion_label': [],
-                  'decrosstalk_unmixed_exclusion_label': [1, 2, 3, 4],
-                  'decrosstalk_ghost_roi_ids': []}
+        output = {}
+        output['ophys_session_id'] = 9
+        coupled_planes = []
+        for i_pair in range(2):
+            planes = []
+            for ii in range(2):
+                p = {}
+                p['ophys_experiment_id'] = ii
+                p['output_roi_trace_file'] = 'path/to/file'
+                p['output_neuropil_trace_file'] = 'path/to/file'
+                p['decrosstalk_invalid_raw'] = [1, 2, 3]
+                p['decrosstalk_invalid_raw_active'] = [0, 5]
+                p['decrosstalk_invalid_unmixed'] = [7, 8, 9]
+                p['decrosstalk_invalid_unmixed_active'] = [10, 11]
+                p['decrosstalk_ghost'] = [13, 14]
+                planes.append(p)
+            pair = {}
+            pair['ophys_imaging_plane_group_id'] = 5
+            pair['group_order'] = 0
+            pair['planes'] = planes
+            coupled_planes.append(pair)
+        output['coupled_planes'] = coupled_planes
+
         self.output(output)
 
 

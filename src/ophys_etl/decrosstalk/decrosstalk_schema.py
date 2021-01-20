@@ -21,11 +21,11 @@ class PlaneSchema(argschema.schemas.DefaultSchema):
                              description='experiment ID',
                              required=True)
 
-    output_roi_trace_file = argschema.fields.Str(
+    output_roi_trace_file = argschema.fields.OutputFile(
                        description='Path to ROI trace file',
                        required=True)
 
-    output_neuropil_trace_file = argschema.fields.Str(
+    output_neuropil_trace_file = argschema.fields.OutputFile(
                              description='Path to neuropil trace file',
                              required=True)
 
@@ -66,7 +66,7 @@ class DecrosstalkInputSchema(argschema.ArgSchema):
                            description='ophys_session_id',
                            required=True)
 
-    qc_output_dir = argschema.fields.Str(
+    qc_output_dir = argschema.fields.OutputDir(
                         description='path to intermediate output dir',
                         required=True)
 
@@ -97,11 +97,11 @@ class PlaneOutputSchema(argschema.schemas.DefaultSchema):
                              description='experiment ID',
                              required=True)
 
-    output_roi_trace_file = argschema.fields.Str(
+    output_roi_trace_file = argschema.fields.OutputFile(
                                description='Path to ROI trace file',
                                required=True)
 
-    output_neuropil_trace_file = argschema.fields.Str(
+    output_neuropil_trace_file = argschema.fields.OutputFile(
                                    description='Path to neuropil trace file',
                                    required=True)
 

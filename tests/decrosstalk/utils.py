@@ -46,6 +46,9 @@ def create_data(tmpdir):
     if not os.path.exists(input_dir):
         os.makedirs(input_dir)
 
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     nt = 10000  # truncate signals in memory
 
     good_trace_file = os.path.join(data_dir, 'good_traces.h5')

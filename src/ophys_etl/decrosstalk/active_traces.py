@@ -170,6 +170,22 @@ def _trace_to_flag(traces_y0, th_ag):
     Take traces_y0 (np.array of trace values for each neuron) and th_ag;
     return array of boolean flags indicating which timesteps are a part
     of events and which are not
+
+    Parameters
+    ----------
+    traces_y0 -- an MxN numpy array containing the traces of
+    the neurons (M is the number of neurons; N is the number
+    of time steps)
+
+    th_ag -- a threshold applied to the negative sum of log
+    probabilities of each series of 5 events. Any series
+    of 5 events whose sum of log probabilities exceeds this
+    parameter indicates the onset of an "event"
+
+    Returns
+    -------
+    a MxN numpy array of booleans indicating which elements in
+    traces_y0 were active events
     """
 
     #  Andrea Giovannucci's method of identifying "exceptional" events
@@ -186,9 +202,33 @@ def _trace_to_flag(traces_y0, th_ag):
 
 def _flag_to_events(traces_y0, evs, len_ne):
     """
-    take traces_y0, evs (produced by _trace_to_flag) and
-    len_ne; return ragged array of traces and timestamps
-    indicating where events are.
+    Take an array of traces and an array of booleans marking
+    "active" time steps in those traces. Return, for each neuron,
+    numpy arrays containing only the active timesteps.
+
+    Parameters
+    ----------
+    traces_y0 -- an MxN numpy array containing the traces of
+    the neurons (M is the number of neurons; N is the number
+    of time steps)
+
+    evs -- an MxN numpy array of booleans indicating which
+    elements of traces_y0 are "active"
+
+    len_ne -- an int; the number of time steps before and
+    after each event to include the in output trace
+
+    Returns
+    -------
+    traces_out -- a 2D numpy array. Each row contains the
+    active trace elements for the corresponding neuron.
+
+    events_out -- a 2D numpy array of ints. Each row is
+    the indices of the active elements from traces_out,
+
+    i.e.
+
+    traces_y0[2, events_out[2]] == traces_out[2]
     """
 
     n_neurons = traces_y0.shape[0]

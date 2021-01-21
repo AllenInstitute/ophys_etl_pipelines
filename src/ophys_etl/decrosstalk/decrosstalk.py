@@ -8,6 +8,8 @@ import ophys_etl.decrosstalk.active_traces as active_traces
 import logging
 
 logger = logging.getLogger(__name__)
+logging.captureWarnings(True)
+logging.basicConfig(level=logging.INFO)
 
 
 def get_raw_traces(signal_plane, ct_plane):

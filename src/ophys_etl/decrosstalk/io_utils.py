@@ -35,6 +35,11 @@ def _write_data_to_h5(file_handle, data_dict):
             group = file_handle.create_group(str(key))
             _write_data_to_h5(group, value)
         else:
+
+            # sometimes empty arrays of objects get through here
+            if hasattr(value, '__len__'):
+                if len(value) == 0:
+                    value = np.array([], dtype=int)
             file_handle.create_dataset(str(key), data=value)
     return None
 
@@ -262,8 +267,17 @@ class RawATH5WriterOld(OldOutputWriter):
             output['%d_crosstalk_trace' % roi_id] = data['crosstalk']['trace']
             _events_key = '%d_crosstalk_events' % roi_id
             output[_events_key] = data['crosstalk']['events']
-            f_trace = np.isfinite(data['crosstalk']['trace']).all()
-            f_ev = np.isfinite(data['crosstalk']['events']).all()
+
+            if len(data['crosstalk']['trace']) == 0:
+                f_trace = False
+            else:
+                f_trace = np.isfinite(data['crosstalk']['trace']).all()
+
+            if len(data['crosstalk']['events']) == 0:
+                f_ev = False
+            else:
+                f_ev = np.isfinite(data['crosstalk']['events']).all()
+
             f_ct = np.logical_and(f_trace, f_ev)
             output['%d_crosstalk_valid' % roi_id] = f_ct
         write_to_h5(self._get_at_outname(), output, clobber=self.clobber)

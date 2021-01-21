@@ -276,8 +276,8 @@ def _flag_to_events(traces_y0, evs, len_ne):
         _traces = traces_y0[i_neuron, new_evs[i_neuron, :]]
         _events = np.where(new_evs[i_neuron, :])[0]
 
-        traces_out.append(_traces)
-        events_out.append(_events)
+        traces_out.append(_traces.astype(float))
+        events_out.append(_events.astype(int))
 
     return (np.array(traces_out, dtype=object),
             np.array(events_out, dtype=object))

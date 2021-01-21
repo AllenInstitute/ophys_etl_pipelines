@@ -550,12 +550,21 @@ def run_decrosstalk(signal_plane, ct_plane,
     invalid_active_trace = {}
     invalid_active_trace['signal'] = []
     invalid_active_trace['crosstalk'] = []
+    active_trace_had_NaNs = False
     for roi_id in unmixed_trace_events.keys():
         local_traces = unmixed_trace_events[roi_id]
         for channel in ('signal', 'crosstalk'):
-            nan_trace = np.isnan(local_traces[channel]['trace']).any()
-            nan_events = np.isnan(local_traces[channel]['events']).any()
-            if nan_trace or nan_events:
+            is_valid = True
+            if len(local_traces[channel]['trace']) == 0:
+                is_valid = False
+            else:
+                nan_trace = np.isnan(local_traces[channel]['trace']).any()
+                nan_events = np.isnan(local_traces[channel]['events']).any()
+                if nan_trace or nan_events:
+                    is_valid = False
+                    active_trace_had_NaNs = True
+
+            if not is_valid:
                 invalid_active_trace[channel].append(roi_id)
 
     if cache_dir is not None:
@@ -569,21 +578,19 @@ def run_decrosstalk(signal_plane, ct_plane,
         del writer
         del writer_class
 
-    n_sig = len(invalid_active_trace['signal'])
-    n_ct = len(invalid_active_trace['crosstalk'])
-    if n_sig > 0 or n_ct > 0:
+    if active_trace_had_NaNs:
         msg = 'ophys_experiment_id: %d (%d) ' % (signal_plane.experiment_id,
                                                  ct_plane.experiment_id)
         msg += 'had ROIs with active event channels that contained NaNs'
         logger.error(msg)
 
-        # remove ROIs with NaNs in their independent signal events
-        # from the data being processed
-        for roi_id in invalid_active_trace['signal']:
-            roi_flags[unmixed_active_key].append(roi_id)
-            unmixed_trace_events.pop(roi_id)
-            unmixed_traces['roi'].pop(roi_id)
-            unmixed_traces['neuropil'].pop(roi_id)
+    # remove ROIs with empty or NaN active trace signal channels
+    # from the data being processed
+    for roi_id in invalid_active_trace['signal']:
+        roi_flags[unmixed_active_key].append(roi_id)
+        unmixed_trace_events.pop(roi_id)
+        unmixed_traces['roi'].pop(roi_id)
+        unmixed_traces['neuropil'].pop(roi_id)
 
     if cache_dir is not None:
         writer = io_utils.InvalidATJsonWriter(data=invalid_active_trace,

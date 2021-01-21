@@ -4,6 +4,7 @@ import numpy as np
 import argschema
 import ophys_etl.decrosstalk.ophys_plane as ophys_plane
 import ophys_etl.decrosstalk.decrosstalk_schema as decrosstalk_schema
+from ophys_etl.decrosstalk.decrosstalk import run_decrosstalk
 
 
 class DecrosstalkWrapper(argschema.ArgSchemaParser):
@@ -57,9 +58,10 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                 neuropil_fname = output_schema['output_neuropil_trace_file']
                 p0['output_neuropil_trace_file'] = neuropil_fname
                 (flags_0,
-                 traces_0) = plane_0.run_decrosstalk(plane_1,
-                                                     cache_dir=cache_dir,
-                                                     clobber=clobber)
+                 traces_0) = run_decrosstalk(plane_0,
+                                             plane_1,
+                                             cache_dir=cache_dir,
+                                             clobber=clobber)
 
                 invalid_roi = set()
                 for field in flags_0.keys():

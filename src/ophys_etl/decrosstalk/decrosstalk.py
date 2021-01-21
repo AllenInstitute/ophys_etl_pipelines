@@ -17,10 +17,10 @@ def get_raw_traces(signal_plane, ct_plane):
 
     Parameters
     ----------
-    signal_plane -- an instance of OphysPlane which will
+    signal_plane -- an instance of DecrosstalkingOphysPlane which will
     be taken as the source of the signal
 
-    ct_plane -- another instance of OphysPlane which will
+    ct_plane -- another instance of DecrosstalkingOphysPlane which will
     be taken as the source of the crosstalk
 
     Returns
@@ -113,7 +113,7 @@ def unmix_ROI(roi_traces, seed=None, iters=10):
 
 def unmix_all_ROIs(raw_roi_traces, seed_lookup=None):
     """
-    Unmix all of the ROIs in this OphysPlane.
+    Unmix all of the ROIs in this DecrosstalkingOphysPlane.
 
     Parameters
     ----------
@@ -144,10 +144,10 @@ def unmix_all_ROIs(raw_roi_traces, seed_lookup=None):
         output['roi'][roi_id]['use_avg_mixing_matrix'] -- a boolean
 
                 If True, the ROI was demixed using the average mixing
-                matrix for the OphysPlane. In that case, the unconverged
-                mixing_matrix, signal, and crosstalk will be stored in
-                'poorly_converged_mixing_matrix', 'poorly_converged_signal'
-                and 'poorly_converged_crosstalk'
+                matrix for the DecrosstalkingOphysPlane. In that case,
+                the unconverged mixing_matrix, signal, and crosstalk
+                will be stored in 'poorly_converged_mixing_matrix',
+                'poorly_converged_signal' and 'poorly_converged_crosstalk'
 
         output['neuropil'][roi_id]['signal'] -- neuropil's unmixed signal
         output['neuropil'][roi_id]['crosstalk'] -- neuropil's unmixed
@@ -315,13 +315,15 @@ def run_decrosstalk(signal_plane, ct_plane,
                     cache_dir=None, clobber=False,
                     new_style_output=False):
     """
-    Actually run the decrosstalking pipeline against another OphysPlane
+    Actually run the decrosstalking pipeline, comparing two
+    DecrosstalkingOphysPlanes
 
     Parameters
     ----------
-    signal_plane -- the OphysPlane characterizing the signal plane
+    signal_plane -- the DecrosstalkingOphysPlane characterizing the
+                    signal plane
 
-    ct_plane -- the OphysPlane characterizing the crosstalk plane
+    ct_plane -- the DecrosstalkingOphysPlane characterizing the crosstalk plane
 
     cache_dir -- the directory in which to write the QC output
     (if None, the output does not get written)
@@ -359,10 +361,10 @@ def run_decrosstalk(signal_plane, ct_plane,
         unmixed_traces['roi'][roi_id]['use_avg_mixing_matrix'] -- a boolean
 
                 If True, the ROI was demixed using the average mixing
-                matrix for the OphysPlane. In that case, the unconverged
-                mixing_matrix, signal, and crosstalk will be stored in
-                'poorly_converged_mixing_matrix', 'poorly_converged_signal'
-                and 'poorly_converged_crosstalk'
+                matrix for the DecrosstalkingOphysPlane. In that case,
+                the unconverged mixing_matrix, signal, and crosstalk
+                will be stored in 'poorly_converged_mixing_matrix',
+                'poorly_converged_signal' and 'poorly_converged_crosstalk'
 
         unmixed_traces['neuropil'][roi_id]['signal'] -- neuropil's
                                                     unmixed signal

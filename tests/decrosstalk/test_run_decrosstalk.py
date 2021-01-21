@@ -1,5 +1,5 @@
 import os
-from ophys_etl.decrosstalk.ophys_plane import OphysPlane
+from ophys_etl.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 from ophys_etl.decrosstalk.decrosstalk import run_decrosstalk
 
 from .utils import create_data
@@ -7,7 +7,7 @@ from .utils import create_data
 
 def test_run_decrosstalk(tmpdir):
     """
-    Test that OphysPlane.run_decrosstalk() can run
+    Test that run_decrosstalk() can run
     as expected in production.
 
     Only verifies that expected outputs are created.
@@ -17,8 +17,8 @@ def test_run_decrosstalk(tmpdir):
     session = create_data(tmpdir)
 
     pair = session['coupled_planes'][0]['planes']
-    plane0 = OphysPlane.from_schema_dict(pair[0])
-    plane1 = OphysPlane.from_schema_dict(pair[1])
+    plane0 = DecrosstalkingOphysPlane.from_schema_dict(pair[0])
+    plane1 = DecrosstalkingOphysPlane.from_schema_dict(pair[1])
     run_decrosstalk(plane0, plane1,
                     cache_dir=session['qc_output_dir'],
                     clobber=True)

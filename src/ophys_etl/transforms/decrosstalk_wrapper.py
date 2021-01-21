@@ -2,7 +2,7 @@ import os
 import h5py
 import numpy as np
 import argschema
-import ophys_etl.decrosstalk.ophys_plane as ophys_plane
+from ophys_etl.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 import ophys_etl.decrosstalk.decrosstalk_schema as decrosstalk_schema
 from ophys_etl.decrosstalk.decrosstalk import run_decrosstalk
 
@@ -36,8 +36,8 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
             output_pair['group_order'] = group_order
 
             input_pair = meta_pair['planes']
-            plane_A = ophys_plane.OphysPlane.from_schema_dict(input_pair[0])
-            plane_B = ophys_plane.OphysPlane.from_schema_dict(input_pair[1])
+            plane_A = DecrosstalkingOphysPlane.from_schema_dict(input_pair[0])
+            plane_B = DecrosstalkingOphysPlane.from_schema_dict(input_pair[1])
 
             plane_pair = []
             plane_group_A = (plane_A, input_pair[0])

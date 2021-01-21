@@ -188,7 +188,7 @@ class OphysMovie(object):
         return output
 
 
-class OphysPlane(object):
+class DecrosstalkingOphysPlane(object):
 
     def __init__(self,
                  experiment_id=None,

@@ -450,7 +450,8 @@ def run_decrosstalk(signal_plane, ct_plane,
     for roi_id in raw_trace_events:
         flux_mask = np.ones(len(raw_traces['roi'][roi_id]['signal']),
                             dtype=bool)
-        flux_mask[raw_trace_events[roi_id]['signal']['events']] = False
+        if len(raw_trace_events[roi_id]['signal']['events']) > 0:
+            flux_mask[raw_trace_events[roi_id]['signal']['events']] = False
         _flux = np.abs(raw_traces['roi'][roi_id]['signal'][flux_mask])
         flux_sum = np.round(_flux.sum()).astype(int)
         roi_to_seed[roi_id] = flux_sum % two_to_32

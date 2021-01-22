@@ -220,10 +220,11 @@ def _flag_to_events(traces_y0, evs, len_ne):
 
     Returns
     -------
-    traces_out -- a 2D numpy array. Each row contains the
-    active trace elements for the corresponding neuron.
+    traces_out -- a list of numpy.arrays. Each array
+    contains the active trace elements for the corresponding
+    neuron.
 
-    events_out -- a 2D numpy array of ints. Each row is
+    events_out -- a list of numpy.arrays. Each array is
     the indices of the active elements from traces_out,
 
     i.e.
@@ -279,8 +280,7 @@ def _flag_to_events(traces_y0, evs, len_ne):
         traces_out.append(_traces.astype(float))
         events_out.append(_events.astype(int))
 
-    return (np.array(traces_out, dtype=object),
-            np.array(events_out, dtype=object))
+    return (traces_out, events_out)
 
 
 def get_traces_evs(traces_y0, th_ag, len_ne):

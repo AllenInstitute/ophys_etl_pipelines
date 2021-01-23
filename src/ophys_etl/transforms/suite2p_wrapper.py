@@ -51,6 +51,10 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
     reg_tif = argschema.fields.Bool(
             default=False,
             description="whether to save registered tiffs")
+    maxregshift = argschema.fields.Float(
+            default=0.2,
+            description=("max allowed registration shift, as a fraction of "
+                         "frame max(width and height)"))
     # s2p cell detection settings
     roidetect = argschema.fields.Bool(
             default=True,

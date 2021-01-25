@@ -82,6 +82,22 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                         if roi_id not in invalid_roi:
                             roi_names.append(roi_id)
                             data.append(traces_0[k][roi_id]['signal'])
+
+                    # add in np.arrays of NaNs for the invalid ROIs
+                    # so that downstream modules don't get confused
+                    # when the number of ROIs in the experiment changes
+                    # (we are adding NaNs because there is no well-defind
+                    # 'unmixed' trace for these cases; the invalid ROI flags
+                    # added to LIMS by this module will exempt these traces
+                    # from further processing)
+                    if len(data) > 0:
+                        n_t = len(data[0])
+                    else:
+                        n_t = 10000
+                    for roi_id in invalid_roi:
+                        roi_names.append(roi_id)
+                        data.append(np.NaN*np.ones(n_t, dtype=float))
+
                     roi_names = np.array(roi_names)
                     data = np.array(data)
                     with h5py.File(out_fname, 'w') as out_file:

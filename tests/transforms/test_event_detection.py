@@ -186,6 +186,14 @@ def test_EventDetectionSchema_decay_time(tmp_path):
                 "nframes": 1000,
                 "rate": 11.0,
                 "noise_multiplier": 3.0,
+                "events": []},
+            {
+                "sigma": 1.0,
+                "decay_time": 0.415,
+                "offset": 0.0,
+                "nframes": 1000,
+                "rate": 11.0,
+                "noise_multiplier": 3.0,
                 "events": [
                     Events(
                         id=123,
@@ -223,6 +231,9 @@ def test_EventDetection(dff_hdf5, tmp_path):
         for k in ['events', 'roi_names', 'noise_stds', 'lambdas']:
             assert k in keys
         events = f['events'][()]
+        if expected_events == []:
+            assert "warning" in keys
+            assert "No valid ROIs in" in str(f['warning'][()])
 
     for result, expected in zip(events, expected_events):
         nresult = np.count_nonzero(result)

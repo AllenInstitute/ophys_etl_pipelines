@@ -176,6 +176,7 @@ def unmix_all_ROIs(raw_roi_traces, seed_lookup=None):
                 if k == 'use_avg_mixing_matrix':
                     continue
                 _out['poorly_converged_%s' % k] = unmixed_roi[k]
+                _out[k] = np.NaN*np.zeros(unmixed_roi[k].shape, dtype=float)
         output['roi'][roi_id] = _out
 
     # calculate avg mixing matrix from successful iterations

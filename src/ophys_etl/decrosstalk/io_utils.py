@@ -330,6 +330,16 @@ class OutH5WriterOld(OldOutputWriter):
         local_data['data_signal'] = signal_data
         local_data['data_crosstalk'] = crosstalk_data
         local_data['roi_demixed'] = demixed
+
+        for roi_id in roi_names:
+            key_set = set(self.data[prefix][roi_id].keys())
+            if 'poorly_converged_mixing_matrix' in key_set:
+                for suffix in ('signal', 'crosstalk', 'mixing_matrix'):
+                    field = 'poorly_converged_%s' % suffix
+                    k = '%d/%s' % (roi_id, field)
+                    v = self.data[prefix][roi_id][field]
+                    local_data[k] = v
+
         return local_data
 
     def run(self):

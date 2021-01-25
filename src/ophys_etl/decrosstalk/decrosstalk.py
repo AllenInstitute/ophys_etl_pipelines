@@ -381,6 +381,11 @@ def run_decrosstalk(signal_plane, ct_plane,
                      'crosstalk_plane': ct_plane,
                      'clobber': clobber}
 
+    # writer class that will be used to write dict of ROIs
+    # that have been invalidated for various reasons by
+    # this module
+    flag_writer_class = io_utils.InvalidFlagWriter
+
     roi_flags = {}
 
     ghost_key = 'decrosstalk_ghost'
@@ -436,6 +441,10 @@ def run_decrosstalk(signal_plane, ct_plane,
         msg += '%d (%d)' % (signal_plane.experiment_id,
                             ct_plane.experiment_id)
         logger.error(msg)
+
+        writer = flag_writer_class(data=roi_flags,
+                                   **output_kwargs)
+        writer.run()
         return roi_flags, {}
 
     #########################################
@@ -508,6 +517,9 @@ def run_decrosstalk(signal_plane, ct_plane,
         msg += '%d (%d)' % (signal_plane.experiment_id,
                             ct_plane.experiment_id)
         logger.error(msg)
+        writer = flag_writer_class(data=roi_flags,
+                                   **output_kwargs)
+        writer.run()
         return roi_flags, unmixed_traces
 
     unmixed_trace_validation = d_utils.validate_traces(unmixed_traces)
@@ -537,6 +549,9 @@ def run_decrosstalk(signal_plane, ct_plane,
         msg += '%d (%d)' % (signal_plane.experiment_id,
                             ct_plane.experiment_id)
         logger.error(msg)
+        writer = flag_writer_class(data=roi_flags,
+                                   **output_kwargs)
+        writer.run()
         return roi_flags, unmixed_traces
 
     ###################################################
@@ -651,8 +666,8 @@ def run_decrosstalk(signal_plane, ct_plane,
         del writer
         del writer_class
 
-    writer = io_utils.InvalidFlagWriter(data=roi_flags,
-                                        **output_kwargs)
+    writer = flag_writer_class(data=roi_flags,
+                               **output_kwargs)
     writer.run()
 
     return roi_flags, unmixed_traces

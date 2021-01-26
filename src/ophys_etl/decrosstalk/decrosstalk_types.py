@@ -1,20 +1,18 @@
+from typing import List, Tuple
 import numpy as np
 
 
 class BasicDictWrapper(object):
 
-    def pop(self, key):
-        return self._data.pop(key)
-
-    def __contains__(self, key):
+    def __contains__(self, key) -> bool:
         if key in self._data:
             return True
         return False
 
-    def keys(self):
+    def keys(self) -> List:
         return list(self._data.keys())
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._data)
 
     def __iter__(self):
@@ -50,16 +48,19 @@ class ROIChannels(BasicDictWrapper):
                             'poorly_converged_mixing_matrix',
                             'use_avg_mixing_matrix')
 
-    def _validate_np_array(self, key, value,
-                           expected_ndim=None,
-                           expected_shape=None,
-                           expected_dtype=None):
+    def _validate_np_array(self,
+                           key: str,
+                           value: np.ndarray,
+                           expected_ndim: int = None,
+                           expected_shape: Tuple = None,
+                           expected_dtype: np.dtype = None) -> bool:
 
         if not isinstance(value, np.ndarray):
             msg = '%s must be a np.ndarray; you gave %s\n' % (key, type(value))
             raise ValueError(msg)
         elif not len(value.shape) == expected_ndim:
-            msg = '%s must be a %d-dimensional array; ' % (key, expected_ndim)
+            msg = '%s must be a ' % key
+            msg += '%s-dimensional array; ' % str(expected_ndim)
             msg += 'you gave %d-dimensional array' % (len(value.shape))
             raise ValueError(msg)
         elif value.dtype != expected_dtype:
@@ -73,7 +74,7 @@ class ROIChannels(BasicDictWrapper):
             raise ValueError(msg)
         return True
 
-    def __setitem__(self, key: str, value):
+    def __setitem__(self, key: str, value: np.ndarray):
         float_type = np.dtype(float)
         if key == 'signal':
             self._validate_np_array('signal', value,
@@ -123,7 +124,7 @@ class ROIChannels(BasicDictWrapper):
             msg += '\nyou gave: %s' % key
             raise KeyError(msg)
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> np.ndarray:
         if key in self._valid_keys:
             return np.copy(self._data[key])
         msg = 'Keys for ROIChannels must be one of:\n'
@@ -158,8 +159,11 @@ class ROIDict(BasicDictWrapper):
             raise ValueError(msg)
         self._data[roi_id] = value
 
-    def __getitem__(self, roi_id: int):
+    def __getitem__(self, roi_id: int) -> ROIChannels:
         return self._data[roi_id]
+
+    def pop(self, key: int) -> ROIChannels:
+        return self._data.pop(key)
 
 
 class ROISetDict(object):
@@ -179,7 +183,7 @@ class ROISetDict(object):
     def __setitem__(self, key, value):
         raise NotImplementedError("ROISetDict does not implement __setitem__")
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> ROIDict:
         if key == 'roi':
             return self._roi
         elif key == 'neuropil':
@@ -189,6 +193,8 @@ class ROISetDict(object):
         msg += "you passed '%s'" % str(key)
         raise KeyError(msg)
 
+    def pop(key):
+        raise NotImplementedError("ROISetDict does not implement pop")
 
 ################# classes for handling events ###################  # noqa: E266
 
@@ -240,13 +246,16 @@ class ROIEvents(object):
             msg += "'%s'" % str(key)
             raise KeyError(msg)
 
-    def __getitem__(self, key: str):
+    def __getitem__(self, key: str) -> np.ndarray:
         if key not in ('trace', 'events'):
             msg = "Only valid keys for ROIEvents are "
             msg += "'trace' and 'events'; you passed in "
             msg += "'%s'" % str(key)
             raise KeyError(msg)
         return np.copy(self._data[key])
+
+    def pop(self, key: str) -> np.ndarray:
+        return self._data.pop(key)
 
 
 class ROIEventChannels(object):
@@ -274,13 +283,16 @@ class ROIEventChannels(object):
             raise ValueError(msg)
         self._data[key] = value
 
-    def __getitem__(self, key: int):
+    def __getitem__(self, key: str) -> ROIEvents:
         if key not in self._valid_keys:
             msg = 'Only allowed keys in ROIEventChannels are:\n'
             msg += str(self._valid_keys)
             msg += '\nyou passed: %s' % str(key)
             raise KeyError(msg)
         return self._data[key]
+
+    def pop(self, key: int) -> ROIEvents:
+        return self._data.pop(key)
 
 
 class ROIEventSet(BasicDictWrapper):
@@ -305,9 +317,12 @@ class ROIEventSet(BasicDictWrapper):
             raise ValueError(msg)
         self._data[key] = value
 
-    def __getitem__(self, key: int):
+    def __getitem__(self, key: int) -> ROIEventChannels:
         if not isinstance(key, int):
             msg = "Ints are the only valid keys for ROIEventSet; "
             msg += "you passed in %s" % str(type(key))
             raise KeyError(msg)
         return self._data[key]
+
+    def pop(self, key: int) -> ROIEventChannels:
+        return self._data.pop(key)

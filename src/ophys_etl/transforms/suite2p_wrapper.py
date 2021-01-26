@@ -216,7 +216,7 @@ def copy_and_add_uid(
 
     """
 
-    copied_files = {}
+    copied_files: dict = {}
 
     for basename in basenames:
         result = list(srcdir.rglob(basename))

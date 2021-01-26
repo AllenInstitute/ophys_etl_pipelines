@@ -50,7 +50,7 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         return data
 
 
-class Suite2PRegistrationOutputSchema(argschema.ArgSchema):
+class Suite2PRegistrationOutputSchema(argschema.schemas.DefaultSchema):
     motion_corrected_output = H5InputFile(
         required=True,
         description="destination path for hdf5 motion corrected video.")

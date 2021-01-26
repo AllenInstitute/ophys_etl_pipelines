@@ -1,12 +1,15 @@
-import argschema
-import tempfile
-import tifffile
 import json
-import marshmallow
-import h5py
 import os
-import numpy as np
+import tempfile
 from pathlib import Path
+
+import argschema
+import h5py
+import marshmallow
+import numpy as np
+import pandas as pd
+import tifffile
+
 from ophys_etl.schemas.fields import H5InputFile
 from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
                                                   Suite2PWrapperSchema)
@@ -21,8 +24,9 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         description="destination path for hdf5 motion corrected video.")
     motion_diagnostics_output = argschema.fields.OutputFile(
         required=True,
-        description=("hdf5 format of diagnostics harvested from Suite2P "
-                     "ops.npy"))
+        description=("Desired save path for *.csv file containing motion "
+                     "correction offset data")
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -54,10 +58,10 @@ class Suite2PRegistrationOutputSchema(argschema.schemas.DefaultSchema):
     motion_corrected_output = H5InputFile(
         required=True,
         description="destination path for hdf5 motion corrected video.")
-    motion_diagnostics_output = H5InputFile(
+    motion_diagnostics_output = argschema.fields.OutputFile(
         required=True,
-        description=("hdf5 format of diagnostics harvested from Suite2P "
-                     "ops.npy"))
+        description=("Path of *.csv file containing motion correction offsets")
+    )
 
 
 class Suite2PRegistration(argschema.ArgSchemaParser):
@@ -103,15 +107,28 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         self.logger.info("concatenated Suite2P tiff output to "
                          f"{self.args['motion_corrected_output']}")
 
-        ops_keys = ["Lx", "Ly", "nframes", "xrange", "yrange", "xoff", "yoff",
-                    "corrXY", "meanImg"]
+        # Suite2P ops file contains at least the following keys:
+        # ["Lx", "Ly", "nframes", "xrange", "yrange", "xoff", "yoff",
+        #  "corrXY", "meanImg"]
         ops = np.load(ops_path, allow_pickle=True)
-        with h5py.File(self.args['motion_diagnostics_output'], "w") as f:
-            for key in ops_keys:
-                f.create_dataset(key, data=ops.item()[key])
-        self.logger.info("transferred registration metrics from `ops.npy` to "
-                         f"{self.args['motion_diagnostics_output']}. "
-                         f"Metrics are {ops_keys}.")
+
+        # Save motion offset data to a csv file
+        # TODO: This *.csv file is being created to maintain compatability
+        # with current ophys processing pipeline. In the future this output
+        # should be removed and a better data storage format used.
+        # 01/25/2021 - NJM
+        motion_offset_df = pd.DataFrame({
+            "framenumber": list(range(ops.item()["nframes"])),
+            "x": ops.item()["xoff"],
+            "y": ops.item()["yoff"],
+            "correlation": ops.item()["corrXY"]
+        })
+        motion_offset_df.to_csv(
+            path_or_buf=self.args['motion_diagnostics_output'],
+            index=False)
+        self.logger.info(
+            f"Writing the LIMS expected 'OphysMotionXyOffsetData' "
+            f"csv file to: {self.args['motion_diagnostics_output']}")
 
         # Clean up temporary directories and/or files created during
         # Schema invocation

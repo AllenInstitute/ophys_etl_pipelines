@@ -25,6 +25,20 @@ class BasicDictWrapper(object):
 
 
 class ROIChannels(BasicDictWrapper):
+    """
+    A wrapper around a dict meant to store all of the decrosstalk-related
+    data for one ROI.
+
+    Valid key, value pairs are:
+
+    'signal' -- a 1-D np.ndarray of floats containing a trace
+    'crosstalk' -- a 1-D np.ndarray of floats containing a trace
+    'mixing_matrix' -- a 2x2 np.ndarray of floats
+    'poorly_converged_signal' -- same type as 'signal'
+    'poorly_converged_crosstalk' -- same type as 'crosstalk'
+    'poorly_converged_mixing_matrix' -- same type as 'mixing_matrix'
+    'use_avg_mixing_matrix' -- a boolean
+    """
 
     def __init__(self):
         self._data = {}
@@ -122,6 +136,13 @@ class ROIChannels(BasicDictWrapper):
 
 
 class ROIDict(BasicDictWrapper):
+    """
+    A wrapper around a dict meant to store the decrosstalk-related
+    data for many ROIs.
+
+    Key/Value pairs must all be (int, ROIChannels) where int is the
+    ROI's roi_id.
+    """
 
     def __init__(self):
         self._data = {}
@@ -142,6 +163,14 @@ class ROIDict(BasicDictWrapper):
 
 
 class ROISetDict(object):
+    """
+    Wrapper around dict meant to store the ROI and Neuropil trace
+    data for a set of ROIs.
+
+    Valid keys are 'roi' and 'neuropil', each of which stores an
+    ROIDict containing the relevant data for the ROIs measured in
+    that type of footprint (ROI or neuropil).
+    """
 
     def __init__(self):
         self._roi = ROIDict()
@@ -165,6 +194,17 @@ class ROISetDict(object):
 
 
 class ROIEvents(object):
+    """
+    A wrapper around dict meant to store the active trace data for an
+    ROI. Valid key/value pairs are
+
+    'trace' -- a 1-D np.ndarray of floats containing trace values
+    'events' -- a 1-D np.ndarray of ints containing indexes of active timesteps
+
+    The idea is that, given a raw_trace stored somewhere else,
+
+    raw_trace[ROIEvents['events']] == ROIEvents['trace']
+    """
 
     def __init__(self):
         self._data = {}
@@ -210,6 +250,13 @@ class ROIEvents(object):
 
 
 class ROIEventChannels(object):
+    """
+    A wrapper around dict meant to store the active trace data for the
+    signal and crosstalk channels in an ROI.
+
+    Valid keys are 'signal' and 'crosstalk', each of which stores an
+    ROIEvents
+    """
 
     def __init__(self):
         self._data = {}
@@ -237,6 +284,11 @@ class ROIEventChannels(object):
 
 
 class ROIEventSet(BasicDictWrapper):
+    """
+    A wrapper around dict meant to store all of the ROIEventChannels for
+    a set of ROIs. Valid keys are ints (the roi_ids of the ROIs). Valid
+    values are ROIEventChannels.
+    """
 
     def __init__(self):
         self._data = {}

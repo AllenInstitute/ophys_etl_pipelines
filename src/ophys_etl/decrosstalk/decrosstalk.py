@@ -1,5 +1,9 @@
 import numpy as np
 
+from typing import Tuple, Dict, List
+import ophys_etl.decrosstalk.decrosstalk_types as dc_types
+from ophys_etl.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
+
 import ophys_etl.decrosstalk.decrosstalk_utils as d_utils
 import ophys_etl.decrosstalk.ica_utils as ica_utils
 import ophys_etl.decrosstalk.io_utils as io_utils
@@ -12,7 +16,8 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
-def get_raw_traces(signal_plane, ct_plane):
+def get_raw_traces(signal_plane: DecrosstalkingOphysPlane,
+                   ct_plane: DecrosstalkingOphysPlane) -> dc_types.ROISetDict:
     """
     Get the raw signal and crosstalk traces comparing
     this plane to another plane
@@ -27,28 +32,18 @@ def get_raw_traces(signal_plane, ct_plane):
 
     Returns
     -------
-    A dict of raw traces such that
-        output['roi'][roi_id]['signal'] is the raw signal trace for ROI
-
-        output['roi'][roi_id]['crosstalk'] is the raw crosstalk
-                                           trace for ROI
-
-        output['neuropil'][roi_od]['signal'] is the raw signal trace for
-                                             the neuropil around ROI
-
-        output['neuropil'][roi_id]['crosstalk'] is the raw crosstalk trace
-                                                for the neuropil around ROI
+    An decrosstalk_types.ROISetDict containing the raw trace data for
+    the ROIs in the signal plane.
     """
 
     signal_traces = signal_plane.movie.get_trace(signal_plane.roi_list)
     crosstalk_traces = ct_plane.movie.get_trace(signal_plane.roi_list)
 
-    output = {}
-    output['roi'] = {}
-    output['neuropil'] = {}
+    output = dc_types.ROISetDict()
+
     for roi_id in signal_traces['roi'].keys():
-        _roi = {}
-        _neuropil = {}
+        _roi = dc_types.ROIChannels()
+        _neuropil = dc_types.ROIChannels()
 
         _roi['signal'] = signal_traces['roi'][roi_id]
         _roi['crosstalk'] = crosstalk_traces['roi'][roi_id]
@@ -61,37 +56,27 @@ def get_raw_traces(signal_plane, ct_plane):
     return output
 
 
-def unmix_ROI(roi_traces, seed=None, iters=10):
+def unmix_ROI(roi_traces: dc_types.ROIChannels,
+              seed: int = None,
+              iters: int = 10) -> dc_types.ROIChannels:
     """
     Unmix the signal and crosstalk traces for a single ROI
 
     Parameters
     ----------
-    roi_traces is a dict that such that
-        roi_traces['signal'] is a numpy array
-                             containing the signal trace
-        roi_traces['crosstalk'] is a numpy array
-                                containing the crosstalk trace
+    roi_traces -- a decrosstalking_types.ROIChannels containing
+                  raw trace information for the ROI
 
-    seed is an int used to seed the random number generator
-    that sklearn.decompositions.FastICA uses
+    seed -- an int used to seed the random number generator
+            that sklearn.decompositions.FastICA uses
 
-    iters is an int indicating the number of iterations of
-    FastICA to run before giving up on convegence.
+    iters -- an int indicating the number of iterations of
+             FastICA to run before giving up on convegence.
 
     Returns
     -------
-    A dict such that
-        output['mixing_matrix'] -- the mixing matrix that transforms
-                                   the unmixed signals back into the data
-        output['signal'] -- is the unmixed signal
-        output['crosstalk'] -- is the unmixed crosstalk
-        output['use_avg_mixing_matrix'] -- a boolean; if True, ICA
-                                           did not actually converge;
-                                           we must discard these results
-                                           and unmix the signal and
-                                           crosstalk using the average
-                                           mixing matrix for the plane
+    A decrosstalk_types.ROIChannels containing the unmixed trace data
+    for the ROI
     """
 
     ica_input = np.array([roi_traces['signal'], roi_traces['crosstalk']])
@@ -104,7 +89,7 @@ def unmix_ROI(roi_traces, seed=None, iters=10):
 
     assert unmixed_signals.shape == ica_input.shape
 
-    output = {}
+    output = dc_types.ROIChannels()
     output['mixing_matrix'] = mixing_matrix
     output['signal'] = unmixed_signals[0, :]
     output['crosstalk'] = unmixed_signals[1, :]
@@ -113,52 +98,25 @@ def unmix_ROI(roi_traces, seed=None, iters=10):
     return output
 
 
-def unmix_all_ROIs(raw_roi_traces, seed_lookup=None):
+def unmix_all_ROIs(raw_roi_traces: dc_types.ROISetDict,
+                   seed_lookup: Dict[int, int]) -> Tuple[bool, dc_types.ROISetDict]:  # noqa: E501
     """
     Unmix all of the ROIs in this DecrosstalkingOphysPlane.
 
     Parameters
     ----------
-    raw_roi_traces is a dict
-        raw_roi_traces['roi'][roi_id]['signal'] is the raw signal
-                                                for the ROI
+    raw_roi_traces -- a decrosstalk_types.ROISetDict containing the
+                      raw trace data for all the ROIs to be unmixed
 
-        raw_roi_traces['roi'][roi_id]['crosstalk'] is the raw crosstalk
-                                                   for the ROI
-
-        raw_roi_traces['neuropil'][roi_id]['signal'] is the raw signal
-                                                   for the neuropil around
-                                                   the ROI
-
-        raw_roi_traces['neuropil'][roi_id]['crosstalk'] is the raw
-                                                   crosstalk for the
-                                                   neuropil around the ROI
-
-    seed_lookup is a dict that maps roi_id to a seed for np.RandomState
+    seed_lookup -- a dict that maps roi_id to a seed for np.RandomState
 
     Returns
     -------
-    A dict such that
-
-        output['roi'][roi_id]['mixing_matrix'] -- the ROI's mixing matrix
-        output['roi'][roi_id]['signal'] -- the ROI's unmixed signal
-        output['roi'][roi_id]['crosstalk'] -- the ROI's unmixed crosstalk
-        output['roi'][roi_id]['use_avg_mixing_matrix'] -- a boolean
-
-                If True, the ROI was demixed using the average mixing
-                matrix for the DecrosstalkingOphysPlane. In that case,
-                the unconverged mixing_matrix, signal, and crosstalk
-                will be stored in 'poorly_converged_mixing_matrix',
-                'poorly_converged_signal' and 'poorly_converged_crosstalk'
-
-        output['neuropil'][roi_id]['signal'] -- neuropil's unmixed signal
-        output['neuropil'][roi_id]['crosstalk'] -- neuropil's unmixed
-                                                   crosstalk
+    A decrosstalk_types.ROISetDict containing the unmixed trace data for the
+    ROIs.
     """
 
-    output = {}
-    output['roi'] = {}
-    output['neuropil'] = {}
+    output = dc_types.ROISetDict()
 
     # first pass naively unmixing ROIs with ICA
     for roi_id in raw_roi_traces['roi'].keys():
@@ -167,11 +125,11 @@ def unmix_all_ROIs(raw_roi_traces, seed_lookup=None):
                                 seed=seed_lookup[roi_id],
                                 iters=10)
 
-        _out = {}
         if not unmixed_roi['use_avg_mixing_matrix']:
             _out = unmixed_roi
         else:
-            _out = {'use_avg_mixing_matrix': True}
+            _out = dc_types.ROIChannels()
+            _out['use_avg_mixing_matrix'] = True
             for k in unmixed_roi.keys():
                 if k == 'use_avg_mixing_matrix':
                     continue
@@ -180,15 +138,15 @@ def unmix_all_ROIs(raw_roi_traces, seed_lookup=None):
         output['roi'][roi_id] = _out
 
     # calculate avg mixing matrix from successful iterations
-    _out = output['roi']
-    alpha_arr = np.array([min(_out[roi_id]['mixing_matrix'][0, 0],
-                              _out[roi_id]['mixing_matrix'][0, 1])
-                          for roi_id in _out.keys()
-                          if not _out[roi_id]['use_avg_mixing_matrix']])
-    beta_arr = np.array([min(_out[roi_id]['mixing_matrix'][1, 0],
-                             _out[roi_id]['mixing_matrix'][1, 1])
-                         for roi_id in _out.keys()
-                         if not _out[roi_id]['use_avg_mixing_matrix']])
+    just_roi = output['roi']
+    alpha_arr = np.array([min(just_roi[roi_id]['mixing_matrix'][0, 0],
+                              just_roi[roi_id]['mixing_matrix'][0, 1])
+                          for roi_id in just_roi.keys()
+                          if not just_roi[roi_id]['use_avg_mixing_matrix']])
+    beta_arr = np.array([min(just_roi[roi_id]['mixing_matrix'][1, 0],
+                             just_roi[roi_id]['mixing_matrix'][1, 1])
+                         for roi_id in just_roi.keys()
+                         if not just_roi[roi_id]['use_avg_mixing_matrix']])
 
     assert alpha_arr.shape == beta_arr.shape
     if len(alpha_arr) == 0:
@@ -228,40 +186,30 @@ def unmix_all_ROIs(raw_roi_traces, seed_lookup=None):
                                  np.array([_np_traces['signal'],
                                            _np_traces['crosstalk']]))
 
-        output['neuropil'][roi_id] = {}
-        output['neuropil'][roi_id]['signal'] = unmixed_signals[0, :]
-        output['neuropil'][roi_id]['crosstalk'] = unmixed_signals[1, :]
+        neuropil = dc_types.ROIChannels()
+        neuropil['signal'] = unmixed_signals[0, :]
+        neuropil['crosstalk'] = unmixed_signals[1, :]
+        output['neuropil'][roi_id] = neuropil
 
     return True, output
 
 
-def get_trace_events(trace_dict,
-                     trace_threshold_params={'len_ne': 20,
-                                             'th_ag': 14}):
+def get_trace_events(trace_dict: dc_types.ROIDict,
+                     trace_threshold_params: dict = {'len_ne': 20,
+                                                     'th_ag': 14}) -> dc_types.ROIEventSet:  # noqa: E501
     """
-    trace_dict is a dict such that
-        trace_dict[roi_id]['signal'] is the signal channel
-        trace_dict[roi_id]['crosstalk'] is the crosstalk channel
+    trace_dict -- a decrosstalk_types.ROIDict containing the trace data
+                  for many ROIs to be analyzed
 
     trace_threshold_params -- a dict of kwargs that need to be
-    passed to active_traces.get_trace_events
-        default: {'len_ne': 20,
-                  'th_ag': 14}
+                              passed to active_traces.get_trace_events
+                              default: {'len_ne': 20,
+                                        'th_ag': 14}
 
     Returns
     -------
-    out_dict such that
-        out_dict[roi_id]['signal']['trace'] is the trace of
-                                            the signal channel events
-
-        out_dict[roi_id]['signal']['events'] is the timestep events of
-                                             the signal channel events
-
-        out_dict[roi_id]['crosstalk']['trace'] is the trace of
-                                               the signal channel events
-
-        out_dict[roi_id]['crosstalk']['events'] is the timestep events of
-                                                the signal channel events
+    A decrosstalk_type.ROIEventSet containing the active trace data
+    for the ROIs
     """
     roi_id_list = list(trace_dict.keys())
 
@@ -275,34 +223,39 @@ def get_trace_events(trace_dict,
     ct_dict = active_traces.get_trace_events(data_arr,
                                              trace_threshold_params)
 
-    output = {}
+    output = dc_types.ROIEventSet()
     for i_roi, roi_id in enumerate(roi_id_list):
-        local_dict = {}
-        local_dict['signal'] = {}
-        local_dict['crosstalk'] = {}
-        local_dict['signal']['trace'] = sig_dict['trace'][i_roi]
-        local_dict['signal']['events'] = sig_dict['events'][i_roi]
-        local_dict['crosstalk']['trace'] = ct_dict['trace'][i_roi]
-        local_dict['crosstalk']['events'] = ct_dict['events'][i_roi]
-        output[roi_id] = local_dict
+        local_channels = dc_types.ROIEventChannels()
+
+        signal = dc_types.ROIEvents()
+        signal['trace'] = sig_dict['trace'][i_roi]
+        signal['events'] = sig_dict['events'][i_roi]
+        local_channels['signal'] = signal
+
+        crosstalk = dc_types.ROIEvents()
+        crosstalk['trace'] = ct_dict['trace'][i_roi]
+        crosstalk['events'] = ct_dict['events'][i_roi]
+        local_channels['crosstalk'] = crosstalk
+
+        output[roi_id] = local_channels
 
     return output
 
 
-def get_crosstalk_data(trace_dict, events_dict):
+def get_crosstalk_data(trace_dict: dc_types.ROIDict,
+                       events_dict: dc_types.ROIEventSet) -> Dict[int, float]:
     """
-    trace_dict that contains
-        trace_dict[roi_id]['signal']
-        trace_dict[roi_id]['crosstalk']
+    Parameters
+    ----------
+    trace_dict -- a decrosstalk_types.ROIDict containing the trace data
+                  for a set of ROIs
 
-    events_dict that contains
-        events_dict[roi_id]['signal']['trace']
-        events_dict[roi_id]['signal']['events']
-        events_dict[roi_id]['crosstalk']['trace']
-        events_dict[roi_id]['crosstalk']['events']
+    events_dict -- a decrosstal_types.ROIEventSet containing the actie
+                   trace data for the ROIs
 
-    returns a dict keyed on roi_id with 100*slope relating
-    signal to crosstalk
+    Returns
+    --------
+    A dict keyed on roi_id with 100*slope relating signal to crosstalk
     """
     output = {}
     for roi_id in trace_dict.keys():
@@ -314,9 +267,10 @@ def get_crosstalk_data(trace_dict, events_dict):
     return output
 
 
-def run_decrosstalk(signal_plane, ct_plane,
-                    cache_dir=None, clobber=False,
-                    new_style_output=False):
+def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
+                    ct_plane: DecrosstalkingOphysPlane,
+                    cache_dir: str = None, clobber: bool = False,
+                    new_style_output: bool = False) -> Tuple[dict, dc_types.ROISetDict]:  # noqa: E501
     """
     Actually run the decrosstalking pipeline, comparing two
     DecrosstalkingOphysPlanes
@@ -355,24 +309,8 @@ def run_decrosstalk(signal_plane, ct_plane,
         'decrosstalk_invalid_unmixed_active' -- ROIs with invalid
                                                 unmixed active traces
 
-        unmixed_traces -- a dict such that
-        unmixed_traces['roi'][roi_id]['mixing_matrix'] -- the ROI's
-                                                       mixing matrix
-        unmixed_traces['roi'][roi_id]['signal'] -- the ROI's unmixed signal
-        unmixed_traces['roi'][roi_id]['crosstalk'] -- the ROI's unmixed
-                                                       crosstalk
-        unmixed_traces['roi'][roi_id]['use_avg_mixing_matrix'] -- a boolean
-
-                If True, the ROI was demixed using the average mixing
-                matrix for the DecrosstalkingOphysPlane. In that case,
-                the unconverged mixing_matrix, signal, and crosstalk
-                will be stored in 'poorly_converged_mixing_matrix',
-                'poorly_converged_signal' and 'poorly_converged_crosstalk'
-
-        unmixed_traces['neuropil'][roi_id]['signal'] -- neuropil's
-                                                    unmixed signal
-        unmixed_traces['neuropil'][roi_id]['crosstalk'] -- neuropil's
-                                                     unmixed crosstalk
+    unmixed_traces -- a decrosstalk_types.RoiSetDict containing
+                      the unmixed trace data for the ROIs
     """
 
     # kwargs for output classes that write QC output
@@ -386,7 +324,7 @@ def run_decrosstalk(signal_plane, ct_plane,
     # this module
     flag_writer_class = io_utils.InvalidFlagWriter
 
-    roi_flags = {}
+    roi_flags: Dict[str, List[int]] = {}
 
     ghost_key = 'decrosstalk_ghost'
     raw_key = 'decrosstalk_invalid_raw'
@@ -445,7 +383,7 @@ def run_decrosstalk(signal_plane, ct_plane,
         writer = flag_writer_class(data=roi_flags,
                                    **output_kwargs)
         writer.run()
-        return roi_flags, {}
+        return roi_flags, dc_types.ROISetDict()
 
     #########################################
     # detect activity in raw traces
@@ -457,7 +395,7 @@ def run_decrosstalk(signal_plane, ct_plane,
     # random noise)
     roi_to_seed = {}
     two_to_32 = 2**32
-    for roi_id in raw_trace_events:
+    for roi_id in raw_trace_events.keys():
         flux_mask = np.ones(len(raw_traces['roi'][roi_id]['signal']),
                             dtype=bool)
         if len(raw_trace_events[roi_id]['signal']['events']) > 0:
@@ -497,7 +435,7 @@ def run_decrosstalk(signal_plane, ct_plane,
 
     (ica_converged,
      unmixed_traces) = unmix_all_ROIs(raw_traces,
-                                      seed_lookup=roi_to_seed)
+                                      roi_to_seed)
     if cache_dir is not None:
         if new_style_output:
             writer_class = io_utils.OutH5Writer
@@ -564,7 +502,7 @@ def run_decrosstalk(signal_plane, ct_plane,
     # store the relevaten ROIs as decrosstalk_invalid_unmixed_trace,
     # and cull those ROIs from the data
 
-    invalid_active_trace = {}
+    invalid_active_trace: Dict[str, List[int]] = {}
     invalid_active_trace['signal'] = []
     invalid_active_trace['crosstalk'] = []
     active_trace_had_NaNs = False
@@ -625,7 +563,7 @@ def run_decrosstalk(signal_plane, ct_plane,
 
     independent_events = {}
     ghost_roi_id = []
-    for roi_id in unmixed_trace_events:
+    for roi_id in unmixed_trace_events.keys():
         signal = unmixed_trace_events[roi_id]['signal']
         crosstalk = unmixed_trace_events[roi_id]['crosstalk']
 

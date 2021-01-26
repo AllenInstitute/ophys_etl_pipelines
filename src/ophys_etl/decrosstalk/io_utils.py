@@ -31,7 +31,7 @@ def _write_data_to_h5(file_handle, data_dict):
     key_list = list(data_dict.keys())
     for key in key_list:
         value = data_dict[key]
-        if isinstance(value, dict):
+        if hasattr(value, 'keys'):
             group = file_handle.create_group(str(key))
             _write_data_to_h5(group, value)
         else:
@@ -69,7 +69,7 @@ def write_to_h5(file_name, data_dict, clobber=False):
     clobber -- boolean; if False, will not overwrite an existing file
     (default=False)
     """
-    if not isinstance(data_dict, dict):
+    if not hasattr(data_dict, 'keys'):
         msg = '\nInput to write_to_h5 not a dict\n'
         msg += 'Input was %s' % str(type(data_dict))
         raise RuntimeError(msg)

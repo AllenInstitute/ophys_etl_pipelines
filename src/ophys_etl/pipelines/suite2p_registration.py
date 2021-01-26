@@ -99,7 +99,7 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
 
         # write the hdf5
         with h5py.File(self.args['motion_corrected_output'], "w") as f:
-            f.create_dataset("data", data=data)
+            f.create_dataset("data", data=data, chunks=(1, *data.shape[1:]))
         self.logger.info("concatenated Suite2P tiff output to "
                          f"{self.args['motion_corrected_output']}")
 

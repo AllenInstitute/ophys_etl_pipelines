@@ -64,9 +64,7 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
                 "h5py": str(h5path),
             },
             "motion_corrected_output": str(tmp_path / "motion_output.h5"),
-            "motion_diagnostics_output":
-                str(tmp_path / "motion_diagnostics.h5"),
-            "motion_offset_output": str(tmp_path / "motion_offset.csv"),
+            "motion_diagnostics_output": str(tmp_path / "motion_offset.csv"),
             "output_json": str(outj_path)}
 
     with patch.object(MockSuite2PWrapper, "mock_ops_data", mock_ops_data):
@@ -78,22 +76,19 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
     with open(outj_path, "r") as f:
         outj = json.load(f)
 
-    for k in ['motion_corrected_output', 'motion_diagnostics_output']:
-        assert k in outj
-        with h5py.File(outj[k], "r") as f:
-            pass
-
+    # Test that motion_corrected_output field exists and
+    # that h5 file contains correct data
+    assert 'motion_corrected_output' in outj
     with h5py.File(outj['motion_corrected_output'], "r") as f:
         data = f['data'][()]
     assert data.shape == (100, 32, 32)
     assert data.max() == 9
     assert data.min() == 0
 
-    with h5py.File(outj['motion_diagnostics_output'], "r") as f:
-        for k, v in mock_ops_data.items():
-            assert np.allclose(f[k][()], v)
-
-    obt_motion_offset_df = pd.read_csv(outj['motion_offset_output'])
+    # Test that motion_diagnostics_output field exists and that csv
+    # file contains correct data
+    assert 'motion_diagnostics_output' in outj
+    obt_motion_offset_df = pd.read_csv(outj['motion_diagnostics_output'])
     expected_frame_indices = list(range(mock_ops_data['nframes']))
     assert np.allclose(obt_motion_offset_df["framenumber"],
                        expected_frame_indices)

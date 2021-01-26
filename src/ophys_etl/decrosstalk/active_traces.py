@@ -1,3 +1,4 @@
+from typing import Union, Tuple, List, Dict
 import numpy as np
 import scipy.stats
 
@@ -6,18 +7,31 @@ __all__ = ['get_trace_events',
            'mode_robust']
 
 
-def mode_robust(input_data, axis=None, d_type=None):
+def mode_robust(input_data: np.ndarray,
+                axis: Union[None, int] = None) -> Union[np.ndarray,
+                                                        np.int,
+                                                        np.float]:
     """
     Robust estimator of the mode of a data set using the half-sample mode.
 
     .. versionadded: 1.0.3
+
+    Parameters
+    ----------
+    input_data -- a np.ndarray of data whose mode is desired
+
+    axis -- int; the axis along which to take the mode
+
+    Returns
+    -------
+    A np.ndarray containing the mode of input_data
     """
     if axis is not None:
-        def fnc(x): return mode_robust(x, d_type=d_type)
+        def fnc(x: np.ndarray): return mode_robust(x)
         data_mode = np.apply_along_axis(fnc, axis, input_data)
     else:
         # Create the function that we can use for the half-sample mode
-        def _hsm(dt):
+        def _hsm(dt: np.ndarray) -> Union[int, float, np.ndarray]:
             if dt.size == 1:
                 return dt[0]
             elif dt.size == 2:
@@ -47,8 +61,6 @@ def mode_robust(input_data, axis=None, d_type=None):
         data = input_data.ravel()  # flatten all dimensions
         if type(data).__name__ == "MaskedArray":
             data = data.compressed()
-        if d_type is not None:
-            data = data.astype(d_type)
 
         # The data need to be sorted for this to work
         data = np.sort(data)
@@ -59,7 +71,11 @@ def mode_robust(input_data, axis=None, d_type=None):
     return data_mode
 
 
-def evaluate_components(traces, event_kernel=5, robust_std=False):
+def evaluate_components(traces: np.ndarray,
+                        event_kernel: int = 5,
+                        robust_std: bool = False) -> Tuple[np.ndarray,
+                                                           np.ndarray,
+                                                           np.ndarray]:
     """
     Define a metric and order components according to the
     probability if some "exceptional events" (like a spike).
@@ -165,7 +181,8 @@ def evaluate_components(traces, event_kernel=5, robust_std=False):
     return idx_components, fitness, erfc
 
 
-def _trace_to_flag(traces_y0, th_ag):
+def _trace_to_flag(traces_y0: np.ndarray,
+                   th_ag: float) -> np.ndarray:
     """
     Take traces_y0 (np.array of trace values for each neuron) and th_ag;
     return array of boolean flags indicating which timesteps are a part
@@ -200,7 +217,10 @@ def _trace_to_flag(traces_y0, th_ag):
     return evs
 
 
-def _flag_to_events(traces_y0, evs, len_ne):
+def _flag_to_events(traces_y0: np.ndarray,
+                    evs: np.ndarray,
+                    len_ne: int) -> Tuple[List[np.ndarray],
+                                          List[np.ndarray]]:
     """
     Take an array of traces and an array of booleans marking
     "active" time steps in those traces. Return, for each neuron,
@@ -283,7 +303,9 @@ def _flag_to_events(traces_y0, evs, len_ne):
     return (traces_out, events_out)
 
 
-def get_traces_evs(traces_y0, th_ag, len_ne):
+def get_traces_evs(traces_y0: np.ndarray,
+                   th_ag: float,
+                   len_ne: int) -> Dict[str, np.ndarray]:
     """
     Function to get an "active trace" i.e. a trace made by extracting
     and concatenating the active parts of the input trace
@@ -323,7 +345,8 @@ def get_traces_evs(traces_y0, th_ag, len_ne):
             'events': inds}
 
 
-def get_trace_events(traces, threshold_parameters):
+def get_trace_events(traces: np.ndarray,
+                     threshold_parameters: Dict[str, Union[int, float]]) -> Dict[str, np.ndarray]:  # noqa: E501
     """
     Wrapper around event detection code.
 
@@ -334,6 +357,19 @@ def get_trace_events(traces, threshold_parameters):
 
     threshold_parameters -- a dict of event detection parameters that
     will be passed to the the actual event detection code
+
+    Returns
+    -------
+    a dict with keys
+        'trace': ndarray, size N (number of neurons);
+                          each neuron has size n, which is the size of the
+                          "active trace" for that neuron. For each neuron,
+                          this array contains the trace values at the active
+                          events in that trace.
+
+        'events': ndarray, size number_of_neurons;
+                  indices to apply on traces_y0 to get traces_y0_evs:
+
     """
 
     return get_traces_evs(traces, **threshold_parameters)

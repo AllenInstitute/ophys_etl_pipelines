@@ -94,6 +94,8 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                                 np.zeros((nframes, *arr.shape), dtype='int16'))
                     data[-1][i] = arr
         data = np.concatenate(data, axis=0)
+        data[data < 0] = 0
+        data = np.uint16(data)
 
         # write the hdf5
         with h5py.File(self.args['motion_corrected_output'], "w") as f:

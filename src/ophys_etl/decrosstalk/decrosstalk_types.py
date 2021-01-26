@@ -21,6 +21,9 @@ class BasicDictWrapper(object):
         raise NotImplementedError("Did not implement iterator over "
                                   "BasicDictWrapper")
 
+################## classes for handling pure traces #############  # noqa: E266
+
+
 class ROIChannels(BasicDictWrapper):
 
     def __init__(self):
@@ -156,3 +159,103 @@ class ROISetDict(object):
         msg += "are 'roi' and 'neuropil'; "
         msg += "you passed '%s'" % str(key)
         raise KeyError(msg)
+
+
+################# classes for handling events ###################  # noqa: E266
+
+
+class ROIEvents(object):
+
+    def __init__(self):
+        self._data = {}
+
+    def __setitem__(self, key: str, value: np.ndarray):
+        if not isinstance(value, np.ndarray):
+            msg = "Can only store np.ndarrays in ROIEvents; "
+            msg += "you passed in %s" % type(value)
+            raise ValueError(msg)
+
+        if len(value.shape) != 1:
+            msg = "Can only store 1-dimensional "
+            msg += "np.ndarrays in ROIEvents; "
+            msg += "you passed in an "
+            msg += "%d-dimensional array" % len(value.shape)
+            raise ValueError(msg)
+
+        if key == 'trace':
+            if value.dtype != np.dtype(float):
+                msg = "Traces must be floats in ROIEvents; "
+                msg += "you passed in %s" % str(value.dtype)
+                raise ValueError(msg)
+            self._data[key] = value
+        elif key == 'events':
+            if value.dtype != np.dtype(int):
+                msg = "Events must be ints in ROIEvents; "
+                msg += "you passed in %s" % str(value.dtype)
+                raise ValueError(msg)
+            self._data[key] = value
+        else:
+            msg = "Only valid keys for ROIEvents are "
+            msg += "'trace' and 'events'; you passed in "
+            msg += "'%s'" % str(key)
+            raise KeyError(msg)
+
+    def __getitem__(self, key: str):
+        if key not in ('trace', 'events'):
+            msg = "Only valid keys for ROIEvents are "
+            msg += "'trace' and 'events'; you passed in "
+            msg += "'%s'" % str(key)
+            raise KeyError(msg)
+        return np.copy(self._data[key])
+
+
+class ROIEventChannels(object):
+
+    def __init__(self):
+        self._data = {}
+        self._valid_keys = set(['signal', 'crosstalk'])
+
+    def __setitem__(self, key: str, value: ROIEvents):
+        if key not in self._valid_keys:
+            msg = 'Only allowed keys in ROIEventChannels are:\n'
+            msg += str(self._valid_keys)
+            msg += '\nyou passed: %s' % str(key)
+            raise KeyError(msg)
+        if not isinstance(value, ROIEvents):
+            msg = "ROIEvents are the only valid values for ROIEventChannels; "
+            msg += "you passed %s" % str(type(value))
+            raise ValueError(msg)
+        self._data[key] = value
+
+    def __getitem__(self, key: int):
+        if key not in self._valid_keys:
+            msg = 'Only allowed keys in ROIEventChannels are:\n'
+            msg += str(self._valid_keys)
+            msg += '\nyou passed: %s' % str(key)
+            raise KeyError(msg)
+        return self._data[key]
+
+
+class ROIEventSet(BasicDictWrapper):
+
+    def __init__(self):
+        self._data = {}
+
+    def __setitem__(self, key: int, value: ROIEventChannels):
+        if not isinstance(key, int):
+            msg = "Ints are the only valid keys for ROIEventSet; "
+            msg += "you passed in %s" % str(type(key))
+            raise KeyError(msg)
+        if not isinstance(value, ROIEventChannels):
+            msg = "ROIEventChannesl are the only valid values "
+            msg += "for ROIEventSet; you passed in "
+            msg += "%s" % str(type(value))
+            raise ValueError(msg)
+        self._data[key] = value
+
+    def __getitem__(self, key: int):
+        if not isinstance(key, int):
+            msg = "Ints are the only valid keys for ROIEventSet; "
+            msg += "you passed in %s" % str(type(key))
+            raise KeyError(msg)
+        return self._data[key]

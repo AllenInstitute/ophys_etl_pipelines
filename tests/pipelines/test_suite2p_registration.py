@@ -65,6 +65,8 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
             },
             "motion_corrected_output": str(tmp_path / "motion_output.h5"),
             "motion_diagnostics_output": str(tmp_path / "motion_offset.csv"),
+            "max_projection_output": str(tmp_path / "max_proj.png"),
+            "avg_projection_output": str(tmp_path / "avg_proj.png"),
             "output_json": str(outj_path)}
 
     with patch.object(MockSuite2PWrapper, "mock_ops_data", mock_ops_data):

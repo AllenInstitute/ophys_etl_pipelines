@@ -9,6 +9,7 @@ import marshmallow
 import numpy as np
 import pandas as pd
 import tifffile
+from PIL import Image
 
 from ophys_etl.schemas.fields import H5InputFile
 from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
@@ -27,6 +28,14 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         description=("Desired save path for *.csv file containing motion "
                      "correction offset data")
     )
+    max_projection_output = argschema.fields.OutputFile(
+        required=True,
+        description=("Desired path for *.png of the max projection of the "
+                     "motion corrected video."))
+    avg_projection_output = argschema.fields.OutputFile(
+        required=True,
+        description=("Desired path for *.png of the avg projection of the "
+                     "motion corrected video."))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -62,6 +71,42 @@ class Suite2PRegistrationOutputSchema(argschema.schemas.DefaultSchema):
         required=True,
         description=("Path of *.csv file containing motion correction offsets")
     )
+    max_projection_output = argschema.fields.OutputFile(
+        required=True,
+        description=("Desired path for *.png of the max projection of the "
+                     "motion corrected video."))
+    avg_projection_output = argschema.fields.OutputFile(
+        required=True,
+        description=("Desired path for *.png of the avg projection of the "
+                     "motion corrected video."))
+
+
+def projection_process(data: np.ndarray,
+                       projection: str = "max") -> np.ndarray:
+    """
+
+    Parameters
+    ----------
+    data: np.ndarray
+        nframes x nrows x ncols, uint16
+    projection: str
+        "max" or "avg"
+
+    Returns
+    -------
+    proj: np.ndarray
+        nrows x ncols, uint8
+
+    """
+    if projection == "max":
+        proj = np.max(data, axis=0)
+    elif projection == "avg":
+        proj = np.mean(data, axis=0)
+    else:
+        raise ValueError("projection can be \"max\" or \"avg\" not "
+                         f"{projection}")
+    proj = np.uint8(proj * 255.0 / proj.max())
+    return proj
 
 
 class Suite2PRegistration(argschema.ArgSchemaParser):
@@ -107,6 +152,19 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         self.logger.info("concatenated Suite2P tiff output to "
                          f"{self.args['motion_corrected_output']}")
 
+        # make projections
+        mx_proj = projection_process(data, projection="max")
+        av_proj = projection_process(data, projection="avg")
+        # TODO: normalize here, if desired
+        # save projections
+        for im, dst_path in zip(
+                [mx_proj, av_proj],
+                [self.args['max_projection_output'],
+                    self.args['avg_projection_output']]):
+            with Image.fromarray(im) as pilim:
+                pilim.save(dst_path)
+            self.logger.info(f"wrote {dst_path}")
+
         # Suite2P ops file contains at least the following keys:
         # ["Lx", "Ly", "nframes", "xrange", "yrange", "xoff", "yoff",
         #  "corrXY", "meanImg"]
@@ -137,7 +195,10 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
 
         outj = {k: self.args[k]
                 for k in ['motion_corrected_output',
-                          'motion_diagnostics_output']}
+                          'motion_diagnostics_output',
+                          'max_projection_output',
+                          'avg_projection_output'
+                          ]}
         self.output(outj, indent=2)
 
 

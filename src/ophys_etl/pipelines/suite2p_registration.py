@@ -1,12 +1,15 @@
-import argschema
-import tempfile
-import tifffile
 import json
-import marshmallow
-import h5py
 import os
-import numpy as np
+import tempfile
 from pathlib import Path
+
+import argschema
+import h5py
+import marshmallow
+import numpy as np
+import pandas as pd
+import tifffile
+
 from ophys_etl.schemas.fields import H5InputFile
 from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
                                                   Suite2PWrapperSchema)
@@ -23,6 +26,11 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         required=True,
         description=("hdf5 format of diagnostics harvested from Suite2P "
                      "ops.npy"))
+    motion_offset_output = argschema.fields.OutputFile(
+        required=True,
+        description=("Desired save path for *.csv file containing motion "
+                     "correction offset data")
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -58,6 +66,10 @@ class Suite2PRegistrationOutputSchema(argschema.ArgSchema):
         required=True,
         description=("hdf5 format of diagnostics harvested from Suite2P "
                      "ops.npy"))
+    motion_offset_output = argschema.fields.OutputFile(
+        required=True,
+        description=("Path of *.csv file containing motion correction offsets")
+    )
 
 
 class Suite2PRegistration(argschema.ArgSchemaParser):
@@ -113,6 +125,22 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                          f"{self.args['motion_diagnostics_output']}. "
                          f"Metrics are {ops_keys}.")
 
+        # Save motion offset data to a csv file
+        # TODO: This *.csv file is being created to maintain compatability
+        # with current ophys processing pipeline. In the future this output
+        # should be removed and a better data storage format used.
+        # 01/25/2021 - NJM
+        motion_offset_df = pd.DataFrame({
+            "framenumber": list(range(ops.item()["nframes"])),
+            "x": ops.item()["xoff"],
+            "y": ops.item()["yoff"],
+            "correlation": ops.item()["corrXY"]
+        })
+        motion_offset_df.to_csv(path_or_buf=self.args['motion_offset_output'],
+                                index=False)
+        self.logger.info("Writing the LIMS expected 'OphysMotionXyOffsetData' "
+                         f"csv file to: {self.args['motion_offset_output']}")
+
         # Clean up temporary directories and/or files created during
         # Schema invocation
         if self.schema.tmpdir is not None:
@@ -120,7 +148,8 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
 
         outj = {k: self.args[k]
                 for k in ['motion_corrected_output',
-                          'motion_diagnostics_output']}
+                          'motion_diagnostics_output',
+                          'motion_offset_output']}
         self.output(outj, indent=2)
 
 

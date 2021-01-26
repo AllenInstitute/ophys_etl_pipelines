@@ -1,20 +1,24 @@
-import numpy as np
-from pathlib import Path
-import h5py
-import tifffile
-import argschema
-import pytest
 import json
-from unittest.mock import patch, Mock
 import sys
+from pathlib import Path
+from unittest.mock import Mock, patch
+
+import argschema
+import h5py
+import numpy as np
+import pandas as pd
+import pytest
+import tifffile
+
 sys.modules['suite2p'] = Mock()
-import ophys_etl.transforms.suite2p_wrapper as s2pw  # noqa
 import ophys_etl.pipelines.suite2p_registration as s2preg  # noqa
+import ophys_etl.transforms.suite2p_wrapper as s2pw  # noqa
 
 
 class MockSuite2PWrapper(argschema.ArgSchemaParser):
     default_schema = s2pw.Suite2PWrapperSchema
     default_output_schema = s2pw.Suite2PWrapperOutputSchema
+    mock_ops_data = None
 
     def run(self):
         fname_base = Path(self.args['output_dir'])
@@ -27,7 +31,13 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
         ops_path = Path(self.args['output_dir']) / "ops.npy"
         ops_keys = ["Lx", "Ly", "nframes", "xrange", "yrange", "xoff", "yoff",
                     "corrXY", "meanImg"]
-        ops_dict = {k: 0 for k in ops_keys}
+
+        if self.mock_ops_data is None:
+            ops_dict = {k: 0 for k in ops_keys}
+        else:
+            ops_dict = self.mock_ops_data
+        self.logger.info(f"Saving ops_dict with: {ops_dict}")
+
         np.save(ops_path, ops_dict)
         outj = {
                 'output_files': {
@@ -39,10 +49,12 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
 
 
 @pytest.mark.suite2p_only
-@patch(
-        'ophys_etl.pipelines.suite2p_registration.Suite2PWrapper',
-        MockSuite2PWrapper)
-def test_suite2p_registration(tmp_path):
+@pytest.mark.parametrize("mock_ops_data", [
+    {"Lx": 0, "Ly": 0, "nframes": 5, "xrange": 0, "yrange": 0,
+     "xoff": [1, 2, 3, 4, 5], "yoff": [5, 4, 3, 2, 1],
+     "corrXY": [6, 7, 8, 9, 10], "meanImg": 0}
+])
+def test_suite2p_registration(tmp_path, mock_ops_data):
     h5path = tmp_path / "mc_video.h5"
     with h5py.File(str(h5path), "w") as f:
         f.create_dataset("data", data=np.zeros((20, 100, 100)))
@@ -54,10 +66,14 @@ def test_suite2p_registration(tmp_path):
             "motion_corrected_output": str(tmp_path / "motion_output.h5"),
             "motion_diagnostics_output":
                 str(tmp_path / "motion_diagnostics.h5"),
+            "motion_offset_output": str(tmp_path / "motion_offset.csv"),
             "output_json": str(outj_path)}
 
-    reg = s2preg.Suite2PRegistration(input_data=args, args=[])
-    reg.run()
+    with patch.object(MockSuite2PWrapper, "mock_ops_data", mock_ops_data):
+        with patch('ophys_etl.pipelines.suite2p_registration.Suite2PWrapper',
+                   MockSuite2PWrapper):
+            reg = s2preg.Suite2PRegistration(input_data=args, args=[])
+            reg.run()
 
     with open(outj_path, "r") as f:
         outj = json.load(f)
@@ -74,6 +90,14 @@ def test_suite2p_registration(tmp_path):
     assert data.min() == 0
 
     with h5py.File(outj['motion_diagnostics_output'], "r") as f:
-        keys = list(f.keys())
-        for k in keys:
-            assert f[k][()] == 0
+        for k, v in mock_ops_data.items():
+            assert np.allclose(f[k][()], v)
+
+    obt_motion_offset_df = pd.read_csv(outj['motion_offset_output'])
+    expected_frame_indices = list(range(mock_ops_data['nframes']))
+    assert np.allclose(obt_motion_offset_df["framenumber"],
+                       expected_frame_indices)
+    assert np.allclose(obt_motion_offset_df["x"], mock_ops_data['xoff'])
+    assert np.allclose(obt_motion_offset_df["y"], mock_ops_data['yoff'])
+    assert np.allclose(obt_motion_offset_df["correlation"],
+                       mock_ops_data['corrXY'])

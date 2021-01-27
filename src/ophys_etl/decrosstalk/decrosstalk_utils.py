@@ -47,23 +47,8 @@ def validate_traces(trace_dict: dc_types.ROISetDict) -> Dict[int, bool]:
 
     Parameters
     -----------
-    trace_dict contains the traces to be validated. It has a structure like:
-
-        trace_dict['roi'][roi_id]['signal'] = np.array of trace of signal
-                                              values for ROI
-
-        trace_dict['roi'][roi_id]['crosstalk'] = np.array of trace of
-                                                 crosstalk values for ROI
-
-        trace_dict['neuropil'][roi_id]['signal'] = np.array of trace of
-                                                   signal values defined
-                                                   in the neuropil
-                                                   around ROI
-
-        trace_dict['neuropil'][roi_id]['crosstalk'] = np.array of trace of
-                                                      crosstalk values
-                                                      defined in the
-                                                      neuropil around ROI
+    trace_dict -- a decrosstalk_types.ROISetDict containing the active
+                  traces to be validated
 
     Returns
     -------
@@ -112,24 +97,21 @@ def find_independent_events(signal_events: dc_types.ROIEvents,
     then any events that are not exact matches (i.e. occurring at the same
     time point) will be considered independent events.
 
-    Args:
-        signal_events: a dict
-            signal_events['trace'] is an array of the trace flux
-                                   values of the signal channel
+    Parameters
+    ----------
+    signal_events -- a decrosstalk_types.ROIEvents containing the active
+                     traces from the signal channel
 
-            signal_events['events'] is an array of the timestamp
-                                    indices of the signal channel
+    crosstalk_events -- a decrosstalk_types.ROIEvents containing the active
+                        traces from the crosstalk channel
 
-        crosstalk_events: a dict (same structure as signal_events)
+    window -- an int specifying the amount of blurring to use (default=2)
 
-        window (int): the amount of blurring to use (default=2)
-
-    Returns:
-        independent_events: a dict of events that were in signal_events,
-                            but not crosstalk_events +/- window
-
-            independent_events['trace'] is an array of the trace flux values
-            indpendent_events['events'] is an array of the timestamp indices
+    Returns
+    -------
+    independent_events -- a decrosstalking_types.ROIEvents containing
+                          the active traces and events that were in
+                          signal_events, but not crosstalk_events +/- window
     """
     blurred_crosstalk = np.unique(np.concatenate([crosstalk_events['events']+ii
                                                   for ii in
@@ -155,29 +137,24 @@ def validate_cell_crosstalk(signal_events: dc_types.ROIEvents,
     Determine if an ROI is a valid cell or a ghost based on the
     events detected in the signal and crosstalk channels
 
-    Args:
-        signal_events: a dict
-            signal_events['trace'] is an array of the trace
-                                   flux values of the signal channel
+    Parameters
+    ----------
+    signal_events -- a decrosstalk_types.ROIEvents containing the active
+                     traces from the signal channel
 
-            signal_events['events'] is an array of the timestamp
-                                    indices of the signal channel
+    crosstalk_events -- a decrosstalk_types.ROIEvents containing the active
+                        traces from the crosstalk channel
 
-        crosstalk_events: a dict (same structure as signal_events)
+    window -- an int specifying the amount of blurring to use (default=2)
 
-        window (int): the amount of blurring to use in
-                      find_independent_events (default=2)
+    Returns
+    -------
+    is_valid_roi -- a boolean indicating whether or not there were independent
+                    events in signal_events
 
-    Returns:
-        is_valid_roi : a boolean that is true if there are
-                       any independent events in the signal channel
-
-        independent_events: a dict of events that were in signal_events,
-                            but not crosstalk_events +/- window
-
-            independent_events['trace'] is an array of the trace flux values
-            indpendent_events['events'] is an array of the timestamp indices
-
+    independent_events -- a decrosstalking_types.ROIEvents containing
+                          the active traces and events that were in
+                          signal_events, but not crosstalk_events +/- window
     """
 
     independent_events = find_independent_events(signal_events,

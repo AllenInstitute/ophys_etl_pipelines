@@ -84,8 +84,8 @@ def unmix_ROI(roi_traces: dc_types.ROIChannels,
     (unmixed_signals,
      mixing_matrix,
      roi_demixed) = ica_utils.run_ica(ica_input,
-                                      seed=seed,
-                                      iters=iters)
+                                      iters,
+                                      seed)
 
     assert unmixed_signals.shape == ica_input.shape
 

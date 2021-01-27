@@ -267,6 +267,53 @@ def get_crosstalk_data(trace_dict: dc_types.ROIDict,
     return output
 
 
+def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDict:  # noqa: E501
+    """
+    Parameters
+    ----------
+    trace_dict -- a decrosstalk_types.ROISetDict containing the traces
+                   that need to be clipped
+
+    Returns
+    -------
+    A decrosstalk_types.ROISetDict containing the clipped traces
+    """
+    active_trace_dict = get_trace_events(trace_dict['roi'])
+    output_trace_dict = dc_types.ROISetDict()
+    roi_id_list = trace_dict['roi'].keys()
+    roi_id_list.sort()
+    for roi_id in roi_id_list:
+        n_t = len(trace_dict['roi'][roi_id]['signal'])
+
+        # try to select only inactive timesteps;
+        # if there are none, select all timesteps
+        # (that would be an unexpected edge case)
+        mask = np.ones(n_t, dtype=bool)
+        mask[active_trace_dict[roi_id]['signal']['events']] = False
+        if mask.sum() == 0:
+            mask[:] = True
+
+        for obj in ('roi', 'neuropil'):
+            noise = trace_dict[obj][roi_id]['signal'][mask]
+            median = np.median(noise)
+            std = np.std(noise, ddof=1)
+            threshold = median-std
+            if threshold < 0.0:
+                threshold = median
+            if threshold < 0.0:
+                raise RuntimeError("threshold in clean_negative_traces "
+                                   "%d" % threshold)
+
+            # clip the trace at threshold
+            trace = trace_dict[obj][roi_id]['signal']
+            trace = np.where(trace > threshold, trace, threshold)
+            channel = dc_types.ROIChannels()
+            channel['signal'] = trace
+            output_trace_dict[obj][roi_id] = channel
+
+    return output_trace_dict
+
+
 def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
                     ct_plane: DecrosstalkingOphysPlane,
                     cache_dir: str = None, clobber: bool = False,
@@ -436,6 +483,19 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
     (ica_converged,
      unmixed_traces) = unmix_all_ROIs(raw_traces,
                                       roi_to_seed)
+
+    # clip dips in signal channel
+    clipped_traces = clean_negative_traces(unmixed_traces)
+
+    # save old signal to 'unclipped_signal'
+    # save new signal to 'signal'
+    for obj in ('roi', 'neuropil'):
+        for roi_id in unmixed_traces[obj].keys():
+            s = unmixed_traces[obj][roi_id]['signal']
+            unmixed_traces[obj][roi_id]['unclipped_signal'] = s
+            s = clipped_traces[obj][roi_id]['signal']
+            unmixed_traces[obj][roi_id]['signal'] = s
+
     if cache_dir is not None:
         if new_style_output:
             writer_class = io_utils.OutH5Writer

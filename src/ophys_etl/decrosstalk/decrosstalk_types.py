@@ -31,6 +31,7 @@ class ROIChannels(BasicDictWrapper):
     'poorly_converged_crosstalk' -- same type as 'crosstalk'
     'poorly_converged_mixing_matrix' -- same type as 'mixing_matrix'
     'use_avg_mixing_matrix' -- a boolean
+    'unclipped_signal' -- same as 'signal'
     """
 
     def __init__(self):
@@ -41,7 +42,8 @@ class ROIChannels(BasicDictWrapper):
                             'poorly_converged_signal',
                             'poorly_converged_crosstalk',
                             'poorly_converged_mixing_matrix',
-                            'use_avg_mixing_matrix')
+                            'use_avg_mixing_matrix',
+                            'unclipped_signal')
 
     def _validate_np_array(self,
                            key: str,
@@ -105,6 +107,12 @@ class ROIChannels(BasicDictWrapper):
             self._validate_np_array('poorly_converged_mixing_matrix', value,
                                     expected_ndim=2,
                                     expected_shape=(2, 2),
+                                    expected_dtype=float_type)
+            self._data[key] = value
+        elif key == 'unclipped_signal':
+            self._validate_np_array('unclipped_signal', value,
+                                    expected_ndim=1,
+                                    expected_shape=None,
                                     expected_dtype=float_type)
             self._data[key] = value
         elif key == 'use_avg_mixing_matrix':

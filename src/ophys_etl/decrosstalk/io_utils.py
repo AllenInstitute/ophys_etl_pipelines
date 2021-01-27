@@ -318,10 +318,12 @@ class OutH5WriterOld(OldOutputWriter):
             return {}
         n_t = len(self.data[prefix][roi_names[0]]['signal'])
         signal_data = np.zeros((len(roi_names), n_t), dtype=float)
+        unclipped = np.zeros((len(roi_names), n_t), dtype=float)
         crosstalk_data = np.zeros((len(roi_names), n_t), dtype=float)
         demixed = np.zeros(len(roi_names), dtype=bool)
         for i_roi, roi_id in enumerate(roi_names):
             signal_data[i_roi, :] = self.data[prefix][roi_id]['signal']
+            unclipped[i_roi, :] = self.data[prefix][roi_id]['unclipped_signal']
             crosstalk_data[i_roi, :] = self.data[prefix][roi_id]['crosstalk']
             _demixed = not self.data['roi'][roi_id]['use_avg_mixing_matrix']
             demixed[i_roi] = _demixed
@@ -330,6 +332,7 @@ class OutH5WriterOld(OldOutputWriter):
         local_data['data_signal'] = signal_data
         local_data['data_crosstalk'] = crosstalk_data
         local_data['roi_demixed'] = demixed
+        local_data['unclipped_signal'] = unclipped
 
         for roi_id in roi_names:
             key_set = set(self.data[prefix][roi_id].keys())

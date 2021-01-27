@@ -1,0 +1,3 @@
+[flake8]
+per-file-ignores =
+    src/ophys_etl/resources/event_decay_time_lookup.py:E501

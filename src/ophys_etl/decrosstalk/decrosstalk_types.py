@@ -9,9 +9,6 @@ class BasicDictWrapper(object):
             return True
         return False
 
-    def keys(self) -> List:
-        return list(self._data.keys())
-
     def __len__(self) -> int:
         return len(self._data)
 
@@ -135,6 +132,9 @@ class ROIChannels(BasicDictWrapper):
     def pop(self, key):
         raise NotImplementedError("ROIChannels does not support pop")
 
+    def keys(self) -> List[str]:
+        return list(self._data.keys())
+
 
 class ROIDict(BasicDictWrapper):
     """
@@ -164,6 +164,9 @@ class ROIDict(BasicDictWrapper):
 
     def pop(self, key: int) -> ROIChannels:
         return self._data.pop(key)
+
+    def keys(self) -> List[int]:
+        return list(self._data.keys())
 
 
 class ROISetDict(object):
@@ -326,3 +329,6 @@ class ROIEventSet(BasicDictWrapper):
 
     def pop(self, key: int) -> ROIEventChannels:
         return self._data.pop(key)
+
+    def keys(self) -> List[int]:
+        return list(self._data.keys())

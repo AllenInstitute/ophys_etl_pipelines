@@ -12,6 +12,7 @@ import tifffile
 from PIL import Image
 
 from ophys_etl.schemas.fields import H5InputFile
+from ophys_etl.qc.registration_qc import RegistrationQC
 from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
                                                   Suite2PWrapperSchema)
 
@@ -36,6 +37,10 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         required=True,
         description=("Desired path for *.png of the avg projection of the "
                      "motion corrected video."))
+    qc_png_output = argschema.fields.OutputFile(
+        required=True,
+        description=("Desired path for *.png for summary QC plot"))
+
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -115,7 +120,7 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
 
     def run(self):
         self.logger.name = type(self).__name__
-        self.logger.setLevel(self.args.pop('log_level'))
+        self.logger.setLevel(self.args['log_level'])
         ophys_etl_commit_sha = os.environ.get("OPHYS_ETL_COMMIT_SHA",
                                               "local build")
         self.logger.info(f"OPHYS_ETL_COMMIT_SHA: {ophys_etl_commit_sha}")
@@ -187,6 +192,18 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         self.logger.info(
             f"Writing the LIMS expected 'OphysMotionXyOffsetData' "
             f"csv file to: {self.args['motion_diagnostics_output']}")
+
+        qc_args = {
+                'motion_corrected_data': data,
+                'motion_diagnostics_output': \
+                    self.args['motion_diagnostics_output'],
+                'max_projection_path': self.args['max_projection_output'],
+                'avg_projection_path': self.args['avg_projection_output'],
+                'png_output_path': self.args['qc_png_output'],
+                'log_level': self.args['log_level']
+                }
+        rqc = RegistrationQC(input_data=qc_args, args=[])
+        rqc.run()
 
         # Clean up temporary directories and/or files created during
         # Schema invocation

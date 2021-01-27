@@ -1,8 +1,12 @@
+from typing import Dict, Tuple
 import numpy as np
 import scipy.stats
 
+import ophys_etl.decrosstalk.decrosstalk_types as dc_types
 
-def get_crosstalk_data(signal, crosstalk):
+
+def get_crosstalk_data(signal: np.ndarray,
+                       crosstalk: np.ndarray) -> Dict[str, float]:
     """
     Use linear regression to calculate the ratio between signal
     and crosstalk in an ROI.
@@ -35,7 +39,7 @@ def get_crosstalk_data(signal, crosstalk):
             'r_value': result.rvalue}
 
 
-def validate_traces(trace_dict):
+def validate_traces(trace_dict: dc_types.ROISetDict) -> Dict[int, bool]:
     """
     Check a traces_dict for validity.
     Validity is defined as neuropil and roi traces having the same shape.
@@ -96,7 +100,9 @@ def validate_traces(trace_dict):
     return output_dict
 
 
-def find_independent_events(signal_events, crosstalk_events, window=2):
+def find_independent_events(signal_events: dc_types.ROIEvents,
+                            crosstalk_events: dc_types.ROIEvents,
+                            window: int = 2) -> dc_types.ROIEvents:
     """
     Calculate independent events between signal_events and crosstalk_events.
 
@@ -133,11 +139,18 @@ def find_independent_events(signal_events, crosstalk_events, window=2):
     valid_signal_events = np.where(np.logical_not(
                                    np.isin(signal_events['events'],
                                            blurred_crosstalk)))
-    return {'trace': signal_events['trace'][valid_signal_events],
-            'events': signal_events['events'][valid_signal_events]}
+
+    output = dc_types.ROIEvents()
+    output['trace'] = signal_events['trace'][valid_signal_events]
+    output['events'] = signal_events['events'][valid_signal_events]
+
+    return output
 
 
-def validate_cell_crosstalk(signal_events, crosstalk_events, window=2):
+def validate_cell_crosstalk(signal_events: dc_types.ROIEvents,
+                            crosstalk_events: dc_types.ROIEvents,
+                            window: int = 2) -> Tuple[bool,
+                                                      dc_types.ROIEvents]:
     """
     Determine if an ROI is a valid cell or a ghost based on the
     events detected in the signal and crosstalk channels

@@ -64,9 +64,9 @@ def dff_hdf5(tmp_path, request):
         ("rate", "specify_multiplier", "multiplier", "expected"),
         [
             (11.0, True, 12, 12),
-            (11.0, False, None, 1.4),
+            (11.0, False, None, 2.6),
             (31.0, True, 2.4, 2.4),
-            (31.0, False, None, 1.0),
+            (31.0, False, None, 2.0),
             ])
 def test_EventDetectionSchema_multiplier(tmp_path, rate, expected,
                                          specify_multiplier, multiplier):

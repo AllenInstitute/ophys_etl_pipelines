@@ -62,29 +62,29 @@ def _run_ophys_movie_test(tmp_filename):
     trace_output = ophys_movie.get_trace(roi_list)
 
     assert len(trace_output['roi']) == 3
-    assert trace_output['roi'][0].shape == (200,)
-    assert trace_output['roi'][1].shape == (200,)
-    assert trace_output['roi'][2].shape == (200,)
+    assert trace_output['roi'][0]['signal'].shape == (200,)
+    assert trace_output['roi'][1]['signal'].shape == (200,)
+    assert trace_output['roi'][2]['signal'].shape == (200,)
 
-    np.testing.assert_array_equal(trace_output['roi'][0][33:58],
+    np.testing.assert_array_equal(trace_output['roi'][0]['signal'][33:58],
                                   2.0*np.ones(25, dtype=float))
 
-    np.testing.assert_array_equal(trace_output['roi'][0][:33],
+    np.testing.assert_array_equal(trace_output['roi'][0]['signal'][:33],
                                   np.zeros(33, dtype=float))
 
-    np.testing.assert_array_equal(trace_output['roi'][0][58:],
+    np.testing.assert_array_equal(trace_output['roi'][0]['signal'][58:],
                                   np.zeros(142, dtype=float))
 
-    np.testing.assert_array_equal(trace_output['roi'][1][22:73],
+    np.testing.assert_array_equal(trace_output['roi'][1]['signal'][22:73],
                                   3.0*np.ones(51, dtype=float))
 
-    np.testing.assert_array_equal(trace_output['roi'][1][:22],
+    np.testing.assert_array_equal(trace_output['roi'][1]['signal'][:22],
                                   np.zeros(22, dtype=float))
 
-    np.testing.assert_array_equal(trace_output['roi'][1][73:],
+    np.testing.assert_array_equal(trace_output['roi'][1]['signal'][73:],
                                   np.zeros(127, dtype=float))
 
-    np.testing.assert_array_equal(trace_output['roi'][2],
+    np.testing.assert_array_equal(trace_output['roi'][2]['signal'],
                                   np.zeros(200, dtype=float))
 
 

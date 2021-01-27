@@ -45,12 +45,12 @@ def get_raw_traces(signal_plane: DecrosstalkingOphysPlane,
         _roi = dc_types.ROIChannels()
         _neuropil = dc_types.ROIChannels()
 
-        _roi['signal'] = signal_traces['roi'][roi_id]
-        _roi['crosstalk'] = crosstalk_traces['roi'][roi_id]
+        _roi['signal'] = signal_traces['roi'][roi_id]['signal']
+        _roi['crosstalk'] = crosstalk_traces['roi'][roi_id]['signal']
         output['roi'][roi_id] = _roi
 
-        _neuropil['signal'] = signal_traces['neuropil'][roi_id]
-        _neuropil['crosstalk'] = crosstalk_traces['neuropil'][roi_id]
+        _neuropil['signal'] = signal_traces['neuropil'][roi_id]['signal']
+        _neuropil['crosstalk'] = crosstalk_traces['neuropil'][roi_id]['signal']
         output['neuropil'][roi_id] = _neuropil
 
     return output

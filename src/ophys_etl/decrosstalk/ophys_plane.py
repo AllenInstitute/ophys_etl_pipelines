@@ -1,13 +1,21 @@
+from typing import List, Dict, Union
 import h5py
 import copy
 import numpy as np
 import ophys_etl.decrosstalk.roi_masks as roi_masks
 
+import ophys_etl.decrosstalk.decrosstalk_types as dc_types
+
 
 class OphysROI(object):
 
-    def __init__(self, roi_id=None, x0=None, y0=None,
-                 width=None, height=None, valid_roi=None,
+    def __init__(self,
+                 roi_id=None,
+                 x0=None,
+                 y0=None,
+                 width=None,
+                 height=None,
+                 valid_roi=None,
                  mask_matrix=None):
         """
         Parameters
@@ -29,6 +37,37 @@ class OphysROI(object):
         that are a part of the ROI
         """
 
+        if roi_id is None or not isinstance(roi_id, int):
+            raise ValueError("OphysROI.roi_id must be an int; "
+                             "you gave %s" % str(type(roi_id)))
+
+        if x0 is None or not isinstance(x0, int):
+            raise ValueError("OphysROI.x0 must be an int; "
+                             "you gave %s" % str(type(x0)))
+
+        if y0 is None or not isinstance(y0, int):
+            raise ValueError("OphysROI.y0 must be an int; "
+                             "you gave %s" % str(type(y0)))
+
+        if width is None or not isinstance(width, int):
+            raise ValueError("OphysROI.width must be an int; "
+                             "you gave %s" % str(type(width)))
+
+        if height is None or not isinstance(height, int):
+            raise ValueError("OphysROI.x0 must be an int; "
+                             "you gave %s" % str(type(height)))
+
+        if valid_roi is None or not isinstance(valid_roi, bool):
+            raise ValueError("OphysROI.valid_roi must be a bool; "
+                             "you gave %s" % str(type(valid_roi)))
+
+        if (mask_matrix is None
+            or (not isinstance(mask_matrix, list)
+                and not isinstance(mask_matrix, np.ndarray))):
+
+            raise ValueError("OphysROI.mask_matrix must be a list or array; "
+                             "you gave %s" % str(type(mask_matrix)))
+
         self._roi_id = roi_id
         self._x0 = x0
         self._y0 = y0
@@ -38,7 +77,7 @@ class OphysROI(object):
         self._mask_matrix = np.array(mask_matrix, dtype=bool)
 
     @classmethod
-    def from_schema_dict(cls, schema_dict):
+    def from_schema_dict(cls, schema_dict: Dict[str, Union[int, List]]):
         """
         Create an OphysROI from the argschema dict associated with the
         decrosstalk pipeline, i.e.
@@ -63,37 +102,37 @@ class OphysROI(object):
                    mask_matrix=schema_dict['mask_matrix'])
 
     @property
-    def roi_id(self):
+    def roi_id(self) -> int:
         return self._roi_id
 
     @property
-    def x0(self):
+    def x0(self) -> int:
         return self._x0
 
     @property
-    def y0(self):
+    def y0(self) -> int:
         return self._y0
 
     @property
-    def width(self):
+    def width(self) -> int:
         return self._width
 
     @property
-    def height(self):
+    def height(self) -> int:
         return self._height
 
     @property
-    def valid_roi(self):
+    def valid_roi(self) -> bool:
         return self._valid_roi
 
     @property
-    def mask_matrix(self):
+    def mask_matrix(self) -> np.ndarray:
         return copy.deepcopy(self._mask_matrix)
 
 
 class OphysMovie(object):
 
-    def __init__(self, movie_path, motion_border):
+    def __init__(self, movie_path: str, motion_border: Dict[str, float]):
         """
         Parameters
         ----------
@@ -116,11 +155,11 @@ class OphysMovie(object):
         self._data = None
 
     @property
-    def path(self):
+    def path(self) -> str:
         return self._path
 
     @property
-    def motion_border(self):
+    def motion_border(self) -> Dict[str, float]:
         return copy.deepcopy(self._motion_border)
 
     def load_movie_data(self):
@@ -131,12 +170,12 @@ class OphysMovie(object):
             self._data = in_file['data'][()]
 
     @property
-    def data(self):
+    def data(self) -> np.ndarray:
         if self._data is None:
             self.load_movie_data()
         return self._data
 
-    def get_trace(self, roi_list):
+    def get_trace(self, roi_list: List[OphysROI]) -> dc_types.ROISetDict:
         """
         Extract the traces from a movie as defined by the ROIs in roi_list
 
@@ -148,12 +187,10 @@ class OphysMovie(object):
 
         Returns
         -------
-        output -- a dict such that
-
-            output['roi'][roi_id] = np.array of trace values for the ROI
-
-            output['neuropil'][roi_id] = np.array of trace values defined
-                                         in the neuropil around the ROI
+        output -- a decrosstalk_types.ROISetDict containing the ROI and
+                  neuropil traces associated with roi_list. For each ROI
+                  in the ROISetDict, only the 'signal' channel will be
+                  populated, this with the trace extracted from the movie.
         """
         motion_border = [self._motion_border['x0'], self._motion_border['x1'],
                          self._motion_border['y0'], self._motion_border['y1']]
@@ -179,12 +216,17 @@ class OphysMovie(object):
         roi_traces = _traces[0]
         neuropil_traces = _traces[1]
 
-        output = {}
-        output['roi'] = {}
-        output['neuropil'] = {}
+        output = dc_types.ROISetDict()
         for i_roi, roi in enumerate(roi_list):
-            output['roi'][roi.roi_id] = roi_traces[i_roi]
-            output['neuropil'][roi.roi_id] = neuropil_traces[i_roi]
+
+            trace = dc_types.ROIChannels()
+            trace['signal'] = roi_traces[i_roi]
+            output['roi'][roi.roi_id] = trace
+
+            trace = dc_types.ROIChannels()
+            trace['signal'] = neuropil_traces[i_roi]
+            output['neuropil'][roi.roi_id] = trace
+
         return output
 
 
@@ -216,20 +258,46 @@ class DecrosstalkingOphysPlane(object):
         roi_list -- a list of OphysROIs indicating the ROIs in this movie
         """
 
+        if experiment_id is None or not isinstance(experiment_id, int):
+            raise ValueError("DecrosstalkingOphysPlane.experiment_id "
+                             "must be an int; you gave "
+                             "%s" % str(type(experiment_id)))
+
+        if movie_path is None:
+            raise ValueError("Must specify movie_path when "
+                             "initializing DecrosstalkingOphysPlane")
+
+        if motion_border is None or not isinstance(motion_border, dict):
+            raise ValueError("DecrosstalkingOphysPlane.motion_border "
+                             "must be a dict; you gave "
+                             "%s" % str(type(motion_border)))
+
+        if roi_list is None or not isinstance(roi_list, list):
+            raise ValueError("DecrosstalkingOphysPlane.roi_list "
+                             "must be a list of OphysROI; you gave "
+                             "%s" % str(type(roi_list)))
+
+        if len(roi_list) > 0:
+            for roi in roi_list:
+                if not isinstance(roi, OphysROI):
+                    raise ValueError("DecrosstalkingOphysPlane.roi_list "
+                                     "must be a list of OphysROI; you gave "
+                                     "a list of %s" % str(type(roi)))
+
         self._experiment_id = experiment_id
         self._movie = OphysMovie(movie_path, motion_border)
         self._roi_list = copy.deepcopy(roi_list)
 
     @property
-    def experiment_id(self):
+    def experiment_id(self) -> int:
         return self._experiment_id
 
     @property
-    def movie(self):
+    def movie(self) -> OphysMovie:
         return self._movie
 
     @property
-    def roi_list(self):
+    def roi_list(self) -> List[OphysROI]:
         return self._roi_list
 
     @classmethod

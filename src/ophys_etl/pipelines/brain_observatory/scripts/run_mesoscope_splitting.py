@@ -2,6 +2,8 @@ import logging
 import os
 import numpy as np
 import h5py
+from typing import (
+    List, Dict)
 from argschema import ArgSchemaParser
 from ophys_etl.transforms.mesoscope_2p import MesoscopeTiff
 from ophys_etl.transforms.mesoscope_2p.conversion_utils import (
@@ -124,8 +126,9 @@ def split_image(input_tif, experiments, name):
     return outs, meta
 
 
-def split_timeseries(input_tif, experiments, **h5_opts):
-    mt = MesoscopeTiff(input_tif)
+def split_timeseries(input_tif: MesoscopeTiff,
+                     experiments: List[Dict],
+                     **h5_opts):
     outs = {}
 
     for exp in experiments:
@@ -135,17 +138,17 @@ def split_timeseries(input_tif, experiments, **h5_opts):
         z = exp["scanfield_z"]
         filename = os.path.join(directory, "{}.h5".format(eid))
 
-        plane = mt.nearest_plane(i, z)
+        plane = input_tif.nearest_plane(i, z)
         if plane is None:
             raise ValueError(
                 "No plane to extract from {} for experiment {}".format(
-                    input_tif, eid
+                    input_tif._source, eid
                 )
             )
 
         logging.info(
             "Got plane at z={} for target z={} in {}".format(
-                np.mean(plane.zs), z, input_tif
+                np.mean(plane.zs), z, input_tif._source
             )
         )
         if h5_opts:
@@ -158,7 +161,7 @@ def split_timeseries(input_tif, experiments, **h5_opts):
             volume_to_h5(f, plane, **h5_opts)
 
         outs[eid], meta = conversion_output(plane, filename, exp)
-        if mt.is_multiscope:
+        if input_tif.is_multiscope:
             outs[eid]["sync_stride"] = plane.stride // 2
             outs[eid]["sync_offset"] = plane.page_offset // 2
         else:
@@ -226,7 +229,8 @@ def main():
     depth_outs, depth_meta = split_image(mod.args["depths_tif"],
                                          experiments,
                                          "depth")
-    ts_outs, ts_meta = split_timeseries(mod.args["timeseries_tif"],
+    ts_mesoscope_tiff = MesoscopeTiff(mod.args["timeseries_tif"])
+    ts_outs, ts_meta = split_timeseries(ts_mesoscope_tiff,
                                         experiments,
                                         **h5_opts)
 

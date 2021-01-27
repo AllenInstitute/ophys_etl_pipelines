@@ -1,10 +1,13 @@
-import h5py
 import argschema
+import multiprocessing
 import pandas as pd
 import numpy as np
+from functools import partial
 from PIL import Image
 from pathlib import Path
 from ophys_etl.schemas.fields import H5InputFile
+from ophys_etl.utils.array_utils import normalize_array
+from ophys_etl.utils.video_utils import downsample_h5_video, transform_to_webm
 
 import matplotlib as mpl
 mpl.use('Agg')
@@ -16,25 +19,59 @@ class RegistrationQCException(Exception):
 
 
 class RegistrationQCInputSchema(argschema.ArgSchema):
-    motion_corrected_path = H5InputFile(
+    movie_frame_rate_hz = argschema.fields.Float(
+        required=True,
+        description="frame rate of movie, usually 31Hz or 11Hz")
+    preview_frame_bin_seconds = argschema.fields.Float(
         required=False,
+        default=2.0,
+        description=("before creating the webm, the movies will be "
+                     "aveaged into bins of this many seconds."))
+    preview_playback_factor = argschema.fields.Float(
+        required=False,
+        default=10.0,
+        description=("the preview movie will playback at this factor "
+                     "times real-time."))
+    uncorrected_path = H5InputFile(
+        required=True,
+        description=("path to uncorrected original movie."))
+    motion_corrected_output = H5InputFile(
+        required=True,
         description=("path to motion corrected movie."))
     motion_diagnostics_output = argschema.fields.InputFile(
         required=True,
         description=("Saved path for *.csv file containing motion "
                      "correction offset data")
     )
-    max_projection_path = argschema.fields.InputFile(
+    max_projection_output = argschema.fields.InputFile(
         required=True,
         description=("Saved path for *.png of the max projection of the "
                      "motion corrected video."))
-    avg_projection_path = argschema.fields.InputFile(
+    avg_projection_output = argschema.fields.InputFile(
         required=True,
         description=("Saved path for *.png of the avg projection of the "
                      "motion corrected video."))
-    png_output_path = argschema.fields.OutputFile(
+    registration_summary_output = argschema.fields.OutputFile(
         required=True,
         description=("Desired path for *.png summary plot."))
+    motion_correction_preview_output = argschema.fields.OutputFile(
+        required=True,
+        description="Desired path for *.webm motion preview")
+    movie_lower_quantile = argschema.fields.Float(
+        required=False,
+        default=0.1,
+        description=("lower quantile threshold for avg projection "
+                     "histogram adjustment of movie"))
+    movie_upper_quantile = argschema.fields.Float(
+        required=False,
+        default=0.999,
+        description=("upper quantile threshold for avg projection "
+                     "histogram adjustment of movie"))
+    n_parallel_workers = argschema.fields.Int(
+        required=False,
+        default=1,
+        description=("number of parallel workers for creating webm preview "
+                     "artifact."))
 
 
 def make_png(max_proj_path: Path, avg_proj_path: Path,
@@ -82,6 +119,52 @@ def make_png(max_proj_path: Path, avg_proj_path: Path,
     return dst_path
 
 
+def downsample_normalize(movie_path: Path, frame_rate: float,
+                         bin_size: float, lower_quantile: float,
+                         upper_quantile: float) -> np.ndarray:
+    """reads in a movie (nframes x nrows x ncols), downsamples,
+    creates an average projection, and normalizes according to
+    quantiles in that projection.
+
+    Parameters
+    ----------
+    movie_path: Path
+        path to an h5 file, containing an (nframes x nrows x ncol) dataset
+        named 'data'
+    frame_rate: float
+        frame rate of the movie specified by 'movie_path'
+    bin_size: float
+        desired duration in seconds of a downsampled bin, i.e. the reciprocal
+        of the desired downsampled frame rate.
+    lower_quantile: float
+        arg supplied to `np.quantile()` to determine lower cutoff value from
+        avg projection for normalization.
+    upper_quantile: float
+        arg supplied to `np.quantile()` to determine upper cutoff value from
+        avg projection for normalization.
+
+    Returns
+    -------
+    ds: np.ndarray
+        a downsampled and normalized array
+
+    Notes
+    -----
+    This strategy was satisfactory in the labeling app for maintaining
+    consistent visibility.
+
+    """
+    ds = downsample_h5_video(
+            movie_path,
+            input_fps=frame_rate,
+            output_fps=1.0 / bin_size)
+    avg_projection = ds.mean(axis=0)
+    lower_cutoff, upper_cutoff = np.quantile(
+                avg_projection.flatten(), (lower_quantile, upper_quantile))
+    ds = normalize_array(ds, lower_cutoff, upper_cutoff)
+    return ds
+
+
 class RegistrationQC(argschema.ArgSchemaParser):
     default_schema = RegistrationQCInputSchema
 
@@ -89,12 +172,37 @@ class RegistrationQC(argschema.ArgSchemaParser):
         self.logger.name = type(self).__name__
         self.logger.setLevel(self.args['log_level'])
 
+        # create and write the summary png
         motion_offset_df = pd.read_csv(self.args['motion_diagnostics_output'])
-        png_out_path = make_png(Path(self.args['max_projection_path']),
-                                Path(self.args['avg_projection_path']),
+        png_out_path = make_png(Path(self.args['max_projection_output']),
+                                Path(self.args['avg_projection_output']),
                                 motion_offset_df,
-                                Path(self.args['png_output_path']))
+                                Path(self.args['registration_summary_output']))
         self.logger.info(f"wrote {png_out_path}")
+
+        # downsample and normalize the input movies
+        ds_partial = partial(downsample_normalize,
+                             frame_rate=self.args['movie_frame_rate_hz'],
+                             bin_size=self.args['preview_frame_bin_seconds'],
+                             lower_quantile=self.args['movie_lower_quantile'],
+                             upper_quantile=self.args['movie_upper_quantile'])
+        with multiprocessing.Pool(2) as pool:
+            processed_vids = pool.map(
+                    ds_partial, [Path(self.args['uncorrected_path']),
+                                 Path(self.args['motion_corrected_output'])])
+
+        # tile into 1 movie, raw on left, motion corrected on right
+        tiled_vids = np.block(processed_vids)
+
+        # make into a viewable artifact
+        playback_fps = (self.args['preview_playback_factor'] /
+                        self.args['preview_frame_bin_seconds'])
+        transform_to_webm(tiled_vids,
+                          self.args['motion_correction_preview_output'],
+                          playback_fps,
+                          self.args['n_parallel_workers'])
+        self.logger.info("wrote "
+                         f"{self.args['motion_correction_preview_output']}")
 
         return
 

@@ -24,7 +24,7 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
         fname_base = Path(self.args['output_dir'])
         fnames = []
         for i in range(10):
-            data = np.ones((10, 32, 32), 'int16') * i
+            data = np.ones((100, 32, 32), 'int16') * i
             fnames.append(fname_base / f"my_tiff_{i}.tif")
             tifffile.imwrite(fnames[-1], data)
 
@@ -57,12 +57,15 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
 def test_suite2p_registration(tmp_path, mock_ops_data):
     h5path = tmp_path / "mc_video.h5"
     with h5py.File(str(h5path), "w") as f:
-        f.create_dataset("data", data=np.zeros((20, 100, 100)))
+        f.create_dataset("data", data=np.zeros((1000, 32, 32)))
 
     outj_path = tmp_path / "output.json"
     args = {"suite2p_args": {
                 "h5py": str(h5path),
             },
+            'movie_frame_rate_hz': 11.0,
+            'registration_summary_output': str(tmp_path / "summary.png"),
+            'motion_correction_preview_output': str(tmp_path / "preview.webm"),
             "motion_corrected_output": str(tmp_path / "motion_output.h5"),
             "motion_diagnostics_output": str(tmp_path / "motion_offset.csv"),
             "max_projection_output": str(tmp_path / "max_proj.png"),
@@ -75,6 +78,16 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
             reg = s2preg.Suite2PRegistration(input_data=args, args=[])
             reg.run()
 
+    # Test that output files exist
+    for k in ['registration_summary_output',
+              'motion_correction_preview_output',
+              'motion_corrected_output',
+              'motion_diagnostics_output',
+              'max_projection_output',
+              'avg_projection_output',
+              'output_json']:
+        assert Path(reg.args[k]).exists
+
     with open(outj_path, "r") as f:
         outj = json.load(f)
 
@@ -83,7 +96,7 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
     assert 'motion_corrected_output' in outj
     with h5py.File(outj['motion_corrected_output'], "r") as f:
         data = f['data'][()]
-    assert data.shape == (100, 32, 32)
+    assert data.shape == (1000, 32, 32)
     assert data.max() == 9
     assert data.min() == 0
 

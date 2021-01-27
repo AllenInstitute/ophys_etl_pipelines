@@ -11,7 +11,7 @@ import pandas as pd
 import tifffile
 from PIL import Image
 
-from ophys_etl.schemas.fields import H5InputFile
+from ophys_etl.schemas.fields import ExistingFile, ExistingH5File
 from ophys_etl.qc.registration_qc import RegistrationQC
 from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
                                                   Suite2PWrapperSchema)
@@ -21,6 +21,9 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
     log_level = argschema.fields.Str(default="INFO")
     suite2p_args = argschema.fields.Nested(Suite2PWrapperSchema,
                                            required=True)
+    movie_frame_rate_hz = argschema.fields.Float(
+        required=True,
+        description="frame rate of movie, usually 31Hz or 11Hz")
     motion_corrected_output = argschema.fields.OutputFile(
         required=True,
         description="destination path for hdf5 motion corrected video.")
@@ -37,10 +40,37 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         required=True,
         description=("Desired path for *.png of the avg projection of the "
                      "motion corrected video."))
-    qc_png_output = argschema.fields.OutputFile(
+    registration_summary_output = argschema.fields.OutputFile(
         required=True,
-        description=("Desired path for *.png for summary QC plot"))
-
+        description="Desired path for *.png for summary QC plot")
+    motion_correction_preview_output = argschema.fields.OutputFile(
+        required=True,
+        description="Desired path for *.webm motion preview")
+    movie_lower_quantile = argschema.fields.Float(
+        required=False,
+        default=0.1,
+        description=("lower quantile threshold for avg projection "
+                     "histogram adjustment of movie"))
+    movie_upper_quantile = argschema.fields.Float(
+        required=False,
+        default=0.999,
+        description=("upper quantile threshold for avg projection "
+                     "histogram adjustment of movie"))
+    preview_frame_bin_seconds = argschema.fields.Float(
+        required=False,
+        default=2.0,
+        description=("before creating the webm, the movies will be "
+                     "aveaged into bins of this many seconds."))
+    preview_playback_factor = argschema.fields.Float(
+        required=False,
+        default=10.0,
+        description=("the preview movie will playback at this factor "
+                     "times real-time."))
+    n_parallel_workers = argschema.fields.Int(
+        required=False,
+        default=1,
+        description=("number of parallel workers for creating webm preview "
+                     "artifact."))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -69,21 +99,27 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
 
 
 class Suite2PRegistrationOutputSchema(argschema.schemas.DefaultSchema):
-    motion_corrected_output = H5InputFile(
+    motion_corrected_output = ExistingH5File(
         required=True,
         description="destination path for hdf5 motion corrected video.")
-    motion_diagnostics_output = argschema.fields.OutputFile(
+    motion_diagnostics_output = ExistingFile(
         required=True,
         description=("Path of *.csv file containing motion correction offsets")
     )
-    max_projection_output = argschema.fields.OutputFile(
+    max_projection_output = ExistingFile(
         required=True,
         description=("Desired path for *.png of the max projection of the "
                      "motion corrected video."))
-    avg_projection_output = argschema.fields.OutputFile(
+    avg_projection_output = ExistingFile(
         required=True,
         description=("Desired path for *.png of the avg projection of the "
                      "motion corrected video."))
+    registration_summary_output = ExistingFile(
+        required=True,
+        description="Desired path for *.png for summary QC plot")
+    motion_correction_preview_output = ExistingFile(
+        required=True,
+        description="Desired path for *.webm motion preview")
 
 
 def projection_process(data: np.ndarray,
@@ -193,15 +229,22 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
             f"Writing the LIMS expected 'OphysMotionXyOffsetData' "
             f"csv file to: {self.args['motion_diagnostics_output']}")
 
-        qc_args = {
-                'motion_corrected_data': data,
-                'motion_diagnostics_output': \
-                    self.args['motion_diagnostics_output'],
-                'max_projection_path': self.args['max_projection_output'],
-                'avg_projection_path': self.args['avg_projection_output'],
-                'png_output_path': self.args['qc_png_output'],
-                'log_level': self.args['log_level']
-                }
+        qc_args = {k: self.args[k]
+                   for k in ['movie_frame_rate_hz',
+                             'max_projection_output',
+                             'avg_projection_output',
+                             'motion_diagnostics_output',
+                             'motion_corrected_output',
+                             'motion_correction_preview_output',
+                             'registration_summary_output',
+                             'movie_lower_quantile',
+                             'movie_upper_quantile',
+                             'preview_frame_bin_seconds',
+                             'preview_playback_factor',
+                             'n_parallel_workers',
+                             'log_level']}
+        qc_args.update({
+                'uncorrected_path': self.args['suite2p_args']['h5py']})
         rqc = RegistrationQC(input_data=qc_args, args=[])
         rqc.run()
 
@@ -214,7 +257,9 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                 for k in ['motion_corrected_output',
                           'motion_diagnostics_output',
                           'max_projection_output',
-                          'avg_projection_output'
+                          'avg_projection_output',
+                          'registration_summary_output',
+                          'motion_correction_preview_output'
                           ]}
         self.output(outj, indent=2)
 

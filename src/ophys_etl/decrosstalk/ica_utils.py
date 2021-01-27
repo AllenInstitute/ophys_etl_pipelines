@@ -1,3 +1,5 @@
+from typing import List, Tuple, Union
+
 import numpy as np
 import copy
 from scipy.stats import pearsonr
@@ -9,7 +11,8 @@ __all__ = ["whiten_data",
            "run_ica"]
 
 
-def pearson_ica_in_to_out(signal_in, signal_out):
+def pearson_ica_in_to_out(signal_in: np.ndarray,
+                          signal_out: np.ndarray) -> List[float]:
     """
     Function to compute correlations between two vectors (traces in our case)
 
@@ -51,7 +54,9 @@ def pearson_ica_in_to_out(signal_in, signal_out):
     return [cor_0_0, cor_0_1, cor_1_1, cor_1_0]
 
 
-def whiten_data(x):
+def whiten_data(x: np.ndarray) -> Tuple[np.ndarray,
+                                        np.ndarray,
+                                        np.ndarray]:
     """
     Function to debias (subtract mean) and whiten* the data
 
@@ -79,7 +84,8 @@ def whiten_data(x):
     return np.dot(u, v) * n, w, m
 
 
-def fix_source_assignment(ica_input, ica_output):
+def fix_source_assignment(ica_input: np.ndarray,
+                          ica_output: np.ndarray) -> Tuple[np.ndarray, bool]:
     """
     Function to rearrange the rows of ica_output so that
     the first row is the one that most strongly resembles
@@ -118,7 +124,15 @@ def fix_source_assignment(ica_input, ica_output):
     return ica_output_corrected, swapped_flag
 
 
-def run_ica(ica_input, iters, seed, verbose=False):
+def run_ica(ica_input: np.ndarray,
+            iters: int,
+            seed: int,
+            verbose: bool = False) -> Union[Tuple[np.ndarray,
+                                                  np.ndarray,
+                                                  bool],
+                                            Tuple[np.ndarray,
+                                                  np.ndarray,
+                                                  bool, bool]]:
     """
     ica_input -- an MxN numpy array; in the context of the decrosstalk
     problem, N=the number of timesteps; M=2 (first row is signal;

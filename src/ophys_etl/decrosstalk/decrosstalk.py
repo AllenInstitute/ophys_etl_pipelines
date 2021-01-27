@@ -267,6 +267,52 @@ def get_crosstalk_data(trace_dict: dc_types.ROIDict,
     return output
 
 
+def _centered_rolling_median(data: np.ndarray,
+                             mask: np.ndarray,
+                             window: int) -> Tuple[np.ndarray,
+                                                   np.ndarray]:
+    """
+    Takes the rolling median of an array of data with a specified width
+
+    Parameters
+    ----------
+    data -- np.ndarray the array whose mean is to be taken
+
+    mask -- a np.ndarray of booleans indicating which elements of data
+            should be used to find the median
+
+    window -- int the size of the window (centered, if possible, on each element
+              of data
+
+    Returns
+    -------
+    An np.ndarray containing the rolling median of data
+
+    An np.ndarray containing the rolling stdev of the data
+    """
+    if len(data.shape) != 1:
+        raise ValueError("_centered_rolling_median is only meant "
+                         "to run on 1-D np.ndarrays; you passed in "
+                         "a %d-D array" % len(data.shape))
+    half = window//2
+    median = np.zeros(data.shape, dtype=float)
+    std = np.zeros(data.shape, dtype=float)
+    n_t = len(median)
+    for ii in range(n_t):
+        idx_min = ii-half
+        if idx_min<0:
+            idx_min = 0
+        idx_max = idx_min+window
+        if idx_max > n_t:
+            idx_max = n_t
+            idx_min = max(0, idx_max-window)
+        subset = data[idx_min:idx_max][mask[idx_min:idx_max]]
+        median[ii] = np.median(subset)
+        std[ii] = np.std(subset, ddof=1)
+
+    return median, std
+
+
 def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDict:  # noqa: E501
     """
     Parameters
@@ -294,15 +340,15 @@ def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDic
             mask[:] = True
 
         for obj in ('roi', 'neuropil'):
-            noise = trace_dict[obj][roi_id]['signal'][mask]
-            median = np.median(noise)
-            std = np.std(noise, ddof=1)
+            (median,
+             std) = _centered_rolling_median(trace_dict[obj][roi_id]['signal'],
+                                             mask,
+                                             1980)
             threshold = median-std
-            if threshold < 0.0:
-                threshold = median
-            if threshold < 0.0:
+            threshold = np.where(threshold>0.0, threshold, median)
+            if (threshold < 0.0).any():
                 raise RuntimeError("threshold in clean_negative_traces "
-                                   "%d" % threshold)
+                                   "%e" % threshold.min())
 
             # clip the trace at threshold
             trace = trace_dict[obj][roi_id]['signal']

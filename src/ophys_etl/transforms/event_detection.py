@@ -88,8 +88,8 @@ class EventDetectionInputSchema(argschema.ArgSchema):
             return data
         # NOTE 11Hz value found empirically to behave well compared
         # to 31Hz data sub-sampled to 11Hz.
-        val_11hz = 1.4
-        val_31hz = 1.0
+        val_11hz = 2.6
+        val_31hz = 2.0
         if np.round(data['movie_frame_rate_hz'] / 11.0) == 1:
             data['noise_multiplier'] = val_11hz
         elif np.round(data['movie_frame_rate_hz'] / 31.0) == 1:

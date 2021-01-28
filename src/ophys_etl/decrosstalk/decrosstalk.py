@@ -267,10 +267,10 @@ def get_crosstalk_data(trace_dict: dc_types.ROIDict,
     return output
 
 
-def _centered_rolling_median(data: np.ndarray,
-                             mask: np.ndarray,
-                             window: int) -> Tuple[np.ndarray,
-                                                   np.ndarray]:
+def _centered_rolling_mean(data: np.ndarray,
+                           mask: np.ndarray,
+                           window: int) -> Tuple[np.ndarray,
+                                                 np.ndarray]:
     """
     Takes the rolling median of an array of data with a specified width
 
@@ -295,22 +295,35 @@ def _centered_rolling_median(data: np.ndarray,
                          "to run on 1-D np.ndarrays; you passed in "
                          "a %d-D array" % len(data.shape))
     half = window//2
-    median = np.zeros(data.shape, dtype=float)
-    std = np.zeros(data.shape, dtype=float)
-    n_t = len(median)
-    for ii in range(n_t):
-        idx_min = ii-half
-        if idx_min<0:
-            idx_min = 0
-        idx_max = idx_min+window
-        if idx_max > n_t:
-            idx_max = n_t
-            idx_min = max(0, idx_max-window)
-        subset = data[idx_min:idx_max][mask[idx_min:idx_max]]
-        median[ii] = np.median(subset)
-        std[ii] = np.std(subset, ddof=1)
+    n_t = len(data)
+    window_arr = np.ones(window, dtype=float)
+    new_data = np.zeros(data.shape, dtype=float)
+    new_data[mask] = data[mask]
+    sum_ = np.convolve(window_arr, new_data)
+    sum_sq = np.convolve(window_arr, new_data**2)
+    mask_sum = np.convolve(window_arr, mask)
 
-    return median, std
+    i0 = window-1
+    i1 = window-1+n_t-window
+
+    true_sum = np.zeros(n_t, dtype=float)
+    true_sum[half:n_t-half] = sum_[i0:i1]
+    true_sum[:half] = sum_[i0]
+    true_sum[n_t-half:] = sum_[i1]
+
+    true_sum_sq = np.zeros(n_t, dtype=float)
+    true_sum_sq[half:n_t-half] = sum_sq[i0:i1]
+    true_sum_sq[:half] = sum_sq[i0]
+    true_sum_sq[n_t-half:] = sum_sq[i1]
+
+    true_mask_sum = np.zeros(n_t, dtype=float)
+    true_mask_sum[half:n_t-half] = mask_sum[i0:i1]
+    true_mask_sum[:half] = mask_sum[i0]
+    true_mask_sum[n_t-half:] = mask_sum[i1]
+
+    mean = true_sum/true_mask_sum
+    std = np.sqrt((true_sum_sq/true_mask_sum - mean*mean)*(true_mask_sum/(true_mask_sum-1)))
+    return mean, std
 
 
 def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDict:  # noqa: E501
@@ -341,9 +354,9 @@ def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDic
 
         for obj in ('roi', 'neuropil'):
             (median,
-             std) = _centered_rolling_median(trace_dict[obj][roi_id]['signal'],
-                                             mask,
-                                             1980)
+             std) = _centered_rolling_mean(trace_dict[obj][roi_id]['signal'],
+                                           mask,
+                                           1980)
             threshold = median-std
             threshold = np.where(threshold>0.0, threshold, median)
             if (threshold < 0.0).any():

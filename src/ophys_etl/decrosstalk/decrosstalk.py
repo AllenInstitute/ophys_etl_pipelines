@@ -566,7 +566,7 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         del writer_class
 
     if not ica_converged:
-        for roi_id in unmixed_traces['roi']:
+        for roi_id in unmixed_traces['roi'].keys():
             roi_flags[unmixed_key].append(roi_id)
 
         msg = 'ICA did not converge for any ROIs when '

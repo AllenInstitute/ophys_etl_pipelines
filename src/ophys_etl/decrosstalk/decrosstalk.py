@@ -353,6 +353,22 @@ def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDic
             mask[:] = True
 
         for obj in ('roi', 'neuropil'):
+
+            # because we are running this step before culling
+            # traces that failed ICA, sometimes, ROIs without
+            # valid neuropil traces will get through
+            if roi_id not in trace_dict[obj]:
+                continue
+
+            # again: there may be traces with NaNs; these are
+            # going to get failed, anyway; just ignore them
+            # for now
+            if np.isnan(trace_dict[obj][roi_id]['signal']).any():
+                dummy = dc_types.ROIChannels()
+                dummy['signal'] = trace_dict[obj][roi_id]['signal']
+                output_trace_dict[obj][roi_id] = dummy
+                continue
+
             (median,
              std) = _centered_rolling_mean(trace_dict[obj][roi_id]['signal'],
                                            mask,

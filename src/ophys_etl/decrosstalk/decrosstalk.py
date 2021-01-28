@@ -357,7 +357,7 @@ def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDic
              std) = _centered_rolling_mean(trace_dict[obj][roi_id]['signal'],
                                            mask,
                                            1980)
-            threshold = median-std
+            threshold = median-1.5*std
             threshold = np.where(threshold>0.0, threshold, median)
             if (threshold < 0.0).any():
                 raise RuntimeError("threshold in clean_negative_traces "

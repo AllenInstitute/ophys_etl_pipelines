@@ -155,7 +155,7 @@ class ROIDict(BasicDictWrapper):
             raise KeyError(msg)
         if not isinstance(value, ROIChannels):
             msg = 'ROIDict values must be ROIChannels; '
-            msg += 'youa reusing %s' % (str(type(value)))
+            msg += 'you are using %s' % (str(type(value)))
             raise ValueError(msg)
         self._data[roi_id] = value
 

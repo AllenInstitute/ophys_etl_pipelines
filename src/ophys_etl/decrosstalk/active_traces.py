@@ -32,7 +32,11 @@ def mode_robust(input_data: np.ndarray,
         data_mode = np.apply_along_axis(fnc, axis, input_data)
     else:
         # Create the function that we can use for the half-sample mode
-        def _hsm(dt: np.ndarray) -> Union[int, float, np.ndarray]:
+        def _hsm(dt_input: np.ndarray) -> Union[int, float, np.ndarray]:
+            # the presence of NaNs fouls up the algorithm
+            # just replace them with a nonsense vlaue
+            dt = np.where(np.isnan(dt_input), -999., dt_input)
+
             if dt.size == 1:
                 return dt[0]
             elif dt.size == 2:

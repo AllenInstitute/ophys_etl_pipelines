@@ -11,8 +11,8 @@ from ophys_etl.utils.array_utils import downsample_array
 
 def downsample_h5_video(
         video_path: Union[Path],
-        input_fps: int = 31,
-        output_fps: int = 4,
+        input_fps: float = 31.0,
+        output_fps: float = 4.0,
         strategy: str = 'average',
         random_seed: int = 0) -> np.ndarray:
     """Opens an h5 file and downsamples dataset 'data'
@@ -24,9 +24,9 @@ def downsample_h5_video(
             path to an h5 video. Should have dataset 'data'. For video,
             assumes dimensions [time, width, height] and downsampling
             applies to time.
-        input_fps: int
+        input_fps: float
             frames-per-second of the input array
-        output_fps: int
+        output_fps: float
             frames-per-second of the output array
         strategy: str
             downsampling strategy. 'random', 'maximum', 'average',

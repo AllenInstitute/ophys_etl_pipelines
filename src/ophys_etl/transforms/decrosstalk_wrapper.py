@@ -72,8 +72,6 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
 
                 for k in ('roi', 'neuropil'):
                     out_fname = output_schema['output_%s_trace_file' % k]
-                    if k not in traces_0:
-                        continue
                     data = []
                     roi_names = []
                     roi_list = list(traces_0[k].keys())

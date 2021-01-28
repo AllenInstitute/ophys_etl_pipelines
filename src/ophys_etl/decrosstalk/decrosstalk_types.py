@@ -5,9 +5,7 @@ import numpy as np
 class BasicDictWrapper(object):
 
     def __contains__(self, key) -> bool:
-        if key in self._data:
-            return True
-        return False
+        return key in self._data
 
     def __len__(self) -> int:
         return len(self._data)

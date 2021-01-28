@@ -6,7 +6,7 @@ from PIL import Image
 from pathlib import Path
 from ophys_etl.schemas.fields import H5InputFile
 from ophys_etl.utils.array_utils import normalize_array
-from ophys_etl.utils.video_utils import downsample_h5_video, transform_to_webm
+from ophys_etl.utils.video_utils import downsample_h5_video, encode_video
 
 import matplotlib as mpl
 mpl.use('Agg')
@@ -198,10 +198,9 @@ class RegistrationQC(argschema.ArgSchemaParser):
         # make into a viewable artifact
         playback_fps = (self.args['preview_playback_factor'] /
                         self.args['preview_frame_bin_seconds'])
-        transform_to_webm(tiled_vids,
-                          self.args['motion_correction_preview_output'],
-                          playback_fps,
-                          self.args['n_parallel_workers'])
+        encode_video(tiled_vids,
+                     self.args['motion_correction_preview_output'],
+                     playback_fps)
         self.logger.info("wrote "
                          f"{self.args['motion_correction_preview_output']}")
 

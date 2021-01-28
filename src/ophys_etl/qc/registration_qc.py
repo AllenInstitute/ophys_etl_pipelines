@@ -189,6 +189,8 @@ class RegistrationQC(argschema.ArgSchemaParser):
                           for i in [
                               Path(self.args['uncorrected_path']),
                               Path(self.args['motion_corrected_output'])]]
+        self.logger.info("finished downsampling motion corrected "
+                         "and non-motion corrected movies")
 
         # tile into 1 movie, raw on left, motion corrected on right
         tiled_vids = np.block(processed_vids)

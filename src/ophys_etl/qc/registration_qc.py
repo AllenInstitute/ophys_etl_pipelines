@@ -66,11 +66,6 @@ class RegistrationQCInputSchema(argschema.ArgSchema):
         default=0.999,
         description=("upper quantile threshold for avg projection "
                      "histogram adjustment of movie"))
-    n_parallel_workers = argschema.fields.Int(
-        required=False,
-        default=1,
-        description=("number of parallel workers for creating webm preview "
-                     "artifact."))
 
 
 def make_png(max_proj_path: Path, avg_proj_path: Path,

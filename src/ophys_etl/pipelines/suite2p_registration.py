@@ -66,11 +66,6 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         default=10.0,
         description=("the preview movie will playback at this factor "
                      "times real-time."))
-    n_parallel_workers = argschema.fields.Int(
-        required=False,
-        default=1,
-        description=("number of parallel workers for creating webm preview "
-                     "artifact."))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -241,7 +236,6 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                              'movie_upper_quantile',
                              'preview_frame_bin_seconds',
                              'preview_playback_factor',
-                             'n_parallel_workers',
                              'log_level']}
         qc_args.update({
                 'uncorrected_path': self.args['suite2p_args']['h5py']})

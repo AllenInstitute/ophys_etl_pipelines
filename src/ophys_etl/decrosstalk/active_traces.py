@@ -24,7 +24,8 @@ def mode_robust(input_data: np.ndarray,
 
     Returns
     -------
-    A np.ndarray containing the mode of input_data
+    A scalar (or, if slicing along an axis, an np.ndarray)
+    containing the mode of input_data
     """
     if axis is not None:
         def fnc(x: np.ndarray): return mode_robust(x)

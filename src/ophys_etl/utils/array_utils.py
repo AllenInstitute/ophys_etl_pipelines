@@ -5,8 +5,8 @@ from typing import Union
 
 def downsample_array(
         array: Union[h5py.Dataset, np.ndarray],
-        input_fps: int = 31,
-        output_fps: int = 4,
+        input_fps: float = 31.0,
+        output_fps: float = 4.0,
         strategy: str = 'average',
         random_seed: int = 0) -> np.ndarray:
     """Downsamples an array-like object along axis=0
@@ -15,9 +15,9 @@ def downsample_array(
     ----------
         array: h5py.Dataset or numpy.ndarray
             the input array
-        input_fps: int
+        input_fps: float
             frames-per-second of the input array
-        output_fps: int
+        output_fps: float
             frames-per-second of the output array
         strategy: str
             downsampling strategy. 'random', 'maximum', 'average',

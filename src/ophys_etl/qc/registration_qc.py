@@ -1,5 +1,4 @@
 import argschema
-import multiprocessing
 import pandas as pd
 import numpy as np
 from functools import partial
@@ -186,10 +185,10 @@ class RegistrationQC(argschema.ArgSchemaParser):
                              bin_size=self.args['preview_frame_bin_seconds'],
                              lower_quantile=self.args['movie_lower_quantile'],
                              upper_quantile=self.args['movie_upper_quantile'])
-        with multiprocessing.Pool(2) as pool:
-            processed_vids = pool.map(
-                    ds_partial, [Path(self.args['uncorrected_path']),
-                                 Path(self.args['motion_corrected_output'])])
+        processed_vids = [ds_partial(i)
+                          for i in [
+                              Path(self.args['uncorrected_path']),
+                              Path(self.args['motion_corrected_output'])]]
 
         # tile into 1 movie, raw on left, motion corrected on right
         tiled_vids = np.block(processed_vids)

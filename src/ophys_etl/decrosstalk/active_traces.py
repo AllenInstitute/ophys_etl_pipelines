@@ -1,4 +1,4 @@
-from typing import Union, Tuple, List, Dict
+from typing import Union, Tuple, List, Dict, Optional
 import numpy as np
 import scipy.stats
 
@@ -8,9 +8,9 @@ __all__ = ['get_trace_events',
 
 
 def mode_robust(input_data: np.ndarray,
-                axis: Union[None, int] = None) -> Union[np.ndarray,
-                                                        np.int,
-                                                        np.float]:
+                axis: Optional[int] = None) -> Union[np.ndarray,
+                                                     np.int,
+                                                     np.float]:
     """
     Robust estimator of the mode of a data set using the half-sample mode.
 

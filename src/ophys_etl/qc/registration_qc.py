@@ -87,9 +87,9 @@ def make_png(max_proj_path: Path, avg_proj_path: Path,
             ax.imshow(im, cmap='gray')
             sz = im.size
         ax.axvline(xo, color='r', linestyle='--')
-        ax.axvline(sz[1] - xo, color='r', linestyle='--')
+        ax.axvline(sz[0] - xo, color='r', linestyle='--')
         ax.axhline(yo, color='g', linestyle='--')
-        ax.axhline(sz[0] - yo, color='g', linestyle='--')
+        ax.axhline(sz[1] - yo, color='g', linestyle='--')
         ax.set_title(f"{im_path.parent}\n{im_path.name}", fontsize=8)
 
     xyax.plot(summary_df['x'], linewidth=0.5, color='r', label='xoff')

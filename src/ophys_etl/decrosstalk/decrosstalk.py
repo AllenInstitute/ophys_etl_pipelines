@@ -272,26 +272,26 @@ def _centered_rolling_mean(data: np.ndarray,
                            window: int) -> Tuple[np.ndarray,
                                                  np.ndarray]:
     """
-    Takes the rolling median of an array of data with a specified width
+    Takes the rolling mean of an array of data with a specified width
 
     Parameters
     ----------
     data -- np.ndarray the array whose mean is to be taken
 
     mask -- a np.ndarray of booleans indicating which elements of data
-            should be used to find the median
+            should be used to find the mean
 
     window -- int the size of the window (centered, if possible, on
               each element of data
 
     Returns
     -------
-    An np.ndarray containing the rolling median of data
+    An np.ndarray containing the rolling mean of data
 
     An np.ndarray containing the rolling stdev of the data
     """
     if len(data.shape) != 1:
-        raise ValueError("_centered_rolling_median is only meant "
+        raise ValueError("_centered_rolling_mean is only meant "
                          "to run on 1-D np.ndarrays; you passed in "
                          "a %d-D array" % len(data.shape))
     half = window//2

@@ -267,6 +267,130 @@ def get_crosstalk_data(trace_dict: dc_types.ROIDict,
     return output
 
 
+def _centered_rolling_mean(data: np.ndarray,
+                           mask: np.ndarray,
+                           window: int) -> Tuple[np.ndarray,
+                                                 np.ndarray]:
+    """
+    Takes the rolling mean of an array of data with a specified width
+
+    Parameters
+    ----------
+    data -- np.ndarray the array whose mean is to be taken
+
+    mask -- a np.ndarray of booleans indicating which elements of data
+            should be used to find the mean
+
+    window -- int the size of the window (centered, if possible, on
+              each element of data
+
+    Returns
+    -------
+    An np.ndarray containing the rolling mean of data
+
+    An np.ndarray containing the rolling stdev of the data
+    """
+    if len(data.shape) != 1:
+        raise ValueError("_centered_rolling_mean is only meant "
+                         "to run on 1-D np.ndarrays; you passed in "
+                         "a %d-D array" % len(data.shape))
+    half = window//2
+    n_t = len(data)
+    window_arr = np.ones(window, dtype=float)
+    new_data = np.zeros(data.shape, dtype=float)
+    new_data[mask] = data[mask]
+    sum_ = np.convolve(window_arr, new_data)
+    sum_sq = np.convolve(window_arr, new_data**2)
+    mask_sum = np.convolve(window_arr, mask)
+
+    i0 = window-1
+    i1 = window-1+n_t-window
+
+    true_sum = np.zeros(n_t, dtype=float)
+    true_sum[half:n_t-half] = sum_[i0:i1]
+    true_sum[:half] = sum_[i0]
+    true_sum[n_t-half:] = sum_[i1]
+
+    true_sum_sq = np.zeros(n_t, dtype=float)
+    true_sum_sq[half:n_t-half] = sum_sq[i0:i1]
+    true_sum_sq[:half] = sum_sq[i0]
+    true_sum_sq[n_t-half:] = sum_sq[i1]
+
+    true_mask_sum = np.zeros(n_t, dtype=float)
+    true_mask_sum[half:n_t-half] = mask_sum[i0:i1]
+    true_mask_sum[:half] = mask_sum[i0]
+    true_mask_sum[n_t-half:] = mask_sum[i1]
+
+    mean = true_sum/true_mask_sum
+    var = (true_sum_sq/true_mask_sum - mean*mean)
+    var *= (true_mask_sum/(true_mask_sum-1))
+    std = np.sqrt(var)
+    return mean, std
+
+
+def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDict:  # noqa: E501
+    """
+    Parameters
+    ----------
+    trace_dict -- a decrosstalk_types.ROISetDict containing the traces
+                   that need to be clipped
+
+    Returns
+    -------
+    A decrosstalk_types.ROISetDict containing the clipped traces
+    """
+    active_trace_dict = get_trace_events(trace_dict['roi'])
+    output_trace_dict = dc_types.ROISetDict()
+    roi_id_list = trace_dict['roi'].keys()
+    roi_id_list.sort()
+    for roi_id in roi_id_list:
+        n_t = len(trace_dict['roi'][roi_id]['signal'])
+
+        # try to select only inactive timesteps;
+        # if there are none, select all timesteps
+        # (that would be an unexpected edge case)
+        mask = np.ones(n_t, dtype=bool)
+        mask[active_trace_dict[roi_id]['signal']['events']] = False
+        if mask.sum() == 0:
+            mask[:] = True
+
+        for obj in ('roi', 'neuropil'):
+
+            # because we are running this step before culling
+            # traces that failed ICA, sometimes, ROIs without
+            # valid neuropil traces will get through
+            if roi_id not in trace_dict[obj]:
+                continue
+
+            # again: there may be traces with NaNs; these are
+            # going to get failed, anyway; just ignore them
+            # for now
+            if np.isnan(trace_dict[obj][roi_id]['signal']).any():
+                dummy = dc_types.ROIChannels()
+                dummy['signal'] = trace_dict[obj][roi_id]['signal']
+                output_trace_dict[obj][roi_id] = dummy
+                continue
+
+            (mean,
+             std) = _centered_rolling_mean(trace_dict[obj][roi_id]['signal'],
+                                           mask,
+                                           1980)
+            threshold = mean-2.0*std
+            threshold = np.where(threshold > 0.0, threshold, mean)
+            if (threshold < 0.0).any():
+                raise RuntimeError("threshold in clean_negative_traces "
+                                   "%e" % threshold.min())
+
+            # clip the trace at threshold
+            trace = trace_dict[obj][roi_id]['signal']
+            trace = np.where(trace > threshold, trace, threshold)
+            channel = dc_types.ROIChannels()
+            channel['signal'] = trace
+            output_trace_dict[obj][roi_id] = channel
+
+    return output_trace_dict
+
+
 def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
                     ct_plane: DecrosstalkingOphysPlane,
                     cache_dir: str = None, clobber: bool = False,
@@ -436,6 +560,19 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
     (ica_converged,
      unmixed_traces) = unmix_all_ROIs(raw_traces,
                                       roi_to_seed)
+
+    # clip dips in signal channel
+    clipped_traces = clean_negative_traces(unmixed_traces)
+
+    # save old signal to 'unclipped_signal'
+    # save new signal to 'signal'
+    for obj in ('roi', 'neuropil'):
+        for roi_id in unmixed_traces[obj].keys():
+            s = unmixed_traces[obj][roi_id]['signal']
+            unmixed_traces[obj][roi_id]['unclipped_signal'] = s
+            s = clipped_traces[obj][roi_id]['signal']
+            unmixed_traces[obj][roi_id]['signal'] = s
+
     if cache_dir is not None:
         if new_style_output:
             writer_class = io_utils.OutH5Writer
@@ -447,7 +584,7 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         del writer_class
 
     if not ica_converged:
-        for roi_id in unmixed_traces['roi']:
+        for roi_id in unmixed_traces['roi'].keys():
             roi_flags[unmixed_key].append(roi_id)
 
         msg = 'ICA did not converge for any ROIs when '

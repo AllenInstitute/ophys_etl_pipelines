@@ -281,8 +281,8 @@ def _centered_rolling_mean(data: np.ndarray,
     mask -- a np.ndarray of booleans indicating which elements of data
             should be used to find the median
 
-    window -- int the size of the window (centered, if possible, on each element
-              of data
+    window -- int the size of the window (centered, if possible, on
+              each element of data
 
     Returns
     -------
@@ -322,7 +322,9 @@ def _centered_rolling_mean(data: np.ndarray,
     true_mask_sum[n_t-half:] = mask_sum[i1]
 
     mean = true_sum/true_mask_sum
-    std = np.sqrt((true_sum_sq/true_mask_sum - mean*mean)*(true_mask_sum/(true_mask_sum-1)))
+    var = (true_sum_sq/true_mask_sum - mean*mean)
+    var *= (true_mask_sum/(true_mask_sum-1))
+    std = np.sqrt(var)
     return mean, std
 
 
@@ -374,7 +376,7 @@ def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDic
                                            mask,
                                            1980)
             threshold = median-2.0*std
-            threshold = np.where(threshold>0.0, threshold, median)
+            threshold = np.where(threshold > 0.0, threshold, median)
             if (threshold < 0.0).any():
                 raise RuntimeError("threshold in clean_negative_traces "
                                    "%e" % threshold.min())

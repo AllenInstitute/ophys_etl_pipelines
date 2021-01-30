@@ -1,5 +1,10 @@
 from marshmallow import fields, ValidationError
 import h5py
+import argschema
+
+
+class ExistingFile(argschema.fields.InputFile):
+    pass
 
 
 class H5InputFile(fields.Str):
@@ -18,3 +23,7 @@ class H5InputFile(fields.Str):
         except OSError as e:
             raise ValidationError(f"Error occurred loading file {value}. "
                                   f"Underlying error: \nOSError: - {e}")
+
+
+class ExistingH5File(H5InputFile):
+    pass

@@ -75,7 +75,7 @@ class SegmentAndPostProcess(argschema.ArgSchemaParser):
 
         # postprocess and output LIMS format
         with open(suite2p_args["output_json"], "r") as f:
-            stat_path = json.load(f)['output_files']['stat.npy']
+            stat_path = json.load(f)['output_files']['stat.npy'][0]
 
         postprocess_args = self.args['postprocess_args']
         if "suite2p_stat_path" not in postprocess_args:

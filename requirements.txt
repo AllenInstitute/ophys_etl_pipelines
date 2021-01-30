@@ -1,5 +1,6 @@
 numpy
 scipy
+imageio-ffmpeg
 pytest
 pytest-cov
 argschema==2.0.1

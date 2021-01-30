@@ -23,7 +23,7 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
             f.write("content")
         outj = {
                 'output_files': {
-                    'stat.npy': str(stat)
+                    'stat.npy': [str(stat)]
                     }
                 }
         self.output(outj)

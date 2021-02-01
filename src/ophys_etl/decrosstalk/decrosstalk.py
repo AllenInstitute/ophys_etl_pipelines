@@ -556,6 +556,11 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
 
     del raw_trace_events
 
+    # if there was no activity in the raw traces, return an
+    # empty ROISetDict because none of the ROIs were valid
+    if len(raw_traces['roi']) == 0:
+        return roi_flags, dc_types.ROISetDict()
+
     ###########################################################
     # use Independent Component Analysis to separate out signal
     # and crosstalk

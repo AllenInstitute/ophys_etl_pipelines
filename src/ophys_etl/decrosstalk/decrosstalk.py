@@ -386,6 +386,11 @@ def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDic
                 msg += 'contained negative flux values'
                 logger.warning(msg)
 
+            # if there were no valid timesteps when calculating the rolling
+            # mean, set the threshold to a very negative value
+            threshold = np.where(np.logical_not(np.isnan(threshold)),
+                                 threshold,
+                                 -999.0)
 
             # clip the trace at threshold
             trace = trace_dict[obj][roi_id]['signal']

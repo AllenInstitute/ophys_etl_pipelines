@@ -77,6 +77,7 @@ def test_clean_negative_traces():
     assert cleaned['roi'][0]['signal'].min() > 6.0
     assert cleaned['roi'][0]['signal'].min() < 7.0
     assert abs(cleaned['roi'][0]['signal'][77] - 15.0) < 0.001
+    assert not np.isnan(cleaned['roi'][0]['signal']).any()
 
     np.testing.assert_array_equal(cleaned['roi'][1]['signal'], nan_trace)
 

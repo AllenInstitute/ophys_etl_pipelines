@@ -112,6 +112,9 @@ def unmix_all_ROIs(raw_roi_traces: dc_types.ROISetDict,
 
     Returns
     -------
+    A boolean indicating whether or not we were able to successfully
+    unmix the ROIs in this input ROISetDict
+
     A decrosstalk_types.ROISetDict containing the unmixed trace data for the
     ROIs.
     """

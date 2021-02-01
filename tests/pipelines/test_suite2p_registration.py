@@ -11,6 +11,7 @@ import pytest
 import tifffile
 
 sys.modules['suite2p'] = Mock()
+sys.modules['suite2p.registration.rigid'] = Mock()
 import ophys_etl.pipelines.suite2p_registration as s2preg  # noqa
 import ophys_etl.transforms.suite2p_wrapper as s2pw  # noqa
 
@@ -46,6 +47,32 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
                     }
                 }
         self.output(outj)
+
+@pytest.mark.parametrize(
+        ("excess_indices", "deltas", "thresh", "expected_indices"), [
+            ([], [], 10, []),
+            ([123, 567], [20, 20], 10, [123, 567]),
+            #([123, 567], [8, 20], 10, [567]),
+            #([123, 567], [-20, -20], 10, [123, 567]),
+            #([123, 567], [-8, -20], 10, [567])
+            ])
+def test_identify_and_clip_outliers(excess_indices, deltas,
+                                    thresh, expected_indices):
+    frame_index = np.arange(10000)
+    # long-range drifts
+    baseline = np.cos(2.0 * np.pi * frame_index / 500)
+    additional = np.zeros_like(baseline)
+    for index, delta in zip(excess_indices, deltas):
+        additional[index] += delta
+
+    data, indices = s2preg.identify_and_clip_outliers(
+            baseline + additional,
+            50,
+            thresh)
+
+    assert set(indices) == set(expected_indices)
+    for index in expected_indices:
+        assert data[index] == baseline[index]
 
 
 @pytest.mark.suite2p_only

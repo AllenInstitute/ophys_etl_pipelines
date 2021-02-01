@@ -393,8 +393,8 @@ def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDic
                                  -999.0)
 
             if np.isnan(threshold).any():
-                 raise RuntimeError("There were NaNs in "
-                                    "clean_negative_traces.threshold")
+                raise RuntimeError("There were NaNs in "
+                                   "clean_negative_traces.threshold")
 
             # clip the trace at threshold
             trace = trace_dict[obj][roi_id]['signal']

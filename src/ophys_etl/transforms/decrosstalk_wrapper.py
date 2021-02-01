@@ -104,7 +104,9 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
 
             for roi in plane_0.roi_list:
                 if roi.roi_id not in roi_names:
-                    raise RuntimeError("ROI %d not in final output" % roi.roi_id)
+                    msg = "ROI %d " % roi.roi_id
+                    msg += "not in final output"
+                    raise RuntimeError(msg)
 
             output_pair['planes'] = plane_pair
             coupled_planes.append(output_pair)

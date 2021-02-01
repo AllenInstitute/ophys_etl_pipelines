@@ -43,7 +43,7 @@ def test_rolling_mean_and_std():
         assert abs(s-std[ii]) < 1.0e-10
 
     mask = np.ones(100, dtype=bool)
-    idx = np.unique(rng.randint(0,100,20))
+    idx = np.unique(rng.randint(0, 100, 20))
     mask[idx] = False
 
     mean, std = decrosstalk._centered_rolling_mean(data, mask, window=10)
@@ -91,7 +91,6 @@ def test_rolling_mean_and_std():
             assert abs(s-std[ii]) < 1.0e-10
 
     assert edge_case_exercised
-
 
 
 def test_clean_negative_traces():

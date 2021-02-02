@@ -338,25 +338,32 @@ def _centered_rolling_mean(data: np.ndarray,
     i0 = window-1
     i1 = window-1+n_t-window
 
-    true_sum = np.zeros(n_t, dtype=float)
-    true_sum[half:n_t-half] = sum_[i0:i1]
-    true_sum[:half] = sum_[i0]
-    true_sum[n_t-half:] = sum_[i1]
+    # if mask has a run of `False`s that is longer than
+    # `window`, the mean and std calculations below will
+    # end up dividing by zero because there are zero valid
+    # elements over which to take the mean and std. This
+    # np.errstate context will suppress those warnings.
+    with np.errstate(divide='ignore', invalid='ignore'):
+        true_sum = np.zeros(n_t, dtype=float)
+        true_sum[half:n_t-half] = sum_[i0:i1]
+        true_sum[:half] = sum_[i0]
+        true_sum[n_t-half:] = sum_[i1]
 
-    true_sum_sq = np.zeros(n_t, dtype=float)
-    true_sum_sq[half:n_t-half] = sum_sq[i0:i1]
-    true_sum_sq[:half] = sum_sq[i0]
-    true_sum_sq[n_t-half:] = sum_sq[i1]
+        true_sum_sq = np.zeros(n_t, dtype=float)
+        true_sum_sq[half:n_t-half] = sum_sq[i0:i1]
+        true_sum_sq[:half] = sum_sq[i0]
+        true_sum_sq[n_t-half:] = sum_sq[i1]
 
-    true_mask_sum = np.zeros(n_t, dtype=float)
-    true_mask_sum[half:n_t-half] = mask_sum[i0:i1]
-    true_mask_sum[:half] = mask_sum[i0]
-    true_mask_sum[n_t-half:] = mask_sum[i1]
+        true_mask_sum = np.zeros(n_t, dtype=float)
+        true_mask_sum[half:n_t-half] = mask_sum[i0:i1]
+        true_mask_sum[:half] = mask_sum[i0]
+        true_mask_sum[n_t-half:] = mask_sum[i1]
 
-    mean = true_sum/true_mask_sum
-    var = (true_sum_sq/true_mask_sum - mean*mean)
-    var *= (true_mask_sum/(true_mask_sum-1))
-    std = np.sqrt(var)
+        mean = true_sum/true_mask_sum
+        var = (true_sum_sq/true_mask_sum - mean*mean)
+        var *= (true_mask_sum/(true_mask_sum-1))
+        std = np.sqrt(var)
+
     return mean, std
 
 

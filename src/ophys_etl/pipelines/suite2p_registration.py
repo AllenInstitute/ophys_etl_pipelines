@@ -299,16 +299,12 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         # with current ophys processing pipeline. In the future this output
         # should be removed and a better data storage format used.
         # 01/25/2021 - NJM
-        x_is_clipped = np.zeros(delta_x.size).astype(bool)
-        x_is_clipped[x_clipped] = True
-        y_is_clipped = np.zeros(delta_y.size).astype(bool)
-        y_is_clipped[y_clipped] = True
         motion_offset_df = pd.DataFrame({
             "framenumber": list(range(ops.item()["nframes"])),
             "x": delta_x,
             "y": delta_y,
-            "x_clipped": x_is_clipped,
-            "y_clipped": y_is_clipped,
+            "x_pre_clip": ops.item()['xoff'],
+            "y_pre_clip": ops.item()['yoff'],
             "correlation": ops.item()["corrXY"]
         })
         motion_offset_df.to_csv(

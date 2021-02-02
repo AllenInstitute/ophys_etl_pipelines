@@ -157,8 +157,8 @@ def split_timeseries(input_tif: MesoscopeTiff,
             logging.debug(
                 "Setting compression chunk size to {}".format(chunks))
 
-        with h5py.File(filename, "w") as f:
-            volume_to_h5(f, plane, **h5_opts)
+        # with h5py.File(filename, "w") as f:
+        volume_to_h5(filename, plane, **h5_opts)
 
         outs[eid], meta = conversion_output(plane, filename, exp)
         if input_tif.is_multiscope:

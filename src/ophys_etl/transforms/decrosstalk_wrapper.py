@@ -105,7 +105,10 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
             for roi in plane_0.roi_list:
                 if roi.roi_id not in roi_names:
                     msg = "ROI %d " % roi.roi_id
-                    msg += "not in final output"
+                    msg += "not in final output trace file.\n"
+                    msg += "This should not be possible. "
+                    msg += "Check to make sure invalid ROIs are "
+                    msg += "still being written to the trace file."
                     raise RuntimeError(msg)
 
             output_pair['planes'] = plane_pair

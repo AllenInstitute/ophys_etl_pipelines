@@ -102,7 +102,7 @@ def test_clean_negative_traces():
     trace[99] = 1.0
     roi = dc_types.ROIChannels()
     roi['signal'] = trace
-    roi['crosstalk'] = np.zeros(1000, dtype=float)
+    roi['crosstalk'] = rng.random_sample(1000)
     input_data['roi'][0] = roi
 
     trace = rng.normal(11.0, 0.2, size=1000)
@@ -110,7 +110,7 @@ def test_clean_negative_traces():
     trace[88] = 1.0
     roi = dc_types.ROIChannels()
     roi['signal'] = trace
-    roi['crosstalk'] = np.zeros(1000, dtype=float)
+    roi['crosstalk'] = rng.random_sample(1000)
     input_data['neuropil'][0] = roi
 
     # make sure traces with NaNs are left untouched
@@ -120,7 +120,7 @@ def test_clean_negative_traces():
     nan_trace[44] = np.NaN
     roi = dc_types.ROIChannels()
     roi['signal'] = nan_trace
-    roi['crosstalk'] = np.zeros(1000, dtype=float)
+    roi['crosstalk'] = rng.random_sample(1000)
     input_data['roi'][1] = roi
 
     cleaned = decrosstalk.clean_negative_traces(input_data)

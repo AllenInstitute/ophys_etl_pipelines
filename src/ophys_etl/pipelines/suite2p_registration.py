@@ -2,6 +2,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
+from typing import Tuple, List
 
 import argschema
 import h5py
@@ -10,11 +11,13 @@ import numpy as np
 import pandas as pd
 import tifffile
 from PIL import Image
+from scipy.ndimage.filters import median_filter
 
 from ophys_etl.schemas.fields import ExistingFile, ExistingH5File
 from ophys_etl.qc.registration_qc import RegistrationQC
 from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
                                                   Suite2PWrapperSchema)
+from suite2p.registration.rigid import shift_frame
 
 
 class Suite2PRegistrationInputSchema(argschema.ArgSchema):
@@ -66,6 +69,24 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         default=10.0,
         description=("the preview movie will playback at this factor "
                      "times real-time."))
+    outlier_detrend_window = argschema.fields.Float(
+        required=False,
+        default=3.0,
+        description=("for outlier rejection in the xoff/yoff outputs "
+                     "of suite2p, the offsets are first de-trended "
+                     "with a median filter of this duration [seconds]. "
+                     "This value is ~30 or 90 samples in size for 11 and 31"
+                     "Hz sampling rates respectively."))
+    outlier_maxregshift = argschema.fields.Float(
+        required=False,
+        default=0.05,
+        description=("units [fraction FOV dim]. After median-filter "
+                     "detrending, outliers more than this value are "
+                     "clipped to this value in x and y offset, independently."
+                     "This is similar to Suite2P's internal maxregshift, but"
+                     "allows for low-frequency drift. Default value of 0.05 "
+                     "is typically clipping outliers to 512 * 0.05 = 25 "
+                     "pixels above or below the median trend."))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -145,6 +166,40 @@ def projection_process(data: np.ndarray,
     return proj
 
 
+def identify_and_clip_outliers(data: np.ndarray,
+                               med_filter_size: int,
+                               thresh: int) -> Tuple[np.ndarray, List]:
+    """given data, identify the indices of outliers
+    based on median filter detrending, and a threshold
+
+    Parameters
+    ----------
+    data: np.ndarray
+        1D array of samples
+    med_filter_size: int
+        the number of samples for 'size' in
+        scipy.ndimage.filters.median_filter
+    thresh: int
+        multipled by the noise estimate to establish a threshold, above
+        which, samples will be marked as outliers.
+
+    Returns
+    -------
+    data: np.ndarry
+        1D array of samples, clipped to threshold around median-filtered data
+    indices: np.ndarray
+        the indices where clipping took place
+
+    """
+    data_filtered = median_filter(data, med_filter_size, mode='nearest')
+    detrended = data - data_filtered
+    indices = np.argwhere(np.abs(detrended) > thresh).flatten()
+    data[indices] = np.clip(data[indices],
+                            data_filtered[indices] - thresh,
+                            data_filtered[indices] + thresh)
+    return data, indices
+
+
 class Suite2PRegistration(argschema.ArgSchemaParser):
     default_schema = Suite2PRegistrationInputSchema
     default_output_schema = Suite2PRegistrationOutputSchema
@@ -158,8 +213,13 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
 
         # register with Suite2P
         suite2p_args = self.args['suite2p_args']
+        self.logger.info("attempting to motion correct "
+                         f"{suite2p_args['h5py']}")
         register = Suite2PWrapper(input_data=suite2p_args, args=[])
         register.run()
+
+        # why does this logger assume the Suite2PWrapper name? reset
+        self.logger.name = type(self).__name__
 
         # get paths to Suite2P outputs
         with open(suite2p_args["output_json"], "r") as f:
@@ -167,7 +227,30 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         tif_paths = [Path(i) for i in outj['output_files']["*.tif"]]
         ops_path = Path(outj['output_files']['ops.npy'][0])
 
-        # assemble tifs into an hdf5
+        # Suite2P ops file contains at least the following keys:
+        # ["Lx", "Ly", "nframes", "xrange", "yrange", "xoff", "yoff",
+        #  "corrXY", "meanImg"]
+        ops = np.load(ops_path, allow_pickle=True)
+
+        # identify and clip offset outliers
+        detrend_size = int(self.args['movie_frame_rate_hz'] *
+                           self.args['outlier_detrend_window'])
+        xlimit = int(ops.item()['Lx'] * self.args['outlier_maxregshift'])
+        ylimit = int(ops.item()['Ly'] * self.args['outlier_maxregshift'])
+        self.logger.info("checking whether to clip where median-filtered "
+                         "offsets exceed (x,y) limits of "
+                         f"({xlimit},{ylimit}) [pixels]")
+        delta_x, x_clipped = identify_and_clip_outliers(
+                np.array(ops.item()["xoff"]), detrend_size, xlimit)
+        delta_y, y_clipped = identify_and_clip_outliers(
+                np.array(ops.item()["yoff"]), detrend_size, ylimit)
+        clipped_indices = list(set(x_clipped).union(set(y_clipped)))
+        self.logger.info(f"{len(x_clipped)} frames clipped in x")
+        self.logger.info(f"{len(y_clipped)} frames clipped in y")
+        self.logger.info(f"{len(clipped_indices)} frames will be adjusted "
+                         "for clipping")
+
+        # accumulate data from Suite2P's tiffs
         data = []
         for fname in tif_paths:
             with tifffile.TiffFile(fname) as f:
@@ -181,6 +264,16 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         data = np.concatenate(data, axis=0)
         data[data < 0] = 0
         data = np.uint16(data)
+
+        # anywhere we've clipped the offset, translate the frame
+        # using Suite2P's shift_frame by the difference resulting
+        # from clipping, for example, if Suite2P moved a frame
+        # by 100 pixels, and we have clipped that to 30, this will
+        # move it -70 pixels
+        for frame_index in clipped_indices:
+            dx = delta_x[frame_index] - ops.item()['xoff'][frame_index]
+            dy = delta_y[frame_index] - ops.item()['yoff'][frame_index]
+            data[frame_index] = shift_frame(data[frame_index], dy, dx)
 
         # write the hdf5
         with h5py.File(self.args['motion_corrected_output'], "w") as f:
@@ -201,11 +294,6 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                 pilim.save(dst_path)
             self.logger.info(f"wrote {dst_path}")
 
-        # Suite2P ops file contains at least the following keys:
-        # ["Lx", "Ly", "nframes", "xrange", "yrange", "xoff", "yoff",
-        #  "corrXY", "meanImg"]
-        ops = np.load(ops_path, allow_pickle=True)
-
         # Save motion offset data to a csv file
         # TODO: This *.csv file is being created to maintain compatability
         # with current ophys processing pipeline. In the future this output
@@ -213,8 +301,10 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         # 01/25/2021 - NJM
         motion_offset_df = pd.DataFrame({
             "framenumber": list(range(ops.item()["nframes"])),
-            "x": ops.item()["xoff"],
-            "y": ops.item()["yoff"],
+            "x": delta_x,
+            "y": delta_y,
+            "x_pre_clip": ops.item()['xoff'],
+            "y_pre_clip": ops.item()['yoff'],
             "correlation": ops.item()["corrXY"]
         })
         motion_offset_df.to_csv(
@@ -223,6 +313,12 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         self.logger.info(
             f"Writing the LIMS expected 'OphysMotionXyOffsetData' "
             f"csv file to: {self.args['motion_diagnostics_output']}")
+        if len(clipped_indices) != 0:
+            self.logger.warning(
+                    "some offsets have been clipped and the values "
+                    "for 'correlation' in "
+                    "{self.args['motion_diagnostics_output']} "
+                    "where (x_clipped OR y_clipped) = True are not valid")
 
         qc_args = {k: self.args[k]
                    for k in ['movie_frame_rate_hz',
@@ -232,10 +328,6 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                              'motion_corrected_output',
                              'motion_correction_preview_output',
                              'registration_summary_output',
-                             'movie_lower_quantile',
-                             'movie_upper_quantile',
-                             'preview_frame_bin_seconds',
-                             'preview_playback_factor',
                              'log_level']}
         qc_args.update({
                 'uncorrected_path': self.args['suite2p_args']['h5py']})

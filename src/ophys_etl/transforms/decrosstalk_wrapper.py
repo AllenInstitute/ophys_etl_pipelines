@@ -102,6 +102,15 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                         out_file.create_dataset('roi_names', data=roi_names)
                         out_file.create_dataset('data', data=data)
 
+            for roi in plane_0.roi_list:
+                if roi.roi_id not in roi_names:
+                    msg = "ROI %d " % roi.roi_id
+                    msg += "not in final output trace file.\n"
+                    msg += "This should not be possible. "
+                    msg += "Check to make sure invalid ROIs are "
+                    msg += "still being written to the trace file."
+                    raise RuntimeError(msg)
+
             output_pair['planes'] = plane_pair
             coupled_planes.append(output_pair)
 

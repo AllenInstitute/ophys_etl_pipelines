@@ -112,8 +112,40 @@ def unmix_all_ROIs(raw_roi_traces: dc_types.ROISetDict,
 
     Returns
     -------
+    A boolean indicating whether or not we were able to successfully
+    unmix the ROIs in this input ROISetDict
+
     A decrosstalk_types.ROISetDict containing the unmixed trace data for the
     ROIs.
+
+    Notes
+    -----
+    This method makes two attempts at decrosstalking each ROI using
+    Independent Component Analysis. On the first attempt, each ROI
+    (not neuropil) is decrosstalked as an independent entity. It is
+    possible that this process will not converge for any given ROI.
+
+    On the second attempt, an average demixing matrix is constructed
+    from the demixing matrices of those ROIs for which the first attempt
+    did converge. This average demixing matrix is to decrosstalk any
+    ROIs for which the first attempt did not converge.
+
+    Neuropils are then decrosstalked using the demixing matrix
+    corresponding to their associated ROI (whether the ROI-specific
+    demixing matrix or, in the case that the first attempt did not
+    converge, the average demixing matrix).
+
+    If the first attempt does not converge for any ROIs, there are no
+    demixing matrices from which to construct an average demixing
+    matrix and it is impossible to salvage any of the ROIs. In this case,
+    the boolean that is the first returned object of this method will
+    be set to False and the output ROISetDict will be emtpy.
+
+    If decrosstalking converged for any ROIs (and an average demixing
+    matrix is thus possible), that boolean will be set to True.
+
+    The unmixed traces, however they were achieved, will be saved in
+    the output ROISetDict.
     """
 
     output = dc_types.ROISetDict()
@@ -306,25 +338,32 @@ def _centered_rolling_mean(data: np.ndarray,
     i0 = window-1
     i1 = window-1+n_t-window
 
-    true_sum = np.zeros(n_t, dtype=float)
-    true_sum[half:n_t-half] = sum_[i0:i1]
-    true_sum[:half] = sum_[i0]
-    true_sum[n_t-half:] = sum_[i1]
+    # if mask has a run of `False`s that is longer than
+    # `window`, the mean and std calculations below will
+    # end up dividing by zero because there are zero valid
+    # elements over which to take the mean and std. This
+    # np.errstate context will suppress those warnings.
+    with np.errstate(divide='ignore', invalid='ignore'):
+        true_sum = np.zeros(n_t, dtype=float)
+        true_sum[half:n_t-half] = sum_[i0:i1]
+        true_sum[:half] = sum_[i0]
+        true_sum[n_t-half:] = sum_[i1]
 
-    true_sum_sq = np.zeros(n_t, dtype=float)
-    true_sum_sq[half:n_t-half] = sum_sq[i0:i1]
-    true_sum_sq[:half] = sum_sq[i0]
-    true_sum_sq[n_t-half:] = sum_sq[i1]
+        true_sum_sq = np.zeros(n_t, dtype=float)
+        true_sum_sq[half:n_t-half] = sum_sq[i0:i1]
+        true_sum_sq[:half] = sum_sq[i0]
+        true_sum_sq[n_t-half:] = sum_sq[i1]
 
-    true_mask_sum = np.zeros(n_t, dtype=float)
-    true_mask_sum[half:n_t-half] = mask_sum[i0:i1]
-    true_mask_sum[:half] = mask_sum[i0]
-    true_mask_sum[n_t-half:] = mask_sum[i1]
+        true_mask_sum = np.zeros(n_t, dtype=float)
+        true_mask_sum[half:n_t-half] = mask_sum[i0:i1]
+        true_mask_sum[:half] = mask_sum[i0]
+        true_mask_sum[n_t-half:] = mask_sum[i1]
 
-    mean = true_sum/true_mask_sum
-    var = (true_sum_sq/true_mask_sum - mean*mean)
-    var *= (true_mask_sum/(true_mask_sum-1))
-    std = np.sqrt(var)
+        mean = true_sum/true_mask_sum
+        var = (true_sum_sq/true_mask_sum - mean*mean)
+        var *= (true_mask_sum/(true_mask_sum-1))
+        std = np.sqrt(var)
+
     return mean, std
 
 
@@ -375,11 +414,23 @@ def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDic
              std) = _centered_rolling_mean(trace_dict[obj][roi_id]['signal'],
                                            mask,
                                            1980)
+
             threshold = mean-2.0*std
-            threshold = np.where(threshold > 0.0, threshold, mean)
+
             if (threshold < 0.0).any():
-                raise RuntimeError("threshold in clean_negative_traces "
-                                   "%e" % threshold.min())
+                msg = 'The unmixed "%s" trace for roi %d ' % (obj, roi_id)
+                msg += 'contained negative flux values'
+                logger.warning(msg)
+
+            # if there were no valid timesteps when calculating the rolling
+            # mean, set the threshold to a very negative value
+            threshold = np.where(np.logical_not(np.isnan(threshold)),
+                                 threshold,
+                                 -999.0)
+
+            if np.isnan(threshold).any():
+                raise RuntimeError("There were NaNs in "
+                                   "clean_negative_traces.threshold")
 
             # clip the trace at threshold
             trace = trace_dict[obj][roi_id]['signal']
@@ -552,6 +603,11 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
             raw_traces['neuropil'].pop(roi_id)
 
     del raw_trace_events
+
+    # if there was no activity in the raw traces, return an
+    # empty ROISetDict because none of the ROIs were valid
+    if len(raw_traces['roi']) == 0:
+        return roi_flags, dc_types.ROISetDict()
 
     ###########################################################
     # use Independent Component Analysis to separate out signal

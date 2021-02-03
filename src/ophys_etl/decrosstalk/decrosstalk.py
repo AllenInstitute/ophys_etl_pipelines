@@ -513,6 +513,11 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
     roi_flags[raw_active_key] = []
     roi_flags[unmixed_active_key] = []
 
+    # If there are no ROIs in the signal plane,
+    # just return a set of empty outputs
+    if len(signal_plane.roi_list) == 0:
+        return roi_flags, dc_types.ROISetDict()
+
     ###############################
     # extract raw traces
 

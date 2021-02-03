@@ -312,7 +312,19 @@ class MesoscopeTiff(object):
         if self._planes is None:
             self._planes = []
             page_offset = 0
-            for z in np.unique(self.plane_scans):
+
+            z_has_been_processed = set()  # do not reprocess same z
+
+            for z in self.plane_scans:
+
+                # relying on np.unique(self.plane_scans) forces
+                # us to process self.plane_scans in sorted order;
+                # nothing in the data model says that it is required
+                # that the plane scan z values be in sorted order
+                if z in z_has_been_processed:
+                    continue
+                z_has_been_processed.add(z)
+
                 scanned = [roi for roi in self.rois if roi.scanned_at_z(z)]
                 if len(scanned) > 1:
                     iheight = sum([roi.height(z) for roi in scanned])

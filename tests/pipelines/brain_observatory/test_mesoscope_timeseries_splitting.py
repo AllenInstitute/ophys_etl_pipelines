@@ -118,7 +118,7 @@ def generate_experiments(flattened_z, roi_zs, storage_dir):
     # generate some fake experiments based on the data we put in
     # the TIFF file
     experiments = []
-    for exp_id, zz, in zip(range(8), flattened_z):
+    for exp_id, zz in enumerate(flattened_z):
 
         roi_idx = None
         for i_roi, roi_list in enumerate(roi_zs):

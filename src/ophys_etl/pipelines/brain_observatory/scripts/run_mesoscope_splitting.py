@@ -60,12 +60,15 @@ def convert_column(input_tif, session_storage, experiment_info, **h5_opts):
     return conversion_output(mt.volume_views[0], filename, experiment_info)
 
 
-def split_z(input_tif, experiment_info, **h5_opts):
+def split_z(input_tif, experiment_info, testing=False, **h5_opts):
     directory = experiment_info["storage_directory"]
     eid = experiment_info["experiment_id"]
     filename = os.path.join(directory, "{}_z_stack_local.h5".format(eid))
 
-    mt = MesoscopeTiff(input_tif)
+    if not testing:
+        mt = MesoscopeTiff(input_tif)
+    else:
+        mt = input_tif
 
     i = experiment_info["roi_index"]
     z = experiment_info["scanfield_z"]

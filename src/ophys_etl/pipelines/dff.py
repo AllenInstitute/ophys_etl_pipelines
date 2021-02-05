@@ -125,7 +125,6 @@ def job_call(index: int, input_file: Path, key: str,
         trace = f[key][index]
     dff, sigma_dff, small_baseline = compute_dff_trace(
             trace, long_filter, short_filter)
-    print(index)
     return dff, sigma_dff, small_baseline
 
 

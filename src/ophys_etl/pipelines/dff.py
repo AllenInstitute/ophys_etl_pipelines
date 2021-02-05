@@ -2,9 +2,12 @@
 import time
 
 from argschema import ArgSchema, ArgSchemaParser, fields
+import multiprocessing
 import h5py
 from marshmallow import post_load
 import numpy as np
+from functools import partial
+from pathlib import Path
 
 from ophys_etl.transforms.trace_transforms import compute_dff_trace
 from ophys_etl.schemas.fields import H5InputFile
@@ -94,6 +97,10 @@ class DffJobSchema(ArgSchema):
                      "+1 if the result is even, since the median filter "
                      "length must be odd).")
     )
+    n_parallel_workers = fields.Int(
+        required=False,
+        default=1,
+        description="number of parallel workers")
 
     @post_load
     def filter_s_to_frames(self, item, **kwargs):
@@ -112,6 +119,15 @@ class DffJobSchema(ArgSchema):
         return item
 
 
+def job_call(index: int, input_file: Path, key: str,
+             long_filter: int, short_filter: int):
+    with h5py.File(input_file, "r") as f:
+        trace = f[key][index]
+    dff, sigma_dff, small_baseline = compute_dff_trace(
+            trace, long_filter, short_filter)
+    return dff, sigma_dff, small_baseline
+
+
 class DffJob(ArgSchemaParser):
     """
     This is the job runner for the dF/F computation from F (fluorescence)
@@ -128,50 +144,38 @@ class DffJob(ArgSchemaParser):
 
     def run(self):
         # Set up file and data pointers
-        input_h5 = h5py.File(self.args["input_file"], "r")
-        output_h5 = h5py.File(self.args["output_file"], "w")
-        roi_dataset = input_h5[self.args["roi_field"]]
-        traces_dataset = input_h5[self.args["input_dataset"]]
-
-        # Initialize storage
-        dff_dataset = output_h5.create_dataset(
-            self.args["output_dataset"], traces_dataset.shape)
-        sigma_dffs = output_h5.create_dataset(
-            self.args["sigma_dataset"], roi_dataset.shape)
-        small_baselines = output_h5.create_dataset(
-            self.args["baseline_frames_dataset"], roi_dataset.shape)
-        # Copy over the roi names
-        output_h5.create_dataset(self.args["roi_field"],
-                                 data=input_h5[self.args["roi_field"]][()])
+        with h5py.File(self.args["input_file"], "r") as f:
+            traces_shape = f[self.args["input_dataset"]].shape
+            roi_dataset = f[self.args['roi_field']][()]
+        roi_shape = roi_dataset.shape
 
         # Check for id mapping mismatches
-        if roi_dataset.shape[0] != traces_dataset.shape[0]:
+        if roi_shape[0] != traces_shape[0]:
             raise ValueError(
                 f"Can't associate ROIs of shape {roi_dataset.shape} "
-                f"to traces of shape {traces_dataset.shape}")
+                f"to traces of shape {traces_shape}")
 
-        # Run computation
-        # The traces can be large, so load them into memory 'row-wise' and
-        #   rely on reference counting for cleanup.
-        # Default in h5 is C order storage so this should be fairly efficient
-        trace_len = traces_dataset.shape[0]
-        self.logger.info(f"Computing dff traces: 0/{trace_len}")
-        for i in range(trace_len):
-            if (i % 20 == 0) and (i != 0):
-                self.logger.info(f"Working on {i}/{trace_len}...")
-            trace = traces_dataset[i, :]
-            dff, sigma_dff, small_baseline = compute_dff_trace(
-                trace,
-                self.args["long_filter_frames"],
-                self.args["short_filter_frames"])
-            sigma_dffs[i] = sigma_dff
-            small_baselines[i] = small_baseline
-            dff_dataset[i] = dff
+        job_partial = partial(job_call,
+                              input_file=Path(self.args['input_file']),
+                              key=self.args["input_dataset"],
+                              long_filter=self.args["long_filter_frames"],
+                              short_filter=self.args["short_filter_frames"])
+        with multiprocessing.Pool(self.args['n_parallel_workers']) as pool:
+            results = [i for i in pool.imap(
+                       job_partial, np.arange(traces_shape[0]), chunksize=10)]
+
+        dff, sigma_dff, small_baseline = list(zip(*results))
+
+        with h5py.File(self.args["output_file"], "w") as output_h5:
+            output_h5.create_dataset(self.args["roi_field"],
+                                     data=roi_dataset),
+            output_h5.create_dataset(self.args["output_dataset"], data=dff)
+            output_h5.create_dataset(self.args["sigma_dataset"],
+                                     data=sigma_dff)
+            output_h5.create_dataset(self.args["baseline_frames_dataset"],
+                                     data=small_baseline)
 
         self.logger.info("Dff traces complete.")
-        # Clean up
-        output_h5.close()
-        input_h5.close()
 
         self.output({
             "output_file": self.args["output_file"],

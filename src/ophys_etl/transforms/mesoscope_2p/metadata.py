@@ -92,30 +92,42 @@ def _tiff_header_data_2017b_v1(fh):
         raise ValueError("File is not a valid ScanImage BigTIFF version ({version})")
     frame_data = matlabstr2py(bytes2str(fh.read(frame_data_size)[:-1]))
     roi_data = read_json(fh, '<', None, roi_data_size, None) if roi_data_size > 1 else {}
-    return frame_data, roi_data
+    return version, frame_data, roi_data
 
 
 def tiff_header_data(filename):
     """Extract ScanImage header data from a tiff.
-
     http://scanimage.vidriotechnologies.com/display/SI2016/ScanImage+BigTiff+Specification
+
+    version 3 and 4 have rearranged some keys as follows:
+    SI.hFastZ.userZs -> SI.hStackManager.arbitraryZs
+    SI.hFastZ.numFramesPerVolume -> SI.hStackManager.numFramesPerVolume
+    SI.hFastZ.numVolumes -> SI.hStackManager.numVolumes
+    SI.hStackmanager.zs -> SI.hStackManager.zsAllActuators
+
+    SI.hStackmanager.zs in version 3 has been repurposed so we can't just duplicate the key.
+    The data appears to be the same, but ints not floats and without the ; delimiter
+
+    Instead, the new key for zs in both versions will be SI.hStackManager.zs_v3_v4
+    This doesn't feel like the correct long term solution though.  There are clear
+    potentials for misunderstanding if a later functions mistakenly uses "zs" from a version 3 file so it
+    may even be best to raise a deprecation warning there.
 
     """
     with open(filename, "rb") as f:
-        try:
-            # I think it is valid to not use this parser anymore.  I left it in so that if the metadata parser has to
-            # be more specialized, the data path is already flowing there.
-            frame_data, roi_data = read_scanimage_metadata(f)
-            frame_data = unflatten_dict(frame_data)
+        version, frame_data, roi_data = _tiff_header_data_2017b_v1(f)
+        frame_data = unflatten_dict(frame_data)
+        if version == 3:
+            frame_data["SI"]["hStackManager"]["zs_v3_v4"] = frame_data["SI"]["hStackManager"]["zs"]
             logging.debug("Loaded %s as 2017b v0", filename)
-        except ValueError:
-            frame_data, roi_data = _tiff_header_data_2017b_v1(f)
+        elif version == 4:
             frame_data = unflatten_dict(frame_data)
+            frame_data["SI"]["hStackManager"]["zs_v3_v4"] = frame_data["SI"]["hStackManager"]["zsAllActuators"]
             logging.debug("Loaded %s as 2017b v1", filename)
 
-    frame_data = floatify_SI_float_strings(frame_data)
-    roi_data = floatify_SI_float_strings(roi_data)
-    return frame_data, roi_data
+        frame_data = floatify_SI_float_strings(frame_data)
+        roi_data = floatify_SI_float_strings(roi_data)
+        return frame_data, roi_data
 
 
 class RoiMetadata(dict):

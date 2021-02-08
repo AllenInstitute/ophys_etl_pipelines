@@ -123,6 +123,9 @@ def tiff_header_data(filename):
         elif version == 4:
             frame_data = unflatten_dict(frame_data)
             frame_data["SI"]["hStackManager"]["zs_v3_v4"] = frame_data["SI"]["hStackManager"]["zsAllActuators"]
+            frame_data["SI"]["hFastZ"]["numFramesPerVolume"] = frame_data["SI"]["hStackManager"]["numFramesPerVolume"]
+            frame_data["SI"]["hFastZ"]["numVolumes"] = frame_data["SI"]["hStackManager"]["numVolumes"]
+            frame_data["SI"]["hFastZ"]["userZs"] = frame_data["SI"]["hStackManager"]["arbitraryZs"]
             logging.debug("Loaded %s as 2017b v1", filename)
 
         frame_data = floatify_SI_float_strings(frame_data)

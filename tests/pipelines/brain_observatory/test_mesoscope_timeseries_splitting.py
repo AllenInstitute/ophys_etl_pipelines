@@ -26,7 +26,7 @@ class MesoscopeTiffDummy(MesoscopeTiff):
 def generate_fake_timeseries(tmp_filename, frame_zs, roi_zs):
     """
     Writes a fake timeseries TIFF to disk.
-    The time series TIFF will contain 100 512x512 TIFFs per ROI.
+    The time series TIFF will contain 40 512x512 TIFFs per ROI.
     Values in the TIFF will be z*10
     Returns frame and ROI metadata needed by MesoscopeTiffDummy.
 
@@ -66,9 +66,9 @@ def generate_fake_timeseries(tmp_filename, frame_zs, roi_zs):
     assert len(flattened_z) == n_roi
 
     # generate fake tiff data and write it to tmp_filename
-    tiff_data = np.zeros((n_roi*100, 512, 512), dtype=int)
+    tiff_data = np.zeros((n_roi*40, 512, 512), dtype=int)
     for ii in range(n_roi):
-        tiff_data[ii:n_roi*100:n_roi, :, :] = 10*flattened_z[ii]
+        tiff_data[ii:n_roi*40:n_roi, :, :] = 10*flattened_z[ii]
 
     tifffile.imwrite(tmp_filename, tiff_data, bigtiff=True)
     del tiff_data
@@ -118,7 +118,7 @@ def generate_experiments(flattened_z, roi_zs, storage_dir):
     # generate some fake experiments based on the data we put in
     # the TIFF file
     experiments = []
-    for exp_id, zz, in zip(range(8), flattened_z):
+    for exp_id, zz in enumerate(flattened_z):
 
         roi_idx = None
         for i_roi, roi_list in enumerate(roi_zs):
@@ -170,7 +170,7 @@ def validate_timeseries_split(experiment_list, storage_dir):
         assert os.path.isfile(fname)
         with h5py.File(fname, 'r') as in_file:
             data = in_file['data'][()]
-            assert data.shape == (100, 512, 512)
+            assert data.shape == (40, 512, 512)
             unq = np.unique(data).flatten()
             assert unq.shape == (1,)
             assert unq[0] == zz*10

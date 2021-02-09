@@ -5,7 +5,8 @@ import h5py
 import os
 import copy
 from ophys_etl.transforms.mesoscope_2p import MesoscopeTiff
-from ophys_etl.pipelines.brain_observatory.scripts.run_mesoscope_splitting import split_timeseries  # noqa: E501
+from ophys_etl.pipelines.brain_observatory.scripts import (
+    run_mesoscope_splitting)
 
 
 class MesoscopeTiffDummy(MesoscopeTiff):
@@ -234,6 +235,6 @@ def test_timeseries_split(tmpdir, frame_zs, roi_zs, flattened_z_expected):
 
     experiment_list = generate_experiments(flattened_z, roi_zs, storage_dir)
 
-    _ = split_timeseries(mtiff, experiment_list)
+    _ = run_mesoscope_splitting.split_timeseries(mtiff, experiment_list)
 
     validate_timeseries_split(experiment_list, storage_dir)

@@ -97,8 +97,9 @@ def split_z(input_tif, experiment_info, testing=False, **h5_opts):
     return conversion_output(stack, filename, experiment_info)
 
 
-def split_image(input_tif, experiments, name):
-    mt = MesoscopeTiff(input_tif)
+def split_image(input_tif: MesoscopeTiff,
+                experiments: List[Dict],
+                name: str):
     outs = {}
 
     for exp in experiments:
@@ -108,17 +109,17 @@ def split_image(input_tif, experiments, name):
         z = exp["scanfield_z"]
         filename = os.path.join(directory, "{}_{}.tif".format(eid, name))
 
-        plane = mt.nearest_plane(i, z)
+        plane = input_tif.nearest_plane(i, z)
         if plane is None:
             raise ValueError(
                 "No plane to extract from {} for experiment {}".format(
-                    input_tif, eid
+                    input_tif._source, eid
                 )
             )
 
         logging.info(
             "Got plane at z={} for target z={} in {}".format(
-                np.mean(plane.zs), z, input_tif
+                np.mean(plane.zs), z, input_tif._source
             )
         )
 
@@ -226,12 +227,16 @@ def main():
             experiments.append(exp)
             z_outs[exp["experiment_id"]] = out
 
-    surf_outs, surf_meta = split_image(mod.args["surface_tif"],
+    sf_mesoscope_tiff = MesoscopeTiff(mod.args["surface_tif"])
+    surf_outs, surf_meta = split_image(sf_mesoscope_tiff,
                                        experiments,
                                        "surface")
-    depth_outs, depth_meta = split_image(mod.args["depths_tif"],
+
+    dp_mesoscope_tiff = MesoscopeTiff(mod.args["depths_tif"])
+    depth_outs, depth_meta = split_image(dp_mesoscope_tiff,
                                          experiments,
                                          "depth")
+
     ts_mesoscope_tiff = MesoscopeTiff(mod.args["timeseries_tif"])
     ts_outs, ts_meta = split_timeseries(ts_mesoscope_tiff,
                                         experiments,

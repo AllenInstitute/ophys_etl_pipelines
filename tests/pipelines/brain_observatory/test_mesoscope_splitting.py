@@ -355,7 +355,8 @@ def surface_image_roi_metadata():
                     [0, 0, 1]
                 ],
                 'centerXY': [2.283966727, -7.963886189],
-                'classname': 'scanimage.mroi.scanfield.fields.RotatedRectangle',
+                'classname': 'scanimage.mroi.scanfield.'
+                             'fields.RotatedRectangle',
                 'enable': 1,
                 'name': '',
                 'pixelResolutionXY': [512, 512],
@@ -387,7 +388,8 @@ def surface_image_roi_metadata():
                     [0, 0, 1]
                 ],
                 'centerXY': [-0.587744573, 1.268341762],
-                'classname': 'scanimage.mroi.scanfield.fields.RotatedRectangle',
+                'classname': 'scanimage.mroi.scanfield'
+                             '.fields.RotatedRectangle',
                 'enable': 1,
                 'name': '',
                 'pixelResolutionXY': [512, 512],

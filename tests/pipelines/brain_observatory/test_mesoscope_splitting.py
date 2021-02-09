@@ -1,7 +1,6 @@
 import h5py
 import numpy as np
 import pytest
-from tifffile import TiffFile
 from unittest.mock import (
     MagicMock, Mock, patch, create_autospec)
 

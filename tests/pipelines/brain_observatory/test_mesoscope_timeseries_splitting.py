@@ -5,7 +5,8 @@ import h5py
 import os
 import copy
 from ophys_etl.transforms.mesoscope_2p import MesoscopeTiff
-from ophys_etl.pipelines.brain_observatory.scripts.run_mesoscope_splitting import split_timeseries
+from ophys_etl.pipelines.brain_observatory.scripts import (
+    run_mesoscope_splitting)
 
 
 class MesoscopeTiffDummy(MesoscopeTiff):
@@ -67,7 +68,7 @@ def generate_fake_timeseries(tmp_filename, frame_zs, roi_zs):
     # generate fake tiff data and write it to tmp_filename
     tiff_data = np.zeros((n_roi*100, 512, 512), dtype=int)
     for ii in range(n_roi):
-        tiff_data[ii:n_roi*100:n_roi,:,:] = 10*flattened_z[ii]
+        tiff_data[ii:n_roi*100:n_roi, :, :] = 10*flattened_z[ii]
 
     tifffile.imwrite(tmp_filename, tiff_data, bigtiff=True)
     del tiff_data
@@ -81,7 +82,6 @@ def generate_fake_timeseries(tmp_filename, frame_zs, roi_zs):
 
     frame_metadata['SI']['hChannels'] = {}
     frame_metadata['SI']['hChannels']['channelsActive'] = [[1], [2]]
-
 
     _rois = []
     for roi_list in roi_zs:
@@ -140,7 +140,7 @@ def generate_experiments(flattened_z, roi_zs, storage_dir):
         # it is just passed through as metadata
         exp['resolution'] = 0
         exp['offset_x'] = 0
-        exp['offset_y' ] = 0
+        exp['offset_y'] = 0
         exp['rotation'] = 0
         exp['height'] = 0
         exp['width'] = 0
@@ -190,16 +190,16 @@ def validate_timeseries_split(experiment_list, storage_dir):
                            [[22, 33, 44, 55], [66, 77, 88, 99]],
                            [22, 44, 66, 88, 33, 55, 77, 99]),
                           ([[22, 0], [44, 0]],
-                           [[22],[44]],
+                           [[22], [44]],
                            [22, 44]),
-                           ([[44, 0], [22, 0]],
-                           [[22],[44]],
+                          ([[44, 0], [22, 0]],
+                           [[22], [44]],
                            [44, 22]),
                           ([[22, 9], [44, 6]],
-                           [[22],[44]],
+                           [[22], [44]],
                            [22, 44]),
                           ([[44, 1], [22, 4]],
-                           [[22],[44]],
+                           [[22], [44]],
                            [44, 22])])
 def test_timeseries_split(tmpdir, frame_zs, roi_zs, flattened_z_expected):
     storage_dir = os.path.join(tmpdir, 'timeseries_storage')
@@ -235,6 +235,6 @@ def test_timeseries_split(tmpdir, frame_zs, roi_zs, flattened_z_expected):
 
     experiment_list = generate_experiments(flattened_z, roi_zs, storage_dir)
 
-    output = split_timeseries(mtiff, experiment_list)
+    _ = run_mesoscope_splitting.split_timeseries(mtiff, experiment_list)
 
     validate_timeseries_split(experiment_list, storage_dir)

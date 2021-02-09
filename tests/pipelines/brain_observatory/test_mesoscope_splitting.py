@@ -573,12 +573,12 @@ def image_frame_metadata():
 
 
 @pytest.fixture
-def timeseries(mock_experiments):
+def timeseries(experiments):
     # The fake data, each page of the Tiff is just a single number
     # to make verifying the results of splitting easier
     ts = np.concatenate([
         np.full((1, 512, 512), ex['experiment_id'])
-        for ex in mock_experiments
+        for ex in experiments
     ] * 8, axis=0)
 
     # Turn the data into a TestArray, because it needs to have
@@ -644,6 +644,7 @@ def test_split_timeseries(tmpdir,
                           timeseries_frame_metadata,
                           timeseries_roi_metadata):
     tmpdir.mkdir('resources')
+
     mesoscope_tiff = MockMesoscopeTiff(
         source_tiff="Mock",
         experiments=experiments,

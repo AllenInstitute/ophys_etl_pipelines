@@ -22,7 +22,7 @@ def dump_dict_as_attrs(h5fp, container_name, data):
 
 
 def _volume_to_h5(h5fp, volume, dset_name="data", page_block_size=None,
-                 **h5_opts):
+                  **h5_opts):
     """
     Actually do the work of writing the TIFF volume to the HDF5 file;
     h5fp is an h5py.File handle
@@ -33,7 +33,7 @@ def _volume_to_h5(h5fp, volume, dset_name="data", page_block_size=None,
                                    **h5_opts)
     else:
         dset = h5fp.create_dataset(dset_name, volume.shape,
-                                  dtype=volume.dtype, **h5_opts)
+                                   dtype=volume.dtype, **h5_opts)
         i = 0
         while i < volume.shape[0]:
             dset[i:i+page_block_size, :, :] = volume[i:i+page_block_size]

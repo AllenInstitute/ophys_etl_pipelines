@@ -261,14 +261,30 @@ class MesoscopeTiff(object):
 
     @property
     def volume_scans(self):
-        return np.array(self.stack_zs).T[np.array(self.active_channels) - 1]
+        vol_scns = np.array(self.stack_zs).T[
+            np.array(self.active_channels) - 1
+        ]
+
+        for id1, scn1 in enumerate(vol_scns):
+            for id2, scn2 in enumerate(vol_scns):
+                if id1 != id2 and all(scn1 == scn2):
+                    raise AttributeError(f"Volume scans {id1} and {id2} were "
+                                         f"taken at the same z values. This "
+                                         f"is a human error - operators are "
+                                         f"instructed not to do this.")
+
+        return vol_scns
 
     @property
-    def plane_stride(self):
+    def plane_stride(self) -> int:
+        """This value corresponds to the gap between pages in the input data
+        that should be combined to form one dataset for the output.
+
+        Only increment stride for unique zs, because same z end up in the
+        the same page of the tiff.
+        """
         stride = 0
-        # only increment stride for unique zs, because same z end up in the
-        # the same page of the tiff - or at least did when I last tested
-        # that scenario in Scanimage
+
         for z in np.unique(self.plane_scans):
             if any([roi for roi in self.rois if roi.scanned_at_z(z)]):
                 stride += 1
@@ -278,8 +294,7 @@ class MesoscopeTiff(object):
     @property
     def volume_stride(self):
         stride = 0
-        # this logic is probably incorrect if there are 2+ volume scans
-        # with identical zs, but needs testing to confirm
+
         for zs in self.volume_scans:
             if any([roi for roi in self.rois if roi.volume_scanned(zs)]):
                 stride += 1
@@ -313,19 +328,13 @@ class MesoscopeTiff(object):
             self._planes = []
             page_offset = 0
 
-            z_has_been_processed = set()  # do not reprocess same z
+            # Must only process unique plane scans, while preserving the order
+            _, idx = np.unique(self.plane_scans, return_index=True)
+            unique_ordered_zs = self.plane_scans[np.sort(idx)]
 
-            for z in self.plane_scans:
-
-                # relying on np.unique(self.plane_scans) forces
-                # us to process self.plane_scans in sorted order;
-                # nothing in the data model says that it is required
-                # that the plane scan z values be in sorted order
-                if z in z_has_been_processed:
-                    continue
-                z_has_been_processed.add(z)
-
+            for z in unique_ordered_zs:
                 scanned = [roi for roi in self.rois if roi.scanned_at_z(z)]
+
                 if len(scanned) > 1:
                     iheight = sum([roi.height(z) for roi in scanned])
                     pheight = self._tiff.pages[page_offset].shape[0]
@@ -355,8 +364,7 @@ class MesoscopeTiff(object):
         if self._volumes is None:
             self._volumes = []
             page_offset = 0
-            # this logic is probably incorrect if there are 2+ volume scans
-            # with identical zs, but needs testing to confirm
+
             for zs in self.volume_scans:
                 scanned = [roi for roi in self.rois if roi.volume_scanned(zs)]
                 if len(scanned) > 1:

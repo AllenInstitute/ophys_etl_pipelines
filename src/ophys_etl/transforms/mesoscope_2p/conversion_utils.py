@@ -1,6 +1,9 @@
 import numpy as np
 from tifffile import imsave
+from typing import Callable
 import h5py
+
+from ophys_etl.transforms.mesoscope_2p.tiff import DataView
 
 
 def dump_dict_as_attrs(h5fp, container_name, data):
@@ -21,11 +24,27 @@ def dump_dict_as_attrs(h5fp, container_name, data):
     return container
 
 
-def _volume_to_h5(h5fp, volume, dset_name="data", page_block_size=None,
-                  **h5_opts):
-    """
-    Actually do the work of writing the TIFF volume to the HDF5 file;
-    h5fp is an h5py.File handle
+def volume_to_h5(h5fp: h5py.File,
+                 volume: DataView,
+                 dset_name: str = "data",
+                 page_block_size: int = None,
+                 **h5_opts):
+    """Write a tiff volume to an HDF5 file.
+
+    Parameters
+    ----------
+    h5fp : h5py.File
+        An h5py.File handle, where the data will be saved.
+
+    volume : DataView
+        A DataView object as defined in the transforms.mesoscope_2p
+        module. This contains the data to be saved.
+
+    dset_name : str = "data"
+        A string, this is what the dataset will be saved as in the .h5 file.
+
+    page_block_size : int = None
+        An optional integer used to save the data in chunks, if necessary.
     """
 
     if page_block_size is None:
@@ -40,31 +59,24 @@ def _volume_to_h5(h5fp, volume, dset_name="data", page_block_size=None,
             i += page_block_size
 
 
-def volume_to_h5(h5fp, volume, dset_name="data", page_block_size=None,
-                 **h5_opts):
+def volume_to_tif(filename: str,
+                  volume: DataView,
+                  projection_func: Callable = None):
+    """Write a volume to an HDF5 file.
+
+    Parameters
+    ----------
+    Filename : str
+        The filepath where the .tif will be saved.
+
+    volume : DataView
+        A DataView object as defined in the transforms.mesoscope_2p
+        module. This contains the data to be saved.
+
+    projection_func : Callable = None
+        An optional function to pass the data through before saving.
+        The only required argument for this function must be a numpy array.
     """
-    Write a tiff volume to an HDF5 file.
-
-    h5fp can either be a string indicating the path to the HDF5 file
-    or an hf5py.File handle
-    """
-
-    if isinstance(h5fp, str):
-        with h5py.File(h5fp, 'w') as out_file:
-            _volume_to_h5(out_file, volume, dset_name=dset_name,
-                          page_block_size=page_block_size,
-                          **h5_opts)
-    elif isinstance(h5fp, h5py.File):
-        _volume_to_h5(h5fp, volume, dset_name=dset_name,
-                      page_block_size=page_block_size,
-                      **h5_opts)
-    else:
-        raise ValueError("h5fp passed to volume_to_h5 "
-                         "must be either a str or an h5py.File; "
-                         "you passed %s" % (str(type(h5fp))))
-
-
-def volume_to_tif(filename, volume, projection_func=None):
     if projection_func is not None:
         array = projection_func(volume[:])
         imsave(filename, array)

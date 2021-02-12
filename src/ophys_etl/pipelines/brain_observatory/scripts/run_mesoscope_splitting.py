@@ -3,7 +3,7 @@ import os
 import numpy as np
 import h5py
 from typing import (
-    List, Dict)
+    List, Dict, Tuple)
 from argschema import ArgSchemaParser
 from ophys_etl.transforms.mesoscope_2p import MesoscopeTiff
 from ophys_etl.transforms.mesoscope_2p.conversion_utils import (
@@ -60,29 +60,56 @@ def convert_column(input_tif, session_storage, experiment_info, **h5_opts):
     return conversion_output(mt.volume_views[0], filename, experiment_info)
 
 
-def split_z(input_tif, experiment_info, testing=False, **h5_opts):
-    directory = experiment_info["storage_directory"]
-    eid = experiment_info["experiment_id"]
+def split_z(input_tif: MesoscopeTiff,
+            experiments: List[Dict],
+            testing=False,
+            **h5_opts) -> Tuple[Dict, Dict]:
+    """Takes a z_stack file from a Mesoscope ophys session and a list
+    of the experiments performed during that session and splits the data
+    into a z_stack file (as a .h5) for each individual experiment.
+
+    Parameters
+    ----------
+    input_tif : MesoscopeTiff
+        MesoscopeTiff object containing the timeseries data that
+        will be split by experiment
+
+    experiments : List[Dict]
+        A list of dictionaries, each containing information about
+        the experiments performed during the ophys session
+
+    **h5_opts
+        Keyword arguments to be used when writing the data to files.
+        If any keyword arguments are supplied, it will trigger the
+        use of chunking when saving the files.
+
+    Returns
+    -------
+    outs : dict
+        A dictionary containing specific information about the experiments,
+        including the location of the input data.
+
+    meta : dict
+        A dictionary containing metadata about the experiment, including the
+        location where the ata will be saved.
+    """
+    directory = experiments["storage_directory"]
+    eid = experiments["experiment_id"]
     filename = os.path.join(directory, "{}_z_stack_local.h5".format(eid))
 
-    if not testing:
-        mt = MesoscopeTiff(input_tif)
-    else:
-        mt = input_tif
-
-    i = experiment_info["roi_index"]
-    z = experiment_info["scanfield_z"]
-    stack = mt.nearest_volume(i, z)
+    i = experiments["roi_index"]
+    z = experiments["scanfield_z"]
+    stack = input_tif.nearest_volume(i, z)
     if stack is None:
         raise ValueError(
             "Could not find stack to extract from {} for experiment {}".format(
-                input_tif, eid
+                input_tif._source, eid
             )
         )
 
     logging.info(
         "Got stack centered at z={} for target z={} in {}".format(
-            np.mean(stack.zs), z, input_tif
+            np.mean(stack.zs), z, input_tif._source
         )
     )
 
@@ -94,12 +121,42 @@ def split_z(input_tif, experiment_info, testing=False, **h5_opts):
     with h5py.File(filename, "w") as f:
         volume_to_h5(f, stack, **h5_opts)
 
-    return conversion_output(stack, filename, experiment_info)
+    outs, meta = conversion_output(stack, filename, experiments)
+
+    return outs, meta
 
 
 def split_image(input_tif: MesoscopeTiff,
                 experiments: List[Dict],
-                name: str):
+                name: str) -> Tuple[Dict, Dict]:
+    """Takes a file from a Mesoscope ophys session containing many images
+    and a list of the experiments performed during that session and splits
+    the images into multiple .tif files by experiment.
+
+    Parameters
+    ----------
+    input_tif : MesoscopeTiff
+        MesoscopeTiff object containing the timeseries data that
+        will be split by experiment
+
+    experiments : List[Dict]
+        A list of dictionaries, each containing information about
+        the experiments performed during the ophys session
+
+    name : str
+        The name of the data that will be split (e.g. 'surface'
+        for surface image data or 'depth' for depth image data)
+
+    Returns
+    -------
+    outs : dict
+        A dictionary containing specific information about the experiments,
+        including the location of the input data.
+
+    meta : dict
+        A dictionary containing metadata about the experiment, including the
+        location where the ata will be saved.
+    """
     outs = {}
 
     for exp in experiments:
@@ -132,7 +189,36 @@ def split_image(input_tif: MesoscopeTiff,
 
 def split_timeseries(input_tif: MesoscopeTiff,
                      experiments: List[Dict],
-                     **h5_opts):
+                     **h5_opts) -> Tuple[Dict, Dict]:
+    """Takes a timeseries file from a Mesoscope ophys session and a list
+    of the experiments performed during that session and splits the data
+    into a timeseries file (as a .h5) for each individual experiment.
+
+    Parameters
+    ----------
+    input_tif : MesoscopeTiff
+        MesoscopeTiff object containing the timeseries data that
+        will be split by experiment
+
+    experiments : List[Dict]
+        A list of dictionaries, each containing information about
+        the experiments performed during the ophys session
+
+    **h5_opts
+        Keyword arguments to be used when writing the data to files.
+        If any keyword arguments are supplied, it will trigger the
+        use of chunking when saving the files.
+
+    Returns
+    -------
+    outs : dict
+        A dictionary containing specific information about the experiments,
+        including the location of the input data.
+
+    meta : dict
+        A dictionary containing metadata about the experiment, including the
+        location where the ata will be saved.
+    """
     outs = {}
 
     for exp in experiments:
@@ -161,8 +247,8 @@ def split_timeseries(input_tif: MesoscopeTiff,
             logging.debug(
                 "Setting compression chunk size to {}".format(chunks))
 
-        # with h5py.File(filename, "w") as f:
-        volume_to_h5(filename, plane, **h5_opts)
+        with h5py.File(filename, "w") as f:
+            volume_to_h5(f, plane, **h5_opts)
 
         outs[eid], meta = conversion_output(plane, filename, exp)
         if input_tif.is_multiscope:
@@ -217,13 +303,18 @@ def main():
                     # don't break on failed column stack conversion
                     logging.error(e)
                 stack_tifs.add(column_stack)
+
         for exp in plane_group["ophys_experiments"]:
             localz = plane_group["local_z_stack_tif"]
             ready_to_archive.add(localz)
-            out, meta = split_z(localz, exp, **h5_opts)
+
+            localz_tiff = MesoscopeTiff(localz)
+            out, meta = split_z(localz_tiff, exp, **h5_opts)
+
             if localz not in stack_tifs:
                 output["file_metadata"].append(meta)
                 stack_tifs.add(localz)
+
             experiments.append(exp)
             z_outs[exp["experiment_id"]] = out
 

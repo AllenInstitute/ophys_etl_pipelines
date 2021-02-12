@@ -27,8 +27,7 @@ def dump_dict_as_attrs(h5fp, container_name, data):
 def volume_to_h5(h5fp: h5py.File,
                  volume: DataView,
                  dset_name: str = "data",
-                 page_block_size: int = None,
-                 **h5_opts):
+                 page_block_size: int = None):
     """Write a tiff volume to an HDF5 file.
 
     Parameters
@@ -45,11 +44,14 @@ def volume_to_h5(h5fp: h5py.File,
 
     page_block_size : int = None
         An optional integer used to save the data in chunks, if necessary.
-    """
 
+    """
+    h5_opts = {
+            "chunks": (1,) + tuple(volume.plane_shape),
+            "compression": 'gzip',
+            "compression_opts": 4}
     if page_block_size is None:
-        dset = h5fp.create_dataset(dset_name, data=volume[:],
-                                   **h5_opts)
+        dset = h5fp.create_dataset(dset_name, data=volume[:], **h5_opts)
     else:
         dset = h5fp.create_dataset(dset_name, volume.shape,
                                    dtype=volume.dtype, **h5_opts)

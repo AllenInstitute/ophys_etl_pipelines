@@ -435,7 +435,8 @@ def z_stack_roi_metadata():
                     [0, 0, 1]
                 ],
                 'centerXY': [2.283966727, -7.963886189],
-                'classname': 'scanimage.mroi.scanfield.fields.RotatedRectangle',
+                'classname': 'scanimage.mroi.scanfield.'
+                             'fields.RotatedRectangle',
                 'enable': 1,
                 'name': '',
                 'pixelResolutionXY': [512, 512],
@@ -466,7 +467,8 @@ def z_stack_roi_metadata():
                     [0, 2.366863905, 0.0849098095],
                     [0, 0, 1]],
                 'centerXY': [-0.587744573, 1.268341762],
-                'classname': 'scanimage.mroi.scanfield.fields.RotatedRectangle',
+                'classname': 'scanimage.mroi.scanfield.'
+                             'fields.RotatedRectangle',
                 'enable': 1,
                 'name': '',
                 'pixelResolutionXY': [512, 512],

@@ -42,6 +42,7 @@ class PlaneGroup(DefaultSchema):
 
 
 class InputSchema(ArgSchema):
+    log_level = Str(required=False, default="INFO")
     depths_tif = InputFile(
         required=True,
         description="Full path to depth 2p tiff file.")

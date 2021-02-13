@@ -88,11 +88,13 @@ def split_z(input_tif: MesoscopeTiff,
     ----------
     input_tif : MesoscopeTiff
         MesoscopeTiff object containing the timeseries data that
-        will be split by experiment
+        will be split by experiment.
 
     experiments : List[Dict]
         A list of dictionaries, each containing information about
-        the experiments performed during the ophys session
+        the experiments performed during the ophys session, as described by
+        the ExperimentPlane schema defined in /pipelines/brain_observatory/
+        schemas/split_mesoscope.py.
 
     Returns
     -------
@@ -143,11 +145,13 @@ def split_image(input_tif: MesoscopeTiff,
     ----------
     input_tif : MesoscopeTiff
         MesoscopeTiff object containing the timeseries data that
-        will be split by experiment
+        will be split by experiment.
 
     experiments : List[Dict]
         A list of dictionaries, each containing information about
-        the experiments performed during the ophys session
+        the experiments performed during the ophys session, as described by
+        the ExperimentPlane schema defined in /pipelines/brain_observatory/
+        schemas/split_mesoscope.py.
 
     name : str
         The name of the data that will be split (e.g. 'surface'
@@ -203,11 +207,13 @@ def split_timeseries(input_tif: MesoscopeTiff,
     ----------
     input_tif : MesoscopeTiff
         MesoscopeTiff object containing the timeseries data that
-        will be split by experiment
+        will be split by experiment.
 
     experiments : List[Dict]
         A list of dictionaries, each containing information about
-        the experiments performed during the ophys session
+        the experiments performed during the ophys session, as described by
+        the ExperimentPlane schema defined in /pipelines/brain_observatory/
+        schemas/split_mesoscope.py.
 
     Returns
     -------

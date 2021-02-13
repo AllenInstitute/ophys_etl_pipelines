@@ -70,7 +70,7 @@ def generate_fake_timeseries(request, tmpdir):
     assert len(flattened_z) == n_roi
 
     # generate fake tiff data and write it to tmp_filename
-    tiff_data = np.zeros((n_roi*40, 512, 512), dtype=int)
+    tiff_data = np.zeros((n_roi*40, 32, 32), dtype=int)
     for ii in range(n_roi):
         tiff_data[ii:n_roi*40:n_roi, :, :] = 10*flattened_z[ii]
 
@@ -91,7 +91,7 @@ def generate_fake_timeseries(request, tmpdir):
 
     _rois = []
     for roi_list in roi_zs:
-        scanfields = [{'pixelResolutionXY': (512, 512)}]*len(roi_list)
+        scanfields = [{'pixelResolutionXY': (32, 32)}]*len(roi_list)
 
         _rois.append({'zs': copy.deepcopy(roi_list),
                       'discretePlaneMode': True,
@@ -181,7 +181,7 @@ def validate_timeseries_split(experiment_list, storage_dir):
         assert os.path.isfile(fname)
         with h5py.File(fname, 'r') as in_file:
             data = in_file['data'][()]
-            assert data.shape == (40, 512, 512)
+            assert data.shape == (40, 32, 32)
             unq = np.unique(data).flatten()
             assert unq.shape == (1,)
             assert unq[0] == zz*10

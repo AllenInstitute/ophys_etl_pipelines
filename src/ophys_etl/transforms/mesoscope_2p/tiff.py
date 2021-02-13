@@ -1,4 +1,6 @@
 import numpy as np
+import logging
+
 from tifffile import TiffFile
 from .metadata import tiff_header_data, RoiMetadata
 
@@ -119,11 +121,12 @@ class MesoscopeTiff(object):
       the hFastZ metadata.
     """
     def __init__(self, source_tiff, cache=False):
-        self._frame_data, self._roi_data = tiff_header_data(source_tiff)
         self._n_pages = None
         self._planes = None
         self._volumes = None
         self._source = source_tiff
+
+        self._frame_data, self._roi_data = tiff_header_data(source_tiff)
         self._tiff = TiffFile(self._source)
         self._tiff.pages.cache = cache
 
@@ -258,15 +261,40 @@ class MesoscopeTiff(object):
 
     @property
     def volume_scans(self):
-        return np.array(self.stack_zs).T[np.array(self.active_channels) - 1]
+        vol_scns = np.array(self.stack_zs).T[
+            np.array(self.active_channels) - 1
+        ]
+
+        for id1, scn1 in enumerate(vol_scns):
+            for id2, scn2 in enumerate(vol_scns):
+                if id1 != id2 and all(scn1 == scn2):
+                    raise AttributeError(f"Volume scans {id1} and {id2} were "
+                                         f"taken at the same z values. This "
+                                         f"is a human error - operators are "
+                                         f"instructed not to do this.")
+
+        return vol_scns
 
     @property
-    def plane_stride(self):
-        return len(self.plane_scans)
+    def plane_stride(self) -> int:
+        """This value corresponds to the gap between pages in the input data
+        that should be combined to form one dataset for the output.
+
+        Only increment stride for unique zs, because same z end up in the
+        the same page of the tiff.
+        """
+        stride = 0
+
+        for z in np.unique(self.plane_scans):
+            if any([roi for roi in self.rois if roi.scanned_at_z(z)]):
+                stride += 1
+
+        return stride
 
     @property
     def volume_stride(self):
         stride = 0
+
         for zs in self.volume_scans:
             if any([roi for roi in self.rois if roi.volume_scanned(zs)]):
                 stride += 1
@@ -296,12 +324,17 @@ class MesoscopeTiff(object):
 
     @property
     def plane_views(self):
-        self._planes = None
         if self._planes is None:
             self._planes = []
             page_offset = 0
-            for z in self.plane_scans:
+
+            # Must only process unique plane scans, while preserving the order
+            _, idx = np.unique(self.plane_scans, return_index=True)
+            unique_ordered_zs = self.plane_scans[np.sort(idx)]
+
+            for z in unique_ordered_zs:
                 scanned = [roi for roi in self.rois if roi.scanned_at_z(z)]
+
                 if len(scanned) > 1:
                     iheight = sum([roi.height(z) for roi in scanned])
                     pheight = self._tiff.pages[page_offset].shape[0]
@@ -309,19 +342,20 @@ class MesoscopeTiff(object):
                 else:
                     lines_between = 0
                 y_offset = 0
-                if not scanned:
-                    # pick a plane to extract when there is no data
-                    self._planes.append(
-                        DataView(
-                            self, [z], page_offset, y_offset,
-                            self.plane_stride, self.rois[0], True))
                 for roi in scanned:
                     self._planes.append(
                         DataView(
                             self, [z], page_offset, y_offset,
                             self.plane_stride, roi))
                     y_offset += roi.height(z) + lines_between
-                page_offset += 1
+                if scanned:
+                    page_offset += 1
+                else:
+                    logging.info("No scanned plane found for z=%s", z)
+            if page_offset != self.plane_stride:
+                raise ValueError(
+                    "Number of page starts does not match striding, "
+                    "extracted data will be incorrect")
 
         return self._planes
 
@@ -330,6 +364,7 @@ class MesoscopeTiff(object):
         if self._volumes is None:
             self._volumes = []
             page_offset = 0
+
             for zs in self.volume_scans:
                 scanned = [roi for roi in self.rois if roi.volume_scanned(zs)]
                 if len(scanned) > 1:
@@ -345,7 +380,14 @@ class MesoscopeTiff(object):
                             self, zs, page_offset, y_offset,
                             self.volume_stride, roi))
                     y_offset += roi.height(zs[0]) + lines_between
-                page_offset += 1
+                if scanned:
+                    page_offset += 1
+                else:
+                    logging.info("No scanned volume found for zs=%s", zs)
+            if page_offset != self.volume_stride:
+                raise ValueError(
+                    "Number of page starts does not match striding, "
+                    "extracted data will be incorrect")
 
         return self._volumes
 

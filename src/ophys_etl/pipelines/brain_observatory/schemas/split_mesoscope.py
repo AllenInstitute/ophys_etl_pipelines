@@ -42,6 +42,7 @@ class PlaneGroup(DefaultSchema):
 
 
 class InputSchema(ArgSchema):
+    log_level = Str(required=False, default="INFO")
     depths_tif = InputFile(
         required=True,
         description="Full path to depth 2p tiff file.")
@@ -57,9 +58,6 @@ class InputSchema(ArgSchema):
     plane_groups = Nested(
         PlaneGroup,
         many=True)
-    compression_level = Int(
-        default=4,
-        description="Gzip compression level to use. 1-9.")
     test_mode = Int(
         default=0,
         description=("Flag to run without actually splitting data. For testing"

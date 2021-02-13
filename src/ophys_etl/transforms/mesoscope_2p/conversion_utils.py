@@ -1,5 +1,9 @@
 import numpy as np
 from tifffile import imsave
+from typing import Callable
+import h5py
+
+from ophys_etl.transforms.mesoscope_2p.tiff import DataView
 
 
 def dump_dict_as_attrs(h5fp, container_name, data):
@@ -20,11 +24,34 @@ def dump_dict_as_attrs(h5fp, container_name, data):
     return container
 
 
-def volume_to_h5(h5fp, volume, dset_name="data", page_block_size=None,
-                 **h5_opts):
+def volume_to_h5(h5fp: h5py.File,
+                 volume: DataView,
+                 dset_name: str = "data",
+                 page_block_size: int = None):
+    """Write a tiff volume to an HDF5 file.
+
+    Parameters
+    ----------
+    h5fp : h5py.File
+        An h5py.File handle, where the data will be saved.
+
+    volume : DataView
+        A DataView object as defined in the transforms.mesoscope_2p
+        module. This contains the data to be saved.
+
+    dset_name : str = "data"
+        A string, this is what the dataset will be saved as in the .h5 file.
+
+    page_block_size : int = None
+        An optional integer used to save the data in chunks, if necessary.
+
+    """
+    h5_opts = {
+            "chunks": (1,) + tuple(volume.plane_shape),
+            "compression": 'gzip',
+            "compression_opts": 4}
     if page_block_size is None:
-        dset = h5fp.create_dataset(dset_name, data=volume[:],
-                                   **h5_opts)
+        dset = h5fp.create_dataset(dset_name, data=volume[:], **h5_opts)
     else:
         dset = h5fp.create_dataset(dset_name, volume.shape,
                                    dtype=volume.dtype, **h5_opts)
@@ -34,7 +61,24 @@ def volume_to_h5(h5fp, volume, dset_name="data", page_block_size=None,
             i += page_block_size
 
 
-def volume_to_tif(filename, volume, projection_func=None):
+def volume_to_tif(filename: str,
+                  volume: DataView,
+                  projection_func: Callable = None):
+    """Write a volume to an HDF5 file.
+
+    Parameters
+    ----------
+    Filename : str
+        The filepath where the .tif will be saved.
+
+    volume : DataView
+        A DataView object as defined in the transforms.mesoscope_2p
+        module. This contains the data to be saved.
+
+    projection_func : Callable = None
+        An optional function to pass the data through before saving.
+        The only required argument for this function must be a numpy array.
+    """
     if projection_func is not None:
         array = projection_func(volume[:])
         imsave(filename, array)

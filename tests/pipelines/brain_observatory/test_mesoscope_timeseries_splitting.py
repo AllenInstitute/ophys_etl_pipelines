@@ -23,7 +23,8 @@ class MesoscopeTiffDummy(MesoscopeTiff):
         self._tiff.pages.cache = cache
 
 
-def generate_fake_timeseries(tmp_filename, frame_zs, roi_zs):
+@pytest.fixture(scope="function")
+def generate_fake_timeseries(request, tmpdir):
     """
     Writes a fake timeseries TIFF to disk.
     The time series TIFF will contain 40 512x512 TIFFs per ROI.
@@ -50,6 +51,9 @@ def generate_fake_timeseries(tmp_filename, frame_zs, roi_zs):
                    written to the TIFF
     """
 
+    roi_zs = request.param.get("roi_zs")
+    frame_zs = request.param.get("frame_zs")
+
     n_roi = 0
     roi_z_set = set()
     for roi_list in roi_zs:
@@ -69,6 +73,8 @@ def generate_fake_timeseries(tmp_filename, frame_zs, roi_zs):
     tiff_data = np.zeros((n_roi*40, 512, 512), dtype=int)
     for ii in range(n_roi):
         tiff_data[ii:n_roi*40:n_roi, :, :] = 10*flattened_z[ii]
+
+    tmp_filename = tmpdir / "timeseries.tiff"
 
     tifffile.imwrite(tmp_filename, tiff_data, bigtiff=True)
     del tiff_data
@@ -96,7 +102,12 @@ def generate_fake_timeseries(tmp_filename, frame_zs, roi_zs):
     roi_metadata['RoiGroups']['imagingRoiGroup'] = {}
     roi_metadata['RoiGroups']['imagingRoiGroup']['rois'] = _rois
 
-    return frame_metadata, roi_metadata, flattened_z
+    mtiff = MesoscopeTiffDummy(tmp_filename, cache=True)
+    mtiff._frame_data = frame_metadata
+    mtiff._roi_data = roi_metadata
+
+    yield mtiff, frame_metadata, roi_metadata, flattened_z, roi_zs
+    os.remove(tmp_filename)
 
 
 def generate_experiments(flattened_z, roi_zs, storage_dir):
@@ -179,48 +190,68 @@ def validate_timeseries_split(experiment_list, storage_dir):
 # flattened_z_expected should include all of the z values from
 # frame_zs in the order that they would occur in frame_zs.flatten(),
 # excluding any values that do not occur in roi_zs
-@pytest.mark.parametrize("frame_zs,roi_zs,flattened_z_expected",
-                         [([[22, 33], [44, 55], [66, 77], [88, 99]],
-                           [[22, 44, 66, 88], [33, 55, 77, 99]],
-                           [22, 33, 44, 55, 66, 77, 88, 99]),
-                          ([[22, 33], [44, 55], [66, 77], [88, 99]],
-                           [[22, 33, 44, 55], [66, 77, 88, 99]],
-                           [22, 33, 44, 55, 66, 77, 88, 99]),
-                          ([[22, 44], [66, 88], [33, 55], [77, 99]],
-                           [[22, 33, 44, 55], [66, 77, 88, 99]],
-                           [22, 44, 66, 88, 33, 55, 77, 99]),
-                          ([[22, 0], [44, 0]],
-                           [[22], [44]],
-                           [22, 44]),
-                          ([[44, 0], [22, 0]],
-                           [[22], [44]],
-                           [44, 22]),
-                          ([[22, 9], [44, 6]],
-                           [[22], [44]],
-                           [22, 44]),
-                          ([[44, 1], [22, 4]],
-                           [[22], [44]],
-                           [44, 22])])
-def test_timeseries_split(tmpdir, frame_zs, roi_zs, flattened_z_expected):
+@pytest.mark.parametrize(
+        "generate_fake_timeseries, flattened_z_expected",
+        [
+            (
+                {
+                    "frame_zs": [[22, 33], [44, 55], [66, 77], [88, 99]],
+                    "roi_zs": [[22, 44, 66, 88], [33, 55, 77, 99]]
+                },
+                [22, 33, 44, 55, 66, 77, 88, 99]),
+            (
+                {
+                    "frame_zs": [[22, 33], [44, 55], [66, 77], [88, 99]],
+                    "roi_zs": [[22, 33, 44, 55], [66, 77, 88, 99]]
+                },
+                [22, 33, 44, 55, 66, 77, 88, 99]),
+            (
+                {
+                    "frame_zs": [[22, 44], [66, 88], [33, 55], [77, 99]],
+                    "roi_zs": [[22, 33, 44, 55], [66, 77, 88, 99]]
+                },
+                [22, 44, 66, 88, 33, 55, 77, 99]),
+            (
+                {
+                    "frame_zs": [[22, 0], [44, 0]],
+                    "roi_zs": [[22], [44]]
+                },
+                [22, 44]),
+            (
+                {
+                    "frame_zs": [[44, 0], [22, 0]],
+                    "roi_zs": [[22], [44]]
+                },
+                [44, 22]),
+            (
+                {
+                    "frame_zs": [[22, 9], [44, 6]],
+                    "roi_zs": [[22], [44]]
+                },
+                [22, 44]),
+            (
+                {
+                    "frame_zs": [[44, 1], [22, 4]],
+                    "roi_zs": [[22], [44]]
+                },
+                [44, 22])
+            ], indirect=["generate_fake_timeseries"])
+def test_timeseries_split(tmpdir, generate_fake_timeseries,
+                          flattened_z_expected):
     storage_dir = os.path.join(tmpdir, 'timeseries_storage')
-    tiff_fname = os.path.join(tmpdir, 'timeseries.tiff')
 
     # generate mock metadata to be passed directly to
     # MesoscopeTiffDummy
 
-    (frame_metadata,
+    (mtiff,
+     frame_metadata,
      roi_metadata,
-     flattened_z) = generate_fake_timeseries(tiff_fname,
-                                             frame_zs,
-                                             roi_zs)
+     flattened_z,
+     roi_zs) = generate_fake_timeseries
 
     assert flattened_z == flattened_z_expected
 
     # actually read our test data from tmp
-
-    mtiff = MesoscopeTiffDummy(tiff_fname, cache=True)
-    mtiff._frame_data = frame_metadata
-    mtiff._roi_data = roi_metadata
 
     for zz in flattened_z:
         roi_idx = None

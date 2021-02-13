@@ -4,6 +4,7 @@ import numpy as np
 import h5py
 from typing import (
     List, Dict, Tuple)
+from typing_extensions import TypedDict
 from argschema import ArgSchemaParser
 from ophys_etl.transforms.mesoscope_2p import MesoscopeTiff
 from ophys_etl.transforms.mesoscope_2p.conversion_utils import (
@@ -22,7 +23,28 @@ def mock_tif(filename, *args, **kwargs):
     f.close()
 
 
-def conversion_output(volume, outfile, experiment_info):
+class ConversionOutputDict(TypedDict):
+    filename: str
+    resolution: float
+    offset_x: float
+    offset_y: float
+    rotation: float
+    height: int
+    width: int
+
+
+class ConversionMetadataDict(TypedDict):
+    input_tif: str
+    roi_metadata: Dict
+    scanimage_metadata: Dict
+
+
+ConversionTuple = Tuple[ConversionOutputDict, ConversionMetadataDict]
+
+
+def conversion_output(volume,
+                      outfile,
+                      experiment_info) -> ConversionTuple:
     mt = volume._tiff
     height, width = volume.plane_shape
     meta_res = {"input_tif": mt._source,
@@ -57,7 +79,7 @@ def convert_column(input_tif, session_storage, experiment_info):
 
 def split_z(input_tif: MesoscopeTiff,
             experiments: List[Dict],
-            testing=False) -> Tuple[Dict, Dict]:
+            testing=False) -> ConversionTuple:
     """Takes a z_stack file from a Mesoscope ophys session and a list
     of the experiments performed during that session and splits the data
     into a z_stack file (as a .h5) for each individual experiment.
@@ -74,11 +96,11 @@ def split_z(input_tif: MesoscopeTiff,
 
     Returns
     -------
-    outs : dict
+    outs : ConversionOutputDict
         A dictionary containing specific information about the experiments,
         including the location of the input data.
 
-    meta : dict
+    meta : ConversionMetadataDict
         A dictionary containing metadata about the experiment, including the
         location where the ata will be saved.
     """
@@ -133,11 +155,11 @@ def split_image(input_tif: MesoscopeTiff,
 
     Returns
     -------
-    outs : dict
+    outs : ConversionOutputDict
         A dictionary containing specific information about the experiments,
         including the location of the input data.
 
-    meta : dict
+    meta : ConversionMetadataDict
         A dictionary containing metadata about the experiment, including the
         location where the ata will be saved.
     """
@@ -189,11 +211,11 @@ def split_timeseries(input_tif: MesoscopeTiff,
 
     Returns
     -------
-    outs : dict
+    outs : ConversionOutputDict
         A dictionary containing specific information about the experiments,
         including the location of the input data.
 
-    meta : dict
+    meta : ConversionMetadataDict
         A dictionary containing metadata about the experiment, including the
         location where the ata will be saved.
     """

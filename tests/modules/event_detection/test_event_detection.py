@@ -4,13 +4,13 @@ import contextlib
 import numpy as np
 from collections import namedtuple
 try:
-    import ophys_etl.transforms.event_detection as emod
+    import ophys_etl.modules.event_detection.run_event_detection as emod
 except ModuleNotFoundError:
     # even though we might skip tests, pytest tries these imports
     from unittest.mock import Mock
     import sys
     sys.modules['FastLZeroSpikeInference'] = Mock()
-    import ophys_etl.transforms.event_detection as emod
+    import ophys_etl.modules.event_detection.run_event_detection as emod
 from ophys_etl.resources import event_decay_lookup_dict as decay_lookup
 
 

@@ -15,8 +15,8 @@ from scipy.ndimage.filters import median_filter
 
 from ophys_etl.schemas.fields import ExistingFile, ExistingH5File
 from ophys_etl.qc.registration_qc import RegistrationQC
-from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
-                                                  Suite2PWrapperSchema)
+from ophys_etl.modules.suite2p_wrapper.__main__ import Suite2PWrapper
+from ophys_etl.modules.suite2p_wrapper.schemas import Suite2PWrapperSchema
 from suite2p.registration.rigid import shift_frame
 
 

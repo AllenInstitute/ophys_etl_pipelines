@@ -6,61 +6,16 @@ import os
 import numpy as np
 import h5py
 import json
-import filecmp
-import random
 
 import sys
 sys.modules['suite2p'] = Mock()
-from ophys_etl.transforms import suite2p_wrapper # noqa
+from ophys_etl.modules.suite2p_wrapper \
+        import __main__ as suite2p_wrapper  # noqa: E402
+from ophys_etl.modules.suite2p_wrapper.utils \
+        import Suite2PWrapperException  # noqa: E402
 
 suite2p_basenames = ['ops1.npy', 'data.bin', 'Fneu.npy', 'F.npy', 'iscell.npy',
                      'ops.npy', 'spks.npy', 'stat.npy']
-
-
-@pytest.mark.suite2p_also
-@pytest.mark.parametrize(
-        "basenames, dstsubdir, exception",
-        [
-            (['tmp.txt'], "other", False),
-            (['tmp.txt', "tmp2.txt"], "other", False),
-            (['tmp.txt', "tmp.txt"], "other", True),
-            ])
-def test_copy_and_add_uid(tmp_path, basenames, dstsubdir, exception):
-    srcfiles = {}
-    for i, bname in enumerate(basenames):
-        if i == 0:
-            tfile = tmp_path / bname
-        else:
-            spath = tmp_path / "sub_dir"
-            spath.mkdir(exist_ok=True)
-            tfile = spath / bname
-        with open(tfile, "w") as f:
-            f.write("%032x" % random.getrandbits(128))
-        srcfiles[bname] = str(tfile)
-
-    other_dir = tmp_path / "other"
-    other_dir.mkdir()
-
-    uid = "extra"
-    if exception:
-        with pytest.raises(ValueError, match=r".* Expected 1 match."):
-            dstfiles = suite2p_wrapper.copy_and_add_uid(
-                    tmp_path,
-                    other_dir,
-                    basenames,
-                    uid)
-    else:
-        dstfiles = suite2p_wrapper.copy_and_add_uid(
-                tmp_path,
-                other_dir,
-                basenames,
-                uid)
-
-        for bname in basenames:
-            src = Path(srcfiles[bname])
-            dst = Path(dstfiles[bname][0])
-            assert filecmp.cmp(src, dst)
-            assert dst.name == src.stem + f"_{uid}" + src.suffix
 
 
 def suite2p_side_effect(args):
@@ -116,7 +71,7 @@ def test_suite2p_wrapper(
     mpatcher = partial(monkeypatch.setattr, target=suite2p_wrapper)
     mpatcher(name="suite2p", value=mock_suite2p)
     if exception:
-        with pytest.raises(suite2p_wrapper.Suite2PWrapperException,
+        with pytest.raises(Suite2PWrapperException,
                            match=r".*`nbinned`.*"):
             s = suite2p_wrapper.Suite2PWrapper(input_data=args, args=[])
         return

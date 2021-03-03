@@ -5,11 +5,10 @@ import tempfile
 import marshmallow
 import argschema
 
-
 from ophys_etl.transforms.postprocess_rois import (
     PostProcessROIsInputSchema, PostProcessROIs)
-from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
-                                                  Suite2PWrapperSchema)
+from ophys_etl.modules.suite2p_wrapper.__main__ import Suite2PWrapper
+from ophys_etl.modules.suite2p_wrapper.schemas import Suite2PWrapperSchema
 
 
 class PostProcessInputSchema(PostProcessROIsInputSchema):

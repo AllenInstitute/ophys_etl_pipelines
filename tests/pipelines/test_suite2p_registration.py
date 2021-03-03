@@ -12,13 +12,14 @@ import tifffile
 
 sys.modules['suite2p'] = Mock()
 sys.modules['suite2p.registration.rigid'] = Mock()
+from ophys_etl.modules.suite2p_wrapper.schemas import \
+        Suite2PWrapperSchema, Suite2PWrapperOutputSchema  # noqa: E402
 import ophys_etl.pipelines.suite2p_registration as s2preg  # noqa
-import ophys_etl.transforms.suite2p_wrapper as s2pw  # noqa
 
 
 class MockSuite2PWrapper(argschema.ArgSchemaParser):
-    default_schema = s2pw.Suite2PWrapperSchema
-    default_output_schema = s2pw.Suite2PWrapperOutputSchema
+    default_schema = Suite2PWrapperSchema
+    default_output_schema = Suite2PWrapperOutputSchema
     mock_ops_data = None
 
     def run(self):

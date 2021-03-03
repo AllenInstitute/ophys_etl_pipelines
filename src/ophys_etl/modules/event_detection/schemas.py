@@ -6,7 +6,8 @@ import h5py
 import numpy as np
 import marshmallow as mm
 
-from ophys_etl.resources import event_decay_lookup_dict as decay_lookup
+from ophys_etl.modules.event_detection.resources.event_decay_time_lookup \
+        import event_decay_lookup_dict as decay_lookup
 from ophys_etl.schemas.fields import H5InputFile
 from ophys_etl.modules.event_detection.utils import (
         calculate_halflife, EventDetectionException)

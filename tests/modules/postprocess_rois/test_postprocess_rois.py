@@ -2,7 +2,7 @@ import pytest
 import json
 import numpy as np
 
-from ophys_etl.transforms.postprocess_rois import PostProcessROIs
+from ophys_etl.modules.postprocess_rois.__main__ import PostProcessROIs
 from ophys_etl.types import DenseROI
 from ophys_etl.schemas import DenseROISchema
 

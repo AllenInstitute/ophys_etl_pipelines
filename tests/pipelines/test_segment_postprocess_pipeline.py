@@ -5,7 +5,7 @@ import pathlib
 import argschema
 import json
 import pytest
-import ophys_etl.transforms.postprocess_rois as post_rois
+import ophys_etl.modules.postprocess_rois.__main__ as post_rois
 
 import sys
 sys.modules['suite2p'] = Mock()

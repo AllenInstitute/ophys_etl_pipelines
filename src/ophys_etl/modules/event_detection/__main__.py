@@ -3,9 +3,8 @@ import h5py
 import os
 import numpy as np
 
-from ophys_etl.modules.event_detection.schemas.schemas import (
-        EventDetectionInputSchema)
-from ophys_etl.modules.event_detection.utils import utils
+from ophys_etl.modules.event_detection.schemas import EventDetectionInputSchema
+from ophys_etl.modules.event_detection import utils
 
 
 class EventDetection(argschema.ArgSchemaParser):

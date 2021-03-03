@@ -3,7 +3,7 @@ import contextlib
 import pytest
 from unittest.mock import Mock
 import sys
-from ophys_etl.modules.event_detection.utils import utils
+from ophys_etl.modules.event_detection import utils
 from ophys_etl.resources import event_decay_lookup_dict as decay_lookup
 sys.modules['FastLZeroSpikeInference'] = Mock()
 import ophys_etl.modules.event_detection.__main__ as emod  # noqa: E402

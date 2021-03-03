@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from ophys_etl.modules.event_detection.utils import utils
+from ophys_etl.modules.event_detection import utils
 
 
 @pytest.mark.event_detect_only

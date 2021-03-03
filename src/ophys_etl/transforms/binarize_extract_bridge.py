@@ -5,7 +5,7 @@ from marshmallow import ValidationError
 
 from ophys_etl.schemas import DenseROISchema, ExtractROISchema
 from ophys_etl.extractors.motion_correction import MotionBorder
-from ophys_etl.transforms.roi_transforms import dense_to_extract
+from ophys_etl.utils.rois import dense_to_extract
 
 
 class BridgeInputSchema(argschema.ArgSchema):

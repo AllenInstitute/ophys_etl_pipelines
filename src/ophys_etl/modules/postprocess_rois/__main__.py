@@ -7,10 +7,10 @@ from marshmallow import ValidationError
 from ophys_etl.extractors.motion_correction import \
         get_max_correction_from_file
 from ophys_etl.schemas import DenseROISchema
-from ophys_etl.transforms.roi_transforms import (binarize_roi_mask,
-                                                 coo_rois_to_lims_compatible,
-                                                 suite2p_rois_to_coo,
-                                                 morphological_transform)
+from ophys_etl.utils.rois import (binarize_roi_mask,
+                                  coo_rois_to_lims_compatible,
+                                  suite2p_rois_to_coo,
+                                  morphological_transform)
 from ophys_etl.filters import filter_by_aspect_ratio
 from ophys_etl.modules.postprocess_rois.schemas import \
         PostProcessROIsInputSchema

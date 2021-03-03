@@ -4,7 +4,7 @@ import numpy as np
 from scipy.sparse import coo_matrix
 
 from ophys_etl.extractors.motion_correction import MotionBorder
-from ophys_etl.transforms import roi_transforms
+from ophys_etl.utils import rois as rois_utils
 from ophys_etl.types import DenseROI
 from ophys_etl.schemas import DenseROISchema
 
@@ -41,10 +41,10 @@ def test_full_mask_constructor(np_mask_matrix, x, y, shape, expected, fail):
     if fail:
         with pytest.raises(ValueError,
                            match=r"index can't contain negative values"):
-            roi_transforms.full_mask_constructor(mask_matrix, x, y, shape)
+            rois_utils.full_mask_constructor(mask_matrix, x, y, shape)
     else:
-        full_mask = roi_transforms.full_mask_constructor(mask_matrix,
-                                                         x, y, shape)
+        full_mask = rois_utils.full_mask_constructor(mask_matrix,
+                                                     x, y, shape)
         np.testing.assert_array_equal(full_mask, expected)
 
 
@@ -77,7 +77,7 @@ def test_full_mask_constructor(np_mask_matrix, x, y, shape, expected, fail):
     ]
 )
 def test_roi_from_full_mask(full_mask, roi, expected):
-    new_roi = roi_transforms.roi_from_full_mask(roi, full_mask)
+    new_roi = rois_utils.roi_from_full_mask(roi, full_mask)
     assert new_roi == expected
 
 
@@ -107,10 +107,10 @@ def test_morphological_transform(mask_matrix, expect_None):
                  mask_image_plane=0,
                  exclusion_labels=['small_size', 'motion_border'])
     if expect_None:
-        assert roi_transforms.morphological_transform(d, (50, 50)) is None
+        assert rois_utils.morphological_transform(d, (50, 50)) is None
         return
 
-    morphed = roi_transforms.morphological_transform(d, (50, 50))
+    morphed = rois_utils.morphological_transform(d, (50, 50))
     DenseROISchema().validate(morphed)
 
     for k in ['id', 'valid_roi', 'mask_image_plane', 'exclusion_labels']:
@@ -135,7 +135,7 @@ def test_dense_to_extract():
             max_correction_right=12,
             mask_image_plane=0,
             exclusion_labels=['small_size', 'motion_border'])
-    e = roi_transforms.dense_to_extract(d)
+    e = rois_utils.dense_to_extract(d)
     for k in ['id', 'x', 'y', 'width', 'height']:
         assert e[k] == d[k]
     assert e['mask'] == d['mask_matrix']
@@ -151,7 +151,7 @@ def test_suite2p_rois_to_coo(s2p_stat_fixture):
     expected_rois = fixture_params["masks"]
 
     s2p_stat = np.load(stat_path, allow_pickle=True)
-    obt_rois = roi_transforms.suite2p_rois_to_coo(s2p_stat, frame_shape)
+    obt_rois = rois_utils.suite2p_rois_to_coo(s2p_stat, frame_shape)
 
     for obt_roi, exp_roi in zip(obt_rois, expected_rois):
         assert np.allclose(obt_roi.todense(), exp_roi)
@@ -191,9 +191,9 @@ def test_suite2p_rois_to_coo(s2p_stat_fixture):
 def test_binarize_roi_mask(mask, expected, absolute_threshold, quantile):
     coo_mask = coo_matrix(mask)
 
-    obtained = roi_transforms.binarize_roi_mask(coo_mask,
-                                                absolute_threshold,
-                                                quantile)
+    obtained = rois_utils.binarize_roi_mask(coo_mask,
+                                            absolute_threshold,
+                                            quantile)
 
     assert np.allclose(obtained.toarray(), expected)
 
@@ -237,7 +237,7 @@ def test_binarize_roi_mask(mask, expected, absolute_threshold, quantile):
 def test_roi_bounds(mask, expected):
     coo_mask = coo_matrix(mask)
 
-    obtained = roi_transforms.roi_bounds(coo_mask)
+    obtained = rois_utils.roi_bounds(coo_mask)
 
     assert obtained == expected
 
@@ -270,7 +270,7 @@ def test_roi_bounds(mask, expected):
 def test_crop_roi_mask(mask, expected):
     coo_mask = coo_matrix(mask)
 
-    obtained = roi_transforms.crop_roi_mask(coo_mask)
+    obtained = rois_utils.crop_roi_mask(coo_mask)
     if expected is None:
         assert obtained is None
     else:
@@ -359,13 +359,13 @@ def test_crop_roi_mask(mask, expected):
                 ])
 def test_motion_exclusion(dense_mask, max_correction_vals, expected):
     coo = coo_matrix(dense_mask)
-    roi = roi_transforms._coo_mask_to_LIMS_compatible_format(coo)
+    roi = rois_utils._coo_mask_to_LIMS_compatible_format(coo)
     roi['max_correction_up'] = max_correction_vals.up
     roi['max_correction_down'] = max_correction_vals.down
     roi['max_correction_right'] = max_correction_vals.right
     roi['max_correction_left'] = max_correction_vals.left
 
-    valid = roi_transforms._motion_exclusion(roi, coo.shape)
+    valid = rois_utils._motion_exclusion(roi, coo.shape)
 
     assert valid == expected
 
@@ -387,9 +387,9 @@ def test_motion_exclusion(dense_mask, max_correction_vals, expected):
             ])
 def test_small_size_exclusion(dense_mask, npixel_threshold, expected):
     coo = coo_matrix(dense_mask)
-    roi = roi_transforms._coo_mask_to_LIMS_compatible_format(coo)
+    roi = rois_utils._coo_mask_to_LIMS_compatible_format(coo)
 
-    valid = roi_transforms._small_size_exclusion(roi, npixel_threshold)
+    valid = rois_utils._small_size_exclusion(roi, npixel_threshold)
 
     assert valid == expected
 
@@ -436,7 +436,7 @@ def test_small_size_exclusion(dense_mask, npixel_threshold, expected):
            ])])
 def test_coo_rois_to_compatible(coo_masks, max_correction_values,
                                 npixel_threshold, expected):
-    compatible_rois = roi_transforms.coo_rois_to_lims_compatible(
+    compatible_rois = rois_utils.coo_rois_to_lims_compatible(
         coo_masks,
         max_correction_values,
         coo_masks[0].shape,
@@ -520,6 +520,6 @@ def test_coo_rois_to_compatible(coo_masks, max_correction_values,
                                                [False, True]]})
                           ])
 def test_coo_mask_to_compatible_format(coo_mask, expected):
-    roi = roi_transforms._coo_mask_to_LIMS_compatible_format(coo_mask)
+    roi = rois_utils._coo_mask_to_LIMS_compatible_format(coo_mask)
     for k in expected:
         assert roi[k] == expected[k]

@@ -7,7 +7,7 @@ import matplotlib
 import marshmallow as mm
 import numpy as np
 from scipy.sparse import coo_matrix
-from ophys_etl.transforms.roi_transforms import (
+from ophys_etl.utils.rois import (
     suite2p_rois_to_coo,
     binarize_roi_mask,
     crop_roi_mask

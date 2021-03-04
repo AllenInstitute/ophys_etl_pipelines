@@ -3,7 +3,7 @@ import pytest
 import numpy as np
 from scipy.sparse import coo_matrix
 
-from ophys_etl.extractors.motion_correction import MotionBorder
+from ophys_etl.utils.motion_border import MotionBorder
 from ophys_etl.utils import rois as rois_utils
 from ophys_etl.types import DenseROI
 from ophys_etl.schemas import DenseROISchema

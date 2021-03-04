@@ -12,7 +12,7 @@ from ophys_etl.utils.rois import (
     binarize_roi_mask,
     crop_roi_mask
 )
-from ophys_etl.transforms.trace_transforms import extract_traces
+from ophys_etl.utils.traces import extract_traces
 import matplotlib as mpl
 mpl.use('Agg')
 from matplotlib import pyplot as plt  # noqa: E402

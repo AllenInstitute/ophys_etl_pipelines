@@ -2,7 +2,7 @@ from moto import mock_dynamodb2
 import boto3
 import pytest
 
-from ophys_etl.transforms.registry import RegistryConnection
+from ophys_etl.modules.classifier_inference.utils import RegistryConnection
 
 
 @pytest.fixture
@@ -40,7 +40,9 @@ def connection(scope="function"):
 
 def test_register_active_model_roundtrip(connection, monkeypatch):
     """Register an active model and query for it to check."""
-    monkeypatch.setattr("ophys_etl.transforms.registry.time.time", lambda: 123)
+    monkeypatch.setattr(
+            "ophys_etl.modules.classifier_inference.utils.time.time",
+            lambda: 123)
     connection.register_active_model("twiggy", "prod", "abc999", "s3://path")
     record = connection._client.get_item(
         TableName=connection._table_name,

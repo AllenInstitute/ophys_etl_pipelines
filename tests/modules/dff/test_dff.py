@@ -1,26 +1,15 @@
 import numpy as np
 import h5py
-import pytest
 import json
 import time
 
-from ophys_etl.pipelines.dff import DffJob, DffJobSchema
-from ophys_etl.pipelines import dff
-
-
-@pytest.fixture
-def trace_h5(tmp_path):
-    with h5py.File(tmp_path / "input_trace.h5", "w") as f:
-        f.create_dataset("FC", data=np.ones((3, 100)))
-        f.create_dataset("roi_names",
-                         data=np.array([b'abc', b'123', b'drm'], dtype='|S3'))
-    f.close()
-    yield
+import ophys_etl.modules.dff.__main__ as dff_main
+from ophys_etl.modules.dff.__main__ import DffJob
 
 
 def test_dff_job_run(tmp_path, trace_h5, monkeypatch):
     def mock_dff(x, y, z): return x, 0.1, 10
-    monkeypatch.setattr(dff, "compute_dff_trace", mock_dff)
+    monkeypatch.setattr(dff_main, "compute_dff_trace", mock_dff)
     monkeypatch.setattr(time, "time", lambda: 123456789)
 
     args = {
@@ -55,24 +44,20 @@ def test_dff_job_run(tmp_path, trace_h5, monkeypatch):
             k: v for k, v in actual_output.items() if k in expected_output}
 
 
-@pytest.mark.parametrize(
-    "frame_rate, short_filter_s, long_filter_s, expected_short, expected_long",
-    [
-        (30., 3.3, 600., 99, 18001),
-        (11.1, 10.0, 1001., 111, 11111)
-    ]
-)
-def test_dff_schema_post_load(tmp_path, trace_h5, frame_rate, short_filter_s,
-                              long_filter_s, expected_short, expected_long):
-    args = {
-        "input_file": str(tmp_path / "input_trace.h5"),
-        "output_file": str(tmp_path / "output_dff.h5"),
-        "long_baseline_filter_s": long_filter_s,
-        "short_filter_s": short_filter_s,
-        "movie_frame_rate_hz": frame_rate
-    }
-    data = DffJobSchema().load(args)
-    assert data["short_filter_frames"] == expected_short
-    assert isinstance(data["short_filter_frames"], int)
-    assert data["long_filter_frames"] == expected_long
-    assert isinstance(data["long_filter_frames"], int)
+def test_dff_trace(monkeypatch):
+    """
+    Notes:
+    If we don't constrain this it's very unwieldy. Not using
+    parametrization because these values need to be
+    monkeypatched thoughtfully to make a unit test work out
+    Isn't a great candidate for mock because most of the
+    logic pertains to filtering numpy arrays anyway.
+    """
+    monkeypatch.setattr(dff_main, "noise_std", lambda x, y: 1.0)
+    monkeypatch.setattr(dff_main, "medfilt", lambda x, y: x-1.0)
+    f_trace = np.array([1.1, 2., 3., 3., 3., 11.])    # 2 "small baseline"
+
+    dff, sigma, small_baseline = dff_main.compute_dff_trace(f_trace, 1, 1)
+    assert 2 == small_baseline
+    assert 1.0 == sigma     # monkeypatched noise_std
+    np.testing.assert_array_equal(np.ones(6), dff)

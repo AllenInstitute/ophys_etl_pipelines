@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import pandas as pd
 
-from ophys_etl.extractors.motion_correction import (
+from ophys_etl.utils.motion_border import (
     get_max_correction_values,
     MotionBorder)
 

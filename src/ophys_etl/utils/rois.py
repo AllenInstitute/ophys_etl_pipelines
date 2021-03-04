@@ -2,7 +2,7 @@ import math
 from typing import List, Optional, Tuple, Union
 import numpy as np
 from scipy.sparse import coo_matrix
-from ophys_etl.extractors.motion_correction import MotionBorder
+from ophys_etl.utils.motion_border import MotionBorder
 from ophys_etl.types import DenseROI, ExtractROI
 from skimage.morphology import binary_opening, binary_closing, disk
 

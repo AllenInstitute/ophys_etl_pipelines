@@ -4,7 +4,7 @@ import numpy as np
 from argschema import ArgSchemaParser
 from marshmallow import ValidationError
 
-from ophys_etl.extractors.motion_correction import \
+from ophys_etl.utils.motion_border import \
         get_max_correction_from_file
 from ophys_etl.schemas import DenseROISchema
 from ophys_etl.utils.rois import (binarize_roi_mask,

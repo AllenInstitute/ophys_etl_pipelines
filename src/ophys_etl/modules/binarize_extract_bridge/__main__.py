@@ -3,7 +3,7 @@ import json
 from marshmallow import ValidationError
 
 from ophys_etl.schemas import DenseROISchema
-from ophys_etl.extractors.motion_correction import MotionBorder
+from ophys_etl.utils.motion_border import MotionBorder
 from ophys_etl.utils.rois import dense_to_extract
 from ophys_etl.modules.binarize_extract_bridge.schemas import (
         BridgeInputSchema, BridgeOutputSchema)

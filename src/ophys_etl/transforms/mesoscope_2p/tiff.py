@@ -176,7 +176,7 @@ class MesoscopeTiff(object):
 
     @property
     def stack_zs(self):
-        return self.frame_metadata["SI"]["hStackManager"]["zs"]
+        return self.frame_metadata["SI"]["hStackManager"]["zs_v3_v4"]
 
     @property
     def num_volumes(self):

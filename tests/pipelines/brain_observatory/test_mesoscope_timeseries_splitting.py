@@ -82,7 +82,7 @@ def generate_fake_timeseries(request, tmpdir):
     frame_metadata = {}
     frame_metadata['SI'] = {}
     frame_metadata['SI']['hStackManager'] = {}
-    frame_metadata['SI']['hStackManager']['zs'] = copy.deepcopy(frame_zs)
+    frame_metadata['SI']['hStackManager']['zs_v3_v4'] = copy.deepcopy(frame_zs)
     frame_metadata['SI']['hFastZ'] = {}
     frame_metadata['SI']['hFastZ']['userZs'] = copy.deepcopy(frame_zs)
 

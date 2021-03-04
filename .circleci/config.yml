@@ -25,7 +25,7 @@ jobs:
           name: Run docker image smoke test
           command: |
                   set -e
-                  docker run --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /envs/suite2p/bin/python -m ophys_etl.transforms.suite2p_wrapper --h5py /repos/ophys_etl/tests/transforms/resources/movie_100x100x100.h5 --output_dir /tmp --movie_frame_rate 1.0 --log_level INFO --output_json /tmp/output.json
+                  docker run --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /envs/suite2p/bin/python -m ophys_etl.modules.suite2p_wrapper --h5py /repos/ophys_etl/tests/modules/suite2p_wrapper/resources/movie_100x100x100.h5 --output_dir /tmp --movie_frame_rate 1.0 --log_level INFO --output_json /tmp/output.json
       - run:
           name: Upload docker image
           command: |

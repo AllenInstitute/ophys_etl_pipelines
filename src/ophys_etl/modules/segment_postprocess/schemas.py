@@ -1,15 +1,11 @@
-import json
 from pathlib import Path
 import tempfile
-
 import marshmallow
 import argschema
 
-
-from ophys_etl.transforms.postprocess_rois import (
-    PostProcessROIsInputSchema, PostProcessROIs)
-from ophys_etl.transforms.suite2p_wrapper import (Suite2PWrapper,
-                                                  Suite2PWrapperSchema)
+from ophys_etl.modules.postprocess_rois.schemas import \
+        PostProcessROIsInputSchema
+from ophys_etl.modules.suite2p_wrapper.schemas import Suite2PWrapperSchema
 
 
 class PostProcessInputSchema(PostProcessROIsInputSchema):
@@ -61,35 +57,3 @@ class SegmentPostProcessSchema(argschema.ArgSchema):
         data["postprocess_args"]["log_level"] = data["log_level"]
 
         return data
-
-
-class SegmentAndPostProcess(argschema.ArgSchemaParser):
-    default_schema = SegmentPostProcessSchema
-
-    def run(self):
-
-        # segment with Suite2P, almost all default args
-        suite2p_args = self.args['suite2p_args']
-        segment = Suite2PWrapper(input_data=suite2p_args, args=[])
-        segment.run()
-
-        # postprocess and output LIMS format
-        with open(suite2p_args["output_json"], "r") as f:
-            stat_path = json.load(f)['output_files']['stat.npy'][0]
-
-        postprocess_args = self.args['postprocess_args']
-        if "suite2p_stat_path" not in postprocess_args:
-            postprocess_args["suite2p_stat_path"] = stat_path
-
-        postprocess = PostProcessROIs(input_data=postprocess_args, args=[])
-        postprocess.run()
-
-        # Clean up temporary directories and/or files created during
-        # Schema invocation
-        if self.schema.tmpdir is not None:
-            self.schema.tmpdir.cleanup()
-
-
-if __name__ == "__main__":  # pragma: nocover
-    sbmod = SegmentAndPostProcess()
-    sbmod.run()

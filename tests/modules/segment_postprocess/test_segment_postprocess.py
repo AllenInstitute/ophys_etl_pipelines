@@ -5,17 +5,18 @@ import pathlib
 import argschema
 import json
 import pytest
-import ophys_etl.transforms.postprocess_rois as post_rois
+import ophys_etl.modules.postprocess_rois.__main__ as post_rois
 
 import sys
 sys.modules['suite2p'] = Mock()
-import ophys_etl.transforms.suite2p_wrapper as s2pw  # noqa
-import ophys_etl.pipelines.segment_postprocess_pipeline as sbpipe  # noqa
+from ophys_etl.modules.suite2p_wrapper.schemas import \
+        Suite2PWrapperSchema, Suite2PWrapperOutputSchema  # noqa: E402
+import ophys_etl.modules.segment_postprocess.__main__ as sbpipe  # noqa
 
 
 class MockSuite2PWrapper(argschema.ArgSchemaParser):
-    default_schema = s2pw.Suite2PWrapperSchema
-    default_output_schema = s2pw.Suite2PWrapperOutputSchema
+    default_schema = Suite2PWrapperSchema
+    default_output_schema = Suite2PWrapperOutputSchema
 
     def run(self):
         stat = pathlib.Path(self.args['output_dir']) / "stat.npy"
@@ -44,10 +45,10 @@ class MockPostProcess(argschema.ArgSchemaParser):
 
 @pytest.mark.suite2p_only
 @patch(
-        'ophys_etl.pipelines.segment_postprocess_pipeline.Suite2PWrapper',
+        'ophys_etl.modules.segment_postprocess.__main__.Suite2PWrapper',
         MockSuite2PWrapper)
 @patch(
-        'ophys_etl.pipelines.segment_postprocess_pipeline.PostProcessROIs',
+        'ophys_etl.modules.segment_postprocess.__main__.PostProcessROIs',
         MockPostProcess)
 def test_segment_postprocess_pipeline(tmp_path):
     """tests that satisfying the pipeline schema satisfies the

@@ -2,7 +2,7 @@ import json
 import pytest
 
 from ophys_etl.types import DenseROI
-from ophys_etl.transforms.binarize_extract_bridge import \
+from ophys_etl.modules.binarize_extract_bridge.__main__ import \
         BinarizeToExtractBridge
 
 

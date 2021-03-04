@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 import warnings
 
-from ophys_etl.transforms import sine_dewarp
+import ophys_etl.modules.sine_dewarp.utils as sine_dewarp
 
 
 @pytest.fixture

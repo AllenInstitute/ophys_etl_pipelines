@@ -11,7 +11,7 @@ from ophys_etl.utils.rois import (binarize_roi_mask,
                                   coo_rois_to_lims_compatible,
                                   suite2p_rois_to_coo,
                                   morphological_transform)
-from ophys_etl.filters import filter_by_aspect_ratio
+from ophys_etl.modules.postprocess_rois.utils import filter_by_aspect_ratio
 from ophys_etl.modules.postprocess_rois.schemas import \
         PostProcessROIsInputSchema
 

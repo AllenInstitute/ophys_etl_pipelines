@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 from scipy.sparse import coo_matrix
 
-from ophys_etl.filters import filter_by_aspect_ratio
+from ophys_etl.modules.postprocess_rois.utils import filter_by_aspect_ratio
 
 
 def coos_by_aspect(threshold):

@@ -38,7 +38,7 @@ import pandas as pd
 import h5py
 import tempfile
 import pytest
-import ophys_etl.decrosstalk.roi_masks as roi_masks
+import ophys_etl.modules.decrosstalk.roi_masks as roi_masks
 
 
 def test_init_by_pixels():

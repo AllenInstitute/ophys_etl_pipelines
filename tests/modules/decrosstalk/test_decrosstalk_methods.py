@@ -1,6 +1,6 @@
 import numpy as np
-import ophys_etl.decrosstalk.decrosstalk_types as dc_types
-import ophys_etl.decrosstalk.decrosstalk as decrosstalk
+import ophys_etl.modules.decrosstalk.decrosstalk_types as dc_types
+import ophys_etl.modules.decrosstalk.decrosstalk as decrosstalk
 
 
 def test_rolling_mean_and_std():

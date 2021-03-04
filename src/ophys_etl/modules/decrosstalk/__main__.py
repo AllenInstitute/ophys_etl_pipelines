@@ -2,9 +2,9 @@ import os
 import h5py
 import numpy as np
 import argschema
-from ophys_etl.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
-import ophys_etl.decrosstalk.decrosstalk_schema as decrosstalk_schema
-from ophys_etl.decrosstalk.decrosstalk import run_decrosstalk
+from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
+import ophys_etl.modules.decrosstalk.decrosstalk_schema as decrosstalk_schema
+from ophys_etl.modules.decrosstalk.decrosstalk import run_decrosstalk
 
 
 class DecrosstalkWrapper(argschema.ArgSchemaParser):

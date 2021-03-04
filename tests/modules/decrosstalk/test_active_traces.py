@@ -3,7 +3,7 @@ import h5py
 import numpy as np
 from numpy.testing import assert_array_almost_equal as np_almost_equal
 from numpy.testing import assert_array_equal as np_equal
-import ophys_etl.decrosstalk.active_traces as at
+import ophys_etl.modules.decrosstalk.active_traces as at
 
 from .utils import get_data_dir
 

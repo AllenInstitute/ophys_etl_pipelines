@@ -2,9 +2,9 @@ from typing import List, Dict, Union
 import h5py
 import copy
 import numpy as np
-import ophys_etl.decrosstalk.roi_masks as roi_masks
+import ophys_etl.modules.decrosstalk.roi_masks as roi_masks
 
-import ophys_etl.decrosstalk.decrosstalk_types as dc_types
+import ophys_etl.modules.decrosstalk.decrosstalk_types as dc_types
 
 
 class OphysROI(object):

@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from numpy.testing import assert_array_almost_equal as np_almost
-import ophys_etl.decrosstalk.decrosstalk_types as dc_types
+import ophys_etl.modules.decrosstalk.decrosstalk_types as dc_types
 
 
 def test_ROIChannels():

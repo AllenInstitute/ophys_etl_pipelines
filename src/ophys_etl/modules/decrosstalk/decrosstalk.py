@@ -1,13 +1,13 @@
 import numpy as np
 
 from typing import Tuple, Dict, List
-import ophys_etl.decrosstalk.decrosstalk_types as dc_types
-from ophys_etl.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
+import ophys_etl.modules.decrosstalk.decrosstalk_types as dc_types
+from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 
-import ophys_etl.decrosstalk.decrosstalk_utils as d_utils
-import ophys_etl.decrosstalk.ica_utils as ica_utils
-import ophys_etl.decrosstalk.io_utils as io_utils
-import ophys_etl.decrosstalk.active_traces as active_traces
+import ophys_etl.modules.decrosstalk.decrosstalk_utils as d_utils
+import ophys_etl.modules.decrosstalk.ica_utils as ica_utils
+import ophys_etl.modules.decrosstalk.io_utils as io_utils
+import ophys_etl.modules.decrosstalk.active_traces as active_traces
 
 import logging
 

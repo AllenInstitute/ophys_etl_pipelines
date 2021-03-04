@@ -2,7 +2,7 @@ import argschema
 import tempfile
 import os
 import json
-import ophys_etl.decrosstalk.decrosstalk_schema as decrosstalk_schema
+import ophys_etl.modules.decrosstalk.decrosstalk_schema as decrosstalk_schema
 
 from .utils import get_data_dir
 

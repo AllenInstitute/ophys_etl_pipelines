@@ -2,7 +2,7 @@ import os
 import numpy as np
 import tempfile
 import h5py
-import ophys_etl.decrosstalk.io_utils as io_utils
+import ophys_etl.modules.decrosstalk.io_utils as io_utils
 
 
 def test_write_to_h5(tmpdir):

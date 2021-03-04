@@ -1,5 +1,5 @@
 import pytest
-import ophys_etl.decrosstalk.decrosstalk_types as dc_types
+import ophys_etl.modules.decrosstalk.decrosstalk_types as dc_types
 import numpy as np
 from numpy.testing import assert_array_almost_equal as np_almost
 from numpy.testing import assert_array_equal as np_equal

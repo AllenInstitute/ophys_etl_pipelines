@@ -2,7 +2,7 @@ import os
 import h5py
 import json
 import numpy as np
-from ophys_etl.transforms.decrosstalk_wrapper import DecrosstalkWrapper
+from ophys_etl.modules.decrosstalk.__main__ import DecrosstalkWrapper
 
 from .utils import create_data
 

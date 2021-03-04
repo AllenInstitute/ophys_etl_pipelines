@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.stats
-import ophys_etl.decrosstalk.ica_utils as ica_utils
+import ophys_etl.modules.decrosstalk.ica_utils as ica_utils
 
 
 def test_whiten_data():

@@ -1,7 +1,7 @@
 import tempfile
 import h5py
 import numpy as np
-import ophys_etl.decrosstalk.ophys_plane as ophys_plane
+import ophys_etl.modules.decrosstalk.ophys_plane as ophys_plane
 
 
 def _create_ophys_test_data(tmp_filename):

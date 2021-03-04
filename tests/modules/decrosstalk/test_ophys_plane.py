@@ -1,7 +1,7 @@
 import os
 import json
-from ophys_etl.decrosstalk.ophys_plane import OphysROI
-from ophys_etl.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
+from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 
 from .utils import get_data_dir
 

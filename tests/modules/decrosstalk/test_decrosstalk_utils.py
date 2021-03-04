@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-import ophys_etl.decrosstalk.decrosstalk_utils as du
+import ophys_etl.modules.decrosstalk.decrosstalk_utils as du
 
 
 @pytest.mark.parametrize("sig_indices,ct_indices,window,ind_indices",

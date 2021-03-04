@@ -2,7 +2,7 @@ from typing import Dict, Tuple
 import numpy as np
 import scipy.stats
 
-import ophys_etl.decrosstalk.decrosstalk_types as dc_types
+import ophys_etl.modules.decrosstalk.decrosstalk_types as dc_types
 
 
 def get_crosstalk_data(signal: np.ndarray,

@@ -3,13 +3,13 @@ scipy
 imageio-ffmpeg
 pytest
 pytest-cov
-argschema==2.0.1
+argschema==2.0.2
 h5py
 matplotlib
 pandas
 moto
 boto3
-croissant-ml
+croissant-ml==0.0.2
 typing_extensions
 tifffile
 scikit-image

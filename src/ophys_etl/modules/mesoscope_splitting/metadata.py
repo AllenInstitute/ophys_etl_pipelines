@@ -1,16 +1,16 @@
 import struct
 import logging
 import math
-import json
 from six import string_types
-from tifffile import stripnull
-from tifffile.tifffile import read_scanimage_metadata, matlabstr2py, read_json, bytes2str
+from tifffile.tifffile import matlabstr2py, read_json, bytes2str
 
 
 BYTEORDER = b'II'
 BIGTIFF = 43
-SCANIMAGE_TIFF_MAGIC = 117637889 # This magic version is shared between version 3 and 4
+# This magic version is shared between version 3 and 4
+SCANIMAGE_TIFF_MAGIC = 117637889
 SCANIMAGE_TIFF_VERSIONS = [3, 4]
+
 
 def floatify_SI_float_strings(json_data):
     if isinstance(json_data, dict):
@@ -61,11 +61,14 @@ def unflatten_dict(flat_dict, key_sep="."):
 def _tiff_header_data_2017b_v1(fh):
     """Extract ScanImage header data from a tiff for ScanImage 2017b 1.
 
-    This function is an alternative to running the tifffile.read_scanimage_metadata() function.
-    That function only parses v3 header files and currently, some systems use v4.
+    This function is an alternative to running the
+    tifffile.read_scanimage_metadata() function.
+    That function only parses v3 header files and currently,
+    some systems use v4.
 
-    Currently, it appears that simply allowing version 4 formats is ok so this essentially replicates
-    original function exactly.  In the future, as header formats and versions become more distinct, this function
+    Currently, it appears that simply allowing version 4 formats is ok so this
+    essentially replicates original function exactly.  In the future, as header
+    formats and versions become more distinct, this function
     should dispatch to specific parsing functions for those cases.
 
     http://scanimage.vidriotechnologies.com/display/SI2016/ScanImage+BigTiff+Specification
@@ -87,17 +90,20 @@ def _tiff_header_data_2017b_v1(fh):
     if byteorder != BYTEORDER or tiff_version != BIGTIFF:
         raise ValueError('not a ScanImage BigTIFF file')
     fh.seek(16)
-    magic, version, frame_data_size, roi_data_size = struct.unpack('<IIII', fh.read(16))
+    magic, version, frame_data_size, roi_data_size = \
+        struct.unpack('<IIII', fh.read(16))
     if magic != SCANIMAGE_TIFF_MAGIC or version not in SCANIMAGE_TIFF_VERSIONS:
-        raise ValueError("File is not a valid ScanImage BigTIFF version ({version})")
+        raise ValueError("File is not a valid ScanImage BigTIFF "
+                         "version ({version})")
     frame_data = matlabstr2py(bytes2str(fh.read(frame_data_size)[:-1]))
-    roi_data = read_json(fh, '<', None, roi_data_size, None) if roi_data_size > 1 else {}
+    roi_data = read_json(fh, '<', None, roi_data_size, None) \
+        if roi_data_size > 1 else {}
     return version, frame_data, roi_data
 
 
 def tiff_header_data(filename):
     """Extract ScanImage header data from a tiff.
-    http://scanimage.vidriotechnologies.com/display/SI2016/ScanImage+BigTiff+Specification
+    http://scanimage.vidriotechnologies.com/display/SI2016/ScanImage+BigTiff+Specification  # noqa: E501
 
     version 3 and 4 have rearranged some keys as follows:
     SI.hFastZ.userZs -> SI.hStackManager.arbitraryZs
@@ -105,27 +111,32 @@ def tiff_header_data(filename):
     SI.hFastZ.numVolumes -> SI.hStackManager.numVolumes
     SI.hStackmanager.zs -> SI.hStackManager.zsAllActuators
 
-    SI.hStackmanager.zs in version 3 has been repurposed so we can't just duplicate the key.
-    The data appears to be the same, but ints not floats and without the ; delimiter
-
-    Instead, the new key for zs in both versions will be SI.hStackManager.zs_v3_v4
-    This doesn't feel like the correct long term solution though.  There are clear
-    potentials for misunderstanding if a later functions mistakenly uses "zs" from a version 3 file so it
-    may even be best to raise a deprecation warning there.
+    SI.hStackmanager.zs in version 3 has been repurposed so we can't just
+    duplicate the key. The data appears to be the same, but ints not floats
+    and without the ; delimiter. Instead, the new key for zs in both versions
+    will be SI.hStackManager.zs_v3_v4. This doesn't feel like the correct long-
+    term solution though. There are clear potentials for misunderstanding if a
+    later functions mistakenly uses "zs" from a version 3 file so it may even
+    be best to raise a deprecation warning there.
 
     """
     with open(filename, "rb") as f:
         version, frame_data, roi_data = _tiff_header_data_2017b_v1(f)
         frame_data = unflatten_dict(frame_data)
         if version == 3:
-            frame_data["SI"]["hStackManager"]["zs_v3_v4"] = frame_data["SI"]["hStackManager"]["zs"]
+            frame_data["SI"]["hStackManager"]["zs_v3_v4"] = \
+                frame_data["SI"]["hStackManager"]["zs"]
             logging.debug("Loaded %s as 2017b v0", filename)
         elif version == 4:
             frame_data = unflatten_dict(frame_data)
-            frame_data["SI"]["hStackManager"]["zs_v3_v4"] = frame_data["SI"]["hStackManager"]["zsAllActuators"]
-            frame_data["SI"]["hFastZ"]["numFramesPerVolume"] = frame_data["SI"]["hStackManager"]["numFramesPerVolume"]
-            frame_data["SI"]["hFastZ"]["numVolumes"] = frame_data["SI"]["hStackManager"]["numVolumes"]
-            frame_data["SI"]["hFastZ"]["userZs"] = frame_data["SI"]["hStackManager"]["arbitraryZs"]
+            frame_data["SI"]["hStackManager"]["zs_v3_v4"] = \
+                frame_data["SI"]["hStackManager"]["zsAllActuators"]
+            frame_data["SI"]["hFastZ"]["numFramesPerVolume"] = \
+                frame_data["SI"]["hStackManager"]["numFramesPerVolume"]
+            frame_data["SI"]["hFastZ"]["numVolumes"] = \
+                frame_data["SI"]["hStackManager"]["numVolumes"]
+            frame_data["SI"]["hFastZ"]["userZs"] = \
+                frame_data["SI"]["hStackManager"]["arbitraryZs"]
             logging.debug("Loaded %s as 2017b v1", filename)
 
         frame_data = floatify_SI_float_strings(frame_data)

@@ -5,7 +5,7 @@ import h5py
 import os
 import copy
 from ophys_etl.modules.mesoscope_splitting.tiff import MesoscopeTiff
-from ophys_etl.modules.mesoscope_splitting import __main__  as \
+from ophys_etl.modules.mesoscope_splitting import __main__ as \
     run_mesoscope_splitting
 
 

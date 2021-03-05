@@ -3,7 +3,7 @@ import pytest
 
 import numpy as np
 
-from ophys_etl.transforms.mesoscope_2p import tiff
+from ophys_etl.modules.mesoscope_splitting import tiff
 
 
 @pytest.fixture

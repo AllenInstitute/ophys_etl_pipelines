@@ -4,9 +4,9 @@ import numpy as np
 import h5py
 import os
 import copy
-from ophys_etl.transforms.mesoscope_2p import MesoscopeTiff
-from ophys_etl.pipelines.brain_observatory.scripts import (
-    run_mesoscope_splitting)
+from ophys_etl.modules.mesoscope_splitting.tiff import MesoscopeTiff
+from ophys_etl.modules.mesoscope_splitting import __main__ as \
+    run_mesoscope_splitting
 
 
 class MesoscopeTiffDummy(MesoscopeTiff):

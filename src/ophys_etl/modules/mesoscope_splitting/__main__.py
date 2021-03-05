@@ -6,11 +6,11 @@ from typing import (
     List, Dict, Tuple)
 from typing_extensions import TypedDict
 from argschema import ArgSchemaParser
-from ophys_etl.transforms.mesoscope_2p import MesoscopeTiff
-from ophys_etl.transforms.mesoscope_2p.conversion_utils import (
+from ophys_etl.modules.mesoscope_splitting.tiff import MesoscopeTiff
+from ophys_etl.modules.mesoscope_splitting.conversion_utils import (
     volume_to_h5, volume_to_tif, average_and_unsign)
-from ophys_etl.transforms.mesoscope_2p.metadata import SI_stringify_floats
-from ophys_etl.pipelines.brain_observatory.schemas.split_mesoscope import (
+from ophys_etl.modules.mesoscope_splitting.metadata import SI_stringify_floats
+from ophys_etl.modules.mesoscope_splitting.schemas import (
     InputSchema, OutputSchema)
 
 

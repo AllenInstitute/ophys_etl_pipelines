@@ -3,7 +3,7 @@ from tifffile import imsave
 from typing import Callable
 import h5py
 
-from ophys_etl.transforms.mesoscope_2p.tiff import DataView
+from ophys_etl.modules.mesoscope_splitting.tiff import DataView
 
 
 def dump_dict_as_attrs(h5fp, container_name, data):

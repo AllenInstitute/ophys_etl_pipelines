@@ -4,10 +4,10 @@ import pytest
 from unittest.mock import (
     MagicMock, Mock, patch, create_autospec)
 
-from ophys_etl.pipelines.brain_observatory.scripts import (
-    run_mesoscope_splitting)
-from ophys_etl.transforms.mesoscope_2p import MesoscopeTiff
-from ophys_etl.transforms.mesoscope_2p.conversion_utils import (
+from ophys_etl.modules.mesoscope_splitting import __main__ as \
+    run_mesoscope_splitting
+from ophys_etl.modules.mesoscope_splitting.tiff import MesoscopeTiff
+from ophys_etl.modules.mesoscope_splitting.conversion_utils import (
     volume_to_tif)
 
 
@@ -870,8 +870,8 @@ def test_split_image_surface(tmpdir,
 
     mock_volume_to_tif = create_autospec(volume_to_tif)
     with patch(
-        'ophys_etl.pipelines.brain_observatory.scripts'
-        '.run_mesoscope_splitting.volume_to_tif', mock_volume_to_tif
+        'ophys_etl.modules.mesoscope_splitting.__main__'
+        '.volume_to_tif', mock_volume_to_tif
     ):
         run_mesoscope_splitting.split_image(
             mock_mesoscope_tiff,

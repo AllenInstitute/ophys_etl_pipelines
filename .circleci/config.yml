@@ -57,6 +57,7 @@ jobs:
             pip install .
             # pytest would be a dep in requirements.txt
             python -m pytest -m "not suite2p_only and not event_detect_only"
+            bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN} -cF not_container_tests
           name: Test
 
   build38: 

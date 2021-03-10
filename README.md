@@ -1,5 +1,5 @@
 [![CircleCI](https://circleci.com/gh/AllenInstitute/ophys_etl_pipelines.svg?style=svg)](https://circleci.com/gh/AllenInstitute/ophys_etl_pipelines)
-[![codecov](https://codecov.io/gh/AllenInstitute/ophys_etl_pipelines/branch/master/graph/badge.svg)](https://codecov.io/gh/AllenInstitute/ophys_etl_pipelines)
+[![codecov](https://codecov.io/gh/AllenInstitute/ophys_etl_pipelines/branch/main/graph/badge.svg)](https://codecov.io/gh/AllenInstitute/ophys_etl_pipelines)
 
 # ophys_etl_pipelines
 Pipelines and modules for processing optical physiology data

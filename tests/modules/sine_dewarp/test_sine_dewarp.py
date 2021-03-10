@@ -2,6 +2,7 @@ import pytest
 import h5py
 import numpy as np
 from pathlib import Path
+import os
 
 from ophys_etl.modules.sine_dewarp.__main__ import SineDewarp
 
@@ -11,8 +12,9 @@ def input_h5(tmpdir):
     fname = tmpdir / "input.h5"
     with h5py.File(fname, "w") as f:
         f.create_dataset("data",
-                         data=np.zeros((2000, 512, 512), dtype="uint8"))
+                         data=np.zeros((10, 512, 512), dtype="uint8"))
     yield str(fname)
+    os.remove(fname)
 
 
 def test_sine_dewarp_end_to_end(input_h5, tmpdir):
@@ -26,6 +28,7 @@ def test_sine_dewarp_end_to_end(input_h5, tmpdir):
             "aR": "160.0",
             "bL": "85.0",
             "bR": "90.0",
+            "chunk_size": 2,
             "output_json": output_json}
     smod = SineDewarp(input_data=args, args=[])
     smod.run()
@@ -35,5 +38,5 @@ def test_sine_dewarp_end_to_end(input_h5, tmpdir):
 
     with h5py.File(output_h5, "r") as f:
         assert "data" in list(f.keys())
-        assert f['data'].shape[0:2] == (2000, 512)
+        assert f['data'].shape[0:2] == (10, 512)
         assert f['data'].shape[2] < 512

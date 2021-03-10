@@ -52,3 +52,8 @@ class SineDewarpInputSchema(argschema.ArgSchema):
         required=True,
         description=("as far as I can tell, this is not used, but we need "
                      "this in the schema to match the current LIMS strategy."))
+    chunk_size = argschema.fields.Int(
+        required=False,
+        default=1000,
+        description=("size of chunks, in frames, for breaking up processing "
+                     "into smaller jobs"))

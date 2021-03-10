@@ -53,7 +53,7 @@ class SineDewarp(argschema.ArgSchemaParser):
             # Chunk the movie up to prevent an error caused by multiprocessing
             # returning too much data. Use math.ceil in case there are fewer
             # than chunk_size frame, then we just make one chunk.
-            chunk_size = 1000
+            chunk_size = self.args["chunk_size"]
             movie_chunks = np.array_split(
                 movie, math.ceil(T / chunk_size), axis=0
             )

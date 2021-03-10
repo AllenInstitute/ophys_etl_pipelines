@@ -1,6 +1,5 @@
 import h5py
 import logging
-import json
 import math
 import numpy as np
 from pathlib import Path
@@ -356,78 +355,6 @@ def create_xtable(movie: np.ndarray,
     logging.debug(table)
 
     return table
-
-
-def parse_input(data: json) -> (str, str, float, float, float, float):
-    """
-    Compute a number of statistics about the images to be dewarped.
-
-    Parameters
-    ----------
-    data: json
-        Data from the input json file.
-    Returns
-    -------
-    input_h5: str
-        File path where the input h5 is saved.
-    output_h5: str
-        File path where the output h5 is saved.
-    aL: float
-        How far into the image (from the left side inward, in pixels) the
-        warping occurs. This is specific to the experiment, and is known
-        at the time of data collection.
-    aR: float
-        How far into the image (from the right side inward, in pixels) the
-        warping occurs. This is specific to the experiment, and is known
-        at the time of data collection.
-    bL: float
-        Roughly, a measurement of how strong the warping effect was on
-        the left side for the given experiment.
-    bR: float
-        Roughly, a measurement of how strong the warping effect was on
-        the right side for the given experiment.
-    """
-
-    input_h5 = data.get('input_h5', None)
-    if input_h5 is None:
-        raise KeyError("input JSON does not have required field: 'input_h5'")
-    if not Path(input_h5).is_file():
-        raise IOError(f"{input_h5} does not exist")
-
-    output_h5 = data.get('output_h5', None)
-    if output_h5 is None:
-        raise KeyError("input JSON does not have required field: 'output_h5'")
-
-    equipment_name = data.get("equipment_name", None)
-    if equipment_name is None:
-        raise KeyError("input JSON does not have"
-                       "required field: 'equipment_name'")
-
-    aLstr = data.get("aL", None)
-    if aLstr is None:
-        raise KeyError(f"parameter aL not determined for {equipment_name}")
-    aL = float(aLstr)
-
-    aRstr = data.get("aR", None)
-    if aRstr is None:
-        raise KeyError(f"parameter aR not determined for {equipment_name}")
-    aR = float(aRstr)
-
-    bLstr = data.get("bL", None)
-    if bLstr is None:
-        raise KeyError(f"parameter bL not determined for {equipment_name}")
-    bL = float(bLstr)
-
-    bRstr = data.get("bR", None)
-    if bRstr is None:
-        raise KeyError(f"parameter bR not determined for {equipment_name}")
-    bR = float(bRstr)
-
-    logging.debug(f"Equipment name: {str(equipment_name)}")
-    logging.debug(f"aL: {aL}   aR: {aR}")
-    logging.debug(f"bL: {bL}   bR: {bR}")
-
-    return input_h5, output_h5, aL, aR, bL, bR
 
 
 def make_output_file(output_file: str,

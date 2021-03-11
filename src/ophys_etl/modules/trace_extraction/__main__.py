@@ -20,6 +20,6 @@ class TraceExtraction(argschema.ArgSchemaParser):
         self.output(output, indent=2)
 
 
-if __name__ == '__main__':
+if __name__ == '__main__':  # pragma: nocover
     te = TraceExtraction()
     te.run()

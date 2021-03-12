@@ -2,13 +2,19 @@ import logging
 import h5py
 import numpy as np
 import os
+from typing import List, Union, Dict, Tuple
+from pathlib import Path
 
 from ophys_etl.modules.trace_extraction.roi_masks import (
         NeuropilMask, create_roi_mask_array, validate_mask, create_roi_masks)
+from ophys_etl.modules.trace_extraction.roi_masks import (
+        Mask)
 
 
-def calculate_traces(stack, mask_list, block_size=1000):
-    '''
+def calculate_traces(stack: np.ndarray,
+                     mask_list: List[Mask],
+                     block_size: int = 1000) -> Tuple[np.ndarray, List[Dict]]:
+    """
     Calculates the average response of the specified masks in the
     image stack
 
@@ -22,9 +28,12 @@ def calculate_traces(stack, mask_list, block_size=1000):
 
     Returns
     -------
-    float[number masks][number frames]
+    traces: float[number masks][number frames]
         This is the average response for each Mask in each image frame
-    '''
+    exclusions: list
+        each item like {"roi_id": 123, "exclusion_label_name": "name"}
+
+    """
 
     traces = np.zeros((len(mask_list), stack.shape[0]), dtype=float)
     num_frames = stack.shape[0]
@@ -70,8 +79,32 @@ def calculate_traces(stack, mask_list, block_size=1000):
     return traces, exclusions
 
 
-def calculate_roi_and_neuropil_traces(movie_h5, roi_mask_list, motion_border):
-    """ get roi and neuropil masks """
+def calculate_roi_and_neuropil_traces(
+        movie_h5: Union[str, Path], roi_mask_list: List[Mask],
+        motion_border: List[int]) -> Tuple[np.ndarray, np.ndarray, List[Dict]]:
+    """
+    calculates neuropil masks for each ROI and then calculates both ROI trace
+    and neuropil trace
+
+    Parameters
+    ----------
+    movie_h5: str, Path
+        location on disk of the movie
+    roi_mask_list: list<Mask>
+        List of masks
+    motion_border: list(int)
+        the 4 motion border values
+
+    Returns
+    -------
+    roi_traces: float[number masks][number frames]
+        This is the average response for each Mask in each image frame
+    neuropil_traces: float[number masks][number frames]
+        This is the average response for each Mask in each image frame
+    exclusions: list
+        each item like {"roi_id": 123, "exclusion_label_name": "name"}
+
+    """
 
     # a combined binary mask for all ROIs (this is used to
     #   subtracted ROIs from annuli

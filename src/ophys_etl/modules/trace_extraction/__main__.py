@@ -15,8 +15,7 @@ class TraceExtraction(argschema.ArgSchemaParser):
                 self.args['motion_corrected_stack'],
                 self.args['motion_border'],
                 self.args['storage_directory'],
-                self.args['rois'],
-                self.args['log_0'])
+                self.args['rois'])
         self.output(output, indent=2)
 
 

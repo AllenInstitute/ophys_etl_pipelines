@@ -1,6 +1,9 @@
 import numpy as np
 import math
 import scipy.ndimage.morphology as morphology
+from typing import List
+
+from ophys_etl.types import ExtractROI
 
 
 # constants used for accessing border array
@@ -388,16 +391,37 @@ def create_roi_mask_array(rois):
     return masks
 
 
-def create_roi_masks(rois, w, h, motion_border):
-    roi_list = []
+def create_roi_masks(rois: List[ExtractROI], width: int, height: int,
+                     motion_border: List[int]) -> List[RoiMask]:
+    """creates a list of RoiMask objects given a list of LIMS-format ROIs
 
+    Parameters
+    ----------
+    rois: List[ExtractROI]
+        list of ROIs in LIMS-provided format
+    width: int
+        full FOV width
+    height: int
+        full FOV height
+    motion_border: list
+        4 motion border values in order "x0", "x1", "y0", "y1"
+
+    Returns
+    -------
+    roi_list: List[RoiMask]
+        the list of RoiMask objects, sorted by id
+
+    """
+    roi_list = []
     for roi in rois:
         mask = np.array(roi["mask"], dtype=bool)
         px = np.argwhere(mask)
         px[:, 0] += roi["y"]
         px[:, 1] += roi["x"]
 
-        mask = RoiMask.create_roi_mask(w, h, motion_border,
+        mask = RoiMask.create_roi_mask(width,
+                                       height,
+                                       motion_border,
                                        pix_list=px[:, [1, 0]],
                                        label=str(roi["id"]),
                                        mask_group=roi.get("mask_page", -1))

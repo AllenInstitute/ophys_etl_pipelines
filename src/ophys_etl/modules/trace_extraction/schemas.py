@@ -69,9 +69,9 @@ class TraceExtractionInputSchema(ArgSchema):
         many=True,
         description="specifications of individual regions of interest")
     log_0 = InputFile(
-        required=True,
-        description=("path to motion correction output "
-                     "csv"))  # TODO: is this redundant with motion border?
+        required=False,
+        description=("path to motion correction output csv. "
+                     "NOTE: not used, but provided by LIMS schema."))
 
 
 class H5FileExists(H5InputFile):

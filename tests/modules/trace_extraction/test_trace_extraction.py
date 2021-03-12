@@ -33,7 +33,7 @@ def test_TraceExtraction(tmpdir, monkeypatch):
             "log_0": str(log0),
             "output_json": str(outj)}
 
-    def mock_extract_traces(a, b, c, d, e):
+    def mock_extract_traces(a, b, c, d):
         tfile = tmpdir / "traces.h5"
         with h5py.File(tfile, "w") as f:
             f.create_dataset("data", data=0)

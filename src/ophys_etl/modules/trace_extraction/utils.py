@@ -1,7 +1,6 @@
 import logging
 import h5py
 import numpy as np
-import os
 from typing import List, Union, Dict, Tuple
 from pathlib import Path
 
@@ -149,16 +148,42 @@ def write_trace_file(data, names, path):
                            dtype=utf_dtype)
 
 
-def extract_traces(motion_corrected_stack, motion_border,
-                   storage_directory, rois, log_0, **kwargs):
+def extract_traces(motion_corrected_stack: Union[str, Path],
+                   motion_border: Dict,
+                   storage_directory: Union[str, Path],
+                   rois: List[Dict]) -> Dict:
+    """
+    calculates neuropil masks for ROIs (LIMS format),
+    calculates both ROI trace and neuropil trace,
+    writes traces to files
+
+    Parameters
+    ----------
+    motion_corrected_stack: str, Path
+        location on disk of the movie
+    motion_border: dict
+        the motion border dictionary
+        ophys_etl.modules.trace_extraction.schemas.MotionBorder
+    storage_directory: str, Path
+        the output directory
+    rois: dict
+        List of ROIs in LIMS format
+
+    Returns
+    -------
+    Dict
+        ophys_etl.modules.trace_extraction.schemas.TraceExtractionOutputSchema
+        keys:
+        - neuropil_trace_file
+        - roi_trace_file
+        - exclusion_labels
+
+    """
 
     # find width and height of movie
     with h5py.File(motion_corrected_stack, "r") as f:
-        d = f["data"]
-        h = d.shape[1]
-        w = d.shape[2]
+        height, width = f["data"].shape[1:]
 
-    # motion border
     border = [
         motion_border["x0"],
         motion_border["x1"],
@@ -167,7 +192,7 @@ def extract_traces(motion_corrected_stack, motion_border,
     ]
 
     # create roi mask objects
-    roi_mask_list = create_roi_masks(rois, w, h, border)
+    roi_mask_list = create_roi_masks(rois, width, height, border)
     roi_names = [roi.label for roi in roi_mask_list]
 
     # extract traces
@@ -175,16 +200,14 @@ def extract_traces(motion_corrected_stack, motion_border,
         calculate_roi_and_neuropil_traces(
             motion_corrected_stack, roi_mask_list, border)
 
-    roi_file = os.path.abspath(os.path.join(storage_directory,
-                               "roi_traces.h5"))
+    roi_file = Path(storage_directory) / "roi_traces.h5"
     write_trace_file(roi_traces, roi_names, roi_file)
 
-    np_file = os.path.abspath(os.path.join(storage_directory,
-                                           "neuropil_traces.h5"))
+    np_file = Path(storage_directory) / "neuropil_traces.h5"
     write_trace_file(neuropil_traces, roi_names, np_file)
 
     return {
-        'neuropil_trace_file': np_file,
-        'roi_trace_file': roi_file,
+        'neuropil_trace_file': str(np_file),
+        'roi_trace_file': str(roi_file),
         'exclusion_labels': exclusions
     }

@@ -1,10 +1,10 @@
 from argschema import ArgSchema
 from argschema.schemas import DefaultSchema
-from argschema.fields import (LogLevel, String, Nested, Boolean,
-                              Float, List, Integer,
+from argschema.fields import (LogLevel, String, Nested, Float,
                               OutputDir, InputFile)
 
 from ophys_etl.schemas.fields import H5InputFile
+from ophys_etl.schemas import ExtractROISchema
 
 
 class MotionBorder(DefaultSchema):
@@ -14,34 +14,6 @@ class MotionBorder(DefaultSchema):
     x1 = Float(default=0.0, description='')
     y0 = Float(default=0.0, description='')
     y1 = Float(default=0.0, description='')
-
-
-class Roi(DefaultSchema):
-    mask = List(
-        List(Boolean),
-        required=True,
-        description="raster mask")
-    y = Integer(
-        required=True,
-        description="y position (pixels) of mask's bounding box")
-    x = Integer(
-        required=True,
-        description="x position (pixels) of mask's bounding box")
-    width = Integer(
-        required=True,
-        description="width (pixels)of mask's bounding box")
-    height = Integer(
-        required=True,
-        description="height (pixels) of mask's bounding box")
-    valid = Boolean(
-        default=True,
-        description="Is this Roi known to be valid?")
-    id = Integer(
-        required=True,
-        description="unique integer identifier for this Roi")
-    mask_page = Integer(
-        default=-1,
-        description="")
 
 
 class ExclusionLabel(DefaultSchema):
@@ -65,7 +37,7 @@ class TraceExtractionInputSchema(ArgSchema):
         required=True,
         description="path to h5 file containing motion corrected image stack")
     rois = Nested(
-        Roi,
+        ExtractROISchema,
         many=True,
         description="specifications of individual regions of interest")
     log_0 = InputFile(

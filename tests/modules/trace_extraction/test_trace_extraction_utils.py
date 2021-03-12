@@ -10,6 +10,7 @@ from ophys_etl.modules.trace_extraction.utils import (
         extract_traces)
 
 
+# image_dims fixture from tests/conftest.py
 @pytest.fixture
 def video(image_dims):
     num_frames = 20
@@ -26,6 +27,7 @@ def h5video(video, tmpdir):
     yield str(fname)
 
 
+# roi_mask_list fixture from tests/conftest.py
 def test_calculate_traces(video, roi_mask_list):
     roi_traces, exclusions = calculate_traces(video, roi_mask_list)
 
@@ -44,6 +46,7 @@ def test_calculate_traces(video, roi_mask_list):
                                   check_like=True)
 
 
+# roi_mask_list, motion_border fixture from tests/conftest.py
 def test_calculate_roi_and_neuropil_traces(
         h5video, roi_mask_list, motion_border):
     roi_traces, neuropil_traces, exclusions = \
@@ -65,6 +68,8 @@ def test_calculate_roi_and_neuropil_traces(
                                   check_like=True)
 
 
+# motion_border_dict fixture from tests/conftest.py
+# roi_list_of_dicts from tests/modules/trace_extraction/conftest.py
 def test_extract_traces(h5video, roi_list_of_dicts,
                         motion_border_dict, tmpdir):
     sdir = Path(tmpdir)

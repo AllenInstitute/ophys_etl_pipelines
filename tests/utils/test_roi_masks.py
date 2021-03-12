@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 import pytest
-from ophys_etl.modules.trace_extraction.roi_masks import (
-        RoiMask, NeuropilMask, create_roi_mask_array, validate_mask)
+from ophys_etl.utils.roi_masks import (RoiMask, NeuropilMask,
+                                       create_roi_mask_array, validate_mask)
 
 
 def test_init_by_pixels():
@@ -103,6 +103,7 @@ def test_create_empty_neuropil_mask():
     assert 'zero_pixels' in obtained.flags
 
 
+# fixtures from tests/conftest.py
 @pytest.fixture
 def neuropil_masks(roi_mask_list, motion_border):
     neuropil_masks = []
@@ -120,6 +121,7 @@ def neuropil_masks(roi_mask_list, motion_border):
     return neuropil_masks
 
 
+# fixtures from tests/conftest.py
 def test_validate_masks(roi_mask_list, neuropil_masks):
     roi_mask_list.extend(neuropil_masks)
     roi_mask_list[3].mask = np.zeros_like(roi_mask_list[3].mask)

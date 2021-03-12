@@ -9,6 +9,8 @@ import pytest
 import numpy as np
 from scipy.sparse import coo_matrix
 
+from ophys_etl.utils.roi_masks import RoiMask
+
 
 @pytest.fixture
 def ophys_movie_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
@@ -64,11 +66,9 @@ def s2p_stat_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
 def motion_correction_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
     """Fixture that allows parameterized mock motion correction files (*.csv)
     files to be generated.
-
     Old-style motion files do *not* contain a header row (yikes D:)
     You just have to know that they contain 9 columns with the following names:
     ["index", "x", "y", "a", "b", "c", "d", "e", "f"]
-
     New-style motion files may have more or fewer than 9 columns but will have
     a header row (which contains at least one alphabetical character [a-zA-Z]).
     """
@@ -145,3 +145,40 @@ def trace_file_fixture(tmp_path: Path, request) -> Tuple[Path, dict]:
         f.create_dataset(trace_names_key, data=formatted_trace_names)
 
     return trace_path, fixture_params
+
+
+@pytest.fixture
+def image_dims():
+    return {
+        'width': 100,
+        'height': 100
+    }
+
+
+@pytest.fixture
+def motion_border():
+    return [5.0, 5.0, 5.0, 5.0]
+
+
+@pytest.fixture
+def motion_border_dict():
+    return {"x0": 5.0, "x1": 5.0, "y0": 5.0, "y1": 5.0}
+
+
+@pytest.fixture
+def roi_mask_list(image_dims, motion_border):
+    base_pixels = np.argwhere(np.ones((10, 10)))
+
+    masks = []
+    for ii in range(10):
+        pixels = base_pixels + ii * 10
+        masks.append(RoiMask.create_roi_mask(
+            image_dims['width'],
+            image_dims['height'],
+            motion_border,
+            pix_list=pixels,
+            label=str(ii),
+            mask_group=-1
+        ))
+
+    return masks

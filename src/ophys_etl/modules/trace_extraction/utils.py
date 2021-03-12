@@ -4,10 +4,8 @@ import numpy as np
 from typing import List, Union, Dict, Tuple
 from pathlib import Path
 
-from ophys_etl.modules.trace_extraction.roi_masks import (
-        NeuropilMask, create_roi_mask_array, validate_mask, create_roi_masks)
-from ophys_etl.modules.trace_extraction.roi_masks import (
-        Mask)
+from ophys_etl.utils.roi_masks import (NeuropilMask, create_roi_mask_array,
+                                       validate_mask, create_roi_masks, Mask)
 
 
 def calculate_traces(stack: np.ndarray,
@@ -79,7 +77,7 @@ def calculate_traces(stack: np.ndarray,
 
 
 def calculate_roi_and_neuropil_traces(
-        movie_h5: Union[str, Path], roi_mask_list: List[Mask],
+        movie_h5: Union[str, Path, np.ndarray], roi_mask_list: List[Mask],
         motion_border: List[int]) -> Tuple[np.ndarray, np.ndarray, List[Dict]]:
     """
     calculates neuropil masks for each ROI and then calculates both ROI trace
@@ -87,8 +85,8 @@ def calculate_roi_and_neuropil_traces(
 
     Parameters
     ----------
-    movie_h5: str, Path
-        location on disk of the movie
+    movie_h5: str, Path, np.ndarray
+        location on disk of the movie, or the data array
     roi_mask_list: list<Mask>
         List of masks
     motion_border: list(int)
@@ -124,15 +122,18 @@ def calculate_roi_and_neuropil_traces(
     # read the large image stack only once
     combined_list = roi_mask_list + neuropil_masks
 
-    with h5py.File(movie_h5, "r") as movie_f:
-        stack_frames = movie_f["data"]
+    if isinstance(movie_h5, np.ndarray):
+        # decrosstalk/ophys_plane was using a version of this function
+        # that already had the data loaded.
+        traces, exclusions = calculate_traces(movie_h5, combined_list)
+    else:
+        # trace extraction was using a version loading from file
+        with h5py.File(movie_h5, "r") as movie_f:
+            stack_frames = movie_f["data"]
+            traces, exclusions = calculate_traces(stack_frames, combined_list)
 
-        logging.info("Calculating %d traces (neuropil + ROI) over %d "
-                     "frames" % (len(combined_list), len(stack_frames)))
-        traces, exclusions = calculate_traces(stack_frames, combined_list)
-
-        roi_traces = traces[:num_rois]
-        neuropil_traces = traces[num_rois:]
+    roi_traces = traces[:num_rois]
+    neuropil_traces = traces[num_rois:]
 
     return roi_traces, neuropil_traces, exclusions
 

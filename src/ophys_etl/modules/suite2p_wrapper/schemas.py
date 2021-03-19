@@ -49,6 +49,10 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             description=("whether or not to run registration twice (for low "
                          "SNR data). keep_movie_raw must be True for "
                          "this to work."))
+    keep_movie_raw = argschema.fields.Bool(
+            default=False,
+            description=("set to True along with `two_step_registration` to "
+                         "enable two_step_registration."))
     # s2p cell detection settings
     roidetect = argschema.fields.Bool(
             default=True,

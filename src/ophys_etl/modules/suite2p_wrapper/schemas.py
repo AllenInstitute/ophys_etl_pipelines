@@ -44,6 +44,11 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             default=0.2,
             description=("max allowed registration shift, as a fraction of "
                          "frame max(width and height)"))
+    two_step_registration = argschema.fields.Bool(
+            default=False,
+            description=("whether or not to run registration twice (for low "
+                         "SNR data). keep_movie_raw must be True for "
+                         "this to work."))
     # s2p cell detection settings
     roidetect = argschema.fields.Bool(
             default=True,

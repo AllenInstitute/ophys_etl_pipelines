@@ -445,7 +445,11 @@ def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDic
 def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
                     ct_plane: DecrosstalkingOphysPlane,
                     cache_dir: str = None, clobber: bool = False,
-                    new_style_output: bool = False) -> Tuple[dict, dc_types.ROISetDict]:  # noqa: E501
+                    new_style_output: bool = False) -> Tuple[dict,
+                                                             Tuple[dc_types.ROISetDict, dc_types.ROISetDict],   # noqa: E501
+                                                             Tuple[dc_types.ROISetDict, dc_types.ROISetDict],   # noqa: E501
+                                                             Tuple[dc_types.ROIEventSet, dc_types.ROIEventSet],  # noqa: E501
+                                                             Tuple[dc_types.ROIEventSet, dc_types.ROIEventSet]]:  # noqa: E501
     """
     Actually run the decrosstalking pipeline, comparing two
     DecrosstalkingOphysPlanes
@@ -484,9 +488,37 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         'decrosstalk_invalid_unmixed_active' -- ROIs with invalid
                                                 unmixed active traces
 
-    unmixed_traces -- a decrosstalk_types.RoiSetDict containing
-                      the unmixed trace data for the ROIs
+    (raw_traces,
+     invalid_raw_traces) -- two decrosstalk_types.ROISetDicts containing
+                            the raw trace data for the ROIs and the
+                            invalid raw traces
+
+    (unmixed_traces,
+     invalid_unmixed_traces) -- two decrosstalk_types.ROISetDicts containing
+                                the unmixed trace data for the ROIs and then
+                                invalid unmixed traces
+
+    (raw_trace_events,
+     invalid_raw_trace_events) -- two decrosstalk_types.ROIEventSets
+                                  characterizing the active timestamps
+                                  from the raw traces and the invalid
+                                  active timestamps
+
+    (unmixed_trace_events,
+     invalid_unmixed_trace_events) -- two decrosstalk_types.ROIEventSets
+                                      characterizing the active timestamps
+                                      from the unmixed traces and the invalid
+                                      unmixed trace events
     """
+    raw_traces = dc_types.ROISetDict()
+    unmixed_traces = dc_types.ROISetDict()
+    raw_trace_events = dc_types.ROIEventSet()
+    unmixed_trace_events = dc_types.ROIEventSet()
+
+    invalid_raw_traces = dc_types.ROISetDict()
+    invalid_unmixed_traces = dc_types.ROISetDict()
+    invalid_raw_trace_events = dc_types.ROIEventSet()
+    invalid_unmixed_trace_events = dc_types.ROIEventSet()
 
     # kwargs for output classes that write QC output
     output_kwargs = {'cache_dir': cache_dir,
@@ -516,7 +548,11 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
     # If there are no ROIs in the signal plane,
     # just return a set of empty outputs
     if len(signal_plane.roi_list) == 0:
-        return roi_flags, dc_types.ROISetDict()
+        return (roi_flags,
+                (raw_traces, invalid_raw_traces),
+                (unmixed_traces, invalid_unmixed_traces),
+                (raw_trace_events, invalid_raw_trace_events),
+                (unmixed_trace_events, invalid_unmixed_trace_events))
 
     ###############################
     # extract raw traces
@@ -545,13 +581,18 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         del writer_class
 
     # remove invalid raw traces
-    invalid_raw_trace = []
+    invalid_raw_trace_roi_id = []
     for roi_id in raw_trace_validation:
         if not raw_trace_validation[roi_id]:
-            invalid_raw_trace.append(roi_id)
-            raw_traces['roi'].pop(roi_id)
-            raw_traces['neuropil'].pop(roi_id)
-    roi_flags[raw_key] += invalid_raw_trace
+            invalid_raw_trace_roi_id.append(roi_id)
+
+            _roi = raw_traces['roi'].pop(roi_id)
+            _neuropil = raw_traces['neuropil'].pop(roi_id)
+
+            invalid_raw_traces['roi'][roi_id] = _roi
+            invalid_raw_traces['neuropil'][roi_id] = _neuropil
+
+    roi_flags[raw_key] += invalid_raw_trace_roi_id
 
     if len(raw_traces['roi']) == 0:
         msg = 'No raw traces were valid when applying '
@@ -563,7 +604,11 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         writer = flag_writer_class(data=roi_flags,
                                    **output_kwargs)
         writer.run()
-        return roi_flags, dc_types.ROISetDict()
+        return (roi_flags,
+                (raw_traces, invalid_raw_traces),
+                (unmixed_traces, invalid_unmixed_traces),
+                (raw_trace_events, invalid_raw_trace_events),
+                (unmixed_trace_events, invalid_unmixed_trace_events))
 
     #########################################
     # detect activity in raw traces
@@ -603,16 +648,23 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         signal = raw_trace_events[roi_id]['signal']['trace']
         if len(signal) == 0 or np.isnan(signal).any():
             roi_flags[raw_active_key].append(roi_id)
-            raw_trace_events.pop(roi_id)
-            raw_traces['roi'].pop(roi_id)
-            raw_traces['neuropil'].pop(roi_id)
 
-    del raw_trace_events
+            _events = raw_trace_events.pop(roi_id)
+            _roi = raw_traces['roi'].pop(roi_id)
+            _neuropil = raw_traces['neuropil'].pop(roi_id)
+
+            invalid_raw_traces['roi'][roi_id] = _roi
+            invalid_raw_traces['neuropil'][roi_id] = _neuropil
+            invalid_raw_trace_events[roi_id] = _events
 
     # if there was no activity in the raw traces, return an
     # empty ROISetDict because none of the ROIs were valid
     if len(raw_traces['roi']) == 0:
-        return roi_flags, dc_types.ROISetDict()
+        return (roi_flags,
+                (raw_traces, invalid_raw_traces),
+                (unmixed_traces, invalid_unmixed_traces),
+                (raw_trace_events, invalid_raw_trace_events),
+                (unmixed_trace_events, invalid_unmixed_trace_events))
 
     ###########################################################
     # use Independent Component Analysis to separate out signal
@@ -656,7 +708,11 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         writer = flag_writer_class(data=roi_flags,
                                    **output_kwargs)
         writer.run()
-        return roi_flags, unmixed_traces
+        return (roi_flags,
+                (raw_traces, invalid_raw_traces),
+                (unmixed_traces, invalid_unmixed_traces),
+                (raw_trace_events, invalid_raw_trace_events),
+                (unmixed_trace_events, invalid_unmixed_trace_events))
 
     unmixed_trace_validation = d_utils.validate_traces(unmixed_traces)
     if cache_dir is not None:
@@ -671,13 +727,18 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         del writer_class
 
     # remove invalid unmixed traces
-    invalid_unmixed_trace = []
+    invalid_unmixed_trace_roi_id = []
     for roi_id in unmixed_trace_validation:
         if not unmixed_trace_validation[roi_id]:
-            invalid_unmixed_trace.append(roi_id)
-            unmixed_traces['roi'].pop(roi_id)
-            unmixed_traces['neuropil'].pop(roi_id)
-    roi_flags[unmixed_key] += invalid_unmixed_trace
+            invalid_unmixed_trace_roi_id.append(roi_id)
+
+            _roi = unmixed_traces['roi'].pop(roi_id)
+            _neuropil = unmixed_traces['neuropil'].pop(roi_id)
+
+            invalid_unmixed_traces['roi'][roi_id] = _roi
+            invalid_unmixed_traces['neuropil'][roi_id] = _neuropil
+
+    roi_flags[unmixed_key] += invalid_unmixed_trace_roi_id
 
     if len(unmixed_traces['roi']) == 0:
         msg = 'No unmixed traces were valid when applying '
@@ -688,7 +749,11 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         writer = flag_writer_class(data=roi_flags,
                                    **output_kwargs)
         writer.run()
-        return roi_flags, unmixed_traces
+        return (roi_flags,
+                (raw_traces, invalid_raw_traces),
+                (unmixed_traces, invalid_unmixed_traces),
+                (raw_trace_events, invalid_raw_trace_events),
+                (unmixed_trace_events, invalid_unmixed_trace_events))
 
     ###################################################
     # Detect activity in unmixed traces
@@ -741,9 +806,14 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
     # from the data being processed
     for roi_id in invalid_active_trace['signal']:
         roi_flags[unmixed_active_key].append(roi_id)
-        unmixed_trace_events.pop(roi_id)
-        unmixed_traces['roi'].pop(roi_id)
-        unmixed_traces['neuropil'].pop(roi_id)
+
+        _events = unmixed_trace_events.pop(roi_id)
+        _roi = unmixed_traces['roi'].pop(roi_id)
+        _neuropil = unmixed_traces['neuropil'].pop(roi_id)
+
+        invalid_unmixed_traces['roi'][roi_id] = _roi
+        invalid_unmixed_traces['neuropil'][roi_id] = _neuropil
+        invalid_unmixed_trace_events[roi_id] = _events
 
     if cache_dir is not None:
         writer = io_utils.InvalidATJsonWriter(data=invalid_active_trace,
@@ -806,4 +876,8 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
                                **output_kwargs)
     writer.run()
 
-    return roi_flags, unmixed_traces
+    return (roi_flags,
+            (raw_traces, invalid_raw_traces),
+            (unmixed_traces, invalid_unmixed_traces),
+            (raw_trace_events, invalid_raw_trace_events),
+            (unmixed_trace_events, invalid_unmixed_trace_events))

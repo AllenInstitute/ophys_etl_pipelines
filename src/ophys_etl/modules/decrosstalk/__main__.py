@@ -1,10 +1,12 @@
 import os
 import h5py
 import numpy as np
+import pathlib
 import argschema
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 import ophys_etl.modules.decrosstalk.decrosstalk_schema as decrosstalk_schema
 from ophys_etl.modules.decrosstalk.decrosstalk import run_decrosstalk
+from ophys_etl.modules.decrosstalk.io_utils import write_qc_data
 
 
 class DecrosstalkWrapper(argschema.ArgSchemaParser):
@@ -58,10 +60,31 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                 neuropil_fname = output_schema['output_neuropil_trace_file']
                 p0['output_neuropil_trace_file'] = neuropil_fname
                 (flags_0,
-                 traces_0) = run_decrosstalk(plane_0,
-                                             plane_1,
-                                             cache_dir=cache_dir,
-                                             clobber=clobber)
+                 (raw_traces,
+                  invalid_raw_traces),
+                 (unmixed_traces,
+                  invalid_unmixed_traces),
+                 (raw_trace_events,
+                  invalid_raw_trace_events),
+                 (unmixed_trace_events,
+                  invalid_unmixed_trace_events)) = run_decrosstalk(plane_0,
+                                                                   plane_1,
+                                                                   cache_dir=cache_dir,  # noqa: E501
+                                                                   clobber=clobber)  # noqa: E501
+
+                qc_fname = pathlib.Path(cache_dir)
+                qc_fname = qc_fname/f'{plane_0.experiment_id}_qc_data.h5'
+
+                write_qc_data(qc_fname,
+                              flags_0,
+                              raw_traces,
+                              invalid_raw_traces,
+                              unmixed_traces,
+                              invalid_unmixed_traces,
+                              raw_trace_events,
+                              invalid_raw_trace_events,
+                              unmixed_trace_events,
+                              invalid_unmixed_trace_events)
 
                 invalid_roi = set()
                 for field in flags_0.keys():
@@ -74,12 +97,12 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                     out_fname = output_schema['output_%s_trace_file' % k]
                     data = []
                     roi_names = []
-                    roi_list = list(traces_0[k].keys())
+                    roi_list = list(unmixed_traces[k].keys())
                     roi_list.sort()
                     for roi_id in roi_list:
                         if roi_id not in invalid_roi:
                             roi_names.append(roi_id)
-                            data.append(traces_0[k][roi_id]['signal'])
+                            data.append(unmixed_traces[k][roi_id]['signal'])
 
                     # add in np.arrays of NaNs for the invalid ROIs
                     # so that downstream modules don't get confused

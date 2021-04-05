@@ -1,4 +1,5 @@
 import argschema
+import marshmallow as mm
 import pandas as pd
 import numpy as np
 from functools import partial
@@ -43,15 +44,15 @@ class RegistrationQCInputSchema(argschema.ArgSchema):
                      "correction offset data. If not provided, a "
                      "png will not be created."))
     max_projection_output = argschema.fields.InputFile(
-        required=True,
+        required=False,
         description=("Saved path for *.png of the max projection of the "
                      "motion corrected video."))
     avg_projection_output = argschema.fields.InputFile(
-        required=True,
+        required=False,
         description=("Saved path for *.png of the avg projection of the "
                      "motion corrected video."))
     registration_summary_output = argschema.fields.OutputFile(
-        required=True,
+        required=False,
         description=("Desired path for *.png summary plot."))
     motion_correction_preview_output = argschema.fields.OutputFile(
         required=True,
@@ -66,6 +67,22 @@ class RegistrationQCInputSchema(argschema.ArgSchema):
         default=0.999,
         description=("upper quantile threshold for avg projection "
                      "histogram adjustment of movie"))
+
+    @mm.post_load
+    def png_args(self, data, **kwargs):
+        # if any of these are set, all need to be set
+        png_keys = [
+                "motion_diagnostics_output"
+                "max_projection_output"
+                "avg_projection_output"
+                "registration_summary_output"]
+        is_set = [i in data for i in png_keys]
+        if (any(is_set)) & (not all(is_set)):
+            raise RegistrationQCException(
+                    "all 4 of these args must be included to create "
+                    "the registration png, or, none must be provided "
+                    f"to skip: {png_keys}")
+        return data
 
 
 def make_png(max_proj_path: Path, avg_proj_path: Path,

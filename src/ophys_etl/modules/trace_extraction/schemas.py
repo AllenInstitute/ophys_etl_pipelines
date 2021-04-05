@@ -8,12 +8,10 @@ from ophys_etl.schemas import ExtractROISchema
 
 
 class MotionBorder(DefaultSchema):
-    # TODO: be really certain about how these relate to
-    # physical space and then write it here
-    x0 = Float(default=0.0, description='')
-    x1 = Float(default=0.0, description='')
-    y0 = Float(default=0.0, description='')
-    y1 = Float(default=0.0, description='')
+    x0 = Float(default=0.0, description='npixel border from left')
+    x1 = Float(default=0.0, description='npixel border from right')
+    y0 = Float(default=0.0, description='npixel border from top')
+    y1 = Float(default=0.0, description='npixel border from bottom')
 
 
 class ExclusionLabel(DefaultSchema):
@@ -54,7 +52,7 @@ class TraceExtractionOutputSchema(DefaultSchema):
     neuropil_trace_file = H5FileExists(
         required=True,
         description=("path to output h5 file containing neuropil "
-                     "traces"))  # TODO rename these to _path
+                     "traces"))
     roi_trace_file = H5FileExists(
         required=True,
         description="path to output h5 file containing roi traces")

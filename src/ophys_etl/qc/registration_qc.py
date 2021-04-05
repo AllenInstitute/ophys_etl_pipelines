@@ -38,10 +38,10 @@ class RegistrationQCInputSchema(argschema.ArgSchema):
         required=True,
         description=("path to motion corrected movie."))
     motion_diagnostics_output = argschema.fields.InputFile(
-        required=True,
+        required=False,
         description=("Saved path for *.csv file containing motion "
-                     "correction offset data")
-    )
+                     "correction offset data. If not provided, a "
+                     "png will not be created."))
     max_projection_output = argschema.fields.InputFile(
         required=True,
         description=("Saved path for *.png of the max projection of the "
@@ -167,12 +167,15 @@ class RegistrationQC(argschema.ArgSchemaParser):
         self.logger.setLevel(self.args['log_level'])
 
         # create and write the summary png
-        motion_offset_df = pd.read_csv(self.args['motion_diagnostics_output'])
-        png_out_path = make_png(Path(self.args['max_projection_output']),
-                                Path(self.args['avg_projection_output']),
-                                motion_offset_df,
-                                Path(self.args['registration_summary_output']))
-        self.logger.info(f"wrote {png_out_path}")
+        if "motion_diagnostics_output" in self.args:
+            motion_offset_df = pd.read_csv(
+                    self.args['motion_diagnostics_output'])
+            png_out_path = make_png(
+                    Path(self.args['max_projection_output']),
+                    Path(self.args['avg_projection_output']),
+                    motion_offset_df,
+                    Path(self.args['registration_summary_output']))
+            self.logger.info(f"wrote {png_out_path}")
 
         # downsample and normalize the input movies
         ds_partial = partial(downsample_normalize,

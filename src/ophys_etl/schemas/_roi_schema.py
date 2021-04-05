@@ -9,7 +9,7 @@ class ExtractROISchema(Schema):
 
     id = Int(
             required=True,
-            description=("Unique ID of the ROI, get's overwritten writting "
+            description=("Unique ID of the ROI, gets overwritten writting "
                          "to LIMS"))
     x = Int(
             required=True,
@@ -27,20 +27,26 @@ class ExtractROISchema(Schema):
             List(Bool),
             required=False,
             description=("Bool nested list describing which pixels "
-                         "in the ROI area are part of the cell"))
+                         "in the ROI area are part of the cell"
+                         "'mask' and 'mask_matrix' are aliases and "
+                         "one must be specified."))
     mask_matrix = List(
             List(Bool),
             required=False,
             description=("Bool nested list describing which pixels "
-                         "in the ROI area are part of the cell"))
+                         "in the ROI area are part of the cell"
+                         "'mask' and 'mask_matrix' are aliases and "
+                         "one must be specified."))
     valid = Bool(
             required=False,
             description=("Boolean indicating if the ROI is a valid "
-                         "cell or not"))
+                         "cell or not. 'valid' and 'valid_roi' are "
+                         "aliases and one must be specified."))
     valid_roi = Bool(
             required=False,
             description=("Boolean indicating if the ROI is a valid "
-                         "cell or not"))
+                         "cell or not. 'valid' and 'valid_roi' are "
+                         "aliases and one must be specified."))
 
     @post_load
     def check_aliases(self, data, **kwargs):
@@ -64,7 +70,7 @@ class DenseROISchema(Schema):
     """
 
     id = Int(required=True,
-             description=("Unique ID of the ROI, get's overwritten writting "
+             description=("Unique ID of the ROI, gets overwritten writting "
                           "to LIMS"))
     x = Int(required=True,
             description="X location of top left corner of ROI in pixels")

@@ -470,6 +470,7 @@ class InvalidFlagWriter(OutputWriter):
 
 
 def write_qc_data(file_name: pathlib.Path,
+                  pair_id: int,
                   roi_flags: dict,
                   raw_traces: dc_types.ROISetDict,
                   invalid_raw_traces: dc_types.ROISetDict,
@@ -487,6 +488,9 @@ def write_qc_data(file_name: pathlib.Path,
     ----------
     file_name: pathlib.Path
         The path to the HDF5 file that is being written
+
+    pair_id: int
+        The experiment_id of the plane paird with this plane
 
     roi_flags:
         A dict containing lists of all of the ROIs to which invalidity
@@ -539,6 +543,8 @@ def write_qc_data(file_name: pathlib.Path,
 
     with h5py.File(file_name, 'w') as out_file:
 
+        out_file.create_dataset('paired_plane', data=pair_id)
+
         # write flags indicating the validity of the datasets
         # associated with each ROI
         for roi_id in all_roi_id:
@@ -568,16 +574,16 @@ def write_qc_data(file_name: pathlib.Path,
                     unmixed_valid = False
                     unmixed_active_valid = False
 
-            out_file.create_dataset(f'{roi_id}/valid_raw_trace',
+            out_file.create_dataset(f'ROI/{roi_id}/valid_raw_trace',
                                     data=raw_valid)
 
-            out_file.create_dataset(f'{roi_id}/valid_raw_active_trace',
+            out_file.create_dataset(f'ROI/{roi_id}/valid_raw_active_trace',
                                     data=raw_active_valid)
 
-            out_file.create_dataset(f'{roi_id}/valid_unmixed_trace',
+            out_file.create_dataset(f'ROI/{roi_id}/valid_unmixed_trace',
                                     data=unmixed_valid)
 
-            out_file.create_dataset(f'{roi_id}/valid_unmixed_active_trace',
+            out_file.create_dataset(f'ROI/{roi_id}/valid_unmixed_active_trace',
                                     data=unmixed_active_valid)
 
         # write the indices of events
@@ -593,7 +599,7 @@ def write_qc_data(file_name: pathlib.Path,
             for roi_id in parent_data.keys():
                 if roi_id not in all_roi_id:
                     raise RuntimeError(f"{roi_id} not in all_roi_id")
-                parent_dir = f'{roi_id}/roi/{parent_key}'
+                parent_dir = f'ROI/{roi_id}/roi/{parent_key}'
                 data_dict = parent_data[roi_id]
                 for channel_key in ('signal', 'crosstalk'):
                     channel_dict = data_dict[channel_key]
@@ -608,7 +614,7 @@ def write_qc_data(file_name: pathlib.Path,
                     if roi_id not in all_roi_id:
                         raise RuntimeError(f"{roi_id} not in all_roi_id")
 
-                    parent_dir = f'{roi_id}/{data_key}/raw'
+                    parent_dir = f'ROI/{roi_id}/{data_key}/raw'
 
                     data_dict = trace_set[data_key][roi_id]
                     if 'signal' in data_dict:
@@ -628,7 +634,7 @@ def write_qc_data(file_name: pathlib.Path,
                     if roi_id not in all_roi_id:
                         raise RuntimeError(f"{roi_id} not in all_roi_id")
 
-                    parent_dir = f'{roi_id}/{data_key}/unmixed'
+                    parent_dir = f'ROI/{roi_id}/{data_key}/unmixed'
 
                     is_ghost = False
                     if roi_id in ghost_set:

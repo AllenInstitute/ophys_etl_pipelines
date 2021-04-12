@@ -76,6 +76,7 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                 qc_fname = qc_fname/f'{plane_0.experiment_id}_qc_data.h5'
 
                 write_qc_data(qc_fname,
+                              plane_1.experiment_id,
                               flags_0,
                               raw_traces,
                               invalid_raw_traces,

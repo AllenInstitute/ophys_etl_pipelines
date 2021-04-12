@@ -1,18 +1,7 @@
 import marshmallow.exceptions
 import argschema
 
-
-class RoiSchema(argschema.schemas.DefaultSchema):
-    id = argschema.fields.Int(description='ID', required=True)
-    x = argschema.fields.Int(description='x origin', required=True)
-    y = argschema.fields.Int(description='y origin', required=True)
-    width = argschema.fields.Int(description='width', required=True)
-    height = argschema.fields.Int(description='height', required=True)
-    valid_roi = argschema.fields.Bool(description='validity', required=True)
-    mask_matrix = argschema.fields.List(
-                        argschema.fields.List(argschema.fields.Bool),
-                        description='mask',
-                        cli_as_single_argument=True)
+from ophys_etl.schemas import ExtractROISchema
 
 
 class PlaneSchema(argschema.schemas.DefaultSchema):
@@ -36,11 +25,11 @@ class PlaneSchema(argschema.schemas.DefaultSchema):
     motion_border = argschema.fields.Dict(description='motion border',
                                           required=True)
 
-    rois = argschema.fields.List(
-                argschema.fields.Nested(RoiSchema),
+    rois = argschema.fields.Nested(
+                ExtractROISchema,
                 description='regions of interest',
                 required=True,
-                cli_as_single_argument=True)
+                many=True)
 
 
 class PlanePairSchema(argschema.schemas.DefaultSchema):

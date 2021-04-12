@@ -2,8 +2,10 @@ from typing import List, Dict, Union
 import h5py
 import copy
 import numpy as np
-import ophys_etl.modules.decrosstalk.roi_masks as roi_masks
 
+from ophys_etl.utils.roi_masks import RoiMask
+from ophys_etl.modules.trace_extraction.utils import \
+        calculate_roi_and_neuropil_traces
 import ophys_etl.modules.decrosstalk.decrosstalk_types as dc_types
 
 
@@ -203,16 +205,16 @@ class OphysMovie(object):
             pixels = np.argwhere(roi.mask_matrix)
             pixels[:, 0] += roi.y0
             pixels[:, 1] += roi.x0
-            mask = roi_masks.create_roi_mask(width, height, motion_border,
-                                             pix_list=pixels[:, [1, 0]],
-                                             label=str(roi.roi_id),
-                                             mask_group=-1)
+            mask = RoiMask.create_roi_mask(width, height, motion_border,
+                                           pix_list=pixels[:, [1, 0]],
+                                           label=str(roi.roi_id),
+                                           mask_group=-1)
 
             roi_mask_list.append(mask)
 
-        _traces = roi_masks.calculate_roi_and_neuropil_traces(self.data,
-                                                              roi_mask_list,
-                                                              motion_border)
+        _traces = calculate_roi_and_neuropil_traces(self.data,
+                                                    roi_mask_list,
+                                                    motion_border)
         roi_traces = _traces[0]
         neuropil_traces = _traces[1]
 

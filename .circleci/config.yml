@@ -96,3 +96,4 @@ workflows:
               only:
                 - main
                 - /.*dev.*/
+                - motion_qc_optional_plot

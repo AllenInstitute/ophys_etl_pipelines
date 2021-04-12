@@ -32,6 +32,12 @@ def downsample_array(
     """
     if output_fps > input_fps:
         raise ValueError('Output FPS cannot be greater than input FPS')
+    if output_fps == input_fps:
+        if isinstance(array, h5py.Dataset):
+            array_out = array[()]
+        else:
+            array_out = array
+        return array_out
     if (strategy == 'maximum') & (len(array.shape) > 1):
         raise ValueError("downsampling with strategy 'maximum' is not defined")
 
@@ -79,7 +85,7 @@ def normalize_array(
         normalized array
 
     """
-    normalized = np.copy(array)
+    normalized = np.copy(array).astype('float')
     normalized[array < lower_cutoff] = lower_cutoff
     normalized[array > upper_cutoff] = upper_cutoff
     normalized -= lower_cutoff

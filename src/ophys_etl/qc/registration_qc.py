@@ -27,6 +27,11 @@ class RegistrationQCInputSchema(argschema.ArgSchema):
         default=2.0,
         description=("before creating the webm, the movies will be "
                      "aveaged into bins of this many seconds."))
+    no_downsample = argschema.fields.Bool(
+        required=False,
+        default=False,
+        description=("if True, 'preview_frame_bin_seconds' is ignored "
+                     "and original frame rate is preserved."))
     preview_playback_factor = argschema.fields.Float(
         required=False,
         default=10.0,
@@ -132,7 +137,8 @@ def make_png(max_proj_path: Path, avg_proj_path: Path,
 
 def downsample_normalize(movie_path: Path, frame_rate: float,
                          bin_size: float, lower_quantile: float,
-                         upper_quantile: float) -> np.ndarray:
+                         upper_quantile: float, no_downsample: bool
+                         ) -> np.ndarray:
     """reads in a movie (nframes x nrows x ncols), downsamples,
     creates an average projection, and normalizes according to
     quantiles in that projection.
@@ -153,6 +159,8 @@ def downsample_normalize(movie_path: Path, frame_rate: float,
     upper_quantile: float
         arg supplied to `np.quantile()` to determine upper cutoff value from
         avg projection for normalization.
+    no_downsample: bool
+        if True, 'bin_size' is ignored and the original frame rate is preserved
 
     Returns
     -------
@@ -165,10 +173,14 @@ def downsample_normalize(movie_path: Path, frame_rate: float,
     consistent visibility.
 
     """
+    if no_downsample:
+        output_fps = frame_rate
+    else:
+        output_fps = 1.0 / bin_size
     ds = downsample_h5_video(
             movie_path,
             input_fps=frame_rate,
-            output_fps=1.0 / bin_size)
+            output_fps=output_fps)
     avg_projection = ds.mean(axis=0)
     lower_cutoff, upper_cutoff = np.quantile(
                 avg_projection.flatten(), (lower_quantile, upper_quantile))
@@ -199,7 +211,8 @@ class RegistrationQC(argschema.ArgSchemaParser):
                              frame_rate=self.args['movie_frame_rate_hz'],
                              bin_size=self.args['preview_frame_bin_seconds'],
                              lower_quantile=self.args['movie_lower_quantile'],
-                             upper_quantile=self.args['movie_upper_quantile'])
+                             upper_quantile=self.args['movie_upper_quantile'],
+                             no_downsample=self.args["no_downsample"])
         processed_vids = [ds_partial(i)
                           for i in [
                               Path(self.args['uncorrected_path']),

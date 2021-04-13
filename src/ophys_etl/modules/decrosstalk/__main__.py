@@ -87,6 +87,8 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                               unmixed_trace_events,
                               invalid_unmixed_trace_events)
 
+                plane_0.qc_file_path = qc_fname
+
                 invalid_roi = set()
                 for field in flags_0.keys():
                     p0[field] = flags_0[field]

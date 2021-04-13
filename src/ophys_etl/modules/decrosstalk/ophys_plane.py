@@ -238,7 +238,9 @@ class DecrosstalkingOphysPlane(object):
                  experiment_id=None,
                  movie_path=None,
                  motion_border=None,
-                 roi_list=None):
+                 roi_list=None,
+                 max_projection_path=None,
+                 qc_file_path=None):
 
         """
         Parameters
@@ -258,6 +260,15 @@ class DecrosstalkingOphysPlane(object):
              }
 
         roi_list -- a list of OphysROIs indicating the ROIs in this movie
+
+        max_projection_path -- path to the maximum projection image for
+                               this plane
+
+        qc_file_path -- path to the HDF5 file containing quality control
+                        data. This will probably always be initialized
+                        to None and will be set by the decrosstalking
+                        pipeline after processing but before quality
+                        control figure generation.
         """
 
         if experiment_id is None or not isinstance(experiment_id, int):
@@ -289,6 +300,8 @@ class DecrosstalkingOphysPlane(object):
         self._experiment_id = experiment_id
         self._movie = OphysMovie(movie_path, motion_border)
         self._roi_list = copy.deepcopy(roi_list)
+        self._max_projection_path = max_projection_path
+        self._qc_file_path = qc_file_path
 
     @property
     def experiment_id(self) -> int:
@@ -301,6 +314,18 @@ class DecrosstalkingOphysPlane(object):
     @property
     def roi_list(self) -> List[OphysROI]:
         return self._roi_list
+
+    @property
+    def maximum_projection_image_path(self) -> Union[None, str]:
+        return self._max_projection_path
+
+    @property
+    def qc_file_path(self) -> Union[None, str]:
+        return self._qc_file_path
+
+    @qc_file_path.setter
+    def qc_file_path(self, input_path: str):
+        self._qc_file_path = input_path
 
     @classmethod
     def from_schema_dict(cls, schema_dict):
@@ -347,7 +372,12 @@ class DecrosstalkingOphysPlane(object):
         for roi in schema_dict['rois']:
             roi_list.append(OphysROI.from_schema_dict(roi))
 
+        max_path = None
+        if 'maximum_projection_image_file' in schema_dict:
+            max_path = schema_dict['maximum_projection_image_file']
+
         return cls(experiment_id=schema_dict['ophys_experiment_id'],
                    movie_path=schema_dict['motion_corrected_stack'],
                    motion_border=schema_dict['motion_border'],
-                   roi_list=roi_list)
+                   roi_list=roi_list,
+                   max_projection_path=max_path)

@@ -3,17 +3,55 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import matplotlib.gridspec as gridspec
+from matplotlib.colorbar import Colorbar
 import matplotlib.colors
 
-from typing import Tuple, List, Dict
+from typing import Tuple, List, Dict, Optional
 
 import h5py
 import numpy as np
 import PIL
+import pathlib
 import scipy.stats
 import itertools
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+
+
+def add_gridlines(img_array: np.array,
+                  denom: int):
+    """
+    Add grid lines to an image
+
+    Parameters
+    ----------
+    img_array: np.array
+        The input image
+
+    denom: int
+        1/alpha for the grid lines
+
+    Returns
+    -------
+    out_array: np.array
+        The image with gridline superimposed
+    """
+    out_array = np.copy(img_array)
+    nrows = img_array.shape[0]
+    ncols = img_array.shape[1]
+    for ix in range(nrows//4, nrows-4, nrows//4):
+        for ic in range(3):
+            v = out_array[ix, :, ic]
+            new = ((denom-1)*v+255)//denom
+            out_array[ix, :, ic] = new
+
+    for iy in range(ncols//4, ncols-4, ncols//4):
+        for ic in range(3):
+            v = out_array[:, iy, ic]
+            new = ((denom-1)*v+255)//denom
+            out_array[:, iy, ic] = new
+
+    return out_array
 
 
 def find_problematic_rois(ophys_plane: DecrosstalkingOphysPlane,
@@ -168,17 +206,7 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
         max_img[:,:,3] = 255
 
         # superimpose gridlines
-        for ix in range(n_cols//4, n_cols, n_cols//4):
-            for ic in range(3):
-                v = max_img[:, ix, ic]
-                new_val = (v//3 + 2*255//3).astype(int)
-                max_img[:, ix, ic] = new_val
-
-        for iy in range(n_rows//4, n_rows, n_rows//4):
-            for ic in range(3):
-                v = max_img[iy, :, ic]
-                new_val = (v//3 + 2*255//3).astype(int)
-                max_img[iy, :, ic] = new_val
+        max_img = add_gridlines(max_img, 3)
 
         axes = []
         for jj in range(3):
@@ -492,3 +520,417 @@ def find_overlapping_roi_pairs(roi_list_0: List[OphysROI],
             datum = (roi_pair[0], roi_pair[1], n/len(roi0), n/len(roi1))
             overlapping_pairs.append(datum)
     return overlapping_pairs
+
+
+def plot_img_with_roi(axis: matplotlib.axes.Axes,
+                      max_img: np.array,
+                      coord_mins: Tuple[int],
+                      roi: Optional[OphysROI] = None,
+                      roi_color: Optional[Tuple] = None) -> None:
+    """
+    Plot a maximum projection thumbnail, optionally with an ROI
+    superimposed
+
+    Parameters
+    ----------
+    axis: matplotlib.axes.Axes
+        The axis in which to plot
+
+    max_img: np.array
+        The maximum projection thumbnail
+
+    coord_mins: Tuple
+        (xmin, ymin) of thumbnail
+
+    roi: Optional[OphysROI]
+        The ROI to superimpose on the thumbnail
+        (if relevant)
+
+    roi_color: Optional[Tuple]
+        The RGB color of the roi
+        (if relevant)
+
+    Returns
+    -------
+    None
+    """
+    xmin = coord_mins[0]
+    ymin = coord_mins[1]
+
+    local_img = np.copy(max_img)
+    axis.tick_params(which='both', axis='both',
+                     left=0, bottom=0,
+                     labelleft=0, labelbottom=0)
+    for s in ('top', 'bottom', 'left', 'right'):
+        axis.spines[s].set_visible(False)
+
+    if roi is not None:
+        mask_matrix = roi.mask_matrix
+        for _ix in range(roi.width):
+            ix = _ix+roi.x0-xmin
+            for _iy in range(roi.height):
+                iy = _iy+roi.y0-ymin
+                if mask_matrix[_iy, _ix]:
+                    for ic in range(3):
+                        local_img[iy, ix, ic] = roi_color[ic]
+
+    axis.imshow(local_img)
+
+    return None
+
+
+def generate_2d_histogram(data_x: np.array,
+                          data_y: np.array,
+                          x_label: Tuple[str, str],
+                          y_label: Tuple[str, str],
+                          title: str,
+                          hist_axis: matplotlib.axes.Axes,
+                          cbar_axis: matplotlib.axes.Axes) -> None:
+
+
+    raw_cmap = plt.get_cmap('Blues')
+    data = [raw_cmap(x) for x in np.arange(0.2,0.95, 0.05)]
+    cmap = matplotlib.colors.LinearSegmentedColormap.from_list('custom_blue',
+                                                               data)
+
+    xmax = data_x.max()
+    ymax = data_y.max()
+
+    nx = 100
+    ny = 100
+    dx = xmax/nx
+    dy = ymax/ny
+
+    xx = np.round(data_x/dx).astype(int)
+    xx = np.where(xx<nx, xx, nx-1)
+
+    yy = np.round(data_y/dy).astype(int)
+    yy = np.where(yy<ny, yy, ny-1)
+
+    one_d_coords = xx*ny+yy
+    unq, unq_ct = np.unique(one_d_coords, return_counts=True)
+    xx = unq//ny
+    yy = unq%ny
+
+    nn = max(ny, nx)
+    hist = np.zeros((nn, nn), dtype=int)
+    hist[yy, xx] = unq_ct
+    hist = np.where(hist>0, hist, np.NaN)
+
+
+    img = hist_axis.imshow(hist, cmap=cmap,
+                           origin='lower')
+
+
+    log10_nx = np.floor(np.log10(dx))
+    xticks = None
+    while xticks is None or len(xticks)> 4:
+        log10_nx += 1
+        v = np.power(10, log10_nx)
+        for tick_dx in np.arange(v, 5*v, v):
+            xticks = np.arange(0, xmax, tick_dx)
+            if len(xticks) <= 4:
+                break
+
+    xtick_labels = ['%d' % x for x in xticks]
+    hist_axis.set_xticks(xticks/dx)
+    hist_axis.set_xticklabels(xtick_labels, fontsize=7)
+
+    log10_ny = np.floor(np.log10(dy))
+    yticks = None
+    while yticks is None or len(yticks)> 4:
+        log10_ny += 1
+        v = np.power(10, log10_ny)
+        for tick_dy in np.arange(v, 5*v, v):
+            yticks = np.arange(0, ymax, tick_dy)
+            if len(yticks) <= 4:
+                break
+
+    ytick_labels = ['%d' % y for y in yticks]
+    hist_axis.set_yticks(yticks/dy)
+    hist_axis.set_yticklabels(ytick_labels, fontsize=7)
+
+    hist_axis.set_xlabel(x_label[0], color=x_label[1], fontsize=10)
+    hist_axis.set_ylabel(y_label[0], color=y_label[1], fontsize=10)
+
+    hist_axis.set_title(title, fontsize=10)
+
+    cbar = Colorbar(mappable=img, ax=cbar_axis)
+    cbar_axis.yaxis.set_ticks_position('left')
+
+    return None
+
+
+def plot_pair_of_rois(roi0: OphysROI,
+                      roi1: OphysROI,
+                      qc0: h5py.File,
+                      qc1: h5py.File,
+                      max_img_0_in: np.array,
+                      max_img_1_in: np.array,
+                      plotting_dir: pathlib.Path,
+                      roi_pair: Tuple[int, int, float, float]):
+
+    roi_keys = list(qc0['ROI'].keys())
+    roi_id = np.array([int(k) for k in roi_keys])
+    roi_min0 = roi_id.min()
+
+    roi_keys = list(qc1['ROI'].keys())
+    roi_id = np.array([int(k) for k in roi_keys])
+    roi_min1 = roi_id.min()
+
+    assert max_img_0_in.shape == max_img_1_in.shape
+
+    color0 = matplotlib.colors.to_rgba('green')
+    color0 = tuple(int(255*c) for c in color0[:3])
+
+    color1 = matplotlib.colors.to_rgba('purple')
+    color1 = tuple(int(255*c) for c in color1[:3])
+
+    color0_hex = '#%02x%02x%02x' % color0[:3]
+    color1_hex = '#%02x%02x%02x' % color1[:3]
+    roi_id_0 = roi0.roi_id
+    roi_id_1 = roi1.roi_id
+
+    valid_0 = qc0[f'ROI/{roi_id_0}/valid_unmixed_trace'][()]
+    valid_1 = qc1[f'ROI/{roi_id_1}/valid_unmixed_trace'][()]
+    if not valid_0:
+        return None
+    if not valid_1:
+        return None
+
+
+    #scott: try breaking out a method to just do with roi and without roi thumbnail
+    #then can loop over that with the two images
+
+    # get bounds for the max projection thumbnail
+    xmin = min(roi0.x0, roi1.x0)
+    xmax = max(roi0.x0+roi0.width, roi1.x0+roi1.width)
+    ymin = min(roi0.y0, roi1.y0)
+    ymax = max(roi0.y0+roi0.height, roi1.y0+roi1.height)
+
+    slop = 50
+    dim = max(roi0.width+slop,
+              roi1.width+slop,
+              roi0.height+slop,
+              roi1.height+slop)
+
+    xmin = max(0, xmin-slop//2)
+    ymin = max(0, ymin-slop//2)
+    xmax = xmin+dim
+    ymax = ymin+dim
+
+    shape = max_img_0_in.shape
+    if xmax > shape[1]:
+        xmax = shape[1]
+        xmin = xmax-dim
+    if ymax > shape[0]:
+        ymax = shape[0]
+        ymin = ymax-dim
+    if xmin < 0:
+        xmin = 0
+    if ymin < 0:
+        ymin = 0
+
+    # create max projection thumbnails
+    max_img_0 = np.zeros((ymax-ymin, xmax-xmin, 3), dtype=int)
+    max_img_1 = np.zeros((ymax-ymin, xmax-xmin, 3), dtype=int)
+    for ic in range(3):
+        max_img_0[:, :, ic] = max_img_0_in[ymin:ymax, xmin:xmax]
+        max_img_1[:, :, ic] = max_img_1_in[ymin:ymax, xmin:xmax]
+
+    # add gridlines to max projections
+    max_img_0 = add_gridlines(max_img_0, 4)
+    max_img_1 = add_gridlines(max_img_1, 4)
+
+    fig = plt.figure(figsize=(18, 4))
+    axes = []
+    grid = gridspec.GridSpec(10, 37,
+                             height_ratios = [10]*9+[3],
+                             width_ratios=[10]*36+[5])
+    grid.update(bottom=0.1, top=0.99, left=0.01, right=0.99,
+                wspace=0.1, hspace=0.01)
+
+    max0_axis = plt.Subplot(fig, grid[1:4, 0:3])
+    max1_axis = plt.Subplot(fig, grid[6:9, 0:3])
+    axes.append(max0_axis)
+    axes.append(max1_axis)
+
+    max0_roi_axis = plt.Subplot(fig, grid[1:4, 3:6])
+    max1_roi_axis = plt.Subplot(fig, grid[6:9, 3:6])
+    axes.append(max0_roi_axis)
+    axes.append(max1_roi_axis)
+
+    title0_axis = plt.Subplot(fig, grid[1:4, 0:6])
+    title1_axis = plt.Subplot(fig, grid[6:9, 0:6])
+    for ax in (title0_axis, title1_axis):
+        ax.patch.set_alpha(0)
+        ax.tick_params(which='both', axis='both',
+                       left=0, bottom=0,
+                       labelleft=0, labelbottom=0)
+
+        for s in ('top', 'left', 'bottom', 'right'):
+            ax.spines[s].set_visible(False)
+
+    axes.append(title0_axis)
+    axes.append(title1_axis)
+
+    title0 = f"Plane {qc1['paired_plane'][()]};  roi {roi0.roi_id};  "
+    title0 += f"cell num {roi0.roi_id-roi_min0}\n"
+    title0 += f"overlap: %.1f%%;      " % (roi_pair[2]*100)
+    is_ghost = qc0[f'ROI/{roi0.roi_id}/roi/unmixed/is_ghost'][()]
+    title0 += f"is_ghost: {is_ghost}"
+    title0_axis.set_title(title0, fontsize=10,
+                          horizontalalignment='left',
+                          loc='left')
+
+    title1 = f"Plane {qc0['paired_plane'][()]};  roi {roi1.roi_id};  "
+    title1 += f"cell num {roi1.roi_id-roi_min1}\n"
+    title1 += f"Overlap: %.1f%%;      " % (roi_pair[3]*100)
+    is_ghost = qc1[f'ROI/{roi1.roi_id}/roi/unmixed/is_ghost'][()]
+    title1 += f"is_ghost: {is_ghost}"
+    title1_axis.set_title(title1, fontsize=10,
+                          horizontalalignment='left',
+                          loc='left')
+
+    plot_img_with_roi(max0_axis,
+                      max_img_0,
+                      (xmin, ymin),
+                      roi=None,
+                      roi_color=None)
+
+    plot_img_with_roi(max1_axis,
+                      max_img_1,
+                      (xmin, ymin),
+                      roi=None,
+                      roi_color=None)
+
+
+    plot_img_with_roi(max0_roi_axis,
+                      max_img_0,
+                      (xmin, ymin),
+                      roi=roi0,
+                      roi_color=color0)
+
+    plot_img_with_roi(max1_roi_axis,
+                      max_img_1,
+                      (xmin, ymin),
+                      roi=roi1,
+                      roi_color=color1)
+
+    # plot traces
+    raw_axis = plt.Subplot(fig, grid[1:4, 7:30])
+    unmixed_axis = plt.Subplot(fig, grid[6:9, 7:30])
+    axes.append(raw_axis)
+    axes.append(unmixed_axis)
+
+    for ax, trace_key in zip((raw_axis, unmixed_axis),
+                             ('raw', 'unmixed')):
+
+        for s in ('top', 'right'):
+            ax.spines[s].set_visible(False)
+
+        ax.tick_params(axis='both', labelsize=7)
+
+        trace0 = qc0[f'ROI/{roi0.roi_id}/roi/{trace_key}/signal/trace'][()]
+        trace1 = qc1[f'ROI/{roi1.roi_id}/roi/{trace_key}/signal/trace'][()]
+
+        t = np.arange(len(trace0), dtype=int)
+        ax.plot(t, trace0, color=color0_hex, linewidth=1)
+        ax.plot(t, trace1, color=color1_hex, linewidth=1)
+        if trace_key == 'raw':
+            title = 'Traces before decrosstalking'
+        else:
+            title = 'Traces after decrosstalking'
+        ax.set_title(title, fontsize=10)
+
+    raw_hist_axis = plt.Subplot(fig, grid[1:4, 31:36])
+    unmixed_hist_axis = plt.Subplot(fig, grid[6:9, 31:36])
+    axes.append(raw_hist_axis)
+    axes.append(unmixed_hist_axis)
+
+    raw_cbar_axis = plt.Subplot(fig, grid[1:4, 36])
+    unmixed_cbar_axis = plt.Subplot(fig, grid[6:9, 36])
+    axes.append(raw_cbar_axis)
+    axes.append(unmixed_cbar_axis)
+
+    generate_2d_histogram(qc0[f'ROI/{roi0.roi_id}/roi/raw/signal/trace'][()],
+                          qc1[f'ROI/{roi1.roi_id}/roi/raw/signal/trace'][()],
+                          (f'{roi0.roi_id}', color0_hex),
+                          (f'{roi1.roi_id}', color1_hex),
+                          'Trace v trace before decrosstalking',
+                          raw_hist_axis, raw_cbar_axis)
+
+    generate_2d_histogram(qc0[f'ROI/{roi0.roi_id}/roi/unmixed/signal/trace'][()],
+                          qc1[f'ROI/{roi1.roi_id}/roi/unmixed/signal/trace'][()],
+                          (f'{roi0.roi_id}', color0_hex),
+                          (f'{roi1.roi_id}', color1_hex),
+                          'Trace v trace after decrosstalking',
+                          unmixed_hist_axis, unmixed_cbar_axis)
+
+    for ax in axes:
+        fig.add_subplot(ax)
+
+    out_name = plotting_dir/f'{roi_id_0}_{roi_id_1}_comparison.png'
+    fig.savefig(out_name)
+    plt.close(fig)
+    return None
+
+
+def generate_pairwise_figures(ophys_planes: List[Tuple[DecrosstalkingOphysPlane,
+                                                       DecrosstalkingOphysPlane]],
+                              qc_dir: str) -> None:
+    """
+    """
+
+    for plane_pair in ophys_planes:
+
+        if plane_pair[0].experiment_id > plane_pair[1].experiment_id:
+            plane_pair = (plane_pair[1], plane_pair[0])
+
+        overlapping_rois = find_overlapping_roi_pairs(plane_pair[0].roi_list,
+                                                      plane_pair[1].roi_list)
+
+        if len(overlapping_rois) == 0:
+            continue
+
+        id0 = plane_pair[0].experiment_id
+        id1 = plane_pair[1].experiment_id
+
+        pairwise_dir = pathlib.Path(qc_dir)/f'{id0}_{id1}_roi_pairs'
+        if not pairwise_dir.exists():
+            pairwise_dir.mkdir(parents=True)
+        if not pairwise_dir.is_dir():
+            msg = f'{pairwise_dir.resolve()}\nis not a directory'
+            raise RuntimeError(msg)
+
+        raw_img = PIL.Image.open(plane_pair[0].maximum_projection_image_path)
+        n_rows = raw_img.size[0]
+        n_cols = raw_img.size[1]
+        max_img_0 = np.array(raw_img).reshape(n_rows, n_cols)
+
+        raw_img = PIL.Image.open(plane_pair[1].maximum_projection_image_path)
+        n_rows = raw_img.size[0]
+        n_cols = raw_img.size[1]
+        max_img_1 = np.array(raw_img).reshape(n_rows, n_cols)
+
+        roi_from_id = {}
+        for roi in plane_pair[0].roi_list:
+            if roi.roi_id in roi_from_id:
+                raise RuntimeError(f'{roi.roi_id} already in roi_from_id')
+            roi_from_id[roi.roi_id] = roi
+        for roi in plane_pair[1].roi_list:
+            if roi.roi_id in roi_from_id:
+                raise RuntimeError(f'{roi.roi_id} already in roi_from_id')
+            roi_from_id[roi.roi_id] = roi
+
+        with h5py.File(plane_pair[0].qc_file_path, 'r') as qc_data_0:
+            with h5py.File(plane_pair[1].qc_file_path, 'r') as qc_data_1:
+                for roi_pair in overlapping_rois:
+                    roi0 = roi_from_id[roi_pair[0]]
+                    roi1 = roi_from_id[roi_pair[1]]
+                    plot_pair_of_rois(roi0, roi1,
+                                      qc_data_0, qc_data_1,
+                                      max_img_0, max_img_1,
+                                      pairwise_dir,
+                                      roi_pair)
+    return None

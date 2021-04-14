@@ -137,12 +137,18 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
     # loop over the two planes
     for ii in range(2):
         plane = ophys_planes[ii]
-        avg_mixing_matrix = get_avg_mixing_matrix(plane)
-        roi_qc = find_problematic_rois(plane, roi_flags)
+
         with h5py.File(plane.qc_file_path, 'r') as in_file:
+            if 'ROI' not in in_file:
+                # There were no ROIs in this plane; just move on
+                continue
             roi_keys = list(in_file['ROI'].keys())
+
         roi_id = np.array([int(k) for k in roi_keys])
         roi_min = roi_id.min()
+
+        avg_mixing_matrix = get_avg_mixing_matrix(plane)
+        roi_qc = find_problematic_rois(plane, roi_flags)
         n_valid_roi = 0
         n_ghost_roi = 0
 

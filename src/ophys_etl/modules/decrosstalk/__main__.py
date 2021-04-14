@@ -7,6 +7,7 @@ from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 import ophys_etl.modules.decrosstalk.decrosstalk_schema as decrosstalk_schema
 from ophys_etl.modules.decrosstalk.decrosstalk import run_decrosstalk
 from ophys_etl.modules.decrosstalk.io_utils import write_qc_data
+from ophys_etl.modules.decrosstalk.qc_plotting import generate_roi_figure
 
 
 class DecrosstalkWrapper(argschema.ArgSchemaParser):
@@ -27,6 +28,7 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
         final_output['ophys_session_id'] = self.args['ophys_session_id']
 
         coupled_planes = []
+        planes_for_plotting = []
 
         for meta_pair in self.args['coupled_planes']:
             output_pair = {}
@@ -44,6 +46,7 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
             plane_pair = []
             plane_group_A = (plane_A, input_pair[0])
             plane_group_B = (plane_B, input_pair[1])
+            planes_for_plotting.append((plane_A, plane_B))
 
             for p_pair in [(plane_group_A, plane_group_B),
                            (plane_group_B, plane_group_A)]:
@@ -141,6 +144,17 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
             coupled_planes.append(output_pair)
 
         final_output['coupled_planes'] = coupled_planes
+
+
+        session_id = self.args['ophys_session_id']
+        figure_path = os.path.join(cache_dir,
+                                   f'{session_id}_roi_fig.png')
+
+        generate_roi_figure(session_id,
+                            planes_for_plotting,
+                            final_output,
+                            figure_path)
+
         self.output(final_output, indent=2, sort_keys=True)
 
 

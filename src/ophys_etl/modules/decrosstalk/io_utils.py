@@ -565,6 +565,8 @@ def write_qc_data(file_name: pathlib.Path,
                 if roi_id not in invalid_raw_active:
                     raw_valid = False
                     raw_active_valid = False
+                    unmixed_valid = False
+                    unmixed_active_valid = False
 
             if roi_id in invalid_unmixed_active:
                 unmixed_active_valid = False

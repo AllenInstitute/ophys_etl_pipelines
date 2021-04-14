@@ -54,15 +54,20 @@ def get_schema_data(tmpdir):
         example_data = json.load(in_file)
 
     # Because the input schema is going to verify that the
-    # motion_corrected_stack file actually exists, we must
-    # create it in tmp
-    dummy_fname = os.path.join(tmpdir, 'dummy_movie.h5')
-    with open(dummy_fname, 'w') as out_file:
+    # motion_corrected_stack and maximum_projection_image_file
+    # actually exist, we must create it in tmp
+    dummy_movie_fname = os.path.join(tmpdir, 'dummy_movie.h5')
+    with open(dummy_movie_fname, 'w') as out_file:
+        out_file.write('hi')
+
+    dummy_max_fname = os.path.join(tmpdir, 'dummy_img.png')
+    with open(dummy_max_fname, 'w') as out_file:
         out_file.write('hi')
 
     for pair in example_data['coupled_planes']:
         for plane in pair['planes']:
-            plane['motion_corrected_stack'] = dummy_fname
+            plane['motion_corrected_stack'] = dummy_movie_fname
+            plane['maximum_projection_image_file'] = dummy_max_fname
             fname = os.path.join(tmpdir, 'roi_file.h5')
             plane['output_roi_trace_file'] = fname
             fname = os.path.join(tmpdir, 'np_file.h5')

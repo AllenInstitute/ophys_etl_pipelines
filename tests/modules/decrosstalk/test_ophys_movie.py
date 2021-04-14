@@ -43,7 +43,7 @@ def _run_ophys_movie_test(tmp_filename):
 
     roi = ophys_plane.OphysROI(roi_id=1,
                                x0=54, y0=80,
-                               width=10, height=5,
+                               width=5, height=10,
                                valid_roi=True,
                                mask_matrix=list([[True]*5
                                                  for ii in range(10)]))
@@ -52,7 +52,7 @@ def _run_ophys_movie_test(tmp_filename):
 
     roi = ophys_plane.OphysROI(roi_id=2,
                                x0=45, y0=60,
-                               width=10, height=5,
+                               width=5, height=10,
                                valid_roi=True,
                                mask_matrix=list([[True]*5
                                                  for ii in range(10)]))

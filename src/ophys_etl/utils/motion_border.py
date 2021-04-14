@@ -86,7 +86,7 @@ def get_max_correction_from_file(
     """
     motion_correction_df = pd.read_csv(input_csv)
     motion_border = get_max_correction_values(
-        x_series=motion_correction_df['x'],
-        y_series=motion_correction_df['y'],
+        x_series=motion_correction_df['x'].astype('float'),
+        y_series=motion_correction_df['y'].astype('float'),
         max_shift=max_shift)
     return motion_border

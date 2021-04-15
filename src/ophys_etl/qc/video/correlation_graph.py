@@ -78,7 +78,7 @@ class CorrelationGraph(argschema.ArgSchemaParser):
         with h5py.File(self.args["video_path"], "r") as f:
             nrow, ncol = f["data"].shape[1:]
         row_indices = index_split(nrow, self.args["n_segments"])
-        col_indices = index_split(nrow, self.args["n_segments"])
+        col_indices = index_split(ncol, self.args["n_segments"])
         args = [(self.args["video_path"], rows, cols)
                 for rows, cols in itertools.product(row_indices, col_indices)]
 

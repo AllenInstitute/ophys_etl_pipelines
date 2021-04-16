@@ -98,7 +98,7 @@ class CorrelationGraph(argschema.ArgSchemaParser):
             self.logger.info(f"splitting into {len(args)} jobs")
             with multiprocessing.Pool(len(args)) as pool:
                 graphs = pool.starmap(weight_calculation, args)
-            self.logger.info(f"combining graphs from jobs")
+            self.logger.info("combining graphs from jobs")
             graph = nx.compose_all(graphs)
 
         nx.write_gpickle(graph, self.args["graph_output"])

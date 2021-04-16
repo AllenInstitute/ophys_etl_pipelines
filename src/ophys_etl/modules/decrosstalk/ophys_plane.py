@@ -175,6 +175,7 @@ class OphysMovie(object):
         """
         Load the data from self._path; store te data in self._data
         """
+        print(f'loading {self.path}')
         with h5py.File(self.path, mode='r') as in_file:
             self._data = in_file['data'][()]
 
@@ -183,6 +184,15 @@ class OphysMovie(object):
         if self._data is None:
             self.load_movie_data()
         return self._data
+
+    def purge_movie(self) -> None:
+        """
+        Delete loaded movie data
+        """
+        if self._data is not None:
+            del self._data
+            self._data = None
+        return None
 
     def get_trace(self, roi_list: List[OphysROI]) -> dc_types.ROISetDict:
         """

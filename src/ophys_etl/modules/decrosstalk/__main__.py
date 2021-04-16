@@ -148,6 +148,11 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
             output_pair['planes'] = plane_pair
             coupled_planes.append(output_pair)
 
+            # purge movie data so that we are not carrying it around
+            # until the end of processing
+            plane_A.movie.purge_movie()
+            plane_B.movie.purge_movie()
+
         final_output['coupled_planes'] = coupled_planes
 
         session_id = self.args['ophys_session_id']

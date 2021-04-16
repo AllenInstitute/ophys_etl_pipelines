@@ -16,7 +16,7 @@ def draw_graph_edges(figure, axis, graph):
     for edge in graph.edges:
         segments.append([edge[0][::-1], edge[1][::-1]])
     line_coll = LineCollection(segments, linestyle='solid',
-                               cmap="plasma")
+                               cmap="plasma", linewidths=0.3)
     line_coll.set_array(weights)
     axis.add_collection(line_coll)
     vals = np.concatenate(line_coll.get_segments())
@@ -27,6 +27,8 @@ def draw_graph_edges(figure, axis, graph):
     buffy = 0.02 * ppvals[1]
     axis.set_xlim(mnvals[0] - buffx, mxvals[0] + buffx)
     axis.set_ylim(mnvals[1] - buffy, mxvals[1] + buffy)
+    # invert yaxis for image-like orientation
+    axis.invert_yaxis()
     axis.set_aspect("equal")
     divider = make_axes_locatable(axis)
     cax = divider.append_axes("right", size="5%", pad=0.05)
@@ -41,10 +43,10 @@ class CorrelationGraphPlot(argschema.ArgSchemaParser):
         self.logger.name = type(self).__name__
 
         graph = nx.read_gpickle(self.args["graph_input"])
-        fig, axis = plt.subplots(1, 1, clear=True, num=1, figsize=(8, 8))
+        fig, axis = plt.subplots(1, 1, clear=True, num=1, figsize=(16, 16))
         draw_graph_edges(fig, axis, graph)
 
-        fig.savefig(self.args["plot_output"])
+        fig.savefig(self.args["plot_output"], dpi=300)
         self.logger.info(f"wrote {self.args['plot_output']}")
 
 

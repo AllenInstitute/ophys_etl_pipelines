@@ -8,8 +8,24 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from ophys_etl.qc.video.schemas import CorrelationGraphPlotInputSchema
 
 
-def draw_graph_edges(figure, axis, graph):
+def draw_graph_edges(figure: plt.Figure, axis: plt.Axes, graph: nx.Graph):
+    """draws graph edges from node to node, colored by weight
 
+    Parameters
+    ----------
+    figure: plt.Figure
+        a matplotlib Figure
+    axis: plt.Axes
+        a matplotlib Axes, part of Figure
+    graphs: nx.Graph
+        a networkx graph, assumed to have edges formed like
+        graph.add_edge((0, 1), (0, 2), weight=1.234)
+
+    Notes
+    -----
+    modifes figure and axis in-place
+
+    """
     weights = np.array([i["weight"] for i in graph.edges.values()])
     # graph is (row, col), transpose to get (x, y)
     segments = []

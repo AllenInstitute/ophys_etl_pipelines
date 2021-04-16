@@ -13,10 +13,25 @@ from ophys_etl.qc.video.schemas import CorrelationGraphInputSchema
 from ophys_etl.qc.video.correlation_graph_plot import CorrelationGraphPlot
 
 
-def index_split(nelem: int, n_segments: int) -> List[List]:
+def index_split(nelem: int, n_segments: int) -> List[List[int]]:
     """splits elements into multiple ranges, with an overlap of 1
     These indices will be used in a numpy x[a:b] way, such that
     specifying [a, b] will result in indices a -> (b - 1)
+
+    Parameters
+    ----------
+    nelem: int
+        the number of indices in an expected array
+    n_segments: int
+        the number of segments desired
+
+    Returns
+    -------
+    indices:
+        a list of indexes like [[start1, stop1], [start2, stop2], ...]
+        which are expected to be used to index a numpy-like array such
+        that array[start1: stop1] will provide indexes start1->(stop1-1)
+
     """
     indices = [[i.min(), i.max()] for i in
                np.array_split(np.arange(nelem), n_segments)]
@@ -33,6 +48,24 @@ def weight_calculation(video_path: Path, row_indices: List[int],
     Pearson's correlation coefficient, and nodes labeled according as
     (row_index, col_index).
     Each pixel is connected to 8 nearest-neighbors.
+
+    Parameters
+    ----------
+    video_path: Path
+        path to an hdf5 video file, assumed to have a dataset "data"
+        nframes x nrow x ncol
+    row_indices: List[int]
+        like [start, stop] and a dimension of the dataset will be directly
+        indexes like array[start: stop]
+    col_indices: List[int]
+        like [start, stop] and a dimension of the dataset will be directly
+        indexes like array[start: stop]
+
+    Returns
+    -------
+    graph: nx.Graph
+        an undirected networkx graph, with weighted edges
+
     """
 
     with h5py.File(video_path, "r") as f:
@@ -114,6 +147,6 @@ class CorrelationGraph(argschema.ArgSchemaParser):
             cgp.run()
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: nocover
     cg = CorrelationGraph()
     cg.run()

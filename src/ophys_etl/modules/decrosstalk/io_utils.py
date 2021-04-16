@@ -88,6 +88,8 @@ def write_qc_data(file_name: pathlib.Path,
 
             if roi_id in invalid_raw_active:
                 raw_active_valid = False
+                unmixed_valid = False
+                unmixed_active_valid = False
 
             if roi_id in invalid_raw:
                 # If and ROI truly had an inactive raw trace,

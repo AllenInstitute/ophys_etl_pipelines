@@ -1,4 +1,5 @@
 import os
+import copy
 import h5py
 import PIL.Image as Image
 import numpy as np
@@ -127,7 +128,11 @@ def create_data(tmpdir):
     plane1['maximum_projection_image_file'] = max_proj_name
     plane1['motion_border'] = {'x0': 3, 'x1': 2,
                                'y0': 3, 'y1': 3}
-    plane1['rois'] = [roi0, roi1]
+    roi2 = copy.deepcopy(roi0)
+    roi2['id'] = 2
+    roi3 = copy.deepcopy(roi1)
+    roi3['id'] = 3
+    plane1['rois'] = [roi2, roi3]
 
     roi_fname = os.path.join(output_dir, 'roi_trace_1.h5')
     np_fname = os.path.join(output_dir, 'neuropil_trace_1.h5')

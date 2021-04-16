@@ -11,7 +11,7 @@ class CorrelationGraphInputSchema(argschema.ArgSchema):
         required=False,
         default=1,
         description=("number of segments in both x and y to engage "
-                     "multiprocessing. n_bisects^2 workers will be "
+                     "multiprocessing. n_segments^2 workers will be "
                      "created to distribute the load. If == 1, "
                      "multiprocessing not invoked at all."))
     graph_output = argschema.fields.OutputFile(
@@ -20,7 +20,8 @@ class CorrelationGraphInputSchema(argschema.ArgSchema):
     plot_output = argschema.fields.OutputFile(
         required=False,
         description=("if provided, will create a plot and write to this "
-                     "location"))
+                     "location. passed to matplotlib.pyplot.Figure.savefig()"
+                     ".png being a typical suffix"))
 
 
 class CorrelationGraphPlotInputSchema(argschema.ArgSchema):

@@ -8,6 +8,7 @@ import ophys_etl.modules.decrosstalk.decrosstalk_schema as decrosstalk_schema
 from ophys_etl.modules.decrosstalk.decrosstalk import run_decrosstalk
 from ophys_etl.modules.decrosstalk.io_utils import write_qc_data
 from ophys_etl.modules.decrosstalk.qc_plotting import generate_roi_figure
+from ophys_etl.modules.decrosstalk.qc_plotting import generate_pairwise_figures
 
 
 class DecrosstalkWrapper(argschema.ArgSchemaParser):
@@ -158,6 +159,9 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                             planes_for_plotting,
                             final_output,
                             figure_path)
+
+        generate_pairwise_figures(planes_for_plotting,
+                                  cache_dir)
 
         self.output(final_output, indent=2, sort_keys=True)
 

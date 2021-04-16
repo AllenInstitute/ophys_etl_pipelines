@@ -16,6 +16,8 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
     default_output_schema = decrosstalk_schema.DecrosstalkOutputSchema
 
     def run(self):
+        print('running now')
+
         clobber = True
 
         cache_dir = self.args['qc_output_dir']
@@ -53,6 +55,8 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                 plane_0 = p_pair[0][0]
                 plane_1 = p_pair[1][0]
                 output_schema = p_pair[0][1]
+
+                print('running on ',plane_0.experiment_id)
 
                 p0 = {}
                 p0['ophys_experiment_id'] = plane_0.experiment_id

@@ -51,6 +51,6 @@ class CorrelationGraphPlot(argschema.ArgSchemaParser):
         self.logger.info(f"wrote {self.args['plot_output']}")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: nocover
     cg = CorrelationGraphPlot()
     cg.run()

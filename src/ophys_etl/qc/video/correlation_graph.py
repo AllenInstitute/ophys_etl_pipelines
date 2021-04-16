@@ -1,10 +1,11 @@
 import argschema
 import h5py
 import itertools
+import time
 import networkx as nx
 import numpy as np
 import multiprocessing
-from scipy.stats import pearsonr
+from scipy.spatial.distance import cdist
 from pathlib import Path
 from typing import List
 
@@ -50,20 +51,28 @@ def weight_calculation(video_path: Path, row_indices: List[int],
     graph = nx.Graph()
     for irow in range(nrow):
         for icol in range(ncol):
+            edge_start = (irow, icol)
+            global_edge_start = (irow + r0, icol + c0)
+            edge_ends = []
+            global_edges = []
             for dx, dy in nbrs:
                 # a local edge, appropriate for indexing the loaded data
-                edge = [(irow, icol), (irow + dy, icol + dx)]
-                if (edge[1][0] < 0) | (edge[1][0] >= nrow):
+                edge_end = (irow + dy, icol + dx)
+                if (edge_end[0] < 0) | (edge_end[0] >= nrow):
                     continue
-                if (edge[1][1] < 0) | (edge[1][1] >= ncol):
+                if (edge_end[1] < 0) | (edge_end[1] >= ncol):
                     continue
                 # a global edge, appropriate for the entire FOV
-                global_edge = [(edge[0][0] + r0, edge[0][1] + c0),
-                               (edge[1][0] + r0, edge[1][1] + c0)]
+                global_edge_end = (edge_end[0] + r0, edge_end[1] + c0)
+                edge_ends.append(edge_end)
+                global_edges.append([global_edge_start, global_edge_end])
+            # cdist 2.5x faster for 1-to-many than repeated calls to pearsonr
+            weights = 1.0 - cdist([data[:, edge_start[0], edge_start[1]]],
+                                  [data[:, edge_end[0], edge_end[1]]
+                                   for edge_end in edge_ends],
+                                  metric="correlation")[0]
+            for global_edge, weight in zip(global_edges, weights):
                 if not graph.has_edge(*global_edge):
-                    weight = pearsonr(
-                            data[:, edge[0][0], edge[0][1]],
-                            data[:, edge[1][0], edge[1][1]])[0]
                     graph.add_edge(*global_edge, weight=weight)
 
     return graph
@@ -74,6 +83,7 @@ class CorrelationGraph(argschema.ArgSchemaParser):
 
     def run(self):
         self.logger.name = type(self).__name__
+        t0 = time.time()
 
         with h5py.File(self.args["video_path"], "r") as f:
             nrow, ncol = f["data"].shape[1:]
@@ -92,6 +102,7 @@ class CorrelationGraph(argschema.ArgSchemaParser):
 
         nx.write_gpickle(graph, self.args["graph_output"])
         self.logger.info(f"wrote {self.args['graph_output']}")
+        self.logger.info(f"finished in {time.time() - t0:2f} seconds")
 
 
 if __name__ == "__main__":

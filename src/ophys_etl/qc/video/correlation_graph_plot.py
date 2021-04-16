@@ -18,13 +18,14 @@ def draw_graph_edges(figure, axis, graph):
     line_coll = LineCollection(segments, linestyle='solid',
                                cmap="plasma", linewidths=0.3)
     line_coll.set_array(weights)
-    axis.add_collection(line_coll)
     vals = np.concatenate(line_coll.get_segments())
     mnvals = vals.min(axis=0)
     mxvals = vals.max(axis=0)
     ppvals = vals.ptp(axis=0)
     buffx = 0.02 * ppvals[0]
     buffy = 0.02 * ppvals[1]
+    line_coll.set_linewidth(0.3 * 512 / ppvals[0])
+    axis.add_collection(line_coll)
     axis.set_xlim(mnvals[0] - buffx, mxvals[0] + buffx)
     axis.set_ylim(mnvals[1] - buffy, mxvals[1] + buffy)
     # invert yaxis for image-like orientation

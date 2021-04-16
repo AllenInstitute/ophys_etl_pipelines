@@ -593,6 +593,13 @@ def generate_2d_histogram(data_x: np.array,
     cmap = matplotlib.colors.LinearSegmentedColormap.from_list('custom_blue',
                                                                data)
 
+
+    xmin = min(0, data_x.min())
+    ymin = min(0, data_y.min())
+
+    data_x = data_x-xmin
+    data_y = data_y-ymin
+
     xmax = data_x.max()
     ymax = data_y.max()
 
@@ -628,7 +635,7 @@ def generate_2d_histogram(data_x: np.array,
         log10_nx += 1
         v = np.power(10, log10_nx)
         for tick_dx in np.arange(v, 5*v, v):
-            xticks = np.arange(0, xmax, tick_dx)
+            xticks = np.arange(xmin, xmax+xmin, tick_dx)
             if len(xticks) <= 4:
                 break
 
@@ -642,7 +649,7 @@ def generate_2d_histogram(data_x: np.array,
         log10_ny += 1
         v = np.power(10, log10_ny)
         for tick_dy in np.arange(v, 5*v, v):
-            yticks = np.arange(0, ymax, tick_dy)
+            yticks = np.arange(ymin, ymax+ymin, tick_dy)
             if len(yticks) <= 4:
                 break
 

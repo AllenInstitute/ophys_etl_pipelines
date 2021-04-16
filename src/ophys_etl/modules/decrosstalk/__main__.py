@@ -150,7 +150,6 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
 
         final_output['coupled_planes'] = coupled_planes
 
-
         session_id = self.args['ophys_session_id']
         figure_path = os.path.join(cache_dir,
                                    f'{session_id}_roi_fig.png')

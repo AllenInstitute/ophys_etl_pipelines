@@ -6,7 +6,6 @@ from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 
 import ophys_etl.modules.decrosstalk.decrosstalk_utils as d_utils
 import ophys_etl.modules.decrosstalk.ica_utils as ica_utils
-import ophys_etl.modules.decrosstalk.io_utils as io_utils
 import ophys_etl.modules.decrosstalk.active_traces as active_traces
 
 import logging
@@ -526,11 +525,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
                      'crosstalk_plane': ct_plane,
                      'clobber': clobber}
 
-    # writer class that will be used to write dict of ROIs
-    # that have been invalidated for various reasons by
-    # this module
-    flag_writer_class = io_utils.InvalidFlagWriter
-
     roi_flags: Dict[str, List[int]] = {}
 
     ghost_key = 'decrosstalk_ghost'
@@ -558,27 +552,7 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
     # extract raw traces
 
     raw_traces = get_raw_traces(signal_plane, ct_plane)
-
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.RawH5Writer
-        else:
-            writer_class = io_utils.RawH5WriterOld
-        writer = writer_class(data=raw_traces, **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
-
     raw_trace_validation = d_utils.validate_traces(raw_traces)
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.ValidJsonWriter
-        else:
-            writer_class = io_utils.ValidJsonWriterOld
-        writer = writer_class(data=raw_trace_validation, **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
 
     # remove invalid raw traces
     invalid_raw_trace_roi_id = []
@@ -601,9 +575,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
                             ct_plane.experiment_id)
         logger.error(msg)
 
-        writer = flag_writer_class(data=roi_flags,
-                                   **output_kwargs)
-        writer.run()
         return (roi_flags,
                 (raw_traces, invalid_raw_traces),
                 (unmixed_traces, invalid_unmixed_traces),
@@ -628,16 +599,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         _flux = np.abs(raw_traces['roi'][roi_id]['signal'][flux_mask])
         flux_sum = np.round(_flux.sum()).astype(int)
         roi_to_seed[roi_id] = flux_sum % two_to_32
-
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.RawATH5Writer
-        else:
-            writer_class = io_utils.RawATH5WriterOld
-        writer = writer_class(data=raw_trace_events, **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
 
     raw_trace_crosstalk_ratio = get_crosstalk_data(raw_traces['roi'],
                                                    raw_trace_events)
@@ -686,16 +647,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
             s = clipped_traces[obj][roi_id]['signal']
             unmixed_traces[obj][roi_id]['signal'] = s
 
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.OutH5Writer
-        else:
-            writer_class = io_utils.OutH5WriterOld
-        writer = writer_class(data=unmixed_traces, **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
-
     if not ica_converged:
         for roi_id in unmixed_traces['roi'].keys():
             roi_flags[unmixed_key].append(roi_id)
@@ -705,9 +656,7 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         msg += '%d (%d)' % (signal_plane.experiment_id,
                             ct_plane.experiment_id)
         logger.error(msg)
-        writer = flag_writer_class(data=roi_flags,
-                                   **output_kwargs)
-        writer.run()
+
         return (roi_flags,
                 (raw_traces, invalid_raw_traces),
                 (unmixed_traces, invalid_unmixed_traces),
@@ -715,16 +664,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
                 (unmixed_trace_events, invalid_unmixed_trace_events))
 
     unmixed_trace_validation = d_utils.validate_traces(unmixed_traces)
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.OutValidJsonWriter
-        else:
-            writer_class = io_utils.OutValidJsonWriterOld
-        writer = writer_class(data=unmixed_trace_validation,
-                              **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
 
     # remove invalid unmixed traces
     invalid_unmixed_trace_roi_id = []
@@ -746,9 +685,7 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         msg += '%d (%d)' % (signal_plane.experiment_id,
                             ct_plane.experiment_id)
         logger.error(msg)
-        writer = flag_writer_class(data=roi_flags,
-                                   **output_kwargs)
-        writer.run()
+
         return (roi_flags,
                 (raw_traces, invalid_raw_traces),
                 (unmixed_traces, invalid_unmixed_traces),
@@ -785,17 +722,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
             if not is_valid:
                 invalid_active_trace[channel].append(roi_id)
 
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.OutATH5Writer
-        else:
-            writer_class = io_utils.OutATH5WriterOld
-        writer = writer_class(data=unmixed_trace_events,
-                              **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
-
     if active_trace_had_NaNs:
         msg = 'ophys_experiment_id: %d (%d) ' % (signal_plane.experiment_id,
                                                  ct_plane.experiment_id)
@@ -814,12 +740,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         invalid_unmixed_traces['roi'][roi_id] = _roi
         invalid_unmixed_traces['neuropil'][roi_id] = _neuropil
         invalid_unmixed_trace_events[roi_id] = _events
-
-    if cache_dir is not None:
-        writer = io_utils.InvalidATJsonWriter(data=invalid_active_trace,
-                                              **output_kwargs)
-        writer.run()
-        del writer
 
     unmixed_ct_ratio = get_crosstalk_data(unmixed_traces['roi'],
                                           unmixed_trace_events)
@@ -845,36 +765,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         if not is_a_cell:
             ghost_roi_id.append(roi_id)
     roi_flags[ghost_key] += ghost_roi_id
-
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.ValidCTH5Writer
-        else:
-            writer_class = io_utils.ValidCTH5WriterOld
-        writer = writer_class(data=independent_events,
-                              **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
-
-        crosstalk_ratio = {}
-        for roi_id in unmixed_ct_ratio:
-            _out = {'raw': raw_trace_crosstalk_ratio[roi_id],
-                    'unmixed': unmixed_ct_ratio[roi_id]}
-            crosstalk_ratio[roi_id] = _out
-
-        if new_style_output:
-            writer_class = io_utils.CrosstalkJsonWriter
-        else:
-            writer_class = io_utils.CrosstalkJsonWriterOld
-        writer = writer_class(data=crosstalk_ratio, **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
-
-    writer = flag_writer_class(data=roi_flags,
-                               **output_kwargs)
-    writer.run()
 
     return (roi_flags,
             (raw_traces, invalid_raw_traces),

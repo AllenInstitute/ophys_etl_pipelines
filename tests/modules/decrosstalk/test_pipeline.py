@@ -22,26 +22,7 @@ def test_run_decrosstalk(tmpdir):
                                  args=['--output_json', output_json])
     wrapper.run()
 
-    roi_suffixes = ['raw.h5', 'raw_at.h5', 'out.h5', 'out_at.h5',
-                    'valid.json', 'out_valid.json', 'crosstalk.json',
-                    'valid_ct.json']
-
-    neuropil_suffixes = ['raw.h5', 'out.h5',
-                         'valid.json', 'out_valid.json']
-
-    expected_files = []
-    for prefix in ('0', '1'):
-        for suffix in roi_suffixes:
-            fname = 'roi_0_1/%s_%s' % (prefix, suffix)
-            expected_files.append(fname)
-
-        for suffix in neuropil_suffixes:
-            fname = 'neuropil_0_1/%s_%s' % (prefix, suffix)
-            expected_files.append(fname)
-
-    expected_files.append('0_1_invalid_flags.json')
-    expected_files.append('1_0_invalid_flags.json')
-    expected_files.append(output_json)
+    expected_files = ['0_qc_data.h5', '1_qc_data.h5']
 
     # load output_json
     exp_id_to_invalid = {}
@@ -115,25 +96,7 @@ def test_run_decrosstalk_with_empty_rois(tmpdir):
                                  args=['--output_json', output_json])
     wrapper.run()
 
-    roi_suffixes = ['raw.h5', 'raw_at.h5', 'out.h5', 'out_at.h5',
-                    'valid.json', 'out_valid.json', 'crosstalk.json',
-                    'valid_ct.json']
-
-    neuropil_suffixes = ['raw.h5', 'out.h5',
-                         'valid.json', 'out_valid.json']
-
-    expected_files = []
-    prefix = '1'  # because '0' has no ROIs in it
-    for suffix in roi_suffixes:
-        fname = 'roi_0_1/%s_%s' % (prefix, suffix)
-        expected_files.append(fname)
-
-    for suffix in neuropil_suffixes:
-        fname = 'neuropil_0_1/%s_%s' % (prefix, suffix)
-        expected_files.append(fname)
-
-    expected_files.append('1_0_invalid_flags.json')
-    expected_files.append(output_json)
+    expected_files = ['0_qc_data.h5', '1_qc_data.h5']
 
     # load output_json
     exp_id_to_invalid = {}

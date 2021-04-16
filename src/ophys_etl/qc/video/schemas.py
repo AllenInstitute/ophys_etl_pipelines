@@ -17,6 +17,10 @@ class CorrelationGraphInputSchema(argschema.ArgSchema):
     graph_output = argschema.fields.OutputFile(
         required=True,
         description="destination file for networkx.write_gpickle()")
+    plot_output = argschema.fields.OutputFile(
+        required=False,
+        description=("if provided, will create a plot and write to this "
+                     "location"))
 
 
 class CorrelationGraphPlotInputSchema(argschema.ArgSchema):

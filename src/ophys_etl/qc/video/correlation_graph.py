@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List
 
 from ophys_etl.qc.video.schemas import CorrelationGraphInputSchema
+from ophys_etl.qc.video.correlation_graph_plot import CorrelationGraphPlot
 
 
 def index_split(nelem: int, n_segments: int) -> List[List]:
@@ -104,6 +105,13 @@ class CorrelationGraph(argschema.ArgSchemaParser):
         nx.write_gpickle(graph, self.args["graph_output"])
         self.logger.info(f"wrote {self.args['graph_output']}")
         self.logger.info(f"finished in {time.time() - t0:2f} seconds")
+
+        if "plot_output" in self.args:
+            plot_args = {
+                    "graph_input": self.args["graph_output"],
+                    "plot_output": self.args["plot_output"]}
+            cgp = CorrelationGraphPlot(input_data=plot_args, args=[])
+            cgp.run()
 
 
 if __name__ == "__main__":

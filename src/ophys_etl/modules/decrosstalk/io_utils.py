@@ -490,7 +490,7 @@ def write_qc_data(file_name: pathlib.Path,
         The path to the HDF5 file that is being written
 
     pair_id: int
-        The experiment_id of the plane paird with this plane
+        The experiment_id of the plane paired with this plane
 
     roi_flags:
         A dict containing lists of all of the ROIs to which invalidity

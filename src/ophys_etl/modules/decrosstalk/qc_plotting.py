@@ -703,10 +703,6 @@ def plot_pair_of_rois(roi0: OphysROI,
     if not valid_1:
         return None
 
-
-    #scott: try breaking out a method to just do with roi and without roi thumbnail
-    #then can loop over that with the two images
-
     # get bounds for the max projection thumbnail
     xmin = min(roi0.x0, roi1.x0)
     xmax = max(roi0.x0+roi0.width, roi1.x0+roi1.width)

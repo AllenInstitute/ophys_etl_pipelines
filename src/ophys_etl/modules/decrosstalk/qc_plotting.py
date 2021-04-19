@@ -308,9 +308,9 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
         msg += f'# of ROIs: {n_valid_roi}\n'
         msg += f'# of ghost ROIs: {n_ghost_roi}\n'
         msg += '\nAvg mixing matrix\n'
-        msg += f'[[%.3e, %.3e]\n' % (avg_mixing_matrix[0, 0],
+        msg += f'[[%.3f, %.3f]\n' % (avg_mixing_matrix[0, 0],
                                       avg_mixing_matrix[0, 1])
-        msg += f'[%.3e, %.3e]]\n' % (avg_mixing_matrix[1, 0],
+        msg += f'[%.3f, %.3f]]\n' % (avg_mixing_matrix[1, 0],
                                       avg_mixing_matrix[1, 1])
 
         ax.text(10, 90, msg,

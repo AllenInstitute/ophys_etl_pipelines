@@ -13,3 +13,4 @@ croissant-ml==0.0.2
 typing_extensions
 tifffile
 scikit-image
+networkx

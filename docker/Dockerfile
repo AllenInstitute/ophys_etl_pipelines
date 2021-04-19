@@ -40,6 +40,10 @@ RUN apt-get -y update \
     && conda run --prefix ${SUITE2P_ENV} pip install --no-cache ./ophys_etl \
     && echo "use for suite2p "$(conda run --prefix ${SUITE2P_ENV} which python) \
     && conda create --prefix ${OPHYS_ETL_ENV} python=3.8 \
+    # the following installs scipy/numpy with MKL backend,
+    # if requirements.txt specifies a different version, these will get overwritten
+    # and some other BLAS backend will be used - speed will decrease
+    && conda run --prefix ${OPHYS_ETL_ENV} conda install scipy \
     && conda run --prefix ${OPHYS_ETL_ENV} pip install --no-cache ./ophys_etl \
     && echo "use for ophys_etl "$(conda run --prefix ${OPHYS_ETL_ENV} which python) \
     && conda create --prefix ${EVENT_DETECT_ENV} python=3.8 \

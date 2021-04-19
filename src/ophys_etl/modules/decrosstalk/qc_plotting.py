@@ -581,6 +581,8 @@ def plot_img_with_roi(axis: matplotlib.axes.Axes,
 
 def generate_2d_histogram(data_x: np.array,
                           data_y: np.array,
+                          x_bounds: Tuple[float, float],
+                          y_bounds: Tuple[float, float],
                           x_label: Tuple[str, str],
                           y_label: Tuple[str, str],
                           title: str,
@@ -593,15 +595,14 @@ def generate_2d_histogram(data_x: np.array,
     cmap = matplotlib.colors.LinearSegmentedColormap.from_list('custom_blue',
                                                                data)
 
-
-    xmin = min(0, data_x.min())
-    ymin = min(0, data_y.min())
+    xmin = x_bounds[0]
+    ymin = y_bounds[0]
 
     data_x = data_x-xmin
     data_y = data_y-ymin
 
-    xmax = data_x.max()
-    ymax = data_y.max()
+    xmax = x_bounds[1]-xmin
+    ymax = y_bounds[1]-ymin
 
     nx = 100
     ny = 100
@@ -619,15 +620,12 @@ def generate_2d_histogram(data_x: np.array,
     xx = unq//ny
     yy = unq%ny
 
-    nn = max(ny, nx)
-    hist = np.zeros((nn, nn), dtype=int)
+    hist = np.zeros((ny, nx), dtype=int)
     hist[yy, xx] = unq_ct
     hist = np.where(hist>0, hist, np.NaN)
 
-
     img = hist_axis.imshow(hist, cmap=cmap,
                            origin='lower')
-
 
     log10_nx = np.floor(np.log10(dx))
     xticks = None
@@ -640,7 +638,7 @@ def generate_2d_histogram(data_x: np.array,
                 break
 
     xtick_labels = ['%d' % x for x in xticks]
-    hist_axis.set_xticks(xticks/dx)
+    hist_axis.set_xticks((xticks-xmin)/dx)
     hist_axis.set_xticklabels(xtick_labels, fontsize=7)
 
     log10_ny = np.floor(np.log10(dy))
@@ -654,7 +652,7 @@ def generate_2d_histogram(data_x: np.array,
                 break
 
     ytick_labels = ['%d' % y for y in yticks]
-    hist_axis.set_yticks(yticks/dy)
+    hist_axis.set_yticks((yticks-ymin)/dy)
     hist_axis.set_yticklabels(ytick_labels, fontsize=7)
 
     hist_axis.set_xlabel(x_label[0], color=x_label[1], fontsize=10)
@@ -830,6 +828,8 @@ def plot_pair_of_rois(roi0: OphysROI,
     axes.append(raw_axis)
     axes.append(unmixed_axis)
 
+    trace_bounds = {}
+
     for ax, trace_key in zip((raw_axis, unmixed_axis),
                              ('raw', 'unmixed')):
 
@@ -840,6 +840,21 @@ def plot_pair_of_rois(roi0: OphysROI,
 
         trace0 = qc0[f'ROI/{roi0.roi_id}/roi/{trace_key}/signal/trace'][()]
         trace1 = qc1[f'ROI/{roi1.roi_id}/roi/{trace_key}/signal/trace'][()]
+
+        if trace_key not in trace_bounds:
+            trace_bounds[trace_key] = {}
+            trace_bounds[trace_key][0] = {}
+            trace_bounds[trace_key][1] = {}
+
+        if 'max' not in trace_bounds[trace_key][0] or trace0.max() > trace_bounds[trace_key][0]['max']:
+            trace_bounds[trace_key][0]['max'] = trace0.max()
+        if 'min' not in trace_bounds[trace_key][0] or trace0.min() < trace_bounds[trace_key][0]['min']:
+            trace_bounds[trace_key][0]['min'] = trace0.min()
+
+        if 'max' not in trace_bounds[trace_key][1] or trace1.max() > trace_bounds[trace_key][1]['max']:
+            trace_bounds[trace_key][1]['max'] = trace1.max()
+        if 'min' not in trace_bounds[trace_key][1] or trace1.min() < trace_bounds[trace_key][1]['min']:
+            trace_bounds[trace_key][1]['min'] = trace1.min()
 
         t = np.arange(len(trace0), dtype=int)
         ax.plot(t, trace0, color=color0_hex, linewidth=1)
@@ -862,6 +877,10 @@ def plot_pair_of_rois(roi0: OphysROI,
 
     generate_2d_histogram(qc0[f'ROI/{roi0.roi_id}/roi/raw/signal/trace'][()],
                           qc1[f'ROI/{roi1.roi_id}/roi/raw/signal/trace'][()],
+                          (np.floor(trace_bounds['raw'][0]['min']),
+                           np.ceil(trace_bounds['raw'][0]['max'])),
+                          (np.floor(trace_bounds['raw'][1]['min']),
+                           np.ceil(trace_bounds['raw'][1]['max'])),
                           (f'{roi0.roi_id}', color0_hex),
                           (f'{roi1.roi_id}', color1_hex),
                           'Trace v trace before decrosstalking',
@@ -869,6 +888,10 @@ def plot_pair_of_rois(roi0: OphysROI,
 
     generate_2d_histogram(qc0[f'ROI/{roi0.roi_id}/roi/unmixed/signal/trace'][()],
                           qc1[f'ROI/{roi1.roi_id}/roi/unmixed/signal/trace'][()],
+                          (np.floor(trace_bounds['unmixed'][0]['min']),
+                           np.ceil(trace_bounds['unmixed'][0]['max'])),
+                          (np.floor(trace_bounds['unmixed'][1]['min']),
+                           np.ceil(trace_bounds['unmixed'][1]['max'])),
                           (f'{roi0.roi_id}', color0_hex),
                           (f'{roi1.roi_id}', color1_hex),
                           'Trace v trace after decrosstalking',

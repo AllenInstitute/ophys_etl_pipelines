@@ -589,9 +589,8 @@ def generate_2d_histogram(data_x: np.array,
                           hist_axis: matplotlib.axes.Axes,
                           cbar_axis: matplotlib.axes.Axes) -> None:
 
-
     raw_cmap = plt.get_cmap('Blues')
-    data = [raw_cmap(x) for x in np.arange(0.2,0.95, 0.05)]
+    data = [raw_cmap(x) for x in np.arange(0.3, 0.95, 0.05)]
     cmap = matplotlib.colors.LinearSegmentedColormap.from_list('custom_blue',
                                                                data)
 
@@ -604,8 +603,8 @@ def generate_2d_histogram(data_x: np.array,
     xmax = x_bounds[1]-xmin
     ymax = y_bounds[1]-ymin
 
-    nx = 100
-    ny = 100
+    nx = 25
+    ny = 25
     dx = xmax/nx
     dy = ymax/ny
 
@@ -662,6 +661,23 @@ def generate_2d_histogram(data_x: np.array,
 
     cbar = Colorbar(mappable=img, ax=cbar_axis)
     cbar_axis.yaxis.set_ticks_position('left')
+
+    hist_min = np.nanmin(hist)
+    hist_max = np.nanmax(hist)
+    log10_nhist = np.floor(np.log10(hist_max))-2
+    hist_ticks = None
+    while hist_ticks is None or len(hist_ticks)> 4:
+        log10_nhist += 1
+        v = np.power(10, log10_nhist)
+        for tick_hist in np.arange(v, 5*v, v):
+            _min = np.round(hist_min/tick_hist).astype(int)*tick_hist
+            _max = np.round(hist_max/tick_hist).astype(int)*tick_hist
+            hist_ticks = np.arange(_min, _max+1, tick_hist)
+            hist_ticks = hist_ticks[np.where(hist_ticks<hist_max)]
+            if len(hist_ticks) <= 4:
+                break
+
+    cbar_axis.yaxis.set_ticks(hist_ticks)
 
     return None
 

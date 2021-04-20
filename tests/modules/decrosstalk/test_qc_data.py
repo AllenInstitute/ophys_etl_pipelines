@@ -307,8 +307,8 @@ def test_qc_output(tmpdir):
                 np.testing.assert_array_equal(truth_src['crosstalk']['events'],
                                               in_file[f'ROI/{roi_id}/roi/unmixed/crosstalk/events'][()])
 
-            ghost_key = f'ROI/{roi_id}/roi/unmixed/is_ghost'
-            if ghost_key in in_file and in_file[ghost_key][()]:
+            ghost_key = f'ROI/{roi_id}/is_ghost'
+            if in_file[ghost_key][()]:
                 assert roi_id in truth['roi_flags']['decrosstalk_ghost']
                 ct_ghost += 1
 

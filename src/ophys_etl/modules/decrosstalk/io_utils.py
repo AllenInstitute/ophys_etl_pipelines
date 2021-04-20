@@ -111,6 +111,13 @@ def write_qc_data(file_name: pathlib.Path,
                     unmixed_valid = False
                     unmixed_active_valid = False
 
+            is_ghost = False
+            if roi_id in ghost_set:
+                is_ghost = True
+
+            out_file.create_dataset(f'ROI/{roi_id}/is_ghost',
+                                   data=is_ghost)
+
             out_file.create_dataset(f'ROI/{roi_id}/valid_raw_trace',
                                     data=raw_valid)
 
@@ -172,13 +179,6 @@ def write_qc_data(file_name: pathlib.Path,
                         raise RuntimeError(f"{roi_id} not in all_roi_id")
 
                     parent_dir = f'ROI/{roi_id}/{data_key}/unmixed'
-
-                    is_ghost = False
-                    if roi_id in ghost_set:
-                        is_ghost = True
-
-                    out_file.create_dataset(f'{parent_dir}/is_ghost',
-                                            data=is_ghost)
 
                     data_dict = trace_set[data_key][roi_id]
 

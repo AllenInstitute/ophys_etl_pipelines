@@ -794,7 +794,7 @@ def plot_pair_of_rois(roi0: OphysROI,
     title0 = f"Plane {qc1['paired_plane'][()]};  roi {roi0.roi_id};  "
     title0 += f"cell num {roi0.roi_id-roi_min0}\n"
     title0 += f"overlap: %.1f%%;      " % (roi_pair[2]*100)
-    is_ghost = qc0[f'ROI/{roi0.roi_id}/roi/unmixed/is_ghost'][()]
+    is_ghost = qc0[f'ROI/{roi0.roi_id}/is_ghost'][()]
     title0 += f"is_ghost: {is_ghost}"
     title0_axis.set_title(title0, fontsize=10,
                           horizontalalignment='left',
@@ -803,7 +803,7 @@ def plot_pair_of_rois(roi0: OphysROI,
     title1 = f"Plane {qc0['paired_plane'][()]};  roi {roi1.roi_id};  "
     title1 += f"cell num {roi1.roi_id-roi_min1}\n"
     title1 += f"Overlap: %.1f%%;      " % (roi_pair[3]*100)
-    is_ghost = qc1[f'ROI/{roi1.roi_id}/roi/unmixed/is_ghost'][()]
+    is_ghost = qc1[f'ROI/{roi1.roi_id}/is_ghost'][()]
     title1 += f"is_ghost: {is_ghost}"
     title1_axis.set_title(title1, fontsize=10,
                           horizontalalignment='left',

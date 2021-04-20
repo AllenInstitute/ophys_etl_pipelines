@@ -1,0 +1,159 @@
+{
+  "coupled_planes": [
+    {
+      "group_order": 0,
+      "ophys_imaging_plane_group_id": 1071738391,
+      "planes": [
+        {
+          "decrosstalk_ghost": [],
+          "decrosstalk_invalid_raw": [
+            1080616662,
+            1080616653,
+            1080616643,
+            1080616641,
+            1080616640,
+            1080616639
+          ],
+          "decrosstalk_invalid_raw_active": [],
+          "decrosstalk_invalid_unmixed": [],
+          "decrosstalk_invalid_unmixed_active": [
+            1080616659,
+            1080616658
+          ],
+          "ophys_experiment_id": 1071738390,
+          "output_neuropil_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738390/neuropil_traces.h5",
+          "output_roi_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738390/roi_traces.h5"
+        },
+        {
+          "decrosstalk_ghost": [],
+          "decrosstalk_invalid_raw": [
+            1080616562,
+            1080616558,
+            1080616548,
+            1080616547,
+            1080616543,
+            1080616542
+          ],
+          "decrosstalk_invalid_raw_active": [],
+          "decrosstalk_invalid_unmixed": [],
+          "decrosstalk_invalid_unmixed_active": [],
+          "ophys_experiment_id": 1071738393,
+          "output_neuropil_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738393/neuropil_traces.h5",
+          "output_roi_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738393/roi_traces.h5"
+        }
+      ]
+    },
+    {
+      "group_order": 1,
+      "ophys_imaging_plane_group_id": 1071738395,
+      "planes": [
+        {
+          "decrosstalk_ghost": [],
+          "decrosstalk_invalid_raw": [
+            1080618107,
+            1080618104,
+            1080618097,
+            1080618092,
+            1080618088,
+            1080618087,
+            1080618085
+          ],
+          "decrosstalk_invalid_raw_active": [],
+          "decrosstalk_invalid_unmixed": [],
+          "decrosstalk_invalid_unmixed_active": [],
+          "ophys_experiment_id": 1071738394,
+          "output_neuropil_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738394/neuropil_traces.h5",
+          "output_roi_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738394/roi_traces.h5"
+        },
+        {
+          "decrosstalk_ghost": [],
+          "decrosstalk_invalid_raw": [
+            1080616614,
+            1080616599
+          ],
+          "decrosstalk_invalid_raw_active": [],
+          "decrosstalk_invalid_unmixed": [],
+          "decrosstalk_invalid_unmixed_active": [],
+          "ophys_experiment_id": 1071738396,
+          "output_neuropil_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738396/neuropil_traces.h5",
+          "output_roi_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738396/roi_traces.h5"
+        }
+      ]
+    },
+    {
+      "group_order": 2,
+      "ophys_imaging_plane_group_id": 1071738398,
+      "planes": [
+        {
+          "decrosstalk_ghost": [],
+          "decrosstalk_invalid_raw": [
+            1080623138
+          ],
+          "decrosstalk_invalid_raw_active": [],
+          "decrosstalk_invalid_unmixed": [],
+          "decrosstalk_invalid_unmixed_active": [],
+          "ophys_experiment_id": 1071738399,
+          "output_neuropil_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738399/neuropil_traces.h5",
+          "output_roi_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738399/roi_traces.h5"
+        },
+        {
+          "decrosstalk_ghost": [],
+          "decrosstalk_invalid_raw": [
+            1080618106,
+            1080618096
+          ],
+          "decrosstalk_invalid_raw_active": [],
+          "decrosstalk_invalid_unmixed": [],
+          "decrosstalk_invalid_unmixed_active": [],
+          "ophys_experiment_id": 1071738397,
+          "output_neuropil_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738397/neuropil_traces.h5",
+          "output_roi_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738397/roi_traces.h5"
+        }
+      ]
+    },
+    {
+      "group_order": 3,
+      "ophys_imaging_plane_group_id": 1071738401,
+      "planes": [
+        {
+          "decrosstalk_ghost": [
+            1080622865
+          ],
+          "decrosstalk_invalid_raw": [
+            1080622889,
+            1080622876,
+            1080622870,
+            1080622852,
+            1080622850
+          ],
+          "decrosstalk_invalid_raw_active": [],
+          "decrosstalk_invalid_unmixed": [],
+          "decrosstalk_invalid_unmixed_active": [],
+          "ophys_experiment_id": 1071738402,
+          "output_neuropil_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738402/neuropil_traces.h5",
+          "output_roi_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738402/roi_traces.h5"
+        },
+        {
+          "decrosstalk_ghost": [
+            1080616776
+          ],
+          "decrosstalk_invalid_raw": [
+            1080616777,
+            1080616771,
+            1080616770,
+            1080616769,
+            1080616768
+          ],
+          "decrosstalk_invalid_raw_active": [],
+          "decrosstalk_invalid_unmixed": [],
+          "decrosstalk_invalid_unmixed_active": [],
+          "ophys_experiment_id": 1071738400,
+          "output_neuropil_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738400/neuropil_traces.h5",
+          "output_roi_trace_file": "/allen/aibs/informatics/danielsf/decrosstalk_qc/test/session_1071648245/ophys_experiment_1071738400/roi_traces.h5"
+        }
+      ]
+    }
+  ],
+  "log_level": "ERROR",
+  "ophys_session_id": 1071648245
+}

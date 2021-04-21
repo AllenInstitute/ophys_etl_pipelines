@@ -147,6 +147,40 @@ def get_avg_mixing_matrix(ophys_plane: DecrosstalkingOphysPlane) -> np.ndarray:
     return avg_matrix/n_m
 
 
+def get_max_projection_image(plane: DecrosstalkingOphysPlane
+                             ) -> np.ndarray:
+    """
+    Return the maximum projection image for a DecrosstalkingOphsPlane
+    with gridlines superimposed
+
+    Parameters
+    ----------
+    plane: DecrosstalkingOphysPlane
+
+    Return
+    ------
+    np.ndarray
+        Suitable for plt.imshow
+    """
+    # load the raw max projection image
+    raw_img = PIL.Image.open(plane.maximum_projection_image_path)
+    n_rows = raw_img.size[0]
+    n_cols = raw_img.size[1]
+    raw_img = np.array(raw_img).reshape(n_rows, n_cols)
+
+    # convert to an RGBA image
+    max_img = np.zeros((n_rows, n_cols, 4), dtype=int)
+
+    for jj in range(3):
+        max_img[:, :, jj] = raw_img[:, :]
+    max_img[:, :, 3] = 255
+
+    # superimpose gridlines
+    max_img = add_gridlines(max_img, 3)
+
+    return max_img
+
+
 def plot_roi_mask(roi: OphysROI,
                   mask_imgs: List[np.ndarray],
                   mask_colors: List[Tuple[int]],
@@ -284,21 +318,9 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
         n_valid_roi = 0
         n_ghost_roi = 0
 
-        # load the raw max projection image
-        raw_img = PIL.Image.open(plane.maximum_projection_image_path)
-        n_rows = raw_img.size[0]
-        n_cols = raw_img.size[1]
-        raw_img = np.array(raw_img).reshape(n_rows, n_cols)
-
-        # convert to an RGBA image
-        max_img = np.zeros((n_rows, n_cols, 4), dtype=int)
-
-        for jj in range(3):
-            max_img[:, :, jj] = raw_img[:, :]
-        max_img[:, :, 3] = 255
-
-        # superimpose gridlines
-        max_img = add_gridlines(max_img, 3)
+        max_img = get_max_projection_image(plane)
+        n_rows = max_img.shape[0]
+        n_cols = max_img.shape[1]
 
         axes = []
         for jj in range(3):

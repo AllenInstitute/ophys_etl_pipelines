@@ -351,7 +351,8 @@ def get_traces_evs(traces_y0: np.ndarray,
 
 
 def get_trace_events(traces: np.ndarray,
-                     threshold_parameters: Dict[str, Union[int, float]]) -> Dict[str, np.ndarray]:  # noqa: E501
+                     threshold_parameters: Dict[str, Union[int, float]]
+                     ) -> Dict[str, np.ndarray]:
     """
     Wrapper around event detection code.
 

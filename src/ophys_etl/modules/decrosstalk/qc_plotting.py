@@ -89,13 +89,15 @@ def find_problematic_rois(ophys_plane: DecrosstalkingOphysPlane,
             if roi.roi_id in roi_flags:
                 if roi_flags[roi.roi_id] == 'invalid':
                     continue
+            unmixed_dir = f'ROI/{roi.roi_id}/roi/unmixed'
+            unmixed_signal = qc_data[f'{unmixed_dir}/signal/trace'][()]
+            unmixed_events = qc_data[f'{unmixed_dir}/signal/events'][()]
+            unmixed_crosstalk = qc_data[f'{unmixed_dir}/crosstalk/trace'][()]
 
-            unmixed_signal = qc_data[f'ROI/{roi.roi_id}/roi/unmixed/signal/trace'][()]        # noqa E501
-            unmixed_events = qc_data[f'ROI/{roi.roi_id}/roi/unmixed/signal/events'][()]       # noqa E501
-            unmixed_crosstalk = qc_data[f'ROI/{roi.roi_id}/roi/unmixed/crosstalk/trace'][()]  # noqa E501
-
-            unmixed_model = scipy.stats.linregress(unmixed_signal[unmixed_events],     # noqa E501
-                                                   unmixed_crosstalk[unmixed_events])  # noqa E501
+            active_signal = unmixed_signal[unmixed_events]
+            active_crosstalk = unmixed_crosstalk[unmixed_events]
+            unmixed_model = scipy.stats.linregress(active_signal,
+                                                   active_crosstalk)
 
             metric = np.abs(100.0*unmixed_model.slope)
             if metric > threshold:
@@ -190,8 +192,8 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
     red_hex = '#%02x%02x%02x' % red
 
     inner_grid = gridspec.GridSpecFromSubplotSpec(2, 4,
-                                  subplot_spec=subplot_spec,    # noqa E128
-                                  wspace=0.05, hspace=0.)       # noqa E128
+                                                  subplot_spec=subplot_spec,
+                                                  wspace=0.05, hspace=0.)
 
     # loop over the two planes
     for ii in range(2):
@@ -505,8 +507,8 @@ def get_roi_pixels(roi_list: List[OphysROI]) -> Dict[int, set]:
 
 
 def find_overlapping_roi_pairs(roi_list_0: List[OphysROI],
-                               roi_list_1: List[OphysROI]) -> List[Tuple[int, int,        # noqa E501
-                                                                         float, float]]:  # noqa E501
+                               roi_list_1: List[OphysROI]
+                               ) -> List[Tuple[int, int, float, float]]:
     """
     Find all overlapping pairs from two lists of OphysROIs
 
@@ -991,24 +993,19 @@ def plot_pair_of_rois(roi0: OphysROI,
             trace_bounds[trace_key][0] = {}
             trace_bounds[trace_key][1] = {}
 
-        if ('max' not in trace_bounds[trace_key][0] or
-            trace0.max() > trace_bounds[trace_key][0]['max']):  # noqa E129
+        bounds0 = trace_bounds[trace_key][0]
+        bounds1 = trace_bounds[trace_key][1]
 
+        if ('max' not in bounds0 or trace0.max() > bounds0['max']):
             trace_bounds[trace_key][0]['max'] = trace0.max()
 
-        if ('min' not in trace_bounds[trace_key][0] or
-            trace0.min() < trace_bounds[trace_key][0]['min']):  # noqa E129
-
+        if ('min' not in bounds0 or trace0.min() < bounds0['min']):
             trace_bounds[trace_key][0]['min'] = trace0.min()
 
-        if ('max' not in trace_bounds[trace_key][1] or
-            trace1.max() > trace_bounds[trace_key][1]['max']):  # noqa E129
-
+        if ('max' not in bounds1 or trace1.max() > bounds1['max']):
             trace_bounds[trace_key][1]['max'] = trace1.max()
 
-        if ('min' not in trace_bounds[trace_key][1] or
-            trace1.min() < trace_bounds[trace_key][1]['min']):  # noqa E129
-
+        if ('min' not in bounds1 or trace1.min() < bounds1['min']):
             trace_bounds[trace_key][1]['min'] = trace1.min()
 
         t = np.arange(len(trace0), dtype=int)
@@ -1032,8 +1029,9 @@ def plot_pair_of_rois(roi0: OphysROI,
     axes.append(raw_cbar_axis)
     axes.append(unmixed_cbar_axis)
 
-    generate_2d_histogram(qc0[f'ROI/{roi0.roi_id}/roi/raw/signal/trace'][()],
-                          qc1[f'ROI/{roi1.roi_id}/roi/raw/signal/trace'][()],
+    sub_dir = 'roi/raw/signal/trace'
+    generate_2d_histogram(qc0[f'ROI/{roi0.roi_id}/{sub_dir}'][()],
+                          qc1[f'ROI/{roi1.roi_id}/{sub_dir}'][()],
                           (np.floor(trace_bounds['raw'][0]['min']),
                            np.ceil(trace_bounds['raw'][0]['max'])),
                           (np.floor(trace_bounds['raw'][1]['min']),
@@ -1043,8 +1041,9 @@ def plot_pair_of_rois(roi0: OphysROI,
                           'Trace v trace before decrosstalking',
                           raw_hist_axis, raw_cbar_axis)
 
-    generate_2d_histogram(qc0[f'ROI/{roi0.roi_id}/roi/unmixed/signal/trace'][()],  # noqa E501
-                          qc1[f'ROI/{roi1.roi_id}/roi/unmixed/signal/trace'][()],  # noqa E501
+    sub_dir = 'roi/unmixed/signal/trace'
+    generate_2d_histogram(qc0[f'ROI/{roi0.roi_id}/{sub_dir}'][()],
+                          qc1[f'ROI/{roi1.roi_id}/{sub_dir}'][()],
                           (np.floor(trace_bounds['unmixed'][0]['min']),
                            np.ceil(trace_bounds['unmixed'][0]['max'])),
                           (np.floor(trace_bounds['unmixed'][1]['min']),
@@ -1063,9 +1062,10 @@ def plot_pair_of_rois(roi0: OphysROI,
     return None
 
 
-def generate_pairwise_figures(ophys_planes: List[Tuple[DecrosstalkingOphysPlane,    # noqa E501
-                                                       DecrosstalkingOphysPlane]],  # noqa E501
-                              qc_dir: str) -> None:
+def generate_pairwise_figures(
+        ophys_planes: List[Tuple[DecrosstalkingOphysPlane,
+                                 DecrosstalkingOphysPlane]],
+        qc_dir: str) -> None:
     """
     Generate the pairwise ROI comparison plots for sets of coupled planes
 

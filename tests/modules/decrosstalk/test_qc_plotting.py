@@ -3,10 +3,12 @@ import json
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
-from ophys_etl.modules.decrosstalk.qc_plotting import get_roi_pixels
-from ophys_etl.modules.decrosstalk.qc_plotting import find_overlapping_roi_pairs  # noqa: E501
-from ophys_etl.modules.decrosstalk.qc_plotting import generate_roi_figure
-from ophys_etl.modules.decrosstalk.qc_plotting import generate_pairwise_figures
+
+from ophys_etl.modules.decrosstalk.qc_plotting import (
+    get_roi_pixels,
+    find_overlapping_roi_pairs,
+    generate_roi_figure,
+    generate_pairwise_figures)
 
 
 def test_get_roi_pixels():

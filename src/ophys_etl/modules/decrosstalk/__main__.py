@@ -24,11 +24,11 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
 
         clobber = True
 
-        cache_dir = self.args['qc_output_dir']
-        if not os.path.exists(cache_dir):
-            os.makedirs(cache_dir)
-        if not os.path.isdir(cache_dir):
-            raise RuntimeError("\n%s\nis not a dir" % cache_dir)
+        qc_dir = self.args['qc_output_dir']
+        if not os.path.exists(qc_dir):
+            os.makedirs(qc_dir)
+        if not os.path.isdir(qc_dir):
+            raise RuntimeError("\n%s\nis not a dir" % qc_dir)
 
         final_output = {}
         final_output['ophys_session_id'] = self.args['ophys_session_id']
@@ -70,20 +70,21 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
 
                 neuropil_fname = output_schema['output_neuropil_trace_file']
                 p0['output_neuropil_trace_file'] = neuropil_fname
+
                 (flags_0,
                  (raw_traces,
                   invalid_raw_traces),
                  (unmixed_traces,
                   invalid_unmixed_traces),
-                 (raw_trace_events,
-                  invalid_raw_trace_events),
-                 (unmixed_trace_events,
-                  invalid_unmixed_trace_events)) = run_decrosstalk(plane_0,
-                                                                   plane_1,
-                                                                   cache_dir=cache_dir,  # noqa: E501
-                                                                   clobber=clobber)  # noqa: E501
+                 (raw_events,
+                  invalid_raw_events),
+                 (unmixed_events,
+                  invalid_unmixed_events)) = run_decrosstalk(plane_0,
+                                                             plane_1,
+                                                             cache_dir=qc_dir,
+                                                             clobber=clobber)
 
-                qc_fname = pathlib.Path(cache_dir)
+                qc_fname = pathlib.Path(qc_dir)
                 qc_fname = qc_fname/f'{plane_0.experiment_id}_qc_data.h5'
 
                 write_qc_data(qc_fname,
@@ -93,10 +94,10 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                               invalid_raw_traces,
                               unmixed_traces,
                               invalid_unmixed_traces,
-                              raw_trace_events,
-                              invalid_raw_trace_events,
-                              unmixed_trace_events,
-                              invalid_unmixed_trace_events)
+                              raw_events,
+                              invalid_raw_events,
+                              unmixed_events,
+                              invalid_unmixed_events)
 
                 plane_0.qc_file_path = qc_fname
 
@@ -159,7 +160,7 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
         final_output['coupled_planes'] = coupled_planes
 
         session_id = self.args['ophys_session_id']
-        figure_path = os.path.join(cache_dir,
+        figure_path = os.path.join(qc_dir,
                                    f'{session_id}_roi_fig.png')
 
         generate_roi_figure(session_id,
@@ -168,7 +169,7 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                             figure_path)
 
         generate_pairwise_figures(planes_for_plotting,
-                                  cache_dir)
+                                  qc_dir)
 
         self.output(final_output, indent=2, sort_keys=True)
 

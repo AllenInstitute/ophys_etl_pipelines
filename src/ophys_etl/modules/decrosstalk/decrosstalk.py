@@ -98,7 +98,8 @@ def unmix_ROI(roi_traces: dc_types.ROIChannels,
 
 
 def unmix_all_ROIs(raw_roi_traces: dc_types.ROISetDict,
-                   seed_lookup: Dict[int, int]) -> Tuple[bool, dc_types.ROISetDict]:  # noqa: E501
+                   seed_lookup: Dict[int, int]
+                   ) -> Tuple[bool, dc_types.ROISetDict]:
     """
     Unmix all of the ROIs in this DecrosstalkingOphysPlane.
 
@@ -226,8 +227,8 @@ def unmix_all_ROIs(raw_roi_traces: dc_types.ROISetDict,
 
 
 def get_trace_events(trace_dict: dc_types.ROIDict,
-                     trace_threshold_params: dict = {'len_ne': 20,
-                                                     'th_ag': 14}) -> dc_types.ROIEventSet:  # noqa: E501
+                     trace_threshold_params: dict = {'len_ne': 20, 'th_ag': 14}
+                     ) -> dc_types.ROIEventSet:
     """
     trace_dict -- a decrosstalk_types.ROIDict containing the trace data
                   for many ROIs to be analyzed
@@ -341,7 +342,8 @@ def _centered_rolling_mean(data: np.ndarray,
     return mean, std
 
 
-def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDict:  # noqa: E501
+def clean_negative_traces(trace_dict: dc_types.ROISetDict
+                          ) -> dc_types.ROISetDict:
     """
     Parameters
     ----------
@@ -419,11 +421,17 @@ def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDic
 def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
                     ct_plane: DecrosstalkingOphysPlane,
                     cache_dir: str = None, clobber: bool = False,
-                    new_style_output: bool = False) -> Tuple[dict,
-                                                             Tuple[dc_types.ROISetDict, dc_types.ROISetDict],   # noqa: E501
-                                                             Tuple[dc_types.ROISetDict, dc_types.ROISetDict],   # noqa: E501
-                                                             Tuple[dc_types.ROIEventSet, dc_types.ROIEventSet],  # noqa: E501
-                                                             Tuple[dc_types.ROIEventSet, dc_types.ROIEventSet]]:  # noqa: E501
+                    new_style_output: bool = False
+                    ) -> Tuple[dict,
+                               Tuple[dc_types.ROISetDict,
+                                     dc_types.ROISetDict],
+                               Tuple[dc_types.ROISetDict,
+                                     dc_types.ROISetDict],
+                               Tuple[dc_types.ROIEventSet,
+                                     dc_types.ROIEventSet],
+                               Tuple[dc_types.ROIEventSet,
+                                     dc_types.ROIEventSet]
+                               ]:
     """
     Actually run the decrosstalking pipeline, comparing two
     DecrosstalkingOphysPlanes

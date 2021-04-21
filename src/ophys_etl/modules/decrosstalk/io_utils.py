@@ -199,8 +199,9 @@ def write_qc_data(file_name: pathlib.Path,
 
                     if 'unclipped_signal' in data_dict:
                         set_name = f'{parent_dir}/unclipped_signal/trace'
+                        tr = data_dict['unclipped_signal']
                         out_file.create_dataset(set_name,
-                                                data=data_dict['unclipped_signal'])  # noqa: E501
+                                                data=tr)
 
                     for sub_key in ('mixing_matrix',
                                     'poorly_converged_signal',

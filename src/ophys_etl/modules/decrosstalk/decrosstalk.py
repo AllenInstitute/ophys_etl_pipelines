@@ -273,31 +273,6 @@ def get_trace_events(trace_dict: dc_types.ROIDict,
     return output
 
 
-def get_crosstalk_data(trace_dict: dc_types.ROIDict,
-                       events_dict: dc_types.ROIEventSet) -> Dict[int, float]:
-    """
-    Parameters
-    ----------
-    trace_dict -- a decrosstalk_types.ROIDict containing the trace data
-                  for a set of ROIs
-
-    events_dict -- a decrosstal_types.ROIEventSet containing the actie
-                   trace data for the ROIs
-
-    Returns
-    --------
-    A dict keyed on roi_id with 100*slope relating signal to crosstalk
-    """
-    output = {}
-    for roi_id in trace_dict.keys():
-        signal = events_dict[roi_id]['signal']['trace']
-        full_crosstalk = trace_dict[roi_id]['crosstalk']
-        crosstalk = full_crosstalk[events_dict[roi_id]['signal']['events']]
-        results = d_utils.get_crosstalk_data(signal, crosstalk)
-        output[roi_id] = 100*results['slope']
-    return output
-
-
 def _centered_rolling_mean(data: np.ndarray,
                            mask: np.ndarray,
                            window: int) -> Tuple[np.ndarray,
@@ -600,9 +575,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         flux_sum = np.round(_flux.sum()).astype(int)
         roi_to_seed[roi_id] = flux_sum % two_to_32
 
-    raw_trace_crosstalk_ratio = get_crosstalk_data(raw_traces['roi'],
-                                                   raw_trace_events)
-
     # remove ROIs with invalid active raw traces
     roi_id_list = list(raw_trace_events.keys())
     for roi_id in roi_id_list:
@@ -740,9 +712,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         invalid_unmixed_traces['roi'][roi_id] = _roi
         invalid_unmixed_traces['neuropil'][roi_id] = _neuropil
         invalid_unmixed_trace_events[roi_id] = _events
-
-    unmixed_ct_ratio = get_crosstalk_data(unmixed_traces['roi'],
-                                          unmixed_trace_events)
 
     ########################################################
     # For each ROI, assess whether or not it is a "ghost"

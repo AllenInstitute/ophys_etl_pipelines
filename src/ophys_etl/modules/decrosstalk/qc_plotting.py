@@ -543,7 +543,6 @@ def generate_roi_figure(ophys_session_id: int,
                     for roi in plane[k]:
                         assert roi not in roi_to_flag
                         roi_to_flag[roi] = 'ghost'
-                        print('got ghost ', roi)
                 elif 'invalid' in k:
                     for roi in plane[k]:
                         assert roi not in roi_to_flag

@@ -541,11 +541,13 @@ def generate_roi_figure(ophys_session_id: int,
             for k in plane.keys():
                 if 'ghost' in k:
                     for roi in plane[k]:
-                        assert roi not in roi_to_flag
+                        if roi in roi_to_flag:
+                            raise RuntimeError(f'{roi} already in roi_to_flag')
                         roi_to_flag[roi] = 'ghost'
                 elif 'invalid' in k:
                     for roi in plane[k]:
-                        assert roi not in roi_to_flag
+                        if roi in roi_to_flag:
+                            raise RuntimeError(f'{roi} already in roi_to_flag')
                         roi_to_flag[roi] = 'invalid'
 
     fig = plt.figure(figsize=(17.5, 10))

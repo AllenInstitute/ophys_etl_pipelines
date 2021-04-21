@@ -33,7 +33,7 @@ class PlaneSchema(argschema.schemas.DefaultSchema):
 
     maximum_projection_image_file = argschema.fields.InputFile(
                         description='path to maximum projection image',
-                        required=False)
+                        required=True)
 
 
 class PlanePairSchema(argschema.schemas.DefaultSchema):

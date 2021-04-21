@@ -494,12 +494,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
     invalid_raw_trace_events = dc_types.ROIEventSet()
     invalid_unmixed_trace_events = dc_types.ROIEventSet()
 
-    # kwargs for output classes that write QC output
-    output_kwargs = {'cache_dir': cache_dir,
-                     'signal_plane': signal_plane,
-                     'crosstalk_plane': ct_plane,
-                     'clobber': clobber}
-
     roi_flags: Dict[str, List[int]] = {}
 
     ghost_key = 'decrosstalk_ghost'

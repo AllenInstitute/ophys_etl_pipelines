@@ -1,4 +1,3 @@
-import os
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 from ophys_etl.modules.decrosstalk.decrosstalk import run_decrosstalk
 

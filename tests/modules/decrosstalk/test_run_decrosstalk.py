@@ -9,7 +9,7 @@ def test_run_decrosstalk(tmpdir):
     Test that run_decrosstalk() can run
     as expected in production.
 
-    Note: this is just a smoke test; not validation
+    Note: this is just a smoke test; no validation
     is done on the outputs of run_decrosstalk
     """
 

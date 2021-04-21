@@ -30,6 +30,12 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             description=("Allen production specifies h5py as the source of "
                          "the data, but Suite2P still wants this key in the "
                          "args."))
+    fs = argschema.fields.Float(
+        required=False,
+        default=10.0,
+        description=("Sampling rate (per plane). For instance, if you have "
+                     "a 10 plane recording acquired at 30Hz, then the sampling"
+                     "rate per plane is 3Hz, so set ops[‘fs’] = 3."))
     # s2p registration settings
     do_registration = argschema.fields.Int(
             default=0,

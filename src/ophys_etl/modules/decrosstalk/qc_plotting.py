@@ -489,18 +489,18 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
                      f'Exp: {plane.experiment_id}; min ROI: {roi_min}',
                      fontsize=10)
 
-        for ax in axes:
-            fig.add_subplot(ax)
-
         # summary statisitcs
         ax = plt.Subplot(fig, inner_grid[ii, 3])
+        axes.append(ax)
+
         plot_summary_statistics(roi_color_lookup,
                                 avg_mixing_matrix,
                                 n_ghost_roi,
                                 n_total_roi,
                                 ax)
 
-        fig.add_subplot(ax)
+        for ax in axes:
+            fig.add_subplot(ax)
 
     return None
 

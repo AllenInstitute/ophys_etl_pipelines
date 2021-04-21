@@ -891,6 +891,94 @@ def generate_2d_histogram(data_x: np.ndarray,
     return None
 
 
+def get_img_thumbnails(roi0: OphysROI,
+                       roi1: OphysROI,
+                       max_img_0_full: np.ndarray,
+                       max_img_1_full: np.ndarray
+                       ) -> Tuple[np.ndarray, np.ndarray,
+                                  Tuple[int, int],
+                                  Tuple[int, int]]:
+    """
+    Take two ROIs and two max projection images and return
+    thumbnails of the max projection images trimmed to focus
+    specifically on the ROIs
+
+    Parameters
+    ----------
+    roi0: OphysROI
+
+    roi1: OphysROI
+
+    max_img_0_full: np.ndarray
+        The full max projection image of the plane containing roi0
+
+    max_img_1_full: np.ndarray
+        The full max projection image of the plane containing roi1
+
+    Returns
+    -------
+    np.ndarray:
+        The thumbnail extracted from max_img_0_full
+
+    np.ndarray:
+        The thumbnail extracted from max_img_1_full
+
+    Tuple[int, int]:
+        (xmin, xmax) of the thumbnails in pixel space
+
+    Tuple[int, int]:
+        (ymin, ymax) of the thumbnails in pixel space
+    """
+    # get sensible bounds for the max projection thumbnail
+    xmin = min(roi0.x0, roi1.x0)
+    xmax = max(roi0.x0+roi0.width, roi1.x0+roi1.width)
+    ymin = min(roi0.y0, roi1.y0)
+    ymax = max(roi0.y0+roi0.height, roi1.y0+roi1.height)
+
+    slop = 50  # ideal number of pixels beyond ROI to show
+    dim = max(roi0.width+slop,
+              roi1.width+slop,
+              roi0.height+slop,
+              roi1.height+slop)
+
+    xmin = max(0, xmin-slop//2)
+    ymin = max(0, ymin-slop//2)
+    xmax = xmin+dim
+    ymax = ymin+dim
+
+    shape = max_img_0_full.shape
+
+    # check that bounds do not exceed max image bounds
+    if xmax > shape[1]:
+        xmax = shape[1]
+        xmin = xmax-dim
+    if ymax > shape[0]:
+        ymax = shape[0]
+        ymin = ymax-dim
+
+    # truncate minimum, if necessary
+    if xmin < 0:
+        xmin = 0
+    if ymin < 0:
+        ymin = 0
+
+    # create max projection thumbnails
+    max_img_0 = np.zeros((ymax-ymin, xmax-xmin, 3), dtype=int)
+    max_img_1 = np.zeros((ymax-ymin, xmax-xmin, 3), dtype=int)
+    for ic in range(3):
+        max_img_0[:, :, ic] = max_img_0_full[ymin:ymax, xmin:xmax]
+        max_img_1[:, :, ic] = max_img_1_full[ymin:ymax, xmin:xmax]
+
+    # add gridlines to max projection thumbnails
+    max_img_0 = add_gridlines(max_img_0, 4)
+    max_img_1 = add_gridlines(max_img_1, 4)
+
+    return (max_img_0,
+            max_img_1,
+            (xmin, xmax),
+            (ymin, ymax))
+
+
 def plot_pair_of_rois(roi0: OphysROI,
                       roi1: OphysROI,
                       qc0: h5py.File,
@@ -977,49 +1065,13 @@ def plot_pair_of_rois(roi0: OphysROI,
     if not valid_1:
         return None
 
-    # get sensible bounds for the max projection thumbnail
-    xmin = min(roi0.x0, roi1.x0)
-    xmax = max(roi0.x0+roi0.width, roi1.x0+roi1.width)
-    ymin = min(roi0.y0, roi1.y0)
-    ymax = max(roi0.y0+roi0.height, roi1.y0+roi1.height)
-
-    slop = 50  # ideal number of pixels beyond ROI to show
-    dim = max(roi0.width+slop,
-              roi1.width+slop,
-              roi0.height+slop,
-              roi1.height+slop)
-
-    xmin = max(0, xmin-slop//2)
-    ymin = max(0, ymin-slop//2)
-    xmax = xmin+dim
-    ymax = ymin+dim
-
-    shape = max_img_0_in.shape
-
-    # check that bounds do not exceed max image bounds
-    if xmax > shape[1]:
-        xmax = shape[1]
-        xmin = xmax-dim
-    if ymax > shape[0]:
-        ymax = shape[0]
-        ymin = ymax-dim
-
-    # truncate minimum, if necessary
-    if xmin < 0:
-        xmin = 0
-    if ymin < 0:
-        ymin = 0
-
-    # create max projection thumbnails
-    max_img_0 = np.zeros((ymax-ymin, xmax-xmin, 3), dtype=int)
-    max_img_1 = np.zeros((ymax-ymin, xmax-xmin, 3), dtype=int)
-    for ic in range(3):
-        max_img_0[:, :, ic] = max_img_0_in[ymin:ymax, xmin:xmax]
-        max_img_1[:, :, ic] = max_img_1_in[ymin:ymax, xmin:xmax]
-
-    # add gridlines to max projection thumbnails
-    max_img_0 = add_gridlines(max_img_0, 4)
-    max_img_1 = add_gridlines(max_img_1, 4)
+    (max_img_0,
+     max_img_1,
+     (xmin, xmax),
+     (ymin, ymax)) = get_img_thumbnails(roi0,
+                                        roi1,
+                                        max_img_0_in,
+                                        max_img_1_in)
 
     fig = plt.figure(figsize=(18, 4))
     axes = []  # list for subplots to be added to fig

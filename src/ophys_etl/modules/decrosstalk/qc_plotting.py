@@ -147,6 +147,77 @@ def get_avg_mixing_matrix(ophys_plane: DecrosstalkingOphysPlane) -> np.ndarray:
     return avg_matrix/n_m
 
 
+def plot_roi_mask(roi: OphysROI,
+                  mask_imgs: List[np.ndarray],
+                  mask_colors: List[Tuple[int]],
+                  centroid_axis: matplotlib.axes.Axes,
+                  centroid_color: str,
+                  min_roi_id: int) -> None:
+    """
+    Add the mask and centroid of an ROI to
+    max projection image thumbnails
+
+    Parameters
+    ----------
+    roi: OphysROI
+        The ROI being plotted
+
+    mask_imgs: List[np.ndarray]
+        A list of thumbnails on which to plot the ROI mask
+
+    mask_colors: List[Tuple[int]]
+        List of RGB colors to use when plotting the ROI
+        on the images in mask_imgs
+
+    centroid_axis: matplotlib.axes.Axes
+        The matplotlib axis of the plot where the ROI's
+        centroid will be marked
+
+    centroid_color: str
+        The hexadecimal color of the numeral used to mark
+        the ROI's centroid
+
+    min_roi_id: int
+        The minimum roi_id value for the plane
+        (this is used to reduce roi.roi_id to a visualizable
+        value in the centroid plot)
+
+    Returns
+    -------
+    None
+        This method just adds the ROI to the provided maximum
+        projection images and centroid axis
+    """
+    n_rows = mask_imgs[0].shape[0]
+    # find centroid
+    x0 = roi.x0
+    y0 = roi.y0
+    cx = 0
+    cy = 0
+    nc = 0
+    mask_matrix = roi.mask_matrix
+    for ix in range(roi.width):
+        for iy in range(roi.height):
+            if mask_matrix[iy, ix]:
+                nc += 1
+                cx += x0+ix
+                cy += y0+iy
+                for img, color in zip(mask_imgs, mask_colors):
+                    for ic in range(3):
+                        img[y0+iy,
+                            x0+ix,
+                            ic] = color[ic]
+
+    cx = cx//nc
+    cy = cy//nc
+    centroid_axis.text(cx,
+                       n_rows-cy,
+                       f'{roi.roi_id-min_roi_id}',
+                       color=centroid_color,
+                       fontsize=6)
+    return None
+
+
 def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
                                         DecrosstalkingOphysPlane],
                     roi_flags: dict,
@@ -277,34 +348,14 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
                 id_color = valid_color_hex
                 qc_color = valid_color
 
-            # find centroid
-            x0 = roi.x0
-            y0 = roi.y0
-            cx = 0
-            cy = 0
-            nc = 0
-            mask_matrix = roi.mask_matrix
-            for ix in range(roi.width):
-                for iy in range(roi.height):
-                    if mask_matrix[iy, ix]:
-                        nc += 1
-                        cx += x0+ix
-                        cy += y0+iy
-                        for ic in range(3):
-                            max_img_copies[0][y0+iy,
-                                              x0+ix,
-                                              ic] = qc_color[ic]
-
-                            max_img_copies[2][y0+iy,
-                                              x0+ix,
-                                              ic] = ghost_color[ic]
-            cx = cx//nc
-            cy = cy//nc
-            axes[1].text(cx,
-                         n_rows-cy,
-                         f'{roi.roi_id-roi_min}',
-                         color=id_color,
-                         fontsize=6)
+            plot_roi_mask(roi,
+                          [max_img_copies[0],
+                           max_img_copies[2]],
+                          [qc_color,
+                           ghost_color],
+                          axes[1],
+                          id_color,
+                          roi_min)
 
         # plot the maximum projection images with the ROI masks added
         for jj in (0, 2):

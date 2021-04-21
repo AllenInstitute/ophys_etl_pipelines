@@ -484,6 +484,7 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
             axes[jj].imshow(max_img_copies[jj],
                             extent=extent)
 
+        # Add header information to leftmost plot
         axes[0].text(10, 30+n_rows,
                      f'Exp: {plane.experiment_id}; min ROI: {roi_min}',
                      fontsize=10)

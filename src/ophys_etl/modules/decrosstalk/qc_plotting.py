@@ -226,7 +226,7 @@ def plot_roi_mask(roi: OphysROI,
                   mask_imgs: List[np.ndarray],
                   mask_colors: List[Tuple[int]],
                   centroid_axis: matplotlib.axes.Axes,
-                  centroid_color: str,
+                  centroid_color: Tuple[int],
                   min_roi_id: int) -> None:
     """
     Add the mask and centroid of an ROI to
@@ -248,8 +248,8 @@ def plot_roi_mask(roi: OphysROI,
         The matplotlib axis of the plot where the ROI's
         centroid will be marked
 
-    centroid_color: str
-        The hexadecimal color of the numeral used to mark
+    centroid_color: Tuple[int]
+        The RGB color of the numeral used to mark
         the ROI's centroid
 
     min_roi_id: int
@@ -288,7 +288,7 @@ def plot_roi_mask(roi: OphysROI,
     centroid_axis.text(cx,
                        n_rows-cy,
                        f'{roi.roi_id-min_roi_id}',
-                       color=centroid_color,
+                       color='#%02x%02x%02x' % centroid_color,
                        fontsize=6)
     return None
 
@@ -476,7 +476,7 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
                           [roi_color_lookup[roi.roi_id][1],
                            roi_color_lookup[roi.roi_id][0]],
                           axes[1],
-                          '#%02x%02x%02x' % roi_color_lookup[roi.roi_id][1],
+                          roi_color_lookup[roi.roi_id][1],
                           roi_min)
 
         # plot the maximum projection images with the ROI masks added

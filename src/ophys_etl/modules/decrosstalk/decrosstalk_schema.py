@@ -69,6 +69,8 @@ class DecrosstalkInputSchema(argschema.ArgSchema):
                         required=True,
                         cli_as_single_argument=True)
 
+    log_level = argschema.fields.LogLevel(default='INFO')
+
 
 def validate_list_of_ints(input_list):
     """

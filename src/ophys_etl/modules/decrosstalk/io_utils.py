@@ -2,6 +2,7 @@ import h5py
 import pathlib
 import ophys_etl.modules.decrosstalk.decrosstalk_types as dc_types
 
+
 def write_qc_data(file_name: pathlib.Path,
                   pair_id: int,
                   roi_flags: dict,
@@ -116,7 +117,7 @@ def write_qc_data(file_name: pathlib.Path,
                 is_ghost = True
 
             out_file.create_dataset(f'ROI/{roi_id}/is_ghost',
-                                   data=is_ghost)
+                                    data=is_ghost)
 
             out_file.create_dataset(f'ROI/{roi_id}/valid_raw_trace',
                                     data=raw_valid)

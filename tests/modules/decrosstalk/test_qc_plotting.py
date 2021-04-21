@@ -165,7 +165,7 @@ def test_summary_plot_generation(tmpdir):
             plane_list.append(p)
 
     ophys_planes = []
-    for ii in range(0, len(plane_list),2):
+    for ii in range(0, len(plane_list), 2):
         ophys_planes.append((plane_list[ii], plane_list[ii+1]))
 
     with open(data_dir / 'DECROSSTALK_example_output.json', 'rb') as in_file:
@@ -210,12 +210,8 @@ def test_pairwise_plot_generation(tmpdir):
             plane_list.append(p)
 
     ophys_planes = []
-    for ii in range(0, len(plane_list),2):
+    for ii in range(0, len(plane_list), 2):
         ophys_planes.append((plane_list[ii], plane_list[ii+1]))
-
-    with open(data_dir / 'DECROSSTALK_example_output.json', 'rb') as in_file:
-        output_data = json.load(in_file)
-
 
     generate_pairwise_figures(ophys_planes,
                               tmpdir)

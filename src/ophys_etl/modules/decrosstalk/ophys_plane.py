@@ -78,7 +78,7 @@ class OphysROI(object):
         self._valid_roi = valid_roi
         self._mask_matrix = np.array(mask_matrix, dtype=bool)
         if (self._mask_matrix.shape[0] != self._height or
-            self._mask_matrix.shape[1] != self._width):
+            self._mask_matrix.shape[1] != self._width):  # noqa E129
 
             msg = 'in OphysROI\n'
             msg += f'mask_matrix.shape: {self._mask_matrix.shape}\n'

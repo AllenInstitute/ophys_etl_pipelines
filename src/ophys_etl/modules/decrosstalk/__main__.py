@@ -57,7 +57,7 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                 plane_1 = p_pair[1][0]
                 output_schema = p_pair[0][1]
 
-                print('running on ',plane_0.experiment_id)
+                print('running on ', plane_0.experiment_id)
 
                 p0 = {}
                 p0['ophys_experiment_id'] = plane_0.experiment_id

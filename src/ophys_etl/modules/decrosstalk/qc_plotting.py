@@ -1,12 +1,8 @@
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import matplotlib.gridspec as gridspec
-from matplotlib.colorbar import Colorbar
 import matplotlib.colors
-
-from typing import Tuple, List, Dict, Optional
 
 import h5py
 import numpy as np
@@ -14,8 +10,15 @@ import PIL
 import pathlib
 import scipy.stats
 import itertools
+
+from typing import Tuple, List, Dict, Optional
+
+from matplotlib.colorbar import Colorbar
+
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+
+matplotlib.use('Agg')
 
 
 def add_gridlines(img_array: np.ndarray,
@@ -87,12 +90,12 @@ def find_problematic_rois(ophys_plane: DecrosstalkingOphysPlane,
                 if roi_flags[roi.roi_id] == 'invalid':
                     continue
 
-            unmixed_signal = qc_data[f'ROI/{roi.roi_id}/roi/unmixed/signal/trace'][()]
-            unmixed_events = qc_data[f'ROI/{roi.roi_id}/roi/unmixed/signal/events'][()]
-            unmixed_crosstalk = qc_data[f'ROI/{roi.roi_id}/roi/unmixed/crosstalk/trace'][()]
+            unmixed_signal = qc_data[f'ROI/{roi.roi_id}/roi/unmixed/signal/trace'][()]        # noqa E501
+            unmixed_events = qc_data[f'ROI/{roi.roi_id}/roi/unmixed/signal/events'][()]       # noqa E501
+            unmixed_crosstalk = qc_data[f'ROI/{roi.roi_id}/roi/unmixed/crosstalk/trace'][()]  # noqa E501
 
-            unmixed_model = scipy.stats.linregress(unmixed_signal[unmixed_events],
-                                                   unmixed_crosstalk[unmixed_events])
+            unmixed_model = scipy.stats.linregress(unmixed_signal[unmixed_events],     # noqa E501
+                                                   unmixed_crosstalk[unmixed_events])  # noqa E501
 
             metric = np.abs(100.0*unmixed_model.slope)
             if metric > threshold:
@@ -125,7 +128,7 @@ def get_avg_mixing_matrix(ophys_plane: DecrosstalkingOphysPlane) -> np.ndarray:
     matrix, it will return that matrix. If no such ROI exists, the method
     returns the mean of all of the ROI-specific mixing matrix in the plane.
     """
-    avg_matrix = np.zeros((2,2), dtype=float)
+    avg_matrix = np.zeros((2, 2), dtype=float)
     n_m = 0
     with h5py.File(ophys_plane.qc_file_path, 'r') as qc_data:
         roi_keys = list(qc_data['ROI'].keys())
@@ -187,8 +190,8 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
     red_hex = '#%02x%02x%02x' % red
 
     inner_grid = gridspec.GridSpecFromSubplotSpec(2, 4,
-                                  subplot_spec=subplot_spec,
-                                  wspace=0.05, hspace=0.)
+                                  subplot_spec=subplot_spec,    # noqa E128
+                                  wspace=0.05, hspace=0.)       # noqa E128
 
     # loop over the two planes
     for ii in range(2):
@@ -218,8 +221,8 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
         max_img = np.zeros((n_rows, n_cols, 4), dtype=int)
 
         for jj in range(3):
-            max_img[:,:,jj] = raw_img[:,:]
-        max_img[:,:,3] = 255
+            max_img[:, :, jj] = raw_img[:, :]
+        max_img[:, :, 3] = 255
 
         # superimpose gridlines
         max_img = add_gridlines(max_img, 3)
@@ -237,8 +240,8 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
                                labelleft=0, labelbottom=0)
             axes.append(ax)
 
-        extent=(20, 20+n_cols,
-                20, 20+n_rows)
+        extent = (20, 20+n_cols,
+                  20, 20+n_rows)
 
         # create three separate copies of the max_img
         # so that we only have to loop over the ROIs once
@@ -281,13 +284,18 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
             mask_matrix = roi.mask_matrix
             for ix in range(roi.width):
                 for iy in range(roi.height):
-                    if mask_matrix[iy,ix]:
+                    if mask_matrix[iy, ix]:
                         nc += 1
                         cx += x0+ix
                         cy += y0+iy
                         for ic in range(3):
-                            max_img_copies[0][y0+iy, x0+ix, ic] = qc_color[ic]
-                            max_img_copies[2][y0+iy, x0+ix, ic] = ghost_color[ic]
+                            max_img_copies[0][y0+iy,
+                                              x0+ix,
+                                              ic] = qc_color[ic]
+
+                            max_img_copies[2][y0+iy,
+                                              x0+ix,
+                                              ic] = ghost_color[ic]
             cx = cx//nc
             cy = cy//nc
             axes[1].text(cx,
@@ -297,7 +305,7 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
                          fontsize=6)
 
         # plot the maximum projection images with the ROI masks added
-        for jj in (0,2):
+        for jj in (0, 2):
             axes[jj].imshow(max_img_copies[jj],
                             extent=extent)
 
@@ -324,10 +332,10 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
         msg += f'# of ROIs: {n_valid_roi}\n'
         msg += f'# of ghost ROIs: {n_ghost_roi}\n'
         msg += '\nAvg mixing matrix\n'
-        msg += f'[[%.3f, %.3f]\n' % (avg_mixing_matrix[0, 0],
-                                      avg_mixing_matrix[0, 1])
-        msg += f'[%.3f, %.3f]]\n' % (avg_mixing_matrix[1, 0],
-                                      avg_mixing_matrix[1, 1])
+        msg += '[[%.3f, %.3f]\n' % (avg_mixing_matrix[0, 0],
+                                    avg_mixing_matrix[0, 1])
+        msg += '[%.3f, %.3f]]\n' % (avg_mixing_matrix[1, 0],
+                                    avg_mixing_matrix[1, 1])
 
         ax.text(10, 90, msg,
                 fontsize=10,
@@ -400,7 +408,7 @@ def generate_roi_figure(ophys_session_id: int,
                     for roi in plane[k]:
                         assert roi not in roi_to_flag
                         roi_to_flag[roi] = 'ghost'
-                        print('got ghost ',roi)
+                        print('got ghost ', roi)
                 elif 'invalid' in k:
                     for roi in plane[k]:
                         assert roi not in roi_to_flag
@@ -417,7 +425,7 @@ def generate_roi_figure(ophys_session_id: int,
 
     # create one all-encompassing axis for assigning
     # the plot title
-    mega_axis = plt.Subplot(fig, outer_grid[:,:])
+    mega_axis = plt.Subplot(fig, outer_grid[:, :])
     for spine in ('top', 'right', 'left', 'bottom'):
         mega_axis.spines[spine].set_visible(False)
 
@@ -453,7 +461,7 @@ def generate_roi_figure(ophys_session_id: int,
                        labelleft=0)
 
     # actually plot ROIs
-    for ii in range(min(len(ophys_planes),4)):
+    for ii in range(min(len(ophys_planes), 4)):
         plot_plane_pair(ophys_planes[ii],
                         roi_to_flag,
                         outer_grid[ii],
@@ -497,8 +505,8 @@ def get_roi_pixels(roi_list: List[OphysROI]) -> Dict[int, set]:
 
 
 def find_overlapping_roi_pairs(roi_list_0: List[OphysROI],
-                               roi_list_1: List[OphysROI]) -> List[Tuple[int, int,
-                                                                         float, float]]:
+                               roi_list_1: List[OphysROI]) -> List[Tuple[int, int,        # noqa E501
+                                                                         float, float]]:  # noqa E501
     """
     Find all overlapping pairs from two lists of OphysROIs
 
@@ -669,20 +677,20 @@ def generate_2d_histogram(data_x: np.ndarray,
 
     # convert traces to pixel integers
     xx = np.round(data_x/dx).astype(int)
-    xx = np.where(xx<nx, xx, nx-1)
+    xx = np.where(xx < nx, xx, nx-1)
 
     yy = np.round(data_y/dy).astype(int)
-    yy = np.where(yy<ny, yy, ny-1)
+    yy = np.where(yy < ny, yy, ny-1)
 
     # find number of timesteps that fall in each pixel
     one_d_coords = xx*ny+yy
     unq, unq_ct = np.unique(one_d_coords, return_counts=True)
     xx = unq//ny
-    yy = unq%ny
+    yy = unq % ny
 
     hist = np.zeros((ny, nx), dtype=int)
     hist[yy, xx] = unq_ct
-    hist = np.where(hist>0, hist, np.NaN)
+    hist = np.where(hist > 0, hist, np.NaN)
 
     img = hist_axis.imshow(hist, cmap=cmap,
                            origin='lower')
@@ -690,7 +698,7 @@ def generate_2d_histogram(data_x: np.ndarray,
     # find reasonable tick labels for x axis
     log10_nx = np.floor(np.log10(dx))
     xticks = None
-    while xticks is None or len(xticks)> 4:
+    while xticks is None or len(xticks) > 4:
         log10_nx += 1
         v = np.power(10, log10_nx)
         for tick_dx in np.arange(v, 5*v, v):
@@ -705,7 +713,7 @@ def generate_2d_histogram(data_x: np.ndarray,
     # find reasonable tick labels for y axis
     log10_ny = np.floor(np.log10(dy))
     yticks = None
-    while yticks is None or len(yticks)> 4:
+    while yticks is None or len(yticks) > 4:
         log10_ny += 1
         v = np.power(10, log10_ny)
         for tick_dy in np.arange(v, 5*v, v):
@@ -723,7 +731,7 @@ def generate_2d_histogram(data_x: np.ndarray,
     hist_axis.set_title(title, fontsize=10)
 
     # plot color bar
-    cbar = Colorbar(mappable=img, ax=cbar_axis)
+    _ = Colorbar(mappable=img, ax=cbar_axis)
     cbar_axis.yaxis.set_ticks_position('left')
 
     # find reasonable tick labels for color bar
@@ -731,14 +739,14 @@ def generate_2d_histogram(data_x: np.ndarray,
     hist_max = np.nanmax(hist)
     log10_nhist = np.floor(np.log10(hist_max))-2
     hist_ticks = None
-    while hist_ticks is None or len(hist_ticks)> 4:
+    while hist_ticks is None or len(hist_ticks) > 4:
         log10_nhist += 1
         v = np.power(10, log10_nhist)
         for tick_hist in np.arange(v, 5*v, v):
             _min = np.round(hist_min/tick_hist).astype(int)*tick_hist
             _max = np.round(hist_max/tick_hist).astype(int)*tick_hist
             hist_ticks = np.arange(_min, _max+1, tick_hist)
-            hist_ticks = hist_ticks[np.where(hist_ticks<hist_max)]
+            hist_ticks = hist_ticks[np.where(hist_ticks < hist_max)]
             if len(hist_ticks) <= 4:
                 break
 
@@ -883,7 +891,7 @@ def plot_pair_of_rois(roi0: OphysROI,
     # using GridSpec to get granular control of each subplot's
     # size and location
     grid = gridspec.GridSpec(10, 37,
-                             height_ratios = [10]*9+[3],
+                             height_ratios=[10]*9+[3],
                              width_ratios=[10]*36+[5])
     grid.update(bottom=0.1, top=0.99, left=0.01, right=0.99,
                 wspace=0.1, hspace=0.01)
@@ -918,7 +926,7 @@ def plot_pair_of_rois(roi0: OphysROI,
     # fill out title_axes
     title0 = f"Plane {qc1['paired_plane'][()]};  roi {roi0.roi_id};  "
     title0 += f"cell num {roi0.roi_id-roi_min0}\n"
-    title0 += f"overlap: %.1f%%;      " % (roi_pair[2]*100)
+    title0 += "overlap: %.1f%%;      " % (roi_pair[2]*100)
     is_ghost = qc0[f'ROI/{roi0.roi_id}/is_ghost'][()]
     title0 += f"is_ghost: {is_ghost}"
     title0_axis.set_title(title0, fontsize=10,
@@ -927,7 +935,7 @@ def plot_pair_of_rois(roi0: OphysROI,
 
     title1 = f"Plane {qc0['paired_plane'][()]};  roi {roi1.roi_id};  "
     title1 += f"cell num {roi1.roi_id-roi_min1}\n"
-    title1 += f"Overlap: %.1f%%;      " % (roi_pair[3]*100)
+    title1 += "Overlap: %.1f%%;      " % (roi_pair[3]*100)
     is_ghost = qc1[f'ROI/{roi1.roi_id}/is_ghost'][()]
     title1 += f"is_ghost: {is_ghost}"
     title1_axis.set_title(title1, fontsize=10,
@@ -946,7 +954,6 @@ def plot_pair_of_rois(roi0: OphysROI,
                       (xmin, ymin),
                       roi=None,
                       roi_color=None)
-
 
     plot_img_with_roi(max0_roi_axis,
                       max_img_0,
@@ -984,14 +991,24 @@ def plot_pair_of_rois(roi0: OphysROI,
             trace_bounds[trace_key][0] = {}
             trace_bounds[trace_key][1] = {}
 
-        if 'max' not in trace_bounds[trace_key][0] or trace0.max() > trace_bounds[trace_key][0]['max']:
+        if ('max' not in trace_bounds[trace_key][0] or
+            trace0.max() > trace_bounds[trace_key][0]['max']):  # noqa E129
+
             trace_bounds[trace_key][0]['max'] = trace0.max()
-        if 'min' not in trace_bounds[trace_key][0] or trace0.min() < trace_bounds[trace_key][0]['min']:
+
+        if ('min' not in trace_bounds[trace_key][0] or
+            trace0.min() < trace_bounds[trace_key][0]['min']):  # noqa E129
+
             trace_bounds[trace_key][0]['min'] = trace0.min()
 
-        if 'max' not in trace_bounds[trace_key][1] or trace1.max() > trace_bounds[trace_key][1]['max']:
+        if ('max' not in trace_bounds[trace_key][1] or
+            trace1.max() > trace_bounds[trace_key][1]['max']):  # noqa E129
+
             trace_bounds[trace_key][1]['max'] = trace1.max()
-        if 'min' not in trace_bounds[trace_key][1] or trace1.min() < trace_bounds[trace_key][1]['min']:
+
+        if ('min' not in trace_bounds[trace_key][1] or
+            trace1.min() < trace_bounds[trace_key][1]['min']):  # noqa E129
+
             trace_bounds[trace_key][1]['min'] = trace1.min()
 
         t = np.arange(len(trace0), dtype=int)
@@ -1026,8 +1043,8 @@ def plot_pair_of_rois(roi0: OphysROI,
                           'Trace v trace before decrosstalking',
                           raw_hist_axis, raw_cbar_axis)
 
-    generate_2d_histogram(qc0[f'ROI/{roi0.roi_id}/roi/unmixed/signal/trace'][()],
-                          qc1[f'ROI/{roi1.roi_id}/roi/unmixed/signal/trace'][()],
+    generate_2d_histogram(qc0[f'ROI/{roi0.roi_id}/roi/unmixed/signal/trace'][()],  # noqa E501
+                          qc1[f'ROI/{roi1.roi_id}/roi/unmixed/signal/trace'][()],  # noqa E501
                           (np.floor(trace_bounds['unmixed'][0]['min']),
                            np.ceil(trace_bounds['unmixed'][0]['max'])),
                           (np.floor(trace_bounds['unmixed'][1]['min']),
@@ -1046,8 +1063,8 @@ def plot_pair_of_rois(roi0: OphysROI,
     return None
 
 
-def generate_pairwise_figures(ophys_planes: List[Tuple[DecrosstalkingOphysPlane,
-                                                       DecrosstalkingOphysPlane]],
+def generate_pairwise_figures(ophys_planes: List[Tuple[DecrosstalkingOphysPlane,    # noqa E501
+                                                       DecrosstalkingOphysPlane]],  # noqa E501
                               qc_dir: str) -> None:
     """
     Generate the pairwise ROI comparison plots for sets of coupled planes

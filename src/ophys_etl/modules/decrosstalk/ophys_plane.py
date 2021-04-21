@@ -195,7 +195,6 @@ class OphysMovie(object):
         Delete loaded movie data
         """
         if self._data is not None:
-            del self._data
             self._data = None
         return None
 

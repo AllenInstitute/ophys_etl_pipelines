@@ -17,7 +17,10 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
     default_output_schema = decrosstalk_schema.DecrosstalkOutputSchema
 
     def run(self):
-        print('running now')
+        ophys_etl_commit_sha = os.environ.get("OPHYS_ETL_COMMIT_SHA",
+                                              "local build")
+
+        self.logger.info(f"OPHY_ETL_COMMIT_SHA: {ophys_etl_commit_sha}")
 
         clobber = True
 
@@ -57,7 +60,7 @@ class DecrosstalkWrapper(argschema.ArgSchemaParser):
                 plane_1 = p_pair[1][0]
                 output_schema = p_pair[0][1]
 
-                print('running on ', plane_0.experiment_id)
+                self.logger.info(f'running on plane: {plane_0.experiment_id}')
 
                 p0 = {}
                 p0['ophys_experiment_id'] = plane_0.experiment_id

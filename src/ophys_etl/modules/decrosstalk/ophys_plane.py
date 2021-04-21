@@ -2,11 +2,15 @@ from typing import List, Dict, Union
 import h5py
 import copy
 import numpy as np
+import logging
 
 from ophys_etl.utils.roi_masks import RoiMask
 from ophys_etl.modules.trace_extraction.utils import \
         calculate_roi_and_neuropil_traces
 import ophys_etl.modules.decrosstalk.decrosstalk_types as dc_types
+
+
+logger = logging.getLogger(__name__)
 
 
 class OphysROI(object):
@@ -175,7 +179,7 @@ class OphysMovie(object):
         """
         Load the data from self._path; store te data in self._data
         """
-        print(f'loading {self.path}')
+        logger.info(f'loading {self.path}')
         with h5py.File(self.path, mode='r') as in_file:
             self._data = in_file['data'][()]
 

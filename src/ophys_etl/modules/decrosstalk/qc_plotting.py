@@ -57,11 +57,11 @@ def add_gridlines(img_array: np.ndarray,
     return out_array
 
 
-def find_problematic_rois(ophys_plane: DecrosstalkingOphysPlane,
-                          roi_flags: dict) -> dict:
+def find_roi_colors(ophys_plane: DecrosstalkingOphysPlane,
+                    roi_flags: dict) -> dict:
     """
-    Figure out which ROIs have a reasonably small amount of crosstalk after
-    demixing, and which do not
+    Filter the ROIs based on quality metrics.
+    Determine which colors should be used to plot the ROIs
 
     Parameters
     ----------
@@ -75,20 +75,60 @@ def find_problematic_rois(ophys_plane: DecrosstalkingOphysPlane,
     Returns
     -------
     dict
-        'good' is a set of ROI ID indicating valid ROIs
-        'problematic' is a set of ROI ID indicating problematic ROIs
+        The dict will map roi_id to a tuple of two colors.
+
+        The zeroth color will be an RGB representation of the color
+        which should be used to plot the ROI's mask on the max projection
+        image based on whether or not the ROI is a ghost/
+
+        The first color will be an RGB representation of the color
+        which should be used to mark the ROI's centroid on the max
+        projection image based on the amount of crosstalk in the ROI's
+        trace.
+
+        Additionally the following keys will point to hexadecimal colors
+        used for global statistics
+
+        'ghost' -- the color of ghost ROIs
+        'not_ghost' -- the color of ROIs that are not ghosts
+        'expected' -- the color of ROIs with reasonable crosstalk values
+        'outlier' -- the color of ROIs with significant crosstalk
+
+    Note
+    ----
+    ROIs that are flagged as 'invalid' in roi_flags will not appear
+    in the output dict
     """
-    good_rois = set()
-    problematic_rois = set()
+    green = matplotlib.colors.to_rgba('green')
+    green = tuple([int(255*g) for g in green[:3]])
+
+    red = matplotlib.colors.to_rgba('red')
+    red = tuple([int(255*r) for r in red[:3]])
+
+    outlier_color = (255, 108, 220)
+    valid_color = (255, 196, 92)
+
+    out_dict = {}
+    out_dict['ghost'] = red
+    out_dict['not_ghost'] = green
+    out_dict['expected'] = valid_color
+    out_dict['outlier'] = outlier_color
 
     threshold = 50.0
 
     h5_path = ophys_plane.qc_file_path
     with h5py.File(h5_path, 'r') as qc_data:
         for roi in ophys_plane.roi_list:
+            roi_colors = []
             if roi.roi_id in roi_flags:
                 if roi_flags[roi.roi_id] == 'invalid':
                     continue
+                if roi_flags[roi.roi_id] == 'ghost':
+                    roi_colors.append(red)
+
+            if len(roi_colors) == 0:
+                roi_colors.append(green)
+
             unmixed_dir = f'ROI/{roi.roi_id}/roi/unmixed'
             unmixed_signal = qc_data[f'{unmixed_dir}/signal/trace'][()]
             unmixed_events = qc_data[f'{unmixed_dir}/signal/events'][()]
@@ -101,12 +141,13 @@ def find_problematic_rois(ophys_plane: DecrosstalkingOphysPlane,
 
             metric = np.abs(100.0*unmixed_model.slope)
             if metric > threshold:
-                problematic_rois.add(roi.roi_id)
+                roi_colors.append(outlier_color)
             else:
-                good_rois.add(roi.roi_id)
+                roi_colors.append(valid_color)
 
-    return {'good': good_rois,
-            'problematic': problematic_rois}
+            out_dict[roi.roi_id] = roi_colors
+
+    return out_dict
 
 
 def get_avg_mixing_matrix(ophys_plane: DecrosstalkingOphysPlane) -> np.ndarray:
@@ -252,6 +293,91 @@ def plot_roi_mask(roi: OphysROI,
     return None
 
 
+def plot_summary_statistics(color_lookup: dict,
+                            avg_mixing_matrix: np.ndarray,
+                            n_ghost_roi: int,
+                            n_total_roi: int,
+                            ax: matplotlib.axes.Axes) -> None:
+    """
+    Plot the summary statistics panel in the full session summary plot
+
+    Parameters
+    ----------
+    color_lookup: dict
+        A dict that maps 'ghost', 'not_ghost', 'outlier',
+        and 'expected' to the relevant RGB colors (see output
+        of find_roi_colors)
+
+    avg_mixing_matrix: np.ndarray
+        The average mixing matrix of the plane
+
+    n_ghost_roi: int
+        The number of ghost ROIs in the plane
+
+    n_total_roi: int
+        The number of total valid ROIs in the plane (i.e. ROIs that
+        are not invalid due to NaNs in traces)
+
+    ax: matplotlib.axes.Axes
+        The axis in which to draw this plot
+
+    Returns
+    -------
+    None
+        This method just generates the summary plot
+        in the given axis
+    """
+
+    ax.patch.set_alpha(0)
+    for s in ('top', 'bottom', 'left', 'right'):
+        ax.spines[s].set_visible(False)
+        ax.tick_params(which='both', axis='both',
+                       left=0, bottom=0,
+                       labelleft=0, labelbottom=0)
+
+    ax.set_xlim(0, 100)
+    ax.set_ylim(0, 100)
+
+    msg = ''
+    msg += f'# of ROIs: {n_total_roi}\n'
+    msg += f'# of ghost ROIs: {n_ghost_roi}\n'
+    msg += '\nAvg mixing matrix\n'
+    msg += '[[%.3f, %.3f]\n' % (avg_mixing_matrix[0, 0],
+                                avg_mixing_matrix[0, 1])
+    msg += '[%.3f, %.3f]]\n' % (avg_mixing_matrix[1, 0],
+                                avg_mixing_matrix[1, 1])
+
+    ax.text(10, 90, msg,
+            fontsize=10,
+            verticalalignment='top')
+
+    ax.text(10, 40,
+            'ghost ROIS',
+            color='#%02x%02x%02x' % color_lookup['ghost'],
+            fontsize=10,
+            verticalalignment='top')
+
+    ax.text(10, 33,
+            'not-ghost ROIS',
+            color='#%02x%02x%02x' % color_lookup['not_ghost'],
+            fontsize=10,
+            verticalalignment='top')
+
+    ax.text(10, 26,
+            'possible outlier',
+            color='#%02x%02x%02x' % color_lookup['outlier'],
+            fontsize=10,
+            verticalalignment='top')
+
+    ax.text(10, 19,
+            'no problem',
+            color='#%02x%02x%02x' % color_lookup['expected'],
+            fontsize=10,
+            verticalalignment='top')
+
+    return None
+
+
 def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
                                         DecrosstalkingOphysPlane],
                     roi_flags: dict,
@@ -282,20 +408,6 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
     None
     """
 
-    green = matplotlib.colors.to_rgba('green')
-    green = tuple([int(255*g) for g in green[:3]])
-
-    red = matplotlib.colors.to_rgba('red')
-    red = tuple([int(255*r) for r in red[:3]])
-
-    outlier_color = (255, 108, 220)
-    valid_color = (255, 196, 92)
-
-    outlier_color_hex = '#%02x%02x%02x' % outlier_color
-    valid_color_hex = '#%02x%02x%02x' % valid_color
-    green_hex = '#%02x%02x%02x' % green
-    red_hex = '#%02x%02x%02x' % red
-
     inner_grid = gridspec.GridSpecFromSubplotSpec(2, 4,
                                                   subplot_spec=subplot_spec,
                                                   wspace=0.05, hspace=0.)
@@ -314,8 +426,8 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
         roi_min = roi_id.min()
 
         avg_mixing_matrix = get_avg_mixing_matrix(plane)
-        roi_qc = find_problematic_rois(plane, roi_flags)
-        n_valid_roi = 0
+        roi_color_lookup = find_roi_colors(plane, roi_flags)
+        n_total_roi = 0
         n_ghost_roi = 0
 
         max_img = get_max_projection_image(plane)
@@ -350,33 +462,21 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
         # loop over ROIS, adding centroids and masks to the copied
         # maximum projection images
         for roi in plane.roi_list:
-            ghost_color = green
-            if roi.roi_id in roi_flags:
-                if roi_flags[roi.roi_id] == 'invalid':
-                    # if the ROI is globally invalid, move on
-                    continue
-                if roi_flags[roi.roi_id] == 'ghost':
-                    ghost_color = red
-                    n_ghost_roi += 1
+            if roi.roi_id not in roi_color_lookup:
+                continue
 
-            n_valid_roi += 1
-            if roi.roi_id in roi_qc['problematic']:
-                id_color = outlier_color_hex
-                qc_color = outlier_color
-            else:
-                if roi.roi_id not in roi_qc['good']:
-                    raise RuntimeError(f'ROI {roi.roi_id} not in either '
-                                       '"good" or "problematic" set')
-                id_color = valid_color_hex
-                qc_color = valid_color
+            if roi.roi_id in roi_flags:
+                if roi_flags[roi.roi_id] == 'ghost':
+                    n_ghost_roi += 1
+            n_total_roi += 1
 
             plot_roi_mask(roi,
                           [max_img_copies[0],
                            max_img_copies[2]],
-                          [qc_color,
-                           ghost_color],
+                          [roi_color_lookup[roi.roi_id][1],
+                           roi_color_lookup[roi.roi_id][0]],
                           axes[1],
-                          id_color,
+                          '#%02x%02x%02x' % roi_color_lookup[roi.roi_id][1],
                           roi_min)
 
         # plot the maximum projection images with the ROI masks added
@@ -393,52 +493,11 @@ def plot_plane_pair(ophys_planes: Tuple[DecrosstalkingOphysPlane,
 
         # summary statisitcs
         ax = plt.Subplot(fig, inner_grid[ii, 3])
-        ax.patch.set_alpha(0)
-        for s in ('top', 'bottom', 'left', 'right'):
-            ax.spines[s].set_visible(False)
-            ax.tick_params(which='both', axis='both',
-                           left=0, bottom=0,
-                           labelleft=0, labelbottom=0)
-
-        ax.set_xlim(0, 100)
-        ax.set_ylim(0, 100)
-
-        msg = ''
-        msg += f'# of ROIs: {n_valid_roi}\n'
-        msg += f'# of ghost ROIs: {n_ghost_roi}\n'
-        msg += '\nAvg mixing matrix\n'
-        msg += '[[%.3f, %.3f]\n' % (avg_mixing_matrix[0, 0],
-                                    avg_mixing_matrix[0, 1])
-        msg += '[%.3f, %.3f]]\n' % (avg_mixing_matrix[1, 0],
-                                    avg_mixing_matrix[1, 1])
-
-        ax.text(10, 90, msg,
-                fontsize=10,
-                verticalalignment='top')
-
-        ax.text(10, 40,
-                'ghost ROIS',
-                color=red_hex,
-                fontsize=10,
-                verticalalignment='top')
-
-        ax.text(10, 33,
-                'not-ghost ROIS',
-                color=green_hex,
-                fontsize=10,
-                verticalalignment='top')
-
-        ax.text(10, 26,
-                'possible outlier',
-                color=outlier_color_hex,
-                fontsize=10,
-                verticalalignment='top')
-
-        ax.text(10, 19,
-                'no problem',
-                color=valid_color_hex,
-                fontsize=10,
-                verticalalignment='top')
+        plot_summary_statistics(roi_color_lookup,
+                                avg_mixing_matrix,
+                                n_ghost_roi,
+                                n_total_roi,
+                                ax)
 
         fig.add_subplot(ax)
 

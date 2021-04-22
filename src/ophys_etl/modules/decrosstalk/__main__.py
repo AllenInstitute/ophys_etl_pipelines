@@ -1,3 +1,5 @@
+import matplotlib
+
 import os
 import h5py
 import numpy as np
@@ -9,6 +11,8 @@ from ophys_etl.modules.decrosstalk.decrosstalk import run_decrosstalk
 from ophys_etl.modules.decrosstalk.io_utils import write_qc_data
 from ophys_etl.modules.decrosstalk.qc_plotting import generate_roi_figure
 from ophys_etl.modules.decrosstalk.qc_plotting import generate_pairwise_figures
+
+matplotlib.use('Agg')
 
 
 class DecrosstalkWrapper(argschema.ArgSchemaParser):

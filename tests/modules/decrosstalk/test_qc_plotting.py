@@ -1,14 +1,20 @@
+import matplotlib
+
 import pathlib
 import json
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 
-from ophys_etl.modules.decrosstalk.qc_plotting import (
+from ophys_etl.modules.decrosstalk.qc_plotting.pairwise_plot import (
     get_roi_pixels,
-    find_overlapping_roi_pairs,
+    find_overlapping_roi_pairs)
+
+from ophys_etl.modules.decrosstalk.qc_plotting import (
     generate_roi_figure,
     generate_pairwise_figures)
+
+matplotlib.use('Agg')
 
 
 def test_get_roi_pixels():

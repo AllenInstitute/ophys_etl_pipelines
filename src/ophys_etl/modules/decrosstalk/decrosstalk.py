@@ -6,7 +6,6 @@ from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 
 import ophys_etl.modules.decrosstalk.decrosstalk_utils as d_utils
 import ophys_etl.modules.decrosstalk.ica_utils as ica_utils
-import ophys_etl.modules.decrosstalk.io_utils as io_utils
 import ophys_etl.modules.decrosstalk.active_traces as active_traces
 
 import logging
@@ -99,7 +98,8 @@ def unmix_ROI(roi_traces: dc_types.ROIChannels,
 
 
 def unmix_all_ROIs(raw_roi_traces: dc_types.ROISetDict,
-                   seed_lookup: Dict[int, int]) -> Tuple[bool, dc_types.ROISetDict]:  # noqa: E501
+                   seed_lookup: Dict[int, int]
+                   ) -> Tuple[bool, dc_types.ROISetDict]:
     """
     Unmix all of the ROIs in this DecrosstalkingOphysPlane.
 
@@ -227,8 +227,8 @@ def unmix_all_ROIs(raw_roi_traces: dc_types.ROISetDict,
 
 
 def get_trace_events(trace_dict: dc_types.ROIDict,
-                     trace_threshold_params: dict = {'len_ne': 20,
-                                                     'th_ag': 14}) -> dc_types.ROIEventSet:  # noqa: E501
+                     trace_threshold_params: dict = {'len_ne': 20, 'th_ag': 14}
+                     ) -> dc_types.ROIEventSet:
     """
     trace_dict -- a decrosstalk_types.ROIDict containing the trace data
                   for many ROIs to be analyzed
@@ -271,31 +271,6 @@ def get_trace_events(trace_dict: dc_types.ROIDict,
 
         output[roi_id] = local_channels
 
-    return output
-
-
-def get_crosstalk_data(trace_dict: dc_types.ROIDict,
-                       events_dict: dc_types.ROIEventSet) -> Dict[int, float]:
-    """
-    Parameters
-    ----------
-    trace_dict -- a decrosstalk_types.ROIDict containing the trace data
-                  for a set of ROIs
-
-    events_dict -- a decrosstal_types.ROIEventSet containing the actie
-                   trace data for the ROIs
-
-    Returns
-    --------
-    A dict keyed on roi_id with 100*slope relating signal to crosstalk
-    """
-    output = {}
-    for roi_id in trace_dict.keys():
-        signal = events_dict[roi_id]['signal']['trace']
-        full_crosstalk = trace_dict[roi_id]['crosstalk']
-        crosstalk = full_crosstalk[events_dict[roi_id]['signal']['events']]
-        results = d_utils.get_crosstalk_data(signal, crosstalk)
-        output[roi_id] = 100*results['slope']
     return output
 
 
@@ -367,7 +342,8 @@ def _centered_rolling_mean(data: np.ndarray,
     return mean, std
 
 
-def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDict:  # noqa: E501
+def clean_negative_traces(trace_dict: dc_types.ROISetDict
+                          ) -> dc_types.ROISetDict:
     """
     Parameters
     ----------
@@ -445,7 +421,17 @@ def clean_negative_traces(trace_dict: dc_types.ROISetDict) -> dc_types.ROISetDic
 def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
                     ct_plane: DecrosstalkingOphysPlane,
                     cache_dir: str = None, clobber: bool = False,
-                    new_style_output: bool = False) -> Tuple[dict, dc_types.ROISetDict]:  # noqa: E501
+                    new_style_output: bool = False
+                    ) -> Tuple[dict,
+                               Tuple[dc_types.ROISetDict,
+                                     dc_types.ROISetDict],
+                               Tuple[dc_types.ROISetDict,
+                                     dc_types.ROISetDict],
+                               Tuple[dc_types.ROIEventSet,
+                                     dc_types.ROIEventSet],
+                               Tuple[dc_types.ROIEventSet,
+                                     dc_types.ROIEventSet]
+                               ]:
     """
     Actually run the decrosstalking pipeline, comparing two
     DecrosstalkingOphysPlanes
@@ -484,20 +470,37 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         'decrosstalk_invalid_unmixed_active' -- ROIs with invalid
                                                 unmixed active traces
 
-    unmixed_traces -- a decrosstalk_types.RoiSetDict containing
-                      the unmixed trace data for the ROIs
+    (raw_traces,
+     invalid_raw_traces) -- two decrosstalk_types.ROISetDicts containing
+                            the raw trace data for the ROIs and the
+                            invalid raw traces
+
+    (unmixed_traces,
+     invalid_unmixed_traces) -- two decrosstalk_types.ROISetDicts containing
+                                the unmixed trace data for the ROIs and then
+                                invalid unmixed traces
+
+    (raw_trace_events,
+     invalid_raw_trace_events) -- two decrosstalk_types.ROIEventSets
+                                  characterizing the active timestamps
+                                  from the raw traces and the invalid
+                                  active timestamps
+
+    (unmixed_trace_events,
+     invalid_unmixed_trace_events) -- two decrosstalk_types.ROIEventSets
+                                      characterizing the active timestamps
+                                      from the unmixed traces and the invalid
+                                      unmixed trace events
     """
+    raw_traces = dc_types.ROISetDict()
+    unmixed_traces = dc_types.ROISetDict()
+    raw_trace_events = dc_types.ROIEventSet()
+    unmixed_trace_events = dc_types.ROIEventSet()
 
-    # kwargs for output classes that write QC output
-    output_kwargs = {'cache_dir': cache_dir,
-                     'signal_plane': signal_plane,
-                     'crosstalk_plane': ct_plane,
-                     'clobber': clobber}
-
-    # writer class that will be used to write dict of ROIs
-    # that have been invalidated for various reasons by
-    # this module
-    flag_writer_class = io_utils.InvalidFlagWriter
+    invalid_raw_traces = dc_types.ROISetDict()
+    invalid_unmixed_traces = dc_types.ROISetDict()
+    invalid_raw_trace_events = dc_types.ROIEventSet()
+    invalid_unmixed_trace_events = dc_types.ROIEventSet()
 
     roi_flags: Dict[str, List[int]] = {}
 
@@ -516,42 +519,31 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
     # If there are no ROIs in the signal plane,
     # just return a set of empty outputs
     if len(signal_plane.roi_list) == 0:
-        return roi_flags, dc_types.ROISetDict()
+        return (roi_flags,
+                (raw_traces, invalid_raw_traces),
+                (unmixed_traces, invalid_unmixed_traces),
+                (raw_trace_events, invalid_raw_trace_events),
+                (unmixed_trace_events, invalid_unmixed_trace_events))
 
     ###############################
     # extract raw traces
 
     raw_traces = get_raw_traces(signal_plane, ct_plane)
-
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.RawH5Writer
-        else:
-            writer_class = io_utils.RawH5WriterOld
-        writer = writer_class(data=raw_traces, **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
-
     raw_trace_validation = d_utils.validate_traces(raw_traces)
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.ValidJsonWriter
-        else:
-            writer_class = io_utils.ValidJsonWriterOld
-        writer = writer_class(data=raw_trace_validation, **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
 
     # remove invalid raw traces
-    invalid_raw_trace = []
+    invalid_raw_trace_roi_id = []
     for roi_id in raw_trace_validation:
         if not raw_trace_validation[roi_id]:
-            invalid_raw_trace.append(roi_id)
-            raw_traces['roi'].pop(roi_id)
-            raw_traces['neuropil'].pop(roi_id)
-    roi_flags[raw_key] += invalid_raw_trace
+            invalid_raw_trace_roi_id.append(roi_id)
+
+            _roi = raw_traces['roi'].pop(roi_id)
+            _neuropil = raw_traces['neuropil'].pop(roi_id)
+
+            invalid_raw_traces['roi'][roi_id] = _roi
+            invalid_raw_traces['neuropil'][roi_id] = _neuropil
+
+    roi_flags[raw_key] += invalid_raw_trace_roi_id
 
     if len(raw_traces['roi']) == 0:
         msg = 'No raw traces were valid when applying '
@@ -560,10 +552,11 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
                             ct_plane.experiment_id)
         logger.error(msg)
 
-        writer = flag_writer_class(data=roi_flags,
-                                   **output_kwargs)
-        writer.run()
-        return roi_flags, dc_types.ROISetDict()
+        return (roi_flags,
+                (raw_traces, invalid_raw_traces),
+                (unmixed_traces, invalid_unmixed_traces),
+                (raw_trace_events, invalid_raw_trace_events),
+                (unmixed_trace_events, invalid_unmixed_trace_events))
 
     #########################################
     # detect activity in raw traces
@@ -584,35 +577,29 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         flux_sum = np.round(_flux.sum()).astype(int)
         roi_to_seed[roi_id] = flux_sum % two_to_32
 
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.RawATH5Writer
-        else:
-            writer_class = io_utils.RawATH5WriterOld
-        writer = writer_class(data=raw_trace_events, **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
-
-    raw_trace_crosstalk_ratio = get_crosstalk_data(raw_traces['roi'],
-                                                   raw_trace_events)
-
     # remove ROIs with invalid active raw traces
     roi_id_list = list(raw_trace_events.keys())
     for roi_id in roi_id_list:
         signal = raw_trace_events[roi_id]['signal']['trace']
         if len(signal) == 0 or np.isnan(signal).any():
             roi_flags[raw_active_key].append(roi_id)
-            raw_trace_events.pop(roi_id)
-            raw_traces['roi'].pop(roi_id)
-            raw_traces['neuropil'].pop(roi_id)
 
-    del raw_trace_events
+            _events = raw_trace_events.pop(roi_id)
+            _roi = raw_traces['roi'].pop(roi_id)
+            _neuropil = raw_traces['neuropil'].pop(roi_id)
+
+            invalid_raw_traces['roi'][roi_id] = _roi
+            invalid_raw_traces['neuropil'][roi_id] = _neuropil
+            invalid_raw_trace_events[roi_id] = _events
 
     # if there was no activity in the raw traces, return an
     # empty ROISetDict because none of the ROIs were valid
     if len(raw_traces['roi']) == 0:
-        return roi_flags, dc_types.ROISetDict()
+        return (roi_flags,
+                (raw_traces, invalid_raw_traces),
+                (unmixed_traces, invalid_unmixed_traces),
+                (raw_trace_events, invalid_raw_trace_events),
+                (unmixed_trace_events, invalid_unmixed_trace_events))
 
     ###########################################################
     # use Independent Component Analysis to separate out signal
@@ -634,16 +621,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
             s = clipped_traces[obj][roi_id]['signal']
             unmixed_traces[obj][roi_id]['signal'] = s
 
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.OutH5Writer
-        else:
-            writer_class = io_utils.OutH5WriterOld
-        writer = writer_class(data=unmixed_traces, **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
-
     if not ica_converged:
         for roi_id in unmixed_traces['roi'].keys():
             roi_flags[unmixed_key].append(roi_id)
@@ -653,31 +630,28 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         msg += '%d (%d)' % (signal_plane.experiment_id,
                             ct_plane.experiment_id)
         logger.error(msg)
-        writer = flag_writer_class(data=roi_flags,
-                                   **output_kwargs)
-        writer.run()
-        return roi_flags, unmixed_traces
+
+        return (roi_flags,
+                (raw_traces, invalid_raw_traces),
+                (unmixed_traces, invalid_unmixed_traces),
+                (raw_trace_events, invalid_raw_trace_events),
+                (unmixed_trace_events, invalid_unmixed_trace_events))
 
     unmixed_trace_validation = d_utils.validate_traces(unmixed_traces)
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.OutValidJsonWriter
-        else:
-            writer_class = io_utils.OutValidJsonWriterOld
-        writer = writer_class(data=unmixed_trace_validation,
-                              **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
 
     # remove invalid unmixed traces
-    invalid_unmixed_trace = []
+    invalid_unmixed_trace_roi_id = []
     for roi_id in unmixed_trace_validation:
         if not unmixed_trace_validation[roi_id]:
-            invalid_unmixed_trace.append(roi_id)
-            unmixed_traces['roi'].pop(roi_id)
-            unmixed_traces['neuropil'].pop(roi_id)
-    roi_flags[unmixed_key] += invalid_unmixed_trace
+            invalid_unmixed_trace_roi_id.append(roi_id)
+
+            _roi = unmixed_traces['roi'].pop(roi_id)
+            _neuropil = unmixed_traces['neuropil'].pop(roi_id)
+
+            invalid_unmixed_traces['roi'][roi_id] = _roi
+            invalid_unmixed_traces['neuropil'][roi_id] = _neuropil
+
+    roi_flags[unmixed_key] += invalid_unmixed_trace_roi_id
 
     if len(unmixed_traces['roi']) == 0:
         msg = 'No unmixed traces were valid when applying '
@@ -685,10 +659,12 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
         msg += '%d (%d)' % (signal_plane.experiment_id,
                             ct_plane.experiment_id)
         logger.error(msg)
-        writer = flag_writer_class(data=roi_flags,
-                                   **output_kwargs)
-        writer.run()
-        return roi_flags, unmixed_traces
+
+        return (roi_flags,
+                (raw_traces, invalid_raw_traces),
+                (unmixed_traces, invalid_unmixed_traces),
+                (raw_trace_events, invalid_raw_trace_events),
+                (unmixed_trace_events, invalid_unmixed_trace_events))
 
     ###################################################
     # Detect activity in unmixed traces
@@ -720,17 +696,6 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
             if not is_valid:
                 invalid_active_trace[channel].append(roi_id)
 
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.OutATH5Writer
-        else:
-            writer_class = io_utils.OutATH5WriterOld
-        writer = writer_class(data=unmixed_trace_events,
-                              **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
-
     if active_trace_had_NaNs:
         msg = 'ophys_experiment_id: %d (%d) ' % (signal_plane.experiment_id,
                                                  ct_plane.experiment_id)
@@ -741,18 +706,14 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
     # from the data being processed
     for roi_id in invalid_active_trace['signal']:
         roi_flags[unmixed_active_key].append(roi_id)
-        unmixed_trace_events.pop(roi_id)
-        unmixed_traces['roi'].pop(roi_id)
-        unmixed_traces['neuropil'].pop(roi_id)
 
-    if cache_dir is not None:
-        writer = io_utils.InvalidATJsonWriter(data=invalid_active_trace,
-                                              **output_kwargs)
-        writer.run()
-        del writer
+        _events = unmixed_trace_events.pop(roi_id)
+        _roi = unmixed_traces['roi'].pop(roi_id)
+        _neuropil = unmixed_traces['neuropil'].pop(roi_id)
 
-    unmixed_ct_ratio = get_crosstalk_data(unmixed_traces['roi'],
-                                          unmixed_trace_events)
+        invalid_unmixed_traces['roi'][roi_id] = _roi
+        invalid_unmixed_traces['neuropil'][roi_id] = _neuropil
+        invalid_unmixed_trace_events[roi_id] = _events
 
     ########################################################
     # For each ROI, assess whether or not it is a "ghost"
@@ -776,34 +737,8 @@ def run_decrosstalk(signal_plane: DecrosstalkingOphysPlane,
             ghost_roi_id.append(roi_id)
     roi_flags[ghost_key] += ghost_roi_id
 
-    if cache_dir is not None:
-        if new_style_output:
-            writer_class = io_utils.ValidCTH5Writer
-        else:
-            writer_class = io_utils.ValidCTH5WriterOld
-        writer = writer_class(data=independent_events,
-                              **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
-
-        crosstalk_ratio = {}
-        for roi_id in unmixed_ct_ratio:
-            _out = {'raw': raw_trace_crosstalk_ratio[roi_id],
-                    'unmixed': unmixed_ct_ratio[roi_id]}
-            crosstalk_ratio[roi_id] = _out
-
-        if new_style_output:
-            writer_class = io_utils.CrosstalkJsonWriter
-        else:
-            writer_class = io_utils.CrosstalkJsonWriterOld
-        writer = writer_class(data=crosstalk_ratio, **output_kwargs)
-        writer.run()
-        del writer
-        del writer_class
-
-    writer = flag_writer_class(data=roi_flags,
-                               **output_kwargs)
-    writer.run()
-
-    return roi_flags, unmixed_traces
+    return (roi_flags,
+            (raw_traces, invalid_raw_traces),
+            (unmixed_traces, invalid_unmixed_traces),
+            (raw_trace_events, invalid_raw_trace_events),
+            (unmixed_trace_events, invalid_unmixed_trace_events))

@@ -33,7 +33,7 @@ class PlaneSchema(argschema.schemas.DefaultSchema):
 
     maximum_projection_image_file = argschema.fields.InputFile(
                         description='path to maximum projection image',
-                        required=False)
+                        required=True)
 
 
 class PlanePairSchema(argschema.schemas.DefaultSchema):
@@ -68,6 +68,8 @@ class DecrosstalkInputSchema(argschema.ArgSchema):
                         description='list of plane pairs',
                         required=True,
                         cli_as_single_argument=True)
+
+    log_level = argschema.fields.LogLevel(default='INFO')
 
 
 def validate_list_of_ints(input_list):

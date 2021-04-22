@@ -44,3 +44,12 @@ def test_plane_instantiation():
             _ = DecrosstalkingOphysPlane.from_schema_dict(plane_args)
             ct += 1
     assert ct == 4
+
+
+def test_setting_qc_path():
+    schema_dict = get_ophys_test_schema()
+    plane_data = schema_dict['coupled_planes'][0]['planes'][0]
+    plane = DecrosstalkingOphysPlane.from_schema_dict(plane_data)
+    assert plane.qc_file_path is None
+    plane.qc_file_path = 'path/to/a/file'
+    assert plane.qc_file_path == 'path/to/a/file'

@@ -14,7 +14,7 @@ class BasicDictWrapper(object):
         raise NotImplementedError("Did not implement iterator over "
                                   "BasicDictWrapper")
 
-################## classes for handling pure traces #############  # noqa: E266
+# classes for handling pure traces #############
 
 
 class ROIChannels(BasicDictWrapper):
@@ -205,7 +205,7 @@ class ROISetDict(object):
     def pop(key):
         raise NotImplementedError("ROISetDict does not implement pop")
 
-################# classes for handling events ###################  # noqa: E266
+# classes for handling events ###################
 
 
 class ROIEvents(object):

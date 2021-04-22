@@ -2,11 +2,15 @@ from typing import List, Dict, Union
 import h5py
 import copy
 import numpy as np
+import logging
 
 from ophys_etl.utils.roi_masks import RoiMask
 from ophys_etl.modules.trace_extraction.utils import \
         calculate_roi_and_neuropil_traces
 import ophys_etl.modules.decrosstalk.decrosstalk_types as dc_types
+
+
+logger = logging.getLogger(__name__)
 
 
 class OphysROI(object):
@@ -77,6 +81,14 @@ class OphysROI(object):
         self._height = height
         self._valid_roi = valid_roi
         self._mask_matrix = np.array(mask_matrix, dtype=bool)
+
+        height_match = (self._mask_matrix.shape[0] == self._height)
+        width_match = (self._mask_matrix.shape[1] == self._width)
+        if not height_match or not width_match:
+            msg = 'in OphysROI\n'
+            msg += f'mask_matrix.shape: {self._mask_matrix.shape}\n'
+            msg += f'height: {self._height}\nwidth: {self._width}\n'
+            raise RuntimeError(msg)
 
     @classmethod
     def from_schema_dict(cls, schema_dict: Dict[str, Union[int, List]]):
@@ -168,6 +180,7 @@ class OphysMovie(object):
         """
         Load the data from self._path; store te data in self._data
         """
+        logger.info(f'loading {self.path}')
         with h5py.File(self.path, mode='r') as in_file:
             self._data = in_file['data'][()]
 
@@ -176,6 +189,14 @@ class OphysMovie(object):
         if self._data is None:
             self.load_movie_data()
         return self._data
+
+    def purge_movie(self) -> None:
+        """
+        Delete loaded movie data
+        """
+        if self._data is not None:
+            self._data = None
+        return None
 
     def get_trace(self, roi_list: List[OphysROI]) -> dc_types.ROISetDict:
         """
@@ -238,7 +259,9 @@ class DecrosstalkingOphysPlane(object):
                  experiment_id=None,
                  movie_path=None,
                  motion_border=None,
-                 roi_list=None):
+                 roi_list=None,
+                 max_projection_path=None,
+                 qc_file_path=None):
 
         """
         Parameters
@@ -258,6 +281,15 @@ class DecrosstalkingOphysPlane(object):
              }
 
         roi_list -- a list of OphysROIs indicating the ROIs in this movie
+
+        max_projection_path -- path to the maximum projection image for
+                               this plane
+
+        qc_file_path -- path to the HDF5 file containing quality control
+                        data. This will probably always be initialized
+                        to None and will be set by the decrosstalking
+                        pipeline after processing but before quality
+                        control figure generation.
         """
 
         if experiment_id is None or not isinstance(experiment_id, int):
@@ -289,6 +321,8 @@ class DecrosstalkingOphysPlane(object):
         self._experiment_id = experiment_id
         self._movie = OphysMovie(movie_path, motion_border)
         self._roi_list = copy.deepcopy(roi_list)
+        self._max_projection_path = max_projection_path
+        self._qc_file_path = qc_file_path
 
     @property
     def experiment_id(self) -> int:
@@ -301,6 +335,18 @@ class DecrosstalkingOphysPlane(object):
     @property
     def roi_list(self) -> List[OphysROI]:
         return self._roi_list
+
+    @property
+    def maximum_projection_image_path(self) -> Union[None, str]:
+        return self._max_projection_path
+
+    @property
+    def qc_file_path(self) -> Union[None, str]:
+        return self._qc_file_path
+
+    @qc_file_path.setter
+    def qc_file_path(self, input_path: str):
+        self._qc_file_path = input_path
 
     @classmethod
     def from_schema_dict(cls, schema_dict):
@@ -347,7 +393,12 @@ class DecrosstalkingOphysPlane(object):
         for roi in schema_dict['rois']:
             roi_list.append(OphysROI.from_schema_dict(roi))
 
+        max_path = None
+        if 'maximum_projection_image_file' in schema_dict:
+            max_path = schema_dict['maximum_projection_image_file']
+
         return cls(experiment_id=schema_dict['ophys_experiment_id'],
                    movie_path=schema_dict['motion_corrected_stack'],
                    motion_border=schema_dict['motion_border'],
-                   roi_list=roi_list)
+                   roi_list=roi_list,
+                   max_projection_path=max_path)

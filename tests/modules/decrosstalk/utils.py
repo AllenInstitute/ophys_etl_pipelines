@@ -1,5 +1,7 @@
 import os
+import copy
 import h5py
+import PIL.Image as Image
 import numpy as np
 import tempfile
 
@@ -63,6 +65,14 @@ def create_data(tmpdir):
     nx = 80
     ny = 90
 
+    max_proj_name = tempfile.mkstemp(dir=input_dir,
+                                     prefix='max_projection_',
+                                     suffix='.png')[1]
+
+    img_data = np.zeros((nx, ny), dtype=np.uint8)
+    img = Image.fromarray(img_data)
+    img.save(max_proj_name, format='png')
+
     movie_fname_0 = tempfile.mkstemp(dir=input_dir,
                                      prefix='movie_0_',
                                      suffix='.h5')[1]
@@ -89,7 +99,7 @@ def create_data(tmpdir):
     roi1['x'] = 22
     roi1['y'] = 80
     roi1['width'] = 6
-    roi1['height'] = 5
+    roi1['height'] = 7
     roi1['valid_roi'] = True
     roi1['mask_matrix'] = [[True, True, False, True, True, False],
                            [True, True, True, True, False, False],
@@ -102,6 +112,7 @@ def create_data(tmpdir):
     plane0 = {}
     plane0['ophys_experiment_id'] = 0
     plane0['motion_corrected_stack'] = movie_fname_0
+    plane0['maximum_projection_image_file'] = max_proj_name
     plane0['motion_border'] = {'x0': 2, 'x1': 2,
                                'y0': 3, 'y1': 3}
     plane0['rois'] = [roi0, roi1]
@@ -114,9 +125,14 @@ def create_data(tmpdir):
     plane1 = {}
     plane1['ophys_experiment_id'] = 1
     plane1['motion_corrected_stack'] = movie_fname_1
+    plane1['maximum_projection_image_file'] = max_proj_name
     plane1['motion_border'] = {'x0': 3, 'x1': 2,
                                'y0': 3, 'y1': 3}
-    plane1['rois'] = [roi0, roi1]
+    roi2 = copy.deepcopy(roi0)
+    roi2['id'] = 2
+    roi3 = copy.deepcopy(roi1)
+    roi3['id'] = 3
+    plane1['rois'] = [roi2, roi3]
 
     roi_fname = os.path.join(output_dir, 'roi_trace_1.h5')
     np_fname = os.path.join(output_dir, 'neuropil_trace_1.h5')

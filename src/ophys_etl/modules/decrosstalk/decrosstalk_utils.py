@@ -1,42 +1,7 @@
 from typing import Dict, Tuple
 import numpy as np
-import scipy.stats
 
 import ophys_etl.modules.decrosstalk.decrosstalk_types as dc_types
-
-
-def get_crosstalk_data(signal: np.ndarray,
-                       crosstalk: np.ndarray) -> Dict[str, float]:
-    """
-    Use linear regression to calculate the ratio between signal
-    and crosstalk in an ROI.
-
-    Parameters
-    ----------
-    signal -- np.array of signal trace
-    crosstalk -- np.array of crosstalk trace
-
-    Returns
-    -------
-    A dict
-        {'slope': the linear regression slope relating signal to crosstalk,
-         'offset': the offset form linear regression,
-         'r_value': the Pearson's R-coefficient from linear regression}
-    """
-
-    # in this case, there was no activity in the signal
-    # channel, so crosstalk/signal would be effectively
-    # 0/0
-    if signal.shape == (0,):
-        return {'slope': np.NaN,
-                'offset': np.NaN,
-                'r_value': np.NaN}
-
-    result = scipy.stats.linregress(signal, crosstalk)
-
-    return {'slope': result.slope,
-            'offset': result.intercept,
-            'r_value': result.rvalue}
 
 
 def validate_traces(trace_dict: dc_types.ROISetDict) -> Dict[int, bool]:

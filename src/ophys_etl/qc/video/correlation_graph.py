@@ -74,8 +74,12 @@ def weight_calculation(video_path: Path, row_indices: List[int],
                          col_indices[0]: col_indices[1]]
 
     # relative indices of 8 nearest-neighbors
-    nbrs = list(itertools.product([-1, 0, 1], repeat=2))
-    nbrs.pop(nbrs.index((0, 0)))
+    kernel = list(itertools.product([-1, 0, 1], repeat=2))
+    kernel.pop(kernel.index((0, 0)))
+
+    distances = []
+    for k in kernel:
+        distances.append(np.linalg.norm(k))
 
     nrow = data.shape[1]
     ncol = data.shape[2]
@@ -89,7 +93,8 @@ def weight_calculation(video_path: Path, row_indices: List[int],
             global_edge_start = (irow + r0, icol + c0)
             edge_ends = []
             global_edges = []
-            for dx, dy in nbrs:
+            dists = []
+            for (dx, dy), dist in zip(kernel, distances):
                 # a local edge, appropriate for indexing the loaded data
                 edge_end = (irow + dy, icol + dx)
                 if (edge_end[0] < 0) | (edge_end[0] >= nrow):
@@ -100,14 +105,18 @@ def weight_calculation(video_path: Path, row_indices: List[int],
                 global_edge_end = (edge_end[0] + r0, edge_end[1] + c0)
                 edge_ends.append(edge_end)
                 global_edges.append([global_edge_start, global_edge_end])
+                dists.append(dist)
             # cdist 2.5x faster for 1-to-many than repeated calls to pearsonr
+            if (edge_end[0] > (nrow - 1)) | (edge_end[1] > (ncol - 1)):
+                continue
+
             weights = 1.0 - cdist([data[:, edge_start[0], edge_start[1]]],
                                   [data[:, edge_end[0], edge_end[1]]
                                    for edge_end in edge_ends],
                                   metric="correlation")[0]
-            for global_edge, weight in zip(global_edges, weights):
+            for global_edge, weight, dist in zip(global_edges, weights, dists):
                 if not graph.has_edge(*global_edge):
-                    graph.add_edge(*global_edge, weight=weight)
+                    graph.add_edge(*global_edge, weight=weight, distance=dist)
 
     return graph
 

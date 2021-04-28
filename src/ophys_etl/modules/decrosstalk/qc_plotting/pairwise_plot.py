@@ -583,6 +583,10 @@ def plot_pair_of_rois(roi0: OphysROI,
     axes.append(unmixed_axis)
 
     trace_bounds = {}   # dict for storing max, min values of traces
+    for trace_key in ("raw", "unmixed"):
+        trace_bounds[trace_key] = {}
+        for ii in (0, 1):
+            trace_bounds[trace_key][ii] = {'min': None, 'max': None}
 
     for ax, trace_key in zip((raw_axis, unmixed_axis),
                              ('raw', 'unmixed')):
@@ -603,17 +607,26 @@ def plot_pair_of_rois(roi0: OphysROI,
         bounds0 = trace_bounds[trace_key][0]
         bounds1 = trace_bounds[trace_key][1]
 
-        if ('max' not in bounds0 or trace0.max() > bounds0['max']):
-            trace_bounds[trace_key][0]['max'] = trace0.max()
+        t0_max = np.nanmax(trace0)
+        t0_min = np.nanmin(trace0)
+        t1_max = np.nanmax(trace1)
+        t1_min = np.nanmin(trace1)
 
-        if ('min' not in bounds0 or trace0.min() < bounds0['min']):
-            trace_bounds[trace_key][0]['min'] = trace0.min()
+        if not np.isnan(t0_max):
+            if (bounds0['max'] is None or t0_max > bounds0['max']):
+                trace_bounds[trace_key][0]['max'] = t0_max
 
-        if ('max' not in bounds1 or trace1.max() > bounds1['max']):
-            trace_bounds[trace_key][1]['max'] = trace1.max()
+        if not np.isnan(t0_min):
+            if (bounds0['min'] is None or t0_min < bounds0['min']):
+                trace_bounds[trace_key][0]['min'] = t0_min
 
-        if ('min' not in bounds1 or trace1.min() < bounds1['min']):
-            trace_bounds[trace_key][1]['min'] = trace1.min()
+        if not np.isnan(t1_max):
+            if (bounds1['max'] is None or t1_max > bounds1['max']):
+                trace_bounds[trace_key][1]['max'] = t1_max
+
+        if not np.isnan(t1_min):
+            if (bounds1['min'] is None or t1_min < bounds1['min']):
+                trace_bounds[trace_key][1]['min'] = t1_min
 
         t = np.arange(len(trace0), dtype=int)
         ax.plot(t, trace0, color=color0_hex, linewidth=1)
@@ -635,6 +648,28 @@ def plot_pair_of_rois(roi0: OphysROI,
     unmixed_cbar_axis = plt.Subplot(fig, grid[6:9, 36])
     axes.append(raw_cbar_axis)
     axes.append(unmixed_cbar_axis)
+
+    # clean up bounds
+    for trace_key in ('raw', 'unmixed'):
+        for ii in (0, 1):
+
+            mx = trace_bounds[trace_key][ii]['max']
+            mn = trace_bounds[trace_key][ii]['min']
+
+            if mn is None:
+                if mx is not None:
+                    mn = mx - 1
+                    trace_bounds[trace_key][ii]['min'] = mn
+                else:
+                    mn = 0
+                    trace_bounds[trace_key][ii]['min'] = mn
+
+            if mx is None:
+                mx = mn + 1
+                trace_bounds[trace_key][ii]['max'] = mx
+
+            if mx-mn < 1.0e-10:
+                trace_bounds[trace_key][ii]['max'] = mn + 1
 
     sub_dir = 'roi/raw/signal/trace'
     generate_2d_histogram(qc0[f'ROI/{roi0.roi_id}/{sub_dir}'][()],

@@ -13,6 +13,7 @@ import numpy as np
 import PIL
 import pathlib
 import itertools
+import logging
 
 from typing import Tuple, List, Dict, Optional
 
@@ -23,6 +24,9 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 
 from ophys_etl.modules.decrosstalk.qc_plotting.utils import add_gridlines
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_roi_pixels(roi_list: List[OphysROI]) -> Dict[int, set]:
@@ -695,6 +699,11 @@ def generate_pairwise_figures(
 
         if plane_pair[0].experiment_id > plane_pair[1].experiment_id:
             plane_pair = (plane_pair[1], plane_pair[0])
+
+        msg = 'generating pair plots for '
+        msg += f'{plane_pair[0].experiment_id}; '
+        msg += f'{plane_pair[1].experiment_id}'
+        logger.info(msg)
 
         # find the pairs of ROIs for which we must generate figures
         overlapping_rois = find_overlapping_roi_pairs(plane_pair[0].roi_list,

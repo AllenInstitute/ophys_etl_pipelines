@@ -365,10 +365,7 @@ def get_img_thumbnails(roi0: OphysROI,
     ymax = max(roi0.y0+roi0.height, roi1.y0+roi1.height)
 
     slop = 50  # ideal number of pixels beyond ROI to show
-    dim = max(roi0.width+slop,
-              roi1.width+slop,
-              roi0.height+slop,
-              roi1.height+slop)
+    dim = max(xmax-xmin+slop, ymax-ymin+slop)
 
     xmin = max(0, xmin-slop//2)
     ymin = max(0, ymin-slop//2)

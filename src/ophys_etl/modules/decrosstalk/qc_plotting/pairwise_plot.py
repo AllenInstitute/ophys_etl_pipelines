@@ -210,6 +210,14 @@ def generate_2d_histogram(data_x: np.ndarray,
     None
     """
 
+    # filter out NaNs
+    valid = np.logical_and(np.logical_not(np.isnan(data_x)),
+                           np.logical_not(np.isnan(data_y)))
+    data_x = data_x[valid]
+    data_y = data_y[valid]
+    if len(data_x) == 0:
+        return None
+
     # construct custom color map for the 2D histogram
     raw_cmap = plt.get_cmap('Blues')
     data = [raw_cmap(x) for x in np.arange(0.3, 0.95, 0.05)]

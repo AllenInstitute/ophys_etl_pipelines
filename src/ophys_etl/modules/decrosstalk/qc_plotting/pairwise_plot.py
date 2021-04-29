@@ -662,12 +662,8 @@ def plot_pair_of_rois(roi0: OphysROI,
             mn = trace_bounds[trace_key][ii]['min']
 
             if mn is None:
-                if mx is not None:
-                    mn = mx - 1
-                    trace_bounds[trace_key][ii]['min'] = mn
-                else:
-                    mn = 0
-                    trace_bounds[trace_key][ii]['min'] = mn
+                mn = 0
+                trace_bounds[trace_key][ii]['min'] = mn
 
             if mx is None:
                 mx = mn + 1

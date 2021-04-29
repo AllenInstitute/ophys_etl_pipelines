@@ -361,7 +361,8 @@ def test_pairwise_plot_generation(tmpdir, expected_pairwise):
 
 @pytest.mark.parametrize('mangling_operation', ['some', 'all',
                                                 'both_some',
-                                                'both_all'])
+                                                'both_all',
+                                                'both_value'])
 def test_pairwise_plot_generation_nans(tmpdir,
                                        expected_pairwise,
                                        mangling_operation):
@@ -378,6 +379,10 @@ def test_pairwise_plot_generation_nans(tmpdir,
         'all' -- one ROI has all of its traces set to NaN
         'both_some' -- both ROIs have some NaNs in their traces
         'both_all' -- both ROIs have all of their traces set to NaN
+        'both_value' -- both ROIs have their traces set to 1.0
+                        (this exercises the case in which the
+                        min and max values for the 2D histogram
+                        are identical)
     """
 
     this_dir = pathlib.Path(__file__).parent.resolve()
@@ -449,6 +454,8 @@ def test_pairwise_plot_generation_nans(tmpdir,
                     v[chosen] = np.NaN
                 elif 'all' in operation:
                     v[:] = np.NaN
+                elif 'value' in operation:
+                    v[:] = 1.0
                 else:
                     raise RuntimeError("cannot interpret "
                                        f"operation: {operation}")
@@ -461,6 +468,7 @@ def test_pairwise_plot_generation_nans(tmpdir,
         out_fname -- path to the new data file
         operation -- 'some' sets some trace values to NaN;
                      'all' sets all trace values to NaN
+                     'both_value' sets all trace values to 1.0
 
         Note: operation can also be 'both_some' or 'both_all'
         indicating that both ROIs in the plot have been

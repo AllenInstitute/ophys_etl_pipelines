@@ -279,7 +279,9 @@ def test_pairwise_plot_generation(tmpdir, expected_pairwise):
     assert ct == len(expected_files)
 
 
-@pytest.mark.parametrize('mangling_operation', ['some', 'all'])
+@pytest.mark.parametrize('mangling_operation', ['some', 'all',
+                                                'both_some',
+                                                'both_all'])
 def test_pairwise_plot_generation_nans(tmpdir,
                                        expected_pairwise,
                                        mangling_operation):
@@ -289,6 +291,13 @@ def test_pairwise_plot_generation_nans(tmpdir,
 
     Do this by creating copies of the HDF5 files in data/qc_plotting
     with mangled traces
+
+    mangling_operation indicates how we want the ROI pair to
+    be mangled:
+        'some' -- one ROI has some NaNs in its traces
+        'all' -- one ROI has all of its traces set to NaN
+        'both_some' -- both ROIs have some NaNs in their traces
+        'both_all' -- both ROIs have all of their traces set to NaN
     """
 
     this_dir = pathlib.Path(__file__).parent.resolve()
@@ -319,7 +328,7 @@ def test_pairwise_plot_generation_nans(tmpdir,
 
             # add QC data file path to plane
             local_fname = f'{p.experiment_id}_qc_data.h5'
-            if i_plane == 0:
+            if i_plane == 0 or 'both' in mangling_operation:
                 qc_name = mangled_data_dir / local_fname
                 orig_qc_name = data_dir / local_fname
                 planes_to_mangle.append((orig_qc_name, qc_name))
@@ -353,12 +362,12 @@ def test_pairwise_plot_generation_nans(tmpdir,
         else:
             v = data[()]
             if 'signal/trace' in dataset_name:
-                if operation == 'some':
+                if 'some' in operation:
                     dexes = np.arange(len(v), dtype=int)
                     chosen = rng.choice(dexes, len(v)//4, replace=True)
                     chosen = np.unique(chosen)
                     v[chosen] = np.NaN
-                elif operation == 'all':
+                elif 'all' in operation:
                     v[:] = np.NaN
                 else:
                     raise RuntimeError("cannot interpret "
@@ -372,6 +381,10 @@ def test_pairwise_plot_generation_nans(tmpdir,
         out_fname -- path to the new data file
         operation -- 'some' sets some trace values to NaN;
                      'all' sets all trace values to NaN
+
+        Note: operation can also be 'both_some' or 'both_all'
+        indicating that both ROIs in the plot have been
+        mangled
         """
         assert not out_fname.exists()
         out_fname.parent.mkdir(parents=True, exist_ok=True)

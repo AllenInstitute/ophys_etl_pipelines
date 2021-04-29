@@ -1,6 +1,6 @@
 version: 2.1
 orbs:
-  python: circleci/python@0.3
+  python: circleci/python@1.4
 jobs:
   docker:
     machine: true
@@ -48,14 +48,11 @@ jobs:
       tag: "3.7.7"
     steps:
       - checkout
-      - python/load-cache
-      - python/install-deps
-      - python/save-cache
       - run:
           command: |
+            # uses the latest pip with more strict dependency resolution
             pip install --upgrade pip
             pip install .
-            # pytest would be a dep in requirements.txt
             python -m pytest -m "not suite2p_only and not event_detect_only" --cov ophys_etl --cov-report xml
             bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN} -cF not_container_tests
           name: Test

@@ -1,7 +1,4 @@
 import argschema
-import matplotlib
-import matplotlib.cm
-import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import json
@@ -78,13 +75,14 @@ class PearsonSegmentation(argschema.ArgSchemaParser):
             cg = CorrelationGraph(input_data=self.args["graph_creation"],
                                   args=[])
             cg.run()
-            self.args["graph_input"] = self.args["graph_creation"]["graph_output"]
+            self.args["graph_input"] = \
+                self.args["graph_creation"]["graph_output"]
 
         # read and optionally normalize graph
         graph = nx.read_gpickle(self.args["graph_input"])
         if self.args["normalize"]:
             graph = normalize_graph(graph, self.args["sigma"])
-        
+
         # determine normalized variance
         coords = np.array(list(graph.nodes))
         shape = tuple(coords.max(axis=0) + 1)

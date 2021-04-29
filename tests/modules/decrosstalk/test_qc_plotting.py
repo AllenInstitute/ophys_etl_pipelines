@@ -4,6 +4,8 @@ import pytest
 
 import pathlib
 import json
+import h5py
+import numpy as np
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
@@ -268,6 +270,143 @@ def test_pairwise_plot_generation(tmpdir, expected_pairwise):
 
     # check that only the expected files are created
     file_list = pathlib.Path(tmpdir).glob('**/*')
+    ct = 0
+    for fname in file_list:
+        if not fname.is_file():
+            continue
+        ct += 1
+        assert fname in expected_files
+    assert ct == len(expected_files)
+
+
+@pytest.mark.parametrize('mangling_operation', ['some', 'all'])
+def test_pairwise_plot_generation_nans(tmpdir,
+                                       expected_pairwise,
+                                       mangling_operation):
+    """
+    Run a smoke test on qc_plotting.generate_pairwise_figures
+    in the case where data being plotted contains NaNs
+
+    Do this by creating copies of the HDF5 files in data/qc_plotting
+    with mangled traces
+    """
+
+    this_dir = pathlib.Path(__file__).parent.resolve()
+    data_dir = this_dir / 'data/qc_plotting'
+    plotting_dir = pathlib.Path(tmpdir)/'mangled_plots'
+
+    # directory where we will write the HDF5 files with
+    # traces that contain NaNs
+    mangled_data_dir = pathlib.Path(tmpdir)/'mangled_data'
+
+    input_json_name = data_dir / 'DECROSSTALK_example_input.json'
+    with open(input_json_name, 'rb') as in_file:
+        src_data = json.load(in_file)
+
+    # list of planes that need mangling;
+    # will be tuples of the form (unmangled_fname, mangled_fname)
+    planes_to_mangle = []
+
+    plane_list = []
+    for pair in src_data['coupled_planes']:
+        for i_plane, plane in enumerate(pair['planes']):
+
+            # redirect maximum projection path
+            orig = pathlib.Path(plane['maximum_projection_image_file']).name
+            new = data_dir / orig
+            plane['maximum_projection_image_file'] = new
+            p = DecrosstalkingOphysPlane.from_schema_dict(plane)
+
+            # add QC data file path to plane
+            local_fname = f'{p.experiment_id}_qc_data.h5'
+            if i_plane == 0:
+                qc_name = mangled_data_dir / local_fname
+                orig_qc_name = data_dir / local_fname
+                planes_to_mangle.append((orig_qc_name, qc_name))
+            else:
+                qc_name = data_dir / local_fname
+
+            p.qc_file_path = qc_name
+            plane_list.append(p)
+
+    # add NaNs to the traces designated for mangling #############3
+
+    rng = np.random.RandomState(1723124)
+
+    def _copy_data(dataset_name,
+                   in_file_handle,
+                   out_file_handle,
+                   operation):
+        """
+        Copy the dataset 'dataset_name' from in_file_handle
+        to out_file_handle, mangling as specified by `operation`
+        """
+        data = in_file_handle[dataset_name]
+        if not isinstance(data, h5py.Dataset):
+            key_list = list(data.keys())
+            for key in key_list:
+                new_name = f'{dataset_name}/{key}'
+                _copy_data(new_name,
+                           in_file_handle,
+                           out_file_handle,
+                           operation)
+        else:
+            v = data[()]
+            if 'signal/trace' in dataset_name:
+                if operation == 'some':
+                    dexes = np.arange(len(v), dtype=int)
+                    chosen = rng.choice(dexes, len(v)//4, replace=True)
+                    chosen = np.unique(chosen)
+                    v[chosen] = np.NaN
+                elif operation == 'all':
+                    v[:] = np.NaN
+                else:
+                    raise RuntimeError("cannot interpret "
+                                       f"operation: {operation}")
+            out_file_handle.create_dataset(dataset_name,
+                                           data=v)
+
+    def copy_mangled_h5py(in_fname, out_fname, operation):
+        """
+        in_fname -- path to the original data file
+        out_fname -- path to the new data file
+        operation -- 'some' sets some trace values to NaN;
+                     'all' sets all trace values to NaN
+        """
+        assert not out_fname.exists()
+        out_fname.parent.mkdir(parents=True, exist_ok=True)
+        assert in_fname.is_file()
+        with h5py.File(out_fname, 'w') as out_handle:
+            with h5py.File(in_fname, 'r') as in_handle:
+                key_list = list(in_handle.keys())
+                for key in key_list:
+                    _copy_data(key, in_handle, out_handle, operation)
+
+    for plane in planes_to_mangle:
+        copy_mangled_h5py(plane[0], plane[1], mangling_operation)
+
+    # done mangling #####################
+
+    # proceed with plotting test as usual
+
+    ophys_planes = []
+    for ii in range(0, len(plane_list), 2):
+        ophys_planes.append((plane_list[ii], plane_list[ii+1]))
+
+    generate_pairwise_figures(ophys_planes,
+                              plotting_dir)
+
+    expected_files = set()
+    for plot_path in expected_pairwise:
+        fname = plotting_dir / plot_path
+        expected_files.add(fname)
+
+    for fname in expected_files:
+        if not fname.is_file():
+            raise RuntimeError(f"could not find {fname.resolve()}")
+
+    # check that only the expected files are created
+    file_list = plotting_dir.glob('**/*')
     ct = 0
     for fname in file_list:
         if not fname.is_file():

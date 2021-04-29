@@ -764,13 +764,15 @@ def generate_pairwise_figures(
             raise RuntimeError(msg)
 
         # read in the max projection image for plane 0
-        raw_img = PIL.Image.open(plane_pair[0].maximum_projection_image_path)
+        raw_img = PIL.Image.open(plane_pair[0].maximum_projection_image_path,
+                                 mode='r')
         n_rows = raw_img.size[0]
         n_cols = raw_img.size[1]
         max_img_0 = np.array(raw_img).reshape(n_rows, n_cols)
 
         # read in the max projection image for plane 1
-        raw_img = PIL.Image.open(plane_pair[1].maximum_projection_image_path)
+        raw_img = PIL.Image.open(plane_pair[1].maximum_projection_image_path,
+                                 mode='r')
         n_rows = raw_img.size[0]
         n_cols = raw_img.size[1]
         max_img_1 = np.array(raw_img).reshape(n_rows, n_cols)

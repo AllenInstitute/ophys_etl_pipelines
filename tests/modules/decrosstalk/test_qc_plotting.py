@@ -1,14 +1,20 @@
 import matplotlib
 
+import pytest
+
 import pathlib
 import json
+import h5py
+import numpy as np
+import PIL
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 
 from ophys_etl.modules.decrosstalk.qc_plotting.pairwise_plot import (
     get_roi_pixels,
-    find_overlapping_roi_pairs)
+    find_overlapping_roi_pairs,
+    get_img_thumbnails)
 
 from ophys_etl.modules.decrosstalk.qc_plotting import (
     generate_roi_figure,
@@ -145,6 +151,84 @@ def test_find_overlapping_roi_pairs():
     assert (4, 2, 1/11, 1/5) in overlap_list
 
 
+@pytest.mark.parametrize('x0,y0,x1,y1',
+                         [(10, 11, 222, 301),
+                          (0, 14, 150, 400),     # extreme xmin
+                          (10, 0, 111, 222),     # extreme ymin
+                          (0, 0, 400, 100),      # one ROI at origin
+                          (509, 111, 13, 18),    # extreme xmax
+                          (112, 508, 75, 200),   # extreme ymax
+                          (509, 508, 112, 113),  # one ROI at extreme corner
+                          (100, 200, 300, 200)
+                          ])
+def test_get_img_thumbnails(x0, y0, x1, y1):
+    """
+    Test that, when fed to ROIs that are very distant and do not
+    overlap, get_img_thumbnails returns bounds
+    (xmin, xmax), (ymin, ymax) bounds that cover both ROIs
+    """
+    this_dir = pathlib.Path(__file__).parent.resolve()
+    data_dir = this_dir / 'data/qc_plotting'
+
+    roi0 = OphysROI(x0=x0, y0=y0,
+                    width=3, height=4,
+                    mask_matrix=[[False, False, False],
+                                 [True, True, True],
+                                 [True, True, True],
+                                 [True, True, True]],
+                    roi_id=5,
+                    valid_roi=True)
+
+    roi1 = OphysROI(x0=x1, y0=y1,
+                    width=3, height=4,
+                    mask_matrix=[[False, False, False],
+                                 [True, True, True],
+                                 [True, True, True],
+                                 [True, True, True]],
+                    roi_id=5,
+                    valid_roi=True)
+
+    img_fname = '1071738402_suite2p_maximum_projection.png'
+    raw_img = PIL.Image.open(data_dir / img_fname, mode='r')
+    n_rows = raw_img.size[0]
+    n_cols = raw_img.size[1]
+    max_img = np.array(raw_img).reshape(n_rows, n_cols)
+
+    (img0,
+     img1,
+     (xmin, xmax),
+     (ymin, ymax)) = get_img_thumbnails(roi0,
+                                        roi1,
+                                        max_img,
+                                        max_img)
+
+    mask = roi0.mask_matrix
+    for ix in range(mask.shape[1]):
+        xx = ix + roi0.x0
+        for iy in range(mask.shape[0]):
+            yy = iy + roi0.y0
+            if mask[iy, ix]:
+                assert yy >= ymin
+                assert yy < ymax
+                assert xx >= xmin
+                assert xx < xmax
+
+    mask = roi1.mask_matrix
+    for ix in range(mask.shape[1]):
+        xx = ix + roi1.x0
+        for iy in range(mask.shape[0]):
+            yy = iy + roi1.y0
+            if mask[iy, ix]:
+                assert yy >= ymin
+                assert yy < ymax
+                assert xx >= xmin
+                assert xx < xmax
+    assert xmin >= 0
+    assert ymin >= 0
+    assert xmax <= 512
+    assert ymax <= 512
+
+
 def test_summary_plot_generation(tmpdir):
     """
     Run a smoke test on qc_plotting.generate_roi_figure
@@ -190,7 +274,37 @@ def test_summary_plot_generation(tmpdir):
     assert out_path.isfile()
 
 
-def test_pairwise_plot_generation(tmpdir):
+@pytest.fixture
+def expected_pairwise():
+    """
+    Pairwise plots that should be generated based on the
+    data in resources/
+    """
+    expected_files = []
+    dirname = pathlib.Path('1071738390_1071738393_roi_pairs')
+    for fname in ('1080616650_1080616555_comparison.png',
+                  '1080616658_1080616553_comparison.png',
+                  '1080616659_1080616554_comparison.png'):
+        expected_files.append(dirname / fname)
+
+    dirname = pathlib.Path('1071738394_1071738396_roi_pairs')
+    for fname in ('1080618091_1080616600_comparison.png',
+                  '1080618102_1080616618_comparison.png'):
+        expected_files.append(dirname / fname)
+
+    dirname = pathlib.Path('1071738397_1071738399_roi_pairs')
+    for fname in ('1080618093_1080623135_comparison.png',
+                  '1080618114_1080623164_comparison.png'):
+        expected_files.append(dirname / fname)
+
+    dirname = pathlib.Path('1071738400_1071738402_roi_pairs')
+    for fname in ('1080616774_1080622865_comparison.png',
+                  '1080616776_1080622881_comparison.png'):
+        expected_files.append(dirname / fname)
+    return expected_files
+
+
+def test_pairwise_plot_generation(tmpdir, expected_pairwise):
     """
     Run a smoke test on qc_plotting.generate_pairwise_figures
     """
@@ -224,28 +338,178 @@ def test_pairwise_plot_generation(tmpdir):
     generate_pairwise_figures(ophys_planes,
                               tmpdir)
 
-    expected_files = []
-    dirname = tmpdir / '1071738390_1071738393_roi_pairs'
-    for fname in ('1080616650_1080616555_comparison.png',
-                  '1080616658_1080616553_comparison.png',
-                  '1080616659_1080616554_comparison.png'):
-        expected_files.append(dirname / fname)
-
-    dirname = tmpdir / '1071738394_1071738396_roi_pairs'
-    for fname in ('1080618091_1080616600_comparison.png',
-                  '1080618102_1080616618_comparison.png'):
-        expected_files.append(dirname / fname)
-
-    dirname = tmpdir / '1071738397_1071738399_roi_pairs'
-    for fname in ('1080618093_1080623135_comparison.png',
-                  '1080618114_1080623164_comparison.png'):
-        expected_files.append(dirname / fname)
-
-    dirname = tmpdir / '1071738400_1071738402_roi_pairs'
-    for fname in ('1080616774_1080622865_comparison.png',
-                  '1080616776_1080622881_comparison.png'):
-        expected_files.append(dirname / fname)
+    expected_files = set()
+    t = pathlib.Path(tmpdir)
+    for plot_path in expected_pairwise:
+        fname = t / plot_path
+        expected_files.add(fname)
 
     for fname in expected_files:
-        if not fname.isfile():
-            raise RuntimeError(f"could not find {fname.resolve()}")
+        assert fname.is_file()
+
+    # check that only the expected files are created
+    file_list = pathlib.Path(tmpdir).glob('**/*')
+    ct = 0
+    for fname in file_list:
+        if not fname.is_file():
+            continue
+        ct += 1
+        assert fname in expected_files
+    assert ct == len(expected_files)
+
+
+@pytest.mark.parametrize('mangling_operation', ['some', 'all',
+                                                'both_some',
+                                                'both_all',
+                                                'both_value'])
+def test_pairwise_plot_generation_nans(tmpdir,
+                                       expected_pairwise,
+                                       mangling_operation):
+    """
+    Run a smoke test on qc_plotting.generate_pairwise_figures
+    in the case where data being plotted contains NaNs
+
+    Do this by creating copies of the HDF5 files in data/qc_plotting
+    with mangled traces
+
+    mangling_operation indicates how we want the ROI pair to
+    be mangled:
+        'some' -- one ROI has some NaNs in its traces
+        'all' -- one ROI has all of its traces set to NaN
+        'both_some' -- both ROIs have some NaNs in their traces
+        'both_all' -- both ROIs have all of their traces set to NaN
+        'both_value' -- both ROIs have their traces set to 1.0
+                        (this exercises the case in which the
+                        min and max values for the 2D histogram
+                        are identical)
+    """
+
+    this_dir = pathlib.Path(__file__).parent.resolve()
+    data_dir = this_dir / 'data/qc_plotting'
+    plotting_dir = pathlib.Path(tmpdir)/'mangled_plots'
+
+    # directory where we will write the HDF5 files with
+    # traces that contain NaNs
+    mangled_data_dir = pathlib.Path(tmpdir)/'mangled_data'
+
+    input_json_name = data_dir / 'DECROSSTALK_example_input.json'
+    with open(input_json_name, 'rb') as in_file:
+        src_data = json.load(in_file)
+
+    # list of planes that need mangling;
+    # will be tuples of the form (unmangled_fname, mangled_fname)
+    planes_to_mangle = []
+
+    plane_list = []
+    for pair in src_data['coupled_planes']:
+        for i_plane, plane in enumerate(pair['planes']):
+
+            # redirect maximum projection path
+            orig = pathlib.Path(plane['maximum_projection_image_file']).name
+            new = data_dir / orig
+            plane['maximum_projection_image_file'] = new
+            p = DecrosstalkingOphysPlane.from_schema_dict(plane)
+
+            # add QC data file path to plane
+            local_fname = f'{p.experiment_id}_qc_data.h5'
+            if i_plane == 0 or 'both' in mangling_operation:
+                qc_name = mangled_data_dir / local_fname
+                orig_qc_name = data_dir / local_fname
+                planes_to_mangle.append((orig_qc_name, qc_name))
+            else:
+                qc_name = data_dir / local_fname
+
+            p.qc_file_path = qc_name
+            plane_list.append(p)
+
+    # add NaNs to the traces designated for mangling #############3
+
+    rng = np.random.RandomState(1723124)
+
+    def _copy_data(dataset_name,
+                   in_file_handle,
+                   out_file_handle,
+                   operation):
+        """
+        Copy the dataset 'dataset_name' from in_file_handle
+        to out_file_handle, mangling as specified by `operation`
+        """
+        data = in_file_handle[dataset_name]
+        if not isinstance(data, h5py.Dataset):
+            key_list = list(data.keys())
+            for key in key_list:
+                new_name = f'{dataset_name}/{key}'
+                _copy_data(new_name,
+                           in_file_handle,
+                           out_file_handle,
+                           operation)
+        else:
+            v = data[()]
+            if 'signal/trace' in dataset_name:
+                if 'some' in operation:
+                    dexes = np.arange(len(v), dtype=int)
+                    chosen = rng.choice(dexes, len(v)//4, replace=True)
+                    chosen = np.unique(chosen)
+                    v[chosen] = np.NaN
+                elif 'all' in operation:
+                    v[:] = np.NaN
+                elif 'value' in operation:
+                    v[:] = 1.0
+                else:
+                    raise RuntimeError("cannot interpret "
+                                       f"operation: {operation}")
+            out_file_handle.create_dataset(dataset_name,
+                                           data=v)
+
+    def copy_mangled_h5py(in_fname, out_fname, operation):
+        """
+        in_fname -- path to the original data file
+        out_fname -- path to the new data file
+        operation -- 'some' sets some trace values to NaN;
+                     'all' sets all trace values to NaN
+                     'both_value' sets all trace values to 1.0
+
+        Note: operation can also be 'both_some' or 'both_all'
+        indicating that both ROIs in the plot have been
+        mangled
+        """
+        assert not out_fname.exists()
+        out_fname.parent.mkdir(parents=True, exist_ok=True)
+        assert in_fname.is_file()
+        with h5py.File(out_fname, 'w') as out_handle:
+            with h5py.File(in_fname, 'r') as in_handle:
+                key_list = list(in_handle.keys())
+                for key in key_list:
+                    _copy_data(key, in_handle, out_handle, operation)
+
+    for plane in planes_to_mangle:
+        copy_mangled_h5py(plane[0], plane[1], mangling_operation)
+
+    # done mangling #####################
+
+    # proceed with plotting test as usual
+
+    ophys_planes = []
+    for ii in range(0, len(plane_list), 2):
+        ophys_planes.append((plane_list[ii], plane_list[ii+1]))
+
+    generate_pairwise_figures(ophys_planes,
+                              plotting_dir)
+
+    expected_files = set()
+    for plot_path in expected_pairwise:
+        fname = plotting_dir / plot_path
+        expected_files.add(fname)
+
+    for fname in expected_files:
+        assert fname.is_file()
+
+    # check that only the expected files are created
+    file_list = plotting_dir.glob('**/*')
+    ct = 0
+    for fname in file_list:
+        if not fname.is_file():
+            continue
+        ct += 1
+        assert fname in expected_files
+    assert ct == len(expected_files)

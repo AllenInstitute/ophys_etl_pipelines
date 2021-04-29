@@ -13,6 +13,7 @@ import numpy as np
 import PIL
 import pathlib
 import itertools
+import logging
 
 from typing import Tuple, List, Dict, Optional
 
@@ -23,6 +24,9 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 
 from ophys_etl.modules.decrosstalk.qc_plotting.utils import add_gridlines
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_roi_pixels(roi_list: List[OphysROI]) -> Dict[int, set]:
@@ -206,6 +210,14 @@ def generate_2d_histogram(data_x: np.ndarray,
     None
     """
 
+    # filter out NaNs
+    valid = np.logical_and(np.logical_not(np.isnan(data_x)),
+                           np.logical_not(np.isnan(data_y)))
+    data_x = data_x[valid]
+    data_y = data_y[valid]
+    if len(data_x) == 0:
+        return None
+
     # construct custom color map for the 2D histogram
     raw_cmap = plt.get_cmap('Blues')
     data = [raw_cmap(x) for x in np.arange(0.3, 0.95, 0.05)]
@@ -353,10 +365,7 @@ def get_img_thumbnails(roi0: OphysROI,
     ymax = max(roi0.y0+roi0.height, roi1.y0+roi1.height)
 
     slop = 50  # ideal number of pixels beyond ROI to show
-    dim = max(roi0.width+slop,
-              roi1.width+slop,
-              roi0.height+slop,
-              roi1.height+slop)
+    dim = max(xmax-xmin+slop, ymax-ymin+slop)
 
     xmin = max(0, xmin-slop//2)
     ymin = max(0, ymin-slop//2)
@@ -579,6 +588,10 @@ def plot_pair_of_rois(roi0: OphysROI,
     axes.append(unmixed_axis)
 
     trace_bounds = {}   # dict for storing max, min values of traces
+    for trace_key in ("raw", "unmixed"):
+        trace_bounds[trace_key] = {}
+        for ii in (0, 1):
+            trace_bounds[trace_key][ii] = {'min': None, 'max': None}
 
     for ax, trace_key in zip((raw_axis, unmixed_axis),
                              ('raw', 'unmixed')):
@@ -599,17 +612,26 @@ def plot_pair_of_rois(roi0: OphysROI,
         bounds0 = trace_bounds[trace_key][0]
         bounds1 = trace_bounds[trace_key][1]
 
-        if ('max' not in bounds0 or trace0.max() > bounds0['max']):
-            trace_bounds[trace_key][0]['max'] = trace0.max()
+        t0_max = np.nanmax(trace0)
+        t0_min = np.nanmin(trace0)
+        t1_max = np.nanmax(trace1)
+        t1_min = np.nanmin(trace1)
 
-        if ('min' not in bounds0 or trace0.min() < bounds0['min']):
-            trace_bounds[trace_key][0]['min'] = trace0.min()
+        if not np.isnan(t0_max):
+            if (bounds0['max'] is None or t0_max > bounds0['max']):
+                trace_bounds[trace_key][0]['max'] = t0_max
 
-        if ('max' not in bounds1 or trace1.max() > bounds1['max']):
-            trace_bounds[trace_key][1]['max'] = trace1.max()
+        if not np.isnan(t0_min):
+            if (bounds0['min'] is None or t0_min < bounds0['min']):
+                trace_bounds[trace_key][0]['min'] = t0_min
 
-        if ('min' not in bounds1 or trace1.min() < bounds1['min']):
-            trace_bounds[trace_key][1]['min'] = trace1.min()
+        if not np.isnan(t1_max):
+            if (bounds1['max'] is None or t1_max > bounds1['max']):
+                trace_bounds[trace_key][1]['max'] = t1_max
+
+        if not np.isnan(t1_min):
+            if (bounds1['min'] is None or t1_min < bounds1['min']):
+                trace_bounds[trace_key][1]['min'] = t1_min
 
         t = np.arange(len(trace0), dtype=int)
         ax.plot(t, trace0, color=color0_hex, linewidth=1)
@@ -631,6 +653,24 @@ def plot_pair_of_rois(roi0: OphysROI,
     unmixed_cbar_axis = plt.Subplot(fig, grid[6:9, 36])
     axes.append(raw_cbar_axis)
     axes.append(unmixed_cbar_axis)
+
+    # clean up bounds
+    for trace_key in ('raw', 'unmixed'):
+        for ii in (0, 1):
+
+            mx = trace_bounds[trace_key][ii]['max']
+            mn = trace_bounds[trace_key][ii]['min']
+
+            if mn is None:
+                mn = 0
+                trace_bounds[trace_key][ii]['min'] = mn
+
+            if mx is None:
+                mx = mn + 1
+                trace_bounds[trace_key][ii]['max'] = mx
+
+            if mx-mn < 1.0e-10:
+                trace_bounds[trace_key][ii]['max'] = mn + 1
 
     sub_dir = 'roi/raw/signal/trace'
     generate_2d_histogram(qc0[f'ROI/{roi0.roi_id}/{sub_dir}'][()],
@@ -696,6 +736,11 @@ def generate_pairwise_figures(
         if plane_pair[0].experiment_id > plane_pair[1].experiment_id:
             plane_pair = (plane_pair[1], plane_pair[0])
 
+        msg = 'generating pair plots for '
+        msg += f'{plane_pair[0].experiment_id}; '
+        msg += f'{plane_pair[1].experiment_id}'
+        logger.info(msg)
+
         # find the pairs of ROIs for which we must generate figures
         overlapping_rois = find_overlapping_roi_pairs(plane_pair[0].roi_list,
                                                       plane_pair[1].roi_list)
@@ -715,13 +760,15 @@ def generate_pairwise_figures(
             raise RuntimeError(msg)
 
         # read in the max projection image for plane 0
-        raw_img = PIL.Image.open(plane_pair[0].maximum_projection_image_path)
+        raw_img = PIL.Image.open(plane_pair[0].maximum_projection_image_path,
+                                 mode='r')
         n_rows = raw_img.size[0]
         n_cols = raw_img.size[1]
         max_img_0 = np.array(raw_img).reshape(n_rows, n_cols)
 
         # read in the max projection image for plane 1
-        raw_img = PIL.Image.open(plane_pair[1].maximum_projection_image_path)
+        raw_img = PIL.Image.open(plane_pair[1].maximum_projection_image_path,
+                                 mode='r')
         n_rows = raw_img.size[0]
         n_cols = raw_img.size[1]
         max_img_1 = np.array(raw_img).reshape(n_rows, n_cols)

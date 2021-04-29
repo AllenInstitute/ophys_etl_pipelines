@@ -6,13 +6,15 @@ import pathlib
 import json
 import h5py
 import numpy as np
+import PIL
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 
 from ophys_etl.modules.decrosstalk.qc_plotting.pairwise_plot import (
     get_roi_pixels,
-    find_overlapping_roi_pairs)
+    find_overlapping_roi_pairs,
+    get_img_thumbnails)
 
 from ophys_etl.modules.decrosstalk.qc_plotting import (
     generate_roi_figure,
@@ -147,6 +149,84 @@ def test_find_overlapping_roi_pairs():
     assert (0, 2, 1/5, 1/5) in overlap_list
     assert (4, 3, 1/11, 1/4) in overlap_list
     assert (4, 2, 1/11, 1/5) in overlap_list
+
+
+@pytest.mark.parametrize('x0,y0,x1,y1',
+                         [(10, 11, 222, 301),
+                          (0, 14, 150, 400),     # extreme xmin
+                          (10, 0, 111, 222),     # extreme ymin
+                          (0, 0, 400, 100),      # one ROI at origin
+                          (509, 111, 13, 18),    # extreme xmax
+                          (112, 508, 75, 200),   # extreme ymax
+                          (509, 508, 112, 113),  # one ROI at extreme corner
+                          (100, 200, 300, 200)
+                          ])
+def test_get_img_thumbnails(x0, y0, x1, y1):
+    """
+    Test that, when fed to ROIs that are very distant and do not
+    overlap, get_img_thumbnails returns bounds
+    (xmin, xmax), (ymin, ymax) bounds that cover both ROIs
+    """
+    this_dir = pathlib.Path(__file__).parent.resolve()
+    data_dir = this_dir / 'data/qc_plotting'
+
+    roi0 = OphysROI(x0=x0, y0=y0,
+                    width=3, height=4,
+                    mask_matrix=[[False, False, False],
+                                 [True, True, True],
+                                 [True, True, True],
+                                 [True, True, True]],
+                    roi_id=5,
+                    valid_roi=True)
+
+    roi1 = OphysROI(x0=x1, y0=y1,
+                    width=3, height=4,
+                    mask_matrix=[[False, False, False],
+                                 [True, True, True],
+                                 [True, True, True],
+                                 [True, True, True]],
+                    roi_id=5,
+                    valid_roi=True)
+
+    img_fname = '1071738402_suite2p_maximum_projection.png'
+    raw_img = PIL.Image.open(data_dir / img_fname, mode='r')
+    n_rows = raw_img.size[0]
+    n_cols = raw_img.size[1]
+    max_img = np.array(raw_img).reshape(n_rows, n_cols)
+
+    (img0,
+     img1,
+     (xmin, xmax),
+     (ymin, ymax)) = get_img_thumbnails(roi0,
+                                        roi1,
+                                        max_img,
+                                        max_img)
+
+    mask = roi0.mask_matrix
+    for ix in range(mask.shape[1]):
+        xx = ix + roi0.x0
+        for iy in range(mask.shape[0]):
+            yy = iy + roi0.y0
+            if mask[iy, ix]:
+                assert yy >= ymin
+                assert yy < ymax
+                assert xx >= xmin
+                assert xx < xmax
+
+    mask = roi1.mask_matrix
+    for ix in range(mask.shape[1]):
+        xx = ix + roi1.x0
+        for iy in range(mask.shape[0]):
+            yy = iy + roi1.y0
+            if mask[iy, ix]:
+                assert yy >= ymin
+                assert yy < ymax
+                assert xx >= xmin
+                assert xx < xmax
+    assert xmin >= 0
+    assert ymin >= 0
+    assert xmax <= 512
+    assert ymax <= 512
 
 
 def test_summary_plot_generation(tmpdir):

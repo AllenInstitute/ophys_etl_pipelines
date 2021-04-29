@@ -1,5 +1,7 @@
 import matplotlib
 
+import pytest
+
 import pathlib
 import json
 
@@ -190,7 +192,37 @@ def test_summary_plot_generation(tmpdir):
     assert out_path.isfile()
 
 
-def test_pairwise_plot_generation(tmpdir):
+@pytest.fixture
+def expected_pairwise():
+    """
+    Pairwise plots that should be generated based on the
+    data in resources/
+    """
+    expected_files = []
+    dirname = pathlib.Path('1071738390_1071738393_roi_pairs')
+    for fname in ('1080616650_1080616555_comparison.png',
+                  '1080616658_1080616553_comparison.png',
+                  '1080616659_1080616554_comparison.png'):
+        expected_files.append(dirname / fname)
+
+    dirname = pathlib.Path('1071738394_1071738396_roi_pairs')
+    for fname in ('1080618091_1080616600_comparison.png',
+                  '1080618102_1080616618_comparison.png'):
+        expected_files.append(dirname / fname)
+
+    dirname = pathlib.Path('1071738397_1071738399_roi_pairs')
+    for fname in ('1080618093_1080623135_comparison.png',
+                  '1080618114_1080623164_comparison.png'):
+        expected_files.append(dirname / fname)
+
+    dirname = pathlib.Path('1071738400_1071738402_roi_pairs')
+    for fname in ('1080616774_1080622865_comparison.png',
+                  '1080616776_1080622881_comparison.png'):
+        expected_files.append(dirname / fname)
+    return expected_files
+
+
+def test_pairwise_plot_generation(tmpdir, expected_pairwise):
     """
     Run a smoke test on qc_plotting.generate_pairwise_figures
     """
@@ -224,28 +256,22 @@ def test_pairwise_plot_generation(tmpdir):
     generate_pairwise_figures(ophys_planes,
                               tmpdir)
 
-    expected_files = []
-    dirname = tmpdir / '1071738390_1071738393_roi_pairs'
-    for fname in ('1080616650_1080616555_comparison.png',
-                  '1080616658_1080616553_comparison.png',
-                  '1080616659_1080616554_comparison.png'):
-        expected_files.append(dirname / fname)
-
-    dirname = tmpdir / '1071738394_1071738396_roi_pairs'
-    for fname in ('1080618091_1080616600_comparison.png',
-                  '1080618102_1080616618_comparison.png'):
-        expected_files.append(dirname / fname)
-
-    dirname = tmpdir / '1071738397_1071738399_roi_pairs'
-    for fname in ('1080618093_1080623135_comparison.png',
-                  '1080618114_1080623164_comparison.png'):
-        expected_files.append(dirname / fname)
-
-    dirname = tmpdir / '1071738400_1071738402_roi_pairs'
-    for fname in ('1080616774_1080622865_comparison.png',
-                  '1080616776_1080622881_comparison.png'):
-        expected_files.append(dirname / fname)
+    expected_files = set()
+    t = pathlib.Path(tmpdir)
+    for plot_path in expected_pairwise:
+        fname = t / plot_path
+        expected_files.add(fname)
 
     for fname in expected_files:
-        if not fname.isfile():
+        if not fname.is_file():
             raise RuntimeError(f"could not find {fname.resolve()}")
+
+    # check that only the expected files are created
+    file_list = pathlib.Path(tmpdir).glob('**/*')
+    ct = 0
+    for fname in file_list:
+        if not fname.is_file():
+            continue
+        ct += 1
+        assert fname in expected_files
+    assert ct == len(expected_files)

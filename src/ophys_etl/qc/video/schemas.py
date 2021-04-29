@@ -1,8 +1,7 @@
 import argschema
 
 
-class CorrelationGraphInputSchema(argschema.ArgSchema):
-    log_level = argschema.fields.LogLevel(default="INFO")
+class GraphCreationSchema(argschema.schemas.DefaultSchema):
     video_path = argschema.fields.InputFile(
         required=True,
         description=("path to hdf5 video with movie stored "
@@ -22,6 +21,10 @@ class CorrelationGraphInputSchema(argschema.ArgSchema):
         description=("if provided, will create a plot and write to this "
                      "location. passed to matplotlib.pyplot.Figure.savefig()"
                      ".png being a typical suffix"))
+
+
+class CorrelationGraphInputSchema(argschema.ArgSchema, GraphCreationSchema):
+    log_level = argschema.fields.LogLevel(default="INFO")
 
 
 class CorrelationGraphPlotInputSchema(argschema.ArgSchema):

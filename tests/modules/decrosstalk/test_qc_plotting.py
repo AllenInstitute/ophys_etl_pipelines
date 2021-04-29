@@ -345,8 +345,7 @@ def test_pairwise_plot_generation(tmpdir, expected_pairwise):
         expected_files.add(fname)
 
     for fname in expected_files:
-        if not fname.is_file():
-            raise RuntimeError(f"could not find {fname.resolve()}")
+        assert fname.is_file()
 
     # check that only the expected files are created
     file_list = pathlib.Path(tmpdir).glob('**/*')
@@ -503,8 +502,7 @@ def test_pairwise_plot_generation_nans(tmpdir,
         expected_files.add(fname)
 
     for fname in expected_files:
-        if not fname.is_file():
-            raise RuntimeError(f"could not find {fname.resolve()}")
+        assert fname.is_file()
 
     # check that only the expected files are created
     file_list = plotting_dir.glob('**/*')

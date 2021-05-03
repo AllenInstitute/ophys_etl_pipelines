@@ -22,6 +22,11 @@ class GraphCreationSchema(argschema.schemas.DefaultSchema):
                      "location. passed to matplotlib.pyplot.Figure.savefig()"
                      ".png being a typical suffix"))
 
+    filter_numerator = argschema.fields.Int(
+                         required=True)
+    filter_denominator = argschema.fields.Int(
+                           required=True)
+
 
 class CorrelationGraphInputSchema(argschema.ArgSchema, GraphCreationSchema):
     log_level = argschema.fields.LogLevel(default="INFO")

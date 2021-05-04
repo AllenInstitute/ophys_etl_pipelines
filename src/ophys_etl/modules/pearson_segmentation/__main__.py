@@ -12,6 +12,10 @@ from ophys_etl.qc.video.correlation_graph import CorrelationGraph
 from ophys_etl.qc.video.utils import normalize_graph
 
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 def lims_dict_from_label_image(image):
     props = regionprops(image)
     rois = []
@@ -115,7 +119,8 @@ def fit_background(img):
     bckgd = bckgd.reshape((img.shape[1], img.shape[0])).transpose()
     diff = img-bckgd
 
-    print('img ',(img**2).sum(),img.min(),img.max(),np.median(img))
+    m = np.mean(img)
+    print('img ',((img-m)**2).sum(),img.min(),img.max(),np.median(img))
     print('subtr ',(diff**2).sum(),diff.min(),diff.max(),np.median(diff))
     return bckgd
 
@@ -140,17 +145,83 @@ class PearsonSegmentation(argschema.ArgSchemaParser):
             graph = normalize_graph(graph, self.args["sigma"])
 
         # determine normalized variance
+        #coords = np.array(list(graph.nodes))
+        #shape = tuple(coords.max(axis=0) + 1)
+        #stdev_over_mean = np.zeros(shape)
+        #for node in graph.nodes:
+        #    vals = [graph[node][i]["weight"] for i in graph.neighbors(node)]
+        #    stdev_over_mean[node[0], node[1]] = np.std(vals) / np.mean(vals)
+        #threshold = np.quantile(stdev_over_mean.flat,
+        #                         self.args["mask_quantile"])
+        #mask = np.ones(shape).astype(int)
+        #mask[stdev_over_mean > threshold] = 0
+        #seg = watershed(stdev_over_mean, mask=mask)
+
         coords = np.array(list(graph.nodes))
         shape = tuple(coords.max(axis=0) + 1)
-        stdev_over_mean = np.zeros(shape)
+        img = np.zeros(shape)
         for node in graph.nodes:
             vals = [graph[node][i]["weight"] for i in graph.neighbors(node)]
-            stdev_over_mean[node[0], node[1]] = np.std(vals) / np.mean(vals)
-        threshold = np.quantile(stdev_over_mean.flat,
-                                self.args["mask_quantile"])
-        mask = np.ones(shape).astype(int)
-        mask[stdev_over_mean > threshold] = 0
-        seg = watershed(stdev_over_mean, mask=mask)
+            img[node[0], node[1]] = np.median(vals)
+
+        # build mask
+        dx = 200
+        dy = 200
+        fig_ct = 0
+        mask = np.zeros(shape).astype(int)
+        for xx in range(dx//2, shape[0], dx//2):
+            xmin = xx-dx//2
+            xmax = xx+dx//2
+            for yy in range(dy//2, shape[1], dy//2):
+                ymin = yy-dy//2
+                ymax = yy+dy//2
+
+                window = img[xmin:xmax, ymin:ymax]
+                #print(window.shape)
+
+                f, a = plt.subplots(3,1,figsize=(10,10))
+                a = a.flatten()
+
+                a[0].imshow(window)
+                a[0].set_title("img", fontsize=10)
+
+                bckgd = fit_background(window)
+
+                subtracted_window = (window-bckgd).flatten()
+                n = window.shape[0]*window.shape[1]
+                mu = np.median(subtracted_window)
+                std = np.sqrt(np.sum((subtracted_window-mu)**2)/(n-1))
+                valid = np.where(window-bckgd>mu+std)
+
+                a[1].imshow(bckgd)
+                a[1].set_title("background",fontsize=10)
+
+                a[2].imshow((window-bckgd-mu)/std)
+                a[2].set_title('diff', fontsize=10)
+
+                for axis in a:
+                    axis.tick_params(which='both', axis='both',
+                             left=0, bottom=0,
+                             labelleft=0, labelbottom=0)
+                    for s in ('top', 'bottom', 'left', 'right'):
+                        axis.spines[s].set_visible(False)
+                f.tight_layout()
+                f.savefig(f'window_figs/window_{xmin}_{ymin}.png')
+                plt.close(fig=f)
+                #if fig_ct>10:
+                #    exit()
+                fig_ct += 1
+
+                print('outside ',np.sum(subtracted_window**2))
+
+                mask[xmin:xmax, ymin:ymax][valid] = 1
+
+        seg = watershed(img, mask=mask)
+        print('seg')
+        print(seg)
+        print(mask)
+        print(mask.sum())
+        print(seg.shape)
         seg = merge_rois(seg)
 
         # plt.imshow(seg)

@@ -6,6 +6,7 @@ import os
 from numpy.fft import fft2, ifft2
 import numpy as np
 import networkx as nx
+import re
 
 def isolate_low_frequency_modes(img, n_modes):
     transformed = fft2(img)
@@ -108,12 +109,37 @@ def generate_figures(new_graph=None, old_graph=None, out_name=None):
 
 if __name__ == "__main__":
 
-    src_dir = '/Users/scott.daniel/Pika/deep_interpolation/ophys_experiment_794298187'
-    src_fname = os.path.join(src_dir, 'graph_794298187.pkl')
+    output_dir = "/allen/aibs/informatics/danielsf/deep_interpolation"
 
-    old_fname = os.path.join(src_dir, 'graph_denoised.pkl')
-    assert os.path.isfile(src_fname)
+    parent_dir="/allen/programs/braintv/workgroups/nc-ophys/danielk/deepinterpolation/experiments"
 
-    generate_figures(new_graph=src_fname,
-                     old_graph=old_fname,
-                     out_name='test_fft.png')
+    id_pattern = re.compile('[0-9]+')
+    flist = os.listdir(output_dir)
+
+    for fname in flist:
+        if not fname.endswith('pkl'):
+            continue
+        m = id_pattern.search(fname)
+        exp_id = int(fname[m.start():m.end()])
+
+        out_name = os.path.join(output_dir, f'ROIS_ophys_exp_{exp_id}.png')
+        sub_dir = os.path.join(parent_dir, f'ophys_experiment_{exp_id}')
+        assert os.path.isdir(sub_dir)
+        new_graph = os.path.join(output_dir,
+                                 fname)
+        old_graph = os.path.join(sub_dir, 'graph_denoised.pkl')
+
+        generate_figures(new_graph=new_graph, old_graph=old_graph,
+                         out_name=out_name)
+
+        print('plotted ',out_name)
+
+    #src_dir = '/Users/scott.daniel/Pika/deep_interpolation/ophys_experiment_794298187'
+    #src_fname = os.path.join(src_dir, 'graph_794298187.pkl')
+
+    #old_fname = os.path.join(src_dir, 'graph_denoised.pkl')
+    #assert os.path.isfile(src_fname)
+
+    #generate_figures(new_graph=src_fname,
+    #                 old_graph=old_fname,
+    #                 out_name='test_fft.png')

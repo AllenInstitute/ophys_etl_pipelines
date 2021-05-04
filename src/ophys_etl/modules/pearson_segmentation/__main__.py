@@ -1,6 +1,7 @@
 import argschema
 import networkx as nx
 import numpy as np
+from numpy.fft import fft2, ifft2, fftfreq
 import json
 from skimage.segmentation import watershed
 from skimage.measure import regionprops
@@ -69,54 +70,58 @@ def roi_filter(lims_dict):
 
 
 def fit_background(img):
-    y_arr, x_arr = np.meshgrid(np.arange(img.shape[0]),
-                               np.arange(img.shape[1]))
+    transformed = fft2(img)
 
-    x_arr = x_arr.flatten()
-    y_arr = y_arr.flatten()
+    ty = transformed.shape[0]
+    tx = transformed.shape[1]
 
-    img_arr = img.transpose().flatten()
+    fx = np.zeros(tx, dtype=int)
+    fy = np.zeros(ty, dtype=int)
+    for ii in range(tx):
+        if ii<tx//2:
+            fx[ii] = ii
+        else:
+            fx[ii] = tx-1-ii
+    for ii in range(ty):
+        if ii<ty//2:
+            fy[ii] = ii
+        else:
+            fy[ii] = ty-1-ii
 
-    ii = img_arr.reshape((img.shape[1], img.shape[0])).transpose()
-    np.testing.assert_array_equal(ii, img)
-    assert img[y_arr[10], x_arr[10]] == img_arr[10]
+    freq_grid = np.meshgrid(fx, fy)
 
-    mu = np.mean(img_arr)
-    std = np.std(img_arr, ddof=1)
-    mask = np.ones(img_arr.shape, dtype=bool)
-    mask = (np.abs(img_arr-mu)<2*std)
-    #sorted_img = np.sort(img_arr)
-    #mask = (img_arr<sorted_img[len(sorted_img)//2])
+    freq_grid = freq_grid[0]**2+freq_grid[1]**2
 
-    n_terms = 9
-    t = np.zeros((n_terms, len(x_arr)), dtype=float)
-    t[0,:] = (x_arr**2)*(y_arr**2)
-    t[1,:] = (x_arr**2)*y_arr
-    t[2,:] = x_arr*(y_arr**2)
-    t[3,:] = x_arr**2
-    t[4,:] = y_arr**2
-    t[5,:] = x_arr*y_arr
-    t[6,:] = x_arr
-    t[7,:] = y_arr
-    t[8,:] = np.ones(len(x_arr))
+    assert freq_grid.shape == transformed.shape
 
-    b = np.zeros(n_terms, dtype=float)
-    masked_img = img_arr[mask]
-    for ii in range(n_terms):
-        b[ii] = np.sum(masked_img*t[ii, mask])
+    freq_arr = np.unique(freq_grid.flatten())
+    nf = len(freq_arr)
 
-    mm = np.zeros((n_terms,n_terms), dtype=float)
-    for ix in range(n_terms):
-        for iy in range(n_terms):
-            mm[ix,iy] = np.sum(t[ix, mask]*t[iy, mask])
+    f0 = freq_arr[5]
+    #f1 = freq_arr[nf-200]
+    #print('\nfreq')
+    #print(f0,f1)
+    #print(nf)
 
-    soln = np.linalg.solve(mm, b)
+    #mask = np.logical_and(freq_grid>f0,
+    #                      freq_grid<f1)
 
-    bckgd = np.zeros(img_arr.shape, dtype=float)
-    for ii in range(n_terms):
-        bckgd[:] += soln[ii]*t[ii,:]
+    mask = freq_grid>f0
 
-    bckgd = bckgd.reshape((img.shape[1], img.shape[0])).transpose()
+    #d = 45
+    #ty0 = ty//2-22*ty//d
+    #ty1 = ty//2+22*ty//d
+    #tx0 = tx//2-22*tx//d
+    #tx1 = tx//2+22*tx//d
+
+    #transformed[ty0:ty1, :] = 0.0
+    #transformed[:, tx0:tx1] = 0.0
+    #transformed[ty//2, tx//2] = 0.0
+
+    transformed[mask] = 0.0
+
+    bckgd = ifft2(transformed).real
+
     diff = img-bckgd
 
     m = np.mean(img)

@@ -64,6 +64,62 @@ def roi_filter(lims_dict):
     return lims_dict
 
 
+def fit_background(img):
+    y_arr, x_arr = np.meshgrid(np.arange(img.shape[0]),
+                               np.arange(img.shape[1]))
+
+    x_arr = x_arr.flatten()
+    y_arr = y_arr.flatten()
+
+    img_arr = img.transpose().flatten()
+
+    ii = img_arr.reshape((img.shape[1], img.shape[0])).transpose()
+    np.testing.assert_array_equal(ii, img)
+    assert img[y_arr[10], x_arr[10]] == img_arr[10]
+
+    mu = np.mean(img_arr)
+    std = np.std(img_arr, ddof=1)
+    mask = np.ones(img_arr.shape, dtype=bool)
+    mask = (np.abs(img_arr-mu)<2*std)
+    #sorted_img = np.sort(img_arr)
+    #mask = (img_arr<sorted_img[len(sorted_img)//2])
+
+    n_terms = 9
+    t = np.zeros((n_terms, len(x_arr)), dtype=float)
+    t[0,:] = (x_arr**2)*(y_arr**2)
+    t[1,:] = (x_arr**2)*y_arr
+    t[2,:] = x_arr*(y_arr**2)
+    t[3,:] = x_arr**2
+    t[4,:] = y_arr**2
+    t[5,:] = x_arr*y_arr
+    t[6,:] = x_arr
+    t[7,:] = y_arr
+    t[8,:] = np.ones(len(x_arr))
+
+    b = np.zeros(n_terms, dtype=float)
+    masked_img = img_arr[mask]
+    for ii in range(n_terms):
+        b[ii] = np.sum(masked_img*t[ii, mask])
+
+    mm = np.zeros((n_terms,n_terms), dtype=float)
+    for ix in range(n_terms):
+        for iy in range(n_terms):
+            mm[ix,iy] = np.sum(t[ix, mask]*t[iy, mask])
+
+    soln = np.linalg.solve(mm, b)
+
+    bckgd = np.zeros(img_arr.shape, dtype=float)
+    for ii in range(n_terms):
+        bckgd[:] += soln[ii]*t[ii,:]
+
+    bckgd = bckgd.reshape((img.shape[1], img.shape[0])).transpose()
+    diff = img-bckgd
+
+    print('img ',(img**2).sum(),img.min(),img.max(),np.median(img))
+    print('subtr ',(diff**2).sum(),diff.min(),diff.max(),np.median(diff))
+    return bckgd
+
+
 class PearsonSegmentation(argschema.ArgSchemaParser):
     default_schema = PearsonSegmentationInputSchema
 

@@ -7,6 +7,7 @@ from numpy.fft import fft2, ifft2
 import numpy as np
 import networkx as nx
 import re
+import PIL
 
 def isolate_low_frequency_modes(img, n_modes):
     transformed = fft2(img)
@@ -139,12 +140,14 @@ if __name__ == "__main__":
         m = id_pattern.search(fname)
         exp_id = int(fname[m.start():m.end()])
 
-        denoised_max = os.path.join(sub_dir, 'denoised_maxp.png')
-        noisy_max = os.path.join(sub_dir, 'noised_maxp.png')
-
         out_name = os.path.join(output_dir, f'ROIS_ophys_exp_{exp_id}.png')
         sub_dir = os.path.join(parent_dir, f'ophys_experiment_{exp_id}')
         assert os.path.isdir(sub_dir)
+
+        denoised_max = os.path.join(sub_dir, 'denoised_maxp.png')
+        noisy_max = os.path.join(sub_dir, 'noised_maxp.png')
+
+
         new_graph = os.path.join(output_dir,
                                  fname)
         old_graph = os.path.join(sub_dir, 'graph_denoised.pkl')

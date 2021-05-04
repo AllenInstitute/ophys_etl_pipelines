@@ -85,23 +85,40 @@ def _do_graph(graph_name, axes, suffix=''):
     axes[3].imshow(masked_img)
     axes[3].set_title(f'subtracted ROIs {suffix}', fontsize=10)
 
-    for a in axes.flatten():
-        for ix in range(100, 512, 100):
-            a.axhline(ix, alpha=0.2, color='red')
-            a.axvline(ix, alpha=0.2, color='red')
 
+def generate_figures(new_graph=None, old_graph=None,
+                     noisy_max=None, denoised_max=None,
+                     out_name=None):
 
-def generate_figures(new_graph=None, old_graph=None, out_name=None):
-
-    fig, axes = plt.subplots(2,4,figsize=(20,10))
+    fig, axes = plt.subplots(2,5,figsize=(25,10))
     for a in axes.flatten():
         a.tick_params(left=0,bottom=0,labelleft=0,labelbottom=0,
                       which='both', axis='both')
         for s in ('top', 'bottom', 'left', 'right'):
             a.spines[s].set_visible(False)
 
-    _do_graph(old_graph, axes[0], suffix = '(raw R)')
-    _do_graph(new_graph, axes[1], suffix='(filtered R)')
+    noisy = PIL.Image.open(noisy_max, mode='r')
+    nr = noisy.size[0]
+    nc = noisy.size[1]
+    noisy = np.array(noisy).reshape(nr, nc)
+    axes[0][0].imshow(noisy, cmap='gray')
+    axes[0][0].set_title('noisy max proj', fontsize=10)
+
+    denoised = PIL.Image.open(denoised_max, mode='r')
+    nr = denoised.size[0]
+    nc = denoised.size[1]
+    denoised = np.array(denoised).reshape(nr, nc)
+    axes[1][0].imshow(denoised, cmap='gray')
+    axes[1][0].set_title('denoised max proj', fontsize=10)
+
+    _do_graph(old_graph, axes[0][1:], suffix = '(raw R)')
+    _do_graph(new_graph, axes[1][1:], suffix='(filtered R)')
+
+
+    for a in axes.flatten():
+        for ix in range(100, 512, 100):
+            a.axhline(ix, alpha=0.2, color='red')
+            a.axvline(ix, alpha=0.2, color='red')
 
     fig.tight_layout()
     fig.savefig(out_name)
@@ -122,6 +139,9 @@ if __name__ == "__main__":
         m = id_pattern.search(fname)
         exp_id = int(fname[m.start():m.end()])
 
+        denoised_max = os.path.join(sub_dir, 'denoised_maxp.png')
+        noisy_max = os.path.join(sub_dir, 'noised_maxp.png')
+
         out_name = os.path.join(output_dir, f'ROIS_ophys_exp_{exp_id}.png')
         sub_dir = os.path.join(parent_dir, f'ophys_experiment_{exp_id}')
         assert os.path.isdir(sub_dir)
@@ -130,6 +150,7 @@ if __name__ == "__main__":
         old_graph = os.path.join(sub_dir, 'graph_denoised.pkl')
 
         generate_figures(new_graph=new_graph, old_graph=old_graph,
+                         noisy_max=noisy_max, denoised_max=denoised_max,
                          out_name=out_name)
 
         print('plotted ',out_name)

@@ -62,7 +62,7 @@ def mask_img(img, frac):
     return new_img
 
 
-def _do_graph(graph_name, axes, suffix=''):
+def _do_graph(graph_name, axes, suffix='', frac=0.9):
     img = graph_to_img(graph_name)
 
     axes[0].imshow(img)
@@ -76,8 +76,6 @@ def _do_graph(graph_name, axes, suffix=''):
     axes[1].imshow(diff)
     axes[1].set_title(f'background subtracted {suffix}', fontsize=10)
 
-    frac = 0.9
-
     masked_img = mask_img(img, frac)
     axes[2].imshow(masked_img)
     axes[2].set_title(f'unsubtracted ROIs {suffix}')
@@ -89,7 +87,7 @@ def _do_graph(graph_name, axes, suffix=''):
 
 def generate_figures(new_graph=None, old_graph=None,
                      noisy_max=None, denoised_max=None,
-                     out_name=None):
+                     out_name=None, frac=0.9):
 
     fig, axes = plt.subplots(2,5,figsize=(25,10))
     for a in axes.flatten():
@@ -112,9 +110,8 @@ def generate_figures(new_graph=None, old_graph=None,
     axes[1][0].imshow(denoised, cmap='gray')
     axes[1][0].set_title('denoised max proj', fontsize=10)
 
-    _do_graph(old_graph, axes[0][1:], suffix = '(raw R)')
-    _do_graph(new_graph, axes[1][1:], suffix='(filtered R)')
-
+    _do_graph(old_graph, axes[0][1:], suffix = '(raw R)', frac=frac)
+    _do_graph(new_graph, axes[1][1:], suffix='(filtered R)', frac=frac)
 
     for a in axes.flatten():
         for ix in range(100, 512, 100):
@@ -134,13 +131,16 @@ if __name__ == "__main__":
     id_pattern = re.compile('[0-9]+')
     flist = os.listdir(output_dir)
 
+    frac=0.95
+
     for fname in flist:
         if not fname.endswith('pkl'):
             continue
         m = id_pattern.search(fname)
         exp_id = int(fname[m.start():m.end()])
 
-        out_name = os.path.join(output_dir, f'ROIS_ophys_exp_{exp_id}.png')
+        out_name = os.path.join(output_dir,
+                                f'ROIS_ophys_exp_{exp_id}_{int(100*frac)}.png')
         sub_dir = os.path.join(parent_dir, f'ophys_experiment_{exp_id}')
         assert os.path.isdir(sub_dir)
 
@@ -154,7 +154,7 @@ if __name__ == "__main__":
 
         generate_figures(new_graph=new_graph, old_graph=old_graph,
                          noisy_max=noisy_max, denoised_max=denoised_max,
-                         out_name=out_name)
+                         out_name=out_name, frac=frac)
 
         print('plotted ',out_name)
 

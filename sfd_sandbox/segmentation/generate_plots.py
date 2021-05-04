@@ -2,6 +2,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+import re
 import networkx as nx
 import PIL
 import numpy as np
@@ -54,19 +55,30 @@ def draw_figure(old_graph=None,
     fig.savefig(out_name)
 
 if __name__ == "__main__":
+    output_dir = "/allen/aibs/informatics/danielsf/deep_interpolation"
 
-    data_dir = '/Users/scott.daniel/Pika/deep_interpolation/data'
-    dummy_data_dir = '/Users/scott.daniel/Pika/deep_interpolation/dummy_data'
-    ophys_dir = '/Users/scott.daniel/Pika/deep_interpolation/ophys_experiment_794298187'
+    parent_dir="/allen/programs/braintv/workgroups/nc-ophys/danielk/deepinterpolation/experiments"
 
-    draw_figure(out_name='ophys_exp_1048483611.png',
-        noisy_max=os.path.join(data_dir, 'noised_maxp.png'),
-        denoised_max=os.path.join(data_dir, 'denoised_maxp.png'),
-        new_graph=os.path.join(dummy_data_dir, 'graph_full.pkl'),
-        old_graph=os.path.join(data_dir, 'graph_denoised.pkl'))
+    id_pattern = re.compile('[0-9]+')
+    flist = os.listdir(output_dir)
 
-    draw_figure(out_name='ophys_exp_794298187.png',
-        noisy_max=os.path.join(ophys_dir, 'noised_maxp.png'),
-        denoised_max=os.path.join(ophys_dir, 'denoised_maxp.png'),
-        new_graph=os.path.join(ophys_dir, 'graph_794298187.pkl'),
-        old_graph=os.path.join(ophys_dir, 'graph_denoised.pkl'))
+    for fname in flist:
+        if not fname.endswith('pkl'):
+            continue
+        m = id_pattern.search(fname)
+        exp_id = int(fname[m.start():m.end()])
+
+        out_name = os.path.join(output_dir, f'ophys_exp_{exp_id}.png')
+        sub_dir = os.path.join(parent_dir, f'ophys_experiment_{exp_id}')
+        assert os.path.isdir(sub_dir)
+        noisy_max = os.path.join(sub_dir, 'noised_maxp.png')
+        denoised_max = os.path.join(sub_dir, 'denoised_maxp.png')
+        new_graph = os.path.join(output_dir,
+                                 fname)
+        old_graph = os.path.join(sub_dir, 'graph_denoised.pkl')
+
+        draw_figure(out_name=out_name,
+            noisy_max=noisy_max,
+            denoised_max=denoised_max,
+            new_graph=new_graph,
+            old_graph=old_graph)

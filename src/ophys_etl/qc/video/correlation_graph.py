@@ -45,8 +45,7 @@ def index_split(nelem: int, n_segments: int) -> List[List[int]]:
 
 def weight_calculation(video_path: Path, row_indices: List[int],
                        col_indices: List[int],
-                       filter_numerator: int = 3,
-                       filter_denominator: int = 4) -> nx.Graph:
+                       filter_fraction: float=0.8) -> nx.Graph:
     """produces a graph with edges weighted according to
     Pearson's correlation coefficient, and nodes labeled according as
     (row_index, col_index).
@@ -102,7 +101,7 @@ def weight_calculation(video_path: Path, row_indices: List[int],
 
             mu = np.median(raw)
             sorted_dex = np.argsort(raw-mu)
-            istart = filter_numerator*n_time//filter_denominator
+            istart = np.round(filter_fraction*n_time).astype(int)
             mask_lookup[(irow, icol)] = sorted_dex[istart:]
             mu_lookup[(irow, icol)] = mu
 
@@ -176,15 +175,12 @@ class CorrelationGraph(argschema.ArgSchemaParser):
         self.logger.name = type(self).__name__
         t0 = time.time()
 
-        assert self.args["filter_denominator"] > self.args["filter_numerator"]
-
         with h5py.File(self.args["video_path"], "r") as f:
             nrow, ncol = f["data"].shape[1:]
         row_indices = index_split(nrow, self.args["n_segments"])
         col_indices = index_split(ncol, self.args["n_segments"])
         args = [(self.args["video_path"], rows, cols,
-                 self.args["filter_numerator"],
-                 self.args["filter_denominator"])
+                 self.args["filter_fraction"])
                 for rows, cols in itertools.product(row_indices, col_indices)]
 
         if len(args) == 1:

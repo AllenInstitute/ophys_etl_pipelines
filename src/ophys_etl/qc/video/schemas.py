@@ -22,10 +22,9 @@ class GraphCreationSchema(argschema.schemas.DefaultSchema):
                      "location. passed to matplotlib.pyplot.Figure.savefig()"
                      ".png being a typical suffix"))
 
-    filter_numerator = argschema.fields.Int(
-                         required=True)
-    filter_denominator = argschema.fields.Int(
-                           required=True)
+    filter_fraction = argschema.fields.Float(
+                         required=True,
+                         description='fraction of timesteps to discard')
 
 
 class CorrelationGraphInputSchema(argschema.ArgSchema, GraphCreationSchema):

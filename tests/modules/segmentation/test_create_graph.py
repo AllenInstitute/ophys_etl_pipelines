@@ -26,11 +26,11 @@ import ophys_etl.modules.segmentation.modules.create_graph.__main__ as cg
                  [(0, 0), (1, 0)],
                  [(1, 1), (1, 0)],
                  [(1, 1), (0, 1)]]),
-            # 6 pixels, 2 edges
+            # 4 pixels, 2 edges
             (0, 1, 0, 1, [(-1, -1), (-1, 1), (1, -1), (1, 1)],
                 [[(1, 1), (0, 0)],
                  [(0, 1), (1, 0)]]),
-            # 6 pixels, 10 edges
+            # 6 pixels, 11 edges
             (0, 1, 0, 2, None, [[(0, 0), (0, 1)],
                                 [(0, 0), (1, 0)],
                                 [(1, 1), (1, 0)],

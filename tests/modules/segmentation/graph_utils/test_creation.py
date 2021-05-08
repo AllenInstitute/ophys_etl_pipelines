@@ -48,4 +48,3 @@ def test_create_graph(row_min, row_max, col_min, col_max, kernel, expected):
     assert len(graph.edges) == len(expected)
     for e in expected:
         assert graph.has_edge(*e)
-

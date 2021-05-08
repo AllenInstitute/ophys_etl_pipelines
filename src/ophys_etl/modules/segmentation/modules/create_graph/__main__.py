@@ -1,8 +1,5 @@
 import argschema
-import itertools
 import networkx as nx
-import numpy as np
-from typing import List, Tuple, Optional
 
 from ophys_etl.modules.segmentation.modules.create_graph.schemas \
     import CreateGraphInputSchema

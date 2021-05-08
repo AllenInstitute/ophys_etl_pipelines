@@ -2,17 +2,15 @@ import pytest
 import itertools
 import networkx as nx
 
-import ophys_etl.modules.segmentation.modules.update_graph.utils as ugu
-from ophys_etl.modules.segmentation.modules.create_graph.__main__ \
-    import create_graph
+from ophys_etl.modules.segmentation.graph_utils import creation, partition
 
 
 @pytest.mark.parametrize(
         "graph, n_groups",
         [
-            (create_graph(0, 1, 0, 1), 2),
-            (create_graph(0, 8, 0, 8), 2),
-            (create_graph(11, 34, 4, 53), 7)
+            (creation.create_graph(0, 1, 0, 1), 2),
+            (creation.create_graph(0, 8, 0, 8), 2),
+            (creation.create_graph(11, 34, 4, 53), 7)
         ])
 def test_partition_graph_by_edges(graph, n_groups):
     # add node attributes
@@ -22,7 +20,7 @@ def test_partition_graph_by_edges(graph, n_groups):
     ea = {e: {"edge_attr": i} for i, e in enumerate(graph.edges)}
     nx.set_edge_attributes(graph, ea)
 
-    subgraphs = ugu.partition_graph_by_edges(graph, n_groups)
+    subgraphs = partition.partition_graph_by_edges(graph, n_groups)
 
     # check that the graph can be re-assembled completely from the subgraphs
     composed = nx.compose_all(subgraphs)

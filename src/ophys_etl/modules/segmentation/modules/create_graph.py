@@ -1,7 +1,7 @@
 import argschema
 import networkx as nx
 
-from ophys_etl.modules.segmentation.modules.create_graph.schemas \
+from ophys_etl.modules.segmentation.modules.schemas \
     import CreateGraphInputSchema
 from ophys_etl.modules.segmentation.graph_utils.creation import \
     create_graph

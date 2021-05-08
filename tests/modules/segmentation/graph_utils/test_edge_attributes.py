@@ -4,10 +4,8 @@ import numpy as np
 import networkx as nx
 from pathlib import Path
 
-from ophys_etl.modules.segmentation.modules.create_graph.__main__ import \
-    create_graph
-from ophys_etl.modules.segmentation.modules.update_graph.pearson import \
-    add_pearson_edge_attributes
+from ophys_etl.modules.segmentation.graph_utils import (
+        creation, edge_attributes)
 
 
 @pytest.fixture
@@ -30,8 +28,8 @@ def video_path(tmpdir, request):
 def test_add_pearson_edge_attributes(video_path):
     with h5py.File(video_path, "r") as f:
         nrow, ncol = f["data"].shape[1:]
-    graph = create_graph(row_min=0, row_max=(nrow - 1),
-                         col_min=0, col_max=(ncol - 1))
+    graph = creation.create_graph(row_min=0, row_max=(nrow - 1),
+                                  col_min=0, col_max=(ncol - 1))
     # add node attributes
     na = {n: {"node_attr": i} for i, n in enumerate(graph.nodes)}
     nx.set_node_attributes(graph, na)
@@ -46,7 +44,8 @@ def test_add_pearson_edge_attributes(video_path):
         assert "edge_attr" in keys
 
     # add Pearson edge attribute by routine
-    graph_with_edges = add_pearson_edge_attributes(graph, video_path)
+    graph_with_edges = edge_attributes.add_pearson_edge_attributes(
+            graph, video_path)
 
     # new graph has new edge attribute "Pearson"
     for n1, n2, attr in graph_with_edges.edges(data=True):

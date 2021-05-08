@@ -1,11 +1,7 @@
-import argschema
 import itertools
-import networkx as nx
 import numpy as np
+import networkx as nx
 from typing import List, Tuple, Optional
-
-from ophys_etl.modules.segmentation.modules.create_graph.schemas \
-    import CreateGraphInputSchema
 
 
 def create_graph(row_min: int, row_max: int, col_min: int, col_max: int,
@@ -39,8 +35,14 @@ def create_graph(row_min: int, row_max: int, col_min: int, col_max: int,
         kernel = list(itertools.product([-1, 0, 1], repeat=2))
         kernel.pop(kernel.index((0, 0)))
 
-    rows, cols = np.mgrid[row_min:(row_max + 1), col_min:(col_max + 1)]
     graph = nx.Graph()
+
+    if (row_min == row_max) & (col_min == col_max):
+        # trivial case with no edges and 1 node
+        graph.add_node((row_min, col_min))
+        return graph
+
+    rows, cols = np.mgrid[row_min:(row_max + 1), col_min:(col_max + 1)]
     for edge_start in zip(rows.flat, cols.flat):
         for drow, dcol in kernel:
             edge_end = (edge_start[0] + drow, edge_start[1] + dcol)
@@ -52,23 +54,3 @@ def create_graph(row_min: int, row_max: int, col_min: int, col_max: int,
             if not graph.has_edge(*edge):
                 graph.add_edge(*edge)
     return graph
-
-
-class CreateGraph(argschema.ArgSchemaParser):
-    default_schema = CreateGraphInputSchema
-
-    def run(self):
-        self.logger.name = type(self).__name__
-        graph = create_graph(
-                    row_min=self.args["row_min"],
-                    row_max=self.args["row_max"],
-                    col_min=self.args["col_min"],
-                    col_max=self.args["col_max"],
-                    kernel=self.args["kernel"])
-        nx.write_gpickle(graph, self.args["graph_output"])
-        self.logger.info(f"wrote {self.args['graph_output']}")
-
-
-if __name__ == "__main__":  # pragma: nocover
-    cg = CreateGraph()
-    cg.run()

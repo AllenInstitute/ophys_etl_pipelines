@@ -63,7 +63,7 @@ class CalculateEdges(argschema.ArgSchemaParser):
         self.logger.info(f"wrote {self.args['graph_output']}")
 
         if "plot_output" in self.args:
-            fig = matplotlib.figure.Figure(figsize=(8, 8), dpi=300)
+            fig = matplotlib.figure.Figure(figsize=(16, 16), dpi=300)
             axes = fig.add_subplot(111)
             plotting.draw_graph_edges(fig, axes, graph)
             fig.savefig(self.args["plot_output"])

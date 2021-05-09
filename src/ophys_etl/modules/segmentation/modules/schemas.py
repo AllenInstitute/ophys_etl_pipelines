@@ -81,3 +81,13 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
         default=1,
         description=("how many multiprocessing workers to use. If set to "
                      "1, multiprocessing is not invoked."))
+
+
+class GraphPlotInputSchema(argschema.ArgSchema):
+    log_level = argschema.fields.LogLevel(default="INFO")
+    graph_input = argschema.fields.InputFile(
+        required=True,
+        description="source file for networkx.read_gpickle()")
+    plot_output = argschema.fields.OutputFile(
+        required=True,
+        description=("destination png for plot"))

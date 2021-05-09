@@ -1,21 +1,20 @@
-import argschema
 import networkx as nx
 import numpy as np
-import matplotlib.pyplot as plt
+from matplotlib import figure, axes
 from matplotlib.collections import LineCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from ophys_etl.qc.video.schemas import CorrelationGraphPlotInputSchema
 
-
-def draw_graph_edges(figure: plt.Figure, axis: plt.Axes, graph: nx.Graph):
+def draw_graph_edges(figure: figure.Figure,
+                     axis: axes.Axes,
+                     graph: nx.Graph, attribute_name: str = "Pearson"):
     """draws graph edges from node to node, colored by weight
 
     Parameters
     ----------
-    figure: plt.Figure
+    figure: matplotlib.figure.Figure
         a matplotlib Figure
-    axis: plt.Axes
+    axis: matplotlib.axes.Axes
         a matplotlib Axes, part of Figure
     graphs: nx.Graph
         a networkx graph, assumed to have edges formed like
@@ -26,7 +25,7 @@ def draw_graph_edges(figure: plt.Figure, axis: plt.Axes, graph: nx.Graph):
     modifes figure and axis in-place
 
     """
-    weights = np.array([i["weight"] for i in graph.edges.values()])
+    weights = np.array([i[attribute_name] for i in graph.edges.values()])
     # graph is (row, col), transpose to get (x, y)
     segments = []
     for edge in graph.edges:
@@ -50,23 +49,4 @@ def draw_graph_edges(figure: plt.Figure, axis: plt.Axes, graph: nx.Graph):
     divider = make_axes_locatable(axis)
     cax = divider.append_axes("right", size="5%", pad=0.05)
     figure.colorbar(line_coll, ax=axis, cax=cax)
-    axis.set_title("PCC neighbor graph")
-
-
-class CorrelationGraphPlot(argschema.ArgSchemaParser):
-    default_schema = CorrelationGraphPlotInputSchema
-
-    def run(self):
-        self.logger.name = type(self).__name__
-
-        graph = nx.read_gpickle(self.args["graph_input"])
-        fig, axis = plt.subplots(1, 1, clear=True, num=1, figsize=(16, 16))
-        draw_graph_edges(fig, axis, graph)
-
-        fig.savefig(self.args["plot_output"], dpi=300)
-        self.logger.info(f"wrote {self.args['plot_output']}")
-
-
-if __name__ == "__main__":  # pragma: nocover
-    cg = CorrelationGraphPlot()
-    cg.run()
+    axis.set_title(attribute_name)

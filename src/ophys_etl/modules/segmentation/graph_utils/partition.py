@@ -1,4 +1,3 @@
-import copy
 import networkx as nx
 import numpy as np
 from typing import List
@@ -32,6 +31,9 @@ def partition_graph_by_edges(graph: nx.Graph,
     the subgraphs lose global information beyond their boundaries.
 
     """
+    if n_groups == 1:
+        return [graph]
+
     edges = list(graph.edges)
     centroids = [np.array(edge).mean(axis=0) for edge in edges]
     kmeans = KMeans(n_clusters=n_groups, random_state=0).fit(centroids)
@@ -41,6 +43,5 @@ def partition_graph_by_edges(graph: nx.Graph,
         sub_edges = [e
                      for i, e in enumerate(edges)
                      if kmeans.labels_[i] == label]
-        subgraphs.append(copy.deepcopy(graph.edge_subgraph(sub_edges)))
-
+        subgraphs.append(nx.Graph(graph.edge_subgraph(sub_edges)))
     return subgraphs

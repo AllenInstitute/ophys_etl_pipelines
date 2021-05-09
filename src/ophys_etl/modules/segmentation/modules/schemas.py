@@ -2,6 +2,7 @@ import h5py
 import argschema
 from marshmallow import post_load, ValidationError
 from marshmallow.fields import Int
+from marshmallow.validate import OneOf
 
 
 class CreateGraphInputSchema(argschema.ArgSchema):
@@ -49,3 +50,34 @@ class CreateGraphInputSchema(argschema.ArgSchema):
             data["col_min"] = 0
             data["col_max"] = ncol - 1
         return data
+
+
+class CalculateEdgesInputSchema(argschema.ArgSchema):
+    log_level = argschema.fields.LogLevel(default="INFO")
+    graph_input = argschema.fields.InputFile(
+        required=False,
+        description=("read by nx.read_gpickle() for graph input. If "
+                     "not provided, graph will be created from video "
+                     "shape"))
+    video_path = argschema.fields.InputFile(
+        required=True,
+        description=("path to hdf5 video with movie stored "
+                     "in dataset 'data' nframes x nrow x ncol"))
+    graph_output = argschema.fields.OutputFile(
+        required=True,
+        description="read by nx.read_gpickle() for graph input")
+    plot_output = argschema.fields.OutputFile(
+        required=False,
+        description=("if provided, will create a plot saved to this location.",
+                     "The format is inferred from the extension by "
+                     "matplotlib.figure.Figure.savefig()"))
+    attribute = argschema.fields.Str(
+        required=False,
+        default="Pearson",
+        validate=OneOf(["Pearson"]),
+        description="which calculation to perform")
+    n_parallel_workers = argschema.fields.Int(
+        required=False,
+        default=1,
+        description=("how many multiprocessing workers to use. If set to "
+                     "1, multiprocessing is not invoked."))

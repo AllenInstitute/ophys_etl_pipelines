@@ -1,8 +1,7 @@
 import pytest
 import networkx as nx
-from pathlib import Path
 import matplotlib
-from matplotlib import figure, axes
+from matplotlib import figure
 
 from ophys_etl.modules.segmentation.graph_utils import plotting
 

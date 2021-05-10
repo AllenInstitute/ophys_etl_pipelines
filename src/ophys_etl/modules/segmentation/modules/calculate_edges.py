@@ -31,11 +31,8 @@ class CalculateEdges(argschema.ArgSchemaParser):
         t0 = time.time()
 
         if "graph_input" not in self.args:
-            create_args = {
-                    "log_level": self.args["log_level"],
-                    "video_path": self.args["video_path"],
-                    "graph_output": self.args["graph_output"]}
-            cg = CreateGraph(input_data=create_args, args=[])
+            cg = CreateGraph(input_data=self.args["create_graph_args"],
+                             args=[])
             cg.run()
             self.args["graph_input"] = self.args["graph_output"]
             self.logger.name = type(self).__name__

@@ -1,6 +1,6 @@
 import h5py
 import argschema
-from marshmallow import post_load, ValidationError
+from marshmallow import pre_load, post_load, ValidationError
 from marshmallow.fields import Int
 from marshmallow.validate import OneOf
 
@@ -59,6 +59,12 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
         description=("read by nx.read_gpickle() for graph input. If "
                      "not provided, graph will be created from video "
                      "shape"))
+    create_graph_args = argschema.fields.Nested(
+        CreateGraphInputSchema,
+        required=False,
+        default={},
+        description=("if 'graph_input' not provided, the graph will be "
+                     "created from these args."))
     video_path = argschema.fields.InputFile(
         required=True,
         description=("path to hdf5 video with movie stored "
@@ -81,6 +87,12 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
         default=1,
         description=("how many multiprocessing workers to use. If set to "
                      "1, multiprocessing is not invoked."))
+
+    @pre_load
+    def set_create_graph_args(self, data, **kwargs):
+        for k in ["video_path", "graph_output"]:
+            data["create_graph_args"][k] = data[k]
+        return data
 
 
 class GraphPlotInputSchema(argschema.ArgSchema):

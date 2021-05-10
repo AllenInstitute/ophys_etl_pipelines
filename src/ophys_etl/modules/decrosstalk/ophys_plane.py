@@ -81,6 +81,7 @@ class OphysROI(object):
         self._height = height
         self._valid_roi = valid_roi
         self._mask_matrix = np.array(mask_matrix, dtype=bool)
+        self._boundary_mask = None
 
         height_match = (self._mask_matrix.shape[0] == self._height)
         width_match = (self._mask_matrix.shape[1] == self._width)
@@ -142,6 +143,47 @@ class OphysROI(object):
     @property
     def mask_matrix(self) -> np.ndarray:
         return copy.deepcopy(self._mask_matrix)
+
+    def _construct_boundary_mask(self):
+        """
+        Construct a mask of boundary pixels
+        """
+        self._boundary_mask = np.zeros(self._mask_matrix.shape,
+                                       dtype=bool)
+        nr = self._boundary_mask.shape[0]
+        nc = self._boundary_mask.shape[1]
+        for irow in range(nr):
+            ir0 = irow - 1
+            ir1 = irow + 1
+            for icol in range(nc):
+                if not self._mask_matrix[irow, icol]:
+                    continue
+                ic0 = icol - 1
+                ic1 = icol + 1
+                left = False
+                right = False
+                if ic0 >= 0 and self._mask_matrix[irow, ic0]:
+                    left = True
+                if ic1 < nc and self._mask_matrix[irow, ic1]:
+                    right = True
+                if not (left and right):
+                    self._boundary_mask[irow, icol] = True
+                    continue
+
+                above = False
+                below = False
+                if ir0 >= 0 and self._mask_matrix[ir0, icol]:
+                    below = True
+                if ir1 < nr and self._mask_matrix[ir1, icol]:
+                    above = True
+                if not (above and below):
+                    self._boundary_mask[irow, icol] = True
+
+    @property
+    def boundary_mask(self) -> np.ndarray:
+        if self._boundary_mask is None:
+            self._construct_boundary_mask()
+        return np.copy(self._boundary_mask)
 
 
 class OphysMovie(object):

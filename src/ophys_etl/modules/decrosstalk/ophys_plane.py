@@ -209,6 +209,7 @@ class OphysMovie(object):
 
         # this is where the data from the movie file will be stored
         self._data = None
+        self._max_rgb = None
 
     @property
     def path(self) -> str:
@@ -293,6 +294,72 @@ class OphysMovie(object):
             output['neuropil'][roi.roi_id] = trace
 
         return output
+
+    def _load_max_rgb(self,
+                      keep_data: bool = False) -> np.ndarray:
+        """
+        Load the max RGB image of this movie
+
+        Parameters
+        ----------
+        keep_data: bool
+            If True, keep the movie data loaded after running this
+            image. If False, purge movie data after running. If movie
+            data was already loaded before running, data will not be
+            purged, regardless. (Default: False)
+
+        Returns
+        -------
+        max_img: np.ndarray
+            A (nrows, ncols, 3) np.ndarray of ints representing
+            the RGB form of the max projection image that goes with
+            this movie
+        """
+
+        if self._data is not None:
+            keep_data = True
+
+        raw_max = self.data.max(axis=0)
+        max_rgb = np.zeros((raw_max.shape[0],
+                            raw_max.shape[1],
+                            3),
+                           dtype=int)
+
+        max_val = raw_max.max()
+        gray = np.round(255*(raw_max/max_val)).astype(int)
+        gray = np.where(gray <= 255, gray, 255)
+        for ic in range(3):
+            max_rgb[:, :, ic] = gray
+
+        if not keep_data:
+            self.purge_movie()
+
+        self._max_rgb = max_rgb
+
+    def get_max_rgb(self,
+                    keep_data: bool = False):
+        """
+        Get the maximum projection image of this movie as an RGB
+        array
+
+        Parameters
+        ----------
+        keep_data: bool
+            If True, keep the movie data loaded after running this
+            image. If False, purge movie data after running. If movie
+            data was already loaded before running, data will not be
+            purged, regardless. (Default: False)
+
+        Returns
+        -------
+        max_img: np.ndarray
+            A (nrows, ncols, 3) np.ndarray of ints representing
+            the RGB form of the max projection image that goes with
+            this movie
+        """
+        if self._max_rgb is None:
+            self._load_max_rgb(keep_data=keep_data)
+        return np.copy(self._max_rgb)
 
 
 class DecrosstalkingOphysPlane(object):

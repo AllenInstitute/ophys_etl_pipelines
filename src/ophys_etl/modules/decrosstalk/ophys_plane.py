@@ -1,4 +1,5 @@
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Tuple
+import itertools
 import h5py
 import copy
 import numpy as np
@@ -511,3 +512,77 @@ class DecrosstalkingOphysPlane(object):
                    motion_border=schema_dict['motion_border'],
                    roi_list=roi_list,
                    max_projection_path=max_path)
+
+
+def get_roi_pixels(roi_list: List[OphysROI]) -> Dict[int, set]:
+    """
+    Take a list of OphysROIs and return a dict
+    that maps roi_id to a set of (x,y) pixel coordinates
+    corresponding to the masks of the ROIs
+
+    Parameters
+    ----------
+    roi_list: List[OphysROI]
+
+    Returns
+    -------
+    roi_pixel_dict: dict
+        A dict whose keys are the ROI IDs of the ROIs in the input
+        plane and whose values are sets of tuples. Each tuple is
+        an (x, y) pair denoting a pixel in the ROI's mask
+    """
+
+    roi_pixel_dict = {}
+    for roi in roi_list:
+        roi_id = roi.roi_id
+        grid = np.meshgrid(roi.x0+np.arange(roi.width, dtype=int),
+                           roi.y0+np.arange(roi.height, dtype=int))
+        mask_arr = roi.mask_matrix.flatten()
+        x_coords = grid[0].flatten()[mask_arr]
+        y_coords = grid[1].flatten()[mask_arr]
+        roi_pixel_dict[roi_id] = set([(x, y)
+                                      for x, y
+                                      in zip(x_coords, y_coords)])
+    return roi_pixel_dict
+
+
+def find_overlapping_roi_pairs(roi_list_0: List[OphysROI],
+                               roi_list_1: List[OphysROI]
+                               ) -> List[Tuple[int, int, float, float]]:
+    """
+    Find all overlapping pairs from two lists of OphysROIs
+
+    Parameters
+    ----------
+    roi_list_0: List[OphysROI]
+
+    roi_list_1: List[OphysROI]
+
+    Return:
+    -------
+    overlapping_pairs: list
+        A list of tuples. Each tuple contains
+        roi_id_0
+        roi_id_0
+        fraction of roi_id_0 that overlaps roi_id_1
+        fraction of roi_id_1 that overlaps roi_id_0
+    """
+
+    pixel_dict_0 = get_roi_pixels(roi_list_0)
+    pixel_dict_1 = get_roi_pixels(roi_list_1)
+
+    overlapping_pairs = []
+
+    roi_id_list_0 = list(pixel_dict_0.keys())
+    roi_id_list_1 = list(pixel_dict_1.keys())
+
+    for roi_pair in itertools.product(roi_id_list_0,
+                                      roi_id_list_1):
+        roi0 = pixel_dict_0[roi_pair[0]]
+        roi1 = pixel_dict_1[roi_pair[1]]
+        overlap = roi0.intersection(roi1)
+        n = len(overlap)
+        if n > 0:
+            datum = (roi_pair[0], roi_pair[1], n/len(roi0), n/len(roi1))
+            overlapping_pairs.append(datum)
+    return overlapping_pairs

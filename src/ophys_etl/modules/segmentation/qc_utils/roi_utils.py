@@ -1,4 +1,4 @@
-from typing import List, Tuple, Callable
+from typing import List, Tuple, Callable, Optional
 import numpy as np
 from ophys_etl.modules.decrosstalk.ophys_plane import (
     OphysROI,
@@ -53,7 +53,7 @@ def add_roi_boundaries_to_img(img: np.ndarray,
 
 def roi_thumbnail(movie: OphysMovie,
                   roi: OphysROI,
-                  timestamps: np.ndarray,
+                  timestamps: Optional[np.ndarray],
                   reducer: Callable = np.mean,
                   slop: int = 20,
                   roi_color: Tuple[int] = (255, 0, 0),
@@ -67,7 +67,7 @@ def roi_thumbnail(movie: OphysMovie,
 
     roi: OphysROI
 
-    timestamps: np.ndarray
+    timestamps: Optional[np.ndarray]
         The timestamps that you want to select when building
         the thumbnail
 
@@ -94,7 +94,11 @@ def roi_thumbnail(movie: OphysMovie,
         border drawn around it
     """
 
-    clipped_movie = movie.data[timestamps, :, :]
+    if timestamps is not None:
+        clipped_movie = movie.data[timestamps, :, :]
+    else:
+        clipped_movie = movie.data
+
     x0 = roi.x0-slop//2
     x1 = roi.x0+roi.width+slop//2
     y0 = roi.y0-slop//2
@@ -121,6 +125,7 @@ def roi_thumbnail(movie: OphysMovie,
 
     thumbnail = np.zeros((mean_img.shape[0], mean_img.shape[1], 3),
                          dtype=int)
+
     v = mean_img.max()
     for ic in range(3):
         thumbnail[:, :, ic] = np.round(255*(mean_img/v)).astype(int)

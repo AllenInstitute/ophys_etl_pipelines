@@ -7,7 +7,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 def draw_graph_edges(figure: figure.Figure,
                      axis: axes.Axes,
-                     graph: nx.Graph, attribute_name: str = "Pearson"):
+                     graph: nx.Graph,
+                     attribute_name: str = "Pearson"):
     """draws graph edges from node to node, colored by weight
 
     Parameters
@@ -16,9 +17,11 @@ def draw_graph_edges(figure: figure.Figure,
         a matplotlib Figure
     axis: matplotlib.axes.Axes
         a matplotlib Axes, part of Figure
-    graphs: nx.Graph
+    graph: nx.Graph
         a networkx graph, assumed to have edges formed like
         graph.add_edge((0, 1), (0, 2), weight=1.234)
+    attibute_name: str
+        which edge attribute to plot
 
     Notes
     -----

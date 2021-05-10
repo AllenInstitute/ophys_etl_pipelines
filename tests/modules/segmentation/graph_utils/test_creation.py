@@ -1,6 +1,6 @@
 import pytest
 
-import ophys_etl.modules.segmentation.modules.create_graph.__main__ as cg
+import ophys_etl.modules.segmentation.graph_utils.creation as cg
 
 
 @pytest.mark.parametrize(

@@ -2,7 +2,57 @@ import h5py
 import networkx as nx
 import numpy as np
 from pathlib import Path
+from typing import Optional
 from scipy.spatial.distance import cdist
+from scipy.ndimage import gaussian_filter
+
+
+def normalize_graph(graph: nx.Graph,
+                    attribute_name: str,
+                    sigma: float = 30.0,
+                    new_attribute_name: Optional[str] = None) -> nx.Graph:
+    """normalizes edge weights by a local Gaussian filter
+    of size sigma.
+
+    Parameters
+    ----------
+    graph: nx.Graph
+        a graph with edge weights
+    sigma: float
+        passed to scipy.ndimage.gaussian_filter as 'sigma'
+    attribute_name: str
+        the name of the edge attribute to normalize
+    new_attribute_name: str
+        the name of the new edge attribute. If 'None' will be
+        <attribute_name>_normalized
+
+    Returns
+    -------
+    graph: nx.Graph
+        graph with the new edge attribute
+
+    """
+    if new_attribute_name is None:
+        new_attribute_name = attribute_name + "_normalized"
+
+    # create an image that is the average edge attribute per node
+    coords = np.array(list(graph.nodes))
+    shape = tuple(coords.max(axis=0) + 1)
+    avg_attr = np.zeros(shape, dtype='float')
+    for node in graph.nodes:
+        n = len(list(graph.neighbors(node)))
+        avg_attr[node[0], node[1]] = \
+            graph.degree(node, weight=attribute_name) / n
+
+    # Gaussian filter the average image
+    avg_attr = gaussian_filter(avg_attr, sigma, mode='nearest')
+    edge_values = dict()
+    for i, v in graph.edges.items():
+        local = 0.5 * (avg_attr[i[0][0], i[0][1]] + avg_attr[i[1][0], i[1][0]])
+        edge_values[i] = {new_attribute_name: v[attribute_name] / local}
+
+    nx.set_edge_attributes(graph, edge_values)
+    return graph
 
 
 def add_pearson_edge_attributes(graph: nx.Graph,

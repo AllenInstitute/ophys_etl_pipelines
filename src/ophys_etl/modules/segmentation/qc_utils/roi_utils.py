@@ -256,7 +256,7 @@ class ROIExaminer(object):
 
                 # add random salt in case two labels would
                 # be right on top of each other
-                while (dd is None or dd < 50) and n_iter < 20:
+                while (dd is None or dd < 100) and n_iter < 20:
                     if n_iter > 0:
                         _x = rng.normal()
                         _y = rng.normal()

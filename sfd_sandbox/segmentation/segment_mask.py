@@ -4,7 +4,15 @@ import matplotlib.pyplot as plt
 
 import numpy as np
 import json
+import networkx as nx
+import argparse
+import time
 
+from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+
+from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
+    add_roi_boundaries_to_img,
+    add_labels_to_roi_img)
 
 class Painter(object):
 
@@ -12,10 +20,10 @@ class Painter(object):
         self._mask = mask
         self._row_max = self._mask.shape[0]
         self._col_max = self._mask.shape[1]
-        self._to_paint_by_rows = []
-        self._to_paint_by_cols = []
-        self._to_paint_by_NE = []
-        self._to_paint_by_NW = []
+        self._to_paint_by_rows = set()
+        self._to_paint_by_cols = set()
+        self._to_paint_by_NE = set()
+        self._to_paint_by_NW = set()
         self._painted_by_rows = set()
         self._painted_by_cols = set()
         self._painted_by_NE = set()
@@ -38,7 +46,21 @@ class Painter(object):
             return False
         return True
 
+    def _log_void(self, pt):
+        pt = tuple(pt)
+        for _arch in (self._painted_by_rows,
+                      self._painted_by_cols,
+                      self._painted_by_NW,
+                      self._painted_by_NE):
+            _arch.add(pt)
+
     def _paint(self, start_pt, direction):
+
+        if not self._mask[start_pt[0], start_pt[1]]:
+            self._log_void(start_pt)
+            self._void += 1
+            return None
+
         if direction == 'row':
             delta = (1, 0)
             archive = self._painted_by_rows
@@ -57,9 +79,10 @@ class Painter(object):
         if start_pt in archive:
             self._aborted += 1
             return None
-        if not self._mask[start_pt[0], start_pt[1]]:
-            self._void += 1
-            return None
+
+        px = tuple(start_pt)
+        self._roi_pixels.add(px)
+        archive.add(px)
 
         for norm in (1, -1):
             pt = [start_pt[0], start_pt[1]]
@@ -69,18 +92,19 @@ class Painter(object):
                 self._scans += 1
                 if not self._mask[pt[0], pt[1]]:
                     self._void += 1
+                    self._log_void(pt)
                     break
                 px = tuple(pt)
                 self._roi_pixels.add(px)
                 archive.add(px)
                 if direction != 'row' and px not in self._painted_by_rows:
-                    self._to_paint_by_rows.append(px)
+                    self._to_paint_by_rows.add(px)
                 if direction != 'col' and px not in self._painted_by_cols:
-                    self._to_paint_by_cols.append(px)
+                    self._to_paint_by_cols.add(px)
                 if direction != 'nw' and px not in self._painted_by_NW:
-                    self._to_paint_by_NW.append(px)
+                    self._to_paint_by_NW.add(px)
                 if direction != 'ne' and px not in self._painted_by_NE:
-                    self._to_paint_by_NE.append(px)
+                    self._to_paint_by_NE.add(px)
                 pt[0] += norm*delta[0]
                 pt[1] += norm*delta[1]
         return None
@@ -106,12 +130,17 @@ class Painter(object):
         mask = np.zeros((row_max-row_min+1,
                          col_max-col_min+1), dtype=bool)
         mask[row-row_min, col-col_min] = True
-        return {'x0': col_min,
-                'y0': row_min,
-                'mask_matrix': list([list(mask[ii,:])
-                                     for ii in range(mask.shape[0])]),
-                'height': mask.shape[0],
-                'width': mask.shape[1]}
+
+        roi ={'x0': col_min,
+              'y0': row_min,
+              'mask_matrix': list([list(mask[ii,:])
+                                   for ii in range(mask.shape[0])]),
+              'height': mask.shape[0],
+              'width': mask.shape[1]}
+
+        return {'roi': roi,
+                'row': row,
+                'col': col}
 
     def run(self):
         start_pt = self._global_start
@@ -120,16 +149,16 @@ class Painter(object):
 
         while self.tot_targets() > 0:
             if len(self._to_paint_by_rows) > 0:
-                pt = self._to_paint_by_rows.pop(0)
+                pt = self._to_paint_by_rows.pop()
                 self._paint(pt, 'row')
             if len(self._to_paint_by_cols) > 0:
-                pt = self._to_paint_by_cols.pop(0)
+                pt = self._to_paint_by_cols.pop()
                 self._paint(pt, 'col')
             if len(self._to_paint_by_NW) > 0:
-                pt = self._to_paint_by_NW.pop(0)
+                pt = self._to_paint_by_NW.pop()
                 self._paint(pt, 'nw')
             if len(self._to_paint_by_NE) > 0:
-                pt = self._to_paint_by_NE.pop(0)
+                pt = self._to_paint_by_NE.pop()
                 self._paint(pt, 'ne')
 
         return self.jsonize()
@@ -144,68 +173,93 @@ class MaskSegmenter(object):
         mask: np.ndarray
             A mask of booleans representing the image to be segmented
         """
-        self._base_mask = np.copy(mask)
+        self._mask = np.copy(mask)
         self._rois = []
+
+    def run(self):
+        while self._mask.sum() > 0:
+            valid = np.where(self._mask)
+            start_pt = (valid[0][0], valid[1][0])
+            the_painter = Painter(self._mask, start_pt)
+            roi = the_painter.run()
+            self._mask[roi['row'], roi['col']] = False
+            self._rois.append(roi['roi'])
+
+        return self._rois
+
+
+def graph_to_img(graph_fname):
+    graph = nx.read_gpickle(graph_fname)
+    coords = np.array(list(graph.nodes))
+    shape = tuple(coords.max(axis=0) + 1)
+    img = np.zeros(shape)
+    for node in graph.nodes:
+        vals = [graph[node][i]["weight"] for i in graph.neighbors(node)]
+        img[node[0], node[1]] = np.sum(vals)
+
+    return img
+
+
+def mask_img(img, frac):
+    new_img = np.ones(img.shape, dtype=bool)
+    flux_arr = np.sort(img.flatten())
+    ii = np.round(frac*len(flux_arr)).astype(int)
+    mask = img<flux_arr[ii]
+    new_img[mask] = False
+    return new_img
+
+
+def img_to_rgb(img):
+    rgb_img = np.zeros((img.shape[0], img.shape[1], 3), dtype=int)
+    vmax = img.max()
+    vmin = img.min()
+    for ic in range(3):
+        rgb_img[:, :, ic] = np.round(255*((img-vmin)/(vmax-vmin))).astype(int)
+    rgb_img = np.where(rgb_img<=255, rgb_img, 255)
+    #print(vmin,vmax)
+    #print(rgb_img.min())
+    #print(np.median(rgb_img))
+    #print(rgb_img.max())
+    return rgb_img
 
 
 if __name__ == "__main__":
 
-    mask = np.zeros((20, 20), dtype=bool)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--in_graph', type=str, default=None)
+    parser.add_argument('--out_img', type=str, default=None)
+    args = parser.parse_args()
 
-    mask[4:8, 11:15] = True
-    mask[5, 14] = True
-    mask[5,15] = True
-    mask[5,16] = True
-    mask[5,17] = True
-    mask[6, 17] = True
-    mask[7, 17] = True
-    mask[8, 17] = True
-    mask[7, 14] = True
-    mask[8, 14] = True
-    mask[9, 14] = True
-    mask[10, 14] = True
-    mask[11, 14] = True
-    mask[11, 15] = True
-    mask[11, 16] = True
-    mask[11, 17] = True
-    mask[6, 12] = False
-    mask[3, 10] = True
-    mask[2, 9] = True
-    mask[1, 8] = True
-    mask[1, 7] = True
-    mask[1, 6] = True
-    mask[2, 6] = True
-    mask[3, 6] = True
-    mask[1, 5] = True
-    mask[1, 6] = True
-    mask[1, 7] = True
-    mask[2, 4] = True
-    mask[1, 3] = True
+    graph_img = graph_to_img(args.in_graph)
+    rgb_img = img_to_rgb(graph_img)
+    graph_mask = mask_img(graph_img, 0.9)
 
-    f, a = plt.subplots(1,1,figsize=(10,10))
-    a.imshow(mask)
-    f.savefig('junk.png')
+    fig, ax = plt.subplots(1, 1, figsize=(20,20))
+    ax.imshow(graph_mask)
+    fig.savefig('mask.png')
+    plt.close(fig=fig)
 
-    p = Painter(mask, (6, 13))
-    roi = p.run()
-    print('scans ',p._scans,mask[6,13])
-    print('aborted ',p._aborted)
-    print('void ',p._void)
-    print(mask.sum())
-    print(len(p._roi_pixels))
-    assert len(p._roi_pixels) == mask.sum()
-    for p in p._roi_pixels:
-        assert mask[p[0], p[1]]
+    t0 = time.time()
+    segmenter = MaskSegmenter(graph_mask)
+    base_roi_list = segmenter.run()
+    print('segmentation took %e seconds' % (time.time()-t0))
 
-    new_mask = roi['mask_matrix']
-    r0 = roi['y0']
-    c0 = roi['x0']
-    for irow in range(len(new_mask)):
-        r = r0+irow
-        for icol in range(len(new_mask[0])):
-            c = c0 + icol
-            if new_mask[irow][icol]:
-                assert mask[r, c]
-            else:
-                assert not mask[r, c]
+    roi_list = []
+    for roi_id, roi_data in enumerate(base_roi_list):
+        roi = OphysROI(x0=int(roi_data['x0']),
+                       y0=int(roi_data['y0']),
+                       height=int(roi_data['height']),
+                       width=int(roi_data['width']),
+                       mask_matrix=roi_data['mask_matrix'],
+                       roi_id=roi_id,
+                       valid_roi=True)
+        roi_list.append(roi)
 
+    rgb_img = add_roi_boundaries_to_img(rgb_img, roi_list, alpha=0.5)
+    fig, ax = plt.subplots(1, 1, figsize=(20,20))
+    ax.imshow(rgb_img)
+    ax = add_labels_to_roi_img(ax,
+                               [{'color': (255, 0, 0),
+                                 'rois': roi_list}])
+    fig.savefig(args.out_img)
+    plt.close(fig=fig)

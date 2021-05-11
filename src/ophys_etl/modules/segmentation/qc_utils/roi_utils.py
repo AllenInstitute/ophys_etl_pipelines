@@ -309,11 +309,12 @@ class ROIExaminer(object):
 
         return axis
 
-    def plot_distinct_rois(self,
-                           subset_list: List[int],
-                           axis: matplotlib.axes.Axes,
-                           threshold: float = 0.5,
-                           labels=False):
+    def _plot_union_of_rois(self,
+                            subset_list: List[int],
+                            axis: matplotlib.axes.Axes,
+                            threshold: float = 0.5,
+                            labels=False,
+                            plot_overlapping=True):
 
         if len(subset_list) > 2:
             raise RuntimeError("plot_distinct_rois only defined for "
@@ -335,13 +336,39 @@ class ROIExaminer(object):
             color = self._color_from_subset[subset]
             roi_list = []
             for roi in self._roi_from_subset[subset]:
-                if roi.roi_id not in overlap_rois:
+                if not plot_overlapping and roi.roi_id not in overlap_rois:
                     roi_list.append(roi)
+                elif plot_overlapping and roi.roi_id in overlap_rois:
+                    roi_list.append(roi)
+
             if len(roi_list) > 0:
                 rois_and_colors.append({'color': color, 'rois': roi_list})
+
         img_arr = self._max_projection_with_roi(rois_and_colors)
         axis.imshow(img_arr)
         if not labels:
             return axis
         axis = self._add_labels(axis, rois_and_colors)
         return axis
+
+    def plot_distinct_rois(self,
+                           subset_list: List[int],
+                           axis: matplotlib.axes.Axes,
+                           threshold: float = 0.5,
+                           labels=False):
+        return self._plot_union_of_rois(subset_list,
+                                        axis,
+                                        threshold=threshold,
+                                        labels=labels,
+                                        plot_overlapping=False)
+
+    def plot_overlapping_rois(self,
+                              subset_list: List[int],
+                              axis: matplotlib.axes.Axes,
+                              threshold: float = 0.5,
+                              labels=False):
+        return self._plot_union_of_rois(subset_list,
+                                        axis,
+                                        threshold=threshold,
+                                        labels=labels,
+                                        plot_overlapping=True)

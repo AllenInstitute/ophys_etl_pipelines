@@ -1,4 +1,5 @@
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Tuple
+import itertools
 import h5py
 import copy
 import numpy as np
@@ -81,6 +82,7 @@ class OphysROI(object):
         self._height = height
         self._valid_roi = valid_roi
         self._mask_matrix = np.array(mask_matrix, dtype=bool)
+        self._boundary_mask = None
 
         height_match = (self._mask_matrix.shape[0] == self._height)
         width_match = (self._mask_matrix.shape[1] == self._width)
@@ -89,6 +91,20 @@ class OphysROI(object):
             msg += f'mask_matrix.shape: {self._mask_matrix.shape}\n'
             msg += f'height: {self._height}\nwidth: {self._width}\n'
             raise RuntimeError(msg)
+
+        # calculate centroid
+        cr = 0
+        cc = 0
+        n = 0
+        for irow in range(self.height):
+            for icol in range(self.width):
+                if not self._mask_matrix[irow, icol]:
+                    continue
+                n += 1
+                cr += irow
+                cc += icol
+        self._centroid_row = self._y0 + cr/n
+        self._centroid_col = self._x0 + cc/n
 
     @classmethod
     def from_schema_dict(cls, schema_dict: Dict[str, Union[int, List]]):
@@ -128,6 +144,14 @@ class OphysROI(object):
         return self._y0
 
     @property
+    def centroid_y(self) -> float:
+        return self._centroid_row
+
+    @property
+    def centroid_x(self) -> float:
+        return self._centroid_col
+
+    @property
     def width(self) -> int:
         return self._width
 
@@ -142,6 +166,47 @@ class OphysROI(object):
     @property
     def mask_matrix(self) -> np.ndarray:
         return copy.deepcopy(self._mask_matrix)
+
+    def _construct_boundary_mask(self):
+        """
+        Construct a mask of boundary pixels
+        """
+        self._boundary_mask = np.zeros(self._mask_matrix.shape,
+                                       dtype=bool)
+        nr = self._boundary_mask.shape[0]
+        nc = self._boundary_mask.shape[1]
+        for irow in range(nr):
+            ir0 = irow - 1
+            ir1 = irow + 1
+            for icol in range(nc):
+                if not self._mask_matrix[irow, icol]:
+                    continue
+                ic0 = icol - 1
+                ic1 = icol + 1
+                left = False
+                right = False
+                if ic0 >= 0 and self._mask_matrix[irow, ic0]:
+                    left = True
+                if ic1 < nc and self._mask_matrix[irow, ic1]:
+                    right = True
+                if not (left and right):
+                    self._boundary_mask[irow, icol] = True
+                    continue
+
+                above = False
+                below = False
+                if ir0 >= 0 and self._mask_matrix[ir0, icol]:
+                    below = True
+                if ir1 < nr and self._mask_matrix[ir1, icol]:
+                    above = True
+                if not (above and below):
+                    self._boundary_mask[irow, icol] = True
+
+    @property
+    def boundary_mask(self) -> np.ndarray:
+        if self._boundary_mask is None:
+            self._construct_boundary_mask()
+        return np.copy(self._boundary_mask)
 
 
 class OphysMovie(object):
@@ -167,6 +232,7 @@ class OphysMovie(object):
 
         # this is where the data from the movie file will be stored
         self._data = None
+        self._max_rgb = None
 
     @property
     def path(self) -> str:
@@ -251,6 +317,72 @@ class OphysMovie(object):
             output['neuropil'][roi.roi_id] = trace
 
         return output
+
+    def _load_max_rgb(self,
+                      keep_data: bool = False) -> np.ndarray:
+        """
+        Load the max RGB image of this movie
+
+        Parameters
+        ----------
+        keep_data: bool
+            If True, keep the movie data loaded after running this
+            image. If False, purge movie data after running. If movie
+            data was already loaded before running, data will not be
+            purged, regardless. (Default: False)
+
+        Returns
+        -------
+        max_img: np.ndarray
+            A (nrows, ncols, 3) np.ndarray of ints representing
+            the RGB form of the max projection image that goes with
+            this movie
+        """
+
+        if self._data is not None:
+            keep_data = True
+
+        raw_max = self.data.max(axis=0)
+        max_rgb = np.zeros((raw_max.shape[0],
+                            raw_max.shape[1],
+                            3),
+                           dtype=int)
+
+        max_val = raw_max.max()
+        gray = np.round(255*(raw_max/max_val)).astype(int)
+        gray = np.where(gray <= 255, gray, 255)
+        for ic in range(3):
+            max_rgb[:, :, ic] = gray
+
+        if not keep_data:
+            self.purge_movie()
+
+        self._max_rgb = max_rgb
+
+    def get_max_rgb(self,
+                    keep_data: bool = False):
+        """
+        Get the maximum projection image of this movie as an RGB
+        array
+
+        Parameters
+        ----------
+        keep_data: bool
+            If True, keep the movie data loaded after running this
+            image. If False, purge movie data after running. If movie
+            data was already loaded before running, data will not be
+            purged, regardless. (Default: False)
+
+        Returns
+        -------
+        max_img: np.ndarray
+            A (nrows, ncols, 3) np.ndarray of ints representing
+            the RGB form of the max projection image that goes with
+            this movie
+        """
+        if self._max_rgb is None:
+            self._load_max_rgb(keep_data=keep_data)
+        return np.copy(self._max_rgb)
 
 
 class DecrosstalkingOphysPlane(object):
@@ -402,3 +534,77 @@ class DecrosstalkingOphysPlane(object):
                    motion_border=schema_dict['motion_border'],
                    roi_list=roi_list,
                    max_projection_path=max_path)
+
+
+def get_roi_pixels(roi_list: List[OphysROI]) -> Dict[int, set]:
+    """
+    Take a list of OphysROIs and return a dict
+    that maps roi_id to a set of (x,y) pixel coordinates
+    corresponding to the masks of the ROIs
+
+    Parameters
+    ----------
+    roi_list: List[OphysROI]
+
+    Returns
+    -------
+    roi_pixel_dict: dict
+        A dict whose keys are the ROI IDs of the ROIs in the input
+        plane and whose values are sets of tuples. Each tuple is
+        an (x, y) pair denoting a pixel in the ROI's mask
+    """
+
+    roi_pixel_dict = {}
+    for roi in roi_list:
+        roi_id = roi.roi_id
+        grid = np.meshgrid(roi.x0+np.arange(roi.width, dtype=int),
+                           roi.y0+np.arange(roi.height, dtype=int))
+        mask_arr = roi.mask_matrix.flatten()
+        x_coords = grid[0].flatten()[mask_arr]
+        y_coords = grid[1].flatten()[mask_arr]
+        roi_pixel_dict[roi_id] = set([(x, y)
+                                      for x, y
+                                      in zip(x_coords, y_coords)])
+    return roi_pixel_dict
+
+
+def find_overlapping_roi_pairs(roi_list_0: List[OphysROI],
+                               roi_list_1: List[OphysROI]
+                               ) -> List[Tuple[int, int, float, float]]:
+    """
+    Find all overlapping pairs from two lists of OphysROIs
+
+    Parameters
+    ----------
+    roi_list_0: List[OphysROI]
+
+    roi_list_1: List[OphysROI]
+
+    Return:
+    -------
+    overlapping_pairs: list
+        A list of tuples. Each tuple contains
+        roi_id_0
+        roi_id_0
+        fraction of roi_id_0 that overlaps roi_id_1
+        fraction of roi_id_1 that overlaps roi_id_0
+    """
+
+    pixel_dict_0 = get_roi_pixels(roi_list_0)
+    pixel_dict_1 = get_roi_pixels(roi_list_1)
+
+    overlapping_pairs = []
+
+    roi_id_list_0 = list(pixel_dict_0.keys())
+    roi_id_list_1 = list(pixel_dict_1.keys())
+
+    for roi_pair in itertools.product(roi_id_list_0,
+                                      roi_id_list_1):
+        roi0 = pixel_dict_0[roi_pair[0]]
+        roi1 = pixel_dict_1[roi_pair[1]]
+        overlap = roi0.intersection(roi1)
+        n = len(overlap)
+        if n > 0:
+            datum = (roi_pair[0], roi_pair[1], n/len(roi0), n/len(roi1))
+            overlapping_pairs.append(datum)
+    return overlapping_pairs

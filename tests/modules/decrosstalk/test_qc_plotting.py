@@ -8,12 +8,13 @@ import h5py
 import numpy as np
 import PIL
 
-from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
-from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
+from ophys_etl.modules.decrosstalk.ophys_plane import (
+    OphysROI,
+    DecrosstalkingOphysPlane,
+    find_overlapping_roi_pairs,
+    get_roi_pixels)
 
 from ophys_etl.modules.decrosstalk.qc_plotting.pairwise_plot import (
-    get_roi_pixels,
-    find_overlapping_roi_pairs,
     get_img_thumbnails)
 
 from ophys_etl.modules.decrosstalk.qc_plotting import (

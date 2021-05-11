@@ -1,4 +1,6 @@
 import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 from typing import List, Tuple, Callable, Optional
 import numpy as np
 from ophys_etl.modules.decrosstalk.ophys_plane import (
@@ -223,7 +225,7 @@ class ROIExaminer(object):
             self._trace_from_id[roi_id] = tr
         return None
 
-    def _max_projection_with_roi(self, rois_and_colors):
+    def _max_projection_with_roi(self, rois_and_colors, alpha=0.5):
         """
         rois_and_colors is a list of dicts keyed on 'color'
         and 'rois'
@@ -232,7 +234,7 @@ class ROIExaminer(object):
         for obj in rois_and_colors:
             output_img = add_roi_boundaries_to_img(output_img,
                                                    roi_list=obj['rois'],
-                                                   alpha=0.4,
+                                                   alpha=alpha,
                                                    color=obj['color'])
         return output_img
 
@@ -284,7 +286,8 @@ class ROIExaminer(object):
     def plot_rois(self,
                   subset_list: List[int],
                   axis: matplotlib.axes.Axes,
-                  labels=False):
+                  labels=False,
+                  alpha=0.5):
 
         for subset in subset_list:
             if subset not in self._color_from_subset:
@@ -300,7 +303,7 @@ class ROIExaminer(object):
             obj['rois'] = self._roi_from_subset[subset]
             subset_args.append(obj)
 
-        img_arr = self._max_projection_with_roi(subset_args)
+        img_arr = self._max_projection_with_roi(subset_args, alpha=alpha)
         axis.imshow(img_arr)
         if not labels:
             return axis
@@ -314,7 +317,8 @@ class ROIExaminer(object):
                             axis: matplotlib.axes.Axes,
                             threshold: float = 0.5,
                             labels=False,
-                            plot_overlapping=True):
+                            plot_overlapping=True,
+                            alpha=0.5):
 
         if len(subset_list) > 2:
             raise RuntimeError("plot_distinct_rois only defined for "
@@ -344,7 +348,8 @@ class ROIExaminer(object):
             if len(roi_list) > 0:
                 rois_and_colors.append({'color': color, 'rois': roi_list})
 
-        img_arr = self._max_projection_with_roi(rois_and_colors)
+        img_arr = self._max_projection_with_roi(rois_and_colors,
+                                                alpha=alpha)
         axis.imshow(img_arr)
         if not labels:
             return axis
@@ -355,20 +360,55 @@ class ROIExaminer(object):
                            subset_list: List[int],
                            axis: matplotlib.axes.Axes,
                            threshold: float = 0.5,
-                           labels=False):
+                           labels=False,
+                           alpha=0.5):
         return self._plot_union_of_rois(subset_list,
                                         axis,
                                         threshold=threshold,
                                         labels=labels,
-                                        plot_overlapping=False)
+                                        plot_overlapping=False,
+                                        alpha=alpha)
 
     def plot_overlapping_rois(self,
                               subset_list: List[int],
                               axis: matplotlib.axes.Axes,
                               threshold: float = 0.5,
-                              labels=False):
+                              labels=False,
+                              alpha=0.5):
         return self._plot_union_of_rois(subset_list,
                                         axis,
                                         threshold=threshold,
                                         labels=labels,
-                                        plot_overlapping=True)
+                                        plot_overlapping=True,
+                                        alpha=alpha)
+
+    def plot_thumbnail_and_trace(self,
+                                 roi_id: int,
+                                 timestamps=None):
+        fig = plt.figure(constrained_layout=True, figsize=(30, 10))
+
+        trace = self._trace_from_id[roi_id]
+        roi = self._roi_from_id[roi_id]['roi']
+        subset = self._roi_from_id[roi_id]['subset']
+        color = self._color_from_subset[subset]
+
+        grid = gridspec.GridSpec(1, 4, figure=fig)
+        thumbnail_axis = fig.add_subplot(grid[0, 0])
+        trace_axis = fig.add_subplot(grid[0, 1:])
+
+        thumbnail = roi_thumbnail(self.ophys_movie,
+                                  roi,
+                                  timestamps=timestamps,
+                                  reducer=np.max,
+                                  roi_color=color)
+        thumbnail_axis.imshow(thumbnail)
+        thumbnail_axis.set_title(f'roi {roi.roi_id}', fontsize=30)
+        thumbnail_axis.tick_params(axis='both', labelsize=0)
+        tt = np.arange(len(trace))
+        tmin = trace[:-1000].min()
+        tmax = trace.max()
+        trace_axis.plot(tt, trace,
+                        color='#%02x%02x%02x' % color)
+        trace_axis.set_ylim(tmin, tmax)
+        trace_axis.tick_params(axis='both', labelsize=20)
+        return None

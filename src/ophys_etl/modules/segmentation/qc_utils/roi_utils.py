@@ -3,7 +3,8 @@ from typing import List, Tuple, Callable, Optional
 import numpy as np
 from ophys_etl.modules.decrosstalk.ophys_plane import (
     OphysROI,
-    OphysMovie)
+    OphysMovie,
+    find_overlapping_roi_pairs)
 
 
 def add_roi_boundaries_to_img(img: np.ndarray,
@@ -306,4 +307,41 @@ class ROIExaminer(object):
 
         axis = self._add_labels(axis, subset_args)
 
+        return axis
+
+    def plot_distinct_rois(self,
+                           subset_list: List[int],
+                           axis: matplotlib.axes.Axes,
+                           threshold: float = 0.5,
+                           labels=False):
+
+        if len(subset_list) > 2:
+            raise RuntimeError("plot_distinct_rois only defined for "
+                               f"2 subsets; you gave {subset_list}")
+
+        roi_list_0 = self._roi_from_subset[subset_list[0]]
+        roi_list_1 = self._roi_from_subset[subset_list[1]]
+        overlap = find_overlapping_roi_pairs(roi_list_0,
+                                             roi_list_1)
+
+        overlap_rois = set()
+        for pair in overlap:
+            if pair[2] >= threshold or pair[3] >= threshold:
+                overlap_rois.add(pair[0])
+                overlap_rois.add(pair[1])
+
+        rois_and_colors = []
+        for subset in subset_list:
+            color = self._color_from_subset[subset]
+            roi_list = []
+            for roi in self._roi_from_subset[subset]:
+                if roi.roi_id not in overlap_rois:
+                    roi_list.append(roi)
+            if len(roi_list) > 0:
+                rois_and_colors.append({'color': color, 'rois': roi_list})
+        img_arr = self._max_projection_with_roi(rois_and_colors)
+        axis.imshow(img_arr)
+        if not labels:
+            return axis
+        axis = self._add_labels(axis, rois_and_colors)
         return axis

@@ -116,11 +116,11 @@ def roi_thumbnail(movie: OphysMovie,
     if y0 < 0:
         y0 = 0
         y1 = y0+dy
-    if x1 >= movie.data.shape[1]:
-        x1 = movie.data.shape[1]-1
+    if x1 >= movie.data.shape[2]:
+        x1 = movie.data.shape[2]-1
         x0 = x1-dx
-    if y1 >= movie.data.shape[0]:
-        y1 = movie.data.shape[0]
+    if y1 >= movie.data.shape[1]:
+        y1 = movie.data.shape[1]-1
         y0 = y1-dy
 
     clipped_movie = clipped_movie[:, y0:y1, x0:x1]

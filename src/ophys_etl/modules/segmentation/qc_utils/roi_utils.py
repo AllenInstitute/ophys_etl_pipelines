@@ -281,10 +281,10 @@ class ROIExaminer(object):
 
         return axis
 
-    def plot_roi(self,
-                 subset_list: List[int],
-                 axis: matplotlib.axes.Axes,
-                 labels=False):
+    def plot_rois(self,
+                  subset_list: List[int],
+                  axis: matplotlib.axes.Axes,
+                  labels=False):
 
         for subset in subset_list:
             if subset not in self._color_from_subset:

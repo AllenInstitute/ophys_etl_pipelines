@@ -171,7 +171,7 @@ class ROIExaminer(object):
     def purge_movie_data(self):
         self.ophys_movie.purge_movie()
 
-    def load_rois_to_compare(self, roi_sets: List[Tuple]):
+    def load_rois_to_compare(self, roi_sets: List[Tuple]) -> None:
         """
         Load lists of ROIs to compare.
 
@@ -225,10 +225,30 @@ class ROIExaminer(object):
             self._trace_from_id[roi_id] = tr
         return None
 
-    def _max_projection_with_roi(self, rois_and_colors, alpha=0.5):
+    def _max_projection_with_roi(self,
+                                 rois_and_colors: List,
+                                 alpha: float = 0.5) -> np.ndarray:
         """
-        rois_and_colors is a list of dicts keyed on 'color'
-        and 'rois'
+        Generate an RGB image of the maximum projection with
+        ROIs superimposed
+
+        Parameters
+        ----------
+        rois_and_colors: List
+            Each element in the list is a Dict representing
+            a set of ROIs. 'color' points to a tuple representing
+            the color of that set of ROIs. 'rois' points to a list
+            of OphysROIs.
+
+        alpha: float
+            The transparency factor applied to the ROIs
+            (default: 0.5)
+
+        Return
+        ------
+        np.ndarray
+            An RGB image of the maximum projection image with
+            ROIs superimposed.
         """
         output_img = self.ophys_movie.get_max_rgb()
         for obj in rois_and_colors:
@@ -238,7 +258,27 @@ class ROIExaminer(object):
                                                    color=obj['color'])
         return output_img
 
-    def _add_labels(self, axis, rois_and_colors):
+    def _add_labels(self,
+                    axis: matplotlib.axes.Axes,
+                    rois_and_colors: List[dict]):
+        """
+        Add labels to a plot of ROIs
+
+        Parameters
+        ----------
+        axis: matplotlib.axes.Axes
+
+        rois_and_colors: List
+            Each element in the list is a Dict representing
+            a set of ROIs. 'color' points to a tuple representing
+            the color of that set of ROIs. 'rois' points to a list
+            of OphysROIs.
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The input axis with the figure added
+        """
 
         n_roi = 0
         for subset in rois_and_colors:
@@ -286,8 +326,33 @@ class ROIExaminer(object):
     def plot_rois(self,
                   subset_list: List[int],
                   axis: matplotlib.axes.Axes,
-                  labels=False,
-                  alpha=0.5):
+                  labels: bool = False,
+                  alpha: float = 0.5) -> matplotlib.axes.Axes:
+        """
+        Plot the maximum projection image with ROIs superimposed
+
+        Parameters
+        ----------
+        subset_list: List[int]
+            The subsets of ROIs to be plotted (i.e. indexes referring
+            to the sets of ROIs loaded with load_rois_to_compare)
+
+        axis: matplotlib.axes.Axes
+            The axis in which to plot
+
+        labels: boolean
+            If True, label the ROIs with roi_id
+            (default=False)
+
+        alpha: float
+            The transparency factor to apply to the ROIs
+            (default=0.5)
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The input axis with the plot added to it
+        """
 
         for subset in subset_list:
             if subset not in self._color_from_subset:
@@ -317,8 +382,45 @@ class ROIExaminer(object):
                             axis: matplotlib.axes.Axes,
                             threshold: float = 0.5,
                             labels=False,
-                            plot_overlapping=True,
-                            alpha=0.5):
+                            alpha=0.5,
+                            plot_overlapping=True):
+        """
+        Actually plot either the union or the complement of
+        the union of two sets of ROIs
+
+        Parameters
+        ----------
+        subset_list: List[int]
+            The subsets of ROIs to be compared (i.e.
+            indexes referring to the sets of ROIs loaded with
+            load_rois_to_compare; must be exactly 2
+            of them)
+
+        axis: matplotlib.axes.Axes
+            The axis in which to plot
+
+        threshold: float
+            The fraction of overlapping area that at least one ROI
+            must meet for a pair of ROIs to be considered overlapping
+            (default=0.5)
+
+        labels: boolean
+            If True, label the ROIs with roi_id
+            (default=False)
+
+        alpha: float
+            The transparency factor to apply to the ROIs
+            (default=0.5)
+
+        plot_overlapping: boolean
+            If True, plot ROIs that overlap; if False, plot
+            ROIs that don't overlap (default: True)
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The input axis with the plot added to it
+        """
 
         if len(subset_list) > 2:
             raise RuntimeError("plot_distinct_rois only defined for "
@@ -360,8 +462,43 @@ class ROIExaminer(object):
                            subset_list: List[int],
                            axis: matplotlib.axes.Axes,
                            threshold: float = 0.5,
-                           labels=False,
-                           alpha=0.5):
+                           labels: bool = False,
+                           alpha: float = 0.5):
+        """
+        Plot the maximum projection image with the non-overlapping
+        ROIs from two subsets of ROIs superimposed (i.e. ROIs that
+        exist in one set but not another)
+
+        Parameters
+        ----------
+        subset_list: List[int]
+            The subsets of ROIs to be compared (i.e.
+            indexes referring to the sets of ROIs loaded with
+            load_rois_to_compare; must be exactly 2
+            of them)
+
+        axis: matplotlib.axes.Axes
+            The axis in which to plot
+
+        threshold: float
+            The fraction of overlapping area that at least one ROI
+            must meet for a pair of ROIs to be considered overlapping
+            (default=0.5)
+
+        labels: boolean
+            If True, label the ROIs with roi_id
+            (default=False)
+
+        alpha: float
+            The transparency factor to apply to the ROIs
+            (default=0.5)
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The input axis with the plot added to it
+        """
+
         return self._plot_union_of_rois(subset_list,
                                         axis,
                                         threshold=threshold,
@@ -373,8 +510,42 @@ class ROIExaminer(object):
                               subset_list: List[int],
                               axis: matplotlib.axes.Axes,
                               threshold: float = 0.5,
-                              labels=False,
-                              alpha=0.5):
+                              labels: bool = False,
+                              alpha: float = 0.5) -> matplotlib.axes.Axes:
+        """
+        Plot the maximum projection image with the overlapping ROIs
+        from two subsets of ROIs superimposed
+
+        Parameters
+        ----------
+        subset_list: List[int]
+            The subsets of ROIs to be compared (i.e.
+            indexes referring to the sets of ROIs loaded with
+            load_rois_to_compare; must be exactly 2
+            of them)
+
+        axis: matplotlib.axes.Axes
+            The axis in which to plot
+
+        threshold: float
+            The fraction of overlapping area that at least one ROI
+            must meet for a pair of ROIs to be considered overlapping
+            (default=0.5)
+
+        labels: boolean
+            If True, label the ROIs with roi_id
+            (default=False)
+
+        alpha: float
+            The transparency factor to apply to the ROIs
+            (default=0.5)
+
+        Returns
+        -------
+        matplotlib.axes.Axes
+            The input axis with the plot added to it
+        """
+
         return self._plot_union_of_rois(subset_list,
                                         axis,
                                         threshold=threshold,
@@ -384,7 +555,35 @@ class ROIExaminer(object):
 
     def plot_thumbnail_and_trace(self,
                                  roi_id: int,
-                                 timestamps=None):
+                                 timestamps: Optional[np.ndarray] = None
+                                 ) -> None:
+        """
+        Plot a thumbnail of an ROI next to its trace. Note, the thumbnail
+        will be rescaled to the local maximum projection value in an
+        attempt to highlight contrast in dark regions of the field of view.
+
+        Parameters
+        ----------
+        roi_id: int
+
+        timestamps: Optional[np.ndarray]
+            The timestamps from the trace that will be stacked when
+            making the thumbnail.
+
+        Returns
+        -------
+        None
+
+        Note
+        ----
+        Because this method is meant to be called in a notebook, it
+        merely instantiates a matplotlib.figure.Figure without
+        returning it. This is sufficient for the image to be
+        displayed in a notebook with `%matplotlib inline`
+        """
+        if roi_id not in self._roi_from_id:
+            raise RuntimeError(f"{roi_id} is not a valid ROI")
+
         fig = plt.figure(constrained_layout=True, figsize=(30, 10))
 
         trace = self._trace_from_id[roi_id]

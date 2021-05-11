@@ -159,6 +159,8 @@ class ROIExaminer(object):
                                                      'y1': 0})
         print('please wait while we load the movie data')
         self.ophys_movie.load_movie_data()
+        print('now we will generate the maximum projection image')
+        self.ophys_movie.get_max_rgb(keep_data=True)
 
         self._roi_from_id = None
         self._color_from_subset = None

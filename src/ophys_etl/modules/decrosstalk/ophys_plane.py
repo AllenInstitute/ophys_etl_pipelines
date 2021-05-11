@@ -92,6 +92,20 @@ class OphysROI(object):
             msg += f'height: {self._height}\nwidth: {self._width}\n'
             raise RuntimeError(msg)
 
+        # calculate centroid
+        cr = 0
+        cc = 0
+        n = 0
+        for irow in range(self.height):
+            for icol in range(self.width):
+                if not self._mask_matrix[irow, icol]:
+                    continue
+                n += 1
+                cr += irow
+                cc += icol
+        self._centroid_row = self._y0 + cr/n
+        self._centroid_col = self._x0 + cc/n
+
     @classmethod
     def from_schema_dict(cls, schema_dict: Dict[str, Union[int, List]]):
         """
@@ -128,6 +142,14 @@ class OphysROI(object):
     @property
     def y0(self) -> int:
         return self._y0
+
+    @property
+    def centroid_y(self) -> float:
+        return self._centroid_row
+
+    @property
+    def centroid_x(self) -> float:
+        return self._centroid_col
 
     @property
     def width(self) -> int:

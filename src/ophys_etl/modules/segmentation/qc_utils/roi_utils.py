@@ -1,3 +1,4 @@
+import matplotlib
 from typing import List, Tuple, Callable, Optional
 import numpy as np
 from ophys_etl.modules.decrosstalk.ophys_plane import (
@@ -146,3 +147,158 @@ def roi_thumbnail(movie: OphysMovie,
                                           alpha=alpha)
 
     return thumbnail
+
+
+class ROIExaminer(object):
+
+    def __init__(self, movie_path):
+        self.ophys_movie = OphysMovie(str(movie_path),
+                                      motion_border={'x0': 0,
+                                                     'x1': 0,
+                                                     'y0': 0,
+                                                     'y1': 0})
+        print('please wait while we load the movie data')
+        self.ophys_movie.load_movie_data()
+
+        self._roi_from_id = None
+        self._color_from_subset = None
+
+    def load_rois_to_compare(self, roi_sets: List[Tuple]):
+        """
+        Load lists of ROIs to compare.
+
+        Parameters
+        ----------
+        roi_set: List[Tuple]
+            Each tuple consists of a color, which is a tuple representing
+            the RGB color you want to signify that set of ROIs and a list
+            of OphysROIs
+
+        Raises
+        ------
+        RuntimeError
+            If the ROI IDs in your sets of ROIs are not unique, an error
+            will be raised. It will be easier to compare ROIs if they
+            all have unique IDs.
+        """
+
+        self._roi_from_id = {}
+        self._roi_from_subset = {}
+        self._color_from_subset = {}
+        all_roi_list = []
+        for i_subset, roi_subset in enumerate(roi_sets):
+            color = roi_subset[0]
+            if not isinstance(color, tuple):
+                raise RuntimeError("The proper form for roi_sets is "
+                                   "[(color, ROI_list), "
+                                   "(color, ROI_list)....]")
+
+            self._color_from_subset[i_subset] = color
+            self._roi_from_subset[i_subset] = roi_subset[1]
+            for roi in roi_subset[1]:
+                if roi.roi_id in self._roi_from_id:
+                    other = self._roi_from_id[roi.roi_id]
+                    raise RuntimeError(f"ROI ID {roi.roi_id} occurs "
+                                       "at least twise in your roi_sets. "
+                                       f"Once in subset {i_subset}; "
+                                       "once in subset "
+                                       f"{other['subset']}")
+                obj = {}
+                obj['roi'] = roi
+                obj['subset'] = i_subset
+                self._roi_from_id[roi.roi_id] = obj
+                all_roi_list.append(roi)
+
+        print('please wait while we extract the traces for these ROIs')
+        trace_struct = self.ophys_movie.get_trace(all_roi_list)
+        self._trace_from_id = {}
+        for roi_id in trace_struct['roi'].keys():
+            tr = trace_struct['roi'][roi_id]['signal']
+            self._trace_from_id[roi_id] = tr
+        return None
+
+    def _max_projection_with_roi(self, rois_and_colors):
+        """
+        rois_and_colors is a list of dicts keyed on 'color'
+        and 'rois'
+        """
+        output_img = self.ophys_movie.get_max_rgb()
+        for obj in rois_and_colors:
+            output_img = add_roi_boundaries_to_img(output_img,
+                                                   roi_list=obj['rois'],
+                                                   alpha=0.4,
+                                                   color=obj['color'])
+        return output_img
+
+    def max_projection_with_roi(self, subset_list: List[int]):
+        """
+        subset_list is a list of ints corresponding to the subsets
+        of ROIs loaded in load_rois_to_compare
+        """
+        for subset in subset_list:
+            if subset not in self._color_from_subset:
+                valid = list(self._color_from_subset.keys())
+                valid.sort()
+                raise RuntimeError(f"No data for subset {subset}. "
+                                   f"Only subsets {valid} have been "
+                                   "loaded")
+        subset_args = []
+        for subset in subset_list:
+            obj = {}
+            obj['color'] = self._color_from_subset[subset]
+            obj['rois'] = self._roi_from_subset[subset]
+            subset_args.append(obj)
+        return self._max_projection_with_roi(subset_args)
+
+    def plot_roi(self,
+                 subset_list: List[int],
+                 axis: matplotlib.axes.Axes,
+                 labels=False):
+
+        img_arr = self.max_projection_with_roi(subset_list)
+        axis.imshow(img_arr)
+        if not labels:
+            return axis
+
+        n_roi = 0
+        for subset in subset_list:
+            n_roi += len(self._roi_from_subset[subset])
+        nx = -999.0*np.ones(n_roi, dtype=float)
+        ny = -999.0*np.ones(n_roi, dtype=float)
+        roi_ct = 0
+
+        rng = np.random.RandomState(44)
+        for subset in subset_list:
+            color_hex = '#%02x%02x%02x' % self._color_from_subset[subset]
+            for roi in self._roi_from_subset[subset]:
+                xx = roi.centroid_x
+                yy = roi.centroid_y
+                dd = None
+                n_iter = 0
+
+                # add random salt in case two labels would
+                # be right on top of each other
+                while (dd is None or dd < 50) and n_iter < 20:
+                    if n_iter > 0:
+                        _x = rng.normal()
+                        _y = rng.normal()
+                        _r = rng.normal(loc=n_iter, scale=5)
+                        n = np.sqrt(_x**2+_y**2)
+                        _x *= _r/n
+                        _y *= _r/n
+                        xx = roi.centroid_x + _x
+                        yy = roi.centroid_y + _y
+
+                    dd = np.min((xx-nx)**2+(yy-ny)**2)
+                    n_iter += 1
+
+                nx[roi_ct] = xx
+                ny[roi_ct] = yy
+                roi_ct += 1
+
+                axis.text(xx, yy,
+                          f'{roi.roi_id}',
+                          color=color_hex,
+                          fontsize=15)
+
+        return axis

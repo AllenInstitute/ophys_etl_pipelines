@@ -165,6 +165,9 @@ class ROIExaminer(object):
         self._roi_from_id = None
         self._color_from_subset = None
 
+    def purge_movie_data(self):
+        self.ophys_movie.purge_movie()
+
     def load_rois_to_compare(self, roi_sets: List[Tuple]):
         """
         Load lists of ROIs to compare.

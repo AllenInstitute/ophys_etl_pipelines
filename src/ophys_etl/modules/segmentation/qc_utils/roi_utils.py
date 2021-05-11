@@ -604,7 +604,7 @@ class ROIExaminer(object):
         thumbnail_axis.set_title(f'roi {roi.roi_id}', fontsize=30)
         thumbnail_axis.tick_params(axis='both', labelsize=0)
         tt = np.arange(len(trace))
-        tmin = trace[:-1000].min()
+        tmin = trace[trace>1.0e-6].min()
         tmax = trace.max()
         trace_axis.plot(tt, trace,
                         color='#%02x%02x%02x' % color)

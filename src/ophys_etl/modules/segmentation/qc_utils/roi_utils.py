@@ -1,8 +1,9 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from typing import List, Tuple, Callable, Optional
+from typing import List, Tuple, Callable, Optional, Union
 import numpy as np
+import pathlib
 from ophys_etl.modules.decrosstalk.ophys_plane import (
     OphysROI,
     OphysMovie,
@@ -153,8 +154,18 @@ def roi_thumbnail(movie: OphysMovie,
 
 
 class ROIExaminer(object):
+    """
+    A class for comparing ROIs found by different segmentation schemes
+    to the movie they were run on
 
-    def __init__(self, movie_path):
+    Parameters
+    ----------
+    movie_path: str or pathlib.Path
+        The path to the motion corrected movie to be used as the baseline
+        for ROI comparison
+    """
+
+    def __init__(self, movie_path: Union[str, pathlib.Path]):
         self.ophys_movie = OphysMovie(str(movie_path),
                                       motion_border={'x0': 0,
                                                      'x1': 0,
@@ -604,7 +615,7 @@ class ROIExaminer(object):
         thumbnail_axis.set_title(f'roi {roi.roi_id}', fontsize=30)
         thumbnail_axis.tick_params(axis='both', labelsize=0)
         tt = np.arange(len(trace))
-        tmin = trace[trace>1.0e-6].min()
+        tmin = trace[trace > 1.0e-6].min()
         tmax = trace.max()
         trace_axis.plot(tt, trace,
                         color='#%02x%02x%02x' % color)

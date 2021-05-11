@@ -230,47 +230,19 @@ class ROIExaminer(object):
                                                    color=obj['color'])
         return output_img
 
-    def max_projection_with_roi(self, subset_list: List[int]):
-        """
-        subset_list is a list of ints corresponding to the subsets
-        of ROIs loaded in load_rois_to_compare
-        """
-        for subset in subset_list:
-            if subset not in self._color_from_subset:
-                valid = list(self._color_from_subset.keys())
-                valid.sort()
-                raise RuntimeError(f"No data for subset {subset}. "
-                                   f"Only subsets {valid} have been "
-                                   "loaded")
-        subset_args = []
-        for subset in subset_list:
-            obj = {}
-            obj['color'] = self._color_from_subset[subset]
-            obj['rois'] = self._roi_from_subset[subset]
-            subset_args.append(obj)
-        return self._max_projection_with_roi(subset_args)
-
-    def plot_roi(self,
-                 subset_list: List[int],
-                 axis: matplotlib.axes.Axes,
-                 labels=False):
-
-        img_arr = self.max_projection_with_roi(subset_list)
-        axis.imshow(img_arr)
-        if not labels:
-            return axis
+    def _add_labels(self, axis, rois_and_colors):
 
         n_roi = 0
-        for subset in subset_list:
-            n_roi += len(self._roi_from_subset[subset])
+        for subset in rois_and_colors:
+            n_roi += len(subset['rois'])
         nx = -999.0*np.ones(n_roi, dtype=float)
         ny = -999.0*np.ones(n_roi, dtype=float)
         roi_ct = 0
 
         rng = np.random.RandomState(44)
-        for subset in subset_list:
-            color_hex = '#%02x%02x%02x' % self._color_from_subset[subset]
-            for roi in self._roi_from_subset[subset]:
+        for subset in rois_and_colors:
+            color_hex = '#%02x%02x%02x' % subset['color']
+            for roi in subset['rois']:
                 xx = roi.centroid_x
                 yy = roi.centroid_y
                 dd = None
@@ -300,5 +272,33 @@ class ROIExaminer(object):
                           f'{roi.roi_id}',
                           color=color_hex,
                           fontsize=15)
+
+        return axis
+
+    def plot_roi(self,
+                 subset_list: List[int],
+                 axis: matplotlib.axes.Axes,
+                 labels=False):
+
+        for subset in subset_list:
+            if subset not in self._color_from_subset:
+                valid = list(self._color_from_subset.keys())
+                valid.sort()
+                raise RuntimeError(f"No data for subset {subset}. "
+                                   f"Only subsets {valid} have been "
+                                   "loaded")
+        subset_args = []
+        for subset in subset_list:
+            obj = {}
+            obj['color'] = self._color_from_subset[subset]
+            obj['rois'] = self._roi_from_subset[subset]
+            subset_args.append(obj)
+
+        img_arr = self._max_projection_with_roi(subset_args)
+        axis.imshow(img_arr)
+        if not labels:
+            return axis
+
+        axis = self._add_labels(axis, subset_args)
 
         return axis

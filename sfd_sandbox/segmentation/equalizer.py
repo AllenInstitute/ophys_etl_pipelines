@@ -108,7 +108,10 @@ class AdaptiveEqualizer(object):
         new_img = np.zeros(img.shape, dtype=float)
         mask = np.ones(img.shape, dtype=bool)
         for t in self.tiles:
-            w = 1.0/((1.0+t.center_dist(img))**2)
+            dd = t.center_dist(img)
+            #print(dd.min(),np.median(dd),dd.max())
+            #w = np.exp(-dd**2/5000.0)
+            w = 1.0/(1+dd**2)
             if masking:
                 mask = t.is_in(img)
             assert w.shape == img.shape

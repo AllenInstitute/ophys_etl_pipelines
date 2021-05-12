@@ -192,7 +192,7 @@ class MaskSegmenter(object):
         return self._rois
 
 
-def graph_to_img(graph_fname):
+def graph_to_img(graph_fname, with_flux=False):
     graph = nx.read_gpickle(graph_fname)
     coords = np.array(list(graph.nodes))
     shape = tuple(coords.max(axis=0) + 1)
@@ -200,7 +200,18 @@ def graph_to_img(graph_fname):
     for node in graph.nodes:
         vals = [graph[node][i]["weight"] for i in graph.neighbors(node)]
         img[node[0], node[1]] = np.sum(vals)
+        if with_flux:
+            f = graph.nodes[node]['flux']
+            img[node[0], node[1]] *= f
+    return img
 
+def graph_to_img_flux(graph_fname):
+    graph = nx.read_gpickle(graph_fname)
+    coords = np.array(list(graph.nodes))
+    shape = tuple(coords.max(axis=0) + 1)
+    img = np.zeros(shape)
+    for node in graph.nodes:
+        img[node[0], node[1]] = graph.nodes[node]['flux']
     return img
 
 
@@ -290,9 +301,10 @@ if __name__ == "__main__":
     graph_img = graph_to_img(args.in_graph)
     equalizer = AdaptiveEqualizer(graph_img, (10, 10))
 
-    subtracted_img = equalizer.equalize(graph_img, masking=True)
+    #subtracted_img = equalizer.equalize(graph_img, masking=True)
     #bckgd = isolate_low_frequency_modes(graph_img, 10)
     #subtracted_img = graph_img-bckgd
+    subtracted_img = graph_img
 
     if args.max_proj is None:
         rgb_img = img_to_rgb(subtracted_img)

@@ -231,8 +231,8 @@ def read_old_roi(file_path):
     with open(file_path, 'rb') as in_file:
         json_data = json.load(in_file)
     for roi_id, data in enumerate(json_data['rois']):
-        if not data['valid']:
-            continue
+        #if not data['valid']:
+        #    continue
         roi = OphysROI(x0=data['x'],
                        y0=data['y'],
                        height=data['height'],

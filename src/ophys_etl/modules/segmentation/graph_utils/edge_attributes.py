@@ -156,17 +156,12 @@ def add_filtered_pearson_edge_attributes(
     # timesteps for each pixel
     discard = 1.0-filter_fraction
     i_threshold = np.round(discard*data.shape[0]).astype(int)
-    mask_lookup = {}
-    for node in graph:
-        flux = data[:, node[0]-offset[0], node[1]-offset[1]]
-        sorted_dex = np.argsort(flux)
-        mask = sorted_dex[i_threshold:]
-        mask_lookup[node] = mask
 
     for node1 in graph:
         n1row, n1col = np.array(node1) - offset
         flux1 = data[:, n1row, n1col]
-        mask1 = mask_lookup[node1]
+        sorted_dex = np.argsort(flux1)
+        mask1 = sorted_dex[i_threshold:]
         neighbors = set(list(graph.neighbors(node1)))
         new_neighbors = set(list(new_graph.neighbors(node1)))
         neighbors = list(neighbors - new_neighbors)
@@ -176,14 +171,14 @@ def add_filtered_pearson_edge_attributes(
         for node2 in neighbors:
             n2row, n2col = np.array(node2) - offset
             flux2 = data[:, n2row, n2col]
-
-            mask2 = mask_lookup[node2]
+            sorted_dex = np.argsort(flux2)
+            mask2 = sorted_dex[i_threshold:]
 
             # create a global mask so that we are calculating the
             # correlation on the same timestamps for both pixels
             full_mask = np.unique(np.concatenate([mask1, mask2]))
-            masked_flux1 = flux1[full_mask]
-            masked_flux2 = flux2[full_mask]
+            masked_flux1 = flux1[full_mask].astype(float)
+            masked_flux2 = flux2[full_mask].astype(float)
 
             # a single median on which to center the correlation
             mu = np.median(np.concatenate([masked_flux1,

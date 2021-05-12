@@ -276,6 +276,20 @@ def isolate_low_frequency_modes(img, n_modes):
     new_img = ifft2(transformed)
     return new_img.real
 
+def make_cdf(img_flat):
+    val, val_ct = np.unique(img_flat, return_counts=True)
+    cdf = np.cumsum(val_ct)
+    cdf = cdf/val_ct.sum()
+    assert len(val) == len(cdf)
+    assert cdf.max()<=1.0
+    assert cdf.min()>=0.0
+    return val, cdf
+
+def equalize_img(img):
+    f = img.flatten()
+    val, cdf = make_cdf(f)
+    new_img = np.interp(f, val, cdf)
+    return new_img.reshape(img.shape)
 
 if __name__ == "__main__":
 
@@ -288,8 +302,9 @@ if __name__ == "__main__":
 
     graph_img = graph_to_img(args.in_graph)
 
-    bckgd = isolate_low_frequency_modes(graph_img, 10)
-    subtracted_img = graph_img-bckgd
+    subtracted_img = equalize_img(graph_img)
+    #bckgd = isolate_low_frequency_modes(graph_img, 10)
+    #subtracted_img = graph_img-bckgd
 
     if args.max_proj is None:
         rgb_img = img_to_rgb(graph_img)

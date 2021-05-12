@@ -49,9 +49,6 @@ class EqTile(object):
                              np.arange(img.shape[1]),
                              indexing='ij')
 
-        print(rows)
-        print(cols)
-        print(self.origin)
         return np.sqrt((rows-self.origin[0])**2
                        + (cols-self.origin[1])**2)
 
@@ -73,7 +70,6 @@ class AdaptiveEqualizer(object):
     def __init__(self, img, tile_grid):
         tile_params = self.get_tile_params(img.shape, tile_grid)
         self.tiles = []
-        print('t_p ',len(tile_params))
         for p in tile_params:
             sub_img = img[p['row_bounds'][0]:p['row_bounds'][1],
                           p['col_bounds'][0]:p['col_bounds'][1]]
@@ -86,7 +82,6 @@ class AdaptiveEqualizer(object):
     def get_tile_params(self, img_shape, tile_grid):
         drow = img_shape[0]//tile_grid[0]
         dcol = img_shape[1]//tile_grid[1]
-        print('d ',drow,dcol)
 
         tile_params = []
         row_vals = list(range(drow//4, img_shape[0], drow))
@@ -119,5 +114,17 @@ class AdaptiveEqualizer(object):
             assert w.shape == img.shape
             wgt[mask] += w[mask]
             new_img[mask] += w[mask]*t.interp(img)[mask]
-        print(wgt)
         return new_img/wgt
+
+    def mask(self, img, frac=0.95):
+        mask_img = np.zeros(img.shape, dtype=bool)
+        for t in self.tiles:
+            is_in = t.is_in(img)
+            sub_img = t.interp(img[is_in])
+            f = sub_img.flatten()
+            f = np.sort(f)
+            threshold = f[np.round(frac*len(f)).astype(int)]
+            sub_mask = (sub_img>=threshold)
+            mask_img[is_in] = np.logical_or(mask_img[is_in],
+                                            sub_mask)
+        return mask_img

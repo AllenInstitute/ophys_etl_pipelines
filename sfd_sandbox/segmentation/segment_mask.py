@@ -304,6 +304,7 @@ if __name__ == "__main__":
         rgb_img = img_to_rgb(rgb_img)
 
     graph_mask = mask_img(subtracted_img, 0.9)
+    #graph_mask = equalizer.mask(graph_img, 0.95)
 
     fig, ax = plt.subplots(1, 1, figsize=(20,20))
     ax.imshow(graph_mask)

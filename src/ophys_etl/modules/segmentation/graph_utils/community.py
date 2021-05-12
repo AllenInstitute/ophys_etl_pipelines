@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
-from typing import List
+from pathlib import Path
+from typing import List, Union
 
 
 def edge_values(graph: nx.Graph, attribute_name: str) -> np.ndarray:
@@ -157,16 +158,16 @@ def grow_subgraph(graph: nx.Graph,
     return last_sub
 
 
-def iterative_detection(graph: nx.Graph,
+def iterative_detection(graph: Union[nx.Graph, Path],
                         attribute_name: str,
                         seed_quantile: int,
-                        n_node_thresh=20) -> nx.Graph:
+                        n_node_thresh=20) -> Union[nx.Graph, Path]:
     """idenitfy seeds, grow out ROIs, repeat
 
     Parameters
     ----------
     graph: nx.Graph
-        the input graph
+        the input graph, or a path to such
     attribute_name: str
         the name of the edge attribute
     seed_quantile: float
@@ -177,9 +178,14 @@ def iterative_detection(graph: nx.Graph,
     Returns
     -------
     graph: nx.Graph
-        a graph consisting of only identified ROIs
+        a graph consisting of only identified ROIs, or a path to such
 
     """
+    from_path = None
+    if isinstance(graph, Path):
+        from_path = Path(graph)
+        graph = nx.read_gpickle(graph)
+
     collected = []
     for jj in range(5):
         subgraphs = seed_subgraphs_by_quantile(graph,
@@ -206,4 +212,10 @@ def iterative_detection(graph: nx.Graph,
         graph = nx.Graph(graph.subgraph(nodes))
         collected.append(expanded)
 
-    return nx.compose_all(collected)
+    graph = nx.compose_all(collected)
+
+    if from_path is not None:
+        nx.write_gpickle(graph, from_path)
+        graph = from_path
+
+    return graph

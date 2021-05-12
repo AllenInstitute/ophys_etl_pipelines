@@ -26,12 +26,12 @@ class SegmentV0(argschema.ArgSchemaParser):
                     self.args["seed_quantile"])
         else:
             subgraphs = partition.partition_graph_by_edges(
-                    self.args["n_partitions"])
+                    graph, self.args["n_partitions"])
 
             args = []
             with tempfile.TemporaryDirectory() as tdir:
                 for i, subgraph in enumerate(subgraphs):
-                    gpath = str(Path(tdir) / f"{i}.pkl")
+                    gpath = Path(tdir) / f"{i}.pkl"
                     nx.write_gpickle(subgraph, gpath)
                     args.append((gpath,
                                  self.args["attribute_name"],
@@ -39,7 +39,8 @@ class SegmentV0(argschema.ArgSchemaParser):
                 with multiprocessing.Pool(len(subgraphs)) as pool:
                     results = pool.starmap(community.iterative_detection,
                                            args)
-            new_graph = nx.compose_all([nx.read_gpickle(i) for i in results])
+                new_graph = nx.compose_all([nx.read_gpickle(i)
+                                            for i in results])
 
         nx.write_gpickle(new_graph, self.args["graph_output"])
         self.logger.info(f"wrote {self.args['graph_output']}")

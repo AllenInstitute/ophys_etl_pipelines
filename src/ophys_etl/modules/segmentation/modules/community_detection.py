@@ -49,7 +49,7 @@ class SegmentV0(argschema.ArgSchemaParser):
         if 'plot_output' in self.args:
             fig = Figure(figsize=(18, 9), dpi=300)
             a0 = fig.add_subplot(121)
-            a1 = fig.add_subplot(122)
+            a1 = fig.add_subplot(122, sharex=a0, sharey=a0)
             plotting.draw_graph_edges(fig, a0, graph,
                                       self.args["attribute_name"])
             plotting.draw_graph_edges(fig, a1, new_graph,

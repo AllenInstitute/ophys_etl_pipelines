@@ -177,6 +177,9 @@ def grow_subgraph(graph: nx.Graph,
             # for this neighbor, the mean edge values connecting to last_sub
             values.append(np.mean(node_edge_values))
 
+        if len(values) == 0:
+            return last_sub
+
         # for the highest valued node, add all its edges
         ind = np.argmax(values)
         if values[ind] > thresh:

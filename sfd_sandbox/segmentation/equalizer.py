@@ -87,19 +87,31 @@ class AdaptiveEqualizer(object):
         row_vals = list(range(drow//4, img_shape[0], drow))
         col_vals = list(range(dcol//4, img_shape[1], dcol))
         for i_row, row in enumerate(row_vals):
-            row_min = max(0, row - drow//2)
-            row_max = min(img_shape[0], row_min+3*drow//2)
-            if i_row == len(row_vals):
+            if i_row == 0:
+                row_min = 0
+            else:
+                row_min = row_vals[i_row-1]
+            if i_row == len(row_vals)-1:
                 row_max = img_shape[0]
+            else:
+                row_max = row_vals[i_row+1]
+
             for i_col, col in enumerate(col_vals):
-                col_min = max(0, col - dcol//2)
-                col_max = min(img_shape[1], col + 3*dcol//2)
-                if i_col == len(col_vals):
-                    col_max = img._shape[1]
+                if i_col == 0:
+                    col_min = 0
+                else:
+                    col_min = col_vals[i_col-1]
+
+                if i_col == len(col_vals)-1:
+                    col_max = img_shape[1]
+                else:
+                    col_max = col_vals[i_col+1]
+
                 obj = {'origin': (row, col),
                        'row_bounds': (row_min, row_max),
                        'col_bounds': (col_min, col_max)}
                 tile_params.append(obj)
+
         return tile_params
 
 

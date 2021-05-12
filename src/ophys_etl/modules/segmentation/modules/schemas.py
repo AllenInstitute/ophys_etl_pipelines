@@ -135,3 +135,6 @@ class SegmentV0InputSchema(argschema.ArgSchema):
     plot_output = argschema.fields.OutputFile(
         required=False,
         description="if provided, will create a before/after plot")
+    roi_output = argschema.fields.OutputFile(
+        required=False,
+        description="if provided, will write subgraphs to json as ROIs")

@@ -1,7 +1,44 @@
 import networkx as nx
 import numpy as np
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Optional
+
+from ophys_etl.types import ExtractROI
+
+
+def graph_to_roi(graph: nx.Graph, roi_id: Optional[int] = 0) -> ExtractROI:
+    """LIMS style ROI from a graph
+
+    Parameters
+    ----------
+    graph: nx.Graph
+        an input graph, probably a smaller graph resulting from some
+        segmentation and/or other processing
+    roi_id: int
+        idenitfier for this ROI
+
+    Returns
+    -------
+    roi: ExtractROI
+        the LIMS-formatted ROI
+
+    """
+    coords = np.array(list(graph.nodes))
+    row0 = coords[:, 0].min()
+    col0 = coords[:, 1].min()
+    cptp = tuple(coords.ptp(axis=0))
+    mask = np.zeros((cptp[0] + 1, cptp[1] + 1), dtype=bool)
+    for row, col in coords:
+        mask[row - row0, col - col0] = True
+    roi = ExtractROI(
+            id=roi_id,
+            x=int(col0),
+            y=int(row0),
+            width=int(cptp[1]),
+            height=int(cptp[0]),
+            valid=False,
+            mask=[i.tolist() for i in mask])
+    return roi
 
 
 def edge_values(graph: nx.Graph, attribute_name: str) -> np.ndarray:

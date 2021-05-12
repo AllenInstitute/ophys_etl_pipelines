@@ -1,6 +1,7 @@
 import argschema
 import multiprocessing
 import tempfile
+import json
 import networkx as nx
 from matplotlib.figure import Figure
 from pathlib import Path
@@ -55,6 +56,15 @@ class SegmentV0(argschema.ArgSchemaParser):
                                       self.args["attribute_name"])
             fig.savefig(self.args["plot_output"])
             self.logger.info(f"wrote {self.args['plot_output']}")
+
+        if 'roi_output' in self.args:
+            subgraphs = [new_graph.subgraph(i)
+                         for i in nx.connected_components(new_graph)]
+            rois = [community.graph_to_roi(subgraph, i)
+                    for i, subgraph in enumerate(subgraphs)]
+            with open(self.args["roi_output"], "w") as f:
+                json.dump(rois, f, indent=2)
+            self.logger.info(f"wrote {self.args['roi_output']}")
 
 
 if __name__ == "__main__":

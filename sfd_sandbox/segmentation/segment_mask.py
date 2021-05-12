@@ -2,11 +2,14 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
+import PIL.Image
 import numpy as np
 import json
 import networkx as nx
 import argparse
 import time
+
+from numpy.fft import fft2, ifft2
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
@@ -222,17 +225,80 @@ def img_to_rgb(img):
     #print(rgb_img.max())
     return rgb_img
 
+def read_old_roi(file_path):
+    roi_list = []
+    with open(file_path, 'rb') as in_file:
+        json_data = json.load(in_file)
+    for roi_id, data in enumerate(json_data['rois']):
+        roi = OphysROI(x0=data['x'],
+                       y0=data['y'],
+                       height=data['height'],
+                       width=data['width'],
+                       mask_matrix=data['mask'],
+                       valid_roi=True,
+                       roi_id=-1-roi_id)
+        roi_list.append(roi)
+    return roi_list
+
+
+def isolate_low_frequency_modes(img, n_modes):
+    transformed = fft2(img)
+
+    ty = transformed.shape[0]
+    tx = transformed.shape[1]
+
+    fx = np.zeros(tx, dtype=int)
+    fy = np.zeros(ty, dtype=int)
+    for ii in range(tx):
+        if ii<tx//2:
+            fx[ii] = ii
+        else:
+            fx[ii] = tx-1-ii
+    for ii in range(ty):
+        if ii<ty//2:
+            fy[ii] = ii
+        else:
+            fy[ii] = ty-1-ii
+
+    freq_grid = np.meshgrid(fx, fy)
+
+    freq_grid = freq_grid[0]**2+freq_grid[1]**2
+
+    assert freq_grid.shape == transformed.shape
+
+    freq_arr = np.unique(freq_grid.flatten())
+    nf = len(freq_arr)
+
+    mask = np.where(freq_grid>freq_arr[n_modes])
+    transformed[mask] = 0.0
+    new_img = ifft2(transformed)
+    return new_img.real
+
 
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--in_graph', type=str, default=None)
     parser.add_argument('--out_img', type=str, default=None)
+    parser.add_argument('--max_proj', type=str, default=None)
+    parser.add_argument('--old_roi', type=str, default=None)
     args = parser.parse_args()
 
     graph_img = graph_to_img(args.in_graph)
-    rgb_img = img_to_rgb(graph_img)
-    graph_mask = mask_img(graph_img, 0.9)
+
+    bckgd = isolate_low_frequency_modes(graph_img, 10)
+    subtracted_img = graph_img-bckgd
+
+    if args.max_proj is None:
+        rgb_img = img_to_rgb(graph_img)
+    else:
+        rgb_img = PIL.Image.open(args.max_proj, 'r')
+        nr = rgb_img.size[0]
+        nc = rgb_img.size[1]
+        rgb_img = np.array(rgb_img).reshape(nr,nc)
+        rgb_img = img_to_rgb(rgb_img)
+
+    graph_mask = mask_img(subtracted_img, 0.9)
 
     fig, ax = plt.subplots(1, 1, figsize=(20,20))
     ax.imshow(graph_mask)
@@ -256,6 +322,13 @@ if __name__ == "__main__":
         roi_list.append(roi)
 
     rgb_img = add_roi_boundaries_to_img(rgb_img, roi_list, alpha=0.5)
+    if args.old_roi is not None:
+        old_roi_list = read_old_roi(args.old_roi)
+        rgb_img = add_roi_boundaries_to_img(rgb_img,
+                                            old_roi_list,
+                                            color=(0,255,0),
+                                            alpha=0.5)
+
     fig, ax = plt.subplots(1, 1, figsize=(20,20))
     ax.imshow(rgb_img)
     ax = add_labels_to_roi_img(ax,

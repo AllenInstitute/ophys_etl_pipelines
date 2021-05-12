@@ -8,6 +8,7 @@ import json
 import networkx as nx
 import argparse
 import time
+from equalizer import AdaptiveEqualizer
 
 from numpy.fft import fft2, ifft2
 
@@ -276,20 +277,6 @@ def isolate_low_frequency_modes(img, n_modes):
     new_img = ifft2(transformed)
     return new_img.real
 
-def make_cdf(img_flat):
-    val, val_ct = np.unique(img_flat, return_counts=True)
-    cdf = np.cumsum(val_ct)
-    cdf = cdf/val_ct.sum()
-    assert len(val) == len(cdf)
-    assert cdf.max()<=1.0
-    assert cdf.min()>=0.0
-    return val, cdf
-
-def equalize_img(img):
-    f = img.flatten()
-    val, cdf = make_cdf(f)
-    new_img = np.interp(f, val, cdf)
-    return new_img.reshape(img.shape)
 
 if __name__ == "__main__":
 
@@ -301,13 +288,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     graph_img = graph_to_img(args.in_graph)
+    equalizer = AdaptiveEqualizer(graph_img, (10, 10))
 
-    subtracted_img = equalize_img(graph_img)
+    subtracted_img = equalizer.equalize(graph_img, masking=True)
     #bckgd = isolate_low_frequency_modes(graph_img, 10)
     #subtracted_img = graph_img-bckgd
 
     if args.max_proj is None:
-        rgb_img = img_to_rgb(graph_img)
+        rgb_img = img_to_rgb(subtracted_img)
     else:
         rgb_img = PIL.Image.open(args.max_proj, 'r')
         nr = rgb_img.size[0]

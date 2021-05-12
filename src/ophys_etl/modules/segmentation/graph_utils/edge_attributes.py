@@ -113,7 +113,7 @@ def add_filtered_pearson_edge_attributes(
         filter_fraction: float,
         graph: nx.Graph,
         video_path: Path,
-        attribute_name: str = "Pearson_filtered") -> nx.Graph:
+        attribute_name: str = "filtered_Pearson") -> nx.Graph:
     """adds an attribute to each edge which is the Pearson correlation
     coefficient between the traces of the two pixels (nodes) associated
     with that edge. Correlation coefficient is only calculated for the
@@ -181,13 +181,13 @@ def add_filtered_pearson_edge_attributes(
 
             # create a global mask so that we are calculating the
             # correlation on the same timestamps for both pixels
-            full_mask = np.unique(np.concatenate(mask1, mask2))
+            full_mask = np.unique(np.concatenate([mask1, mask2]))
             masked_flux1 = flux1[full_mask]
             masked_flux2 = flux2[full_mask]
 
             # a single median on which to center the correlation
-            mu = np.median(np.concatenate(masked_flux1,
-                                          masked_flux2))
+            mu = np.median(np.concatenate([masked_flux1,
+                                           masked_flux2]))
             masked_flux1 -= mu
             masked_flux2 -= mu
 

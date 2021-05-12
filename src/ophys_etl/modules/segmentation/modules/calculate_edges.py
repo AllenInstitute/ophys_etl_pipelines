@@ -4,6 +4,7 @@ import networkx as nx
 import multiprocessing
 import tempfile
 from pathlib import Path
+from functools import partial
 import matplotlib
 
 from ophys_etl.modules.segmentation.modules.create_graph import CreateGraph
@@ -15,8 +16,19 @@ from ophys_etl.modules.segmentation.graph_utils import (
 matplotlib.use("agg")
 
 
-def edge_job(graph_path: Path, video_path: Path) -> nx.Graph:
+def pearson_edge_job(graph_path: Path, video_path: Path) -> nx.Graph:
     graph = edge_attributes.add_pearson_edge_attributes(
+            nx.read_gpickle(graph_path),
+            video_path)
+    nx.write_gpickle(graph, graph_path)
+    return graph_path
+
+
+def filtered_pearson_edge_job(filter_fraction: float,
+                              graph_path: Path,
+                              video_path: Path) -> nx.Graph:
+    graph = edge_attributes.add_filtered_pearson_edge_attributes(
+            filter_fraction,
             nx.read_gpickle(graph_path),
             video_path)
     nx.write_gpickle(graph, graph_path)
@@ -29,6 +41,12 @@ class CalculateEdges(argschema.ArgSchemaParser):
     def run(self):
         self.logger.name = type(self).__name__
         t0 = time.time()
+
+        if self.args['attribute'] == 'Pearson':
+            edge_job = pearson_edge_job
+        elif self.args['attribute'] == 'filtered_Pearson':
+            edge_job = partial(filtered_pearson_edge_job,
+                               self.args['filter_fraction'])
 
         if "graph_input" not in self.args:
             cg = CreateGraph(input_data=self.args["create_graph_args"],

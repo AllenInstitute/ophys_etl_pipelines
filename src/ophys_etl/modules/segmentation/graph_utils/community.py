@@ -288,7 +288,7 @@ def iterative_detection(graph: Union[nx.Graph, Path],
                 while len(p_list) >= n_processes:
                     to_pop = []
                     for ii in range(len(p_list)-1,-1,-1):
-                        if p_list.exitcode is not None:
+                        if p_list[ii].exitcode is not None:
                             to_pop.append(ii)
                     for ii in to_pop:
                         p_list.pop(ii)

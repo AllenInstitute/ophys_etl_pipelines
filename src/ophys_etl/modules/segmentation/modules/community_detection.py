@@ -1,5 +1,4 @@
 import argschema
-import multiprocessing
 import tempfile
 import json
 import networkx as nx
@@ -20,28 +19,11 @@ class SegmentV0(argschema.ArgSchemaParser):
         self.logger.name = type(self).__name__
 
         graph = nx.read_gpickle(self.args["graph_input"])
-        if self.args["n_partitions"] == 1:
-            new_graph = community.iterative_detection(
+        new_graph = community.iterative_detection(
                     graph,
                     self.args["attribute_name"],
-                    self.args["seed_quantile"])
-        else:
-            subgraphs = partition.partition_graph_by_edges(
-                    graph, self.args["n_partitions"])
-
-            args = []
-            with tempfile.TemporaryDirectory() as tdir:
-                for i, subgraph in enumerate(subgraphs):
-                    gpath = Path(tdir) / f"{i}.pkl"
-                    nx.write_gpickle(subgraph, gpath)
-                    args.append((gpath,
-                                 self.args["attribute_name"],
-                                 self.args["seed_quantile"]))
-                with multiprocessing.Pool(len(subgraphs)) as pool:
-                    results = pool.starmap(community.iterative_detection,
-                                           args)
-                new_graph = nx.compose_all([nx.read_gpickle(i)
-                                            for i in results])
+                    self.args["seed_quantile"],
+                    n_processes=self.args["n_partitions"])
 
         nx.write_gpickle(new_graph, self.args["graph_output"])
         self.logger.info(f"wrote {self.args['graph_output']}")

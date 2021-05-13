@@ -280,7 +280,7 @@ def iterative_detection(graph: Union[nx.Graph, Path],
             
             for i_start in range(0, n_subgraphs, d_graph):
                 p = multiprocessing.Process(target=_process_subgraphs,
-                                            args=(sugraphs[i_start:i_start+d_graph],
+                                            args=(subgraphs[i_start:i_start+d_graph],
                                                   graph, attribute_name, i_start,
                                                   out_dict))
                 p.start()

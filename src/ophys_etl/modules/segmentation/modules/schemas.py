@@ -71,7 +71,7 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
                      "in dataset 'data' nframes x nrow x ncol"))
     graph_output = argschema.fields.OutputFile(
         required=True,
-        description="read by nx.read_gpickle() for graph input")
+        description="written by nx.write_gpickle() for graph output")
     plot_output = argschema.fields.OutputFile(
         required=False,
         description=("if provided, will create a plot saved to this location.",
@@ -103,3 +103,38 @@ class GraphPlotInputSchema(argschema.ArgSchema):
     plot_output = argschema.fields.OutputFile(
         required=True,
         description=("destination png for plot"))
+
+
+class SegmentV0InputSchema(argschema.ArgSchema):
+    log_level = argschema.fields.LogLevel(default="INFO")
+    graph_input = argschema.fields.InputFile(
+        required=True,
+        description="source file for networkx.read_gpickle()")
+    n_partitions = argschema.fields.Int(
+        required=False,
+        default=1,
+        description=("how many kmeans sub-graphs to create and send "
+                     "to distinct workers. Can accelerate by parallelizing "
+                     "and by reducing the graph size for any one worker. If "
+                     "1, multiprocessing is not invoked."))
+    attribute_name = argschema.fields.Str(
+        required=False,
+        default="Pearson",
+        description="which edge attribute name to operate on")
+    seed_quantile = argschema.fields.Float(
+        required=False,
+        default=0.95,
+        description=("starting seeds for graph growth are determined "
+                     "by the connected components that remain after "
+                     "keeping only the edges above this quantile. "
+                     "applied iteratively as ROIs are detected and "
+                     "removed from graph."))
+    graph_output = argschema.fields.OutputFile(
+        required=True,
+        description="written by nx.write_gpickle() for graph output")
+    plot_output = argschema.fields.OutputFile(
+        required=False,
+        description="if provided, will create a before/after plot")
+    roi_output = argschema.fields.OutputFile(
+        required=False,
+        description="if provided, will write subgraphs to json as ROIs")

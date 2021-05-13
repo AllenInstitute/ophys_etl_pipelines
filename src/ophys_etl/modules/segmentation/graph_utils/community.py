@@ -276,7 +276,7 @@ def iterative_detection(graph: Union[nx.Graph, Path],
 
             p_list = []
             mgr = multiprocessing.Manager()
-            out_dict = mgr.Dict()
+            out_dict = mgr.dict()
             
             for i_start in range(0, n_subgraphs, d_graph):
                 p = multiprocessing.Process(target=_process_subgraphs,

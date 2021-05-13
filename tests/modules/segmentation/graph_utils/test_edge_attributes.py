@@ -78,3 +78,22 @@ def test_normalize_graph(video_path):
         keys = list(attr.keys())
         assert "Pearson" in keys
         assert "Pearson_normalized" in keys
+
+
+@pytest.mark.parametrize(
+        "video_path",
+        [
+            {"video_shape": (20, 40, 40)},
+        ], indirect=["video_path"])
+def test_filtered_pearson_edges(video_path):
+    with h5py.File(video_path, "r") as f:
+        nrow, ncol = f["data"].shape[1:]
+    graph = creation.create_graph(row_min=0, row_max=(nrow - 1),
+                                  col_min=0, col_max=(ncol - 1))
+    graph = edge_attributes.add_filtered_pearson_edge_attributes(0.2, graph,
+                                                                 video_path)
+    for n1, n2, attr in graph.edges(data=True):
+        keys = list(attr.keys())
+        assert "filtered_Pearson" in keys
+        assert "Pearson" not in keys
+        assert "Pearson_normalized" not in keys

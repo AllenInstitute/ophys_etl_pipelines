@@ -180,11 +180,10 @@ def add_filtered_pearson_edge_attributes(
             masked_flux1 = flux1[full_mask].astype(float)
             masked_flux2 = flux2[full_mask].astype(float)
 
-            # a single median on which to center the correlation
-            mu = np.median(np.concatenate([masked_flux1,
-                                           masked_flux2]))
-            masked_flux1 -= mu
-            masked_flux2 -= mu
+            mu1 = np.mean(masked_flux1)
+            mu2 = np.mean(masked_flux2)
+            masked_flux1 -= mu1
+            masked_flux2 -= mu2
 
             numerator = np.mean(masked_flux1*masked_flux2)
             denom = np.mean(masked_flux1**2)

@@ -195,7 +195,6 @@ def grow_subgraph(graph: nx.Graph,
             # in low-contrast regions, sometimes growth never stopped
             return last_sub
 
-    print(f"grew subgraph from {n_start} to {n_nodes}")
     return last_sub
 
 

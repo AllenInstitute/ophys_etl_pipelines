@@ -202,7 +202,9 @@ def grow_subgraph(graph: nx.Graph,
 
 def _process_subgraphs(subgraphs,
                        graph,
-                       attribute_name):
+                       attribute_name,
+                       p_id,
+                       out_dict):
     expanded = []
     for subgraph in subgraphs:
         sub_nodes = set(subgraph.nodes) & set(graph.nodes)
@@ -215,7 +217,7 @@ def _process_subgraphs(subgraphs,
         node_list = set(graph.nodes) - set(expanded_subgraph.nodes)
         graph = graph.subgraph(node_list)
         expanded.append(expanded_subgraph)
-    return expanded
+    out_dict[p_id] = expanded
 
 
 def iterative_detection(graph: Union[nx.Graph, Path],
@@ -269,9 +271,7 @@ def iterative_detection(graph: Union[nx.Graph, Path],
         rng.shuffle(subgraphs)
         if n_processes == 1:
             out_dict = {}
-            expanded = _process_subgraphs(subgraphs,
-                                          graph,
-                                          attribute_name)
+            _process_subgraphs(subgraphs, graph, attribute_name, 0, out_dict)
             expanded = out_dict[0]
         else:
             slop = 3
@@ -285,23 +285,32 @@ def iterative_detection(graph: Union[nx.Graph, Path],
             while (slop*n_processes)*d_graph < n_subgraphs:
                 d_graph += 1
 
-            args = []
+            p_list = []
+            mgr = multiprocessing.Manager()
+            out_dict = mgr.dict()
+            
             for i_start in range(0, n_subgraphs, d_graph):
-                args.append((subgraphs[i_start:i_start+d_graph],
-                             graph,
-                             attribute_name))
-
-            print('kicking it to the pool')
-            with multiprocessing.Pool(n_processes) as pool:
-                results = pool.starmap(_process_subgraphs,
-                                       args,
-                                       chunksize=3)
+                p = multiprocessing.Process(target=_process_subgraphs,
+                                            args=(subgraphs[i_start:i_start+d_graph],
+                                                  graph, attribute_name, i_start,
+                                                  out_dict))
+                p.start()
+                p_list.append(p)
+                while len(p_list) >= n_processes:
+                    to_pop = []
+                    for ii in range(len(p_list)-1,-1,-1):
+                        if p_list[ii].exitcode is not None:
+                            to_pop.append(ii)
+                    for ii in to_pop:
+                        p_list.pop(ii)
+            for p in p_list:
+                p.join()
             t_process += time.time()-t0
             t0 = time.time()
 
             expanded = []
-            for r in results:
-                expanded += r
+            for ii in out_dict:
+                expanded += out_dict[ii]
 
         expanded = nx.compose_all(expanded)
 

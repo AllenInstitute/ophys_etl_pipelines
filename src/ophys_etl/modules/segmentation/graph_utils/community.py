@@ -326,7 +326,7 @@ def iterative_detection(graph: Union[nx.Graph, Path],
         nx.write_gpickle(graph, from_path)
         graph = from_path
     t_collect += time.time()-t0
-    print(f't_seed {t_seed} seconds'}
+    print(f't_seed {t_seed} seconds')
     print(f't_process {t_process} seconds')
     print(f't_collect {t_collect} seconds')
 

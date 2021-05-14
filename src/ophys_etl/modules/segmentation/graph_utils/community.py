@@ -204,8 +204,8 @@ def _process_subgraphs(subgraphs,
                        graph,
                        attribute_name,
                        p_id,
-                       expanded):
-    local_expanded = []
+                       out_dict):
+    expanded = []
     for subgraph in subgraphs:
         sub_nodes = set(subgraph.nodes) & set(graph.nodes)
         subgraph = graph.subgraph(sub_nodes)
@@ -216,10 +216,9 @@ def _process_subgraphs(subgraphs,
             continue
         node_list = set(graph.nodes) - set(expanded_subgraph.nodes)
         graph = graph.subgraph(node_list)
-        local_expanded.append(expanded_subgraph)
+        expanded.append(expanded_subgraph)
+    out_dict[p_id] = expanded
 
-    for e in local_expanded:
-        expanded.append(e)
 
 def iterative_detection(graph: Union[nx.Graph, Path],
                         attribute_name: str,
@@ -257,7 +256,6 @@ def iterative_detection(graph: Union[nx.Graph, Path],
     t_seed = 0.0
     t_process = 0.0
     t_collect = 0.0
-    t_nx_collect = 0.0
 
     collected = []
     for jj in range(5):
@@ -270,11 +268,11 @@ def iterative_detection(graph: Union[nx.Graph, Path],
         t0 = time.time()
         if len(subgraphs) == 0:
             break
-        print('should spawn ',n_processes)
         rng.shuffle(subgraphs)
         if n_processes == 1:
-            expanded = []
-            _process_subgraphs(subgraphs, graph, attribute_name, 0, expanded)
+            out_dict = {}
+            _process_subgraphs(subgraphs, graph, attribute_name, 0, out_dict)
+            expanded = out_dict[0]
         else:
             slop = 3
             n_subgraphs = len(subgraphs)
@@ -289,13 +287,13 @@ def iterative_detection(graph: Union[nx.Graph, Path],
 
             p_list = []
             mgr = multiprocessing.Manager()
-            expanded = mgr.list()
-            print('kicking it off ',n_subgraphs,d_graph) 
+            out_dict = mgr.dict()
+            
             for i_start in range(0, n_subgraphs, d_graph):
                 p = multiprocessing.Process(target=_process_subgraphs,
                                             args=(subgraphs[i_start:i_start+d_graph],
                                                   graph, attribute_name, i_start,
-                                                  expanded))
+                                                  out_dict))
                 p.start()
                 p_list.append(p)
                 while len(p_list) >= n_processes:
@@ -310,6 +308,10 @@ def iterative_detection(graph: Union[nx.Graph, Path],
             t_process += time.time()-t0
             t0 = time.time()
 
+            expanded = []
+            for ii in out_dict:
+                expanded += out_dict[ii]
+
         expanded = nx.compose_all(expanded)
 
         nodes = [i for i in graph if i not in expanded]
@@ -323,10 +325,9 @@ def iterative_detection(graph: Union[nx.Graph, Path],
     if from_path is not None:
         nx.write_gpickle(graph, from_path)
         graph = from_path
-    t_nx_collect += time.time()-t0
+    t_collect += time.time()-t0
     print(f't_seed {t_seed} seconds')
     print(f't_process {t_process} seconds')
     print(f't_collect {t_collect} seconds')
-    print(f't_nx_collect {t_nx_collect} seconds')
 
     return graph

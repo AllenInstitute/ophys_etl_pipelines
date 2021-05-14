@@ -4,6 +4,8 @@ import multiprocessing
 from pathlib import Path
 from typing import List, Union, Optional
 
+import time
+
 from ophys_etl.types import ExtractROI
 
 
@@ -251,12 +253,19 @@ def iterative_detection(graph: Union[nx.Graph, Path],
 
     rng = np.random.RandomState(1182)
 
+    t_seed = 0.0
+    t_process = 0.0
+    t_collect = 0.0
+
     collected = []
     for jj in range(5):
+        t0 = time.time()
         subgraphs = seed_subgraphs_by_quantile(graph,
                                                attribute_name=attribute_name,
                                                seed_quantile=seed_quantile,
                                                n_node_thresh=n_node_thresh)
+        t_seed += time.time()-t0
+        t0 = time.time()
         if len(subgraphs) == 0:
             break
         rng.shuffle(subgraphs)
@@ -296,6 +305,9 @@ def iterative_detection(graph: Union[nx.Graph, Path],
                         p_list.pop(ii)
             for p in p_list:
                 p.join()
+            t_process += time.time()-t0
+            t0 = time.time()
+
             expanded = []
             for ii in out_dict:
                 expanded += out_dict[ii]
@@ -305,11 +317,17 @@ def iterative_detection(graph: Union[nx.Graph, Path],
         nodes = [i for i in graph if i not in expanded]
         graph = nx.Graph(graph.subgraph(nodes))
         collected.append(expanded)
+        t_collect += time.time()-t0
 
+    t0 = time.time()
     graph = nx.compose_all(collected)
 
     if from_path is not None:
         nx.write_gpickle(graph, from_path)
         graph = from_path
+    t_collect += time.time()-t0
+    print(f't_seed {t_seed} seconds'}
+    print(f't_process {t_process} seconds')
+    print(f't_collect {t_collect} seconds')
 
     return graph

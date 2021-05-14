@@ -80,8 +80,13 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
     attribute = argschema.fields.Str(
         required=False,
         default="Pearson",
-        validate=OneOf(["Pearson"]),
+        validate=OneOf(["Pearson", "filtered_Pearson"]),
         description="which calculation to perform")
+    filter_fraction = argschema.fields.Float(
+        required=False,
+        default=0.2,
+        description="Fraction of timesteps to kee if "
+                    "calculating the filtered Pearson coefficient")
     n_parallel_workers = argschema.fields.Int(
         required=False,
         default=1,

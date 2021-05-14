@@ -107,3 +107,90 @@ def add_pearson_edge_attributes(graph: nx.Graph,
             new_graph.add_edge(node1, node2, **attr)
 
     return new_graph
+
+
+def add_filtered_pearson_edge_attributes(
+        filter_fraction: float,
+        graph: nx.Graph,
+        video_path: Path,
+        attribute_name: str = "filtered_Pearson") -> nx.Graph:
+    """adds an attribute to each edge which is the Pearson correlation
+    coefficient between the traces of the two pixels (nodes) associated
+    with that edge. Correlation coefficient is only calculated for the
+    union of the brightest `filter_fraction` of timesteps at the two
+    pixels
+
+    Parameters
+    ----------
+    filter_fraction: float
+        The fraction of timesteps to keep for each pixel when calculating
+        the correlation coefficient
+    graph: nx.Graph
+        a graph with nodes like (row, col) and edges connecting them
+    video_path: Path
+        path to an hdf5 video file, assumed to have a dataset "data"
+        nframes x nrow x ncol
+    attribute_name: str
+        name set on each edge for this calculated value
+
+    Returns
+    -------
+    new_graph: nx.Graph
+        an undirected networkx graph, with attribute added to edges
+
+    """
+    new_graph = nx.Graph()
+    # copies over node attributes
+    new_graph.add_nodes_from(graph.nodes(data=True))
+
+    # load the section of data that encompasses this graph
+    rows, cols = np.array(graph.nodes).T
+    with h5py.File(video_path, "r") as f:
+        data = f["data"][:,
+                         rows.min(): (rows.max() + 1),
+                         cols.min(): (cols.max() + 1)]
+
+    offset = np.array([rows.min(), cols.min()])
+
+    # create a lookup table of the brightest filter_fraction
+    # timesteps for each pixel
+    discard = 1.0-filter_fraction
+    i_threshold = np.round(discard*data.shape[0]).astype(int)
+
+    for node1 in graph:
+        n1row, n1col = np.array(node1) - offset
+        flux1 = data[:, n1row, n1col]
+        sorted_dex = np.argsort(flux1)
+        mask1 = sorted_dex[i_threshold:]
+        neighbors = set(list(graph.neighbors(node1)))
+        new_neighbors = set(list(new_graph.neighbors(node1)))
+        neighbors = list(neighbors - new_neighbors)
+        if len(neighbors) == 0:
+            continue
+
+        for node2 in neighbors:
+            n2row, n2col = np.array(node2) - offset
+            flux2 = data[:, n2row, n2col]
+            sorted_dex = np.argsort(flux2)
+            mask2 = sorted_dex[i_threshold:]
+
+            # create a global mask so that we are calculating the
+            # correlation on the same timestamps for both pixels
+            full_mask = np.unique(np.concatenate([mask1, mask2]))
+            masked_flux1 = flux1[full_mask].astype(float)
+            masked_flux2 = flux2[full_mask].astype(float)
+
+            mu1 = np.mean(masked_flux1)
+            mu2 = np.mean(masked_flux2)
+            masked_flux1 -= mu1
+            masked_flux2 -= mu2
+
+            numerator = np.mean(masked_flux1*masked_flux2)
+            denom = np.mean(masked_flux1**2)
+            denom *= np.mean(masked_flux2**2)
+
+            attr = graph.get_edge_data(node1, node2)
+            attr.update({attribute_name: numerator/np.sqrt(denom)})
+            new_graph.add_edge(node1, node2, **attr)
+
+    return new_graph

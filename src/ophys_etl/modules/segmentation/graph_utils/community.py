@@ -250,6 +250,8 @@ def iterative_detection(graph: Union[nx.Graph, Path],
         from_path = Path(graph)
         graph = nx.read_gpickle(graph)
 
+    rng = np.random.RandomState(1182)
+
     collected = []
     for jj in range(5):
         subgraphs = seed_subgraphs_by_quantile(graph,
@@ -258,6 +260,7 @@ def iterative_detection(graph: Union[nx.Graph, Path],
                                                n_node_thresh=n_node_thresh)
         if len(subgraphs) == 0:
             break
+        rng.shuffle(subgraphs)
         if n_processes == 1:
             out_dict = {}
             _process_subgraphs(subgraphs, graph, attribute_name, 0, out_dict)

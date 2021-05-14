@@ -205,7 +205,7 @@ def _process_subgraphs(subgraphs,
                        attribute_name,
                        p_id,
                        out_dict):
-    expanded = []
+    local_expanded = []
     for subgraph in subgraphs:
         sub_nodes = set(subgraph.nodes) & set(graph.nodes)
         subgraph = graph.subgraph(sub_nodes)
@@ -216,8 +216,9 @@ def _process_subgraphs(subgraphs,
             continue
         node_list = set(graph.nodes) - set(expanded_subgraph.nodes)
         graph = graph.subgraph(node_list)
-        expanded.append(expanded_subgraph)
-    out_dict[p_id] = expanded
+        local_expanded.append(expanded_subgraph)
+    full_graph = nx.compose_all(local_expanded)
+    out_dict[p_id] = full_graph
 
 
 def iterative_detection(graph: Union[nx.Graph, Path],
@@ -274,7 +275,7 @@ def iterative_detection(graph: Union[nx.Graph, Path],
             _process_subgraphs(subgraphs, graph, attribute_name, 0, out_dict)
             expanded = out_dict[0]
         else:
-            slop = 3
+            slop = 4
             n_subgraphs = len(subgraphs)
             d_graph = n_subgraphs//(slop*n_processes)
 
@@ -310,9 +311,9 @@ def iterative_detection(graph: Union[nx.Graph, Path],
 
             expanded = []
             for ii in out_dict:
-                expanded += out_dict[ii]
+                expanded.append(out_dict[ii])
 
-        expanded = nx.compose_all(expanded)
+            expanded = nx.compose_all(expanded)
 
         nodes = [i for i in graph if i not in expanded]
         graph = nx.Graph(graph.subgraph(nodes))

@@ -2,9 +2,10 @@ import h5py
 import networkx as nx
 import numpy as np
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union, Tuple
 from scipy.spatial.distance import cdist
 from scipy.ndimage import gaussian_filter
+from cachetools import cached, LRUCache
 
 
 def normalize_graph(graph: nx.Graph,
@@ -194,3 +195,111 @@ def add_filtered_pearson_edge_attributes(
             new_graph.add_edge(node1, node2, **attr)
 
     return new_graph
+
+
+@cached(cache=LRUCache(maxsize=20))
+def centered_coords(radius: int) -> np.ndarray:
+    rc = np.mgrid[-radius: (radius + 1),
+                  -radius: (radius + 1)].reshape(2, -1).T
+    hypot = np.linalg.norm(rc, axis=1)
+    rc = rc[hypot <= radius]
+    return rc
+
+
+def neighborhood_pixels(coordinate: Tuple[float, float],
+                        radius: int,
+                        nrow: int,
+                        ncol: int) -> np.ndarray:
+    """return pixel coordinates of a circular region around a coordinate
+    """
+    cc = centered_coords(radius)
+    coords = cc + np.round(np.array(coordinate)).astype('int')
+    inds = ((coords[:, 0] >= 0) & (coords[:, 0] < nrow)
+            & (coords[:, 1] >= 0) & (coords[:, 1] < ncol))
+    coords = coords[inds]
+    return coords
+
+
+def add_hnc_gaussian_metric(graph: nx.Graph,
+                            video_path: Path,
+                            neighborhood_radius: Union[int, float],
+                            attribute_name: str = "hnc_Gaussian"
+                            ) -> nx.Graph():
+    """for each pair of pixels represented by an edge, calculates the Gaussian
+    similarity in correlation space to a neighborhood of size
+    'neighborhood_radius' where the correlation coefficient of all pairs of
+    pixels in that neighborhood are considered.
+
+    Parameters
+    ----------
+    graph: nx.Graph
+        a graph with nodes like (row, col) and edges connecting them
+    video_path: Path
+        path to an hdf5 video file, assumed to have a dataset "data"
+        nframes x nrow x ncol
+    neighborhood_radius: Union[int, float]
+        pixels within <= this radius of the pair centroid are considered
+        in the neighborhood.
+    attribute_name: str
+        name set on each edge for this calculated value
+
+    Returns
+    -------
+    new_graph: nx.Graph
+        an undirected networkx graph, with attribute added to edges
+
+    Notes
+    -----
+    See:
+    "HNCcorr: A Novel Combinatorial Approach for Cell Identification
+    in Calcium-Imaging Movies"
+    Spaen et. al.
+    https://pubmed.ncbi.nlm.nih.gov/31058211/
+
+    """
+
+    with h5py.File(video_path, "r") as f:
+        nrow, ncol = f["data"].shape[1:]
+
+    # find bounds of data to load
+    row_min = np.inf
+    row_max = 0
+    col_min = np.inf
+    col_max = 0
+    for edge in graph.edges:
+        neighborhood = neighborhood_pixels(np.array(edge).mean(axis=0),
+                                           neighborhood_radius,
+                                           nrow,
+                                           ncol)
+        n_mn = neighborhood.min(axis=0)
+        n_mx = neighborhood.max(axis=0)
+        if n_mn[0] < row_min:
+            row_min = n_mn[0]
+        if n_mn[1] < col_min:
+            col_min = n_mn[1]
+        if n_mx[0] > row_max:
+            row_max = n_mx[0]
+        if n_mx[1] > col_max:
+            col_max = n_mx[1]
+
+    # load the data
+    with h5py.File(video_path, "r") as f:
+        data = f["data"][:, row_min: (row_max + 1), col_min: (col_max + 1)]
+
+    values = dict()
+    for edge in graph.edges:
+        neighborhood = neighborhood_pixels(np.array(edge).mean(axis=0),
+                                           neighborhood_radius,
+                                           nrow,
+                                           ncol)
+        traces = [data[:, row - row_min, col - col_min]
+                  for row, col in neighborhood]
+        node0 = data[:, edge[0][0] - row_min, edge[0][1] - col_min]
+        node1 = data[:, edge[1][0] - row_min, edge[1][1] - col_min]
+
+        pearsons = 1.0 - cdist([node0, node1], traces, metric="correlation")
+        dist = np.linalg.norm(pearsons[0] - pearsons[1])
+        values[edge] = np.exp(-1.0 * (dist ** 2.0))
+    nx.set_edge_attributes(graph, values, name=attribute_name)
+
+    return graph

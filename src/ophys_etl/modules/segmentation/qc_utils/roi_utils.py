@@ -1,7 +1,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from typing import List, Tuple, Callable, Optional, Union
+from typing import List, Tuple, Callable, Optional, Union, Dict
 import numpy as np
 import pathlib
 from ophys_etl.modules.decrosstalk.ophys_plane import (
@@ -56,6 +56,56 @@ def add_roi_boundaries_to_img(img: np.ndarray,
     return new_img
 
 
+def roi_to_thumbnail_bounds(roi:OphysROI,
+                            slop: int = 20,
+                            row_max: int = 512,
+                            col_max: int = 512) -> Dict[str, int]:
+    """
+    Take an OphysROI and return the row_min, row_max,
+    col_min, col_max bounds for a thumbnail containing that movie
+
+    Parameters
+    ----------
+    roi: OphysROI
+
+    slop: int
+        The number of pixels beyond the ROI to return
+        in the thumbnail (default: 20)
+
+    row_max: int
+        Maximum possible size of row_max (default=512)
+
+    col_max: int
+        Maximum possible size of col_max (default=512)
+
+    Returns
+    -------
+    bounds: dict
+        Keys are 'row_min', 'row_max', 'col_min', 'col_max'
+    """
+    x0 = roi.x0-slop//2
+    x1 = roi.x0+roi.width+slop//2
+    y0 = roi.y0-slop//2
+    y1 = roi.y0+roi.height+slop//2
+
+    dx = roi.width+slop
+    dy = roi.height+slop
+    if x0 < 0:
+        x0 = 0
+        x1 = x0+dx
+    if y0 < 0:
+        y0 = 0
+        y1 = y0+dy
+    if x1 >= col_max:
+        x1 = col_max-1
+        x0 = x1-dx
+    if y1 >= row_max:
+        y1 = row_max-1
+        y0 = y1-dy
+    return {'col_min': x0, 'col_max': x1,
+            'row_min': y0, 'row_max': y1}
+
+
 def roi_thumbnail(movie: OphysMovie,
                   roi: OphysROI,
                   timestamps: Optional[np.ndarray],
@@ -104,27 +154,14 @@ def roi_thumbnail(movie: OphysMovie,
     else:
         clipped_movie = movie.data
 
-    x0 = roi.x0-slop//2
-    x1 = roi.x0+roi.width+slop//2
-    y0 = roi.y0-slop//2
-    y1 = roi.y0+roi.height+slop//2
+    bounds = roi_to_thumbnail_bounds(roi,
+                                     slop=slop,
+                                     row_max=movie.data.shape[1],
+                                     col_max=movie.data.shape[2])
 
-    dx = roi.width+slop
-    dy = roi.height+slop
-    if x0 < 0:
-        x0 = 0
-        x1 = x0+dx
-    if y0 < 0:
-        y0 = 0
-        y1 = y0+dy
-    if x1 >= movie.data.shape[2]:
-        x1 = movie.data.shape[2]-1
-        x0 = x1-dx
-    if y1 >= movie.data.shape[1]:
-        y1 = movie.data.shape[1]-1
-        y0 = y1-dy
-
-    clipped_movie = clipped_movie[:, y0:y1, x0:x1]
+    clipped_movie = clipped_movie[:,
+                                  bounds['row_min']:bounds['row_max'],
+                                  bounds['col_min']:bounds['col_max']]
     mean_img = reducer(clipped_movie, axis=0)
     del clipped_movie
 
@@ -137,8 +174,8 @@ def roi_thumbnail(movie: OphysMovie,
     thumbnail = np.where(thumbnail <= 255, thumbnail, 255)
 
     # need to re-center the ROI
-    new_roi = OphysROI(x0=roi.x0-x0,
-                       y0=roi.y0-y0,
+    new_roi = OphysROI(x0=roi.x0-bounds['col_min'],
+                       y0=roi.y0-bounds['row_min'],
                        width=roi.width,
                        height=roi.height,
                        mask_matrix=roi.mask_matrix,

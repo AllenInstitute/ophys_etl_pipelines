@@ -1,9 +1,10 @@
 import numpy as np
+from typing import Union
 from scipy.ndimage import uniform_filter1d, gaussian_filter1d
 
 
 def temporal_filter1d(video: np.ndarray,
-                      size: int,
+                      size: Union[int, float],
                       filter_type: str = "uniform") -> np.ndarray:
     """apply simple averaging per pixel trace
 
@@ -11,9 +12,9 @@ def temporal_filter1d(video: np.ndarray,
     ----------
     video: np.ndarray
         the input video nframes x nrows x ncols
-    size: int
-        passed to 'uniform_filter1d' as 'size' or to 'gaussian_filter1d'
-        as 'sigma'
+    size: int or float
+        passed to 'uniform_filter1d' as 'size' (int) or to 'gaussian_filter1d'
+        as 'sigma' (float)
     filter_type: str
         'uniform' or 'gaussian'
 

@@ -35,6 +35,17 @@ def filtered_pearson_edge_job(filter_fraction: float,
     return graph_path
 
 
+def hnc_gaussian_edge_job(neighborhood_radius: int,
+                          graph_path: Path,
+                          video_path: Path) -> nx.Graph:
+    graph = edge_attributes.add_hnc_gaussian_metric(
+            graph=nx.read_gpickle(graph_path),
+            video_path=video_path,
+            neighborhood_radius=neighborhood_radius)
+    nx.write_gpickle(graph, graph_path)
+    return graph_path
+
+
 class CalculateEdges(argschema.ArgSchemaParser):
     default_schema = CalculateEdgesInputSchema
 
@@ -47,6 +58,9 @@ class CalculateEdges(argschema.ArgSchemaParser):
         elif self.args['attribute'] == 'filtered_Pearson':
             edge_job = partial(filtered_pearson_edge_job,
                                self.args['filter_fraction'])
+        elif self.args['attribute'] == 'hnc_Gaussian':
+            edge_job = partial(hnc_gaussian_edge_job,
+                               self.args['neighborhood_radius'])
 
         if "graph_input" not in self.args:
             cg = CreateGraph(input_data=self.args["create_graph_args"],
@@ -80,7 +94,7 @@ class CalculateEdges(argschema.ArgSchemaParser):
         if "plot_output" in self.args:
             fig = matplotlib.figure.Figure(figsize=(16, 16), dpi=300)
             axes = fig.add_subplot(111)
-            plotting.draw_graph_edges(fig, axes, graph)
+            plotting.draw_graph_edges(fig, axes, graph, self.args["attribute"])
             fig.savefig(self.args["plot_output"])
             self.logger.info(f"wrote {self.args['plot_output']}")
 

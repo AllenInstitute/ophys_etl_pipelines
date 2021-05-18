@@ -80,13 +80,18 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
     attribute = argschema.fields.Str(
         required=False,
         default="Pearson",
-        validate=OneOf(["Pearson", "filtered_Pearson"]),
+        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian"]),
         description="which calculation to perform")
     filter_fraction = argschema.fields.Float(
         required=False,
         default=0.2,
         description="Fraction of timesteps to kee if "
                     "calculating the filtered Pearson coefficient")
+    neighborhood_radius = argschema.fields.Int(
+        required=False,
+        default=15,
+        description=("size of neighborhood radius (in pixels) for "
+                     "hnc gaussian distance."))
     n_parallel_workers = argschema.fields.Int(
         required=False,
         default=1,

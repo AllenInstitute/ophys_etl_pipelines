@@ -21,8 +21,7 @@ class PCADenoise(argschema.ArgSchemaParser):
         # flatten the data
         data = data.reshape(dshape[0], -1)
 
-        # split the data, making sure the chunk size is larger than
-        # the request number of components
+        # split the data
         split_data = np.array_split(data, self.args["n_chunks"], axis=0)
 
         # incrementally fit the data in time chunks

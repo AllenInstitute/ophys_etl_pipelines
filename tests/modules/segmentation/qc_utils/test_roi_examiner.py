@@ -137,12 +137,14 @@ def roi_groups():
             roi_list_2]
 
 
-def test_roi_examiner(example_movie, roi_groups):
+def test_roi_examiner(tmpdir, example_movie, roi_groups):
     """
     Run a smoke test on the function in ROIExaminer
     """
 
-    examiner = ROIExaminer(example_movie)
+    scratch = pathlib.Path(tmpdir) / 'scratch'
+
+    examiner = ROIExaminer(example_movie, scratch)
     examiner.load_rois_to_compare([((255, 0, 0), roi_groups[0]),
                                    ((0, 255, 0), roi_groups[1]),
                                    ((0, 0, 255), roi_groups[2])])

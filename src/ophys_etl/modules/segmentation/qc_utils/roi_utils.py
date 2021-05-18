@@ -200,9 +200,24 @@ class ROIExaminer(object):
     movie_path: str or pathlib.Path
         The path to the motion corrected movie to be used as the baseline
         for ROI comparison
+
+    tmp_dir: str or pathlib.Path
+        Directory where temporary files can be stored
     """
 
-    def __init__(self, movie_path: Union[str, pathlib.Path]):
+    def __init__(self,
+                 movie_path: Union[str, pathlib.Path],
+                 tmp_dir: Union[str, pathlib.Path]):
+
+        # TODO: run all of this with pathlib when you can
+        # google pathlib's documentation again
+        if isinstance(tmp_dir, str):
+            tmp_dir = pathlib.Path(tmp_dir)
+        if not tmp_dir.exists():
+            tmp_dir.mkdir(parents=True)
+        if not tmp_dir.is_dir():
+            raise RuntimeError(f"{str(tmp_dir.absolute())} is not a dir")
+
         self.ophys_movie = OphysMovie(str(movie_path),
                                       motion_border={'x0': 0,
                                                      'x1': 0,

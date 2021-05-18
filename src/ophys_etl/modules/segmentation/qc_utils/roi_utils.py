@@ -4,6 +4,8 @@ import matplotlib.gridspec as gridspec
 from typing import List, Tuple, Callable, Optional, Union, Dict
 import numpy as np
 import pathlib
+import imageio
+import tempfile
 from ophys_etl.modules.decrosstalk.ophys_plane import (
     OphysROI,
     OphysMovie,
@@ -190,6 +192,40 @@ def roi_thumbnail(movie: OphysMovie,
     return thumbnail
 
 
+class ThumbnailMovie(object):
+    """
+    Parameters
+    ----------
+    data: np.ndarray
+        The time x rows x cols array  of data to be stored
+        in the movie
+
+    tmp_dir: pathlib.Path
+        The directory into which the movie file will be
+        written
+
+    fps: int
+        frames per second (default = 31)
+    """
+
+    def __init__(self,
+                 data: np.ndarray,
+                 tmp_dir: pathlib.Path,
+                 fps: int=31):
+
+        if not tmp_dir.is_dir():
+            raise RuntimeError(f'{tmp_dir} is not a directory')
+
+        self._fname = tempfile.mkstemp(dir=str(tmp_dir.absolute()),
+                                       prefix='thumbnail_movie_',
+                                       suffix='.mp4')[1]
+
+        imageio.mimwrite(self._fname, data, fps=fps)
+
+    def filepath(self):
+        return self._fname
+
+
 class ROIExaminer(object):
     """
     A class for comparing ROIs found by different segmentation schemes
@@ -218,6 +254,8 @@ class ROIExaminer(object):
         if not tmp_dir.is_dir():
             raise RuntimeError(f"{str(tmp_dir.absolute())} is not a dir")
 
+        self._tmp_dir = tmp_dir
+
         self.ophys_movie = OphysMovie(str(movie_path),
                                       motion_border={'x0': 0,
                                                      'x1': 0,
@@ -230,6 +268,7 @@ class ROIExaminer(object):
 
         self._roi_from_id = None
         self._color_from_subset = None
+        self._movie_max  = None
 
     def purge_movie_data(self):
         self.ophys_movie.purge_movie()
@@ -674,3 +713,46 @@ class ROIExaminer(object):
         trace_axis.set_ylim(tmin, tmax)
         trace_axis.tick_params(axis='both', labelsize=20)
         return None
+
+    def movie_from_bounds(
+        self,
+        row_bounds: Tuple[int, int],
+        col_bounds: Tuple[int, int],
+        timesteps: Optional[np.ndarray] = None) -> ThumbnailMovie:
+        """
+        Get a ThumbnailMovie from user-specified pixel bounds
+
+        Parameters
+        ----------
+        row_bounds: Tuple[int, int]
+            (row_min, row_max)
+
+        col_bounds: Tuple[int, int]
+            (col_min, col_max)
+
+        timesteps: Optional[np.ndarray]
+            The timesteps to include in the movie
+        """
+        data = self.ophys_movie.data
+        if self._movie_max is None:
+            self._movie_max = data.max()
+
+        if timesteps is not None:
+            data = data[timesteps, :, :]
+
+        data = data[:,
+                    row_bounds[0]:row_bounds[1],
+                    col_bounds[0]:col_bounds[1]]
+
+        movie_data = np.zeros((data.shape[0],
+                               data.shape[1],
+                               data.shape[2],
+                               3))
+
+        data = np.round(255*(data/self._movie_max)).astype(int)
+
+        data = np.where(data<256, data, 255)
+        for ic in range(3):
+            movie_data[:,:,:,ic] = data
+        movie_data = movie_data.astype(np.uint8)
+        return ThumbnailMovie(movie_data, self._tmp_dir)

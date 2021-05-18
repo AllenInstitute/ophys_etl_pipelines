@@ -80,7 +80,8 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
     attribute = argschema.fields.Str(
         required=False,
         default="Pearson",
-        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian"]),
+        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
+                        "filtered_hnc_Gaussian"]),
         description="which calculation to perform")
     filter_fraction = argschema.fields.Float(
         required=False,

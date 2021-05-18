@@ -148,3 +148,31 @@ class SegmentV0InputSchema(argschema.ArgSchema):
     roi_output = argschema.fields.OutputFile(
         required=False,
         description="if provided, will write subgraphs to json as ROIs")
+
+
+class SimpleDenoiseInputSchema(argschema.ArgSchema):
+    log_level = argschema.fields.LogLevel(default="INFO")
+    video_path = argschema.fields.InputFile(
+        required=True,
+        description=("path to hdf5 video with movie stored "
+                     "in dataset 'data' nframes x nrow x ncol"))
+    video_output = argschema.fields.OutputFile(
+        required=True,
+        description="destination path to filtered hdf5 video ")
+    size = argschema.fields.Float(
+        required=True,
+        description=("filter size for the time axis. "
+                     "If filter_type is 'uniform' this value will be cast "
+                     "to an integer and used as a boxcar width. If "
+                     "filter_type is 'gaussian', this value remains a float "
+                     "and is the sigma for the Gaussian filter."))
+    filter_type = argschema.fields.Str(
+        required=True,
+        validate=OneOf(["uniform", "gaussian"]),
+        description=("the type of temporal filter to apply to each pixel's "
+                     "trace."))
+    n_parallel_workers = argschema.fields.Int(
+        required=False,
+        default=1,
+        description=("how many multiprocessing workers to use. If set to "
+                     "1, multiprocessing is not invoked."))

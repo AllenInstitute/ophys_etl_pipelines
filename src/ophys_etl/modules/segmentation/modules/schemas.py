@@ -81,7 +81,8 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
     attribute = argschema.fields.Str(
         required=False,
         default="Pearson",
-        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian"]),
+        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
+                        "filtered_hnc_Gaussian"]),
         description="which calculation to perform")
     filter_fraction = argschema.fields.Float(
         required=False,
@@ -93,6 +94,12 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
         default=15,
         description=("size of neighborhood radius (in pixels) for "
                      "hnc gaussian distance."))
+    full_neighborhood = argschema.fields.Bool(
+        required=False,
+        default=False,
+        description=("if True, use the full neighborhood when "
+                     "selecting timesteps to keep in filtered_hnc_* "
+                     "graphs (default=False)"))
     n_parallel_workers = argschema.fields.Int(
         required=False,
         default=1,

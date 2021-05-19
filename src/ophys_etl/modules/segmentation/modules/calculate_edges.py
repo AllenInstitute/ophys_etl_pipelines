@@ -3,6 +3,7 @@ import time
 import networkx as nx
 import multiprocessing
 import tempfile
+from typing import Optional
 from pathlib import Path
 from functools import partial
 import matplotlib
@@ -35,13 +36,20 @@ def filtered_pearson_edge_job(filter_fraction: float,
     return graph_path
 
 
-def hnc_gaussian_edge_job(neighborhood_radius: int,
-                          graph_path: Path,
-                          video_path: Path) -> nx.Graph:
+def hnc_gaussian_edge_job(
+        neighborhood_radius: int,
+        graph_path: Path,
+        video_path: Path,
+        attribute_name: str = 'hnc_Gaussian',
+        filter_fraction: Optional[float] = None,
+        full_neighborhood: bool = False) -> nx.Graph:
     graph = edge_attributes.add_hnc_gaussian_metric(
             graph=nx.read_gpickle(graph_path),
             video_path=video_path,
-            neighborhood_radius=neighborhood_radius)
+            neighborhood_radius=neighborhood_radius,
+            filter_fraction=filter_fraction,
+            attribute_name=attribute_name,
+            full_neighborhood=full_neighborhood)
     nx.write_gpickle(graph, graph_path)
     return graph_path
 
@@ -60,7 +68,15 @@ class CalculateEdges(argschema.ArgSchemaParser):
                                self.args['filter_fraction'])
         elif self.args['attribute'] == 'hnc_Gaussian':
             edge_job = partial(hnc_gaussian_edge_job,
-                               self.args['neighborhood_radius'])
+                               self.args['neighborhood_radius'],
+                               attribute_name=self.args['attribute'])
+        elif self.args['attribute'] == 'filtered_hnc_Gaussian':
+            edge_job = partial(
+                          hnc_gaussian_edge_job,
+                          self.args['neighborhood_radius'],
+                          filter_fraction=self.args['filter_fraction'],
+                          attribute_name=self.args['attribute'],
+                          full_neighborhood=self.args['full_neighborhood'])
 
         if "graph_input" not in self.args:
             cg = CreateGraph(input_data=self.args["create_graph_args"],

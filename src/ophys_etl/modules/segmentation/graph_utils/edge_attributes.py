@@ -2,7 +2,7 @@ import h5py
 import networkx as nx
 import numpy as np
 from pathlib import Path
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, List
 from scipy.spatial.distance import cdist
 from scipy.ndimage import gaussian_filter
 from cachetools import cached, LRUCache
@@ -220,11 +220,76 @@ def neighborhood_pixels(coordinate: Tuple[float, float],
     return coords
 
 
+def _filtered_hnc_pearson(node0: np.ndarray,
+                          node1: np.ndarray,
+                          neighbor_traces: List[np.ndarray],
+                          filter_fraction: float,
+                          full_neighborhood: bool = False):
+    """
+    Correlate two pixels with their neighbors using only the brightest
+    pixels. Note: a single mask representing the union of the brightest
+    timesteps from all input traces will be used when calculating the
+    correlation vectors for node0 and node1
+
+    Parameters
+    ----------
+    node0: np.ndarray
+        Trace of pixel 0
+
+    node1: np.ndarray
+        Trace of pixel 1
+
+    neighbor_traces: List[np.ndarray]
+        Each element is a trace from the neighborhood that node0 and node1
+        need to be correlated with
+
+    filter_fraction: float
+        The fraction of pixels to keep
+
+    full_neighborhood: bool
+        If True, use all of the pixels in the neighborhood when selecting
+        the timesteps to correlate. When False, only use node0 and node1
+        (default = False)
+
+    Returns
+    -------
+    pearsons: np.ndarray
+        The result of running cdist on the input traces masked according
+        to the specified filter_fraction
+    """
+    discard = 1.0-filter_fraction
+    thresh0 = np.quantile(node0, discard)
+    mask0 = np.where(node0 >= thresh0)[0]
+    thresh1 = np.quantile(node1, discard)
+    mask1 = np.where(node1 >= thresh1)[0]
+
+    global_mask = [mask0, mask1]
+    if full_neighborhood:
+        for trace in neighbor_traces:
+            thresh = np.quantile(trace, discard)
+            mask = np.where(trace >= thresh)[0]
+            global_mask.append(mask)
+    global_mask = np.unique(np.concatenate(global_mask))
+
+    masked_node0 = node0[global_mask]
+    masked_node1 = node1[global_mask]
+    masked_neighbors = []
+    for trace in neighbor_traces:
+        masked_neighbors.append(trace[global_mask])
+
+    pearsons = 1.0 - cdist([masked_node0, masked_node1],
+                           masked_neighbors,
+                           metric="correlation")
+
+    return pearsons
+
+
 def add_hnc_gaussian_metric(graph: nx.Graph,
                             video_path: Path,
                             neighborhood_radius: Union[int, float],
-                            attribute_name: str = "hnc_Gaussian"
-                            ) -> nx.Graph():
+                            attribute_name: str = "hnc_Gaussian",
+                            filter_fraction: Optional[float] = None,
+                            full_neighborhood: bool = False) -> nx.Graph():
     """for each pair of pixels represented by an edge, calculates the Gaussian
     similarity in correlation space to a neighborhood of size
     'neighborhood_radius' where the correlation coefficient of all pairs of
@@ -242,6 +307,13 @@ def add_hnc_gaussian_metric(graph: nx.Graph,
         in the neighborhood.
     attribute_name: str
         name set on each edge for this calculated value
+    filter_fraction: Optional[float]
+        If not None, take the brightest filter_fraction pixels when
+        calculating the Pearson correlation within a neighborhood.
+    full_neighborhood: bool
+        If True, use all of the pixels in the neighborhood when selecting
+        the timesteps to correlate. When False, only use node0 and node1
+        (default = False)
 
     Returns
     -------
@@ -297,7 +369,18 @@ def add_hnc_gaussian_metric(graph: nx.Graph,
         node0 = data[:, edge[0][0] - row_min, edge[0][1] - col_min]
         node1 = data[:, edge[1][0] - row_min, edge[1][1] - col_min]
 
-        pearsons = 1.0 - cdist([node0, node1], traces, metric="correlation")
+        if filter_fraction is None:
+            pearsons = 1.0 - cdist([node0, node1],
+                                   traces,
+                                   metric="correlation")
+        else:
+            pearsons = _filtered_hnc_pearson(
+                            node0,
+                            node1,
+                            traces,
+                            filter_fraction,
+                            full_neighborhood=full_neighborhood)
+
         dist = np.linalg.norm(pearsons[0] - pearsons[1])
         values[edge] = np.exp(-1.0 * (dist ** 2.0))
     nx.set_edge_attributes(graph, values, name=attribute_name)

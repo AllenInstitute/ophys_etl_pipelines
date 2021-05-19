@@ -163,8 +163,9 @@ class PCADenoiseInputSchema(argschema.ArgSchema):
     n_components = argschema.fields.Int(
         required=True,
         description=("number of principal components to keep. "
-                     "the chunking of the movie for incremental "
-                     "PCA must keep the chunksize above this number."))
+                     "the chunking of the movie for incremental PCA requires "
+                     "that there are more than 'n_components' frames in each "
+                     "chunk. See 'n_chunks' parameter."))
     n_chunks = argschema.fields.Int(
         required=True,
         description=("the number of temporal chunks to send iteratively to "

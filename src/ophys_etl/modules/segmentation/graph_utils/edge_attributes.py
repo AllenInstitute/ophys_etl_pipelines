@@ -223,7 +223,8 @@ def neighborhood_pixels(coordinate: Tuple[float, float],
 def _filtered_hnc_pearson(node0: np.ndarray,
                           node1: np.ndarray,
                           neighbor_traces: List[np.ndarray],
-                          filter_fraction: float):
+                          filter_fraction: float,
+                          full_neighborhood: bool = False):
     """
     Correlate two pixels with their neighbors using only the brightest
     pixels. Note: a single mask representing the union of the brightest
@@ -245,6 +246,11 @@ def _filtered_hnc_pearson(node0: np.ndarray,
     filter_fraction: float
         The fraction of pixels to keep
 
+    full_neighborhood: bool
+        If True, use all of the pixels in the neighborhood when selecting
+        the timesteps to correlate. When False, only use node0 and node1
+        (default = False)
+
     Returns
     -------
     pearsons: np.ndarray
@@ -258,10 +264,11 @@ def _filtered_hnc_pearson(node0: np.ndarray,
     mask1 = np.where(node1 >= thresh1)[0]
 
     global_mask = [mask0, mask1]
-    for trace in neighbor_traces:
-        thresh = np.quantile(trace, discard)
-        mask = np.where(trace >= thresh)[0]
-        global_mask.append(mask)
+    if full_neighborhood:
+        for trace in neighbor_traces:
+            thresh = np.quantile(trace, discard)
+            mask = np.where(trace >= thresh)[0]
+            global_mask.append(mask)
     global_mask = np.unique(np.concatenate(global_mask))
 
     masked_node0 = node0[global_mask]
@@ -282,7 +289,7 @@ def add_hnc_gaussian_metric(graph: nx.Graph,
                             neighborhood_radius: Union[int, float],
                             attribute_name: str = "hnc_Gaussian",
                             filter_fraction: Optional[float] = None,
-                            ) -> nx.Graph():
+                            full_neighborhood: bool = False) -> nx.Graph():
     """for each pair of pixels represented by an edge, calculates the Gaussian
     similarity in correlation space to a neighborhood of size
     'neighborhood_radius' where the correlation coefficient of all pairs of
@@ -303,6 +310,10 @@ def add_hnc_gaussian_metric(graph: nx.Graph,
     filter_fraction: Optional[float]
         If not None, take the brightest filter_fraction pixels when
         calculating the Pearson correlation within a neighborhood.
+    full_neighborhood: bool
+        If True, use all of the pixels in the neighborhood when selecting
+        the timesteps to correlate. When False, only use node0 and node1
+        (default = False)
 
     Returns
     -------
@@ -363,10 +374,12 @@ def add_hnc_gaussian_metric(graph: nx.Graph,
                                    traces,
                                    metric="correlation")
         else:
-            pearsons = _filtered_hnc_pearson(node0,
-                                             node1,
-                                             traces,
-                                             filter_fraction)
+            pearsons = _filtered_hnc_pearson(
+                            node0,
+                            node1,
+                            traces,
+                            filter_fraction,
+                            full_neighborhood=full_neighborhood)
 
         dist = np.linalg.norm(pearsons[0] - pearsons[1])
         values[edge] = np.exp(-1.0 * (dist ** 2.0))

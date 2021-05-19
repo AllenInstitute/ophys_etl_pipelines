@@ -96,9 +96,9 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
     full_neighborhood = argschema.fields.Bool(
         required=False,
         default=False,
-        description = ("if True, use the full neighborhood when "
-                       "selecting timesteps to keep in filtered_hnc_* "
-                       "graphs (default=False)"))
+        description=("if True, use the full neighborhood when "
+                     "selecting timesteps to keep in filtered_hnc_* "
+                     "graphs (default=False)"))
     n_parallel_workers = argschema.fields.Int(
         required=False,
         default=1,

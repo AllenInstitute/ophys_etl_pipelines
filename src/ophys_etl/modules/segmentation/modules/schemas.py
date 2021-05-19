@@ -93,6 +93,12 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
         default=15,
         description=("size of neighborhood radius (in pixels) for "
                      "hnc gaussian distance."))
+    full_neighborhood = argschema.fields.Bool(
+        required=False,
+        default=False,
+        description = ("if True, use the full neighborhood when "
+                       "selecting timesteps to keep in filtered_hnc_* "
+                       "graphs (default=False)"))
     n_parallel_workers = argschema.fields.Int(
         required=False,
         default=1,

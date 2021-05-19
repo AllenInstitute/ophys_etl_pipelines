@@ -258,6 +258,10 @@ def _filtered_hnc_pearson(node0: np.ndarray,
     mask1 = np.where(node1 >= thresh1)[0]
 
     global_mask = [mask0, mask1]
+    for trace in neighbor_traces:
+        thresh = np.quantile(trace, discard)
+        mask = np.where(trace >= thresh)[0]
+        global_mask.append(mask)
     global_mask = np.unique(np.concatenate(global_mask))
 
     masked_node0 = node0[global_mask]

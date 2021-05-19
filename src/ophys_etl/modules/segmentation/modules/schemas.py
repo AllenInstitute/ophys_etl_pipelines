@@ -1,5 +1,6 @@
 import h5py
 import argschema
+import numpy as np
 from marshmallow import pre_load, post_load, ValidationError
 from marshmallow.fields import Int
 from marshmallow.validate import OneOf
@@ -148,6 +149,44 @@ class SegmentV0InputSchema(argschema.ArgSchema):
     roi_output = argschema.fields.OutputFile(
         required=False,
         description="if provided, will write subgraphs to json as ROIs")
+
+
+class PCADenoiseInputSchema(argschema.ArgSchema):
+    log_level = argschema.fields.LogLevel(default="INFO")
+    video_path = argschema.fields.InputFile(
+        required=True,
+        description=("path to hdf5 video with movie stored "
+                     "in dataset 'data' nframes x nrow x ncol"))
+    video_output = argschema.fields.OutputFile(
+        required=True,
+        description="destination path to filtered hdf5 video ")
+    n_components = argschema.fields.Int(
+        required=True,
+        description=("number of principal components to keep. "
+                     "the chunking of the movie for incremental PCA requires "
+                     "that there are more than 'n_components' frames in each "
+                     "chunk. See 'n_chunks' parameter."))
+    n_chunks = argschema.fields.Int(
+        required=True,
+        description=("the number of temporal chunks to send iteratively to "
+                     "IncrementalPCA.partial_fit(). A smaller number will "
+                     "have a larger memory footprint."))
+
+    @post_load
+    def check_chunking(self, data, **kwargs):
+        with h5py.File(data["video_path"], "r") as f:
+            nframes = f["data"].shape[0]
+        ind_split = np.array_split(np.arange(nframes), data["n_chunks"])
+        min_size = min([i.size for i in ind_split])
+        if min_size < data["n_components"]:
+            raise ValidationError(f"the input movie has {nframes} frames "
+                                  f"and when split into {data['n_chunks']} "
+                                  f"chunks, the smallest chunk is {min_size} "
+                                  "frames in size. The chunks can not be "
+                                  "smaller than the number of components: "
+                                  f"{data['n_components']}. Decrease either "
+                                  "'n_components' or 'n_chunks'")
+        return data
 
 
 class SimpleDenoiseInputSchema(argschema.ArgSchema):

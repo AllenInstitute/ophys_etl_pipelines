@@ -13,5 +13,6 @@ croissant-ml==0.0.3
 typing_extensions
 tifffile
 scikit-image
+scikit-learn
 networkx
 cachetools>=4.2.1,<5.0.0

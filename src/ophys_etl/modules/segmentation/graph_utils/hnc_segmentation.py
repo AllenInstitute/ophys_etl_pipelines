@@ -135,19 +135,22 @@ def correlate_chunk(data,
     pearson = np.ones((n_pixels,
                        n_pixels),
                       dtype=float)
+    t1 = time.time()
+    numerators = np.tensordot(traces, traces, axes=(1,1))/n_time
+    assert numerators.shape == (n_pixels, n_pixels)
+
     for ii in range(n_pixels):
-        trace0 = traces[ii, :]
-        numerators = np.mean(traces[ii+1:,:]*trace0, axis=1)
-        assert numerators.shape == (n_pixels-1-ii,)
+        local_numerators = numerators[ii, ii+1:]
+        assert local_numerators.shape == (n_pixels-1-ii,)
         denominators = np.sqrt(var[ii]*var[ii+1:])
-        p = numerators/denominators
+        p = local_numerators/denominators
         pearson[ii,ii+1:] = p
         pearson[ii+1:, ii] = p
 
         #if ii % 200 == 0:
         #    print('pearson ii %d %e -- of %d' % (ii, time.time()-t0,
         #                                         n_pixels))
-    #print('got pearson ',time.time()-t0)
+    #print('got pearson ',time.time()-t0,time.time()-t1)
 
     wgt = np.copy(pearson)
     assert wgt.shape == (n_pixels, n_pixels)
@@ -166,10 +169,15 @@ def correlate_chunk(data,
     for ii in range(n_pixels):
         wgt[:, ii] = wgt[:, ii]/pearson_norms[ii]
 
+    t1 = time.time()
+    distances = cdist(wgt, wgt, metric='euclidean')
+    #print('dist took ',(time.time()-t1))
+
     #print('correlate chunk took %e seconds' % (time.time()-t0))
     #print('wgt: ',wgt.min(),np.median(wgt),wgt.max())
 
-    return wgt, pearson
+    #print('all correlation took ',(time.time()-t0),(time.time()-t1))
+    return distances, pearson
 
 """
 Try defining background as 75th percentile of not-ROI distance from ROI
@@ -216,13 +224,14 @@ class PotentialROI(object):
                 self.pixel_to_index[p] = len(self.index_to_pixel)-1
                 self.n_pixels += 1
 
-        self.raw_wgt, pearson = correlate_chunk(data,
-                                                self.seed_pt,
-                                                filter_fraction,
-                                                pixel_ignore=pixel_ignore,
-                                                rng=rng)
+        (self.feature_distances,
+                         pearson) = correlate_chunk(data,
+                                                    self.seed_pt,
+                                                    filter_fraction,
+                                                    pixel_ignore=pixel_ignore,
+                                                    rng=rng)
 
-        assert self.raw_wgt.shape == (self.n_pixels, self.n_pixels)
+        assert self.feature_distances.shape == (self.n_pixels, self.n_pixels)
 
         self.roi_mask = np.zeros(self.n_pixels, dtype=bool)
         self.roi_mask[self.pixel_to_index[self.seed_pt]] = True
@@ -231,12 +240,8 @@ class PotentialROI(object):
             return None
 
         i_seed = self.pixel_to_index[self.seed_pt]
-        distances = np.zeros(self.n_pixels)
-        for i_pixel in range(self.n_pixels):
-            d = np.sqrt(np.sum((self.raw_wgt[i_seed,:]-self.raw_wgt[i_pixel,:])**2))
-            distances[i_pixel] = d
+        distances = self.feature_distances[:, i_seed]
         print('distances ',distances.min(),np.median(distances),distances.max())
-        print(self.raw_wgt.shape)
 
         self.distances = distances
         self.mask_img = np.zeros(self.img_shape, dtype=float)
@@ -249,9 +254,7 @@ class PotentialROI(object):
 
         b_dist = np.zeros(self.n_pixels, dtype=float)
         i_b = self.pixel_to_index[(0,0)]
-        for i_pixel in range(self.n_pixels):
-            d = np.sqrt(np.sum((self.raw_wgt[i_b,:]-self.raw_wgt[i_pixel,:])**2))
-            b_dist[i_pixel] = d
+        b_dist = self.feature_distances[:, i_b]
         self.bckgd_img = np.zeros(self.img_shape, dtype=float)
         self.background_distances = b_dist
         dmax = b_dist.max()
@@ -274,72 +277,34 @@ class PotentialROI(object):
             #    self.proto_mask[p[0], p[1]] = 1.0
         self.proto_mask = self.proto_mask/self.proto_mask.max()
 
-        rough_cut = np.where(self.distances<3)[0]
-        rough_wgts = self.raw_wgt[rough_cut, :]
-        self.rough_img = np.zeros(self.img_shape, dtype=float)
-        for i_pixel in range(self.n_pixels):
-            p = self.index_to_pixel[i_pixel]
-            d = np.sqrt(np.sum((rough_wgts-self.raw_wgt[i_pixel, :])**2, axis=1))
-            assert d.shape == (len(rough_cut),)
-            d_min = d.min()
-            self.rough_img[p[0], p[1]] = d_min
-
-        s = self.raw_wgt[i_seed,:]
-        print('seed ',s.min(),np.median(s),s.max(),
-              (s>0.5).sum())
-
-        s = self.raw_wgt[i_b,:]
-
-        print('bckgd ',s.min(),np.median(s),s.max(),
-              (s>0.5).sum())
-
-        print('rough img ',self.rough_img.min(),
-              np.median(self.rough_img),
-              self.rough_img.max())
 
     def get_not_roi_mask(self):
-        roi = self.raw_wgt[self.roi_mask, :]
         complement = np.logical_not(self.roi_mask)
         complement_dexes = np.arange(self.n_pixels, dtype=int)[complement]
         n_complement = complement.sum()
-        n_roi = roi.shape[0]
-        complement_distances = np.zeros(n_complement, dtype=float)
-        i_complement = 0
-        for i_complement, i_pixel in enumerate(np.arange(self.n_pixels, dtype=int)[complement]):
-            complement_distances[i_complement] = self.get_roi_dist(i_pixel)
+
+        complement_distances = self.feature_distances[complement, :][:, self.roi_mask]
+        if len(complement_distances.shape) > 1:
+            complement_distances = complement_distances.min(axis=1)
+        assert complement_distances.shape == (n_complement, )
+
         t45 = np.quantile(complement_distances, 0.45)
         t55 = np.quantile(complement_distances, 0.55)
         valid = np.logical_and(complement_distances>t45, complement_distances<t55)
         valid_dexes = complement_dexes[valid]
         self.not_roi_mask = np.zeros(self.n_pixels, dtype=bool)
         self.not_roi_mask[valid_dexes] = True
-        #print('not roi ',self.not_roi_mask.sum())
-
-    def _get_masked_dist(self, i_pixel, mask):
-        d = np.sqrt(np.sum((self.raw_wgt[mask,:]
-                             -self.raw_wgt[i_pixel, :])**2, axis=1))
-        assert d.shape == (mask.sum(),)
-        return d.min()
-
-
-    def get_roi_dist(self, i_pixel):
-        return self._get_masked_dist(i_pixel, self.roi_mask)
-
-    def get_not_roi_dist(self, i_pixel):
-        return self._get_masked_dist(i_pixel, self.not_roi_mask)
 
     def select_pixels(self) -> bool:
         chose_one = False
         self.get_not_roi_mask()
-        d_roi = np.zeros(self.n_pixels, dtype=float)
-        d_bckgd = np.zeros(self.n_pixels, dtype=float)
-        for i_pixel in range(self.n_pixels):
-            if self.roi_mask[i_pixel]:
-                d_bckgd[i_pixel] = 0.0
-                d_roi[i_pixel] = 999.0
-                continue
-            d_bckgd[i_pixel] = self.get_not_roi_dist(i_pixel)
-            d_roi[i_pixel] = self.get_roi_dist(i_pixel)
+
+        d_roi = self.feature_distances[:, self.roi_mask].min(axis=1)
+        assert d_roi.shape == (self.n_pixels, )
+        d_roi[self.roi_mask] = 999.0
+        d_bckgd = self.feature_distances[:, self.not_roi_mask].min(axis=1)
+        assert d_bckgd.shape == (self.n_pixels, )
+        d_bckgd[self.roi_mask] = 0.0
 
         valid = (d_bckgd > 10.0*d_roi)
         if valid.sum() > 0:
@@ -362,6 +327,18 @@ class PotentialROI(object):
                 continue
             p = self.index_to_pixel[i_pixel]
             output_img[p[0], p[1]] = 1
+
+        d_roi = self.feature_distances[:, self.roi_mask].min(axis=1)
+        d_bckgd = self.feature_distances[:, self.not_roi_mask].min(axis=1)
+
+        self.final_d_roi = np.zeros(self.img_shape, dtype=float)
+        self.final_d_bckgd = np.zeros(self.img_shape, dtype=float)
+        for i_pixel in range(self.n_pixels):
+            v = d_roi[i_pixel]
+            p = self.index_to_pixel[i_pixel]
+            self.final_d_roi[p[0], p[1]] = d_roi[i_pixel]
+            self.final_d_bckgd[p[0], p[1]] = d_bckgd[i_pixel]
+
         return output_img
 
 

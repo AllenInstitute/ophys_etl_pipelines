@@ -247,7 +247,6 @@ class PotentialROI(object):
         self.mask_img = np.zeros(self.img_shape, dtype=float)
         dmax = self.distances.max()
         for i_pixel in range(self.n_pixels):
-            #v = 1.0-self.distances[i_pixel]/dmax
             v = self.distances[i_pixel]
             p = self.index_to_pixel[i_pixel]
             self.mask_img[p[0], p[1]] = v
@@ -259,7 +258,6 @@ class PotentialROI(object):
         self.background_distances = b_dist
         dmax = b_dist.max()
         for i_pixel in range(self.n_pixels):
-            #v = 1.0-b_dist[i_pixel]/dmax
             v = b_dist[i_pixel]
             p = self.index_to_pixel[i_pixel]
             self.bckgd_img[p[0], p[1]] = v
@@ -272,9 +270,6 @@ class PotentialROI(object):
             p = self.index_to_pixel[i_pixel]
             if d_seed<3:
                 self.proto_mask[p[0],p[1]] = 1.0
-            #self.proto_mask[p[0], p[1]] = d_bckgd/(0.25+d_seed)
-            #if d_seed<d_bckgd:
-            #    self.proto_mask[p[0], p[1]] = 1.0
         self.proto_mask = self.proto_mask/self.proto_mask.max()
 
 
@@ -315,10 +310,7 @@ class PotentialROI(object):
     def get_mask(self):
         keep_going = True
         while keep_going:
-            #n_roi_0 = self.roi_mask.sum()
             keep_going = self.select_pixels()
-            #n_roi_1 = self.roi_mask.sum()
-            #print('roi ',n_roi_1,n_roi_1-n_roi_0)
 
         output_img = np.zeros(self.img_shape, dtype=int)
         for i_pixel in range(self.n_pixels):

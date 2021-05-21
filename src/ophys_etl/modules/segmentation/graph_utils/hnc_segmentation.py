@@ -288,9 +288,8 @@ class PotentialROI(object):
             complement_distances = complement_distances.min(axis=1)
         assert complement_distances.shape == (n_complement, )
 
-        t45 = np.quantile(complement_distances, 0.45)
-        t55 = np.quantile(complement_distances, 0.55)
-        valid = np.logical_and(complement_distances>t45, complement_distances<t55)
+        t50 = np.quantile(complement_distances, 0.5)
+        valid = complement_distances>t50
         valid_dexes = complement_dexes[valid]
         self.not_roi_mask = np.zeros(self.n_pixels, dtype=bool)
         self.not_roi_mask[valid_dexes] = True
@@ -299,14 +298,14 @@ class PotentialROI(object):
         chose_one = False
         self.get_not_roi_mask()
 
-        d_roi = self.feature_distances[:, self.roi_mask].min(axis=1)
+        d_roi = self.feature_distances[:, self.roi_mask].mean(axis=1)
         assert d_roi.shape == (self.n_pixels, )
         d_roi[self.roi_mask] = 999.0
-        d_bckgd = self.feature_distances[:, self.not_roi_mask].min(axis=1)
+        d_bckgd = np.median(self.feature_distances[:, self.not_roi_mask], axis=1)
         assert d_bckgd.shape == (self.n_pixels, )
         d_bckgd[self.roi_mask] = 0.0
 
-        valid = (d_bckgd > 10.0*d_roi)
+        valid = d_bckgd > 2*d_roi
         if valid.sum() > 0:
             chose_one = True
             self.roi_mask[valid] = True
@@ -328,16 +327,18 @@ class PotentialROI(object):
             p = self.index_to_pixel[i_pixel]
             output_img[p[0], p[1]] = 1
 
-        d_roi = self.feature_distances[:, self.roi_mask].min(axis=1)
-        d_bckgd = self.feature_distances[:, self.not_roi_mask].min(axis=1)
+        d_roi = self.feature_distances[:, self.roi_mask].mean(axis=1)
+        d_bckgd = np.median(self.feature_distances[:, self.not_roi_mask], axis=1)
 
         self.final_d_roi = np.zeros(self.img_shape, dtype=float)
         self.final_d_bckgd = np.zeros(self.img_shape, dtype=float)
+        self.final_ratio = np.zeros(self.img_shape, dtype=float)
         for i_pixel in range(self.n_pixels):
             v = d_roi[i_pixel]
             p = self.index_to_pixel[i_pixel]
             self.final_d_roi[p[0], p[1]] = d_roi[i_pixel]
             self.final_d_bckgd[p[0], p[1]] = d_bckgd[i_pixel]
+            self.final_ratio[p[0],p[1]] = d_bckgd[i_pixel]/d_roi[i_pixel]
 
         return output_img
 

@@ -5,6 +5,7 @@ from scipy.spatial.distance import cdist
 import h5py
 import pathlib
 import time
+import json
 
 from sklearn.decomposition import PCA
 
@@ -58,9 +59,19 @@ def find_peaks(img, mask=None, slop=20):
             rowmax = min(shape[0], pixel[0]+slop)
             colmin = max(0, pixel[1]-slop)
             colmax = min(shape[1], pixel[1]+slop)
-            obj = {'center': pixel,
-                   'rows': (rowmin, rowmax),
-                   'cols': (colmin, colmax)}
+
+            #sub_img = img_masked.reshape(img.shape)[rowmin:rowmax,
+            #                                        colmin:colmax]
+            #brightest = np.argmax(sub_img)
+            #brightest = np.unravel_index(brightest,
+            #                             sub_img.shape)
+
+            #pixel = (brightest[0]+rowmin,
+            #         brightest[1]+colmin)
+
+            obj = {'center': (int(pixel[0]), int(pixel[1])),
+                   'rows': (int(rowmin), int(rowmax)),
+                   'cols': (int(colmin), int(colmax))}
             p = obj['center']
             assert not img_masked.mask[candidate]
             output.append(obj)
@@ -364,6 +375,12 @@ def _get_roi(seed_obj,
                        diagnostic=False)
 
     final_mask = roi.get_mask()
+    if final_mask.sum() >= 1000:
+        with lock as context:
+            seed_obj['ct'] = int(final_mask.sum())
+            with open('full_frame.txt', 'a') as out_file:
+                out_file.write('%s\n' % json.dumps(seed_obj))
+
 
     output_dict[roi_id] = (origin, final_mask)
     duration = time.time()-t0

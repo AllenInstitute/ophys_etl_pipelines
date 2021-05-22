@@ -246,6 +246,16 @@ class PotentialROI(object):
 
         self.roi_mask = np.zeros(self.n_pixels, dtype=bool)
         self.roi_mask[self.pixel_to_index[self.seed_pt]] = True
+        i_seed = self.pixel_to_index[self.seed_pt]
+        self.d_seed = self.feature_distances[:, i_seed]
+        s25 = np.quantile(self.d_seed, 0.25)
+        s75 = np.quantile(self.d_seed, 0.75)
+        sig = (s75-s25)/1.349
+        smin = np.sort(self.d_seed)[1]
+        self.d_seed_max = s25
+        #print('d seed max ',self.d_seed_max)
+        #print(s75,s25)
+        #print('d seed ',smin,np.median(self.d_seed),self.d_seed.max())
 
         if not diagnostic:
             return None

@@ -60,22 +60,12 @@ def find_peaks(img, mask=None, slop=20):
             colmin = max(0, pixel[1]-slop)
             colmax = min(shape[1], pixel[1]+slop)
 
-            #sub_img = img_masked.reshape(img.shape)[rowmin:rowmax,
-            #                                        colmin:colmax]
-            #brightest = np.argmax(sub_img)
-            #brightest = np.unravel_index(brightest,
-            #                             sub_img.shape)
-
-            #pixel = (brightest[0]+rowmin,
-            #         brightest[1]+colmin)
-
             obj = {'center': (int(pixel[0]), int(pixel[1])),
                    'rows': (int(rowmin), int(rowmax)),
                    'cols': (int(colmin), int(colmax))}
             p = obj['center']
             assert not img_masked.mask[candidate]
             output.append(obj)
-            #print('peaks ',len(output),img_masked.mask.sum())
             for irow in range(rowmin, rowmax):
                 for icol in range(colmin, colmax):
                     ii = np.ravel_multi_index((irow, icol), shape)
@@ -83,7 +73,6 @@ def find_peaks(img, mask=None, slop=20):
 
             assert img_masked.mask[candidate]
 
-    print('peaks ',len(output))
     return output
 
 
@@ -119,10 +108,8 @@ def correlate_chunk(data,
         trace = data[:, chosen_pixel[0], chosen_pixel[1]]
         thresh = np.quantile(trace, discard)
         mask = np.where(trace >= thresh)[0]
-        #print(len(mask))
         global_mask.append(mask)
     global_mask = np.unique(np.concatenate(global_mask))
-    #print('got global mask',len(global_mask), data.shape[0], time.time()-t0)
 
     data = data[global_mask, :, :]
     shape = data.shape
@@ -134,80 +121,42 @@ def correlate_chunk(data,
     if pixel_ignore is not None:
         traces = traces[:, np.logical_not(pixel_ignore.flatten())]
     n_pixels = np.logical_not(pixel_ignore).sum()
-    assert traces.shape[1] == n_pixels
     mu = np.mean(traces, axis=0)
-    assert mu.shape == (traces.shape[1],)
     traces -= mu
     var = np.mean(traces**2, axis=0)
-    assert var.shape == (traces.shape[1],)
     traces = traces.transpose()
-    assert traces.shape == (n_pixels, n_time)
 
     pearson = np.ones((n_pixels,
                        n_pixels),
                       dtype=float)
     t1 = time.time()
     numerators = np.tensordot(traces, traces, axes=(1,1))/n_time
-    assert numerators.shape == (n_pixels, n_pixels)
 
     for ii in range(n_pixels):
         local_numerators = numerators[ii, ii+1:]
-        assert local_numerators.shape == (n_pixels-1-ii,)
         denominators = np.sqrt(var[ii]*var[ii+1:])
         p = local_numerators/denominators
         pearson[ii,ii+1:] = p
         pearson[ii+1:, ii] = p
 
-        #if ii % 200 == 0:
-        #    print('pearson ii %d %e -- of %d' % (ii, time.time()-t0,
-        #                                         n_pixels))
-    #print('got pearson ',time.time()-t0,time.time()-t1)
-
     wgt = np.copy(pearson)
-    assert wgt.shape == (n_pixels, n_pixels)
 
     pearson_mins = np.min(pearson, axis=0)
-    assert pearson_mins[45] == pearson[:,45].min()
     for ii in range(n_pixels):
         wgt[:, ii] = wgt[:, ii]-pearson_mins[ii]
 
     p75 = np.quantile(wgt, 0.75, axis=0)
     p25 = np.quantile(wgt, 0.25, axis=0)
     test = np.quantile(wgt[:, 18], 0.25)
-    assert np.abs(test-p25[18])<1.0e-10
 
     pearson_norms = p75-p25
-
-    #pearson_norms = np.median(wgt, axis=0)
-    #assert pearson_norms[11] == np.median(wgt[:, 11])
-    assert pearson_norms.shape == (n_pixels,)
-    assert (pearson_norms>0.0).all()
-    #print('norms ',np.unique(pearson_norms))
 
     for ii in range(n_pixels):
         wgt[:, ii] = wgt[:, ii]/pearson_norms[ii]
 
     t1 = time.time()
     distances = cdist(wgt, wgt, metric='euclidean')
-    #print('dist took ',(time.time()-t1))
-
-    #print('correlate chunk took %e seconds' % (time.time()-t0))
-    #print('wgt: ',wgt.min(),np.median(wgt),wgt.max())
-
-    #print('all correlation took ',(time.time()-t0),(time.time()-t1))
     return distances, pearson
-
-"""
-Try defining background as 75th percentile of not-ROI distance from ROI
-Add pixel with greatest ratio of bckd_dist/roi_dist, minimum of 2
-re-define
-
-keep going until no one makes ratio of 2 (?)
-
-
-what about limiting time steps (just taken from brightest pixel
-and origin?)
-"""
 
 
 class PotentialROI(object):
@@ -249,8 +198,6 @@ class PotentialROI(object):
                                                     pixel_ignore=pixel_ignore,
                                                     rng=rng)
 
-        assert self.feature_distances.shape == (self.n_pixels, self.n_pixels)
-
         self.roi_mask = np.zeros(self.n_pixels, dtype=bool)
         self.roi_mask[self.pixel_to_index[self.seed_pt]] = True
         i_seed = self.pixel_to_index[self.seed_pt]
@@ -260,16 +207,12 @@ class PotentialROI(object):
         sig = (s75-s25)/1.349
         smin = np.sort(self.d_seed)[1]
         self.d_seed_max = s25
-        #print('d seed max ',self.d_seed_max)
-        #print(s75,s25)
-        #print('d seed ',smin,np.median(self.d_seed),self.d_seed.max())
 
         if not diagnostic:
             return None
 
         i_seed = self.pixel_to_index[self.seed_pt]
         distances = self.feature_distances[:, i_seed]
-        print('distances ',distances.min(),np.median(distances),distances.max())
 
         self.distances = distances
         self.mask_img = np.zeros(self.img_shape, dtype=float)
@@ -309,7 +252,6 @@ class PotentialROI(object):
         complement_distances = self.feature_distances[complement, :][:, self.roi_mask]
         if len(complement_distances.shape) > 1:
             complement_distances = complement_distances.min(axis=1)
-        assert complement_distances.shape == (n_complement, )
 
         t10 = np.quantile(complement_distances, 0.1)
         valid = complement_distances>t10
@@ -322,7 +264,6 @@ class PotentialROI(object):
         self.get_not_roi_mask()
 
         d_roi = np.mean(self.feature_distances[:, self.roi_mask], axis=1)
-        assert d_roi.shape == (self.n_pixels, )
         d_roi[self.roi_mask] = 999.0
 
         # take the mean of as many background points as there are
@@ -330,7 +271,6 @@ class PotentialROI(object):
         d_bckgd = np.sort(self.feature_distances[:, self.not_roi_mask], axis=1)
         n_roi = self.roi_mask.sum()
         d_bckgd = np.mean(d_bckgd[:, :n_roi], axis=1)
-        assert d_bckgd.shape == (self.n_pixels, )
         d_bckgd[self.roi_mask] = 0.0
 
         valid = d_bckgd > 2*d_roi
@@ -355,16 +295,6 @@ class PotentialROI(object):
         d_roi = self.feature_distances[:, self.roi_mask].mean(axis=1)
         d_bckgd = np.median(self.feature_distances[:, self.not_roi_mask], axis=1)
 
-        self.final_d_roi = np.zeros(self.img_shape, dtype=float)
-        self.final_d_bckgd = np.zeros(self.img_shape, dtype=float)
-        self.final_ratio = np.zeros(self.img_shape, dtype=float)
-        for i_pixel in range(self.n_pixels):
-            v = d_roi[i_pixel]
-            p = self.index_to_pixel[i_pixel]
-            self.final_d_roi[p[0], p[1]] = d_roi[i_pixel]
-            self.final_d_bckgd[p[0], p[1]] = d_bckgd[i_pixel]
-            self.final_ratio[p[0],p[1]] = d_bckgd[i_pixel]/d_roi[i_pixel]
-
         return output_img
 
 
@@ -380,14 +310,13 @@ def _get_roi(seed_obj,
     origin = (seed_obj['rows'][0], seed_obj['cols'][0])
     r = seed_obj['rows']
     c = seed_obj['cols']
+    npix = r[0]*r[1]
     with lock as context:
         t1 = time.time()
         with h5py.File(video_path, 'r') as in_file:
             video_data = in_file['data'][:,
                                          r[0]:r[1],
                                          c[0]:c[1]]
-        print('%d read data in %e' % (roi_id, time.time()-t1))
-
 
     roi = PotentialROI(seed_pt,
                        origin,
@@ -406,8 +335,6 @@ def _get_roi(seed_obj,
 
     output_dict[roi_id] = (origin, final_mask)
     duration = time.time()-t0
-    print('finished %d with %d pixels in %e seconds' %
-    (roi_id,final_mask.sum(),duration))
 
 
 class HNCSegmenter(object):
@@ -445,7 +372,6 @@ class HNCSegmenter(object):
         mgr = multiprocessing.Manager()
         mgr_dict = mgr.dict()
         mgr_lock = mgr.Lock()
-        print('looping over processes')
         for i_seed, seed in enumerate(seed_list):
             center = seed['center']
             mask = self.roi_pixels[seed['rows'][0]:seed['rows'][1],
@@ -480,18 +406,28 @@ class HNCSegmenter(object):
                     cc = origin[1]+ic
                     if mask[ir,ic]:
                         self.roi_pixels[rr, cc] = True
+        return seed_list
 
-    def run(self, prefix='roi_pixels'):
+    def run(self, roi_path=None, seed_path_dir=None):
+        if seed_path_dir is not None:
+            if not seed_path_dir.is_dir():
+                msg = f'{str(seed_path_dir)} is not a dir'
+                raise RuntimeError(msg)
+
         img_data = graph_to_img(self._graph_path,
                                 attribute=self._attribute)
+
         self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
         keep_going = True
         i_pass = 0
         while keep_going:
             n_roi_0 = self.roi_pixels.sum()
-            self._run(img_data)
+            roi_seeds = self._run(img_data)
             n_roi_1 = self.roi_pixels.sum()
-            np.savez(f'{prefix}_{i_pass}.npz', roi=self.roi_pixels)
+            seed_path = seed_path_dir / f'roi_seed_{i_pass}.json'
+            with open(seed_path, 'w') as out_file:
+                out_file.write(json.dumps(roi_seeds, indent=2))
             i_pass += 1
             if n_roi_1 <= n_roi_0:
                 keep_going = False
+        np.savez(roi_path, roi=self.roi_pixels)

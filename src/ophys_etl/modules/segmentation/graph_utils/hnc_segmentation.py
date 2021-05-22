@@ -26,7 +26,7 @@ def graph_to_img(graph_path: pathlib.Path,
 
 def find_a_peak(img_masked, mu, sigma):
     candidate = np.argmax(img_masked)
-    if img_masked[candidate] > mu+2*sigma:
+    if img_masked[candidate] > mu+5*sigma:
         return candidate
     return None
 

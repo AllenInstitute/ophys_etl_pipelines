@@ -304,8 +304,8 @@ class PotentialROI(object):
             complement_distances = complement_distances.min(axis=1)
         assert complement_distances.shape == (n_complement, )
 
-        t50 = np.quantile(complement_distances, 0.5)
-        valid = complement_distances>t50
+        t10 = np.quantile(complement_distances, 0.1)
+        valid = complement_distances>t10
         valid_dexes = complement_dexes[valid]
         self.not_roi_mask = np.zeros(self.n_pixels, dtype=bool)
         self.not_roi_mask[valid_dexes] = True

@@ -171,8 +171,15 @@ def correlate_chunk(data,
     for ii in range(n_pixels):
         wgt[:, ii] = wgt[:, ii]-pearson_mins[ii]
 
-    pearson_norms = np.median(wgt, axis=0)
-    assert pearson_norms[11] == np.median(wgt[:, 11])
+    p75 = np.quantile(wgt, 0.75, axis=0)
+    p25 = np.quantile(wgt, 0.25, axis=0)
+    test = np.quantile(wgt[:, 18], 0.25)
+    assert np.abs(test-p25[18])<1.0e-10
+
+    pearson_norms = p75-p25
+
+    #pearson_norms = np.median(wgt, axis=0)
+    #assert pearson_norms[11] == np.median(wgt[:, 11])
     assert pearson_norms.shape == (n_pixels,)
     assert (pearson_norms>0.0).all()
     #print('norms ',np.unique(pearson_norms))

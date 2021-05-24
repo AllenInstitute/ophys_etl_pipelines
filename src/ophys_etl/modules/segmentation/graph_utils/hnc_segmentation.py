@@ -9,6 +9,13 @@ import json
 
 from sklearn.decomposition import PCA
 
+import logging
+
+logger = logging.getLogger(__name__)
+logging.captureWarnings(True)
+logging.basicConfig(level=logging.INFO)
+
+
 def graph_to_img(graph_path: pathlib.Path,
                  attribute: str = 'filtered_hnc_Gaussian') -> np.ndarray:
     """
@@ -409,6 +416,7 @@ class HNCSegmenter(object):
         return seed_list
 
     def run(self, roi_path=None, seed_path_dir=None):
+        t0 = time.time()
         if seed_path_dir is not None:
             if not seed_path_dir.is_dir():
                 msg = f'{str(seed_path_dir)} is not a dir'
@@ -416,6 +424,8 @@ class HNCSegmenter(object):
 
         img_data = graph_to_img(self._graph_path,
                                 attribute=self._attribute)
+
+        logger.info('read in image data')
 
         self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
         keep_going = True
@@ -425,9 +435,15 @@ class HNCSegmenter(object):
             roi_seeds = self._run(img_data)
             n_roi_1 = self.roi_pixels.sum()
             seed_path = seed_path_dir / f'roi_seed_{i_pass}.json'
+            duration = time.time()-t0
+            msg = f'Completed pass with {len(roi_seeds)} '
+            msg += f'in {duration:.2f} seconds'
+            logger.info(msg)
             with open(seed_path, 'w') as out_file:
                 out_file.write(json.dumps(roi_seeds, indent=2))
             i_pass += 1
             if n_roi_1 <= n_roi_0:
                 keep_going = False
         np.savez(roi_path, roi=self.roi_pixels)
+        duration = time.time()-t0
+        logger.info(f'Completed segmentation in {duration:.2f} seconds')

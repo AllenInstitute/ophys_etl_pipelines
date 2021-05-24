@@ -481,7 +481,7 @@ class HNCSegmenter(object):
                     if mask[ir,ic]:
                         self.roi_pixels[rr, cc] = True
 
-    def run(self):
+    def run(self, prefix='roi_pixels'):
         img_data = graph_to_img(self._graph_path,
                                 attribute=self._attribute)
         self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
@@ -491,7 +491,7 @@ class HNCSegmenter(object):
             n_roi_0 = self.roi_pixels.sum()
             self._run(img_data)
             n_roi_1 = self.roi_pixels.sum()
-            np.savez(f'roi_pixels_{i_pass}.npz', roi=self.roi_pixels)
+            np.savez(f'{prefix}_{i_pass}.npz', roi=self.roi_pixels)
             i_pass += 1
             if n_roi_1 <= n_roi_0:
                 keep_going = False

@@ -158,8 +158,7 @@ class SegmentV0InputSchema(argschema.ArgSchema):
         description="if provided, will write subgraphs to json as ROIs")
 
 
-class PCADenoiseInputSchema(argschema.ArgSchema):
-    log_level = argschema.fields.LogLevel(default="INFO")
+class DenoiseBaseSchema(argschema.schemas.DefaultSchema):
     video_path = argschema.fields.InputFile(
         required=True,
         description=("path to hdf5 video with movie stored "
@@ -167,6 +166,14 @@ class PCADenoiseInputSchema(argschema.ArgSchema):
     video_output = argschema.fields.OutputFile(
         required=True,
         description="destination path to filtered hdf5 video ")
+    h5_chunk_shape = argschema.fields.Tuple(
+        (Int(), Int(), (Int())),
+        default=(100, 64, 64),
+        description="passed to h5py.File.create_dataset(chunks=)")
+
+
+class PCADenoiseInputSchema(argschema.ArgSchema, DenoiseBaseSchema):
+    log_level = argschema.fields.LogLevel(default="INFO")
     n_components = argschema.fields.Int(
         required=True,
         description=("number of principal components to keep. "
@@ -196,15 +203,8 @@ class PCADenoiseInputSchema(argschema.ArgSchema):
         return data
 
 
-class SimpleDenoiseInputSchema(argschema.ArgSchema):
+class SimpleDenoiseInputSchema(argschema.ArgSchema, DenoiseBaseSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
-    video_path = argschema.fields.InputFile(
-        required=True,
-        description=("path to hdf5 video with movie stored "
-                     "in dataset 'data' nframes x nrow x ncol"))
-    video_output = argschema.fields.OutputFile(
-        required=True,
-        description="destination path to filtered hdf5 video ")
     size = argschema.fields.Float(
         required=True,
         description=("filter size for the time axis. "

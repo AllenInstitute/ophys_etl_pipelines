@@ -32,7 +32,10 @@ class PCADenoise(argschema.ArgSchemaParser):
         # reconstruct from the fitted components
         frame_counter = 0
         with h5py.File(self.args["video_output"], "w") as f:
-            output = f.create_dataset("data", shape=dshape, dtype=data.dtype)
+            output = f.create_dataset("data",
+                                      shape=dshape,
+                                      dtype=data.dtype,
+                                      chunks=self.args["h5_chunk_shape"])
             for chunk in split_data:
                 output[frame_counter: (frame_counter + chunk.shape[0])] = \
                         ipca.inverse_transform(ipca.transform(chunk)).reshape(

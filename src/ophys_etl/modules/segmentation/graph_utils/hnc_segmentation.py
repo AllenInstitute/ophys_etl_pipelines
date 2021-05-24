@@ -154,7 +154,6 @@ def correlate_chunk(data,
 
     p75 = np.quantile(wgt, 0.75, axis=0)
     p25 = np.quantile(wgt, 0.25, axis=0)
-    test = np.quantile(wgt[:, 18], 0.25)
 
     pearson_norms = p75-p25
 
@@ -306,24 +305,16 @@ class PotentialROI(object):
 
 
 def _get_roi(seed_obj,
-             video_path,
+             video_data,
              filter_fraction,
              pixel_ignore,
              output_dict,
-             roi_id,
-             lock):
-    t0 = time.time()
+             roi_id):
     seed_pt = seed_obj['center']
     origin = (seed_obj['rows'][0], seed_obj['cols'][0])
     r = seed_obj['rows']
     c = seed_obj['cols']
     npix = r[0]*r[1]
-    with lock as context:
-        t1 = time.time()
-        with h5py.File(video_path, 'r') as in_file:
-            video_data = in_file['data'][:,
-                                         r[0]:r[1],
-                                         c[0]:c[1]]
 
     roi = PotentialROI(seed_pt,
                        origin,
@@ -333,15 +324,7 @@ def _get_roi(seed_obj,
                        diagnostic=False)
 
     final_mask = roi.get_mask()
-    if final_mask.sum() >= 1000:
-        with lock as context:
-            seed_obj['ct'] = int(final_mask.sum())
-            with open('full_frame.txt', 'a') as out_file:
-                out_file.write('%s\n' % json.dumps(seed_obj))
-
-
     output_dict[roi_id] = (origin, final_mask)
-    duration = time.time()-t0
 
 
 class HNCSegmenter(object):
@@ -369,7 +352,7 @@ class HNCSegmenter(object):
                 msg += f'img shape: {self._graph_img.shape}'
                 raise RuntimeError(msg)
 
-    def _run(self, img_data):
+    def _run(self, img_data, video_data):
 
         seed_list = find_peaks(img_data,
                                mask=self.roi_pixels,
@@ -378,20 +361,22 @@ class HNCSegmenter(object):
         p_list = []
         mgr = multiprocessing.Manager()
         mgr_dict = mgr.dict()
-        mgr_lock = mgr.Lock()
         for i_seed, seed in enumerate(seed_list):
             center = seed['center']
             mask = self.roi_pixels[seed['rows'][0]:seed['rows'][1],
                                    seed['cols'][0]:seed['cols'][1]]
 
+            video_data_subset = video_data[:,
+                                           seed['rows'][0]:seed['rows'][1],
+                                           seed['cols'][0]:seed['cols'][1]]
+
             p = multiprocessing.Process(target=_get_roi,
                                         args=(seed,
-                                              self._video_path,
+                                              video_data_subset,
                                               self._filter_fraction,
                                               mask,
                                               mgr_dict,
-                                              i_seed,
-                                              mgr_lock))
+                                              i_seed))
             p.start()
             p_list.append(p)
             while len(p_list) >= self.n_processors-1:
@@ -427,12 +412,16 @@ class HNCSegmenter(object):
 
         logger.info('read in image data')
 
+        with h5py.File(self._video_path, 'r') as in_file:
+            video_data = in_file['data'][()]
+        logger.info('read in video data')
+
         self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
         keep_going = True
         i_pass = 0
         while keep_going:
             n_roi_0 = self.roi_pixels.sum()
-            roi_seeds = self._run(img_data)
+            roi_seeds = self._run(img_data, video_data)
             n_roi_1 = self.roi_pixels.sum()
             seed_path = seed_path_dir / f'roi_seed_{i_pass}.json'
             duration = time.time()-t0

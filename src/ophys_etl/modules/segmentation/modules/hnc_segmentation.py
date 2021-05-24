@@ -25,6 +25,7 @@ class HNCSegmentationRunner(argschema.ArgSchemaParser):
         segmenter.run(roi_path=self.args['roi_output'],
                       seed_path_dir=pathlib.Path(self.args['seed_dir']))
 
+
 if __name__ == "__main__":
     seg = HNCSegmentationRunner()
     seg.run()

@@ -410,11 +410,11 @@ class HNCSegmenter(object):
         img_data = graph_to_img(self._graph_path,
                                 attribute=self._attribute)
 
-        logger.info('read in image data')
+        logger.info(f'read in image data from {str(self._graph_path)}')
 
         with h5py.File(self._video_path, 'r') as in_file:
             video_data = in_file['data'][()]
-        logger.info('read in video data')
+        logger.info(f'read in video data from {str(self._video_path)}')
 
         self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
         keep_going = True

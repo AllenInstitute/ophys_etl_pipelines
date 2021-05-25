@@ -408,14 +408,17 @@ class HNCSegmenter(object):
             n_roi_0 = self.roi_pixels.sum()
             roi_seeds = self._run(img_data, video_data)
             n_roi_1 = self.roi_pixels.sum()
-            seed_path = seed_path_dir / f'roi_seed_{i_pass}.json'
             duration = time.time()-t0
             msg = f'Completed pass with {len(roi_seeds)} ROIs '
             msg += f'in {duration:.2f} seconds; '
             msg += f'{n_roi_1} total ROI pixels'
             logger.info(msg)
-            with open(seed_path, 'w') as out_file:
-                out_file.write(json.dumps(roi_seeds, indent=2))
+
+            if seed_path_dir is not None:
+                seed_path = seed_path_dir / f'roi_seed_{i_pass}.json'
+                with open(seed_path, 'w') as out_file:
+                    out_file.write(json.dumps(roi_seeds, indent=2))
+
             i_pass += 1
             if n_roi_1 <= n_roi_0:
                 keep_going = False

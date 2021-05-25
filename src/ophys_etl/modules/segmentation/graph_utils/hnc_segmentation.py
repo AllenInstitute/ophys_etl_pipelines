@@ -125,7 +125,8 @@ def correlate_chunk(data,
 
     if pixel_ignore is not None:
         traces = traces[:, np.logical_not(pixel_ignore.flatten())]
-    n_pixels = np.logical_not(pixel_ignore).sum()
+        n_pixels = np.logical_not(pixel_ignore).sum()
+
     mu = np.mean(traces, axis=0)
     traces -= mu
     var = np.mean(traces**2, axis=0)
@@ -404,7 +405,7 @@ class HNCSegmenter(object):
                                               self.roi_id))
             p.start()
             p_list.append(p)
-            while len(p_list) >= self.n_processors-1:
+            while len(p_list) > 0 and len(p_list) >= self.n_processors-1:
                 to_pop = []
                 for ii in range(len(p_list)-1, -1, -1):
                     if p_list[ii].exitcode is not None:

@@ -168,7 +168,7 @@ class DenoiseBaseSchema(argschema.schemas.DefaultSchema):
         description="destination path to filtered hdf5 video ")
     h5_chunk_shape = argschema.fields.Tuple(
         (Int(), Int(), (Int())),
-        default=(100, 64, 64),
+        default=(50, 32, 32),
         description="passed to h5py.File.create_dataset(chunks=)")
 
 

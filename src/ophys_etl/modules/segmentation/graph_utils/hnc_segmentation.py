@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 import networkx as nx
 import numpy as np
 import multiprocessing
@@ -8,6 +10,7 @@ import time
 import json
 
 from ophys_etl.types import ExtractROI
+from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 import logging
 
@@ -264,8 +267,7 @@ def _get_roi(seed_obj,
                        origin,
                        video_data,
                        filter_fraction,
-                       pixel_ignore=pixel_ignore,
-                       diagnostic=False)
+                       pixel_ignore=pixel_ignore)
 
     final_mask = roi.get_mask()
     output_dict[roi_id] = (origin, final_mask)
@@ -304,6 +306,37 @@ def convert_to_lims_roi(origin, mask, roi_id=0):
                      valid=False,
                      mask=[i.tolist() for i in new_mask])
     return roi
+
+
+def create_roi_plot(plot_path, img_data, roi_list):
+    fig, axes = plt.subplots(1, 2, figsize=(40, 20))
+    axes[0].imshow(img_data)
+    axes[1].imshow(img_data)
+
+    bdry_pixels = np.zeros(img_data.shape, dtype=int)
+    for roi in roi_list:
+        ophys_roi = OphysROI(
+                        roi_id=0,
+                        x0=roi['x'],
+                        y0=roi['y'],
+                        width=roi['width'],
+                        height=roi['height'],
+                        valid_roi=False,
+                        mask_matrix=roi['mask'])
+
+        bdry = ophys_roi.boundary_mask()
+        for ir in range(ophys_roi.height):
+            for ic in range(ophys_roi.width):
+                if bdry[ir, ic]:
+                    bdry_pixels[ir+ophys_roi.y0,
+                                ic+ophys_roi.x0] = 1
+
+    bdry_pixels = np.ma.masked.where(bdry_pixels == 0,
+                                     bdry_pixels)
+    axes[1].imshow(bdry_pixels, cmap='autumn', alpha=0.5)
+    fig.tight_layout()
+    fig.savefig(plot_path)
+    plt.close(fig=fig)
 
 
 class HNCSegmenter(object):
@@ -383,7 +416,10 @@ class HNCSegmenter(object):
                         self.roi_pixels[rr, cc] = True
         return seed_list
 
-    def run(self, roi_path=None, seed_path_dir=None):
+    def run(self,
+            roi_path=None,
+            seed_path_dir=None,
+            plot_path=None):
         t0 = time.time()
         if seed_path_dir is not None:
             if not seed_path_dir.is_dir():
@@ -425,6 +461,9 @@ class HNCSegmenter(object):
 
         with open(roi_path, 'w') as out_file:
             out_file.write(json.dumps(self.roi_list, indent=2))
+
+        if plot_path is not None:
+            create_roi_plot(plot_path, img_data, self.roi_list)
 
         duration = time.time()-t0
         logger.info(f'Completed segmentation in {duration:.2f} seconds')

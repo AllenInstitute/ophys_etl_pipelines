@@ -247,6 +247,11 @@ class HNCSegmentationInputSchema(argschema.ArgSchema):
         required=True,
         description=".npz path where ROI pixels will be saved")
 
+    plot_path = argschema.fields.OutputFile(
+        required=False,
+        default=None,
+        description="path to summary plot of segmentation")
+
     seed_dir = argschema.fields.String(
         required=True,
         description="directory where seeds will be stored")

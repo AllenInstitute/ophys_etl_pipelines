@@ -152,8 +152,17 @@ def correlate_chunk(data,
 
     p75 = np.quantile(wgt, 0.75, axis=0)
     p25 = np.quantile(wgt, 0.25, axis=0)
+    pmax = np.max(wgt, axis=0)
+    pmin = np.min(wgt, axis=0)
 
     pearson_norms = p75-p25
+    pearson_norms = np.where(pearson_norms>1.0e-20,
+                             pearson_norms,
+                             pmax-pmin)
+
+    pearson_norms = np.where(pearson_norms>1.0e-20,
+                             pearson_norms,
+                             1.0)
 
     for ii in range(n_pixels):
         wgt[:, ii] = wgt[:, ii]/pearson_norms[ii]
@@ -205,6 +214,7 @@ class PotentialROI(object):
 
     def get_not_roi_mask(self):
         complement = np.logical_not(self.roi_mask)
+        n_complement = complement.sum()
         complement_dexes = np.arange(self.n_pixels, dtype=int)[complement]
 
         complement_distances = self.feature_distances[complement, :]
@@ -212,11 +222,14 @@ class PotentialROI(object):
         if len(complement_distances.shape) > 1:
             complement_distances = complement_distances.min(axis=1)
 
-        t10 = np.quantile(complement_distances, 0.1)
-        valid = complement_distances > t10
-        valid_dexes = complement_dexes[valid]
         self.not_roi_mask = np.zeros(self.n_pixels, dtype=bool)
-        self.not_roi_mask[valid_dexes] = True
+        if n_complement < 10:
+            self.not_roi_mask[complement] = True
+        else:
+            t10 = np.quantile(complement_distances, 0.1)
+            valid = complement_distances > t10
+            valid_dexes = complement_dexes[valid]
+            self.not_roi_mask[valid_dexes] = True
 
     def select_pixels(self) -> bool:
         chose_one = False

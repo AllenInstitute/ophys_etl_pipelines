@@ -7,6 +7,8 @@ import pathlib
 import time
 import json
 
+from ophys_etl.types import ExtractROI
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -269,6 +271,41 @@ def _get_roi(seed_obj,
     output_dict[roi_id] = (origin, final_mask)
 
 
+def convert_to_lims_roi(origin, mask, roi_id=0):
+
+    # trim mask
+    row0 = 0
+    col0 = 0
+    row1 = mask.shape[0]
+    col1 = mask.shape[1]
+    for i_row in range(mask.shape[0]):
+        if mask[i_row, :].sum() > 0:
+            break
+        row0 += 1
+    for i_row in range(mask.shape[0]-1, -1, -1):
+        if mask[i_row, :].sum() > 0:
+            break
+        row1 -= 1
+    for i_col in range(mask.shape[1]):
+        if mask[:, i_col].sum() > 0:
+            break
+        col0 += 1
+    for i_col in range(mask.shape[1]-1, -1, -1):
+        if mask[:, i_col].sum() > 0:
+            break
+        col1 -= 1
+
+    new_mask = mask[row0:row1, col0:col1]
+    roi = ExtractROI(id=roi_id,
+                     x=int(origin[1]+col0),
+                     y=int(origin[0]+row0),
+                     width=int(col1-col0),
+                     height=int(row1-row0),
+                     valid=False,
+                     mask=[i.tolist() for i in new_mask])
+    return roi
+
+
 class HNCSegmenter(object):
 
     def __init__(self,
@@ -304,6 +341,7 @@ class HNCSegmenter(object):
         mgr = multiprocessing.Manager()
         mgr_dict = mgr.dict()
         for i_seed, seed in enumerate(seed_list):
+            self.roi_id += 1
             mask = self.roi_pixels[seed['rows'][0]:seed['rows'][1],
                                    seed['cols'][0]:seed['cols'][1]]
 
@@ -317,7 +355,7 @@ class HNCSegmenter(object):
                                               self._filter_fraction,
                                               mask,
                                               mgr_dict,
-                                              i_seed))
+                                              self.roi_id))
             p.start()
             p_list.append(p)
             while len(p_list) >= self.n_processors-1:
@@ -333,6 +371,10 @@ class HNCSegmenter(object):
         for roi_id in mgr_dict:
             origin = mgr_dict[roi_id][0]
             mask = mgr_dict[roi_id][1]
+            roi = convert_to_lims_roi(origin,
+                                      mask,
+                                      roi_id=roi_id)
+            self.roi_list.append(roi)
             for ir in range(mask.shape[0]):
                 rr = origin[0]+ir
                 for ic in range(mask.shape[1]):
@@ -357,6 +399,8 @@ class HNCSegmenter(object):
             video_data = in_file['data'][()]
         logger.info(f'read in video data from {str(self._video_path)}')
 
+        self.roi_list = []
+        self.roi_id = -1
         self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
         keep_going = True
         i_pass = 0
@@ -375,6 +419,9 @@ class HNCSegmenter(object):
             i_pass += 1
             if n_roi_1 <= n_roi_0:
                 keep_going = False
-        np.savez(roi_path, roi=self.roi_pixels)
+
+        with open(roi_path, 'w') as out_file:
+            out_file.write(json.dumps(self.roi_list, indent=2))
+
         duration = time.time()-t0
         logger.info(f'Completed segmentation in {duration:.2f} seconds')

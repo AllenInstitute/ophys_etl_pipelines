@@ -41,7 +41,9 @@ class SimpleDenoise(argschema.ArgSchemaParser):
             output = output.reshape(*dshape)
 
         with h5py.File(self.args["video_output"], "w") as f:
-            f.create_dataset("data", data=output)
+            f.create_dataset("data",
+                             data=output,
+                             chunks=self.args["h5_chunk_shape"])
         self.logger.info(f"wrote {self.args['video_output']}")
 
 

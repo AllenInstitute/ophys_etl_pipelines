@@ -337,7 +337,7 @@ def create_roi_plot(plot_path, img_data, roi_list):
                         valid_roi=False,
                         mask_matrix=roi['mask'])
 
-        bdry = ophys_roi.boundary_mask()
+        bdry = ophys_roi.boundary_mask
         for ir in range(ophys_roi.height):
             for ic in range(ophys_roi.width):
                 if bdry[ir, ic]:

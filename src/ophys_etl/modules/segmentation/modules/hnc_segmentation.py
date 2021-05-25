@@ -25,8 +25,13 @@ class HNCSegmentationRunner(argschema.ArgSchemaParser):
                                  attribute=attr,
                                  n_processors=n_processors)
 
+        if self.args['plot_path'] is not None:
+            plot_path = pathlib.Path(self.args['plot_path'])
+        else:
+            plot_path=None
         segmenter.run(roi_path=self.args['roi_output'],
-                      seed_path_dir=pathlib.Path(self.args['seed_dir']))
+                      seed_path_dir=pathlib.Path(self.args['seed_dir']),
+                      plot_path=plot_path)
 
 
 if __name__ == "__main__":

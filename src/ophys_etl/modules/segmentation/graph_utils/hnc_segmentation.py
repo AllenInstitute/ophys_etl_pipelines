@@ -344,7 +344,7 @@ def create_roi_plot(plot_path, img_data, roi_list):
                     bdry_pixels[ir+ophys_roi.y0,
                                 ic+ophys_roi.x0] = 1
 
-    bdry_pixels = np.ma.masked.where(bdry_pixels == 0,
+    bdry_pixels = np.ma.masked_where(bdry_pixels == 0,
                                      bdry_pixels)
     axes[1].imshow(bdry_pixels, cmap='autumn', alpha=0.5)
     fig.tight_layout()
@@ -431,13 +431,9 @@ class HNCSegmenter(object):
 
     def run(self,
             roi_path=None,
-            seed_path_dir=None,
+            seed_path=None,
             plot_path=None):
         t0 = time.time()
-        if seed_path_dir is not None:
-            if not seed_path_dir.is_dir():
-                msg = f'{str(seed_path_dir)} is not a dir'
-                raise RuntimeError(msg)
 
         img_data = graph_to_img(self._graph_path,
                                 attribute=self._attribute)
@@ -447,6 +443,9 @@ class HNCSegmenter(object):
         with h5py.File(self._video_path, 'r') as in_file:
             video_data = in_file['data'][()]
         logger.info(f'read in video data from {str(self._video_path)}')
+
+        if seed_path is not None:
+            seed_record = {}
 
         self.roi_list = []
         self.roi_id = -1
@@ -463,14 +462,17 @@ class HNCSegmenter(object):
             msg += f'{n_roi_1} total ROI pixels'
             logger.info(msg)
 
-            if seed_path_dir is not None:
-                seed_path = seed_path_dir / f'roi_seed_{i_pass}.json'
-                with open(seed_path, 'w') as out_file:
-                    out_file.write(json.dumps(roi_seeds, indent=2))
+            if seed_path is not None:
+                seed_record[i_pass] = roi_seeds
 
             i_pass += 1
             if n_roi_1 <= n_roi_0:
                 keep_going = False
+
+
+        if seed_path is not None:
+            with open(seed_path, 'w') as out_file:
+                out_file.write(json.dumps(seed_record, indent=2))
 
         with open(roi_path, 'w') as out_file:
             out_file.write(json.dumps(self.roi_list, indent=2))

@@ -252,8 +252,9 @@ class HNCSegmentationInputSchema(argschema.ArgSchema):
         default=None,
         description="path to summary plot of segmentation")
 
-    seed_dir = argschema.fields.String(
-        required=True,
+    seed_path = argschema.fields.OutputFile(
+        required=False,
+        default=None,
         description="directory where seeds will be stored")
 
     n_parallel_workers = argschema.fields.Int(

@@ -541,8 +541,29 @@ def _get_roi(seed_obj,
     output_dict[roi_id] = (origin, final_mask)
 
 
-def convert_to_lims_roi(origin, mask, roi_id=0):
+def convert_to_lims_roi(origin: Tuple[int, int],
+                        mask: np.ndarray,
+                        roi_id: int = 0) -> ExtractROI:
+    """
+    Convert an origin and a pixel mask into a LIMS-friendly
+    JSONized ROI
 
+    Parameters
+    ----------
+    origin: Tuple[int, int]
+        The global coordinates of the upper right corner of the pixel mask
+
+    mask: np.ndarray
+        A 2D array of booleans marked as True at the ROI's pixels
+
+    roi_id: int
+        default: 0
+
+    Returns
+    --------
+    roi: dict
+        an ExtractROI matching the input data
+    """
     # trim mask
     row0 = 0
     col0 = 0
@@ -576,7 +597,28 @@ def convert_to_lims_roi(origin, mask, roi_id=0):
     return roi
 
 
-def create_roi_plot(plot_path, img_data, roi_list):
+def create_roi_plot(plot_path: pathlib.Path,
+                    img_data: np.ndarray,
+                    roi_list: List[ExtractROI]) -> None:
+    """
+    Generate a side-by-side plot comparing the image data
+    used to seed ROI generation with the borders of the
+    discovered ROIs
+
+    Parameters
+    ----------
+    plot_path: pathlib.Path
+        Path to file where plot will be saved
+
+    img_data: np.ndarray
+        The baseline image over which to plot the ROIs
+
+    roi_list: List[ExtractROI]
+
+    Returns
+    -------
+    None
+    """
     fig, axes = plt.subplots(1, 2, figsize=(40, 20))
     axes[0].imshow(img_data)
     axes[1].imshow(img_data)
@@ -605,6 +647,7 @@ def create_roi_plot(plot_path, img_data, roi_list):
     fig.tight_layout()
     fig.savefig(plot_path)
     plt.close(fig=fig)
+    return None
 
 
 class FeatureVectorSegmenter(object):

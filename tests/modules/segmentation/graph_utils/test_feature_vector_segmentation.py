@@ -13,7 +13,7 @@ from ophys_etl.modules.segmentation.graph_utils.feature_vector_segmentation impo
     convert_to_lims_roi,
     graph_to_img,
     find_peaks,
-    correlate_chunk,
+    calculate_pearson_feature_vectors,
     FeatureVectorSegmenter)
 
 
@@ -239,28 +239,30 @@ def test_find_peaks(example_img):
             'cols': (9, 13)} in peaks
 
 
-def test_correlate_chunk():
+def test_caclulate_pearson_feature_vectors():
     """
-    run smoke test on correlate_chunk
+    run smoke test on calculate_pearson_feature_vectors
     """
     rng = np.random.RandomState(491852)
     data = rng.random_sample((100, 20, 20))
     seed_pt = (15, 3)
-    distances, pearson = correlate_chunk(data,
-                                         seed_pt,
-                                         0.2)
+    features = calculate_pearson_feature_vectors(
+                                data,
+                                seed_pt,
+                                0.2)
 
-    assert distances.shape == (400, 400)
+    assert features.shape == (400, 400)
 
     # check that, if there is a mask, the appropriate
     # pixels are ignored
     mask = np.zeros((20, 20), dtype=bool)
     mask[4:7, 11:] = True
-    distances, pearson = correlate_chunk(data,
-                                         seed_pt,
-                                         0.2,
-                                         pixel_ignore=mask)
-    assert distances.shape == (373, 373)
+    features = calculate_pearson_feature_vectors(
+                                data,
+                                seed_pt,
+                                0.2,
+                                pixel_ignore=mask)
+    assert features.shape == (373, 373)
 
 
 def test_segmenter(tmpdir, example_graph, example_video):

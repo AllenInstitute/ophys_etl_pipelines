@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from typing import Optional, List
+from typing import Optional, List, Tuple
 import networkx as nx
 import numpy as np
 import multiprocessing
@@ -178,18 +178,78 @@ def find_peaks(img: np.ndarray,
     return output
 
 
-def correlate_chunk(data,
-                    seed_pt,
-                    filter_fraction,
-                    rng=None,
-                    pixel_ignore=None):
+def calculate_pearson_feature_vectors(
+            sub_video: np.ndarray,
+            seed_pt: Tuple[int, int],
+            filter_fraction: float,
+            rng: Optional[np.random.RandomState] = None,
+            pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
+    """
+    Calculate the Pearson correlation-based feature vectors relating
+    a grid of pixels in a video to each other
+
+    Parameters
+    ----------
+    sub_video: np.ndarray
+        A subset of a video to be correlated.
+        Shape is (n_time, n_rows, n_cols)
+
+    seed_pt: Tuple[int, int]
+        The coordinates of the point being considered as the seed
+        for the ROI. Coordinates must be in the frame of the
+        sub-video represented by sub_video (i.e. seed_pt=(0,0) will be the
+        upper left corner of whatever frame is represented by sub_video)
+
+    filter_fraction: float
+        The fraction of brightest timesteps to be used in calculating
+        the Pearson correlation between pixels
+
+    rng: Optional[np.random.RandomState]
+        A random number generator used to choose pixels which will be
+        used to select the brightest filter_fraction of pixels. If None,
+        an np.random.RandomState will be instantiated with a hard-coded
+        seed (default: None)
+
+    pixel_ignore: Optional[np.ndarray]:
+        An (n_rows, n_cols) array of booleans marked True at any pixels
+        that should be ignored, presumably because they have already been
+        selected as ROI pixels. (default: None)
+
+    Returns
+    -------
+    features: np.ndarray
+         An (n_rows*n_cols, n_rows*n_cols) array of feature vectors.
+         features[ii, :] is the feature vector for the ii_th pixel
+         in sub_video (where ii can be mapped to (row, col) coordinates
+         using np.unravel_index()
+
+    Notes
+    -----
+    The feature vectors returned by this method are calculated as follows:
+
+    1) Select a random set of 10 pixels from sub_video in addition to seed_pt.
+
+    2) Use the brightest filter_fraction of timestamps from the 11 selected
+    seeds to calculate the Pearson correlation coefficient between each
+    pair of pixels. This results in an (n_pixels, n_pixels) array in which
+    pearson[ii, jj] is the correlation coefficient between the ii_th and
+    jj_th pixels.
+
+    3) For each column pearson [:, ii] in the array of Pearson
+    correlation coefficients, subtract off the minimum value in
+    that column and divide by the gap between the 25th adn 75th
+    percentile of that column's values.
+
+    Each row in the matrix of Pearson correlation coefficients is now
+    a feature vector corresponding to that pixel in sub_video.
+    """
     global_mask = []
     discard = 1.0-filter_fraction
 
-    n_rows = data.shape[1]
-    n_cols = data.shape[2]
+    n_rows = sub_video.shape[1]
+    n_cols = sub_video.shape[2]
 
-    trace = data[:, seed_pt[0], seed_pt[1]]
+    trace = sub_video[:, seed_pt[0], seed_pt[1]]
     thresh = np.quantile(trace, discard)
     mask = np.where(trace >= thresh)[0]
     global_mask.append(mask)
@@ -201,28 +261,31 @@ def correlate_chunk(data,
     while len(chosen) < n_seeds:
         c = rng.choice(np.arange(n_rows*n_cols, dtype=int),
                        size=1, replace=False)
-        p = np.unravel_index(c, data.shape[1:])
+        p = np.unravel_index(c, sub_video.shape[1:])
         if pixel_ignore is None or not pixel_ignore[p[0], p[1]]:
             chosen.append(p)
 
     for chosen_pixel in chosen:
-        trace = data[:, chosen_pixel[0], chosen_pixel[1]]
+        trace = sub_video[:, chosen_pixel[0], chosen_pixel[1]]
         thresh = np.quantile(trace, discard)
         mask = np.where(trace >= thresh)[0]
         global_mask.append(mask)
     global_mask = np.unique(np.concatenate(global_mask))
 
-    data = data[global_mask, :, :]
-    shape = data.shape
+    # apply timestep mask
+    sub_video = sub_video[global_mask, :, :]
+    shape = sub_video.shape
     n_pixels = shape[1]*shape[2]
     n_time = shape[0]
-    traces = data.reshape(n_time, n_pixels).astype(float)
-    del data
+    traces = sub_video.reshape(n_time, n_pixels).astype(float)
+    del sub_video
 
+    # mask pixels that need to be masked
     if pixel_ignore is not None:
         traces = traces[:, np.logical_not(pixel_ignore.flatten())]
         n_pixels = np.logical_not(pixel_ignore).sum()
 
+    # calculate the Pearson correlation coefficient between pixels
     mu = np.mean(traces, axis=0)
     traces -= mu
     var = np.mean(traces**2, axis=0)
@@ -241,31 +304,34 @@ def correlate_chunk(data,
         pearson[ii, ii+1:] = p
         pearson[ii+1:, ii] = p
 
-    wgt = np.copy(pearson)
+    features = np.copy(pearson)
 
+    # subtract off minimum of each feature
     pearson_mins = np.min(pearson, axis=0)
     for ii in range(n_pixels):
-        wgt[:, ii] = wgt[:, ii]-pearson_mins[ii]
+        features[:, ii] = features[:, ii]-pearson_mins[ii]
 
-    p75 = np.quantile(wgt, 0.75, axis=0)
-    p25 = np.quantile(wgt, 0.25, axis=0)
-    pmax = np.max(wgt, axis=0)
-    pmin = np.min(wgt, axis=0)
+    # Normalize by the interquartile range of each feature.
+    # If the interquartile range is 0, normalize by max-min.
+    # If that is also zero, set the norm to 1.0
+    p75 = np.quantile(features, 0.75, axis=0)
+    p25 = np.quantile(features, 0.25, axis=0)
+    pmax = np.max(features, axis=0)
+    pmin = np.min(features, axis=0)
 
-    pearson_norms = p75-p25
-    pearson_norms = np.where(pearson_norms>1.0e-20,
-                             pearson_norms,
+    feature_norms = p75-p25
+    feature_norms = np.where(feature_norms>1.0e-20,
+                             feature_norms,
                              pmax-pmin)
 
-    pearson_norms = np.where(pearson_norms>1.0e-20,
-                             pearson_norms,
+    feature_norms = np.where(feature_norms>1.0e-20,
+                             feature_norms,
                              1.0)
 
     for ii in range(n_pixels):
-        wgt[:, ii] = wgt[:, ii]/pearson_norms[ii]
+        features[:, ii] = features[:, ii]/feature_norms[ii]
 
-    distances = cdist(wgt, wgt, metric='euclidean')
-    return distances, pearson
+    return features
 
 
 class PotentialROI(object):
@@ -299,12 +365,16 @@ class PotentialROI(object):
                 self.pixel_to_index[p] = len(self.index_to_pixel)-1
                 self.n_pixels += 1
 
-        (self.feature_distances,
-         pearson) = correlate_chunk(data,
+        features = calculate_pearson_feature_vectors(
+                                    data,
                                     self.seed_pt,
                                     filter_fraction,
                                     pixel_ignore=pixel_ignore,
                                     rng=rng)
+
+        self.feature_distances = cdist(features,
+                                       features,
+                                       metric='euclidean')
 
         self.roi_mask = np.zeros(self.n_pixels, dtype=bool)
         self.roi_mask[self.pixel_to_index[self.seed_pt]] = True

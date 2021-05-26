@@ -866,7 +866,7 @@ def create_roi_plot(plot_path: pathlib.Path,
 
     bdry_pixels = np.ma.masked_where(bdry_pixels == 0,
                                      bdry_pixels)
-    axes[1].imshow(bdry_pixels, cmap='autumn', alpha=0.5)
+    axes[1].imshow(bdry_pixels, cmap='autumn', alpha=1.0)
     fig.tight_layout()
     fig.savefig(plot_path)
     plt.close(fig=fig)

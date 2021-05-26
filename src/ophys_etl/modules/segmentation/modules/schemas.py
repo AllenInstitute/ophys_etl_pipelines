@@ -256,7 +256,7 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
         required=False,
         default=None,
         description=("path to json file where seed points "
-                    "will be saved"))
+                     "will be saved"))
 
     n_parallel_workers = argschema.fields.Int(
         required=False,

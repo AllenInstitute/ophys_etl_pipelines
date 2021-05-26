@@ -139,4 +139,3 @@ def example_img():
     img[11, 12] = 11
     img[10, 11] = 10  # too close to be detected
     return img
-

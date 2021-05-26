@@ -33,7 +33,6 @@ def test_caclulate_pearson_feature_vectors():
     assert features.shape == (373, 373)
 
 
-
 def test_roi_growth(example_video):
     """
     Test that ROI can run end to end even in cases of
@@ -48,20 +47,22 @@ def test_roi_growth(example_video):
     mask = np.zeros((40, 40), dtype=bool)
 
     # fewer than ten valid points
-    mask[:,:] = True
+    mask[:, :] = True
     mask[12, 16] = False
     mask[1:4, 2] = False
-    roi = PearsonFeatureROI(seed_pt, origin, video_data, 0.2, pixel_ignore=mask)
+    roi = PearsonFeatureROI(seed_pt, origin, video_data,
+                            0.2, pixel_ignore=mask)
     roi.get_mask()
 
     # only seed is valid
-    mask[:,:] = True
+    mask[:, :] = True
     mask[12, 16] = False
-    roi = PearsonFeatureROI(seed_pt, origin, video_data, 0.2, pixel_ignore=mask)
+    roi = PearsonFeatureROI(seed_pt, origin, video_data,
+                            0.2, pixel_ignore=mask)
     roi.get_mask()
 
     # nothing is valid
-    mask[:,:] = True
+    mask[:, :] = True
     msg = "Tried to create ROI with no valid pixels"
     with pytest.raises(RuntimeError, match=msg):
         _ = PearsonFeatureROI(seed_pt, origin, video_data,

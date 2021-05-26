@@ -1,14 +1,16 @@
 import matplotlib
-matplotlib.use('Agg')
-
 import argschema
 import pathlib
 
 from ophys_etl.modules.segmentation.modules.schemas import \
     FeatureVectorSegmentationInputSchema
 
-from ophys_etl.modules.segmentation.graph_utils.feature_vector_segmentation import (
-    FeatureVectorSegmenter)
+from ophys_etl.modules.segmentation.graph_utils.\
+    feature_vector_segmentation import (
+        FeatureVectorSegmenter)
+
+
+matplotlib.use('Agg')
 
 
 class FeatureVectorSegmentationRunner(argschema.ArgSchemaParser):
@@ -28,7 +30,7 @@ class FeatureVectorSegmentationRunner(argschema.ArgSchemaParser):
         if self.args['plot_output'] is not None:
             plot_output = pathlib.Path(self.args['plot_output'])
         else:
-            plot_output=None
+            plot_output = None
         segmenter.run(roi_output=self.args['roi_output'],
                       seed_output=pathlib.Path(self.args['seed_output']),
                       plot_output=plot_output)

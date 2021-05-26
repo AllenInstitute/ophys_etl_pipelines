@@ -2,17 +2,16 @@ import pytest
 
 import pathlib
 import numpy as np
-import tempfile
 import json
 
 from ophys_etl.types import ExtractROI
 
-from ophys_etl.modules.segmentation.graph_utils.feature_vector_segmentation import (
-    convert_to_lims_roi,
-    graph_to_img,
-    find_peaks,
-    FeatureVectorSegmenter)
-
+from ophys_etl.modules.segmentation.\
+    graph_utils.feature_vector_segmentation import (
+        convert_to_lims_roi,
+        graph_to_img,
+        find_peaks,
+        FeatureVectorSegmenter)
 
 
 @pytest.mark.parametrize(

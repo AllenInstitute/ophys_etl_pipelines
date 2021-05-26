@@ -227,9 +227,9 @@ def calculate_pearson_feature_vectors(
     -----
     The feature vectors returned by this method are calculated as follows:
 
-    1) Select a random set of 10 pixels from sub_video in addition to seed_pt.
+    1) Select a random set of 10 pixels from sub_video including the seed_pt.
 
-    2) Use the brightest filter_fraction of timestamps from the 11 selected
+    2) Use the brightest filter_fraction of timestamps from the 10 selected
     seeds to calculate the Pearson correlation coefficient between each
     pair of pixels. This results in an (n_pixels, n_pixels) array in which
     pearson[ii, jj] is the correlation coefficient between the ii_th and
@@ -243,27 +243,32 @@ def calculate_pearson_feature_vectors(
     Each row in the matrix of Pearson correlation coefficients is now
     a feature vector corresponding to that pixel in sub_video.
     """
-    global_mask = []
+
+    # fraction of timesteps to discard
     discard = 1.0-filter_fraction
 
     n_rows = sub_video.shape[1]
     n_cols = sub_video.shape[2]
 
+    # start assembling mask in timesteps
     trace = sub_video[:, seed_pt[0], seed_pt[1]]
     thresh = np.quantile(trace, discard)
+    global_mask = []
     mask = np.where(trace >= thresh)[0]
     global_mask.append(mask)
 
+    # choose n_seeds other points to populate global_mask
     n_seeds = 10
     if rng is None:
         rng = np.random.RandomState(87123)
-    chosen = []
+    chosen = set()
+    chosen.add(seed_pt)
     while len(chosen) < n_seeds:
         c = rng.choice(np.arange(n_rows*n_cols, dtype=int),
                        size=1, replace=False)
-        p = np.unravel_index(c, sub_video.shape[1:])
+        p = np.unravel_index(c[0], sub_video.shape[1:])
         if pixel_ignore is None or not pixel_ignore[p[0], p[1]]:
-            chosen.append(p)
+            chosen.add(p)
 
     for chosen_pixel in chosen:
         trace = sub_video[:, chosen_pixel[0], chosen_pixel[1]]

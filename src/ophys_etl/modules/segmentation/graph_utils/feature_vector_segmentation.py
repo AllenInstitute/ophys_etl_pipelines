@@ -653,8 +653,8 @@ def create_roi_plot(plot_path: pathlib.Path,
 class FeatureVectorSegmenter(object):
 
     def __init__(self,
-                 graph_path: pathlib.Path,
-                 video_path: pathlib.Path,
+                 graph_input: pathlib.Path,
+                 video_input: pathlib.Path,
                  attribute: str = 'filtered_hnc_Gaussian',
                  filter_fraction: float = 0.2,
                  n_processors=8,
@@ -663,14 +663,14 @@ class FeatureVectorSegmenter(object):
         self.roi_class = roi_class
         self.n_processors = n_processors
         self._attribute = attribute
-        self._graph_path = graph_path
-        self._video_path = video_path
+        self._graph_input = graph_input
+        self._video_input = video_input
         self._filter_fraction = filter_fraction
         self.rng = np.random.RandomState(11923141)
-        self._graph_img = graph_to_img(graph_path,
+        self._graph_img = graph_to_img(graph_input,
                                        attribute=attribute)
 
-        with h5py.File(self._video_path, 'r') as in_file:
+        with h5py.File(self._video_input, 'r') as in_file:
             self._movie_data = in_file['data'][()]
             movie_shape = self._movie_data.shape
             if movie_shape[1:] != self._graph_img.shape:
@@ -737,21 +737,21 @@ class FeatureVectorSegmenter(object):
         return seed_list
 
     def run(self,
-            roi_path=None,
-            seed_path=None,
-            plot_path=None):
+            roi_output=None,
+            seed_output=None,
+            plot_output=None):
         t0 = time.time()
 
-        img_data = graph_to_img(self._graph_path,
+        img_data = graph_to_img(self._graph_input,
                                 attribute=self._attribute)
 
-        logger.info(f'read in image data from {str(self._graph_path)}')
+        logger.info(f'read in image data from {str(self._graph_input)}')
 
-        with h5py.File(self._video_path, 'r') as in_file:
+        with h5py.File(self._video_input, 'r') as in_file:
             video_data = in_file['data'][()]
-        logger.info(f'read in video data from {str(self._video_path)}')
+        logger.info(f'read in video data from {str(self._video_input)}')
 
-        if seed_path is not None:
+        if seed_output is not None:
             seed_record = {}
 
         self.roi_list = []
@@ -770,7 +770,7 @@ class FeatureVectorSegmenter(object):
             msg += f'{n_roi_1} total ROI pixels'
             logger.info(msg)
 
-            if seed_path is not None:
+            if seed_output is not None:
                 seed_record[i_pass] = roi_seeds
 
             i_pass += 1
@@ -779,18 +779,18 @@ class FeatureVectorSegmenter(object):
 
         logger.info('finished iterating on ROIs')
 
-        if seed_path is not None:
-            logger.info(f'writing {str(seed_path)}')
-            with open(seed_path, 'w') as out_file:
+        if seed_output is not None:
+            logger.info(f'writing {str(seed_output)}')
+            with open(seed_output, 'w') as out_file:
                 out_file.write(json.dumps(seed_record, indent=2))
 
-        logger.info(f'writing {str(roi_path)}')
-        with open(roi_path, 'w') as out_file:
+        logger.info(f'writing {str(roi_output)}')
+        with open(roi_output, 'w') as out_file:
             out_file.write(json.dumps(self.roi_list, indent=2))
 
-        if plot_path is not None:
-            logger.info(f'writing {str(plot_path)}')
-            create_roi_plot(plot_path, img_data, self.roi_list)
+        if plot_output is not None:
+            logger.info(f'writing {str(plot_output)}')
+            create_roi_plot(plot_output, img_data, self.roi_list)
 
         duration = time.time()-t0
         logger.info(f'Completed segmentation in {duration:.2f} seconds')

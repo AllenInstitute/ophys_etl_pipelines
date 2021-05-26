@@ -270,11 +270,11 @@ def test_segmenter(tmpdir, example_graph, example_video):
     Smoke test for segmenter
     """
 
-    segmenter = FeatureVectorSegmenter(graph_path=example_graph,
-                                       video_path=example_video,
+    segmenter = FeatureVectorSegmenter(graph_input=example_graph,
+                                       video_input=example_video,
                                        attribute='dummy_attribute',
                                        filter_fraction=0.2,
-                                        n_processors=1)
+                                       n_processors=1)
 
     dir_path = pathlib.Path(tmpdir)
     roi_path = dir_path / 'roi.json'
@@ -284,9 +284,9 @@ def test_segmenter(tmpdir, example_graph, example_video):
     assert not seed_path.exists()
     assert not plot_path.exists()
 
-    segmenter.run(roi_path=roi_path,
-                  seed_path=seed_path,
-                  plot_path=plot_path)
+    segmenter.run(roi_output=roi_path,
+                  seed_output=seed_path,
+                  plot_output=plot_path)
 
     assert roi_path.is_file()
     assert seed_path.is_file()
@@ -307,9 +307,9 @@ def test_segmenter(tmpdir, example_graph, example_video):
     assert not seed_path.exists()
     assert not plot_path.exists()
 
-    segmenter.run(roi_path=roi_path,
-                  seed_path=None,
-                  plot_path=None)
+    segmenter.run(roi_output=roi_path,
+                  seed_output=None,
+                  plot_output=None)
 
     assert roi_path.is_file()
     assert not seed_path.exists()
@@ -321,11 +321,11 @@ def test_segmenter_blank(tmpdir, blank_graph, blank_video):
     Smoke test for segmenter on blank inputs
     """
 
-    segmenter = FeatureVectorSegmenter(graph_path=blank_graph,
-                                       video_path=blank_video,
+    segmenter = FeatureVectorSegmenter(graph_input=blank_graph,
+                                       video_input=blank_video,
                                        attribute='dummy_attribute',
                                        filter_fraction=0.2,
                                        n_processors=1)
     dir_path = pathlib.Path(tmpdir)
     roi_path = dir_path / 'roi.json'
-    segmenter.run(roi_path=roi_path)
+    segmenter.run(roi_output=roi_path)

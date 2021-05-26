@@ -470,19 +470,20 @@ class PotentialROI(object):
         self.get_not_roi_mask()
 
         d_roi = np.median(self.feature_distances[:, self.roi_mask], axis=1)
-        d_roi[self.roi_mask] = 999.0
 
         # take the mean of as many background points as there are
         # ROI points, in case one set is dominated by outliers
         d_bckgd = np.sort(self.feature_distances[:, self.not_roi_mask], axis=1)
         n_roi = self.roi_mask.sum()
         d_bckgd = np.median(d_bckgd[:, :n_roi], axis=1)
-        d_bckgd[self.roi_mask] = 0.0
 
         valid = d_bckgd > 2*d_roi
         if valid.sum() > 0:
-            chose_one = True
             self.roi_mask[valid] = True
+
+        n_roi_1 = self.roi_mask.sum()
+        if n_roi_1 > n_roi:
+            chose_one = True
 
         return chose_one
 

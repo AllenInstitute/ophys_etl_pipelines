@@ -340,28 +340,62 @@ def calculate_pearson_feature_vectors(
 
 
 class PotentialROI(object):
+    """
+    A class to do the work of finding the pixel mask for a single
+    ROI.
+
+    Parameters
+    ----------
+    seed_pt: Tuple[int, int]
+        The global image coordinates of the point from which to
+        grow the ROI
+
+    origin: Tuple[int, int]
+        The global image coordinates of the upper left pixel in
+        sub_video. (seed_pt[0]-origin[0], seed_pt[1]-origin[1])
+        will give the row, col coordinates of the seed point
+        in sub_video.
+
+    sub_video: np.ndarray
+        The segment of the video data to search for the ROI.
+        Its shape is (n_time, n_rows, n_cols)
+
+    filter_fraction: float
+        The fraction of timesteps to use when correlating pixels
+        (this is used by calculate_pearson_feature_vectors)
+
+    pixel_ignore: Optional[np.ndarray]
+        A (n_rows, n_cols) array of booleans marked True for any
+        pixels that should be ignored, presumably because they
+        have already been included as ROIs in another iteration.
+        (default: None)
+
+    rng: Optional[np.random.RandomState]
+        A random number generator to be used by
+        calculate_pearson_feature_vectors in selecting timesteps
+        to correlate (default: None)
+    """
 
     def __init__(self,
-                 seed_pt,
-                 origin,
-                 data,
-                 filter_fraction,
-                 pixel_ignore=None,
-                 rng=None):
-        """
-        seed and origin are in full-plane coordinates
-        """
-
+                 seed_pt: Tuple[int, int],
+                 origin: Tuple[int, int],
+                 sub_video: np.ndarray,
+                 filter_fraction: float,
+                 pixel_ignore: Optional[np.ndarray] = None,
+                 rng: Optional[np.random.RandomState] = None):
         self.origin = origin
         self.seed_pt = (seed_pt[0]-origin[0], seed_pt[1]-origin[1])
         self.filter_fraction = filter_fraction
-        self.img_shape = data.shape[1:]
+        self.img_shape = sub_video.shape[1:]
 
         self.index_to_pixel = []
         self.pixel_to_index = {}
         if pixel_ignore is not None:
             pixel_ignore_flat = pixel_ignore.flatten()
 
+        # because feature vectors will handle pixels as a 1-D
+        # array, skipping over ignored pixels, create mappings
+        # between (row, col) coordinates and 1-D pixel index
         self.n_pixels = 0
         for ii in range(self.img_shape[0]*self.img_shape[1]):
             if pixel_ignore is None or not pixel_ignore_flat[ii]:
@@ -370,12 +404,40 @@ class PotentialROI(object):
                 self.pixel_to_index[p] = len(self.index_to_pixel)-1
                 self.n_pixels += 1
 
-        features = calculate_pearson_feature_vectors(
-                                    data,
-                                    self.seed_pt,
-                                    filter_fraction,
-                                    pixel_ignore=pixel_ignore,
-                                    rng=rng)
+        self.calculate_feature_distances(sub_video,
+                                         filter_fraction,
+                                         pixel_ignore=pixel_ignore,
+                                         rng=rng)
+
+    def get_features(
+            self,
+            sub_video: np.ndarray,
+            filter_fraction: float,
+            pixel_ignore: Optional[np.ndarray] = None,
+            rng: Optional[np.random.RandomState] = None) -> np.ndarray:
+        """
+        Return the (n_pixels, n_pixels) array of feature vectors
+        """
+        msg = "PotentialROI does not implement get_features; "
+        msg += "must specify a valid sub-class"
+        raise NotImplementedError(msg)
+
+    def calculate_feature_distances(
+            self,
+            sub_video: np.ndarray,
+            filter_fraction: float,
+            pixel_ignore: Optional[np.ndarray] = None,
+            rng: Optional[np.random.RandomState] = None):
+        """
+        Set self.feature_distances, the (n_pixels, n_pixels)
+        array containing the distances in feature space between
+        pixels
+        """
+
+        features = self.get_features(sub_video,
+                                     filter_fraction,
+                                     pixel_ignore=pixel_ignore,
+                                     rng=rng)
 
         self.feature_distances = cdist(features,
                                        features,
@@ -439,20 +501,41 @@ class PotentialROI(object):
         return output_img
 
 
+class PearsonFeatureROI(PotentialROI):
+
+    def get_features(
+            self,
+            sub_video: np.ndarray,
+            filter_fraction: float,
+            pixel_ignore: Optional[np.ndarray] = None,
+            rng: Optional[np.random.RandomState] = None) -> np.ndarray:
+        """
+        Return the (n_pixels, n_pixels) array of feature vectors
+        """
+        features = calculate_pearson_feature_vectors(
+                                    sub_video,
+                                    self.seed_pt,
+                                    filter_fraction,
+                                    pixel_ignore=pixel_ignore,
+                                    rng=rng)
+        return features
+
+
 def _get_roi(seed_obj,
              video_data,
              filter_fraction,
              pixel_ignore,
              output_dict,
-             roi_id):
+             roi_id,
+             roi_class):
     seed_pt = seed_obj['center']
     origin = (seed_obj['rows'][0], seed_obj['cols'][0])
 
-    roi = PotentialROI(seed_pt,
-                       origin,
-                       video_data,
-                       filter_fraction,
-                       pixel_ignore=pixel_ignore)
+    roi = roi_class(seed_pt,
+                    origin,
+                    video_data,
+                    filter_fraction,
+                    pixel_ignore=pixel_ignore)
 
     final_mask = roi.get_mask()
     output_dict[roi_id] = (origin, final_mask)
@@ -531,7 +614,10 @@ class FeatureVectorSegmenter(object):
                  video_path: pathlib.Path,
                  attribute: str = 'filtered_hnc_Gaussian',
                  filter_fraction: float = 0.2,
-                 n_processors=8):
+                 n_processors=8,
+                 roi_class=PearsonFeatureROI):
+
+        self.roi_class = roi_class
         self.n_processors = n_processors
         self._attribute = attribute
         self._graph_path = graph_path
@@ -573,7 +659,8 @@ class FeatureVectorSegmenter(object):
                                               self._filter_fraction,
                                               mask,
                                               mgr_dict,
-                                              self.roi_id))
+                                              self.roi_id,
+                                              self.roi_class))
             p.start()
             p_list.append(p)
             while len(p_list) > 0 and len(p_list) >= self.n_processors-1:

@@ -224,7 +224,7 @@ class SimpleDenoiseInputSchema(argschema.ArgSchema, DenoiseBaseSchema):
                      "1, multiprocessing is not invoked."))
 
 
-class HNCSegmentationInputSchema(argschema.ArgSchema):
+class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
 
     video_path = argschema.fields.InputFile(

@@ -9,12 +9,12 @@ import json
 
 from ophys_etl.types import ExtractROI
 
-from ophys_etl.modules.segmentation.graph_utils.hnc_segmentation import (
+from ophys_etl.modules.segmentation.graph_utils.feature_vector_segmentation import (
     convert_to_lims_roi,
     graph_to_img,
     find_peaks,
     correlate_chunk,
-    HNCSegmenter)
+    FeatureVectorSegmenter)
 
 
 @pytest.fixture
@@ -268,11 +268,11 @@ def test_segmenter(tmpdir, example_graph, example_video):
     Smoke test for segmenter
     """
 
-    segmenter = HNCSegmenter(graph_path=example_graph,
-                             video_path=example_video,
-                             attribute='dummy_attribute',
-                             filter_fraction=0.2,
-                             n_processors=1)
+    segmenter = FeatureVectorSegmenter(graph_path=example_graph,
+                                       video_path=example_video,
+                                       attribute='dummy_attribute',
+                                       filter_fraction=0.2,
+                                        n_processors=1)
 
     dir_path = pathlib.Path(tmpdir)
     roi_path = dir_path / 'roi.json'
@@ -319,11 +319,11 @@ def test_segmenter_blank(tmpdir, blank_graph, blank_video):
     Smoke test for segmenter on blank inputs
     """
 
-    segmenter = HNCSegmenter(graph_path=blank_graph,
-                             video_path=blank_video,
-                             attribute='dummy_attribute',
-                             filter_fraction=0.2,
-                             n_processors=1)
+    segmenter = FeatureVectorSegmenter(graph_path=blank_graph,
+                                       video_path=blank_video,
+                                       attribute='dummy_attribute',
+                                       filter_fraction=0.2,
+                                       n_processors=1)
     dir_path = pathlib.Path(tmpdir)
     roi_path = dir_path / 'roi.json'
     segmenter.run(roi_path=roi_path)

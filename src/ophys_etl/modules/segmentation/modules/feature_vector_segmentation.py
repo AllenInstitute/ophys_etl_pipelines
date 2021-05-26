@@ -5,25 +5,25 @@ import argschema
 import pathlib
 
 from ophys_etl.modules.segmentation.modules.schemas import \
-    HNCSegmentationInputSchema
+    FeatureVectorSegmentationInputSchema
 
-from ophys_etl.modules.segmentation.graph_utils.hnc_segmentation import (
-    HNCSegmenter)
+from ophys_etl.modules.segmentation.graph_utils.feature_vector_segmentation import (
+    FeatureVectorSegmenter)
 
 
-class HNCSegmentationRunner(argschema.ArgSchemaParser):
+class FeatureVectorSegmentationRunner(argschema.ArgSchemaParser):
 
-    default_schema = HNCSegmentationInputSchema
+    default_schema = FeatureVectorSegmentationInputSchema
 
     def run(self):
         img_path = pathlib.Path(self.args['img_path'])
         video_path = pathlib.Path(self.args['video_path'])
         n_processors = self.args['n_parallel_workers']
         attr = self.args['attribute']
-        segmenter = HNCSegmenter(img_path,
-                                 video_path,
-                                 attribute=attr,
-                                 n_processors=n_processors)
+        segmenter = FeatureVectorSegmenter(img_path,
+                                           video_path,
+                                           attribute=attr,
+                                           n_processors=n_processors)
 
         if self.args['plot_path'] is not None:
             plot_path = pathlib.Path(self.args['plot_path'])
@@ -35,5 +35,5 @@ class HNCSegmentationRunner(argschema.ArgSchemaParser):
 
 
 if __name__ == "__main__":
-    seg = HNCSegmentationRunner()
+    seg = FeatureVectorSegmentationRunner()
     seg.run()

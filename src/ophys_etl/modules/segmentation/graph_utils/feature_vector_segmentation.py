@@ -353,7 +353,7 @@ def create_roi_plot(plot_path, img_data, roi_list):
     plt.close(fig=fig)
 
 
-class HNCSegmenter(object):
+class FeatureVectorSegmenter(object):
 
     def __init__(self,
                  graph_path: pathlib.Path,

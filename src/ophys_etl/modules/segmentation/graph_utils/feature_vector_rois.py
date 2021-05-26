@@ -244,6 +244,9 @@ class PotentialROI(object):
                 self.pixel_to_index[p] = len(self.index_to_pixel)-1
                 self.n_pixels += 1
 
+        if self.n_pixels == 0:
+            raise RuntimeError("Tried to create ROI with no valid pixels")
+
         self.calculate_feature_distances(sub_video,
                                          filter_fraction,
                                          pixel_ignore=pixel_ignore,

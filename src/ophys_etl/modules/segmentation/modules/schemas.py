@@ -227,14 +227,14 @@ class SimpleDenoiseInputSchema(argschema.ArgSchema, DenoiseBaseSchema):
 class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
 
-    video_path = argschema.fields.InputFile(
+    video_input = argschema.fields.InputFile(
         required=False,
         description=("path to hdf5 video with movie stored "
                      "in dataset 'data' nframes x nrow x ncol"))
 
-    img_path = argschema.fields.InputFile(
+    graph_input = argschema.fields.InputFile(
         required=False,
-        description=("path to image used to seed ROIS"))
+        description=("path to graph used to seed ROIS"))
 
     attribute = argschema.fields.Str(
         required=False,
@@ -245,20 +245,20 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
 
     roi_output = argschema.fields.OutputFile(
         required=True,
-        description=".npz path where ROI pixels will be saved")
+        description="path to json file where ROIs will be saved")
 
-    plot_path = argschema.fields.OutputFile(
+    plot_output = argschema.fields.OutputFile(
         required=False,
         default=None,
         description="path to summary plot of segmentation")
 
-    seed_path = argschema.fields.OutputFile(
+    seed_output = argschema.fields.OutputFile(
         required=False,
         default=None,
-        description="directory where seeds will be stored")
+        description=("path to json file where seed points "
+                    "will be saved"))
 
     n_parallel_workers = argschema.fields.Int(
         required=False,
         default=1,
-        description=("how many multiprocessing workers to use. If set to "
-                     "1, multiprocessing is not invoked."))
+        description=("how many multiprocessing workers to use."))

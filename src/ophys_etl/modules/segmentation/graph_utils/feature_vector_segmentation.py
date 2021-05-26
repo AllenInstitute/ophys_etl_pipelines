@@ -258,17 +258,32 @@ def calculate_pearson_feature_vectors(
     global_mask.append(mask)
 
     # choose n_seeds other points to populate global_mask
+    i_seed = np.ravel_multi_index(seed_pt, sub_video.shape[1:])
+    possible_seeds = []
+    for ii in range(n_rows*n_cols):
+        if ii == i_seed:
+            continue
+        p = np.unravel_index(ii, sub_video.shape[1:])
+
+        if pixel_ignore is None or not pixel_ignore[p[0], p[1]]:
+            possible_seeds.append(ii)
+
     n_seeds = 10
     if rng is None:
         rng = np.random.RandomState(87123)
     chosen = set()
     chosen.add(seed_pt)
-    while len(chosen) < n_seeds:
-        c = rng.choice(np.arange(n_rows*n_cols, dtype=int),
-                       size=1, replace=False)
-        p = np.unravel_index(c[0], sub_video.shape[1:])
-        if pixel_ignore is None or not pixel_ignore[p[0], p[1]]:
-            chosen.add(p)
+
+    if len(possible_seeds) > n_seeds:
+        chosen_dex = rng.choice(possible_seeds,
+                                size=n_seeds, replace=False)
+        for ii in chosen_dex:
+             p = np.unravel_index(ii, sub_video.shape[1:])
+             chosen.add(p)
+    else:
+        for ii in possible_seeds:
+             p = np.unravel_index(ii, sub_video.shape[1:])
+             chosen.add(p)
 
     for chosen_pixel in chosen:
         trace = sub_video[:, chosen_pixel[0], chosen_pixel[1]]
@@ -699,10 +714,10 @@ class FeatureVectorSegmenter(object):
                                            seed['rows'][0]:seed['rows'][1],
                                            seed['cols'][0]:seed['cols'][1]]
 
-            _npix = mask.shape[0]*mask.shape[1]
-            _nmask = mask.sum()
-            msg = f'{self.roi_id}: {_npix} pixels; {_nmask} masked'
-            logger.info(msg)
+            #_npix = mask.shape[0]*mask.shape[1]
+            #_nmask = mask.sum()
+            #msg = f'{self.roi_id}: {_npix} pixels; {_nmask} masked'
+            #logger.info(msg)
 
             p = multiprocessing.Process(target=_get_roi,
                                         args=(seed,

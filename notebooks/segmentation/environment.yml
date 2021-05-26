@@ -1,0 +1,11 @@
+name: jlab_segmentation
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - ipympl=0.7.0
+  - jupyterlab=3.0.16
+  - pip=21.1.1
+  - pip:
+    - voila==0.2.10
+    - git+https://github.com/AllenInstitute/ophys_etl_pipelines@notebook_update

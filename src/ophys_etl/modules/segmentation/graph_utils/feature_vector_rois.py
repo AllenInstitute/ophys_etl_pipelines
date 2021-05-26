@@ -103,12 +103,12 @@ def calculate_pearson_feature_vectors(
         chosen_dex = rng.choice(possible_seeds,
                                 size=n_seeds, replace=False)
         for ii in chosen_dex:
-             p = np.unravel_index(ii, sub_video.shape[1:])
-             chosen.add(p)
+            p = np.unravel_index(ii, sub_video.shape[1:])
+            chosen.add(p)
     else:
         for ii in possible_seeds:
-             p = np.unravel_index(ii, sub_video.shape[1:])
-             chosen.add(p)
+            p = np.unravel_index(ii, sub_video.shape[1:])
+            chosen.add(p)
 
     for chosen_pixel in chosen:
         trace = sub_video[:, chosen_pixel[0], chosen_pixel[1]]
@@ -165,11 +165,11 @@ def calculate_pearson_feature_vectors(
     pmin = np.min(features, axis=0)
 
     feature_norms = p75-p25
-    feature_norms = np.where(feature_norms>1.0e-20,
+    feature_norms = np.where(feature_norms > 1.0e-20,
                              feature_norms,
                              pmax-pmin)
 
-    feature_norms = np.where(feature_norms>1.0e-20,
+    feature_norms = np.where(feature_norms > 1.0e-20,
                              feature_norms,
                              1.0)
 
@@ -177,6 +177,7 @@ def calculate_pearson_feature_vectors(
         features[:, ii] = features[:, ii]/feature_norms[ii]
 
     return features
+
 
 class PotentialROI(object):
     """

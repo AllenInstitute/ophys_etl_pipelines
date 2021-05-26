@@ -14,7 +14,6 @@ from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import (
-    PotentialROI,
     PearsonFeatureROI)
 
 import logging

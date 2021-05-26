@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 
+from typing import Optional, List
 import networkx as nx
 import numpy as np
 import multiprocessing
@@ -23,6 +24,22 @@ def graph_to_img(graph_path: pathlib.Path,
                  attribute: str = 'filtered_hnc_Gaussian') -> np.ndarray:
     """
     Convert a graph into a np.ndarray image
+
+    Parameters
+    ----------
+    graph_path: pathlib.Path
+        Path to graph pickle file
+
+    attribute: str
+        Name of the attribute used to create the image
+        (default = 'filtered_hnc_Gaussian')
+
+    Returns
+    -------
+    np.ndarray
+        An image in which the value of each pixel is the
+        sum of the edge weights connected to that node in
+        the graph.
     """
     graph = nx.read_gpickle(graph_path)
     node_coords = np.array(graph.nodes).T
@@ -35,14 +52,90 @@ def graph_to_img(graph_path: pathlib.Path,
     return img
 
 
-def find_a_peak(img_masked, mu, sigma):
+def find_a_peak(img_masked: np.ma.core.MaskedArray,
+                mu: float,
+                sigma: float,
+                n_sigma: int = 2) -> Optional[int]:
+    """
+    Find a peak in a masked, flattened image array
+
+    Parameters
+    ----------
+    img_masked: np.ma.core.MaskedArray
+        A flattened, masked image array
+
+    mu: float
+        The value taken as the mean pixel value for
+        assessing peak validity
+
+    sigma: float
+        The value taken as the standard deviation of pixel
+        values for assessing peak validity
+
+    n_sigma: int
+        The number of standard deviations a peak must deviate
+        from mu to be considered valid (default: 2)
+
+    Returns
+    -------
+    i_max: Optional[int]
+        The indes of the peak value of img_masked if
+        img_masked[i_max] > mu + n_sigma*sigma.
+        If not, return None
+    """
     candidate = np.argmax(img_masked)
-    if img_masked[candidate] > mu+2*sigma:
+    if img_masked[candidate] > mu+n_sigma*sigma:
         return candidate
     return None
 
 
-def find_peaks(img, mask=None, slop=20):
+def find_peaks(img: np.ndarray,
+               mask: Optional[np.ndarray] = None,
+               slop: int = 20,
+               n_sigma: int = 2) -> List[dict]:
+    """
+    Find the peaks in an image to be used as seeds for ROI finding
+
+    Parameters
+    ----------
+    img: np.ndarray
+
+    mask: Optional[np.ndarray]
+        Optional mask set to True in every pixel that has already been
+        identified as part of an ROI. These pixels will be ignored in
+        peak finding (default: None)
+
+    slop: int
+        The number of pixels to each side of a peak that will be masked
+        out from further peak consideration on the assumption that they
+        are part of the centrail peak's ROI (default: 20)
+
+    n_sigma: int
+        The number of sigma a peak must deviate from the median of the
+        pixel brightness distribution to be considered an ROI candidate.
+        (default: 2)
+
+    Returns
+    -------
+    seeds: List[dict]
+       A list of seeds for ROI finding. Seeds are dicts of the form
+       {'center': a tuple of the form (row, col),
+        'rows': a tuple of the form (rowmin, rowmax),
+        'cols': a tuple of the form (colmin, colmax)}
+
+    Notes
+    -----
+    This method first calculates mu, the median of all unmasked
+    pixel values, and sigma, an estimate of the standard deviation
+    of those values taken from the interquartile range. It then
+    enters a loop in which it looks for the brightest pixel. If that
+    pixel is n_sigma*sigma brighter than mu, that pixel is marked as
+    a potential seed. The chosen pixel and a box surrounding it
+    (2*slop pixels to a side) are then masked out and the next unmasked
+    peak is considered. This process continues until no n_sigma peaks
+    are found.
+    """
+
     output = []
     shape = img.shape
     img_flat = img.flatten()
@@ -60,7 +153,10 @@ def find_peaks(img, mask=None, slop=20):
 
     keep_going = True
     while keep_going:
-        candidate = find_a_peak(img_masked, mu, sigma)
+        candidate = find_a_peak(img_masked,
+                                mu,
+                                sigma,
+                                n_sigma=n_sigma)
         if candidate is None:
             keep_going = False
         else:

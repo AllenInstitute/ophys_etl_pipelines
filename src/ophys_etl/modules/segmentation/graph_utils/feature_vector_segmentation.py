@@ -641,6 +641,8 @@ class FeatureVectorSegmenter(object):
                                mask=self.roi_pixels,
                                slop=20)
 
+        logger.info(f'got {len(seed_list)} seeds')
+
         p_list = []
         mgr = multiprocessing.Manager()
         mgr_dict = mgr.dict()
@@ -673,6 +675,8 @@ class FeatureVectorSegmenter(object):
         for p in p_list:
             p.join()
 
+        logger.info('all processes complete')
+
         for roi_id in mgr_dict:
             origin = mgr_dict[roi_id][0]
             mask = mgr_dict[roi_id][1]
@@ -686,6 +690,7 @@ class FeatureVectorSegmenter(object):
                     cc = origin[1]+ic
                     if mask[ir, ic]:
                         self.roi_pixels[rr, cc] = True
+
         return seed_list
 
     def run(self,
@@ -711,6 +716,7 @@ class FeatureVectorSegmenter(object):
         self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
         keep_going = True
         i_pass = 0
+
         while keep_going:
             n_roi_0 = self.roi_pixels.sum()
             roi_seeds = self._run(img_data, video_data)
@@ -728,15 +734,19 @@ class FeatureVectorSegmenter(object):
             if n_roi_1 <= n_roi_0:
                 keep_going = False
 
+        logger.info('finished iterating on ROIs')
 
         if seed_path is not None:
+            logger.info(f'writing {str(seed_path)}')
             with open(seed_path, 'w') as out_file:
                 out_file.write(json.dumps(seed_record, indent=2))
 
+        logger.info(f'writing {str(roi_path)}')
         with open(roi_path, 'w') as out_file:
             out_file.write(json.dumps(self.roi_list, indent=2))
 
         if plot_path is not None:
+            logger.info(f'writing {str(plot_path)}')
             create_roi_plot(plot_path, img_data, self.roi_list)
 
         duration = time.time()-t0

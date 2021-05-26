@@ -699,6 +699,11 @@ class FeatureVectorSegmenter(object):
                                            seed['rows'][0]:seed['rows'][1],
                                            seed['cols'][0]:seed['cols'][1]]
 
+            _npix = mask.shape[0]*mask.shape[1]
+            _nmask = mask.sum()
+            msg = f'{self.roi_id}: {_npix} pixels; {_nmask} masked'
+            logger.info(msg)
+
             p = multiprocessing.Process(target=_get_roi,
                                         args=(seed,
                                               video_data_subset,

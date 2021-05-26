@@ -4,6 +4,7 @@ from typing import Optional, List, Tuple
 import networkx as nx
 import numpy as np
 import multiprocessing
+import multiprocessing.managers
 from scipy.spatial.distance import cdist
 import h5py
 import pathlib
@@ -432,6 +433,37 @@ class PotentialROI(object):
             rng: Optional[np.random.RandomState] = None) -> np.ndarray:
         """
         Return the (n_pixels, n_pixels) array of feature vectors
+
+        Parameters
+        ----------
+        sub_video: np.ndarray
+            The subset of video data being scanned for an ROI.
+            Shape is (n_time, n_rows, n_cols)
+
+        filter_fraction: float
+            Fraction of brightest timesteps to use in calculating
+            features.
+
+        pixel_ignore: Optional[np.ndarray]
+            A (n_rows, n_cols) array of booleans that is True
+            for any pixel to be ignored, presumably because it
+            has already been assigned to an ROI (default: None)
+
+        rng: Optional[np.random.RandomState]
+            A random number generator (used by
+            calculate_pearson_feature_vectors to select pixels
+            for use in choosing brightest timesteps)
+
+        Returns
+        -------
+        features: np.ndarray
+            A (n_pixels, n_features) array in which each row is the
+            feature vector corresponding to a pixel in sub_video.
+
+        Notes
+        ------
+        features[ii, :] can be mapped into a pixel in sub_video using
+        self.index_to_pixel[ii]
         """
         msg = "PotentialROI does not implement get_features; "
         msg += "must specify a valid sub-class"
@@ -444,9 +476,33 @@ class PotentialROI(object):
             pixel_ignore: Optional[np.ndarray] = None,
             rng: Optional[np.random.RandomState] = None):
         """
-        Set self.feature_distances, the (n_pixels, n_pixels)
-        array containing the distances in feature space between
-        pixels
+        Set self.feature_distances, an (n_pixel, n_pixel) array
+        of distances between pixels in feature space.
+
+        Parameters
+        ----------
+        sub_video: np.ndarray
+            The subset of video data being scanned for an ROI.
+            Shape is (n_time, n_rows, n_cols)
+
+        filter_fraction: float
+            Fraction of brightest timesteps to use in calculating
+            features.
+
+        pixel_ignore: Optional[np.ndarray]
+            A (n_rows, n_cols) array of booleans that is True
+            for any pixel to be ignored, presumably because it
+            has already been assigned to an ROI (default: None)
+
+        rng: Optional[np.random.RandomState]
+            A random number generator (used by
+            calculate_pearson_feature_vectors to select pixels
+            for use in choosing brightest timesteps)
+
+        Notes
+        ------
+        self.feature_distances[ii, jj] can be mapped into pixel coordinates
+        using self.index_to_pixel[ii], self.index_to_pixel[jj]
         """
 
         features = self.get_features(sub_video,
@@ -461,35 +517,87 @@ class PotentialROI(object):
         self.roi_mask = np.zeros(self.n_pixels, dtype=bool)
         self.roi_mask[self.pixel_to_index[self.seed_pt]] = True
 
-    def get_not_roi_mask(self):
+    def get_not_roi_mask(self) -> None:
+        """
+        Set self.not_roi_mask, a 1-D mask that is marked
+        True for pixels that are, for the purposes of one
+        iteration, going to be considered part of the background.
+        These are taken to be the 90% of pixels not in the ROI that
+        are the most distant from the pixels that are in the ROI.
+
+        If there are fewer than 10 pixels not already in the ROI, just
+        set all of these pixels to be background pixels.
+        """
         complement = np.logical_not(self.roi_mask)
         n_complement = complement.sum()
         complement_dexes = np.arange(self.n_pixels, dtype=int)[complement]
 
         complement_distances = self.feature_distances[complement, :]
         complement_distances = complement_distances[:, self.roi_mask]
+
+        # set a pixel's distance from the ROI to be its minimum
+        # distance from any pixel in the ROI
+        # (in the case where there is only one ROI pixel, these
+        # next two lines will not trigger)
         if len(complement_distances.shape) > 1:
             complement_distances = complement_distances.min(axis=1)
 
         self.not_roi_mask = np.zeros(self.n_pixels, dtype=bool)
+
         if n_complement < 10:
             self.not_roi_mask[complement] = True
         else:
+            # select the 90% most distant pixels to be
+            # designated background pixels
             t10 = np.quantile(complement_distances, 0.1)
             valid = complement_distances > t10
             valid_dexes = complement_dexes[valid]
             self.not_roi_mask[valid_dexes] = True
 
+        return None
+
     def select_pixels(self) -> bool:
+        """
+        Run one iteration, looking for pixels to add to self.roi_mask.
+
+        Returns
+        -------
+        chose_one: bool
+            True if any pixels were added to the ROI,
+            False otherwise.
+
+        Notes
+        -----
+        The algorithm is as follows.
+
+        1) Use self.get_not_roi_mask() to select pixels that are to be
+        designated background pixels
+
+        2) For every candidate pixel, designate its feature space distance
+        to the ROI to be the median of its feature space distance to every
+        pixel in the ROI.
+
+        3) For every candidate pixel, find the n_roi background pixels that
+        are closest to it in feature space (n_roi is the number of pixels
+        currently in the ROI). The median of these distances is the
+        candidate pixel's distance from the background.
+
+        4) Any pixel whose background distance is more than twice its
+        ROI distance is added to the ROI
+        """
         chose_one = False
+
+        # select background pixels
         self.get_not_roi_mask()
 
+        # set ROI distance for every pixel
         d_roi = np.median(self.feature_distances[:, self.roi_mask], axis=1)
 
-        # take the mean of as many background points as there are
-        # ROI points, in case one set is dominated by outliers
-        d_bckgd = np.sort(self.feature_distances[:, self.not_roi_mask], axis=1)
         n_roi = self.roi_mask.sum()
+
+        # take the median of the n_roi nearest background distances;
+        # hopefully this will limit the effect of outliers
+        d_bckgd = np.sort(self.feature_distances[:, self.not_roi_mask], axis=1)
         d_bckgd = np.median(d_bckgd[:, :n_roi], axis=1)
 
         valid = d_bckgd > 2*d_roi
@@ -502,22 +610,41 @@ class PotentialROI(object):
 
         return chose_one
 
-    def get_mask(self):
+    def get_mask(self) -> np.ndarray:
+        """
+        Iterate over the pixels, building up the ROI
+
+        Returns
+        -------
+        ouput_img: np.ndarray
+            A (n_rows, n_cols) np.ndarray of booleans marked
+            True for all ROI pixels
+        """
         keep_going = True
+
+        # keep going as long as pizels are being added
+        # to the ROI
         while keep_going:
             keep_going = self.select_pixels()
 
-        output_img = np.zeros(self.img_shape, dtype=int)
+        output_img = np.zeros(self.img_shape, dtype=bool)
         for i_pixel in range(self.n_pixels):
             if not self.roi_mask[i_pixel]:
                 continue
             p = self.index_to_pixel[i_pixel]
-            output_img[p[0], p[1]] = 1
+            output_img[p[0], p[1]] = True
 
         return output_img
 
 
 class PearsonFeatureROI(PotentialROI):
+    """
+    A sub-class of PotentialROI that uses the features
+    calculated by calculate_pearson_feature_vectors
+    to find ROIs.
+
+    See docstring for PotentialROI for __init__ call signature.
+    """
 
     def get_features(
             self,
@@ -527,6 +654,37 @@ class PearsonFeatureROI(PotentialROI):
             rng: Optional[np.random.RandomState] = None) -> np.ndarray:
         """
         Return the (n_pixels, n_pixels) array of feature vectors
+
+        Parameters
+        ----------
+        sub_video: np.ndarray
+            The subset of video data being scanned for an ROI.
+            Shape is (n_time, n_rows, n_cols)
+
+        filter_fraction: float
+            Fraction of brightest timesteps to use in calculating
+            features.
+
+        pixel_ignore: Optional[np.ndarray]
+            A (n_rows, n_cols) array of booleans that is True
+            for any pixel to be ignored, presumably because it
+            has already been assigned to an ROI (default: None)
+
+        rng: Optional[np.random.RandomState]
+            A random number generator (used by
+            calculate_pearson_feature_vectors to select pixels
+            for use in choosing brightest timesteps)
+
+        Returns
+        -------
+        features: np.ndarray
+            A (n_pixels, n_features) array in which each row is the
+            feature vector corresponding to a pixel in sub_video.
+
+        Notes
+        ------
+        features[ii, :] can be mapped into a pixel in sub_video using
+        self.index_to_pixel[ii]
         """
         features = calculate_pearson_feature_vectors(
                                     sub_video,
@@ -537,13 +695,61 @@ class PearsonFeatureROI(PotentialROI):
         return features
 
 
-def _get_roi(seed_obj,
-             video_data,
-             filter_fraction,
-             pixel_ignore,
-             output_dict,
-             roi_id,
-             roi_class):
+def _get_roi(seed_obj: dict,
+             video_data: np.ndarray,
+             filter_fraction: float,
+             pixel_ignore: np.ndarray,
+             output_dict: multiprocessing.managers.DictProxy,
+             roi_id: int,
+             roi_class: type) -> None:
+    """
+    Worker method started as a multiprocessing.Process
+    to actually grow an ROI.
+
+    Parameters
+    ----------
+    seed_obj: dict
+        A dict as returned by find_peaks containing the seed
+        information for one ROI
+
+    video_data: np.ndarray
+        The subset of a video to be searched for the ROI. Shape
+        is (n_time, n_rows, n_cols) where n_rows and n_cols
+        are equal to seed_obj['rows'][1]-seed_obj['rows'][0]
+        and seed_boj['cols'][1]-seed_obj['cols'][0] (i.e. the
+        field of view has already been clipped)
+
+    filter_fraction: float
+        The fraction of brightest timesteps to use in feature
+        calculation
+
+    pixel_ignore: np.ndarray
+        A (n_rows, n_cols) array of booleans marked True at
+        any pixels that should be ignored, presumably because
+        they have already been added to an ROI
+
+    output_dict: multiprocessing.managers.DictProxy
+        The dict where the final ROI mask from this search will
+        be stored. After running this method,
+        output_dict[roi_id] will be a tuple containing the
+        origin of the field of view (i.e. the coordinates of the
+        upper left corner) and the array of booleans representing
+        the ROI's mask.
+
+    roi_id: int
+        The unique ID of this ROI. This will be used as the key
+        in output_dict for this ROI's mask
+
+    roi_class: type
+        The sub-class of PotentialROI that will be used to find
+        this ROI
+
+    Returns
+    -------
+    None
+        Results are stored in output_dict
+    """
+
     seed_pt = seed_obj['center']
     origin = (seed_obj['rows'][0], seed_obj['cols'][0])
 
@@ -555,6 +761,7 @@ def _get_roi(seed_obj,
 
     final_mask = roi.get_mask()
     output_dict[roi_id] = (origin, final_mask)
+    return None
 
 
 def convert_to_lims_roi(origin: Tuple[int, int],
@@ -667,6 +874,44 @@ def create_roi_plot(plot_path: pathlib.Path,
 
 
 class FeatureVectorSegmenter(object):
+    """
+    A class that looks for ROIs based on the clustering of pixels
+    in a feature space calculated from video data.
+
+    Parameters
+    ----------
+    graph_input: pathlib.Path
+        Path to a graph which will be used to seed locations for
+        ROIs (ROIs are detected from features that are calculated
+        directly from the video data)
+
+    video_input: pathlib.Path
+        Path to the video in which ROIs will be detected
+
+    attribute: str
+        The name of the edge attribute that will be used to construct
+        an image from graph_input. Peaks in that image will be used to
+        seed ROIs (default: 'filtered_hnc_Gaussian')
+
+    filter_fraction: float
+        The fraction of brightest timesteps that will be used to construct
+        features from the video data
+
+    n_processors: int
+        The number of parallel processors to use when searching for ROIs
+        (default: 8)
+
+    roi_class: type
+        The sub-class of PotentialROI that is used to grow ROIs from a seed
+        to a mask (default: PearsonFeatureROI)
+
+    Notes
+    -----
+    After calling the run() method in this class, ROIs will be written to
+    a JSONised list. There are also options to store the pixel location of
+    seeds used to find ROIs at each iteration, as well as a summary plot
+    showing ROI borders superimposed over the image derived from graph_input.
+    """
 
     def __init__(self,
                  graph_input: pathlib.Path,
@@ -694,7 +939,34 @@ class FeatureVectorSegmenter(object):
                 msg += f'img shape: {self._graph_img.shape}'
                 raise RuntimeError(msg)
 
-    def _run(self, img_data, video_data):
+    def _run(self,
+             img_data: np.ndarray,
+             video_data: np.ndarray) -> List[dict]:
+        """
+        Run one iteration of ROI detection
+
+        Parameters
+        ----------
+        img_data: np.ndarray
+            A (n_rows, n_cols) array representing an image in which
+            to detect peaks around which to grow ROIs
+
+        video_data: np.ndarray
+            A (n_time, n_rows, n_cols) array containing the video data
+            used to detect ROIs
+
+        Returns
+        -------
+        seed_list: List[dict]
+            A list of all of the seeds (as returned by find_peaks)
+            investigated during this iteration of ROI finding
+
+        Notes
+        -----
+        As this method is run, it will add any pixels identified as
+        ROI pixels to self.roi_pixels. Individual ROIs will be
+        appended to self.roi_list.
+        """
 
         seed_list = find_peaks(img_data,
                                mask=self.roi_pixels,
@@ -702,6 +974,8 @@ class FeatureVectorSegmenter(object):
 
         logger.info(f'got {len(seed_list)} seeds')
 
+        # ROIs can be grown independently of each other;
+        # farm each seed out to an independent process
         p_list = []
         mgr = multiprocessing.Manager()
         mgr_dict = mgr.dict()
@@ -714,11 +988,6 @@ class FeatureVectorSegmenter(object):
                                            seed['rows'][0]:seed['rows'][1],
                                            seed['cols'][0]:seed['cols'][1]]
 
-            #_npix = mask.shape[0]*mask.shape[1]
-            #_nmask = mask.sum()
-            #msg = f'{self.roi_id}: {_npix} pixels; {_nmask} masked'
-            #logger.info(msg)
-
             p = multiprocessing.Process(target=_get_roi,
                                         args=(seed,
                                               video_data_subset,
@@ -729,6 +998,9 @@ class FeatureVectorSegmenter(object):
                                               self.roi_class))
             p.start()
             p_list.append(p)
+
+            # make sure that all processors are working at all times,
+            # if possible
             while len(p_list) > 0 and len(p_list) >= self.n_processors-1:
                 to_pop = []
                 for ii in range(len(p_list)-1, -1, -1):
@@ -741,6 +1013,8 @@ class FeatureVectorSegmenter(object):
 
         logger.info('all processes complete')
 
+        # write output from individual processes to
+        # class storage variables
         for roi_id in mgr_dict:
             origin = mgr_dict[roi_id][0]
             mask = mgr_dict[roi_id][1]
@@ -758,9 +1032,51 @@ class FeatureVectorSegmenter(object):
         return seed_list
 
     def run(self,
-            roi_output=None,
-            seed_output=None,
-            plot_output=None):
+            roi_output: pathlib.Path,
+            seed_output: Optional[pathlib.Path] = None,
+            plot_output: Optional[pathlib.Path] = None) -> None:
+        """
+        Actually perform the work of detecting ROIs in the video
+
+        Parameters
+        ----------
+        roi_output: pathlib.Path
+            Path to the JSON file where discovered ROIs will be recorded
+
+        seed_output: Optional[pathlib.Path]
+            If not None, the path where the seeds for ROI discovery at
+            each iteration will be written out in a JSONized dict.
+            (default: None)
+
+        plot_output: Optional[pathlib.Path]
+            If not None, the path where a plot comparing the seed image
+            with the discovered ROIs will be written.
+            (default: None)
+
+        Returns
+        -------
+        None
+
+        Notes
+        -----
+        ROIs are discovered as follows
+
+        1) Consider all pixels not currently assigned to ROIs.
+        Using the image derived from graph_input, find all of
+        the peaks that are 2 sigma brighter than the median of
+        those pixels. Seed an ROI around each of these peaks (as
+        peaks are selected their neighborhoods are masked out so
+        that candidate peaks do not cluster)
+
+        2) Feed each seed to the PotentialROI sub-class specified
+        in init. Use the algorithm implemented by that class's
+        get_mask method to grow the ROI.
+
+        3) Collect all discovered ROI pixels into one place. As long
+        as pixels are added to the set of ROI pixels, return to (1)
+        and continue.
+        """
+
         t0 = time.time()
 
         img_data = graph_to_img(self._graph_input,
@@ -775,26 +1091,36 @@ class FeatureVectorSegmenter(object):
         if seed_output is not None:
             seed_record = {}
 
+        # list of discovered ROIs
         self.roi_list = []
+
+        # running unique identifier of ROIs
         self.roi_id = -1
+
+        # all pixels that have been flagged as belonging
+        # to an ROI
         self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
+
         keep_going = True
-        i_pass = 0
+        i_iteration = 0
 
         while keep_going:
+
             n_roi_0 = self.roi_pixels.sum()
             roi_seeds = self._run(img_data, video_data)
             n_roi_1 = self.roi_pixels.sum()
+
             duration = time.time()-t0
-            msg = f'Completed pass with {len(roi_seeds)} ROIs '
-            msg += f'in {duration:.2f} seconds; '
+
+            msg = f'Completed iteration with {len(roi_seeds)} ROIs '
+            msg += f'after {duration:.2f} seconds; '
             msg += f'{n_roi_1} total ROI pixels'
             logger.info(msg)
 
             if seed_output is not None:
-                seed_record[i_pass] = roi_seeds
+                seed_record[i_iteration] = roi_seeds
 
-            i_pass += 1
+            i_iteration += 1
             if n_roi_1 <= n_roi_0:
                 keep_going = False
 
@@ -815,3 +1141,4 @@ class FeatureVectorSegmenter(object):
 
         duration = time.time()-t0
         logger.info(f'Completed segmentation in {duration:.2f} seconds')
+        return None

@@ -13,8 +13,10 @@ from ophys_etl.modules.segmentation.graph_utils.feature_vector_segmentation impo
     convert_to_lims_roi,
     graph_to_img,
     find_peaks,
-    calculate_pearson_feature_vectors,
     FeatureVectorSegmenter)
+
+from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import (
+    calculate_pearson_feature_vectors)
 
 
 @pytest.fixture

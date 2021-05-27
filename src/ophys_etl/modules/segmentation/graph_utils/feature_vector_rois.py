@@ -86,41 +86,34 @@ def calculate_pearson_feature_vectors(
     else:
         pixel_ignore_flat = np.zeros(n_rows*n_cols, dtype=bool)
 
-    index_to_pixel = []
-    for ii in range(len(pixel_ignore_flat)):
-        if pixel_ignore_flat[ii]:
-            continue
-        p = np.unravel_index(ii, sub_video.shape[1:])
-        index_to_pixel.append(p)
-    n_pixels = len(index_to_pixel)
+    keep_pixels = np.logical_not(pixel_ignore_flat)
+    n_pixels = keep_pixels.sum()
 
     pearson = np.ones((n_pixels,
                        n_pixels),
                       dtype=float)
 
+    flattened_sub_video = sub_video.reshape(sub_video.shape[0], -1).astype(float)
+    flattened_sub_video = flattened_sub_video[:, keep_pixels]
+
     t0 = time.time()
     for ii0 in range(n_pixels):
-        p0 = index_to_pixel[ii0]
-        raw_trace0 = sub_video[:, p0[0], p0[1]]
+        raw_trace0 = flattened_sub_video[:, ii0]
         th0 = np.quantile(raw_trace0, discard)
         mask0 = np.where(raw_trace0>th0)[0]
-        for ii1 in range(ii0+1, n_pixels, 1):
-            p1 = index_to_pixel[ii1]
-            raw_trace1 = sub_video[:, p1[0], p1[1]]
-            th1 = np.quantile(raw_trace1, discard)
-            mask1 = np.where(raw_trace1>th1)[0]
-            mask = np.unique(np.concatenate([mask0, mask1]))
-            trace0 = raw_trace0[mask]
-            trace1 = raw_trace1[mask]
-            mean0 = np.mean(trace0)
-            mean1 = np.mean(trace1)
-            num = np.mean((trace0-mean0)*(trace1-mean1))
-            n = len(mask)
-            std0 = np.sum((trace0-mean0)**2)/(n-1)
-            std1 = np.sum((trace1-mean1)**2)/(n-1)
-            corr = num/np.sqrt(std0*std1)
-            pearson[ii0, ii1] = corr
-            pearson[ii1, ii0] = corr
+        other_traces = flattened_sub_video[mask0, :]
+        mu_other = np.mean(other_traces, axis=0)
+        assert mu_other.shape == (n_pixels,)
+        other_traces -= mu_other
+        trace0 = raw_trace0[mask0]
+        trace0 -= np.mean(trace0)
+        num = np.dot(other_traces.T, trace0)/len(mask0)
+        assert num.shape == (n_pixels,)
+        var0 = np.mean(trace0**2)
+        other_var = np.mean(other_traces**2, axis=0)
+        assert other_var.shape == (n_pixels)
+        pearson[ii0, :] = num/np.sqrt(var0*other_var)
+
         if ii0%100 == 0:
             dur = (time.time()-t0)
             print('pearson ',ii0,dur)

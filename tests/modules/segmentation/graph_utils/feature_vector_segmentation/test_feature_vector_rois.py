@@ -7,7 +7,7 @@ from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import (
     PearsonFeatureROI)
 
 
-def test_caclulate_pearson_feature_vectors():
+def test_calculate_pearson_feature_vectors():
     """
     run smoke test on calculate_pearson_feature_vectors
     """

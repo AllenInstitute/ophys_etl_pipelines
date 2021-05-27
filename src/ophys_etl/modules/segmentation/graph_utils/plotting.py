@@ -28,24 +28,25 @@ def draw_graph_edges(figure: figure.Figure,
     modifes figure and axis in-place
 
     """
-    weights = np.array([i[attribute_name] for i in graph.edges.values()])
     # graph is (row, col), transpose to get (x, y)
-    segments = []
-    for edge in graph.edges:
-        segments.append([edge[0][::-1], edge[1][::-1]])
+    edges = nx.get_edge_attributes(graph, name=attribute_name)
+    segments = [np.array([edge[0][::-1], edge[1][::-1]]) for edge in edges]
+    weights = np.array(list(edges.values()))
     line_coll = LineCollection(segments, linestyle='solid',
                                cmap="plasma", linewidths=0.3)
     line_coll.set_array(weights)
-    vals = np.concatenate(line_coll.get_segments())
+    vals = np.array(graph.nodes)
     mnvals = vals.min(axis=0)
     mxvals = vals.max(axis=0)
     ppvals = vals.ptp(axis=0)
     buffx = 0.02 * ppvals[0]
     buffy = 0.02 * ppvals[1]
+
     line_coll.set_linewidth(0.3 * 512 / ppvals[0])
     axis.add_collection(line_coll)
     axis.set_xlim(mnvals[0] - buffx, mxvals[0] + buffx)
     axis.set_ylim(mnvals[1] - buffy, mxvals[1] + buffy)
+
     # invert yaxis for image-like orientation
     axis.invert_yaxis()
     axis.set_aspect("equal")

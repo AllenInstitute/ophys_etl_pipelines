@@ -136,6 +136,50 @@ def calculate_masked_correlations(
     return pearson
 
 
+def normalize_features(input_features: np.ndarray) -> np.ndarray:
+    """
+    Take an array of feature vectors. Subtract the minimum from
+    each feature and normalize by the interquartile range.
+    Return the new feature vector.
+
+    Parameters
+    ----------
+    input_features: np.ndarray
+
+    Returns
+    -------
+    output_features = np.ndarray
+    """
+    n_pixels = input_features.shape[0]
+    output_features = np.copy(input_features)
+
+    # subtract off minimum of each feature
+    input_mins = np.min(input_features, axis=0)
+    for ii in range(n_pixels):
+        output_features[:, ii] = output_features[:, ii]-input_mins[ii]
+
+    # Normalize by the interquartile range of each feature.
+    # If the interquartile range is 0, normalize by max-min.
+    # If that is also zero, set the norm to 1.0
+    p75 = np.quantile(output_features, 0.75, axis=0)
+    p25 = np.quantile(output_features, 0.25, axis=0)
+    pmax = np.max(output_features, axis=0)
+    pmin = np.min(output_features, axis=0)
+
+    feature_norms = p75-p25
+    feature_norms = np.where(feature_norms > 1.0e-20,
+                             feature_norms,
+                             pmax-pmin)
+
+    feature_norms = np.where(feature_norms > 1.0e-20,
+                             feature_norms,
+                             1.0)
+
+    for ii in range(n_pixels):
+        output_features[:, ii] = output_features[:, ii]/feature_norms[ii]
+
+    return output_features
+
 def calculate_pearson_feature_vectors(
             sub_video: np.ndarray,
             seed_pt: Tuple[int, int],
@@ -230,34 +274,7 @@ def calculate_pearson_feature_vectors(
     pearson = calculate_masked_correlations(sub_video,
                                             global_mask)
 
-    n_pixels = pearson.shape[0]
-
-    features = np.copy(pearson)
-
-    # subtract off minimum of each feature
-    pearson_mins = np.min(pearson, axis=0)
-    for ii in range(n_pixels):
-        features[:, ii] = features[:, ii]-pearson_mins[ii]
-
-    # Normalize by the interquartile range of each feature.
-    # If the interquartile range is 0, normalize by max-min.
-    # If that is also zero, set the norm to 1.0
-    p75 = np.quantile(features, 0.75, axis=0)
-    p25 = np.quantile(features, 0.25, axis=0)
-    pmax = np.max(features, axis=0)
-    pmin = np.min(features, axis=0)
-
-    feature_norms = p75-p25
-    feature_norms = np.where(feature_norms > 1.0e-20,
-                             feature_norms,
-                             pmax-pmin)
-
-    feature_norms = np.where(feature_norms > 1.0e-20,
-                             feature_norms,
-                             1.0)
-
-    for ii in range(n_pixels):
-        features[:, ii] = features[:, ii]/feature_norms[ii]
+    features = normalize_features(pearson)
 
     return features
 

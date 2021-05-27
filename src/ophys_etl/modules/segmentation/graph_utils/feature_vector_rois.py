@@ -3,6 +3,98 @@ from scipy.spatial.distance import cdist
 import numpy as np
 
 
+def choose_timesteps(
+            sub_video: np.ndarray,
+            seed_pt: Tuple[int, int],
+            filter_fraction: float,
+            rng: Optional[np.random.RandomState] = None,
+            pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
+    """
+    Calculate the Pearson correlation-based feature vectors relating
+    a grid of pixels in a video to each other
+
+    Parameters
+    ----------
+    sub_video: np.ndarray
+        A subset of a video to be correlated.
+        Shape is (n_time, n_rows, n_cols)
+
+    seed_pt: Tuple[int, int]
+        The coordinates of the point being considered as the seed
+        for the ROI. Coordinates must be in the frame of the
+        sub-video represented by sub_video (i.e. seed_pt=(0,0) will be the
+        upper left corner of whatever frame is represented by sub_video)
+
+    filter_fraction: float
+        The fraction of brightest timesteps to be used in calculating
+        the Pearson correlation between pixels
+
+    rng: Optional[np.random.RandomState]
+        A random number generator used to choose pixels which will be
+        used to select the brightest filter_fraction of pixels. If None,
+        an np.random.RandomState will be instantiated with a hard-coded
+        seed (default: None)
+
+    pixel_ignore: Optional[np.ndarray]:
+        An (n_rows, n_cols) array of booleans marked True at any pixels
+        that should be ignored, presumably because they have already been
+        selected as ROI pixels. (default: None)
+
+    Returns
+    -------
+    global_mask: np.ndarray
+        Array of timesteps (ints) to be used for calculating correlations
+    """
+    # fraction of timesteps to discard
+    discard = 1.0-filter_fraction
+
+    n_rows = sub_video.shape[1]
+    n_cols = sub_video.shape[2]
+
+    # start assembling mask in timesteps
+    trace = sub_video[:, seed_pt[0], seed_pt[1]]
+    thresh = np.quantile(trace, discard)
+    global_mask = []
+    mask = np.where(trace >= thresh)[0]
+    global_mask.append(mask)
+
+    # choose n_seeds other points to populate global_mask
+    i_seed = np.ravel_multi_index(seed_pt, sub_video.shape[1:])
+    possible_seeds = []
+    for ii in range(n_rows*n_cols):
+        if ii == i_seed:
+            continue
+        p = np.unravel_index(ii, sub_video.shape[1:])
+
+        if pixel_ignore is None or not pixel_ignore[p[0], p[1]]:
+            possible_seeds.append(ii)
+
+    n_seeds = 10
+    if rng is None:
+        rng = np.random.RandomState(87123)
+    chosen = set()
+    chosen.add(seed_pt)
+
+    if len(possible_seeds) > n_seeds:
+        chosen_indices = rng.choice(possible_seeds,
+                                    size=n_seeds, replace=False)
+        for ii in chosen_indices:
+            p = np.unravel_index(ii, sub_video.shape[1:])
+            chosen.add(p)
+    else:
+        for ii in possible_seeds:
+            p = np.unravel_index(ii, sub_video.shape[1:])
+            chosen.add(p)
+
+    for chosen_pixel in chosen:
+        trace = sub_video[:, chosen_pixel[0], chosen_pixel[1]]
+        thresh = np.quantile(trace, discard)
+        mask = np.where(trace >= thresh)[0]
+        global_mask.append(mask)
+    global_mask = np.unique(np.concatenate(global_mask))
+    return global_mask
+
+
 def calculate_pearson_feature_vectors(
             sub_video: np.ndarray,
             seed_pt: Tuple[int, int],
@@ -69,53 +161,11 @@ def calculate_pearson_feature_vectors(
     a feature vector corresponding to that pixel in sub_video.
     """
 
-    # fraction of timesteps to discard
-    discard = 1.0-filter_fraction
-
-    n_rows = sub_video.shape[1]
-    n_cols = sub_video.shape[2]
-
-    # start assembling mask in timesteps
-    trace = sub_video[:, seed_pt[0], seed_pt[1]]
-    thresh = np.quantile(trace, discard)
-    global_mask = []
-    mask = np.where(trace >= thresh)[0]
-    global_mask.append(mask)
-
-    # choose n_seeds other points to populate global_mask
-    i_seed = np.ravel_multi_index(seed_pt, sub_video.shape[1:])
-    possible_seeds = []
-    for ii in range(n_rows*n_cols):
-        if ii == i_seed:
-            continue
-        p = np.unravel_index(ii, sub_video.shape[1:])
-
-        if pixel_ignore is None or not pixel_ignore[p[0], p[1]]:
-            possible_seeds.append(ii)
-
-    n_seeds = 10
-    if rng is None:
-        rng = np.random.RandomState(87123)
-    chosen = set()
-    chosen.add(seed_pt)
-
-    if len(possible_seeds) > n_seeds:
-        chosen_indices = rng.choice(possible_seeds,
-                                    size=n_seeds, replace=False)
-        for ii in chosen_indices:
-            p = np.unravel_index(ii, sub_video.shape[1:])
-            chosen.add(p)
-    else:
-        for ii in possible_seeds:
-            p = np.unravel_index(ii, sub_video.shape[1:])
-            chosen.add(p)
-
-    for chosen_pixel in chosen:
-        trace = sub_video[:, chosen_pixel[0], chosen_pixel[1]]
-        thresh = np.quantile(trace, discard)
-        mask = np.where(trace >= thresh)[0]
-        global_mask.append(mask)
-    global_mask = np.unique(np.concatenate(global_mask))
+    global_mask = choose_timesteps(sub_video,
+                                   seed_pt,
+                                   filter_fraction,
+                                   rng=rng,
+                                   pixel_ignore=pixel_ignore)
 
     # apply timestep mask
     sub_video = sub_video[global_mask, :, :]

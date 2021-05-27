@@ -222,3 +222,43 @@ class SimpleDenoiseInputSchema(argschema.ArgSchema, DenoiseBaseSchema):
         default=1,
         description=("how many multiprocessing workers to use. If set to "
                      "1, multiprocessing is not invoked."))
+
+
+class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
+    log_level = argschema.fields.LogLevel(default="INFO")
+
+    video_input = argschema.fields.InputFile(
+        required=False,
+        description=("path to hdf5 video with movie stored "
+                     "in dataset 'data' nframes x nrow x ncol"))
+
+    graph_input = argschema.fields.InputFile(
+        required=False,
+        description=("path to graph used to seed ROIS"))
+
+    attribute = argschema.fields.Str(
+        required=False,
+        default="Pearson",
+        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
+                        "filtered_hnc_Gaussian"]),
+        description="which attribute to use in image")
+
+    roi_output = argschema.fields.OutputFile(
+        required=True,
+        description="path to json file where ROIs will be saved")
+
+    plot_output = argschema.fields.OutputFile(
+        required=False,
+        default=None,
+        description="path to summary plot of segmentation")
+
+    seed_output = argschema.fields.OutputFile(
+        required=False,
+        default=None,
+        description=("path to json file where seed points "
+                     "will be saved"))
+
+    n_parallel_workers = argschema.fields.Int(
+        required=False,
+        default=1,
+        description=("how many multiprocessing workers to use."))

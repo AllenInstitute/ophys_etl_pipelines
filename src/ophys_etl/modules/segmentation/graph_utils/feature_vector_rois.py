@@ -180,6 +180,7 @@ def normalize_features(input_features: np.ndarray) -> np.ndarray:
 
     return output_features
 
+
 def calculate_pearson_feature_vectors(
             sub_video: np.ndarray,
             seed_pt: Tuple[int, int],
@@ -263,7 +264,6 @@ def calculate_pearson_feature_vectors(
 
     sub_video = sub_video.reshape(sub_video.shape[0], -1)
     sub_video = sub_video[:, np.logical_not(flat_mask)]
-
 
     global_mask = choose_timesteps(sub_video,
                                    i_seed,

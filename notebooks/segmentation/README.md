@@ -8,12 +8,14 @@ conda env create -f notebooks/segmentation/environment.yml
 
 ### launch as web app
 ```
+conda activate jlab_segmentation
 cd notebooks/segmentation
 voila segmentation_inspection.ipynb
 ```
 
 ### launch as normal jupyter notebook
 ```
+conda activate jlab_segmentation
 cd notebooks/segmentation
 jupyter-lab
 ```

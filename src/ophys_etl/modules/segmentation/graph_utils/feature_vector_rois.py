@@ -112,7 +112,7 @@ def calculate_masked_correlations(
     """
 
     # apply timestep mask
-    traces = sub_video[global_mask, :]
+    traces = sub_video[global_mask, :].astype(float)
 
     # calculate the Pearson correlation coefficient between pixels
     mu = np.mean(traces, axis=0)

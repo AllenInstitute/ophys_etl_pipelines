@@ -1,6 +1,7 @@
 from typing import Optional, Tuple
 from scipy.spatial.distance import cdist
 import numpy as np
+import time
 
 
 def calculate_pearson_feature_vectors(
@@ -74,80 +75,55 @@ def calculate_pearson_feature_vectors(
 
     n_rows = sub_video.shape[1]
     n_cols = sub_video.shape[2]
+    #p = np.unravel_index(ii, sub_video.shape[1:])
 
     # start assembling mask in timesteps
-    trace = sub_video[:, seed_pt[0], seed_pt[1]]
-    thresh = np.quantile(trace, discard)
-    global_mask = []
-    mask = np.where(trace >= thresh)[0]
-    global_mask.append(mask)
-
-    # choose n_seeds other points to populate global_mask
-    i_seed = np.ravel_multi_index(seed_pt, sub_video.shape[1:])
-    possible_seeds = []
-    for ii in range(n_rows*n_cols):
-        if ii == i_seed:
-            continue
-        p = np.unravel_index(ii, sub_video.shape[1:])
-
-        if pixel_ignore is None or not pixel_ignore[p[0], p[1]]:
-            possible_seeds.append(ii)
-
-    n_seeds = 10
-    if rng is None:
-        rng = np.random.RandomState(87123)
-    chosen = set()
-    chosen.add(seed_pt)
-
-    if len(possible_seeds) > n_seeds:
-        chosen_dex = rng.choice(possible_seeds,
-                                size=n_seeds, replace=False)
-        for ii in chosen_dex:
-            p = np.unravel_index(ii, sub_video.shape[1:])
-            chosen.add(p)
-    else:
-        for ii in possible_seeds:
-            p = np.unravel_index(ii, sub_video.shape[1:])
-            chosen.add(p)
-
-    for chosen_pixel in chosen:
-        trace = sub_video[:, chosen_pixel[0], chosen_pixel[1]]
-        thresh = np.quantile(trace, discard)
-        mask = np.where(trace >= thresh)[0]
-        global_mask.append(mask)
-    global_mask = np.unique(np.concatenate(global_mask))
 
     # apply timestep mask
-    sub_video = sub_video[global_mask, :, :]
-    shape = sub_video.shape
-    n_pixels = shape[1]*shape[2]
-    n_time = shape[0]
-    traces = sub_video.reshape(n_time, n_pixels).astype(float)
-    del sub_video
 
-    # mask pixels that need to be masked
     if pixel_ignore is not None:
-        traces = traces[:, np.logical_not(pixel_ignore.flatten())]
-        n_pixels = np.logical_not(pixel_ignore).sum()
+        pixel_ignore_flat = pixel_ignore.flatten()
+    else:
+        pixel_ignore_flat = np.zeros(n_rows*n_cols, dtype=bool)
 
-    # calculate the Pearson correlation coefficient between pixels
-    mu = np.mean(traces, axis=0)
-    traces -= mu
-    var = np.mean(traces**2, axis=0)
-    traces = traces.transpose()
+    index_to_pixel = []
+    for ii in range(len(pixel_ignore_flat)):
+        if pixel_ignore_flat[ii]:
+            continue
+        p = np.unravel_index(ii, sub_video.shape[1:])
+        index_to_pixel.append(p)
+    n_pixels = len(index_to_pixel)
 
     pearson = np.ones((n_pixels,
                        n_pixels),
                       dtype=float)
 
-    numerators = np.tensordot(traces, traces, axes=(1, 1))/n_time
-
-    for ii in range(n_pixels):
-        local_numerators = numerators[ii, ii+1:]
-        denominators = np.sqrt(var[ii]*var[ii+1:])
-        p = local_numerators/denominators
-        pearson[ii, ii+1:] = p
-        pearson[ii+1:, ii] = p
+    t0 = time.time()
+    for ii0 in range(n_pixels):
+        p0 = index_to_pixel[ii0]
+        raw_trace0 = sub_video[:, p0[0], p0[1]]
+        th0 = np.quantile(raw_trace0, discard)
+        mask0 = np.where(raw_trace0>th0)[0]
+        for ii1 in range(ii0+1, n_pixels, 1):
+            p1 = index_to_pixel[ii1]
+            raw_trace1 = sub_video[:, p1[0], p1[1]]
+            th1 = np.quantile(raw_trace1, discard)
+            mask1 = np.where(raw_trace1>th1)[0]
+            mask = np.unique(np.concatenate([mask0, mask1]))
+            trace0 = raw_trace0[mask]
+            trace1 = raw_trace1[mask]
+            mean0 = np.mean(trace0)
+            mean1 = np.mean(trace1)
+            num = np.mean((trace0-mean0)*(trace1-mean1))
+            n = len(mask)
+            std0 = np.sum((trace0-mean0)**2)/(n-1)
+            std1 = np.sum((trace1-mean1)**2)/(n-1)
+            corr = num/np.sqrt(std0*std1)
+            pearson[ii0, ii1] = corr
+            pearson[ii1, ii0] = corr
+        if ii0%100 == 0:
+            dur = (time.time()-t0)
+            print('pearson ',ii0,dur)
 
     features = np.copy(pearson)
 

@@ -100,9 +100,9 @@ def calculate_pearson_feature_vectors(
     chosen.add(seed_pt)
 
     if len(possible_seeds) > n_seeds:
-        chosen_dex = rng.choice(possible_seeds,
-                                size=n_seeds, replace=False)
-        for ii in chosen_dex:
+        chosen_indices = rng.choice(possible_seeds,
+                                    size=n_seeds, replace=False)
+        for ii in chosen_indices:
             p = np.unravel_index(ii, sub_video.shape[1:])
             chosen.add(p)
     else:

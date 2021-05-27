@@ -18,9 +18,22 @@ from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import (
 
 import logging
 
+import sys
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
+
+
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
+
+
+class ROISeed(TypedDict):
+    center: Tuple[int, int]
+    rows: Tuple[int, int]
+    cols: Tuple[int, int]
 
 
 def graph_to_img(graph_path: pathlib.Path,
@@ -95,7 +108,7 @@ def find_a_peak(img_masked: np.ma.core.MaskedArray,
 def find_peaks(img: np.ndarray,
                mask: Optional[np.ndarray] = None,
                slop: int = 20,
-               n_sigma: int = 2) -> List[dict]:
+               n_sigma: int = 2) -> List[ROISeed]:
     """
     Find the peaks in an image to be used as seeds for ROI finding
 
@@ -120,7 +133,7 @@ def find_peaks(img: np.ndarray,
 
     Returns
     -------
-    seeds: List[dict]
+    seeds: List[ROISeed]
        A list of seeds for ROI finding. Seeds are dicts of the form
        {'center': a tuple of the form (row, col),
         'rows': a tuple of the form (rowmin, rowmax),
@@ -169,9 +182,10 @@ def find_peaks(img: np.ndarray,
             colmin = max(0, pixel[1]-slop)
             colmax = min(shape[1], pixel[1]+slop)
 
-            obj = {'center': (int(pixel[0]), int(pixel[1])),
-                   'rows': (int(rowmin), int(rowmax)),
-                   'cols': (int(colmin), int(colmax))}
+            obj = ROISeed(center=(int(pixel[0]), int(pixel[1])),
+                          rows=(int(rowmin), int(rowmax)),
+                          cols=(int(colmin), int(colmax)))
+
             output.append(obj)
             for irow in range(rowmin, rowmax):
                 for icol in range(colmin, colmax):
@@ -181,7 +195,7 @@ def find_peaks(img: np.ndarray,
     return output
 
 
-def _get_roi(seed_obj: dict,
+def _get_roi(seed_obj: ROISeed,
              video_data: np.ndarray,
              filter_fraction: float,
              pixel_ignore: np.ndarray,
@@ -194,7 +208,7 @@ def _get_roi(seed_obj: dict,
 
     Parameters
     ----------
-    seed_obj: dict
+    seed_obj: ROISeed
         A dict as returned by find_peaks containing the seed
         information for one ROI
 

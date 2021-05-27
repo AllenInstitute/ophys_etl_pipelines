@@ -5,7 +5,7 @@ import numpy as np
 
 def choose_timesteps(
             sub_video: np.ndarray,
-            seed_pt: Tuple[int, int],
+            i_seed: int,
             filter_fraction: float,
             rng: Optional[np.random.RandomState] = None,
             pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
@@ -17,13 +17,11 @@ def choose_timesteps(
     ----------
     sub_video: np.ndarray
         A subset of a video to be correlated.
-        Shape is (n_time, n_rows, n_cols)
+        Shape is (n_time, n_pixels)
 
-    seed_pt: Tuple[int, int]
-        The coordinates of the point being considered as the seed
-        for the ROI. Coordinates must be in the frame of the
-        sub-video represented by sub_video (i.e. seed_pt=(0,0) will be the
-        upper left corner of whatever frame is represented by sub_video)
+    i_seed: int
+        The index of the point being considered as the seed
+        for the ROI.
 
     filter_fraction: float
         The fraction of brightest timesteps to be used in calculating
@@ -36,7 +34,7 @@ def choose_timesteps(
         seed (default: None)
 
     pixel_ignore: Optional[np.ndarray]:
-        An (n_rows, n_cols) array of booleans marked True at any pixels
+        An 1-D array of booleans marked True at any pixels
         that should be ignored, presumably because they have already been
         selected as ROI pixels. (default: None)
 
@@ -48,46 +46,39 @@ def choose_timesteps(
     # fraction of timesteps to discard
     discard = 1.0-filter_fraction
 
-    n_rows = sub_video.shape[1]
-    n_cols = sub_video.shape[2]
-
     # start assembling mask in timesteps
-    trace = sub_video[:, seed_pt[0], seed_pt[1]]
+    trace = sub_video[:, i_seed]
     thresh = np.quantile(trace, discard)
     global_mask = []
     mask = np.where(trace >= thresh)[0]
     global_mask.append(mask)
 
     # choose n_seeds other points to populate global_mask
-    i_seed = np.ravel_multi_index(seed_pt, sub_video.shape[1:])
     possible_seeds = []
-    for ii in range(n_rows*n_cols):
+    for ii in range(sub_video.shape[1]):
         if ii == i_seed:
             continue
-        p = np.unravel_index(ii, sub_video.shape[1:])
 
-        if pixel_ignore is None or not pixel_ignore[p[0], p[1]]:
+        if pixel_ignore is None or not pixel_ignore[i_seed]:
             possible_seeds.append(ii)
 
     n_seeds = 10
     if rng is None:
         rng = np.random.RandomState(87123)
     chosen = set()
-    chosen.add(seed_pt)
+    chosen.add(i_seed)
 
     if len(possible_seeds) > n_seeds:
-        chosen_indices = rng.choice(possible_seeds,
-                                    size=n_seeds, replace=False)
-        for ii in chosen_indices:
-            p = np.unravel_index(ii, sub_video.shape[1:])
-            chosen.add(p)
+        chosen_seeds = rng.choice(possible_seeds,
+                                  size=n_seeds, replace=False)
+        for ii in chosen_seeds:
+            chosen.add(ii)
     else:
         for ii in possible_seeds:
-            p = np.unravel_index(ii, sub_video.shape[1:])
-            chosen.add(p)
+            chosen.add(ii)
 
     for chosen_pixel in chosen:
-        trace = sub_video[:, chosen_pixel[0], chosen_pixel[1]]
+        trace = sub_video[:, chosen_pixel]
         thresh = np.quantile(trace, discard)
         mask = np.where(trace >= thresh)[0]
         global_mask.append(mask)
@@ -107,50 +98,33 @@ def calculate_masked_correlations(
     ----------
     sub_video: np.ndarray
         A subset of a video to be correlated.
-        Shape is (n_time, n_rows, n_cols)
+        Shape is (n_time, n_pixels)
 
     global_mask: np.ndarray
         The array of timesteps to be used when calculating the
         Pearson correlation coefficient
 
-    pixel_ignore: Optional[np.ndarray]:
-        An (n_rows, n_cols) array of booleans marked True at any pixels
-        that should be ignored, presumably because they have already been
-        selected as ROI pixels. (default: None)
-
-   Returns
-   -------
-   pearson: np.ndarray
-       A n_pixels by n_pixels array of Pearson correlation coefficients
-       between pixels in the movie.
-   """
-
-    shape = sub_video.shape[1:]
+    Returns
+    -------
+    pearson: np.ndarray
+        A n_pixels by n_pixels array of Pearson correlation coefficients
+        between pixels in the movie.
+    """
 
     # apply timestep mask
-    sub_video = sub_video[global_mask, :, :]
-    shape = sub_video.shape
-    n_pixels = shape[1]*shape[2]
-    n_time = shape[0]
-    traces = sub_video.reshape(n_time, n_pixels).astype(float)
-    del sub_video
-
-    # mask pixels that need to be masked
-    if pixel_ignore is not None:
-        traces = traces[:, np.logical_not(pixel_ignore.flatten())]
-        n_pixels = np.logical_not(pixel_ignore).sum()
+    traces = sub_video[global_mask, :]
 
     # calculate the Pearson correlation coefficient between pixels
     mu = np.mean(traces, axis=0)
     traces -= mu
     var = np.mean(traces**2, axis=0)
-    traces = traces.transpose()
 
+    n_pixels = traces.shape[1]
     pearson = np.ones((n_pixels,
                        n_pixels),
                       dtype=float)
 
-    numerators = np.tensordot(traces, traces, axes=(1, 1))/n_time
+    numerators = np.tensordot(traces, traces, axes=(0, 0))/sub_video.shape[0]
 
     for ii in range(n_pixels):
         local_numerators = numerators[ii, ii+1:]
@@ -228,15 +202,33 @@ def calculate_pearson_feature_vectors(
     a feature vector corresponding to that pixel in sub_video.
     """
 
+    if pixel_ignore is not None:
+        flat_mask = pixel_ignore.flatten()
+    else:
+        flat_mask = np.zeros(sub_video.shape[1]*sub_video.shape[2],
+                             dtype=bool)
+
+    # map unmasked i_seed to masked i_seed
+    i_seed_0 = np.ravel_multi_index(seed_pt, sub_video.shape[1:])
+    i_seed = 0
+    for ii in range(len(flat_mask)):
+        if ii == i_seed_0:
+            break
+        if not flat_mask[ii]:
+            i_seed += 1
+
+    sub_video = sub_video.reshape(sub_video.shape[0], -1)
+    sub_video = sub_video[:, np.logical_not(flat_mask)]
+
+
     global_mask = choose_timesteps(sub_video,
-                                   seed_pt,
+                                   i_seed,
                                    filter_fraction,
                                    rng=rng,
-                                   pixel_ignore=pixel_ignore)
+                                   pixel_ignore=flat_mask)
 
     pearson = calculate_masked_correlations(sub_video,
-                                            global_mask,
-                                            pixel_ignore=pixel_ignore)
+                                            global_mask)
 
     n_pixels = pearson.shape[0]
 

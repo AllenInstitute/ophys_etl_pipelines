@@ -1,4 +1,4 @@
-import matplotlib.pyplot as plt
+import matplotlib.figure as mplt_figure
 
 from typing import Optional, List, Tuple
 import networkx as nx
@@ -327,7 +327,8 @@ def create_roi_plot(plot_path: pathlib.Path,
     -------
     None
     """
-    fig, axes = plt.subplots(1, 2, figsize=(40, 20))
+    fig = mplt_figure.Figure(figsize=(40, 20))
+    axes = [fig.add_subplot(1, 2, i) for i in [1, 2]]
     axes[0].imshow(img_data)
     axes[1].imshow(img_data)
 
@@ -354,7 +355,6 @@ def create_roi_plot(plot_path: pathlib.Path,
     axes[1].imshow(bdry_pixels, cmap='autumn', alpha=1.0)
     fig.tight_layout()
     fig.savefig(plot_path)
-    plt.close(fig=fig)
     return None
 
 

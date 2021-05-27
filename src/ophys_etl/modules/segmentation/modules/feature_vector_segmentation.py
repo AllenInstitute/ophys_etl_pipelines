@@ -1,4 +1,3 @@
-import matplotlib
 import argschema
 import pathlib
 
@@ -8,9 +7,6 @@ from ophys_etl.modules.segmentation.modules.schemas import \
 from ophys_etl.modules.segmentation.graph_utils.\
     feature_vector_segmentation import (
         FeatureVectorSegmenter)
-
-
-matplotlib.use('Agg')
 
 
 class FeatureVectorSegmentationRunner(argschema.ArgSchemaParser):

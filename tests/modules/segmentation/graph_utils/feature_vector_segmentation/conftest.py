@@ -40,7 +40,7 @@ def example_graph(tmpdir):
                                    dummy_attribute=v)
 
     nx.write_gpickle(graph, graph_path)
-    return graph_path
+    yield graph_path
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def example_video(tmpdir):
 
     with h5py.File(video_path, 'w') as out_file:
         out_file.create_dataset('data', data=data)
-    return video_path
+    yield video_path
 
 
 @pytest.fixture
@@ -106,7 +106,7 @@ def blank_graph(tmpdir):
                                    dummy_attribute=0.0)
 
     nx.write_gpickle(graph, graph_path)
-    return graph_path
+    yield graph_path
 
 
 @pytest.fixture
@@ -122,7 +122,7 @@ def blank_video(tmpdir):
 
     with h5py.File(video_path, 'w') as out_file:
         out_file.create_dataset('data', data=data)
-    return video_path
+    yield video_path
 
 
 @pytest.fixture

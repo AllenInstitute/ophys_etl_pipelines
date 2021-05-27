@@ -279,6 +279,68 @@ def calculate_pearson_feature_vectors(
     return features
 
 
+def get_background_mask(
+        distances: np.ndarray,
+        roi_mask: np.ndarray) -> np.ndarray:
+    """
+    Find a boolean mask of pixels that are in the fiducial
+    background of the field of view.
+
+    Parameters
+    ----------
+    distances: np.ndarray
+        An (n_pixels, n_pixels) array encoding the feature
+        space distances between pixels in the field of view
+
+    roi_mask: np.ndarray
+        An (n_pixels,) array of booleans marked True
+        for all pixels in the ROI
+
+    Returns
+    -------
+    background_mask: np.ndarray
+        An (n_pixels,) array of booleans marked True
+        for all pixels in the fiducial background of hte ROI
+
+
+    Notes
+    ------
+    Background pixels are taken to be the 90% of pixels not in the
+    ROI that are the most distant from the pixels that are in the ROI.
+
+    If there are fewer than 10 pixels not already in the ROI, just
+    set all of these pixels to be background pixels.
+    """
+    n_pixels = distances.shape[0]
+    complement = np.logical_not(roi_mask)
+    n_complement = complement.sum()
+    complement_dexes = np.arange(n_pixels, dtype=int)[complement]
+
+    complement_distances = distances[complement, :]
+    complement_distances = complement_distances[:, roi_mask]
+
+    # set a pixel's distance from the ROI to be its minimum
+    # distance from any pixel in the ROI
+    # (in the case where there is only one ROI pixel, these
+    # next two lines will not trigger)
+    if len(complement_distances.shape) > 1:
+        complement_distances = complement_distances.min(axis=1)
+
+    background_mask = np.zeros(n_pixels, dtype=bool)
+
+    if n_complement < 10:
+        background_mask[complement] = True
+    else:
+        # select the 90% most distant pixels to be
+        # designated background pixels
+        t10 = np.quantile(complement_distances, 0.1)
+        valid = complement_distances > t10
+        valid_dexes = complement_dexes[valid]
+        background_mask[valid_dexes] = True
+
+    return background_mask
+
+
 class PotentialROI(object):
     """
     A class to do the work of finding the pixel mask for a single
@@ -444,45 +506,6 @@ class PotentialROI(object):
         self.roi_mask = np.zeros(self.n_pixels, dtype=bool)
         self.roi_mask[self.pixel_to_index[self.seed_pt]] = True
 
-    def get_not_roi_mask(self) -> None:
-        """
-        Set self.not_roi_mask, a 1-D mask that is marked
-        True for pixels that are, for the purposes of one
-        iteration, going to be considered part of the background.
-        These are taken to be the 90% of pixels not in the ROI that
-        are the most distant from the pixels that are in the ROI.
-
-        If there are fewer than 10 pixels not already in the ROI, just
-        set all of these pixels to be background pixels.
-        """
-        complement = np.logical_not(self.roi_mask)
-        n_complement = complement.sum()
-        complement_dexes = np.arange(self.n_pixels, dtype=int)[complement]
-
-        complement_distances = self.feature_distances[complement, :]
-        complement_distances = complement_distances[:, self.roi_mask]
-
-        # set a pixel's distance from the ROI to be its minimum
-        # distance from any pixel in the ROI
-        # (in the case where there is only one ROI pixel, these
-        # next two lines will not trigger)
-        if len(complement_distances.shape) > 1:
-            complement_distances = complement_distances.min(axis=1)
-
-        self.not_roi_mask = np.zeros(self.n_pixels, dtype=bool)
-
-        if n_complement < 10:
-            self.not_roi_mask[complement] = True
-        else:
-            # select the 90% most distant pixels to be
-            # designated background pixels
-            t10 = np.quantile(complement_distances, 0.1)
-            valid = complement_distances > t10
-            valid_dexes = complement_dexes[valid]
-            self.not_roi_mask[valid_dexes] = True
-
-        return None
-
     def select_pixels(self) -> bool:
         """
         Run one iteration, looking for pixels to add to self.roi_mask.
@@ -515,7 +538,8 @@ class PotentialROI(object):
         chose_one = False
 
         # select background pixels
-        self.get_not_roi_mask()
+        self.not_roi_mask = get_background_mask(self.feature_distances,
+                                                self.roi_mask)
 
         # set ROI distance for every pixel
         d_roi = np.median(self.feature_distances[:, self.roi_mask], axis=1)

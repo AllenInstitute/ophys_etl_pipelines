@@ -95,6 +95,73 @@ def choose_timesteps(
     return global_mask
 
 
+def calculate_masked_correlations(
+            sub_video: np.ndarray,
+            global_mask: np.ndarray,
+            pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
+    """
+    Calculate and return the Pearson correlation coefficient between
+    pixels in a video, using only specific timesteps
+
+    Parameters
+    ----------
+    sub_video: np.ndarray
+        A subset of a video to be correlated.
+        Shape is (n_time, n_rows, n_cols)
+
+    global_mask: np.ndarray
+        The array of timesteps to be used when calculating the
+        Pearson correlation coefficient
+
+    pixel_ignore: Optional[np.ndarray]:
+        An (n_rows, n_cols) array of booleans marked True at any pixels
+        that should be ignored, presumably because they have already been
+        selected as ROI pixels. (default: None)
+
+   Returns
+   -------
+   pearson: np.ndarray
+       A n_pixels by n_pixels array of Pearson correlation coefficients
+       between pixels in the movie.
+   """
+
+    shape = sub_video.shape[1:]
+
+    # apply timestep mask
+    sub_video = sub_video[global_mask, :, :]
+    shape = sub_video.shape
+    n_pixels = shape[1]*shape[2]
+    n_time = shape[0]
+    traces = sub_video.reshape(n_time, n_pixels).astype(float)
+    del sub_video
+
+    # mask pixels that need to be masked
+    if pixel_ignore is not None:
+        traces = traces[:, np.logical_not(pixel_ignore.flatten())]
+        n_pixels = np.logical_not(pixel_ignore).sum()
+
+    # calculate the Pearson correlation coefficient between pixels
+    mu = np.mean(traces, axis=0)
+    traces -= mu
+    var = np.mean(traces**2, axis=0)
+    traces = traces.transpose()
+
+    pearson = np.ones((n_pixels,
+                       n_pixels),
+                      dtype=float)
+
+    numerators = np.tensordot(traces, traces, axes=(1, 1))/n_time
+
+    for ii in range(n_pixels):
+        local_numerators = numerators[ii, ii+1:]
+        denominators = np.sqrt(var[ii]*var[ii+1:])
+        p = local_numerators/denominators
+        pearson[ii, ii+1:] = p
+        pearson[ii+1:, ii] = p
+
+    return pearson
+
+
 def calculate_pearson_feature_vectors(
             sub_video: np.ndarray,
             seed_pt: Tuple[int, int],
@@ -167,37 +234,11 @@ def calculate_pearson_feature_vectors(
                                    rng=rng,
                                    pixel_ignore=pixel_ignore)
 
-    # apply timestep mask
-    sub_video = sub_video[global_mask, :, :]
-    shape = sub_video.shape
-    n_pixels = shape[1]*shape[2]
-    n_time = shape[0]
-    traces = sub_video.reshape(n_time, n_pixels).astype(float)
-    del sub_video
+    pearson = calculate_masked_correlations(sub_video,
+                                            global_mask,
+                                            pixel_ignore=pixel_ignore)
 
-    # mask pixels that need to be masked
-    if pixel_ignore is not None:
-        traces = traces[:, np.logical_not(pixel_ignore.flatten())]
-        n_pixels = np.logical_not(pixel_ignore).sum()
-
-    # calculate the Pearson correlation coefficient between pixels
-    mu = np.mean(traces, axis=0)
-    traces -= mu
-    var = np.mean(traces**2, axis=0)
-    traces = traces.transpose()
-
-    pearson = np.ones((n_pixels,
-                       n_pixels),
-                      dtype=float)
-
-    numerators = np.tensordot(traces, traces, axes=(1, 1))/n_time
-
-    for ii in range(n_pixels):
-        local_numerators = numerators[ii, ii+1:]
-        denominators = np.sqrt(var[ii]*var[ii+1:])
-        p = local_numerators/denominators
-        pearson[ii, ii+1:] = p
-        pearson[ii+1:, ii] = p
+    n_pixels = pearson.shape[0]
 
     features = np.copy(pearson)
 

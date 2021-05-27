@@ -95,25 +95,11 @@ def calculate_pearson_feature_vectors(
 
     flattened_sub_video = sub_video.reshape(sub_video.shape[0], -1).astype(float)
     flattened_sub_video = flattened_sub_video[:, keep_pixels]
-    n_time = flattened_sub_video.shape[0]
 
     t0 = time.time()
     for ii0 in range(n_pixels):
         raw_trace0 = flattened_sub_video[:, ii0]
         th0 = np.quantile(raw_trace0, discard)
-        mask0 = (raw_trace0>th0)
-        full_mask = np.zeros((n_pixels, n_time), dtype=int)
-        for ii1 in range(ii0+1, n_pixels):
-            raw_trace1 = flattened_sub_video[:, ii1]
-            th1 = np.quantile(raw_trace1, discard)
-            mask1 = (raw_trace1>th1)
-            mask = np.zeros(n_time, dtype=bool)
-            full_mask[ii1,:] = 1
-
-        num = np.einsum('i,ji,ij->j',raw_trace0, full_mask, flattened_sub_video)
-        #assert num.shape == (n_pixels,)
-
-        """
         mask0 = np.where(raw_trace0>th0)[0]
         other_traces = flattened_sub_video[mask0, :]
         mu_other = np.mean(other_traces, axis=0)
@@ -127,7 +113,6 @@ def calculate_pearson_feature_vectors(
         other_var = np.mean(other_traces**2, axis=0)
         assert other_var.shape == (n_pixels)
         pearson[ii0, :] = num/np.sqrt(var0*other_var)
-        """
 
         if ii0%100 == 0:
             dur = (time.time()-t0)

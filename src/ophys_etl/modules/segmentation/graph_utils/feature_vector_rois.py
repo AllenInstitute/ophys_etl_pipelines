@@ -538,8 +538,8 @@ class PotentialROI(object):
         chose_one = False
 
         # select background pixels
-        self.not_roi_mask = get_background_mask(self.feature_distances,
-                                                self.roi_mask)
+        background_mask = get_background_mask(self.feature_distances,
+                                              self.roi_mask)
 
         # set ROI distance for every pixel
         d_roi = np.median(self.feature_distances[:, self.roi_mask], axis=1)
@@ -548,7 +548,7 @@ class PotentialROI(object):
 
         # take the median of the n_roi nearest background distances;
         # hopefully this will limit the effect of outliers
-        d_bckgd = np.sort(self.feature_distances[:, self.not_roi_mask], axis=1)
+        d_bckgd = np.sort(self.feature_distances[:, background_mask], axis=1)
         d_bckgd = np.median(d_bckgd[:, :n_roi], axis=1)
 
         valid = d_bckgd > 2*d_roi

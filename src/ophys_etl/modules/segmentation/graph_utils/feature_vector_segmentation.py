@@ -274,26 +274,11 @@ def convert_to_lims_roi(origin: Tuple[int, int],
         an ExtractROI matching the input data
     """
     # trim mask
-    row0 = 0
-    col0 = 0
-    row1 = mask.shape[0]
-    col1 = mask.shape[1]
-    for i_row in range(mask.shape[0]):
-        if mask[i_row, :].sum() > 0:
-            break
-        row0 += 1
-    for i_row in range(mask.shape[0]-1, -1, -1):
-        if mask[i_row, :].sum() > 0:
-            break
-        row1 -= 1
-    for i_col in range(mask.shape[1]):
-        if mask[:, i_col].sum() > 0:
-            break
-        col0 += 1
-    for i_col in range(mask.shape[1]-1, -1, -1):
-        if mask[:, i_col].sum() > 0:
-            break
-        col1 -= 1
+    valid = np.argwhere(mask)
+    row0 = valid[:, 0].min()
+    row1 = valid[:, 0].max() + 1
+    col0 = valid[:, 1].min()
+    col1 = valid[:, 1].max() + 1
 
     new_mask = mask[row0:row1, col0:col1]
     roi = ExtractROI(id=roi_id,

@@ -414,6 +414,9 @@ class PotentialROI(object):
                                          pixel_ignore=pixel_ignore,
                                          rng=rng)
 
+        self.roi_mask = np.zeros(self.n_pixels, dtype=bool)
+        self.roi_mask[self.pixel_to_index[self.seed_pt]] = True
+
     def get_features(
             self,
             sub_video: np.ndarray,
@@ -502,9 +505,6 @@ class PotentialROI(object):
         self.feature_distances = cdist(features,
                                        features,
                                        metric='euclidean')
-
-        self.roi_mask = np.zeros(self.n_pixels, dtype=bool)
-        self.roi_mask[self.pixel_to_index[self.seed_pt]] = True
 
     def select_pixels(self) -> bool:
         """

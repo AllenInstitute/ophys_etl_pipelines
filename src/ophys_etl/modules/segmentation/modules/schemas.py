@@ -75,7 +75,7 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
         description="written by nx.write_gpickle() for graph output")
     plot_output = argschema.fields.OutputFile(
         required=False,
-        description=("if provided, will create a plot saved to this location.",
+        description=("if provided, will create a plot saved to this location."
                      "The format is inferred from the extension by "
                      "matplotlib.figure.Figure.savefig()"))
     attribute = argschema.fields.Str(

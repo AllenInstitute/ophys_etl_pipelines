@@ -114,9 +114,9 @@ def calculate_pearson_feature_vectors(
         assert other_var.shape == (n_pixels)
         pearson[ii0, :] = num/np.sqrt(var0*other_var)
 
-        if ii0%100 == 0:
-            dur = (time.time()-t0)
-            print('pearson ',ii0,dur)
+        #if ii0%100 == 0:
+        #    dur = (time.time()-t0)
+        #    print('pearson ',ii0,dur)
 
     features = np.copy(pearson)
 

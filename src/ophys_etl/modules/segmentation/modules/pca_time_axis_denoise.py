@@ -7,7 +7,7 @@ from ophys_etl.modules.segmentation.modules.schemas import \
     PCADenoiseInputSchema
 
 
-class PCADenoise(argschema.ArgSchemaParser):
+class PCATimeDenoiser(argschema.ArgSchemaParser):
     default_schema = PCADenoiseInputSchema
 
     def run(self):
@@ -48,5 +48,5 @@ class PCADenoise(argschema.ArgSchemaParser):
 
 
 if __name__ == "__main__":
-    pcadn = PCADenoise()
+    pcadn = PCATimeDenoiser()
     pcadn.run()

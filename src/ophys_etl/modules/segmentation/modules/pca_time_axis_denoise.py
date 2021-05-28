@@ -16,6 +16,9 @@ class PCATimeDenoiser(argschema.ArgSchemaParser):
         self.logger.info(f"filtering {self.args['video_path']}")
         with h5py.File(self.args["video_path"], "r") as f:
             data = f["data"][()]
+
+        self.logger.info("read in video data")
+
         dshape = data.shape
 
         # flatten the data

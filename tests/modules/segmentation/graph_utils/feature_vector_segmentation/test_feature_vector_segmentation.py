@@ -6,10 +6,12 @@ import json
 
 from ophys_etl.types import ExtractROI
 
+from ophys_etl.modules.segmentation.graph_utils.plotting import (
+    graph_to_img)
+
 from ophys_etl.modules.segmentation.\
     graph_utils.feature_vector_segmentation import (
         convert_to_lims_roi,
-        graph_to_img,
         find_peaks,
         FeatureVectorSegmenter)
 
@@ -45,7 +47,7 @@ def test_graph_to_img(example_graph):
     smoke test graph_to_img
     """
     img = graph_to_img(example_graph,
-                       attribute='dummy_attribute')
+                       attribute_name='dummy_attribute')
 
     # check that image has expected type and shape
     assert type(img) == np.ndarray

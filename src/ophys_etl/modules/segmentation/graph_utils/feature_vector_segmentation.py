@@ -1,5 +1,4 @@
 from typing import Optional, List, Tuple
-import networkx as nx
 import numpy as np
 import multiprocessing
 import multiprocessing.managers
@@ -14,7 +13,8 @@ from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import (
     PearsonFeatureROI)
 
 from ophys_etl.modules.segmentation.graph_utils.plotting import (
-    create_roi_plot)
+    create_roi_plot,
+    graph_to_img)
 
 import logging
 
@@ -34,38 +34,6 @@ class ROISeed(TypedDict):
     center: Tuple[int, int]
     rows: Tuple[int, int]
     cols: Tuple[int, int]
-
-
-def graph_to_img(graph_path: pathlib.Path,
-                 attribute: str = 'filtered_hnc_Gaussian') -> np.ndarray:
-    """
-    Convert a graph into a np.ndarray image
-
-    Parameters
-    ----------
-    graph_path: pathlib.Path
-        Path to graph pickle file
-
-    attribute: str
-        Name of the attribute used to create the image
-        (default = 'filtered_hnc_Gaussian')
-
-    Returns
-    -------
-    np.ndarray
-        An image in which the value of each pixel is the
-        sum of the edge weights connected to that node in
-        the graph.
-    """
-    graph = nx.read_gpickle(graph_path)
-    node_coords = np.array(graph.nodes).T
-    row_max = node_coords[0].max()
-    col_max = node_coords[1].max()
-    img = np.zeros((row_max+1, col_max+1), dtype=float)
-    for node in graph.nodes:
-        vals = [graph[node][i][attribute] for i in graph.neighbors(node)]
-        img[node[0], node[1]] = np.sum(vals)
-    return img
 
 
 def find_a_peak(img_masked: np.ma.core.MaskedArray,
@@ -361,7 +329,7 @@ class FeatureVectorSegmenter(object):
         self._filter_fraction = filter_fraction
         self.rng = np.random.RandomState(11923141)
         self._graph_img = graph_to_img(graph_input,
-                                       attribute=attribute)
+                                       attribute_name=attribute)
 
         with h5py.File(self._video_input, 'r') as in_file:
             self._movie_data = in_file['data'][()]
@@ -512,7 +480,7 @@ class FeatureVectorSegmenter(object):
         t0 = time.time()
 
         img_data = graph_to_img(self._graph_input,
-                                attribute=self._attribute)
+                                attribute_name=self._attribute)
 
         logger.info(f'read in image data from {str(self._graph_input)}')
 

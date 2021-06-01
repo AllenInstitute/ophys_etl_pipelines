@@ -121,6 +121,19 @@ class GraphPlotInputSchema(argschema.ArgSchema):
     plot_output = argschema.fields.OutputFile(
         required=True,
         description=("destination png for plot"))
+    draw_edges = argschema.fields.Boolean(
+        required=False,
+        default=False,
+        description=("If true, draw edges of graph. "
+                     "If false, draw graph as pixel image "
+                     "in which a pixel's intensity is the sum of "
+                     "the edge weights connected to that pixel. "))
+    attribute = argschema.fields.Str(
+        required=False,
+        default="Pearson",
+        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
+                        "filtered_hnc_Gaussian"]),
+        description="which attribute to use in image")
 
 
 class SegmentV0InputSchema(argschema.ArgSchema):

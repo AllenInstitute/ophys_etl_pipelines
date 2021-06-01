@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+import multiprocessing
 from pathlib import Path
 from typing import List, Union, Optional
 
@@ -194,14 +195,37 @@ def grow_subgraph(graph: nx.Graph,
             # in low-contrast regions, sometimes growth never stopped
             return last_sub
 
-    print(f"grew subgraph from {n_start} to {n_nodes}")
     return last_sub
+
+
+def _process_subgraphs(subgraphs,
+                       graph,
+                       attribute_name,
+                       p_id,
+                       out_dict):
+
+    local_expanded = []
+    for subgraph in subgraphs:
+        sub_nodes = set(subgraph.nodes) & set(graph.nodes)
+        subgraph = graph.subgraph(sub_nodes)
+        expanded_subgraph = grow_subgraph(graph,
+                                          subgraph,
+                                          attribute_name)
+        if expanded_subgraph is None:
+            continue
+        node_list = set(graph.nodes) - set(expanded_subgraph.nodes)
+        graph = graph.subgraph(node_list)
+        local_expanded.append(expanded_subgraph)
+
+    full_graph = nx.compose_all(local_expanded)
+    out_dict[p_id] = full_graph
 
 
 def iterative_detection(graph: Union[nx.Graph, Path],
                         attribute_name: str,
                         seed_quantile: int,
-                        n_node_thresh=20) -> Union[nx.Graph, Path, None]:
+                        n_node_thresh=20,
+                        n_processes=1) -> Union[nx.Graph, Path]:
     """idenitfy seeds, grow out ROIs, repeat
 
     Parameters
@@ -214,18 +238,21 @@ def iterative_detection(graph: Union[nx.Graph, Path],
         establishes threshold for finding seeds
     n_node_thresh: int
         seeds smaller than this are disregarded
+    n_processes: int
+        number of processors to run
 
     Returns
     -------
     graph: nx.Graph
         a graph consisting of only identified ROIs, or a path to such
-        (note: if no ROIs are identified, returns None)
 
     """
     from_path = None
     if isinstance(graph, Path):
         from_path = Path(graph)
         graph = nx.read_gpickle(graph)
+
+    rng = np.random.RandomState(1182)
 
     collected = []
     for jj in range(5):
@@ -235,30 +262,63 @@ def iterative_detection(graph: Union[nx.Graph, Path],
                                                n_node_thresh=n_node_thresh)
         if len(subgraphs) == 0:
             break
-        expanded = []
-        for subgraph in subgraphs:
-            sub_nodes = set(subgraph.nodes) & set(graph.nodes)
-            subgraph = graph.subgraph(sub_nodes)
-            expanded_subgraph = grow_subgraph(graph,
-                                              subgraph,
-                                              attribute_name)
-            if expanded_subgraph is None:
-                continue
-            node_list = set(graph.nodes) - set(expanded_subgraph.nodes)
-            graph = graph.subgraph(node_list)
-            expanded.append(expanded_subgraph)
-        expanded = nx.compose_all(expanded)
+
+        rng.shuffle(subgraphs)
+        many_graphs = False
+        if n_processes == 1:
+            out_dict = {}
+            _process_subgraphs(subgraphs, graph, attribute_name, 0, out_dict)
+            expanded = out_dict[0]
+        else:
+
+            slop = 4
+            n_subgraphs = len(subgraphs)
+            d_graph = n_subgraphs//(slop*n_processes)
+
+            # the slop factor is so that each process
+            # gets the chance to take on more than one group
+            # of subgraphs, in case one group is messier
+            # than another (which is likely true)
+            while (slop*n_processes)*d_graph < n_subgraphs:
+                d_graph += 1
+
+            p_list = []
+            mgr = multiprocessing.Manager()
+            out_dict = mgr.dict()
+
+            for i_start in range(0, n_subgraphs, d_graph):
+                p = multiprocessing.Process(target=_process_subgraphs,
+                                            args=(subgraphs[i_start:i_start+d_graph],
+                                                  graph, attribute_name, i_start,
+                                                  out_dict))
+                p.start()
+                p_list.append(p)
+                while len(p_list) >= n_processes:
+                    to_pop = []
+                    for ii in range(len(p_list)-1,-1,-1):
+                        if p_list[ii].exitcode is not None:
+                            to_pop.append(ii)
+                    for ii in to_pop:
+                        p_list.pop(ii)
+            for p in p_list:
+                p.join()
+
+            many_graphs = True
+            expanded = []
+            for ii in out_dict:
+                expanded.append(out_dict[ii])
+
+        if many_graphs:
+            for el in expanded:
+                expanded = nx.compose_all(expanded)
 
         nodes = [i for i in graph if i not in expanded]
         graph = nx.Graph(graph.subgraph(nodes))
         collected.append(expanded)
 
-    if len(collected) > 0:
-        graph = nx.compose_all(collected)
-    else:
-        graph = None
+    graph = nx.compose_all(collected)
 
-    if from_path is not None and graph is not None:
+    if from_path is not None:
         nx.write_gpickle(graph, from_path)
         graph = from_path
 

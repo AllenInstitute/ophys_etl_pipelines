@@ -121,6 +121,12 @@ class GraphPlotInputSchema(argschema.ArgSchema):
     plot_output = argschema.fields.OutputFile(
         required=True,
         description=("destination png for plot"))
+    attribute = argschema.fields.Str(
+        required=False,
+        default="Pearson",
+        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
+                        "filtered_hnc_Gaussian"]),
+        description="which attribute to use in image")
 
 
 class SegmentV0InputSchema(argschema.ArgSchema):

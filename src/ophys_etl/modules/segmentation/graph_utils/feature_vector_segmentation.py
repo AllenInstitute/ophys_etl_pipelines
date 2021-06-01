@@ -1,5 +1,4 @@
 from typing import Optional, List, Tuple
-import networkx as nx
 import numpy as np
 import multiprocessing
 import multiprocessing.managers

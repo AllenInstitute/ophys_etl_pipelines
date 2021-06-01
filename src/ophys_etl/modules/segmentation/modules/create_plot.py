@@ -19,10 +19,16 @@ class GraphPlot(argschema.ArgSchemaParser):
         graph = nx.read_gpickle(self.args["graph_input"])
         fig = figure.Figure(figsize=(16, 16))
         axis = fig.add_subplot(111)
-        plotting.draw_graph_edges(fig,
-                                  axis,
-                                  graph,
-                                  attribute_name=self.args['attribute'])
+        if self.args['draw_edges']:
+            plotting.draw_graph_edges(fig,
+                                      axis,
+                                      graph,
+                                      attribute_name=self.args['attribute'])
+        else:
+            plotting.draw_graph_img(fig,
+                                    axis,
+                                    graph,
+                                    attribute_name=self.args['attribute'])
         fig.savefig(self.args["plot_output"], dpi=300)
         self.logger.info(f"wrote {self.args['plot_output']}")
 

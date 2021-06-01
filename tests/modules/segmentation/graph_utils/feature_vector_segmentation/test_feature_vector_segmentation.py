@@ -47,7 +47,7 @@ def test_graph_to_img(example_graph):
     smoke test graph_to_img
     """
     img = graph_to_img(example_graph,
-                       attribute='dummy_attribute')
+                       attribute_name='dummy_attribute')
 
     # check that image has expected type and shape
     assert type(img) == np.ndarray

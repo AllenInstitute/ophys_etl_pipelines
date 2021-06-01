@@ -114,7 +114,7 @@ def create_roi_plot(plot_path: pathlib.Path,
 
 
 def graph_to_img(graph: Union[pathlib.Path, nx.Graph],
-                 attribute: str = 'filtered_hnc_Gaussian') -> np.ndarray:
+                 attribute_name: str = 'filtered_hnc_Gaussian') -> np.ndarray:
     """
     Convert a graph into a np.ndarray image
 
@@ -124,7 +124,7 @@ def graph_to_img(graph: Union[pathlib.Path, nx.Graph],
         Either a networkx.Graph or the path to a pickle file
         containing the graph
 
-    attribute: str
+    attribute_name: str
         Name of the attribute used to create the image
         (default = 'filtered_hnc_Gaussian')
 
@@ -148,7 +148,8 @@ def graph_to_img(graph: Union[pathlib.Path, nx.Graph],
     col_max = node_coords[1].max()
     img = np.zeros((row_max+1, col_max+1), dtype=float)
     for node in graph.nodes:
-        vals = [graph[node][i][attribute] for i in graph.neighbors(node)]
+        vals = [graph[node][i][attribute_name]
+                for i in graph.neighbors(node)]
         img[node[0], node[1]] = np.sum(vals)
     return img
 
@@ -178,7 +179,7 @@ def draw_graph_img(figure: figure.Figure,
 
     """
     img = graph_to_img(graph,
-                       attribute=attribute_name)
+                       attribute_name=attribute_name)
     shape = img.shape
 
     img = axis.imshow(img, cmap='plasma')

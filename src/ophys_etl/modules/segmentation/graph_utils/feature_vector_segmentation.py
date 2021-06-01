@@ -330,7 +330,7 @@ class FeatureVectorSegmenter(object):
         self._filter_fraction = filter_fraction
         self.rng = np.random.RandomState(11923141)
         self._graph_img = graph_to_img(graph_input,
-                                       attribute=attribute)
+                                       attribute_name=attribute)
 
         with h5py.File(self._video_input, 'r') as in_file:
             self._movie_data = in_file['data'][()]
@@ -481,7 +481,7 @@ class FeatureVectorSegmenter(object):
         t0 = time.time()
 
         img_data = graph_to_img(self._graph_input,
-                                attribute=self._attribute)
+                                attribute_name=self._attribute)
 
         logger.info(f'read in image data from {str(self._graph_input)}')
 

@@ -1,9 +1,10 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from typing import List, Tuple, Callable, Optional, Union
+from typing import List, Tuple, Callable, Optional, Union, Dict
 import numpy as np
 import pathlib
+
 from ophys_etl.modules.decrosstalk.ophys_plane import (
     OphysROI,
     OphysMovie,
@@ -11,7 +12,7 @@ from ophys_etl.modules.decrosstalk.ophys_plane import (
 
 
 def add_roi_boundaries_to_img(img: np.ndarray,
-                              roi_list: List[OphysROI],
+                              roi_list: Union[List[OphysROI], List[Dict]],
                               color: Tuple[int] = (255, 0, 0),
                               alpha: float = 0.25) -> np.ndarray:
     """
@@ -37,6 +38,9 @@ def add_roi_boundaries_to_img(img: np.ndarray,
         New image with ROI borders superimposed
     """
 
+    if not isinstance(roi_list[0], OphysROI):
+        roi_list = [OphysROI.from_schema_dict(roi) for roi in roi_list]
+
     new_img = np.copy(img)
     for roi in roi_list:
         bdry = roi.boundary_mask
@@ -54,6 +58,74 @@ def add_roi_boundaries_to_img(img: np.ndarray,
 
     new_img = np.where(new_img <= 255, new_img, 255)
     return new_img
+
+
+def add_labels_to_axes(axis: matplotlib.axes.Axes,
+                       roi_list: Union[List[OphysROI], List[Dict]],
+                       colors: Union[Tuple[int], List[Tuple[int]]],
+                       fontsize: int = 15):
+    """
+    Add labels to a plot of ROIs
+
+    Parameters
+    ----------
+    axis: matplotlib.axes.Axes
+    rois: List[OphysROI]:
+        the ROIs
+    colors: List[Tuple[int]]
+        if not a list, all ROIs will get same color
+
+    Returns
+    -------
+    matplotlib.axes.Axes
+        The input axis with the figure added
+    """
+    n_roi = len(roi_list)
+
+    if not isinstance(colors, list):
+        colors = [colors] * n_roi
+
+    if not isinstance(roi_list[0], OphysROI):
+        roi_list = [OphysROI.from_schema_dict(roi) for roi in roi_list]
+
+    nx = -999.0*np.ones(n_roi, dtype=float)
+    ny = -999.0*np.ones(n_roi, dtype=float)
+    roi_ct = 0
+
+    rng = np.random.RandomState(44)
+    for color, roi in zip(colors, roi_list):
+        color_hex = '#%02x%02x%02x' % color
+        xx = roi.centroid_x
+        yy = roi.centroid_y
+        dd = None
+        n_iter = 0
+
+        # add random salt in case two labels would
+        # be right on top of each other
+        while (dd is None or dd < 100) and n_iter < 20:
+            if n_iter > 0:
+                _x = rng.normal()
+                _y = rng.normal()
+                _r = rng.normal(loc=n_iter, scale=5)
+                n = np.sqrt(_x**2+_y**2)
+                _x *= _r/n
+                _y *= _r/n
+                xx = roi.centroid_x + _x
+                yy = roi.centroid_y + _y
+
+            dd = np.min((xx-nx)**2+(yy-ny)**2)
+            n_iter += 1
+
+        nx[roi_ct] = xx
+        ny[roi_ct] = yy
+        roi_ct += 1
+
+        axis.text(xx, yy,
+                  f'{roi.roi_id}',
+                  color=color_hex,
+                  fontsize=fontsize)
+
+    return axis
 
 
 def roi_thumbnail(movie: OphysMovie,
@@ -269,71 +341,6 @@ class ROIExaminer(object):
                                                    color=obj['color'])
         return output_img
 
-    def _add_labels(self,
-                    axis: matplotlib.axes.Axes,
-                    rois_and_colors: List[dict]):
-        """
-        Add labels to a plot of ROIs
-
-        Parameters
-        ----------
-        axis: matplotlib.axes.Axes
-
-        rois_and_colors: List
-            Each element in the list is a Dict representing
-            a set of ROIs. 'color' points to a tuple representing
-            the color of that set of ROIs. 'rois' points to a list
-            of OphysROIs.
-
-        Returns
-        -------
-        matplotlib.axes.Axes
-            The input axis with the figure added
-        """
-
-        n_roi = 0
-        for subset in rois_and_colors:
-            n_roi += len(subset['rois'])
-        nx = -999.0*np.ones(n_roi, dtype=float)
-        ny = -999.0*np.ones(n_roi, dtype=float)
-        roi_ct = 0
-
-        rng = np.random.RandomState(44)
-        for subset in rois_and_colors:
-            color_hex = '#%02x%02x%02x' % subset['color']
-            for roi in subset['rois']:
-                xx = roi.centroid_x
-                yy = roi.centroid_y
-                dd = None
-                n_iter = 0
-
-                # add random salt in case two labels would
-                # be right on top of each other
-                while (dd is None or dd < 100) and n_iter < 20:
-                    if n_iter > 0:
-                        _x = rng.normal()
-                        _y = rng.normal()
-                        _r = rng.normal(loc=n_iter, scale=5)
-                        n = np.sqrt(_x**2+_y**2)
-                        _x *= _r/n
-                        _y *= _r/n
-                        xx = roi.centroid_x + _x
-                        yy = roi.centroid_y + _y
-
-                    dd = np.min((xx-nx)**2+(yy-ny)**2)
-                    n_iter += 1
-
-                nx[roi_ct] = xx
-                ny[roi_ct] = yy
-                roi_ct += 1
-
-                axis.text(xx, yy,
-                          f'{roi.roi_id}',
-                          color=color_hex,
-                          fontsize=15)
-
-        return axis
-
     def plot_rois(self,
                   subset_list: List[int],
                   axis: matplotlib.axes.Axes,
@@ -384,7 +391,8 @@ class ROIExaminer(object):
         if not labels:
             return axis
 
-        axis = self._add_labels(axis, subset_args)
+        for subset in subset_args:
+            axis = add_labels_to_axes(axis, subset["rois"], subset["color"])
 
         return axis
 
@@ -466,7 +474,8 @@ class ROIExaminer(object):
         axis.imshow(img_arr)
         if not labels:
             return axis
-        axis = self._add_labels(axis, rois_and_colors)
+        for subset in rois_and_colors:
+            axis = add_labels_to_axes(axis, subset["rois"], subset["color"])
         return axis
 
     def plot_distinct_rois(self,

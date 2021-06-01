@@ -309,8 +309,7 @@ def iterative_detection(graph: Union[nx.Graph, Path],
                 expanded.append(out_dict[ii])
 
         if many_graphs:
-            for el in expanded:
-                expanded = nx.compose_all(expanded)
+            expanded = nx.compose_all(expanded)
 
         nodes = [i for i in graph if i not in expanded]
         graph = nx.Graph(graph.subgraph(nodes))

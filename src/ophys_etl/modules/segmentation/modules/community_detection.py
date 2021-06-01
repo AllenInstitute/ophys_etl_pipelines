@@ -41,7 +41,8 @@ class SegmentV0(argschema.ArgSchemaParser):
                     results = pool.starmap(community.iterative_detection,
                                            args)
                 new_graph = nx.compose_all([nx.read_gpickle(i)
-                                            for i in results])
+                                            for i in results
+                                            if i is not None])
 
         nx.write_gpickle(new_graph, self.args["graph_output"])
         self.logger.info(f"wrote {self.args['graph_output']}")

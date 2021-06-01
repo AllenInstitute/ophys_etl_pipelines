@@ -201,7 +201,7 @@ def grow_subgraph(graph: nx.Graph,
 def iterative_detection(graph: Union[nx.Graph, Path],
                         attribute_name: str,
                         seed_quantile: int,
-                        n_node_thresh=20) -> Union[nx.Graph, Path]:
+                        n_node_thresh=20) -> Union[nx.Graph, Path, None]:
     """idenitfy seeds, grow out ROIs, repeat
 
     Parameters
@@ -219,6 +219,7 @@ def iterative_detection(graph: Union[nx.Graph, Path],
     -------
     graph: nx.Graph
         a graph consisting of only identified ROIs, or a path to such
+        (note: if no ROIs are identified, returns None)
 
     """
     from_path = None
@@ -252,9 +253,12 @@ def iterative_detection(graph: Union[nx.Graph, Path],
         graph = nx.Graph(graph.subgraph(nodes))
         collected.append(expanded)
 
-    graph = nx.compose_all(collected)
+    if len(collected) > 0:
+        graph = nx.compose_all(collected)
+    else:
+        graph = None
 
-    if from_path is not None:
+    if from_path is not None and graph is not None:
         nx.write_gpickle(graph, from_path)
         graph = from_path
 

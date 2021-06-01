@@ -392,7 +392,7 @@ class ROIExaminer(object):
             return axis
 
         for subset in subset_args:
-            axis = add_labels_to_axes(axis, subset["rois"], subset["colors"])
+            axis = add_labels_to_axes(axis, subset["rois"], subset["color"])
 
         return axis
 
@@ -475,7 +475,7 @@ class ROIExaminer(object):
         if not labels:
             return axis
         for subset in rois_and_colors:
-            axis = add_labels_to_axes(axis, subset["rois"], subset["colors"])
+            axis = add_labels_to_axes(axis, subset["rois"], subset["color"])
         return axis
 
     def plot_distinct_rois(self,

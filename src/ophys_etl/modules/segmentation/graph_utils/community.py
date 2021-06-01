@@ -217,6 +217,9 @@ def _process_subgraphs(subgraphs,
         graph = graph.subgraph(node_list)
         local_expanded.append(expanded_subgraph)
 
+    if len(local_expanded) == 0:
+        return None
+
     full_graph = nx.compose_all(local_expanded)
     out_dict[p_id] = full_graph
 
@@ -306,7 +309,8 @@ def iterative_detection(graph: Union[nx.Graph, Path],
             many_graphs = True
             expanded = []
             for ii in out_dict:
-                expanded.append(out_dict[ii])
+                if out_dict[ii] is not None:
+                    expanded.append(out_dict[ii])
 
         if many_graphs:
             expanded = nx.compose_all(expanded)

@@ -431,6 +431,11 @@ class FeatureVectorSegmenter(object):
 
         return seed_list
 
+    def _load_video(self, video_path:pathlib.Path):
+        with h5py.File(video_path, 'r') as in_file:
+            video_data = in_file['data'][()]
+        return video_data
+
     def run(self,
             roi_output: pathlib.Path,
             seed_output: Optional[pathlib.Path] = None,
@@ -484,8 +489,7 @@ class FeatureVectorSegmenter(object):
 
         logger.info(f'read in image data from {str(self._graph_input)}')
 
-        with h5py.File(self._video_input, 'r') as in_file:
-            video_data = in_file['data'][()]
+        video_data = self._load_video(self._video_input)
         logger.info(f'read in video data from {str(self._video_input)}')
 
         if seed_output is not None:

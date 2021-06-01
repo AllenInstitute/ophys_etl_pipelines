@@ -3,6 +3,7 @@ import numpy as np
 import multiprocessing
 import pathlib
 import time
+import h5py
 
 from ophys_etl.modules.segmentation.\
 graph_utils.feature_vector_segmentation import (
@@ -15,33 +16,27 @@ from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import (
 
 
 def correlate_pixel(pixel_pt: Tuple[int, int],
-                    origin: Tuple[int, int],
-                    full_img_shape: Tuple[int, int],
+                    i_pixel_global: int,
                     filter_fraction: float,
                     video_data: np.ndarray,
+                    pixel_indexes: np.ndarray,
                     output_dict: multiprocessing.managers.DictProxy):
     """
     pixel_pt is not origin subtracted
     video_data is a subset
     """
     t0 = time.time()
-    corrected_pt = (pixel_pt[0]-origin[0],
-                    pixel_pt[1]-origin[1])
-    sub_img_shape = video_data.shape[1:]
-    print(sub_img_shape)
-    video_data = video_data.reshape(video_data.shape[0], -1).transpose()
-    video_data = video_data.astype(float)
-    i_pixel = np.ravel_multi_index(corrected_pt, sub_img_shape)
 
     n_pixels = video_data.shape[0]
 
-    trace = video_data[i_pixel, :]
+    i_pixel = np.where(pixel_indexes==i_pixel_global)[0][0]
 
+    trace = video_data[i_pixel, :]
     threshold = np.quantile(trace, 1.0-filter_fraction)
 
     valid_time = (trace>=threshold)
-    trace = trace[valid_time]
     video_data = video_data[:, valid_time].astype(float)
+    trace = video_data[i_pixel, :]
 
     t1 = time.time()
 
@@ -61,18 +56,6 @@ def correlate_pixel(pixel_pt: Tuple[int, int],
     _d = time.time()-t1
     print(f'corr block took {_d:.2f} seconds; {n_pixels} pixels')
     print(f'{video_data.shape}')
-
-    (img_rows,
-     img_cols) = np.meshgrid(np.arange(sub_img_shape[0], dtype=int),
-                             np.arange(sub_img_shape[1], dtype=int),
-                             indexing='ij')
-
-    img_rows = img_rows.flatten()+origin[0]
-    img_cols = img_cols.flatten()+origin[1]
-
-    pixel_indexes = np.ravel_multi_index(np.array([img_rows, img_cols]),
-                                         full_img_shape)
-
     output_dict[pixel_pt] = {'corr':corr,
                              'pixels': pixel_indexes}
 
@@ -104,25 +87,41 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                          n_processors=n_processors,
                          roi_class=roi_class)
 
+    def _load_video(self, video_path:pathlib.Path):
+        with h5py.File(video_path, 'r') as in_file:
+            video_data = in_file['data'][()]
+        t0 = time.time()
+        video_data = video_data.reshape(video_data.shape[0], -1)
+        print(f'reshape {time.time()-t0:.2f}')
+        video_data = video_data.transpose()
+        print(f'transpose {time.time()-t0:.2f}')
+        return video_data
 
     def _run(self,
              img_data: np.ndarray,
              video_data: np.ndarray) -> List[dict]:
+        """
+        video data must already be reshaped etc.
+        """
+        t0 = time.time()
 
 
         seed_list = find_peaks(img_data,
                                mask=self.roi_pixels,
                                slop=self.slop)
 
-        img_shape = video_data.shape[1:]
+        img_shape = img_data.shape
 
         (img_rows,
-         img_cols) = np.meshgrid(np.arange(video_data.shape[1], dtype=int),
-                                 np.arange(video_data.shape[2], dtype=int),
+         img_cols) = np.meshgrid(np.arange(img_data.shape[0], dtype=int),
+                                 np.arange(img_data.shape[1], dtype=int),
                                  indexing='ij')
 
         img_rows = img_rows.flatten()
         img_cols = img_cols.flatten()
+
+        #video_data = video_data.reshape(video_data.shape[0], -1)
+        #video_data = video_data.transpose().astype(float)
 
         pt_list = []
         pt_set = set()
@@ -149,29 +148,42 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         for center in pt_list:
             if center in self.pre_corr_lookup:
                 continue
-
+            t0 = time.time()
             # factor of 2 is to accommodate case where
             # two pixels are on opposite corners of a tile
             rowmin = max(0, center[0]-2*self.slop)
             rowmax = min(img_shape[0], center[0]+2*self.slop+1)
             colmin = max(0, center[1]-2*self.slop)
             colmax = min(img_shape[1], center[1]+2*self.slop+1)
+
+            (sub_rows,
+             sub_cols) = np.meshgrid(np.arange(rowmin, rowmax, 1, dtype=int),
+                                     np.arange(colmin, colmax, 1, dtype=int))
+
+            sub_rows = sub_rows.flatten()
+            sub_cols = sub_cols.flatten()
+            t2 = time.time()
+            sub_indexes = np.ravel_multi_index(np.array([sub_rows, sub_cols]),
+                                               img_shape)
+            print('ravel %e' % (time.time()-t2))
             origin = (rowmin, colmin)
 
-            sub_video = video_data[:,
-                                   rowmin:rowmax,
-                                   colmin:colmax]
-
+            sub_video = video_data[sub_indexes, :]
+            print('sub_video %e' % (time.time()-t2))
+            i_center = np.ravel_multi_index(center, img_shape)
 
             args = (center,
-                    origin,
-                    img_shape,
+                    i_center,
                     self._filter_fraction,
                     sub_video,
+                    sub_indexes,
                     self.pre_corr_lookup)
 
-
+            dur = time.time()-t0
+            print(f'submitting at {dur:.2f} seconds')
             correlate_pixel(*args)
+            dur = time.time()-t0
+            print(f'full dur {dur:.2f} seconds')
             exit()
 
             p = multiprocessing.Process(target=correlate_pixel,

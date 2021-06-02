@@ -15,6 +15,13 @@ from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import (
     PearsonFeatureROI)
 
 
+import logging
+
+logger = logging.getLogger(__name__)
+logging.captureWarnings(True)
+logging.basicConfig(level=logging.INFO)
+
+
 def correlate_pixel(pixel_pt: Tuple[int, int],
                     i_pixel_global: int,
                     filter_fraction: float,
@@ -85,7 +92,6 @@ def correlate_tile(video_path: pathlib.Path,
     with h5py.File(video_path, 'r') as in_file:
         video_data = in_file['data'][:,rowmin:rowmax, colmin:colmax]
 
-    print('\nactually read in video ',video_data.shape)
     (img_rows,
      img_cols) = np.meshgrid(np.arange(rowmin, rowmax, 1, dtype=int),
                              np.arange(colmin, colmax, 1, dtype=int),
@@ -121,9 +127,6 @@ def correlate_tile(video_path: pathlib.Path,
 
             chosen_pixels = pixel_indexes[local_indexes]
             sub_video = video_data[local_indexes, :]
-            #print('local_indexes ',len(local_indexes))
-            #print(r0,r1,c0,c1)
-            #print(r0-rowmin,r1-rowmin,c0-colmin,c1-colmin)
 
             args = (pixel,
                     i_pixel,
@@ -197,9 +200,12 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         t0 = time.time()
         p_list = []
         ct_done = 0
-        for row0 in range(0, img_shape[0], drow):
+        row_list = list(range(0, img_shape[0], drow))
+        col_list = list(range(0, img_shape[1], dcols))
+        n_tiles = len(row_list)*len(col_list)
+        for row0 in row_list:
             row1 = min(img_shape[0], row0+drow)
-            for col0 in range(0, img_shape[1], dcol):
+            for col0 in col_list:
                 col1 = min(img_shape[1], col0+dcol)
 
                 args = (self._video_input,
@@ -223,15 +229,18 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                 # if possible
                 while len(p_list) > 0 and len(p_list) >= self.n_processors-1:
                     to_pop = []
+                    new_done = 0
                     for ii in range(len(p_list)-1, -1, -1):
                         if p_list[ii].exitcode is not None:
                             to_pop.append(ii)
                     for ii in to_pop:
                         p_list.pop(ii)
                         ct_done +=1
-                        if ct_done % 20 == 0:
-                            duration = time.time()-t0
-                            print(f'{ct_done} out of {n_pts} in {duration:.2f} sec')
+                        new_done += 1
+                    if new_done > 0:
+                        duration = time.time()-t0
+                        logger.info(f'{ct_done} tiles done out of {n_tiles} '
+                                    f'in {duration:.2f} sec')
 
         for p in p_list:
             p.join()

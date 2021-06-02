@@ -201,7 +201,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         p_list = []
         ct_done = 0
         row_list = list(range(0, img_shape[0], drow))
-        col_list = list(range(0, img_shape[1], dcols))
+        col_list = list(range(0, img_shape[1], dcol))
         n_tiles = len(row_list)*len(col_list)
         for row0 in row_list:
             row1 = min(img_shape[0], row0+drow)

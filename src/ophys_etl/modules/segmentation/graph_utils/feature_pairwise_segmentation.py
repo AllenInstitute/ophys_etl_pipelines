@@ -20,7 +20,7 @@ def correlate_pixel(pixel_pt: Tuple[int, int],
                     filter_fraction: float,
                     video_data: np.ndarray,
                     pixel_indexes: np.ndarray,
-                    output_dict: multiprocessing.managers.DictProxy):
+                    output_dict: dict):
     """
     pixel_pt is not origin subtracted
     video_data is a subset
@@ -71,6 +71,8 @@ def correlate_tile(video_path: pathlib.Path,
                    slop: int,
                    filter_fraction: float,
                    output_dict: multiprocessing.managers.DictProxy):
+
+    local_output_dict = {}
 
     slop = slop*2
 
@@ -128,7 +130,7 @@ def correlate_tile(video_path: pathlib.Path,
                     filter_fraction,
                     sub_video,
                     chosen_pixels,
-                    output_dict)
+                    local_output_dict)
 
             correlate_pixel(*args)
             ct +=1
@@ -137,6 +139,11 @@ def correlate_tile(video_path: pathlib.Path,
                 per = dur/ct
                 pred = per*n_tot
                 print(f'{ct} pixels of {n_tot} in {dur:.2f}; {per:.2f}; {pred:.2f} (hrs)')
+
+    # copy results over to output_dict
+    for key in local_output_dict:
+        obj = local_output_dict.pop(key)
+        output_dickt[key] = obj
 
 
 class FeaturePairwiseSegmenter(FeatureVectorSegmenter):

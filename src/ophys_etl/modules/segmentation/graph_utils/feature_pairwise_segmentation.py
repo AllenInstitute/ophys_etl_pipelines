@@ -56,6 +56,7 @@ def correlate_pixel(pixel_pt: Tuple[int, int],
     valid_time = (trace>=threshold)
     video_data = video_data[:, valid_time].astype(float)
     trace = video_data[i_pixel, :]
+    n_time = video_data.shape[1]
 
     t1 = time.time()
 
@@ -64,12 +65,12 @@ def correlate_pixel(pixel_pt: Tuple[int, int],
     assert video_mu.shape == (n_pixels, )
 
     trace -= mu
-    video_data -= mu
+    video_data = (video_data.T-video_mu).T
 
     trace_var = np.mean(trace**2)
     video_var = np.mean(video_data**2, axis=1)
 
-    num = np.dot(video_data, trace)
+    num = np.dot(video_data, trace)/n_time
     denom = np.sqrt(trace_var*video_var)
     corr = num/denom
     _d = time.time()-t1

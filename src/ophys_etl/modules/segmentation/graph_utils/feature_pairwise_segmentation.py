@@ -171,6 +171,7 @@ class FeaturePairwiseROI(PotentialROI):
         slop = 20
         self.img_shape = pixel_ignore.shape
         pixel_ignore = pixel_ignore.flatten()
+        self.pixel_threshold=1.5
 
         row0 = max(0, seed_pt[0]-slop)
         row1 = min(self.img_shape[0], seed_pt[0]+slop+1)

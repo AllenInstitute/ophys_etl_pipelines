@@ -389,6 +389,7 @@ class PotentialROI(object):
         self.seed_pt = (seed_pt[0]-origin[0], seed_pt[1]-origin[1])
         self.filter_fraction = filter_fraction
         self.img_shape = sub_video.shape[1:]
+        self.pixel_threshold=2
 
         self.index_to_pixel = []
         self.pixel_to_index = {}
@@ -551,7 +552,7 @@ class PotentialROI(object):
         d_bckgd = np.sort(self.feature_distances[:, background_mask], axis=1)
         d_bckgd = np.median(d_bckgd[:, :n_roi], axis=1)
 
-        valid = d_bckgd > 2*d_roi
+        valid = d_bckgd > self.pixel_threshold*d_roi
         if valid.sum() > 0:
             self.roi_mask[valid] = True
 

@@ -33,10 +33,7 @@ class PCATimeDenoiser(argschema.ArgSchemaParser):
         self.logger.info("Fit PCA")
 
         # apply dimension reduction
-        data = pca_engine.transform(data)
-        # zero out first PC
-        data[:,0] = 0.0
-        data = pca_engine.inverse_transform(data)
+        data = pca_engine.inverse_transform(pca_engine.transform(data))
 
         # reshape data
         data = data.transpose()

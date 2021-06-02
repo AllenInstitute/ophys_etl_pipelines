@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 import numpy as np
 import multiprocessing
 import pathlib
@@ -10,6 +10,10 @@ graph_utils.feature_vector_segmentation import (
     find_peaks,
     FeatureVectorSegmenter,
     ROISeed)
+
+from ophys_etl.modules.segmentation.\
+graph_utils.plotting import (
+    graph_to_img)
 
 from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import (
     PearsonFeatureROI)
@@ -185,9 +189,8 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         print(f'transpose {time.time()-t0:.2f}')
         return video_data
 
-    def _run(self,
-             img_data: np.ndarray,
-             video_data: np.ndarray) -> List[dict]:
+    def pre_correlate_pixels(self,
+                             img_data: np.ndarray) -> List[dict]:
         """
         video data must already be reshaped etc.
         """
@@ -246,5 +249,15 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
             p.join()
 
         duration = time.time()-t0
-        print('pre correlation took %e seconds' % duration)
-        time.sleep(30)
+        logger.info('pre correlation took %e seconds' % duration)
+
+
+    def run(self,
+            roi_output: pathlib.Path,
+            seed_output: Optional[pathlib.Path] = None,
+            plot_output: Optional[pathlib.Path] = None) -> None:
+
+        img_data = graph_to_img(self._graph_input,
+                                attribute_name=self._attribute)
+
+        self.pre_correlate_pixels(img_data)

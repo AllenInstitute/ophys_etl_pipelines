@@ -189,7 +189,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         """
         # pre-compute correlations
         img_shape = img_data.shape
-        sqrt_proc = np.ceil(np.sqrt(self.n_processors)).astype(int)
+        sqrt_proc = 2*np.ceil(np.sqrt(self.n_processors)).astype(int)
         drow = img_shape[0]//sqrt_proc
         dcol = img_shape[1]//sqrt_proc
 

@@ -134,16 +134,17 @@ def correlate_tile(video_path: pathlib.Path,
 
             correlate_pixel(*args)
             ct +=1
-            if ct %10 == 0:
+            if ct % 100 == 0:
                 dur = (time.time()-t0)/3600.0
                 per = dur/ct
                 pred = per*n_tot
                 print(f'{ct} pixels of {n_tot} in {dur:.2f}; {per:.2f}; {pred:.2f} (hrs)')
 
     # copy results over to output_dict
-    for key in local_output_dict:
+    key_list = list(local_output_dict.keys())
+    for key in key_list:
         obj = local_output_dict.pop(key)
-        output_dickt[key] = obj
+        output_dict[key] = obj
 
 
 class FeaturePairwiseSegmenter(FeatureVectorSegmenter):

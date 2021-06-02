@@ -5,11 +5,18 @@ import pathlib
 import time
 import h5py
 
+from scipy.spatial.distance import cdist
+
 from ophys_etl.modules.segmentation.\
 graph_utils.feature_vector_segmentation import (
     find_peaks,
     FeatureVectorSegmenter,
     ROISeed)
+
+from ophys_etl.modules.segmentation.\
+graph_utils.feature_vector_rois import (
+    PotentialROI,
+    normalize_features)
 
 from ophys_etl.modules.segmentation.\
 graph_utils.plotting import (
@@ -154,6 +161,64 @@ def correlate_tile(video_path: pathlib.Path,
         output_dict[key] = obj
 
 
+class FeaturePairwiseROI(PotentialROI):
+
+    def __init__(self,
+                 seed_pt: Tuple[int, int],
+                 correlation_lookup: dict,
+                 pixel_ignore: np.ndarray):
+
+        slop = 20
+        self.img_shape = pixel_ignore.shape
+        pixel_ignore = pixel_ignore.flatten()
+
+        row0 = max(0, seed_pt[0]-slop)
+        row1 = min(self.img_shape[0], seed_pt[0]+slop+1)
+        col0 = max(0, seed_pt[1]-slop)
+        col1 = min(self.img_shape[1], seed_pt[1]+slop+1)
+
+        (img_rows,
+         img_cols) = np.meshgrid(np.arange(row0, row1, 1, dtype=int),
+                                 np.arange(col0, col1, 1, dtype=int),
+                                 indexing='ij')
+
+        img_rows = img_rows.flatten()
+        img_cols = img_cols.flatten()
+
+        valid_pixel_indexes = np.ravel_multi_index(np.array([img_rows, img_cols]),
+                                                   self.img_shape)
+        valid_pixel_mask = np.logical_not(pixel_ignore[valid_pixel_indexes])
+        valid_pixel_indexes = valid_pixel_indexes[valid_pixel_mask]
+        img_rows = img_rows[valid_pixel_mask]
+        img_cols = img_cols[valid_pixel_mask]
+        self.n_pixels = valid_pixel_mask.sum()
+
+        self.index_to_pixel = []
+        self.pixel_to_index = {}
+        for ii, (index, row, col) in enumerate(zip(valid_pixel_indexes,
+                                                   img_rows,
+                                                   img_cols)):
+            self.index_to_pixel.append((row, col))
+            self.pixel_to_index[(row, col)] = ii
+
+        self.roi_mask = np.zeros(self.n_pixels, dtype=bool)
+        self.roi_mask[self.pixel_to_index[seed_pt]] = True
+
+        features = np.zeros((self.n_pixels, self.n_pixels), dtype=float)
+        for ii in range(self.n_pixels):
+            fv = correlation_lookup[self.index_to_pixel[ii]]
+            fv_pix = fv['pixels']
+            fv_vals = fv['corr']
+            chosen = np.searchsorted(fv_pix, valid_pixel_indexes)
+            np.testing.assert_array_equal(fv_pix[chosen], valid_pixel_indexes)
+            features[ii, :] = fv_vals[chosen]
+
+        features = normalize_features(features)
+        self.feature_distances = cdist(features,
+                                       features,
+                                       metric='euclidean')
+
+
 class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
     """
     Version of FeatureVectorSegmenter that uses a unique set of timestamps
@@ -261,3 +326,18 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                                 attribute_name=self._attribute)
 
         self.pre_correlate_pixels(img_data)
+
+        self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
+
+        seed_list = find_peaks(img_data,
+                               mask=self.roi_pixels,
+                               slop=20)
+        print(f'{len(seed_list)} seeds')
+
+        for seed in seed_list:
+            roi = FeaturePairwiseROI(seed['center'],
+                                     self.pre_corr_lookup,
+                                     self.roi_pixels)
+
+            mask = roi.get_mask()
+            print('got mask ',mask.sum())

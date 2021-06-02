@@ -28,6 +28,7 @@ def correlate_pixel(pixel_pt: Tuple[int, int],
     t0 = time.time()
 
     n_pixels = video_data.shape[0]
+    assert n_pixels == len(pixel_indexes)
 
     i_pixel = np.where(pixel_indexes==i_pixel_global)[0][0]
 
@@ -54,13 +55,88 @@ def correlate_pixel(pixel_pt: Tuple[int, int],
     denom = np.sqrt(trace_var*video_var)
     corr = num/denom
     _d = time.time()-t1
-    print(f'corr block took {_d:.2f} seconds; {n_pixels} pixels')
-    print(f'{video_data.shape}')
+    #print(f'corr block took {_d:.2f} seconds; {n_pixels} pixels')
+    #print(f'{video_data.shape}')
     output_dict[pixel_pt] = {'corr':corr,
                              'pixels': pixel_indexes}
 
     duration = time.time()-t0
-    print(f'{pixel_pt} took {duration:.2f} seconds')
+    #print(f'{pixel_pt} took {duration:.2f} seconds')
+
+
+def correlate_tile(video_path: pathlib.Path,
+                   rowbounds: Tuple[int, int],
+                   colbounds: Tuple[int, int],
+                   img_shape: Tuple[int, int],
+                   slop: int,
+                   filter_fraction: float,
+                   output_dict: multiprocessing.managers.DictProxy):
+
+    slop = slop*2
+
+    t0 = time.time()
+    n_tot = (rowbounds[1]-rowbounds[0])*(colbounds[1]-colbounds[0])
+    rowmin = max(0, rowbounds[0]-slop)
+    rowmax = min(img_shape[0], rowbounds[1]+slop+1)
+    colmin = max(0, colbounds[0]-slop)
+    colmax = min(img_shape[1], colbounds[1]+slop+1)
+    with h5py.File(video_path, 'r') as in_file:
+        video_data = in_file['data'][:,rowmin:rowmax, colmin:colmax]
+
+    print('\nactually read in video ',video_data.shape)
+    (img_rows,
+     img_cols) = np.meshgrid(np.arange(rowmin, rowmax, 1, dtype=int),
+                             np.arange(colmin, colmax, 1, dtype=int),
+                             indexing='ij')
+
+    img_rows = img_rows.flatten()
+    img_cols = img_cols.flatten()
+    pixel_indexes = np.ravel_multi_index(np.array([img_rows, img_cols]),
+                                         img_shape)
+
+    video_data = video_data.reshape(video_data.shape[0], -1)
+    video_data = video_data.transpose()
+
+    ct = 0
+    for row in range(rowbounds[0], rowbounds[1], 1):
+        for col in range(colbounds[0], colbounds[1], 1):
+            pixel = (row, col)
+            i_pixel = np.ravel_multi_index(pixel, img_shape)
+
+            r0 = max(0, row-slop)
+            r1 = min(img_shape[0], row+slop+1)
+            c0 = max(0, col-slop)
+            c1 = min(img_shape[1], col+slop+1)
+
+            (img_rows,
+             img_cols) = np.meshgrid(np.arange(r0-rowmin, r1-rowmin, 1, dtype=int),
+                                     np.arange(c0-colmin, c1-colmin, 1, dtype=int),
+                                     indexing='ij')
+
+            local_indexes = np.ravel_multi_index([img_rows.flatten(),
+                                                  img_cols.flatten()],
+                                                 (rowmax-rowmin, colmax-colmin))
+
+            chosen_pixels = pixel_indexes[local_indexes]
+            sub_video = video_data[local_indexes, :]
+            #print('local_indexes ',len(local_indexes))
+            #print(r0,r1,c0,c1)
+            #print(r0-rowmin,r1-rowmin,c0-colmin,c1-colmin)
+
+            args = (pixel,
+                    i_pixel,
+                    filter_fraction,
+                    sub_video,
+                    chosen_pixels,
+                    output_dict)
+
+            correlate_pixel(*args)
+            ct +=1
+            if ct %10 == 0:
+                dur = (time.time()-t0)/3600.0
+                per = dur/ct
+                pred = per*n_tot
+                print(f'{ct} pixels of {n_tot} in {dur:.2f}; {per:.2f}; {pred:.2f} (hrs)')
 
 
 class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
@@ -88,6 +164,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                          roi_class=roi_class)
 
     def _load_video(self, video_path:pathlib.Path):
+        return np.zeros(3, dtype=float)
         with h5py.File(video_path, 'r') as in_file:
             video_data = in_file['data'][()]
         t0 = time.time()
@@ -103,106 +180,50 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         """
         video data must already be reshaped etc.
         """
-        t0 = time.time()
-
-
-        seed_list = find_peaks(img_data,
-                               mask=self.roi_pixels,
-                               slop=self.slop)
-
-        img_shape = img_data.shape
-
-        (img_rows,
-         img_cols) = np.meshgrid(np.arange(img_data.shape[0], dtype=int),
-                                 np.arange(img_data.shape[1], dtype=int),
-                                 indexing='ij')
-
-        img_rows = img_rows.flatten()
-        img_cols = img_cols.flatten()
-
-        #video_data = video_data.reshape(video_data.shape[0], -1)
-        #video_data = video_data.transpose().astype(float)
-
-        pt_list = []
-        pt_set = set()
-        for seed in seed_list:
-            center = seed['center']
-            rowmin = max(0, center[0]-self.slop)
-            rowmax = min(img_shape[0], center[0]+self.slop+1)
-            colmin = max(0, center[1]-self.slop)
-            colmax = min(img_shape[1], center[1]+self.slop+1)
-            for row in range(rowmin, rowmax):
-                for col in range(colmin, colmax):
-                    pt = (row, col)
-                    if pt not in pt_set:
-                        pt_set.add(pt)
-                        pt_list.append(pt)
-
         # pre-compute correlations
+        img_shape = img_data.shape
+        sqrt_proc = np.ceil(np.sqrt(self.n_processors)).astype(int)
+        drow = img_shape[0]//sqrt_proc
+        dcol = img_shape[1]//sqrt_proc
+
         t0 = time.time()
         p_list = []
         ct_done = 0
-        n_pts = len(pt_list)
-        print('need to correlate %d pts' % n_pts)
-        print('from %d seeds' % len(seed_list))
-        for center in pt_list:
-            if center in self.pre_corr_lookup:
-                continue
-            t0 = time.time()
-            # factor of 2 is to accommodate case where
-            # two pixels are on opposite corners of a tile
-            rowmin = max(0, center[0]-2*self.slop)
-            rowmax = min(img_shape[0], center[0]+2*self.slop+1)
-            colmin = max(0, center[1]-2*self.slop)
-            colmax = min(img_shape[1], center[1]+2*self.slop+1)
+        for row0 in range(0, img_shape[0], drow):
+            row1 = min(img_shape[0], row0+drow)
+            for col0 in range(0, img_shape[1], dcol):
+                col1 = min(img_shape[1], col0+dcol)
 
-            (sub_rows,
-             sub_cols) = np.meshgrid(np.arange(rowmin, rowmax, 1, dtype=int),
-                                     np.arange(colmin, colmax, 1, dtype=int))
+                args = (self._video_input,
+                        (row0, row1),
+                        (col0, col1),
+                        img_shape,
+                        self.slop,
+                        self._filter_fraction,
+                        self.pre_corr_lookup)
 
-            sub_rows = sub_rows.flatten()
-            sub_cols = sub_cols.flatten()
-            t2 = time.time()
-            sub_indexes = np.ravel_multi_index(np.array([sub_rows, sub_cols]),
-                                               img_shape)
-            print('ravel %e' % (time.time()-t2))
-            origin = (rowmin, colmin)
+                #correlate_tile(*args)
 
-            sub_video = video_data[sub_indexes, :]
-            print('sub_video %e' % (time.time()-t2))
-            i_center = np.ravel_multi_index(center, img_shape)
 
-            args = (center,
-                    i_center,
-                    self._filter_fraction,
-                    sub_video,
-                    sub_indexes,
-                    self.pre_corr_lookup)
+                #exit()
 
-            dur = time.time()-t0
-            print(f'submitting at {dur:.2f} seconds')
-            correlate_pixel(*args)
-            dur = time.time()-t0
-            print(f'full dur {dur:.2f} seconds')
-            exit()
-
-            p = multiprocessing.Process(target=correlate_pixel,
-                                        args=args)
-            p.start()
-            p_list.append(p)
-            # make sure that all processors are working at all times,
-            # if possible
-            while len(p_list) > 0 and len(p_list) >= self.n_processors-1:
-                to_pop = []
-                for ii in range(len(p_list)-1, -1, -1):
-                    if p_list[ii].exitcode is not None:
-                        to_pop.append(ii)
-                for ii in to_pop:
-                    p_list.pop(ii)
-                    ct_done +=1
-                    if ct_done % 20 == 0:
-                        duration = time.time()-t0
-                        print(f'{ct_done} out of {n_pts} in {duration:.2f} sec')
+                p = multiprocessing.Process(target=correlate_tile,
+                                            args=args)
+                p.start()
+                p_list.append(p)
+                # make sure that all processors are working at all times,
+                # if possible
+                while len(p_list) > 0 and len(p_list) >= self.n_processors-1:
+                    to_pop = []
+                    for ii in range(len(p_list)-1, -1, -1):
+                        if p_list[ii].exitcode is not None:
+                            to_pop.append(ii)
+                    for ii in to_pop:
+                        p_list.pop(ii)
+                        ct_done +=1
+                        if ct_done % 20 == 0:
+                            duration = time.time()-t0
+                            print(f'{ct_done} out of {n_pts} in {duration:.2f} sec')
 
         for p in p_list:
             p.join()

@@ -1,3 +1,7 @@
+import matplotlib.figure
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+
+
 from typing import Tuple, List, Optional
 import numpy as np
 import multiprocessing
@@ -11,16 +15,19 @@ from ophys_etl.modules.segmentation.\
 graph_utils.feature_vector_segmentation import (
     find_peaks,
     FeatureVectorSegmenter,
-    ROISeed)
+    ROISeed,
+    convert_to_lims_roi)
 
 from ophys_etl.modules.segmentation.\
 graph_utils.feature_vector_rois import (
     PotentialROI,
-    normalize_features)
+    normalize_features,
+    get_background_mask)
 
 from ophys_etl.modules.segmentation.\
 graph_utils.plotting import (
-    graph_to_img)
+    graph_to_img,
+    create_roi_plot)
 
 from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import (
     PearsonFeatureROI)
@@ -221,6 +228,54 @@ class FeaturePairwiseROI(PotentialROI):
                                        metric='euclidean')
 
 
+    def plot(self, plot_path, seed_pt):
+
+        # select background pixels
+        background_mask = get_background_mask(self.feature_distances,
+                                              self.roi_mask)
+
+        # set ROI distance for every pixel
+        d_roi = np.median(self.feature_distances[:, self.roi_mask], axis=1)
+
+        n_roi = self.roi_mask.sum()
+
+        # take the median of the n_roi nearest background distances;
+        # hopefully this will limit the effect of outliers
+        d_bckgd = np.sort(self.feature_distances[:, background_mask], axis=1)
+        d_bckgd = np.median(d_bckgd[:, :n_roi], axis=1)
+
+
+
+        fig = matplotlib.figure.Figure(figsize=(20,10))
+        axes = [fig.add_subplot(1,2,1), fig.add_subplot(1,2,2)]
+
+        axis = axes[0]
+        img = -1.0*np.ones(self.img_shape, dtype=float)
+        vals = self.feature_distances[self.pixel_to_index[seed_pt],:]
+        for ii in range(self.n_pixels):
+            p = self.index_to_pixel[ii]
+            img[p[0],p[1]] = vals[ii]
+        img = np.ma.masked_where(img<0.0, img)
+        img = axis.imshow(img)
+        divider = make_axes_locatable(axis)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        fig.colorbar(img, ax=axis, cax=cax)
+
+        axis = axes[1]
+        img = -1.0*np.ones(self.img_shape, dtype=float)
+        ratio = d_bckgd/(1.0e-6+d_roi)
+        ratio = np.where(ratio<3.0, ratio, 3.0)
+        for ii in range(self.n_pixels):
+            p = self.index_to_pixel[ii]
+            img[p[0],p[1]] = ratio[ii]
+        img = np.ma.masked_where(img<0.0, img)
+        img = axis.imshow(img)
+        divider = make_axes_locatable(axis)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        fig.colorbar(img, ax=axis, cax=cax)
+
+        fig.savefig(plot_path)
+
 class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
     """
     Version of FeatureVectorSegmenter that uses a unique set of timestamps
@@ -336,10 +391,15 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                                slop=20)
         print(f'{len(seed_list)} seeds')
 
-        for seed in seed_list:
+        roi_list = []
+        for i_seed, seed in enumerate(seed_list):
             roi = FeaturePairwiseROI(seed['center'],
                                      self.pre_corr_lookup,
                                      self.roi_pixels)
 
             mask = roi.get_mask()
+            lims_roi = convert_to_lims_roi((0,0), mask, roi_id=i_seed) 
+            roi_list.append(lims_roi)
             print('got mask ',mask.sum())
+            roi.plot('junk_roi_%d.png' % i_seed, seed['center'])
+        create_roi_plot(pathlib.Path('junk.png'), img_data, roi_list)

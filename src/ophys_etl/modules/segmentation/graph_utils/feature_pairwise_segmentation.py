@@ -40,6 +40,22 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
+def get_pixel_indexes(center, slop, shape):
+    row0 = max(0, center[0]-slop)
+    row1 = min(shape[0], center[0]+slop+1)
+    col0 = max(0, center[1]-slop)
+    col1 = min(shape[1], center[1]+slop+1)
+
+    (img_rows,
+     img_cols) = np.meshgrid(np.arange(row0, row1, 1, dtype=int),
+                             np.arange(col0, col1, 1, dtype=int),
+                             indexing='ij')
+
+    coords = np.array([img_rows.flatten(), img_cols.flatten()])
+
+    return np.ravel_multi_index(coords, shape)
+
+
 def correlate_pixel(pixel_pt: Tuple[int, int],
                     i_pixel_global: int,
                     filter_fraction: float,
@@ -173,7 +189,9 @@ class FeaturePairwiseROI(PotentialROI):
 
     def __init__(self,
                  seed_pt: Tuple[int, int],
-                 correlation_lookup: dict,
+                 window_indexes: np.ndarray,
+                 corr_indexes: np.ndarray,
+                 corr_values: np.ndarray,
                  pixel_ignore: np.ndarray):
 
         slop = 20
@@ -181,32 +199,15 @@ class FeaturePairwiseROI(PotentialROI):
         pixel_ignore = pixel_ignore.flatten()
         self.pixel_threshold=1.5
 
-        row0 = max(0, seed_pt[0]-slop)
-        row1 = min(self.img_shape[0], seed_pt[0]+slop+1)
-        col0 = max(0, seed_pt[1]-slop)
-        col1 = min(self.img_shape[1], seed_pt[1]+slop+1)
-
-        (img_rows,
-         img_cols) = np.meshgrid(np.arange(row0, row1, 1, dtype=int),
-                                 np.arange(col0, col1, 1, dtype=int),
-                                 indexing='ij')
-
-        img_rows = img_rows.flatten()
-        img_cols = img_cols.flatten()
-
-        valid_pixel_indexes = np.ravel_multi_index(np.array([img_rows, img_cols]),
-                                                   self.img_shape)
+        valid_pixel_indexes = np.copy(window_indexes)
         valid_pixel_mask = np.logical_not(pixel_ignore[valid_pixel_indexes])
         valid_pixel_indexes = valid_pixel_indexes[valid_pixel_mask]
-        img_rows = img_rows[valid_pixel_mask]
-        img_cols = img_cols[valid_pixel_mask]
         self.n_pixels = valid_pixel_mask.sum()
 
         self.index_to_pixel = []
         self.pixel_to_index = {}
-        for ii, (index, row, col) in enumerate(zip(valid_pixel_indexes,
-                                                   img_rows,
-                                                   img_cols)):
+        for ii, index, in enumerate(valid_pixel_indexes):
+            row, col = np.unravel_index(index, self.img_shape)
             self.index_to_pixel.append((row, col))
             self.pixel_to_index[(row, col)] = ii
 
@@ -214,10 +215,13 @@ class FeaturePairwiseROI(PotentialROI):
         self.roi_mask[self.pixel_to_index[seed_pt]] = True
 
         features = np.zeros((self.n_pixels, self.n_pixels), dtype=float)
-        for ii in range(self.n_pixels):
-            fv = correlation_lookup[self.index_to_pixel[ii]]
-            fv_pix = fv['pixels']
-            fv_vals = fv['corr']
+        for ii, ipx in enumerate(valid_pixel_indexes):
+            jj = np.where(window_indexes==ipx)[0][0]
+            fv_pix = corr_indexes[jj, :]
+            fv_vals = corr_values[jj, :]
+            mask = np.where(fv_pix>=0)
+            fv_pix = fv_pix[mask]
+            fv_vals = fv_vals[mask]
             chosen = np.searchsorted(fv_pix, valid_pixel_indexes)
             np.testing.assert_array_equal(fv_pix[chosen], valid_pixel_indexes)
             features[ii, :] = fv_vals[chosen]
@@ -289,8 +293,6 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                  n_processors=8,
                  roi_class=PearsonFeatureROI):
 
-        self.pre_corr_mgr = multiprocessing.Manager()
-        self.pre_corr_lookup = self.pre_corr_mgr.dict()
         self.slop = 20
 
         super().__init__(graph_input,
@@ -316,6 +318,9 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         """
         video data must already be reshaped etc.
         """
+        pre_corr_mgr = multiprocessing.Manager()
+        pre_corr_lookup = pre_corr_mgr.dict()
+
         # pre-compute correlations
         img_shape = img_data.shape
         sqrt_proc = max(1, np.ceil(np.sqrt(self.n_processors-1)).astype(int))
@@ -339,7 +344,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                         img_shape,
                         self.slop,
                         self._filter_fraction,
-                        self.pre_corr_lookup)
+                        pre_corr_lookup)
 
                 #correlate_tile(*args)
 
@@ -373,6 +378,25 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         duration = time.time()-t0
         logger.info('pre correlation took %e seconds' % duration)
 
+        max_indices = 0
+        n_pixels = 0
+        for key in pre_corr_lookup:
+            n_pixels += 1
+            n = len(pre_corr_lookup[key]['pixels'])
+            if n>max_indices:
+                max_indices = n
+
+        correlated_pixels = -1*np.ones((n_pixels, max_indices), dtype=int)
+        correlated_values = np.zeros((n_pixels, max_indices), dtype=float)
+        key_list = list(pre_corr_lookup.keys())
+        for key in key_list:
+            obj = pre_corr_lookup.pop(key)
+            n = len(obj['pixels'])
+            ii = np.ravel_multi_index(key, img_shape)
+            correlated_pixels[ii, :n] = obj['pixels']
+            correlated_values[ii, :n] = obj['corr']
+
+        return(correlated_values, correlated_pixels)
 
     def run(self,
             roi_output: pathlib.Path,
@@ -382,7 +406,10 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         img_data = graph_to_img(self._graph_input,
                                 attribute_name=self._attribute)
 
-        self.pre_correlate_pixels(img_data)
+        img_shape = img_data.shape
+
+        (correlated_values,
+         correlated_pixels) = self.pre_correlate_pixels(img_data)
 
         self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
 
@@ -393,8 +420,18 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
 
         roi_list = []
         for i_seed, seed in enumerate(seed_list):
+
+            window_indexes = get_pixel_indexes(seed['center'],
+                                               self.slop,
+                                               img_shape)
+
+            corr_indexes = correlated_pixels[window_indexes, :]
+            corr_values = correlated_values[window_indexes, :]
+
             roi = FeaturePairwiseROI(seed['center'],
-                                     self.pre_corr_lookup,
+                                     window_indexes,
+                                     corr_indexes,
+                                     corr_values,
                                      self.roi_pixels)
 
             mask = roi.get_mask()

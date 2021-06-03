@@ -12,7 +12,8 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 def draw_graph_edges(figure: figure.Figure,
                      axis: axes.Axes,
                      graph: nx.Graph,
-                     attribute_name: str = "Pearson"):
+                     attribute_name: str = "Pearson",
+                     colorbar: bool = True):
     """draws graph edges from node to node, colored by weight
 
     Parameters
@@ -54,9 +55,10 @@ def draw_graph_edges(figure: figure.Figure,
     # invert yaxis for image-like orientation
     axis.invert_yaxis()
     axis.set_aspect("equal")
-    divider = make_axes_locatable(axis)
-    cax = divider.append_axes("right", size="5%", pad=0.05)
-    figure.colorbar(line_coll, ax=axis, cax=cax)
+    if colorbar:
+        divider = make_axes_locatable(axis)
+        cax = divider.append_axes("right", size="5%", pad=0.05)
+        figure.colorbar(line_coll, ax=axis, cax=cax)
     axis.set_title(attribute_name)
 
 
@@ -132,7 +134,7 @@ def graph_to_img(graph: Union[pathlib.Path, nx.Graph],
     -------
     np.ndarray
         An image in which the value of each pixel is the
-        sum of the edge weights connected to that node in
+        mean of the edge weights connected to that node in
         the graph.
     """
     if isinstance(graph, pathlib.Path):
@@ -150,7 +152,7 @@ def graph_to_img(graph: Union[pathlib.Path, nx.Graph],
     for node in graph.nodes:
         vals = [graph[node][i][attribute_name]
                 for i in graph.neighbors(node)]
-        img[node[0], node[1]] = np.sum(vals)
+        img[node[0], node[1]] = np.mean(vals)
     return img
 
 

@@ -365,6 +365,11 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                     new_done = 0
                     for ii in range(len(p_list)-1, -1, -1):
                         if p_list[ii].exitcode is not None:
+                            if p_list[ii].exitcode != 0:
+                                raise RuntimeError("had a correlation process "
+                                                   "terminate with code "
+                                                   f"{p_list[ii].exitcode}")
+
                             to_pop.append(ii)
                     for ii in to_pop:
                         p_list.pop(ii)
@@ -395,6 +400,11 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
             new_done = 0
             for ii in range(len(p_list)-1, -1, -1):
                 if p_list[ii].exitcode is not None:
+                    if p_list[ii].exitcode != 0:
+                        raise RuntimeError("had a correlation process "
+                                           "terminate with code "
+                                           f"{p_list[ii].exitcode}")
+
                     to_pop.append(ii)
             for ii in to_pop:
                 p_list.pop(ii)
@@ -523,6 +533,10 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                     new_done = 0
                     for ii in range(len(p_list)-1, -1, -1):
                         if p_list[ii].exitcode is not None:
+                            if p_list[ii].exitcode != 0:
+                                raise RuntimeError("had an roi process "
+                                                   "terminate with code "
+                                                   f"{p_list[ii].exitcode}")
                             to_pop.append(ii)
                     for ii in to_pop:
                         p_list.pop(ii)

@@ -520,7 +520,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                 keep_going = False
 
             duration = time.time()-t0
-            logger.info(f'found {len(seed_list)} seeds; {n_roi_0} ROI pixels; '
+            logger.info(f'found {len(seed_list)} seeds; {n_roi_1} ROI pixels; '
                         f'after {duration:.2f} seconds')
 
         if seed_output is not None:

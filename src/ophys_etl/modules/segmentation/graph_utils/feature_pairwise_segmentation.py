@@ -292,7 +292,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         dcol = max(1, img_shape[1]//(2*sqrt_proc))
 
         n_pixels = img_shape[0]*img_shape[1]
-        max_indices = (4*self.slop+1)**2
+        max_indices = 1+(4*self.slop+1)**2
         correlated_pixels = -1*np.ones((n_pixels, max_indices), dtype=int)
         correlated_values = np.zeros((n_pixels, max_indices), dtype=float)
 

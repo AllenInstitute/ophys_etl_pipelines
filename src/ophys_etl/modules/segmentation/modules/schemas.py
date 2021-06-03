@@ -240,6 +240,11 @@ class SimpleDenoiseInputSchema(argschema.ArgSchema, DenoiseBaseSchema):
 class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
 
+    pairwise = argschema.fields.Boolean(
+        required=False,
+        default=False,
+        description=("if True, calculate pairwise features"))
+
     video_input = argschema.fields.InputFile(
         required=False,
         description=("path to hdf5 video with movie stored "

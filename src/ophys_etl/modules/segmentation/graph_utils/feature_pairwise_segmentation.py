@@ -1,13 +1,10 @@
-import matplotlib.figure
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-
-
 from typing import Tuple, List, Optional
 import numpy as np
 import multiprocessing
 import pathlib
 import time
 import h5py
+import json
 
 from scipy.spatial.distance import cdist
 
@@ -97,13 +94,10 @@ def correlate_pixel(pixel_pt: Tuple[int, int],
     denom = np.sqrt(trace_var*video_var)
     corr = num/denom
     _d = time.time()-t1
-    #print(f'corr block took {_d:.2f} seconds; {n_pixels} pixels')
-    #print(f'{video_data.shape}')
     output_dict[pixel_pt] = {'corr':corr,
                              'pixels': pixel_indexes}
 
     duration = time.time()-t0
-    #print(f'{pixel_pt} took {duration:.2f} seconds')
 
 
 def correlate_tile(video_path: pathlib.Path,
@@ -172,11 +166,6 @@ def correlate_tile(video_path: pathlib.Path,
 
             correlate_pixel(*args)
             ct +=1
-            if ct % 100 == 0:
-                dur = (time.time()-t0)/3600.0
-                per = dur/ct
-                pred = per*n_tot
-                print(f'{ct} pixels of {n_tot} in {dur:.2f}; {per:.2f}; {pred:.2f} (hrs)')
 
     # copy results over to output_dict
     key_list = list(local_output_dict.keys())
@@ -308,9 +297,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
             video_data = in_file['data'][()]
         t0 = time.time()
         video_data = video_data.reshape(video_data.shape[0], -1)
-        print(f'reshape {time.time()-t0:.2f}')
         video_data = video_data.transpose()
-        print(f'transpose {time.time()-t0:.2f}')
         return video_data
 
     def pre_correlate_pixels(self,
@@ -375,9 +362,6 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         for p in p_list:
             p.join()
 
-        duration = time.time()-t0
-        logger.info('pre correlation took %e seconds' % duration)
-
         max_indices = 0
         n_pixels = 0
         for key in pre_corr_lookup:
@@ -396,12 +380,17 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
             correlated_pixels[ii, :n] = obj['pixels']
             correlated_values[ii, :n] = obj['corr']
 
+        duration = time.time()-t0
+        logger.info('pre correlation took %e seconds' % duration)
+
         return(correlated_values, correlated_pixels)
 
     def run(self,
             roi_output: pathlib.Path,
             seed_output: Optional[pathlib.Path] = None,
             plot_output: Optional[pathlib.Path] = None) -> None:
+
+        t0 = time.time()
 
         img_data = graph_to_img(self._graph_input,
                                 attribute_name=self._attribute)
@@ -413,9 +402,13 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
 
         self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
 
+        if seed_output is not None:
+            seed_record = {}
+
         roi_list = []
         roi_id = -1
         keep_going = True
+        i_pass = 0
         while keep_going:
             n_roi_0 = self.roi_pixels.sum()
 
@@ -423,7 +416,9 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                                    mask=self.roi_pixels,
                                    slop=20)
 
-            logger.info(f'found {len(seed_list)} seeds; {n_roi_0} ROI pixels')
+            if seed_output is not None:
+                seed_record[i_pass] = seed_list
+            i_pass += 1
 
             local_masks = []
             for i_seed, seed in enumerate(seed_list):
@@ -454,4 +449,23 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
             if n_roi_1 == n_roi_0:
                 keep_going = False
 
-        create_roi_plot(pathlib.Path('junk.png'), img_data, roi_list)
+            duration = time.time()-t0
+            logger.info(f'found {len(seed_list)} seeds; {n_roi_0} ROI pixels; '
+                        f'after {duration:.2f} seconds')
+
+        if seed_output is not None:
+            logger.info(f'writing {str(seed_output)}')
+            with open(seed_output, 'w') as out_file:
+                out_file.write(json.dumps(seed_record, indent=2))
+
+        logger.info(f'writing {str(roi_output)}')
+        with open(roi_output, 'w') as out_file:
+            out_file.write(json.dumps(roi_list, indent=2))
+
+        if plot_output is not None:
+            logger.info(f'writing {str(plot_output)}')
+            create_roi_plot(plot_output, img_data, roi_list)
+
+        duration = time.time()-t0
+        logger.info(f'Completed segmentation in {duration:.2f} seconds')
+        return None

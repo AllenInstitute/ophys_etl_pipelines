@@ -9,22 +9,20 @@ import json
 from scipy.spatial.distance import cdist
 
 from ophys_etl.modules.segmentation.\
-graph_utils.feature_vector_segmentation import (
-    find_peaks,
-    FeatureVectorSegmenter,
-    ROISeed,
-    convert_to_lims_roi)
+    graph_utils.feature_vector_segmentation import (
+        find_peaks,
+        FeatureVectorSegmenter,
+        convert_to_lims_roi)
 
 from ophys_etl.modules.segmentation.\
-graph_utils.feature_vector_rois import (
-    PotentialROI,
-    normalize_features,
-    get_background_mask)
+    graph_utils.feature_vector_rois import (
+        PotentialROI,
+        normalize_features)
 
 from ophys_etl.modules.segmentation.\
-graph_utils.plotting import (
-    graph_to_img,
-    create_roi_plot)
+    graph_utils.plotting import (
+        graph_to_img,
+        create_roi_plot)
 
 from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import (
     PearsonFeatureROI)
@@ -63,22 +61,18 @@ def correlate_pixel(pixel_pt: Tuple[int, int],
     pixel_pt is not origin subtracted
     video_data is a subset
     """
-    t0 = time.time()
-
     n_pixels = video_data.shape[0]
     assert n_pixels == len(pixel_indexes)
 
-    i_pixel = np.where(pixel_indexes==i_pixel_global)[0][0]
+    i_pixel = np.where(pixel_indexes == i_pixel_global)[0][0]
 
     trace = video_data[i_pixel, :]
     threshold = np.quantile(trace, 1.0-filter_fraction)
 
-    valid_time = (trace>=threshold)
+    valid_time = (trace >= threshold)
     video_data = video_data[:, valid_time].astype(float)
     trace = video_data[i_pixel, :]
     n_time = video_data.shape[1]
-
-    t1 = time.time()
 
     mu = np.mean(trace)
     video_mu = np.mean(video_data, axis=1)
@@ -93,11 +87,8 @@ def correlate_pixel(pixel_pt: Tuple[int, int],
     num = np.dot(video_data, trace)/n_time
     denom = np.sqrt(trace_var*video_var)
     corr = num/denom
-    _d = time.time()-t1
-    output_dict[pixel_pt] = {'corr':corr,
+    output_dict[pixel_pt] = {'corr': corr,
                              'pixels': pixel_indexes}
-
-    duration = time.time()-t0
 
 
 def correlate_tile(video_path: pathlib.Path,
@@ -112,14 +103,12 @@ def correlate_tile(video_path: pathlib.Path,
 
     slop = slop*2
 
-    t0 = time.time()
-    n_tot = (rowbounds[1]-rowbounds[0])*(colbounds[1]-colbounds[0])
     rowmin = max(0, rowbounds[0]-slop)
     rowmax = min(img_shape[0], rowbounds[1]+slop+1)
     colmin = max(0, colbounds[0]-slop)
     colmax = min(img_shape[1], colbounds[1]+slop+1)
     with h5py.File(video_path, 'r') as in_file:
-        video_data = in_file['data'][:,rowmin:rowmax, colmin:colmax]
+        video_data = in_file['data'][:, rowmin:rowmax, colmin:colmax]
 
     (img_rows,
      img_cols) = np.meshgrid(np.arange(rowmin, rowmax, 1, dtype=int),
@@ -146,13 +135,16 @@ def correlate_tile(video_path: pathlib.Path,
             c1 = min(img_shape[1], col+slop+1)
 
             (img_rows,
-             img_cols) = np.meshgrid(np.arange(r0-rowmin, r1-rowmin, 1, dtype=int),
-                                     np.arange(c0-colmin, c1-colmin, 1, dtype=int),
+             img_cols) = np.meshgrid(np.arange(r0-rowmin, r1-rowmin,
+                                               1, dtype=int),
+                                     np.arange(c0-colmin, c1-colmin,
+                                               1, dtype=int),
                                      indexing='ij')
 
             local_indexes = np.ravel_multi_index([img_rows.flatten(),
                                                   img_cols.flatten()],
-                                                 (rowmax-rowmin, colmax-colmin))
+                                                 (rowmax-rowmin,
+                                                  colmax-colmin))
 
             chosen_pixels = pixel_indexes[local_indexes]
             sub_video = video_data[local_indexes, :]
@@ -165,7 +157,7 @@ def correlate_tile(video_path: pathlib.Path,
                     local_output_dict)
 
             correlate_pixel(*args)
-            ct +=1
+            ct += 1
 
     # copy results over to output_dict
     key_list = list(local_output_dict.keys())
@@ -183,10 +175,9 @@ class FeaturePairwiseROI(PotentialROI):
                  corr_values: np.ndarray,
                  pixel_ignore: np.ndarray):
 
-        slop = 20
         self.img_shape = pixel_ignore.shape
         pixel_ignore = pixel_ignore.flatten()
-        self.pixel_threshold=1.5
+        self.pixel_threshold = 1.5
 
         valid_pixel_indexes = np.copy(window_indexes)
         valid_pixel_mask = np.logical_not(pixel_ignore[valid_pixel_indexes])
@@ -205,10 +196,10 @@ class FeaturePairwiseROI(PotentialROI):
 
         features = np.zeros((self.n_pixels, self.n_pixels), dtype=float)
         for ii, ipx in enumerate(valid_pixel_indexes):
-            jj = np.where(window_indexes==ipx)[0][0]
+            jj = np.where(window_indexes == ipx)[0][0]
             fv_pix = corr_indexes[jj, :]
             fv_vals = corr_values[jj, :]
-            mask = np.where(fv_pix>=0)
+            mask = np.where(fv_pix >= 0)
             fv_pix = fv_pix[mask]
             fv_vals = fv_vals[mask]
             chosen = np.searchsorted(fv_pix, valid_pixel_indexes)
@@ -220,54 +211,6 @@ class FeaturePairwiseROI(PotentialROI):
                                        features,
                                        metric='euclidean')
 
-
-    def plot(self, plot_path, seed_pt):
-
-        # select background pixels
-        background_mask = get_background_mask(self.feature_distances,
-                                              self.roi_mask)
-
-        # set ROI distance for every pixel
-        d_roi = np.median(self.feature_distances[:, self.roi_mask], axis=1)
-
-        n_roi = self.roi_mask.sum()
-
-        # take the median of the n_roi nearest background distances;
-        # hopefully this will limit the effect of outliers
-        d_bckgd = np.sort(self.feature_distances[:, background_mask], axis=1)
-        d_bckgd = np.median(d_bckgd[:, :n_roi], axis=1)
-
-
-
-        fig = matplotlib.figure.Figure(figsize=(20,10))
-        axes = [fig.add_subplot(1,2,1), fig.add_subplot(1,2,2)]
-
-        axis = axes[0]
-        img = -1.0*np.ones(self.img_shape, dtype=float)
-        vals = self.feature_distances[self.pixel_to_index[seed_pt],:]
-        for ii in range(self.n_pixels):
-            p = self.index_to_pixel[ii]
-            img[p[0],p[1]] = vals[ii]
-        img = np.ma.masked_where(img<0.0, img)
-        img = axis.imshow(img)
-        divider = make_axes_locatable(axis)
-        cax = divider.append_axes("right", size="5%", pad=0.05)
-        fig.colorbar(img, ax=axis, cax=cax)
-
-        axis = axes[1]
-        img = -1.0*np.ones(self.img_shape, dtype=float)
-        ratio = d_bckgd/(1.0e-6+d_roi)
-        ratio = np.where(ratio<3.0, ratio, 3.0)
-        for ii in range(self.n_pixels):
-            p = self.index_to_pixel[ii]
-            img[p[0],p[1]] = ratio[ii]
-        img = np.ma.masked_where(img<0.0, img)
-        img = axis.imshow(img)
-        divider = make_axes_locatable(axis)
-        cax = divider.append_axes("right", size="5%", pad=0.05)
-        fig.colorbar(img, ax=axis, cax=cax)
-
-        fig.savefig(plot_path)
 
 class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
     """
@@ -291,11 +234,10 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                          n_processors=n_processors,
                          roi_class=roi_class)
 
-    def _load_video(self, video_path:pathlib.Path):
+    def _load_video(self, video_path: pathlib.Path):
         return np.zeros(3, dtype=float)
         with h5py.File(video_path, 'r') as in_file:
             video_data = in_file['data'][()]
-        t0 = time.time()
         video_data = video_data.reshape(video_data.shape[0], -1)
         video_data = video_data.transpose()
         return video_data
@@ -333,11 +275,6 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                         self._filter_fraction,
                         pre_corr_lookup)
 
-                #correlate_tile(*args)
-
-
-                #exit()
-
                 p = multiprocessing.Process(target=correlate_tile,
                                             args=args)
                 p.start()
@@ -352,7 +289,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                             to_pop.append(ii)
                     for ii in to_pop:
                         p_list.pop(ii)
-                        ct_done +=1
+                        ct_done += 1
                         new_done += 1
                     if new_done > 0:
                         duration = time.time()-t0
@@ -367,7 +304,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         for key in pre_corr_lookup:
             n_pixels += 1
             n = len(pre_corr_lookup[key]['pixels'])
-            if n>max_indices:
+            if n > max_indices:
                 max_indices = n
 
         correlated_pixels = -1*np.ones((n_pixels, max_indices), dtype=int)
@@ -438,7 +375,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                                          self.roi_pixels)
 
                 mask = roi.get_mask()
-                lims_roi = convert_to_lims_roi((0,0), mask, roi_id=i_seed)
+                lims_roi = convert_to_lims_roi((0, 0), mask, roi_id=i_seed)
                 roi_list.append(lims_roi)
                 local_masks.append(mask)
 

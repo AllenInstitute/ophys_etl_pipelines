@@ -160,11 +160,12 @@ def correlate_tile(video_path: pathlib.Path,
 
             correlate_pixel(*args)
             ct += 1
-            if ct % 500 == 0:
-                dur = (time.time()-t0)/3600.0
+            if ct % (n_tot//10) == 0:
+                dur = (time.time()-t0)/60.0
                 per = dur/ct
                 pred = (n_tot-ct)*per
-                print(f'{ct} in {dur:.2f}; {pred: .2f}')
+                logger.info(f'{ct} in {dur:.2f} mins; '
+                            f'{pred: .2f} mins remaining')
 
     # copy results over to output_dict
     key_list = list(local_output_dict.keys())

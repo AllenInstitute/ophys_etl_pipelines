@@ -78,6 +78,7 @@ def thumbnail_video_from_array(
     ----------
     full_video: np.ndarray
         Shape is (n_time, n_rows, n_cols)
+        or (n_time, n_rows, n_cols, 3) for RGB
 
     origin: Tuple[int, int]
         (row_min, col_min)
@@ -120,7 +121,7 @@ def thumbnail_video_from_array(
         file_path = pathlib.Path(file_path)
 
     if timesteps is not None:
-        sub_video = full_video[timesteps, :, :]
+        sub_video = full_video[timesteps]
     else:
         sub_video = full_video
     sub_video = sub_video[:,

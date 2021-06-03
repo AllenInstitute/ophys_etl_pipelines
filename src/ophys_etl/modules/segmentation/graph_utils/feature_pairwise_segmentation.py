@@ -245,6 +245,26 @@ def transcribe_data(correlated_pixels,
     return n_transcribed
 
 
+def _get_roi(roi_id,
+             seed,
+             window_indexes,
+             corr_indexes,
+             corr_values,
+             roi_pixels,
+             roi_list,
+             local_masks):
+    roi = FeaturePairwiseROI(seed['center'],
+                             window_indexes,
+                             corr_indexes,
+                             corr_values,
+                             roi_pixels)
+
+    mask = roi.get_mask()
+    lims_roi = convert_to_lims_roi((0, 0), mask, roi_id=roi_id)
+    roi_list.append(lims_roi)
+    local_masks.append(mask)
+
+
 class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
     """
     Version of FeatureVectorSegmenter that uses a unique set of timestamps
@@ -328,7 +348,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                 # if possible
 
 
-                while len(p_list) > 0 and len(p_list) >= self.n_processors-1:
+                while len(p_list) > 0 and len(p_list) >= (self.n_processors-1):
                     to_pop = []
                     new_done = 0
                     for ii in range(len(p_list)-1, -1, -1):
@@ -427,7 +447,9 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         if seed_output is not None:
             seed_record = {}
 
-        roi_list = []
+        mgr = multiprocessing.Manager()
+        roi_list = mgr.list()
+
         roi_id = -1
         keep_going = True
         i_pass = 0
@@ -442,8 +464,13 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                 seed_record[i_pass] = seed_list
             i_pass += 1
 
-            local_masks = []
-            for i_seed, seed in enumerate(seed_list):
+            local_masks = mgr.list()
+            p_list = []
+            ct_done = 0
+            n_seeds = len(seed_list)
+
+            logger.info(f'running on {n_seeds} seeds')
+            for seed in seed_list:
                 roi_id += 1
 
                 window_indexes = get_pixel_indexes(seed['center'],
@@ -453,16 +480,37 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                 corr_indexes = correlated_pixels[window_indexes, :]
                 corr_values = correlated_values[window_indexes, :]
 
-                roi = FeaturePairwiseROI(seed['center'],
-                                         window_indexes,
-                                         corr_indexes,
-                                         corr_values,
-                                         self.roi_pixels)
+                args = (roi_id,
+                        seed,
+                        window_indexes,
+                        corr_indexes,
+                        corr_values,
+                        self.roi_pixels,
+                        roi_list,
+                        local_masks)
 
-                mask = roi.get_mask()
-                lims_roi = convert_to_lims_roi((0, 0), mask, roi_id=i_seed)
-                roi_list.append(lims_roi)
-                local_masks.append(mask)
+                p = multiprocessing.Process(target=_get_roi,
+                                            args=args)
+                p.start()
+                p_list.append(p)
+                while len(p_list) >= (self.n_processors-1):
+                    to_pop = []
+                    new_done = 0
+                    for ii in range(len(p_list)-1, -1, -1):
+                        if p_list[ii].exitcode is not None:
+                            to_pop.append(ii)
+                    for ii in to_pop:
+                        p_list.pop(ii)
+                        ct_done += 1
+                        new_done += 1
+
+                    if new_done > 0:
+                        duration = time.time()-t0
+                        logger.info(f'{ct_done} rois of {n_seeds} '
+                                    f'after {duration:.2f} sec')
+
+            for p in p_list:
+                p.join()
 
             for mask in local_masks:
                 self.roi_pixels[mask] = True
@@ -482,7 +530,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
 
         logger.info(f'writing {str(roi_output)}')
         with open(roi_output, 'w') as out_file:
-            out_file.write(json.dumps(roi_list, indent=2))
+            out_file.write(json.dumps(list(roi_list), indent=2))
 
         if plot_output is not None:
             logger.info(f'writing {str(plot_output)}')

@@ -330,6 +330,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         n_tiles = len(row_list)*len(col_list)
         tiles_per_p = []
         tot_tiles = 0
+        shld_corr = 0
 
         for row0 in row_list:
             row1 = min(img_shape[0], row0+drow)
@@ -373,7 +374,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                             to_pop.append(ii)
                     for ii in to_pop:
                         p_list.pop(ii)
-                        tiles_per_p.pop(ii)
+                        shld_corr += tiles_per_p.pop(ii)
                         ct_done += 1
                         new_done += 1
 
@@ -390,6 +391,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                         duration = time.time()-t0
                         logger.info(f'{ct_done} tiles done out of {n_tiles} '
                                     f'({(n_transcribed, n_corr)} pixels transcribed) '
+                                    f'(should be {shld_corr}) '
                                     f'in {duration:.2f} sec; '
                                     f'{min_tiles}, '
                                     f'{median_tiles}, '

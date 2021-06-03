@@ -239,6 +239,10 @@ def transcribe_data(correlated_pixels,
             if ii>= correlated_pixels.shape[0]:
                 raise RuntimeError(f'transcribing pixel {ii} '
                                    f'but shape {correlate_pixels.shape}')
+
+            already_valid = (correlated_pixels[ii,:]>=0).sum()
+            assert already_valid == 0
+
             correlated_pixels[ii, :n] = obj['pixels']
             correlated_values[ii, :n] = obj['corr']
             n_transcribed += 1

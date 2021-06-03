@@ -381,9 +381,10 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                                              img_shape,
                                              lock)
                     if new_done > 0:
+                        n_corr = (correlated_pixels[:,0]>=0).sum()
                         duration = time.time()-t0
                         logger.info(f'{ct_done} tiles done out of {n_tiles} '
-                                    f'({n_transcribed} pixels transcribed) '
+                                    f'({(n_transcribed, n_corr)} pixels transcribed) '
                                     f'in {duration:.2f} sec; '
                                     f'{min_tiles}, '
                                     f'{median_tiles}, '
@@ -411,8 +412,9 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
 
             if new_done > 0:
                 duration = time.time()-t0
+                n_corr = (correlated_pixels[:,0]>=0).sum()
                 logger.info(f'{ct_done} tiles done out of {n_tiles} '
-                            f'({n_transcribed} pixels transcribed) '
+                            f'({(n_transcribed, n_corr)} pixels transcribed) '
                             f'in {duration:.2f} sec')
 
         if len(pre_corr_done) > 0:

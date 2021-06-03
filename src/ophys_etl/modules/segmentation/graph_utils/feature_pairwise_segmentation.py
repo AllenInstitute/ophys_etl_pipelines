@@ -97,7 +97,9 @@ def correlate_tile(video_path: pathlib.Path,
                    img_shape: Tuple[int, int],
                    slop: int,
                    filter_fraction: float,
-                   output_dict: multiprocessing.managers.DictProxy):
+                   output_dict: multiprocessing.managers.DictProxy,
+                   done_dict: multiprocessing.managers.DictProxy,
+                   lock):
 
     local_output_dict = {}
 
@@ -169,9 +171,11 @@ def correlate_tile(video_path: pathlib.Path,
 
     # copy results over to output_dict
     key_list = list(local_output_dict.keys())
-    for key in key_list:
-        obj = local_output_dict.pop(key)
-        output_dict[key] = obj
+    with lock:
+        for key in key_list:
+            obj = local_output_dict.pop(key)
+            output_dict[key] = obj
+            done_dict[key] = True
 
 
 class FeaturePairwiseROI(PotentialROI):
@@ -220,6 +224,31 @@ class FeaturePairwiseROI(PotentialROI):
                                        metric='euclidean')
 
 
+def transcribe_data(correlated_pixels,
+                    correlated_values,
+                    results_dict,
+                    done_dict,
+                    img_shape,
+                    lock):
+    with lock:
+        n_transcribed = 0
+        key_list = list(done_dict.keys())
+        for key in key_list:
+            if not done_dict[key]:
+                continue
+            done_dict.pop(key)
+            obj = results_dict.pop(key)
+            n = len(obj['pixels'])
+            ii = np.ravel_multi_index(key, img_shape)
+            if ii>= correlated_pixels.shape[0]:
+                raise RuntimeError(f'transcribing pixel {ii} '
+                                   f'but shape {correlate_pixels.shape}')
+            correlated_pixels[ii, :n] = obj['pixels']
+            correlated_values[ii, :n] = obj['corr']
+            n_transcribed += 1
+    return n_transcribed
+
+
 class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
     """
     Version of FeatureVectorSegmenter that uses a unique set of timestamps
@@ -257,6 +286,8 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         """
         pre_corr_mgr = multiprocessing.Manager()
         pre_corr_lookup = pre_corr_mgr.dict()
+        pre_corr_done = pre_corr_mgr.dict()
+        lock = pre_corr_mgr.Lock()
 
         # pre-compute correlations
         img_shape = img_data.shape
@@ -264,12 +295,20 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         drow = max(1, img_shape[0]//(2*sqrt_proc))
         dcol = max(1, img_shape[1]//(2*sqrt_proc))
 
+        n_pixels = img_shape[0]*img_shape[1]
+        max_indices = (4*self.slop+1)**2
+        correlated_pixels = -1*np.ones((n_pixels, max_indices), dtype=int)
+        correlated_values = np.zeros((n_pixels, max_indices), dtype=float)
+
+        n_transcribed = 0
+
         t0 = time.time()
         p_list = []
         ct_done = 0
         row_list = list(range(0, img_shape[0], drow))
         col_list = list(range(0, img_shape[1], dcol))
         n_tiles = len(row_list)*len(col_list)
+
         for row0 in row_list:
             row1 = min(img_shape[0], row0+drow)
             for col0 in col_list:
@@ -281,7 +320,9 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                         img_shape,
                         self.slop,
                         self._filter_fraction,
-                        pre_corr_lookup)
+                        pre_corr_lookup,
+                        pre_corr_done,
+                        lock)
 
                 p = multiprocessing.Process(target=correlate_tile,
                                             args=args)
@@ -289,6 +330,8 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                 p_list.append(p)
                 # make sure that all processors are working at all times,
                 # if possible
+
+
                 while len(p_list) > 0 and len(p_list) >= self.n_processors-1:
                     to_pop = []
                     new_done = 0
@@ -304,26 +347,56 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                         logger.info(f'{ct_done} tiles done out of {n_tiles} '
                                     f'in {duration:.2f} sec')
 
-        for p in p_list:
-            p.join()
+                    if len(pre_corr_done) > 0:
+                        n_transcribed += transcribe_data(
+                                             correlated_pixels,
+                                             correlated_values,
+                                             pre_corr_lookup,
+                                             pre_corr_done,
+                                             img_shape,
+                                             lock)
 
-        max_indices = 0
-        n_pixels = 0
-        for key in pre_corr_lookup:
-            n_pixels += 1
-            n = len(pre_corr_lookup[key]['pixels'])
-            if n > max_indices:
-                max_indices = n
+        while len(p_list) > 0:
+            to_pop = []
+            new_done = 0
+            for ii in range(len(p_list)-1, -1, -1):
+                if p_list[ii].exitcode is not None:
+                    to_pop.append(ii)
+            for ii in to_pop:
+                p_list.pop(ii)
+                ct_done += 1
+                new_done += 1
+            if new_done > 0:
+                duration = time.time()-t0
+                logger.info(f'{ct_done} tiles done out of {n_tiles} '
+                            f'in {duration:.2f} sec')
 
-        correlated_pixels = -1*np.ones((n_pixels, max_indices), dtype=int)
-        correlated_values = np.zeros((n_pixels, max_indices), dtype=float)
-        key_list = list(pre_corr_lookup.keys())
-        for key in key_list:
-            obj = pre_corr_lookup.pop(key)
-            n = len(obj['pixels'])
-            ii = np.ravel_multi_index(key, img_shape)
-            correlated_pixels[ii, :n] = obj['pixels']
-            correlated_values[ii, :n] = obj['corr']
+            if len(pre_corr_done) > 0:
+                n_transcribed += transcribe_data(
+                                     correlated_pixels,
+                                     correlated_values,
+                                     pre_corr_lookup,
+                                     pre_corr_done,
+                                     img_shape,
+                                     lock)
+
+        if len(pre_corr_done) > 0:
+            n_transcribed += transcribe_data(
+                                 correlated_pixels,
+                                 correlated_values,
+                                 pre_corr_lookup,
+                                 pre_corr_done,
+                                 img_shape,
+                                 lock)
+
+        if n_transcribed != n_pixels:
+            raise RuntimeError(f'transcribed {n_transcribed} '
+                               f'of {n_pixels} pixels')
+
+        for ii in range(n_pixels):
+            n = (correlated_pixels[ii,:]>=0).sum()
+            if n == 0:
+                raise RuntimeError(f'pixel {ii} has no correlations')
 
         duration = time.time()-t0
         logger.info('pre correlation took %e seconds' % duration)

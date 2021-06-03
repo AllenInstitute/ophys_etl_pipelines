@@ -12,6 +12,7 @@ from ophys_etl.modules.segmentation.graph_utils.\
     feature_pairwise_segmentation import (
         FeaturePairwiseSegmenter)
 
+
 class FeatureVectorSegmentationRunner(argschema.ArgSchemaParser):
 
     default_schema = FeatureVectorSegmentationInputSchema

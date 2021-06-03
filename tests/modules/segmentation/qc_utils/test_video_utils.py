@@ -6,15 +6,18 @@ import h5py
 import pathlib
 import gc
 
+from ophys_etl.types import ExtractROI
+
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     thumbnail_video_from_array,
+    thumbnail_video_from_ROI,
     ThumbnailVideo)    
 
 
 @pytest.fixture
 def example_video():
     rng = np.random.RandomState(16412)
-    data = rng.randint(0, 255, (100, 30, 40)).astype(np.uint8)
+    data = rng.randint(0, 100, (100, 30, 40)).astype(np.uint8)
     for ii in range(100):
         data[ii,::,:] = ii
     return data
@@ -23,7 +26,7 @@ def example_video():
 @pytest.fixture
 def example_rgb_video():
     rng = np.random.RandomState(16412)
-    data = rng.randint(0, 255, (100, 30, 40, 3)).astype(np.uint8)
+    data = rng.randint(0, 100, (100, 30, 40, 3)).astype(np.uint8)
     for ii in range(100):
         data[ii,::,:] = ii
     return data
@@ -85,3 +88,33 @@ def test_thumbnail_from_rgb_array(tmpdir, example_rgb_video):
     gc.collect()
 
     assert not file_path.exists()
+
+
+def test_thumbnail_from_roi(tmpdir, example_video):
+
+
+    mask = np.zeros((7,8), dtype=bool)
+    mask[3:5, 1:6] = True
+
+    roi = ExtractROI(y=20,
+                     height=7,
+                     x=10,
+                     width=8,
+                     valid=True,
+                     mask=[list(row) for row in mask])
+
+    thumbnail = thumbnail_video_from_ROI(
+                    example_video,
+                    roi,
+                    tmp_dir=pathlib.Path(tmpdir))
+
+    rowmin = thumbnail.origin[0]
+    rowmax = thumbnail.origin[0]+thumbnail.frame_shape[0]
+    colmin = thumbnail.origin[1]
+    colmax = thumbnail.origin[1]+thumbnail.frame_shape[1]
+    assert rowmin <= 20
+    assert rowmax >= 27
+    assert colmin <= 10
+    assert colmax >= 18
+
+    assert thumbnail.video_path.is_file()

@@ -3,6 +3,8 @@ import numpy as np
 import pathlib
 import tempfile
 import imageio
+from ophys_etl.types import ExtractROI
+from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 
 class ThumbnailVideo(object):
@@ -70,7 +72,8 @@ def thumbnail_video_from_array(
         file_path: Optional[pathlib.Path] = None,
         tmp_dir: Optional[pathlib.Path] = None,
         fps: int = 31,
-        quality: int = 5) -> ThumbnailVideo:
+        quality: int = 5,
+        origin_offset: Optional[Tuple[int,int]] = None) -> ThumbnailVideo:
     """
     Create a ThumbnailVideo (mp4) from a numpy array
 
@@ -106,6 +109,12 @@ def thumbnail_video_from_array(
         Parameter passed to imageio.mimsave controlling
         quality of video file produced (max is 10; default is 5)
 
+    origin_offset: Optional[Tuple[int, int]]
+        Offset values to be added to origin in container.
+        *Should only be used by methods which call this method
+        after pre-truncating the video in space; do NOT use this
+        by hand*
+
     Returns
     -------
     ThumbnailVideo
@@ -133,8 +142,106 @@ def thumbnail_video_from_array(
                      fps=fps,
                      quality=quality)
 
+    if origin_offset is None:
+        origin_offset = (0, 0)
+
     container = ThumbnailVideo(file_path,
-                               origin,
+                               (origin[0]+origin_offset[0],
+                                origin[1]+origin_offset[1]),
                                frame_shape,
                                timesteps=timesteps)
     return container
+
+
+def thumbnail_video_from_ROI(
+        full_video: np.ndarray,
+        roi: ExtractROI,
+        roi_color: Optional[Tuple[int, int, int]]=None,
+        timesteps: Optional[np.ndarray] = None,
+        file_path: Optional[pathlib.Path] = None,
+        tmp_dir: Optional[pathlib.Path] = None,
+        fps: int = 31,
+        quality: int = 5) -> ThumbnailVideo:
+
+    # construct an ROI object to get the boundary mask
+    # for us
+    roi = OphysROI(roi_id=-1,
+                   x0=roi['x'],
+                   y0=roi['y'],
+                   width=roi['width'],
+                   height=roi['height'],
+                   valid_roi=False,
+                   mask_matrix=roi['mask'])
+
+    # find bounds of thumbnail
+
+    # make thumbnail a square about the ROI
+    max_dim = max(roi.width, roi.height)
+
+    # make dim a power of 2
+    pwr = np.ceil(np.log2(max_dim))
+    max_dim = np.power(2, pwr).astype(int)
+
+    # center the thumbnail on the ROI
+    row_center = int(roi.y0 + roi.height//2)
+    col_center = int(roi.x0 + roi.width//2)
+
+    rowmin = max(0, row_center - max_dim//2)
+    rowmax = rowmin + max_dim
+    colmin = max(0, col_center - max_dim//2)
+    colmax = colmin + max_dim
+
+    img_shape = full_video.shape[1:3]
+
+    if rowmax >= img_shape[0]:
+        rowmin = max(0, img_shape[0]-max_dim)
+        rowmax = min(img_shape[0], rowmin+max_dim)
+    if colmax >= img_shape[1]:
+        colmin = max(0, img_shape[1]-max_dim)
+        colmax = min(img_shape[1], colmin+max_dim)
+
+    # truncate the video in time and space
+    is_rgb = (len(full_video.shape) == 4)
+
+    if timesteps is not None:
+        sub_video = full_video[timesteps]
+    else:
+        sub_video = full_video
+
+    sub_video = sub_video[:, rowmin:rowmax, colmin:colmax]
+
+    if not is_rgb:
+        rgb_video = np.zeros((sub_video.shape[0],
+                              rowmax-rowmin,
+                              colmax-colmin,
+                              3), dtype=full_video.dtype)
+
+        for ic in range(3):
+            rgb_video[:, :, :, ic] = sub_video
+        sub_video = rgb_video
+
+    # if an ROI color has been specified, plot the ROI
+    # boundary over the video in the specified color
+    if roi_color is not None:
+        boundary_mask = roi.boundary_mask
+        for irow in range(boundary_mask.shape[0]):
+            row = irow+roi.y0-rowmin
+            for icol in range(boundary_mask.shape[1]):
+                if not boundary_mask[irow, icol]:
+                    continue
+                col = icol+roi.x0-colmin
+                for i_color in range(3):
+                    sub_video[:, row, col, i_color] = roi_color[i_color]
+
+    thumbnail = thumbnail_video_from_array(
+                    sub_video,
+                    (0, 0),
+                    sub_video.shape[1:3],
+                    timesteps=None,
+                    file_path=file_path,
+                    tmp_dir=tmp_dir,
+                    fps=fps,
+                    quality=quality,
+                    origin_offset=(rowmin, colmin))
+
+    return thumbnail

@@ -181,6 +181,7 @@ def thumbnail_video_from_ROI(
     # make dim a power of 2
     pwr = np.ceil(np.log2(max_dim))
     max_dim = np.power(2, pwr).astype(int)
+    max_dim = max(max_dim, 16)
 
     # center the thumbnail on the ROI
     row_center = int(roi.y0 + roi.height//2)

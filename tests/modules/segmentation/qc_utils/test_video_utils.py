@@ -96,35 +96,57 @@ def test_thumbnail_from_roi(tmpdir, example_video):
     mask = np.zeros((7,8), dtype=bool)
     mask[3:5, 1:6] = True
 
-    roi = ExtractROI(y=20,
-                     height=7,
-                     x=10,
-                     width=8,
+    y0 = 20
+    height = 7
+    x0 = 10
+    width = 8
+
+    bdry_pix = []
+    for row in (3,4):
+        for col in range(1,6):
+            bdry_pix.append((row+y0, col+x0))
+    for row in range(3,5):
+        for col in (1,5):
+            bdry_pix.append((row+y0, col+x0))
+
+
+    roi = ExtractROI(y=y0,
+                     height=height,
+                     x=x0,
+                     width=width,
                      valid=True,
                      mask=[list(row) for row in mask])
 
     thumbnail = thumbnail_video_from_ROI(
                     example_video,
                     roi,
-                    tmp_dir=pathlib.Path(tmpdir))
+                    tmp_dir=pathlib.Path(tmpdir),
+                    quality=10)
 
     rowmin = thumbnail.origin[0]
     rowmax = thumbnail.origin[0]+thumbnail.frame_shape[0]
     colmin = thumbnail.origin[1]
     colmax = thumbnail.origin[1]+thumbnail.frame_shape[1]
-    assert rowmin <= 20
-    assert rowmax >= 27
-    assert colmin <= 10
-    assert colmax >= 18
+    assert rowmin <= y0
+    assert rowmax >= y0+height
+    assert colmin <= x0
+    assert colmax >= x0+width
 
     assert thumbnail.video_path.is_file()
 
+    read_data = imageio.mimread(thumbnail.video_path)
+    assert read_data[0].shape == (thumbnail.frame_shape[0],
+                                  thumbnail.frame_shape[1],
+                                  3)
+
     # now with color
+    example_video[:,:,:] = 0
     thumbnail = thumbnail_video_from_ROI(
                     example_video,
                     roi,
                     roi_color=(0, 255, 0),
-                    tmp_dir=pathlib.Path(tmpdir))
+                    tmp_dir=pathlib.Path(tmpdir),
+                    quality=7)
 
     rowmin = thumbnail.origin[0]
     rowmax = thumbnail.origin[0]+thumbnail.frame_shape[0]

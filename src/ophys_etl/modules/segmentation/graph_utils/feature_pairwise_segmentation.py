@@ -261,8 +261,8 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         # pre-compute correlations
         img_shape = img_data.shape
         sqrt_proc = max(1, np.ceil(np.sqrt(self.n_processors-1)).astype(int))
-        drow = max(1, img_shape[0]//sqrt_proc)
-        dcol = max(1, img_shape[1]//sqrt_proc)
+        drow = max(1, img_shape[0]//(2*sqrt_proc))
+        dcol = max(1, img_shape[1]//(2*sqrt_proc))
 
         t0 = time.time()
         p_list = []

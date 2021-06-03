@@ -453,6 +453,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         roi_id = -1
         keep_going = True
         i_pass = 0
+        n_last_written = 0
         while keep_going:
             n_roi_0 = self.roi_pixels.sum()
 
@@ -522,6 +523,21 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
             duration = time.time()-t0
             logger.info(f'found {len(seed_list)} seeds; {n_roi_1} ROI pixels; '
                         f'after {duration:.2f} seconds')
+
+            if n_roi_1 > (n_last_written+1000) and keep_going:
+                n_last_written = n_roi_1
+                if seed_output is not None:
+                    logger.info(f'writing {str(seed_output)}')
+                    with open(seed_output, 'w') as out_file:
+                        out_file.write(json.dumps(seed_record, indent=2))
+
+                logger.info(f'writing {str(roi_output)}')
+                with open(roi_output, 'w') as out_file:
+                    out_file.write(json.dumps(list(roi_list), indent=2))
+
+                if plot_output is not None:
+                    logger.info(f'writing {str(plot_output)}')
+                    create_roi_plot(plot_output, img_data, roi_list)
 
         if seed_output is not None:
             logger.info(f'writing {str(seed_output)}')

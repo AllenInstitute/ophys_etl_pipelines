@@ -431,7 +431,7 @@ class FeatureVectorSegmenter(object):
 
         return seed_list
 
-    def _load_video(self, video_path:pathlib.Path):
+    def _load_video(self, video_path: pathlib.Path):
         with h5py.File(video_path, 'r') as in_file:
             video_data = in_file['data'][()]
         return video_data

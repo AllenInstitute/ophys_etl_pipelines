@@ -389,7 +389,7 @@ class PotentialROI(object):
         self.seed_pt = (seed_pt[0]-origin[0], seed_pt[1]-origin[1])
         self.filter_fraction = filter_fraction
         self.img_shape = sub_video.shape[1:]
-        self.pixel_threshold=2
+        self.pixel_threshold = 2
 
         self.index_to_pixel = []
         self.pixel_to_index = {}

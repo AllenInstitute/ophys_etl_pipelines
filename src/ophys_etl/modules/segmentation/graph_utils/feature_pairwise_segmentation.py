@@ -429,9 +429,15 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                         f'({n_transcribed} pixels transcribed) '
                         f'in {duration:.2f} sec')
 
-        if n_transcribed != n_pixels:
-            raise RuntimeError(f'transcribed {n_transcribed} '
-                               f'of {n_pixels} pixels')
+        n_corr = (correlated_pixels[:,0]>=0).sum()
+
+        if (tot_tiles != n_pixels
+            or n_transcribed != n_pixels
+            or n_corr!=n_pixels):
+            raise RuntimeError(f'tot_tiles {tot_tiles}, '
+                               f'n_transcribed {n_transcribed}, '
+                               f'n_pixels {n_pixels}, '
+                               f'n_corr {n_corr}')
 
         for ii in range(n_pixels):
             n = (correlated_pixels[ii,:]>=0).sum()

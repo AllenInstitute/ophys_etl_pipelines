@@ -338,10 +338,6 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                         p_list.pop(ii)
                         ct_done += 1
                         new_done += 1
-                    if new_done > 0:
-                        duration = time.time()-t0
-                        logger.info(f'{ct_done} tiles done out of {n_tiles} '
-                                    f'in {duration:.2f} sec')
 
                     if len(pre_corr_done) > 0:
                         n_transcribed += transcribe_data(
@@ -351,6 +347,11 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                                              pre_corr_done,
                                              img_shape,
                                              lock)
+                    if new_done > 0:
+                        duration = time.time()-t0
+                        logger.info(f'{ct_done} tiles done out of {n_tiles} '
+                                    f'({n_transcribed} pixels transcribed) '
+                                    f'in {duration:.2f} sec')
 
         while len(p_list) > 0:
             to_pop = []
@@ -362,10 +363,6 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                 p_list.pop(ii)
                 ct_done += 1
                 new_done += 1
-            if new_done > 0:
-                duration = time.time()-t0
-                logger.info(f'{ct_done} tiles done out of {n_tiles} '
-                            f'in {duration:.2f} sec')
 
             if len(pre_corr_done) > 0:
                 n_transcribed += transcribe_data(
@@ -376,6 +373,12 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                                      img_shape,
                                      lock)
 
+            if new_done > 0:
+                duration = time.time()-t0
+                logger.info(f'{ct_done} tiles done out of {n_tiles} '
+                            f'({n_transcribed} pixels transcribed) '
+                            f'in {duration:.2f} sec')
+
         if len(pre_corr_done) > 0:
             n_transcribed += transcribe_data(
                                  correlated_pixels,
@@ -384,6 +387,11 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                                  pre_corr_done,
                                  img_shape,
                                  lock)
+
+            duration = time.time()-t0
+            logger.info(f'{ct_done} tiles done out of {n_tiles} '
+                        f'({n_transcribed} pixels transcribed) '
+                        f'in {duration:.2f} sec')
 
         if n_transcribed != n_pixels:
             raise RuntimeError(f'transcribed {n_transcribed} '

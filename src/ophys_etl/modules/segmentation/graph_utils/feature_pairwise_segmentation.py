@@ -125,7 +125,6 @@ def correlate_tile(video_path: pathlib.Path,
     video_data = video_data.reshape(video_data.shape[0], -1)
     video_data = video_data.transpose()
 
-    ct = 0
     n_tot = (rowbounds[1]-rowbounds[0])*(colbounds[1]-colbounds[0])
     t0 = time.time()
     for row in range(rowbounds[0], rowbounds[1], 1):
@@ -161,13 +160,6 @@ def correlate_tile(video_path: pathlib.Path,
                     local_output_dict)
 
             correlate_pixel(*args)
-            ct += 1
-            if ct % (n_tot//10) == 0:
-                dur = (time.time()-t0)/60.0
-                per = dur/ct
-                pred = (n_tot-ct)*per
-                logger.info(f'{ct} in {dur:.2f} mins; '
-                            f'{pred: .2f} mins remaining')
 
     # copy results over to output_dict
     key_list = list(local_output_dict.keys())

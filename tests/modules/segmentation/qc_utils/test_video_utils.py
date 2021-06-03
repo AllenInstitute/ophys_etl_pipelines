@@ -118,3 +118,21 @@ def test_thumbnail_from_roi(tmpdir, example_video):
     assert colmax >= 18
 
     assert thumbnail.video_path.is_file()
+
+    # now with color
+    thumbnail = thumbnail_video_from_ROI(
+                    example_video,
+                    roi,
+                    roi_color=(0, 255, 0),
+                    tmp_dir=pathlib.Path(tmpdir))
+
+    rowmin = thumbnail.origin[0]
+    rowmax = thumbnail.origin[0]+thumbnail.frame_shape[0]
+    colmin = thumbnail.origin[1]
+    colmax = thumbnail.origin[1]+thumbnail.frame_shape[1]
+    assert rowmin <= 20
+    assert rowmax >= 27
+    assert colmin <= 10
+    assert colmax >= 18
+
+    assert thumbnail.video_path.is_file()

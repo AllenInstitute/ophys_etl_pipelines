@@ -222,8 +222,8 @@ def transcribe_data(correlated_pixels,
                     done_dict,
                     img_shape,
                     lock):
+    n_transcribed = 0
     with lock:
-        n_transcribed = 0
         key_list = list(done_dict.keys())
         for key in key_list:
             if not done_dict[key]:

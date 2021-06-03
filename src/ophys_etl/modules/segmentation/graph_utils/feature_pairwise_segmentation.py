@@ -328,6 +328,8 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
         row_list = list(range(0, img_shape[0], drow))
         col_list = list(range(0, img_shape[1], dcol))
         n_tiles = len(row_list)*len(col_list)
+        tiles_per_p = []
+        tot_tiles = 0
 
         for row0 in row_list:
             row1 = min(img_shape[0], row0+drow)
@@ -348,11 +350,17 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                                             args=args)
                 p.start()
                 p_list.append(p)
+                tiles_per_p.append((row1-row0)*(col1-col0))
+                tot_tiles += (row1-row0)*(col1-col0)
                 # make sure that all processors are working at all times,
                 # if possible
 
 
                 while len(p_list) > 0 and len(p_list) >= (self.n_processors-1):
+                    median_tiles = np.median(tiles_per_p)
+                    max_tiles = max(tiles_per_p)
+                    min_tiles = min(tiles_per_p)
+
                     to_pop = []
                     new_done = 0
                     for ii in range(len(p_list)-1, -1, -1):
@@ -360,6 +368,7 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                             to_pop.append(ii)
                     for ii in to_pop:
                         p_list.pop(ii)
+                        tiles_per_p.pop(ii)
                         ct_done += 1
                         new_done += 1
 
@@ -375,7 +384,10 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                         duration = time.time()-t0
                         logger.info(f'{ct_done} tiles done out of {n_tiles} '
                                     f'({n_transcribed} pixels transcribed) '
-                                    f'in {duration:.2f} sec')
+                                    f'in {duration:.2f} sec; '
+                                    f'{min_tiles}, '
+                                    f'{median_tiles}, '
+                                    f'{max_tiles}')
 
         while len(p_list) > 0:
             to_pop = []

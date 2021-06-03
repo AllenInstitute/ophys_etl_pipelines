@@ -231,6 +231,10 @@ def transcribe_data(correlated_pixels,
             done_dict.pop(key)
             obj = results_dict.pop(key)
             n = len(obj['pixels'])
+            if n >= correlated_pixels.shape[1]:
+                raise RuntimeError(f'pixel {ii} has {n} neighors; '
+                                   'destination shape '
+                                   f'{correlated_pixels.shape}')
             ii = np.ravel_multi_index(key, img_shape)
             if ii>= correlated_pixels.shape[0]:
                 raise RuntimeError(f'transcribing pixel {ii} '

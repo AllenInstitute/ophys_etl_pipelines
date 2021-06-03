@@ -413,30 +413,45 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
 
         self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
 
-        seed_list = find_peaks(img_data,
-                               mask=self.roi_pixels,
-                               slop=20)
-        print(f'{len(seed_list)} seeds')
-
         roi_list = []
-        for i_seed, seed in enumerate(seed_list):
+        roi_id = -1
+        keep_going = True
+        while keep_going:
+            n_roi_0 = self.roi_pixels.sum()
 
-            window_indexes = get_pixel_indexes(seed['center'],
-                                               self.slop,
-                                               img_shape)
+            seed_list = find_peaks(img_data,
+                                   mask=self.roi_pixels,
+                                   slop=20)
 
-            corr_indexes = correlated_pixels[window_indexes, :]
-            corr_values = correlated_values[window_indexes, :]
+            logger.info(f'found {len(seed_list)} seeds; {n_roi_0} ROI pixels')
 
-            roi = FeaturePairwiseROI(seed['center'],
-                                     window_indexes,
-                                     corr_indexes,
-                                     corr_values,
-                                     self.roi_pixels)
+            local_masks = []
+            for i_seed, seed in enumerate(seed_list):
+                roi_id += 1
 
-            mask = roi.get_mask()
-            lims_roi = convert_to_lims_roi((0,0), mask, roi_id=i_seed) 
-            roi_list.append(lims_roi)
-            print('got mask ',mask.sum())
-            roi.plot('junk_roi_%d.png' % i_seed, seed['center'])
+                window_indexes = get_pixel_indexes(seed['center'],
+                                                   self.slop,
+                                                   img_shape)
+
+                corr_indexes = correlated_pixels[window_indexes, :]
+                corr_values = correlated_values[window_indexes, :]
+
+                roi = FeaturePairwiseROI(seed['center'],
+                                         window_indexes,
+                                         corr_indexes,
+                                         corr_values,
+                                         self.roi_pixels)
+
+                mask = roi.get_mask()
+                lims_roi = convert_to_lims_roi((0,0), mask, roi_id=i_seed)
+                roi_list.append(lims_roi)
+                local_masks.append(mask)
+
+            for mask in local_masks:
+                self.roi_pixels[mask] = True
+            n_roi_1 = self.roi_pixels.sum()
+
+            if n_roi_1 == n_roi_0:
+                keep_going = False
+
         create_roi_plot(pathlib.Path('junk.png'), img_data, roi_list)

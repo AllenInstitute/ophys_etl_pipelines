@@ -69,7 +69,8 @@ def thumbnail_video_from_array(
         timesteps: Optional[np.ndarray] = None,
         file_path: Optional[pathlib.Path] = None,
         tmp_dir: Optional[pathlib.Path] = None,
-        fps: int = 31) -> ThumbnailVideo:
+        fps: int = 31,
+        quality: int = 5) -> ThumbnailVideo:
     """
     Create a ThumbnailVideo (mp4) from a numpy array
 
@@ -100,6 +101,10 @@ def thumbnail_video_from_array(
     fps: int
         frames per second (default: 31)
 
+    quality: int
+        Parameter passed to imageio.mimsave controlling
+        quality of video file produced (max is 10; default is 5)
+
     Returns
     -------
     ThumbnailVideo
@@ -125,7 +130,7 @@ def thumbnail_video_from_array(
     imageio.mimsave(file_path,
                      sub_video,
                      fps=fps,
-                     quality=10)
+                     quality=quality)
 
     container = ThumbnailVideo(file_path,
                                origin,

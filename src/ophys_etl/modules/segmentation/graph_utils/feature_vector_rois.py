@@ -1,6 +1,8 @@
 from typing import Optional, Tuple
 from scipy.spatial.distance import cdist
 import numpy as np
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 
 def choose_timesteps(
@@ -643,4 +645,105 @@ class PearsonFeatureROI(PotentialROI):
                                     filter_fraction,
                                     pixel_ignore=pixel_ignore,
                                     rng=rng)
+        return features
+
+
+def calculate_pca_feature_vectors(
+            sub_video: np.ndarray,
+            n_components: int = 50,
+            scale: bool = True,
+            pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
+    """
+    Calculate the PCA feature vectors relating
+    a grid of pixels in a video to each other
+
+    Parameters
+    ----------
+    sub_video: np.ndarray
+        A subset of a video to be correlated.
+        Shape is (n_time, n_rows, n_cols)
+    n_components: int
+        how many PCA components to fit
+    scale: bool
+        whether to apply StandardScaler()
+    pixel_ignore: Optional[np.ndarray]:
+        An (n_rows, n_cols) array of booleans marked True at any pixels
+        that should be ignored, presumably because they have already been
+        selected as ROI pixels. (default: None)
+
+    Returns
+    -------
+    features: np.ndarray
+         An (n_pixels, n_components) array of feature vectors.
+
+    Notes
+    -----
+    -
+
+    """
+    nframes = sub_video.shape[0]
+    data = sub_video.reshape(nframes, -1)
+    if pixel_ignore is not None:
+        mask = np.logical_not(pixel_ignore.flatten())
+        data = data[:, mask]
+    pca = PCA(n_components=n_components)
+    pca.fit(data)
+    features = pca.components_.T
+    if scale:
+        features = StandardScaler().fit_transform(features)
+    return features
+
+
+class PCAFeatureROI(PotentialROI):
+    """
+    A sub-class of PotentialROI that uses the features
+    calculated by calculate_pearson_feature_vectors
+    to find ROIs.
+
+    See docstring for PotentialROI for __init__ call signature.
+    """
+
+    def get_features(
+            self,
+            sub_video: np.ndarray,
+            filter_fraction: float,
+            pixel_ignore: Optional[np.ndarray] = None,
+            rng: Optional[np.random.RandomState] = None) -> np.ndarray:
+        """
+        Return the (n_pixels, n_pixels) array of feature vectors
+
+        Parameters
+        ----------
+        sub_video: np.ndarray
+            The subset of video data being scanned for an ROI.
+            Shape is (n_time, n_rows, n_cols)
+
+        filter_fraction: float
+            Fraction of brightest timesteps to use in calculating
+            features.
+
+        pixel_ignore: Optional[np.ndarray]
+            A (n_rows, n_cols) array of booleans that is True
+            for any pixel to be ignored, presumably because it
+            has already been assigned to an ROI (default: None)
+
+        rng: Optional[np.random.RandomState]
+            A random number generator (used by
+            calculate_pearson_feature_vectors to select pixels
+            for use in choosing brightest timesteps)
+
+        Returns
+        -------
+        features: np.ndarray
+            A (n_pixels, n_features) array in which each row is the
+            feature vector corresponding to a pixel in sub_video.
+
+        Notes
+        ------
+        features[ii, :] can be mapped into a pixel in sub_video using
+        self.index_to_pixel[ii]
+        """
+        features = calculate_pca_feature_vectors(
+                                    sub_video=sub_video,
+                                    pixel_ignore=pixel_ignore)
         return features

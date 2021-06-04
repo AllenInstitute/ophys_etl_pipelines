@@ -141,7 +141,8 @@ def thumbnail_video_from_array(
                      sub_video,
                      fps=fps,
                      quality=quality,
-                     pixelformat='yuvj444p')
+                     pixelformat='yuv444p',
+                     codec='libx264')
 
     if origin_offset is None:
         origin_offset = (0, 0)

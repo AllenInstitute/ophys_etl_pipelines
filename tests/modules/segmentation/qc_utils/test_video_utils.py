@@ -11,6 +11,7 @@ from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     thumbnail_video_from_array,
     thumbnail_video_from_ROI,
+    scale_video_to_uint8,
     ThumbnailVideo)    
 
 
@@ -30,6 +31,26 @@ def example_rgb_video():
     for ii in range(100):
         data[ii,::,:] = ii
     return data
+
+
+def test_scale_video():
+
+    data = np.array([[1.0, 2.0, 3.0, 4.0],
+                     [5.0, 6.0, 7.0, 8.0]])
+
+    scaled = scale_video_to_uint8(data)
+    assert scaled.dtype == np.uint8
+
+    expected = np.array([[32, 64, 96, 128],
+                         [159, 191, 223, 255]]).astype(np.uint8)
+
+    np.testing.assert_array_equal(expected, scaled)
+
+    scaled = scale_video_to_uint8(data, max_val=15)
+    expected = np.array([[17, 34, 51, 68],
+                         [85, 102, 119, 136]]).astype(np.uint8)
+
+    np.testing.assert_array_equal(expected, scaled)
 
 
 def test_thumbnail_from_array(tmpdir, example_video):

@@ -1,4 +1,4 @@
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 import numpy as np
 import pathlib
 import tempfile
@@ -62,6 +62,30 @@ class ThumbnailVideo(object):
     @property
     def timesteps(self) -> Optional[np.ndarray]:
         return self._timesteps
+
+
+def scale_video_to_uint8(video: np.ndarray,
+                         max_val: Optional[Union[int, float]] = None):
+    """
+    Convert a video (as a numpy.ndarray) to uint8 by dividing by the
+    array's maximum value and multiplying by 255
+
+    Parameters
+    ----------
+    video: np.ndarray
+
+    max_val: Optional[Union[int, float]]
+        If you want to normalize by something other than video.max(),
+        specify it here. If None, will normalize by video.max().
+        (default: None
+
+    Returns
+    -------
+    np.ndarray
+    """
+    if max_val is None:
+        max_val = video.max()
+    return np.round(255*video.astype(float)/max_val).astype(np.uint8)
 
 
 def thumbnail_video_from_array(
@@ -133,6 +157,7 @@ def thumbnail_video_from_array(
         sub_video = full_video[timesteps]
     else:
         sub_video = full_video
+
     sub_video = sub_video[:,
                           origin[0]:origin[0]+frame_shape[0],
                           origin[1]:origin[1]+frame_shape[1]]

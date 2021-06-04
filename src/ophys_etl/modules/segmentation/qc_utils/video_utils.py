@@ -140,7 +140,8 @@ def thumbnail_video_from_array(
     imageio.mimsave(file_path,
                      sub_video,
                      fps=fps,
-                     quality=quality)
+                     quality=quality,
+                     pixelformat='yuvj444p')
 
     if origin_offset is None:
         origin_offset = (0, 0)

@@ -683,12 +683,14 @@ def calculate_pca_feature_vectors(
     """
     nframes = sub_video.shape[0]
     data = sub_video.reshape(nframes, -1)
-    if pixel_ignore is not None:
-        mask = np.logical_not(pixel_ignore.flatten())
-        data = data[:, mask]
     pca = PCA(n_components=n_components)
     pca.fit(data)
     features = pca.components_.T
+    if pixel_ignore is not None:
+        mask = np.logical_not(pixel_ignore.flatten())
+    else:
+        mask = np.ones((data.shape[-1])).astype(bool)
+    features = features[mask]
     if scale:
         features = StandardScaler().fit_transform(features)
     return features

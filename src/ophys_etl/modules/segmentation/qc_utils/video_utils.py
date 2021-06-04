@@ -180,6 +180,61 @@ def thumbnail_video_from_array(
     return container
 
 
+def video_bounds_from_ROI(
+        roi: ExtractROI,
+        fov_shape: Tuple[int, int]):
+    """
+    Get the field of view bounds from an ROI
+
+    Parameters
+    ----------
+    roi: ExtractROI
+
+    fov_shape: Tuple[int, int]
+        The 2-D shape of the full field of view
+
+    Returns
+    -------
+    origin: Tuple[int, int]
+        The origin of a sub field of view containing
+        the ROI
+
+    shape: Tuple[int, int]
+        The shape of the sub field of view
+
+    Notes
+    -----
+    Will try to return a square that is an integer
+    power of 2 on a side, minimum 16
+    """
+
+    # make thumbnail a square about the ROI
+    max_dim = max(roi['width'], roi['height'])
+
+    # make dim a power of 2
+    pwr = np.ceil(np.log2(max_dim))
+    max_dim = np.power(2, pwr).astype(int)
+    max_dim = max(max_dim, 16)
+
+    # center the thumbnail on the ROI
+    row_center = int(roi['y'] + roi['height']//2)
+    col_center = int(roi['x'] + roi['width']//2)
+
+    rowmin = max(0, row_center - max_dim//2)
+    rowmax = rowmin + max_dim
+    colmin = max(0, col_center - max_dim//2)
+    colmax = colmin + max_dim
+
+    if rowmax >= fov_shape[0]:
+        rowmin = max(0, fov_shape[0]-max_dim)
+        rowmax = min(fov_shape[0], rowmin+max_dim)
+    if colmax >= fov_shape[1]:
+        colmin = max(0, fov_shape[1]-max_dim)
+        colmax = min(fov_shape[1], colmin+max_dim)
+
+    return (rowmin, colmin), (rowmax-rowmin, colmax-colmin)
+
+
 def thumbnail_video_from_ROI(
         full_video: np.ndarray,
         roi: ExtractROI,
@@ -190,43 +245,10 @@ def thumbnail_video_from_ROI(
         fps: int = 31,
         quality: int = 5) -> ThumbnailVideo:
 
-    # construct an ROI object to get the boundary mask
-    # for us
-    roi = OphysROI(roi_id=-1,
-                   x0=roi['x'],
-                   y0=roi['y'],
-                   width=roi['width'],
-                   height=roi['height'],
-                   valid_roi=False,
-                   mask_matrix=roi['mask'])
-
     # find bounds of thumbnail
-
-    # make thumbnail a square about the ROI
-    max_dim = max(roi.width, roi.height)
-
-    # make dim a power of 2
-    pwr = np.ceil(np.log2(max_dim))
-    max_dim = np.power(2, pwr).astype(int)
-    max_dim = max(max_dim, 16)
-
-    # center the thumbnail on the ROI
-    row_center = int(roi.y0 + roi.height//2)
-    col_center = int(roi.x0 + roi.width//2)
-
-    rowmin = max(0, row_center - max_dim//2)
-    rowmax = rowmin + max_dim
-    colmin = max(0, col_center - max_dim//2)
-    colmax = colmin + max_dim
-
-    img_shape = full_video.shape[1:3]
-
-    if rowmax >= img_shape[0]:
-        rowmin = max(0, img_shape[0]-max_dim)
-        rowmax = min(img_shape[0], rowmin+max_dim)
-    if colmax >= img_shape[1]:
-        colmin = max(0, img_shape[1]-max_dim)
-        colmax = min(img_shape[1], colmin+max_dim)
+    (origin,
+     fov_shape) = video_bounds_from_ROI(roi,
+                                        full_video.shape[1:3])
 
     # truncate the video in time and space
     is_rgb = (len(full_video.shape) == 4)
@@ -236,12 +258,16 @@ def thumbnail_video_from_ROI(
     else:
         sub_video = full_video
 
+    rowmin = origin[0]
+    rowmax = origin[0]+fov_shape[0]
+    colmin = origin[1]
+    colmax = origin[1]+fov_shape[1]
     sub_video = sub_video[:, rowmin:rowmax, colmin:colmax]
 
     if not is_rgb:
         rgb_video = np.zeros((sub_video.shape[0],
-                              rowmax-rowmin,
-                              colmax-colmin,
+                              fov_shape[0],
+                              fov_shape[1],
                               3), dtype=full_video.dtype)
 
         for ic in range(3):
@@ -251,13 +277,23 @@ def thumbnail_video_from_ROI(
     # if an ROI color has been specified, plot the ROI
     # boundary over the video in the specified color
     if roi_color is not None:
-        boundary_mask = roi.boundary_mask
+        # construct an ROI object to get the boundary mask
+        # for us
+        ophys_roi = OphysROI(roi_id=-1,
+                             x0=roi['x'],
+                             y0=roi['y'],
+                             width=roi['width'],
+                             height=roi['height'],
+                             valid_roi=False,
+                             mask_matrix=roi['mask'])
+
+        boundary_mask = ophys_roi.boundary_mask
         for irow in range(boundary_mask.shape[0]):
-            row = irow+roi.y0-rowmin
+            row = irow+ophys_roi.y0-rowmin
             for icol in range(boundary_mask.shape[1]):
                 if not boundary_mask[irow, icol]:
                     continue
-                col = icol+roi.x0-colmin
+                col = icol+ophys_roi.x0-colmin
                 for i_color in range(3):
                     sub_video[:, row, col, i_color] = roi_color[i_color]
 

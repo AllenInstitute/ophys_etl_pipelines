@@ -12,6 +12,7 @@ from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     thumbnail_video_from_array,
     thumbnail_video_from_ROI,
     scale_video_to_uint8,
+    video_bounds_from_ROI,
     ThumbnailVideo)    
 
 
@@ -51,6 +52,57 @@ def test_scale_video():
                          [85, 102, 119, 136]]).astype(np.uint8)
 
     np.testing.assert_array_equal(expected, scaled)
+
+
+def test_video_bounds_from_ROI():
+    roi = ExtractROI(x=15,
+                     width=22,
+                     y=19,
+                     height=13)
+
+    origin, fov = video_bounds_from_ROI(roi, (128, 128))
+    assert fov == (32, 32)
+    assert origin[0] <= 19
+    assert origin[1] <= 15
+    assert origin[0]+fov[0] >= 32
+    assert origin[1]+fov[1] >= 37
+    assert origin[0] >= 0
+    assert origin[1] >= 0
+    assert origin[0]+fov[0]<=128
+    assert origin[1]+fov[1]<=128
+
+    # constrained dimensions
+    roi = ExtractROI(x=2,
+                     width=4,
+                     y=3,
+                     height=6)
+
+    origin, fov = video_bounds_from_ROI(roi, (10, 10))
+    assert origin[0] <= 3
+    assert origin[1] <= 2
+    assert origin[0]+fov[0] >= 9
+    assert origin[1]+fov[1] >= 6
+    assert origin[0] >= 0
+    assert origin[1] >= 0
+    assert origin[0]+fov[0]<=10
+    assert origin[1]+fov[1]<=10
+
+    # constrained dimensions
+    roi = ExtractROI(x=120,
+                     width=4,
+                     y=121,
+                     height=6)
+
+    origin, fov = video_bounds_from_ROI(roi, (128, 128))
+    assert fov == (16, 16)
+    assert origin[0] <= 121
+    assert origin[1] <= 120
+    assert origin[0]+fov[0] >= 127
+    assert origin[1]+fov[1] >= 124
+    assert origin[0] >= 0
+    assert origin[1] >= 0
+    assert origin[0]+fov[0]<=128
+    assert origin[1]+fov[1]<=128
 
 
 def test_thumbnail_from_array(tmpdir, example_video):

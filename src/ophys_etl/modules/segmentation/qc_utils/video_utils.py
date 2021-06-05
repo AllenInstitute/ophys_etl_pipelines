@@ -415,3 +415,57 @@ def _thumbnail_video_from_ROI_array(
                     origin_offset=origin)
 
     return thumbnail
+
+
+def _thumbnail_video_from_ROI_path(
+        video_path: pathlib.Path,
+        roi: ExtractROI,
+        roi_color: Optional[Tuple[int, int, int]]=None,
+        timesteps: Optional[np.ndarray] = None,
+        file_path: Optional[pathlib.Path] = None,
+        tmp_dir: Optional[pathlib.Path] = None,
+        fps: int = 31,
+        quality: int = 5,
+        max_val: Optional[Union[int, float]]=None) -> ThumbnailVideo:
+
+    with h5py.File(video_path, 'r') as in_file:
+        img_shape = in_file['data'].shape
+
+    # find bounds of thumbnail
+    (origin,
+     fov_shape) = video_bounds_from_ROI(roi,
+                                        img_shape)
+
+    with h5py.File(video_path, 'r') as in_file:
+        full_video = in_file['data'][:,
+                                     origin[0]:origin[0]+fov_shape[0],
+                                     origin[1]:origin[1]+fov_shape[1]]
+
+    full_video = scale_video_to_uint8(full_video,
+                                      max_val=max_val)
+
+    sub_video = get_rgb_sub_video(full_video,
+                                  (0,0),
+                                  fov_shape,
+                                  timesteps=timesteps)
+
+    # if an ROI color has been specified, plot the ROI
+    # boundary over the video in the specified color
+    if roi_color is not None:
+        add_roi_boundary_to_video(sub_video,
+                                  origin,
+                                  roi,
+                                  roi_color)
+
+    thumbnail = thumbnail_video_from_array(
+                    sub_video,
+                    (0, 0),
+                    sub_video.shape[1:3],
+                    timesteps=None,
+                    file_path=file_path,
+                    tmp_dir=tmp_dir,
+                    fps=fps,
+                    quality=quality,
+                    origin_offset=origin)
+
+    return thumbnail

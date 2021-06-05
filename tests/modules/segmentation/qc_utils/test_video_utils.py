@@ -13,6 +13,7 @@ from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     thumbnail_video_from_array,
     thumbnail_video_from_path,
     _thumbnail_video_from_ROI_array,
+    _thumbnail_video_from_ROI_path,
     scale_video_to_uint8,
     video_bounds_from_ROI,
     ThumbnailVideo)    
@@ -277,6 +278,63 @@ def test_thumbnail_from_path(tmpdir,
     assert test_video.frame_shape == (12, 15)
     control_data = imageio.mimread(control_video.video_path)
     test_data = imageio.mimread(test_video.video_path)
+    assert len(control_data) == len(test_data)
+    for ii in range(len(control_data)):
+        np.testing.assert_array_equal(control_data[ii], test_data[ii])
+
+
+@pytest.mark.parametrize("custom_max_val,roi_color",
+                         [(None, None),
+                          (None, (255, 0, 0)),
+                          (900, None),
+                          (900, (255, 0, 0))])
+def test_thumbnail_from_roi_and_path(tmpdir,
+                                     example_unnormalized_rgb_video,
+                                     custom_max_val,
+                                     roi_color):
+    """
+    Test _thumbnail_from_ROI_path by comparing output to result
+    from _thumbnail_from_ROI_array
+    """
+
+    mask = np.zeros((12, 15), dtype=bool)
+    mask[2:10, 3:13] = True
+
+    roi = ExtractROI(x=14, width=15,
+                     y=18, height=12,
+                     mask=[list(i) for i in mask])
+
+    # write video to a tempfile
+    h5_fname = tempfile.mkstemp(dir=tmpdir, prefix='input_video_',
+                                suffix='.h5')[1]
+    with h5py.File(h5_fname, 'w') as out_file:
+        out_file.create_dataset('data', data=example_unnormalized_rgb_video)
+
+    if custom_max_val is None:
+        mx = example_unnormalized_rgb_video[:, 18:30, 14:29, :].max()
+    else:
+        mx = custom_max_val
+
+    normalized_video = scale_video_to_uint8(example_unnormalized_rgb_video,
+                                            max_val=mx)
+
+    control_video = _thumbnail_video_from_ROI_array(
+                       normalized_video,
+                       roi,
+                       roi_color=roi_color,
+                       tmp_dir=pathlib.Path(tmpdir))
+
+    test_video = _thumbnail_video_from_ROI_path(
+                     pathlib.Path(h5_fname),
+                     roi,
+                     roi_color=roi_color,
+                     tmp_dir=pathlib.Path(tmpdir),
+                     max_val=custom_max_val)
+
+    control_data = imageio.mimread(control_video.video_path)
+    test_data = imageio.mimread(test_video.video_path)
+    assert test_video.origin == control_video.origin
+    assert test_video.frame_shape == control_video.frame_shape
     assert len(control_data) == len(test_data)
     for ii in range(len(control_data)):
         np.testing.assert_array_equal(control_data[ii], test_data[ii])

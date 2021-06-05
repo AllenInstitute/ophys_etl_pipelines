@@ -3,6 +3,7 @@ import numpy as np
 import pathlib
 import tempfile
 import imageio
+import h5py
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
@@ -178,6 +179,87 @@ def thumbnail_video_from_array(
                                frame_shape,
                                timesteps=timesteps)
     return container
+
+def thumbnail_video_from_path(
+        full_video_path: pathlib.Path,
+        origin: Tuple[int, int],
+        frame_shape: Tuple[int, int],
+        timesteps: Optional[np.ndarray] = None,
+        file_path: Optional[pathlib.Path] = None,
+        tmp_dir: Optional[pathlib.Path] = None,
+        fps: int = 31,
+        quality: int = 5,
+        max_val: Optional[Union[int, float]] = None,
+        origin_offset: Optional[Tuple[int,int]] = None) -> ThumbnailVideo:
+    """
+    Create a ThumbnailVideo (mp4) from a path to an h5 file.
+    Automatically converts video to an array of np.uint8's
+
+    Parameters
+    ----------
+    full_video_path: pathlib.Path
+        Path to the h5 file
+
+    origin: Tuple[int, int]
+        (row_min, col_min)
+
+    frame_shape: Tuple[int, int]
+        (n_rows, n_cols)
+
+    timesteps: Optional[np.ndarray]
+        Array of timesteps. If None, keep all timesteps from
+        full_video (default: None)
+
+    file_path: Optional[pathlib.Path]
+        Where to write the thumbnail video (if None, tempfile
+        will be used to create a path; default is None)
+
+    tmp_dir: Optional[pathlib.Path]
+        Directory where file will be written (ignored if file_path is
+        not None). If none, tempfile will be used to create a temporary
+        directory (default: None)
+
+    fps: int
+        frames per second (default: 31)
+
+    quality: int
+        Parameter passed to imageio.mimsave controlling
+        quality of video file produced (max is 10; default is 5)
+
+    max_val: Optional[Union[int, float]]
+        If specified, this is the value to which the video will
+        be normalized (otherwise normalizes to the maximum value
+        **of the sub-array specified**; default: None)
+
+    origin_offset: Optional[Tuple[int, int]]
+        Offset values to be added to origin in container.
+        *Should only be used by methods which call this method
+        after pre-truncating the video in space; do NOT use this
+        by hand*
+
+    Returns
+    -------
+    ThumbnailVideo
+        Containing the metadata about the written thumbnail video
+    """
+
+    with h5py.File(full_video_path, 'r') as in_file:
+        data = in_file['data'][:,
+                               origin[0]:origin[0]+frame_shape[0],
+                               origin[1]:origin[1]+frame_shape[1]]
+
+    data = scale_video_to_uint8(data, max_val=max_val)
+    thumbnail = thumbnail_video_from_array(
+                    data,
+                    (0,0),
+                    frame_shape,
+                    timesteps=timesteps,
+                    file_path=file_path,
+                    tmp_dir=tmp_dir,
+                    fps=fps,
+                    quality=quality,
+                    origin_offset=origin)
+    return thumbnail
 
 
 def video_bounds_from_ROI(

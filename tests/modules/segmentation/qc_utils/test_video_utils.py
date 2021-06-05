@@ -4,12 +4,14 @@ import imageio
 import copy
 import h5py
 import pathlib
+import tempfile
 import gc
 
 from ophys_etl.types import ExtractROI
 
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     thumbnail_video_from_array,
+    thumbnail_video_from_path,
     thumbnail_video_from_ROI,
     scale_video_to_uint8,
     video_bounds_from_ROI,
@@ -31,6 +33,13 @@ def example_rgb_video():
     data = rng.randint(0, 100, (100, 30, 40, 3)).astype(np.uint8)
     for ii in range(100):
         data[ii,::,:] = ii
+    return data
+
+
+@pytest.fixture
+def example_unnormalized_rgb_video():
+    rng = np.random.RandomState(6125321)
+    data = rng.randint(0, 700, (100, 50, 40, 3))
     return data
 
 
@@ -231,3 +240,43 @@ def test_thumbnail_from_roi(tmpdir, example_video):
     assert colmax >= 18
 
     assert thumbnail.video_path.is_file()
+
+
+@pytest.mark.parametrize("custom_max_val", [None, 900])
+def test_thumbnail_from_path(tmpdir,
+                             example_unnormalized_rgb_video,
+                             custom_max_val):
+    """
+    Test thumbnail_from_path by comparing output to result
+    from thumbnail_from_array
+    """
+
+    # write video to a tempfile
+    h5_fname = tempfile.mkstemp(dir=tmpdir, prefix='input_video_',
+                                suffix='.h5')[1]
+    with h5py.File(h5_fname, 'w') as out_file:
+        out_file.create_dataset('data', data=example_unnormalized_rgb_video)
+
+    sub_video = example_unnormalized_rgb_video[:, 18:30, 14:29, :]
+    sub_video = scale_video_to_uint8(sub_video, max_val=custom_max_val)
+
+    control_video = thumbnail_video_from_array(
+                       sub_video,
+                       (0,0),
+                       (12, 15),
+                       tmp_dir=pathlib.Path(tmpdir))
+
+    test_video = thumbnail_video_from_path(
+                     pathlib.Path(h5_fname),
+                     (18, 14),
+                     (12, 15),
+                     tmp_dir=pathlib.Path(tmpdir),
+                     max_val=custom_max_val)
+
+    assert test_video.origin == (18, 14)
+    assert test_video.frame_shape == (12, 15)
+    control_data = imageio.mimread(control_video.video_path)
+    test_data = imageio.mimread(test_video.video_path)
+    assert len(control_data) == len(test_data)
+    for ii in range(len(control_data)):
+        np.testing.assert_array_equal(control_data[ii], test_data[ii])

@@ -342,20 +342,10 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
                 sub_video[:, row, col, i_color] = roi_color[i_color]
 
 
-def _thumbnail_video_from_ROI_array(
-        full_video: np.ndarray,
-        roi: ExtractROI,
-        roi_color: Optional[Tuple[int, int, int]]=None,
-        timesteps: Optional[np.ndarray] = None,
-        file_path: Optional[pathlib.Path] = None,
-        tmp_dir: Optional[pathlib.Path] = None,
-        fps: int = 31,
-        quality: int = 5) -> ThumbnailVideo:
-
-    # find bounds of thumbnail
-    (origin,
-     fov_shape) = video_bounds_from_ROI(roi,
-                                        full_video.shape[1:3])
+def get_rgb_sub_video(full_video: np.ndarray,
+                      origin: Tuple[int, int],
+                      fov_shape: Tuple[int, int],
+                      timesteps: Optional[np.ndarray]=None):
 
     # truncate the video in time and space
     is_rgb = (len(full_video.shape) == 4)
@@ -381,6 +371,30 @@ def _thumbnail_video_from_ROI_array(
             rgb_video[:, :, :, ic] = sub_video
         sub_video = rgb_video
 
+    return sub_video
+
+
+def _thumbnail_video_from_ROI_array(
+        full_video: np.ndarray,
+        roi: ExtractROI,
+        roi_color: Optional[Tuple[int, int, int]]=None,
+        timesteps: Optional[np.ndarray] = None,
+        file_path: Optional[pathlib.Path] = None,
+        tmp_dir: Optional[pathlib.Path] = None,
+        fps: int = 31,
+        quality: int = 5) -> ThumbnailVideo:
+
+    # find bounds of thumbnail
+    (origin,
+     fov_shape) = video_bounds_from_ROI(roi,
+                                        full_video.shape[1:3])
+
+
+    sub_video = get_rgb_sub_video(full_video,
+                                  origin,
+                                  fov_shape,
+                                  timesteps=timesteps)
+
     # if an ROI color has been specified, plot the ROI
     # boundary over the video in the specified color
     if roi_color is not None:
@@ -398,6 +412,6 @@ def _thumbnail_video_from_ROI_array(
                     tmp_dir=tmp_dir,
                     fps=fps,
                     quality=quality,
-                    origin_offset=(rowmin, colmin))
+                    origin_offset=origin)
 
     return thumbnail

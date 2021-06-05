@@ -317,7 +317,7 @@ def video_bounds_from_ROI(
     return (rowmin, colmin), (rowmax-rowmin, colmax-colmin)
 
 
-def thumbnail_video_from_ROI(
+def _thumbnail_video_from_ROI_array(
         full_video: np.ndarray,
         roi: ExtractROI,
         roi_color: Optional[Tuple[int, int, int]]=None,

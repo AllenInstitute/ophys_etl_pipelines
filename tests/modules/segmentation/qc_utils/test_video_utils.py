@@ -12,7 +12,7 @@ from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     thumbnail_video_from_array,
     thumbnail_video_from_path,
-    thumbnail_video_from_ROI,
+    _thumbnail_video_from_ROI_array,
     scale_video_to_uint8,
     video_bounds_from_ROI,
     ThumbnailVideo)    
@@ -199,7 +199,7 @@ def test_thumbnail_from_roi(tmpdir, example_video):
                      valid=True,
                      mask=[list(row) for row in mask])
 
-    thumbnail = thumbnail_video_from_ROI(
+    thumbnail = _thumbnail_video_from_ROI_array(
                     example_video,
                     roi,
                     tmp_dir=pathlib.Path(tmpdir),
@@ -223,7 +223,7 @@ def test_thumbnail_from_roi(tmpdir, example_video):
 
     # now with color
     example_video[:,:,:] = 0
-    thumbnail = thumbnail_video_from_ROI(
+    thumbnail = _thumbnail_video_from_ROI_array(
                     example_video,
                     roi,
                     roi_color=(0, 255, 0),

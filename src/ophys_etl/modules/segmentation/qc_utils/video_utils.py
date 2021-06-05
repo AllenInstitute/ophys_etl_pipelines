@@ -317,6 +317,31 @@ def video_bounds_from_ROI(
     return (rowmin, colmin), (rowmax-rowmin, colmax-colmin)
 
 
+def add_roi_boundary_to_video(sub_video: np.ndarray,
+                              origin: Tuple[int, int],
+                              roi: ExtractROI,
+                              roi_color: Tuple[int, int, int]) -> np.ndarray:
+    # construct an ROI object to get the boundary mask
+    # for us
+    ophys_roi = OphysROI(roi_id=-1,
+                         x0=roi['x'],
+                         y0=roi['y'],
+                         width=roi['width'],
+                         height=roi['height'],
+                         valid_roi=False,
+                         mask_matrix=roi['mask'])
+
+    boundary_mask = ophys_roi.boundary_mask
+    for irow in range(boundary_mask.shape[0]):
+        row = irow+ophys_roi.y0-origin[0]
+        for icol in range(boundary_mask.shape[1]):
+            if not boundary_mask[irow, icol]:
+                continue
+            col = icol+ophys_roi.x0-origin[1]
+            for i_color in range(3):
+                sub_video[:, row, col, i_color] = roi_color[i_color]
+
+
 def _thumbnail_video_from_ROI_array(
         full_video: np.ndarray,
         roi: ExtractROI,
@@ -359,25 +384,10 @@ def _thumbnail_video_from_ROI_array(
     # if an ROI color has been specified, plot the ROI
     # boundary over the video in the specified color
     if roi_color is not None:
-        # construct an ROI object to get the boundary mask
-        # for us
-        ophys_roi = OphysROI(roi_id=-1,
-                             x0=roi['x'],
-                             y0=roi['y'],
-                             width=roi['width'],
-                             height=roi['height'],
-                             valid_roi=False,
-                             mask_matrix=roi['mask'])
-
-        boundary_mask = ophys_roi.boundary_mask
-        for irow in range(boundary_mask.shape[0]):
-            row = irow+ophys_roi.y0-rowmin
-            for icol in range(boundary_mask.shape[1]):
-                if not boundary_mask[irow, icol]:
-                    continue
-                col = icol+ophys_roi.x0-colmin
-                for i_color in range(3):
-                    sub_video[:, row, col, i_color] = roi_color[i_color]
+        add_roi_boundary_to_video(sub_video,
+                                  origin,
+                                  roi,
+                                  roi_color)
 
     thumbnail = thumbnail_video_from_array(
                     sub_video,

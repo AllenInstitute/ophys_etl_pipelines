@@ -14,6 +14,7 @@ from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     thumbnail_video_from_path,
     _thumbnail_video_from_ROI_array,
     _thumbnail_video_from_ROI_path,
+    thumbnail_video_from_ROI,
     scale_video_to_uint8,
     video_bounds_from_ROI,
     ThumbnailVideo)    
@@ -338,3 +339,36 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     assert len(control_data) == len(test_data)
     for ii in range(len(control_data)):
         np.testing.assert_array_equal(control_data[ii], test_data[ii])
+
+
+def test_generic_generation_from_ROI(tmpdir, example_video):
+    """
+    Just smoketest thumbnail_video_from_ROI
+    """
+    mask = np.zeros((12, 15), dtype=bool)
+    mask[2:10, 3:13] = True
+
+    roi = ExtractROI(x=14, width=15,
+                     y=18, height=12,
+                     mask=[list(i) for i in mask])
+
+    th = thumbnail_video_from_ROI(example_video.astype(np.uint8),
+                                  roi,
+                                  roi_color=(0, 255, 0),
+                                  timesteps=None,
+                                  file_path=None,
+                                  tmp_dir=pathlib.Path(tmpdir),
+                                  quality=7)
+
+    base_fname = tempfile.mkstemp(dir=tmpdir, suffix='.h5')[1]
+    with h5py.File(base_fname, 'w') as out_file:
+        out_file.create_dataset('data',
+                                data=example_video)
+
+    th = thumbnail_video_from_ROI(pathlib.Path(base_fname),
+                                  roi,
+                                  roi_color=(0, 255, 0),
+                                  timesteps=None,
+                                  file_path=None,
+                                  tmp_dir=pathlib.Path(tmpdir),
+                                  quality=7)

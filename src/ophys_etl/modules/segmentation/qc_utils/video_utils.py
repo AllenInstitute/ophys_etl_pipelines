@@ -374,6 +374,7 @@ def get_rgb_sub_video(full_video: np.ndarray,
     rowmax = origin[0]+fov_shape[0]
     colmin = origin[1]
     colmax = origin[1]+fov_shape[1]
+
     sub_video = sub_video[:, rowmin:rowmax, colmin:colmax]
 
     if not is_rgb:
@@ -483,4 +484,44 @@ def _thumbnail_video_from_ROI_path(
                     quality=quality,
                     origin_offset=origin)
 
+    return thumbnail
+
+
+def thumbnail_video_from_ROI(
+        video: Union[np.ndarray, pathlib.Path],
+        roi: ExtractROI,
+        roi_color: Optional[Tuple[int, int, int]]=None,
+        timesteps: Optional[np.ndarray] = None,
+        file_path: Optional[pathlib.Path] = None,
+        tmp_dir: Optional[pathlib.Path] = None,
+        fps: int = 31,
+        quality: int = 5,
+        max_val: Optional[Union[int, float]]=None) -> ThumbnailVideo:
+
+    if isinstance(video, np.ndarray):
+        thumbnail = _thumbnail_video_from_ROI_array(
+                           video,
+                           roi,
+                           roi_color=roi_color,
+                           timesteps=timesteps,
+                           file_path=file_path,
+                           tmp_dir=tmp_dir,
+                           fps=fps,
+                           quality=quality)
+    elif isinstance(video, pathlib.Path):
+        thumbnail = _thumbnail_video_from_ROI_path(
+                           video,
+                           roi,
+                           roi_color=roi_color,
+                           timesteps=timesteps,
+                           file_path=file_path,
+                           tmp_dir=tmp_dir,
+                           fps=fps,
+                           quality=quality,
+                           max_val=max_val)
+    else:
+        msg = "video must be either a np.ndarray "
+        msg += "or a pathlib.Path; you passed in "
+        msg += f"{type(video)}"
+        raise RuntimeError(msg)
     return thumbnail

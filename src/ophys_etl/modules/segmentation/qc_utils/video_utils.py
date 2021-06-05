@@ -449,7 +449,7 @@ def _thumbnail_video_from_ROI_path(
     # find bounds of thumbnail
     (origin,
      fov_shape) = video_bounds_from_ROI(roi,
-                                        img_shape)
+                                        img_shape[1:3])
 
     with h5py.File(video_path, 'r') as in_file:
         full_video = in_file['data'][:,

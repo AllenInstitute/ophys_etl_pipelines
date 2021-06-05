@@ -15,6 +15,8 @@ class ThumbnailVideo(object):
 
     Parameters
     ----------
+    video_data: np.ndarray
+
     video_path: PathlibPath
         The path to the video file
 
@@ -28,6 +30,13 @@ class ThumbnailVideo(object):
         The timesteps from the original movie that were used
         (if None, use all timesteps)
 
+    quality: int
+        Quality parameter passed to imageio.mimsave
+        (maximum is 10; default is 5)
+
+    fps: int
+        frames per second; default 31
+
     Notes
     -----
     When the instantiation is deleted, the file containing
@@ -35,14 +44,24 @@ class ThumbnailVideo(object):
     """
 
     def __init__(self,
+                 video_data: np.ndarray,
                  video_path: pathlib.Path,
                  origin: Tuple[int, int],
                  frame_shape: Tuple[int, int],
-                 timesteps: Optional[np.ndarray] = None):
+                 timesteps: Optional[np.ndarray] = None,
+                 quality: int = 5,
+                 fps: int = 31):
         self._path = video_path
         self._origin = origin
         self._frame_shape = frame_shape
         self._timesteps = timesteps
+
+        imageio.mimsave(self._path,
+                        video_data,
+                        fps=fps,
+                        quality=quality,
+                        pixelformat='yuv444p',
+                        codec='libx264')
 
     def __del__(self):
         if self.video_path.is_file():
@@ -163,21 +182,17 @@ def thumbnail_video_from_array(
                           origin[0]:origin[0]+frame_shape[0],
                           origin[1]:origin[1]+frame_shape[1]]
 
-    imageio.mimsave(file_path,
-                     sub_video,
-                     fps=fps,
-                     quality=quality,
-                     pixelformat='yuv444p',
-                     codec='libx264')
-
     if origin_offset is None:
         origin_offset = (0, 0)
 
-    container = ThumbnailVideo(file_path,
+    container = ThumbnailVideo(sub_video,
+                               file_path,
                                (origin[0]+origin_offset[0],
                                 origin[1]+origin_offset[1]),
                                frame_shape,
-                               timesteps=timesteps)
+                               timesteps=timesteps,
+                               fps=fps,
+                               quality=quality)
     return container
 
 def thumbnail_video_from_path(

@@ -305,3 +305,28 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
             data['seed_plot_output'] = str(
                     plot_path.parent / f"{plot_path.stem}_seeds.png")
         return data
+
+
+class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
+    log_level = argschema.fields.LogLevel(default="INFO")
+    video_input = argschema.fields.InputFile(
+        required=False,
+        description=("path to hdf5 video with movie stored "
+                     "in dataset 'data' nframes x nrow x ncol"))
+    experiment_name = argschema.fields.Str(
+        required=False,
+        default="movie_name",
+        description="passed to HNCcorr.Movie as 'name'")
+    hnc_args = argschema.fields.Dict(
+        required=False,
+        missing=dict(),
+        description=("will be passed to HNCcorrConfig. if empty, or "
+                     "partially empty, HNCCorr.from_config() populates "
+                     "from `DEFAULT_CONFIG`"))
+    roi_output = argschema.fields.OutputFile(
+        required=True,
+        description="path to json file where ROIs will be saved")
+    plot_output = argschema.fields.OutputFile(
+        required=False,
+        default=None,
+        description="path to summary plot of segmentation")

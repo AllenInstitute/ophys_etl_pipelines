@@ -166,7 +166,8 @@ def thumbnail_video_from_array(
         tmp_dir: Optional[pathlib.Path] = None,
         fps: int = 31,
         quality: int = 5,
-        origin_offset: Optional[Tuple[int,int]] = None) -> ThumbnailVideo:
+        origin_offset: Optional[Tuple[int,int]] = None,
+        timestep_offset: Optional[np.ndarray] = None) -> ThumbnailVideo:
     """
     Create a ThumbnailVideo (mp4) from a numpy array. This method
     will do the work of trimming the array in space and time.
@@ -210,13 +211,27 @@ def thumbnail_video_from_array(
         Offset values to be added to origin in container.
         *Should only be used by methods which call this method
         after pre-truncating the video in space; do NOT use this
-        by hand*
+        by hand.*
+
+    timestep_offset: Optional[Tuple[int, int]]
+        timestep values to be saved in output, even though the
+        cut in time has already been applied to the sub_video.
+        *Should only be used by methods which call this method
+        after pre-truncating the video in space; do NOT use this
+        by hand.*
 
     Returns
     -------
     ThumbnailVideo
         Containing the metadata about the written thumbnail video
     """
+
+    if timesteps is not None and timestep_offset is not None:
+        msg = "You have called thumbnail_video_from_array "
+        msg += "with non-None timesteps and non-None "
+        msg += "timestep_offset; only one of these can be "
+        msg += "non-None at a time."
+        raise RuntimeError(msg)
 
     if file_path is None:
         if tmp_dir is None:
@@ -234,6 +249,10 @@ def thumbnail_video_from_array(
                     origin,
                     frame_shape,
                     timesteps=timesteps)
+
+    if timesteps is None:
+        if timestep_offset is not None:
+            timesteps = timestep_offset
 
     container = ThumbnailVideo(sub_video,
                                file_path,

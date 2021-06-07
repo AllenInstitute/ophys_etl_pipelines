@@ -62,32 +62,54 @@ def correlate_pixel(pixel_pt: Tuple[int, int],
     video_data is a subset
     """
     n_pixels = video_data.shape[0]
+    n_time = video_data.shape[1]
+    discard = 1.0-filter_fraction
     assert n_pixels == len(pixel_indexes)
 
     i_pixel = np.where(pixel_indexes == i_pixel_global)[0][0]
 
     trace = video_data[i_pixel, :]
-    threshold = np.quantile(trace, 1.0-filter_fraction)
+    threshold = np.quantile(trace, discard)
+
+    time_mask = np.zeros((n_pixels, n_time), dtype=float)
 
     valid_time = (trace >= threshold)
-    video_data = video_data[:, valid_time].astype(float)
-    trace = video_data[i_pixel, :]
-    n_time = video_data.shape[1]
+    time_mask[:, valid_time] = 1
 
-    mu = np.mean(trace)
-    video_mu = np.mean(video_data, axis=1)
-    assert video_mu.shape == (n_pixels, )
+    threshold = np.quantile(video_data, discard, axis=1)
+    assert threshold.shape == (n_pixels, )
+    for i_other in range(n_pixels):
+        other = video_data[i_other, :]
+        th = threshold[i_other]
+        valid = (other >= threshold)
+        time_mask[i_other, valid] = 1
 
-    trace -= mu
-    video_data = (video_data.T-video_mu).T
+    nn = np.sum(time_mask, axis=1)
+    assert denom.shape == (n_pixels,)
 
-    trace_var = np.mean(trace**2)
-    video_var = np.mean(video_data**2, axis=1)
+    # the pixel trace
+    mu = np.dot(time_mask, trace)/nn
+    assert mu.shape == (n_pixels, )
+    square_of_mean = mu**2
+    mean_of_square = np.dot(time_mask, trace**2)/nn
+    var = mean_of_square-square_of_mean
 
-    num = np.dot(video_data, trace)/n_time
-    denom = np.sqrt(trace_var*video_var)
-    corr = num/denom
-    output_dict[pixel_pt] = {'corr': corr,
+    # numerator
+    absq = np.einsum('i,ji,ji->j',trace,time_mask,video_data)
+    assert ab.shape == (n_pixels,)
+    absq = absq/nn
+
+    # other trace
+    other_mu = np.einsum('ij,ij->i',time_mask,video_data)
+    assert other_mu.shape == (n_pixels,)
+    other_mu = other_mu/nn
+    square_of_mean = other_mu**2
+    mean_of_square = np.einsum('ij,ij->i',time_mask,video_data**2)/nn
+    other_var = mean_of_square-square_of_mean
+
+    numerator = (absq-mu*other_mu)
+    denominator = np.sqrt(var*other_var)
+    output_dict[pixel_pt] = {'corr': numerator/denominator,
                              'pixels': pixel_indexes}
 
 

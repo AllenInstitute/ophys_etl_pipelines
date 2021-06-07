@@ -486,10 +486,17 @@ def test_thumbnail_from_roi_and_path(tmpdir,
         np.testing.assert_array_equal(control_data[ii], test_data[ii])
 
 
-def test_generic_generation_from_ROI(tmpdir, example_video):
+@pytest.mark.parametrize("timesteps",
+                         [None, np.arange(22, 56)])
+def test_generic_generation_from_ROI(tmpdir, example_video, timesteps):
     """
     Just smoketest thumbnail_video_from_ROI
     """
+    if timesteps is None:
+        n_t = example_video.shape[0]
+    else:
+        n_t = len(timesteps)
+
     mask = np.zeros((12, 15), dtype=bool)
     mask[2:10, 3:13] = True
 
@@ -500,10 +507,13 @@ def test_generic_generation_from_ROI(tmpdir, example_video):
     th = thumbnail_video_from_ROI(example_video.astype(np.uint8),
                                   roi,
                                   roi_color=(0, 255, 0),
-                                  timesteps=None,
                                   file_path=None,
                                   tmp_dir=pathlib.Path(tmpdir),
-                                  quality=7)
+                                  quality=7,
+                                  timesteps=timesteps)
+
+    read_data = imageio.mimread(th.video_path)
+    assert len(read_data) == n_t
 
     base_fname = tempfile.mkstemp(dir=tmpdir, suffix='.h5')[1]
     with h5py.File(base_fname, 'w') as out_file:
@@ -513,7 +523,10 @@ def test_generic_generation_from_ROI(tmpdir, example_video):
     th = thumbnail_video_from_ROI(pathlib.Path(base_fname),
                                   roi,
                                   roi_color=(0, 255, 0),
-                                  timesteps=None,
                                   file_path=None,
                                   tmp_dir=pathlib.Path(tmpdir),
-                                  quality=7)
+                                  quality=7,
+                                  timesteps=timesteps)
+
+    read_data = imageio.mimread(th.video_path)
+    assert len(read_data) == n_t

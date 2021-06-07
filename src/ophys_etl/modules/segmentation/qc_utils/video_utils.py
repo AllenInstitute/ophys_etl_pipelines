@@ -293,7 +293,7 @@ def thumbnail_video_from_path(
         If specified, this is the value to which the video will
         be normalized (otherwise normalizes to the maximum value
         **of the sub-array specified by origin and
-        frame_size**; default: None)
+        frame_size (not timesteps)**; default: None)
 
     origin_offset: Optional[Tuple[int, int]]
         Offset values to be added to origin in container.

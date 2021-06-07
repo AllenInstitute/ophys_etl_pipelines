@@ -364,14 +364,24 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
     assert len(read_data) == n_t
 
 
-@pytest.mark.parametrize("custom_max_val", [None, 900])
+@pytest.mark.parametrize("custom_max_val, timesteps",
+                        [(None, None),
+                         (None, np.arange(22, 57)),
+                         (900, None),
+                         (900, np.arange(22, 57))])
 def test_thumbnail_from_path(tmpdir,
                              example_unnormalized_rgb_video,
-                             custom_max_val):
+                             custom_max_val,
+                             timesteps):
     """
     Test thumbnail_from_path by comparing output to result
     from thumbnail_from_array
     """
+    if timesteps is None:
+        n_t = example_unnormalized_rgb_video.shape[0]
+    else:
+        n_t = len(timesteps)
+
 
     # write video to a tempfile
     h5_fname = tempfile.mkstemp(dir=tmpdir, prefix='input_video_',
@@ -386,20 +396,23 @@ def test_thumbnail_from_path(tmpdir,
                        sub_video,
                        (0,0),
                        (12, 15),
-                       tmp_dir=pathlib.Path(tmpdir))
+                       tmp_dir=pathlib.Path(tmpdir),
+                       timesteps=timesteps)
 
     test_video = thumbnail_video_from_path(
                      pathlib.Path(h5_fname),
                      (18, 14),
                      (12, 15),
                      tmp_dir=pathlib.Path(tmpdir),
-                     max_val=custom_max_val)
+                     max_val=custom_max_val,
+                     timesteps=timesteps)
 
     assert test_video.origin == (18, 14)
     assert test_video.frame_shape == (12, 15)
     control_data = imageio.mimread(control_video.video_path)
     test_data = imageio.mimread(test_video.video_path)
     assert len(control_data) == len(test_data)
+    assert len(test_data) == n_t
     for ii in range(len(control_data)):
         np.testing.assert_array_equal(control_data[ii], test_data[ii])
 

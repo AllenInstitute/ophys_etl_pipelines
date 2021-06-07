@@ -282,8 +282,14 @@ def test_thumbnail_from_rgb_array(tmpdir, example_rgb_video, timesteps):
     assert not file_path.exists()
 
 
-def test_thumbnail_from_roi(tmpdir, example_video):
+@pytest.mark.parametrize("timesteps",
+                         [None, np.arange(22, 56)])
+def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
 
+    if timesteps is None:
+        n_t = example_video.shape[0]
+    else:
+        n_t = len(timesteps)
 
     mask = np.zeros((7,8), dtype=bool)
     mask[3:5, 1:6] = True
@@ -313,7 +319,8 @@ def test_thumbnail_from_roi(tmpdir, example_video):
                     example_video,
                     roi,
                     tmp_dir=pathlib.Path(tmpdir),
-                    quality=10)
+                    quality=10,
+                    timesteps=timesteps)
 
     rowmin = thumbnail.origin[0]
     rowmax = thumbnail.origin[0]+thumbnail.frame_shape[0]
@@ -327,6 +334,7 @@ def test_thumbnail_from_roi(tmpdir, example_video):
     assert thumbnail.video_path.is_file()
 
     read_data = imageio.mimread(thumbnail.video_path)
+    assert len(read_data) == n_t
     assert read_data[0].shape == (thumbnail.frame_shape[0],
                                   thumbnail.frame_shape[1],
                                   3)
@@ -338,7 +346,8 @@ def test_thumbnail_from_roi(tmpdir, example_video):
                     roi,
                     roi_color=(0, 255, 0),
                     tmp_dir=pathlib.Path(tmpdir),
-                    quality=7)
+                    quality=7,
+                    timesteps=timesteps)
 
     rowmin = thumbnail.origin[0]
     rowmax = thumbnail.origin[0]+thumbnail.frame_shape[0]
@@ -350,6 +359,9 @@ def test_thumbnail_from_roi(tmpdir, example_video):
     assert colmax >= 18
 
     assert thumbnail.video_path.is_file()
+
+    read_data = imageio.mimread(thumbnail.video_path)
+    assert len(read_data) == n_t
 
 
 @pytest.mark.parametrize("custom_max_val", [None, 900])

@@ -97,7 +97,7 @@ def scale_video_to_uint8(video: np.ndarray,
     max_val: Optional[Union[int, float]]
         If you want to normalize by something other than video.max(),
         specify it here. If None, will normalize by video.max().
-        (default: None
+        (default: None)
 
     Returns
     -------
@@ -119,7 +119,11 @@ def thumbnail_video_from_array(
         quality: int = 5,
         origin_offset: Optional[Tuple[int,int]] = None) -> ThumbnailVideo:
     """
-    Create a ThumbnailVideo (mp4) from a numpy array
+    Create a ThumbnailVideo (mp4) from a numpy array. This method
+    will do the work of trimming the array in space and time.
+
+    No attempt is made to scale or convert the data type of
+    full_video's contents.
 
     Parameters
     ----------
@@ -128,10 +132,10 @@ def thumbnail_video_from_array(
         or (n_time, n_rows, n_cols, 3) for RGB
 
     origin: Tuple[int, int]
-        (row_min, col_min)
+        (row_min, col_min) of desired thumbnail
 
     frame_shape: Tuple[int, int]
-        (n_rows, n_cols)
+        (n_rows, n_cols) of desired thumbnail
 
     timesteps: Optional[np.ndarray]
         Array of timesteps. If None, keep all timesteps from
@@ -207,7 +211,9 @@ def thumbnail_video_from_path(
         origin_offset: Optional[Tuple[int,int]] = None) -> ThumbnailVideo:
     """
     Create a ThumbnailVideo (mp4) from a path to an h5 file.
-    Automatically converts video to an array of np.uint8's
+    This method does the work of trimming the video in space
+    and time.  Automatically converts video to an array of
+    np.uint8s
 
     Parameters
     ----------
@@ -215,10 +221,10 @@ def thumbnail_video_from_path(
         Path to the h5 file
 
     origin: Tuple[int, int]
-        (row_min, col_min)
+        (row_min, col_min) of the desired thumbnail
 
     frame_shape: Tuple[int, int]
-        (n_rows, n_cols)
+        (n_rows, n_cols) of the desired thumbnail
 
     timesteps: Optional[np.ndarray]
         Array of timesteps. If None, keep all timesteps from
@@ -243,7 +249,8 @@ def thumbnail_video_from_path(
     max_val: Optional[Union[int, float]]
         If specified, this is the value to which the video will
         be normalized (otherwise normalizes to the maximum value
-        **of the sub-array specified**; default: None)
+        **of the sub-array specified by origin and
+        frame_size**; default: None)
 
     origin_offset: Optional[Tuple[int, int]]
         Offset values to be added to origin in container.
@@ -263,6 +270,10 @@ def thumbnail_video_from_path(
                                origin[1]:origin[1]+frame_shape[1]]
 
     data = scale_video_to_uint8(data, max_val=max_val)
+
+    # origin is set to (0,0) because, when we read in the
+    # HDF5 file, we only read in the pixels we actually
+    # wanted for the thumbnail
     thumbnail = thumbnail_video_from_array(
                     data,
                     (0,0),
@@ -385,8 +396,30 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
 def get_rgb_sub_video(full_video: np.ndarray,
                       origin: Tuple[int, int],
                       fov_shape: Tuple[int, int],
-                      timesteps: Optional[np.ndarray]=None):
+                      timesteps: Optional[np.ndarray]=None) -> np.ndarray:
+    """
+    Take a (n_times, nrows, ncols) np.ndarray and extract a
+    into a (n_times, nrows, ncols, 3) thumbnail from it.
 
+    Parameters
+    ----------
+    full_video: np.ndarray
+
+    origin: Tuple[int, int]
+        (rowmin, colmin) of the desired thumbnail
+
+    fov_shape: Tuple[int, int]
+        (nrows, ncols) of the desired thumbnail
+
+    timesteps: Optional[np.ndarray]
+        Timesteps of full_video to be copied into the thumbnail
+        (if None, use all timesteps; default=None)
+
+    Returns
+    -------
+    sub_video: np.ndarray
+        The thumbnail video shaped like an RGB video
+    """
     # truncate the video in time and space
     is_rgb = (len(full_video.shape) == 4)
 
@@ -424,6 +457,49 @@ def _thumbnail_video_from_ROI_array(
         tmp_dir: Optional[pathlib.Path] = None,
         fps: int = 31,
         quality: int = 5) -> ThumbnailVideo:
+    """
+    Get a thumbnail video from a np.ndarray and an ROI
+
+    Parameters
+    ----------
+    full_video: np.ndarray
+        shape is (n_times, nrows, ncols)
+
+    roi: ExtractROI
+
+    roi_color: Tuple[int, int, int]
+        RGB color in which to draw the ROI in the video
+        (if None, ROI is not drawn; default = None)
+
+    timesteps: Optional[np.ndarray]
+        Timesteps of full_video to be copied into the thumbnail
+        (if None, use all timesteps; default=None)
+
+    file_path: Optional[pathlib.Path]
+        Where to write the thumbnail video (if None, tempfile
+        will be used to create a path; default is None)
+
+    tmp_dir: Optional[pathlib.Path]
+        Directory where file will be written (ignored if file_path is
+        not None). If none, tempfile will be used to create a temporary
+        directory (default: None)
+
+    fps: int
+        frames per second (default: 31)
+
+    quality: int
+        Quality parameter passed to imageio.mimsave
+        (maximum is 10; default is 5)
+
+    Returns
+    -------
+    thumbnail: ThumbnailVideo
+
+    Notes
+    -----
+    This method will *not* do the work of scaling full_video
+    values to [0, 255]
+    """
 
     # find bounds of thumbnail
     (origin,
@@ -468,6 +544,54 @@ def _thumbnail_video_from_ROI_path(
         fps: int = 31,
         quality: int = 5,
         max_val: Optional[Union[int, float]]=None) -> ThumbnailVideo:
+    """
+    Get a thumbnail video from a HDF5 file path and an ROI
+
+    Parameters
+    ----------
+    video_path: pathlib.Path
+        path to HDF5 file storing video data.
+        Shape of data is (n_times, nrows, ncols)
+
+    roi: ExtractROI
+
+    roi_color: Tuple[int, int, int]
+        RGB color in which to draw the ROI in the video
+        (if None, ROI is not drawn; default = None)
+
+    timesteps: Optional[np.ndarray]
+        Timesteps of full_video to be copied into the thumbnail
+        (if None, use all timesteps; default=None)
+
+    file_path: Optional[pathlib.Path]
+        Where to write the thumbnail video (if None, tempfile
+        will be used to create a path; default is None)
+
+    tmp_dir: Optional[pathlib.Path]
+        Directory where file will be written (ignored if file_path is
+        not None). If none, tempfile will be used to create a temporary
+        directory (default: None)
+
+    fps: int
+        frames per second (default: 31)
+
+    quality: int
+        Quality parameter passed to imageio.mimsave
+        (maximum is 10; default is 5)
+
+    max_val: Optional[Union[int, float]]
+        If you want to normalize the video by something other than
+        video.max(), specify it here. If None, will normalize by
+        video.max(). (default: None)
+
+    Returns
+    -------
+    thumbnail: ThumbnailVideo
+
+    Notes
+    -----
+    This method will scale video data values to [0, 255]
+    """
 
     with h5py.File(video_path, 'r') as in_file:
         img_shape = in_file['data'].shape
@@ -522,6 +646,59 @@ def thumbnail_video_from_ROI(
         fps: int = 31,
         quality: int = 5,
         max_val: Optional[Union[int, float]]=None) -> ThumbnailVideo:
+    """
+    Get a thumbnail video from a HDF5 file path and an ROI
+
+    Parameters
+    ----------
+    video: Union[np.ndarray, pathlib.Path]
+        Either a np.ndarray containing video data or the path
+        to an HDF5 file containing said array. In either case,
+        data is assumed to be shaped like (n_times, nrows, ncols)
+
+    roi: ExtractROI
+
+    roi_color: Tuple[int, int, int]
+        RGB color in which to draw the ROI in the video
+        (if None, ROI is not drawn; default = None)
+
+    timesteps: Optional[np.ndarray]
+        Timesteps of full_video to be copied into the thumbnail
+        (if None, use all timesteps; default=None)
+
+    file_path: Optional[pathlib.Path]
+        Where to write the thumbnail video (if None, tempfile
+        will be used to create a path; default is None)
+
+    tmp_dir: Optional[pathlib.Path]
+        Directory where file will be written (ignored if file_path is
+        not None). If none, tempfile will be used to create a temporary
+        directory (default: None)
+
+    fps: int
+        frames per second (default: 31)
+
+    quality: int
+        Quality parameter passed to imageio.mimsave
+        (maximum is 10; default is 5)
+
+    max_val: Optional[Union[int, float]]
+        If you want to normalize the video by something other than
+        video.max(), specify it here. If None, will normalize by
+        video.max(). (default: None) **Only used if video is passed in
+        as a path.**
+
+    Returns
+    -------
+    thumbnail: ThumbnailVideo
+
+    Notes
+    -----
+    If video is a np.ndarray, data will not be scaled so that values
+    are in [0, 255]. If video is a path, the data will be scaled
+    so that values are in [0, 255]
+    """
+
 
     if isinstance(video, np.ndarray):
         thumbnail = _thumbnail_video_from_ROI_array(

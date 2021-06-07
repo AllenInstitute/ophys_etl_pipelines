@@ -108,6 +108,52 @@ def scale_video_to_uint8(video: np.ndarray,
     return np.round(255*video.astype(float)/max_val).astype(np.uint8)
 
 
+def trim_video(
+        full_video: np.ndarray,
+        origin: Tuple[int, int],
+        frame_shape: Tuple[int, int],
+        timesteps: Optional[np.ndarray] = None) -> np.ndarray:
+    """
+    Create a thumbnail video from a numpy array. This method
+    will do the work of trimming the array in space and time.
+
+    No attempt is made to scale or convert the data type of
+    full_video's contents.
+
+    Parameters
+    ----------
+    full_video: np.ndarray
+        Shape is (n_time, n_rows, n_cols)
+        or (n_time, n_rows, n_cols, 3) for RGB
+
+    origin: Tuple[int, int]
+        (row_min, col_min) of desired thumbnail
+
+    frame_shape: Tuple[int, int]
+        (n_rows, n_cols) of desired thumbnail
+
+    timesteps: Optional[np.ndarray]
+        Array of timesteps. If None, keep all timesteps from
+        full_video (default: None)
+
+    Returns
+    -------
+    np.ndarray
+        Containing the thumbnail video data
+    """
+
+    if timesteps is not None:
+        sub_video = full_video[timesteps]
+    else:
+        sub_video = full_video
+
+    sub_video = sub_video[:,
+                          origin[0]:origin[0]+frame_shape[0],
+                          origin[1]:origin[1]+frame_shape[1]]
+
+    return sub_video
+
+
 def thumbnail_video_from_array(
         full_video: np.ndarray,
         origin: Tuple[int, int],
@@ -177,17 +223,14 @@ def thumbnail_video_from_array(
                                      suffix='.mp4')[1]
         file_path = pathlib.Path(file_path)
 
-    if timesteps is not None:
-        sub_video = full_video[timesteps]
-    else:
-        sub_video = full_video
-
-    sub_video = sub_video[:,
-                          origin[0]:origin[0]+frame_shape[0],
-                          origin[1]:origin[1]+frame_shape[1]]
-
     if origin_offset is None:
         origin_offset = (0, 0)
+
+    sub_video = trim_video(
+                    full_video,
+                    origin,
+                    frame_shape,
+                    timesteps=timesteps)
 
     container = ThumbnailVideo(sub_video,
                                file_path,

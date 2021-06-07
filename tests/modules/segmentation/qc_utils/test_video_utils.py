@@ -370,14 +370,14 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
     assert len(read_data) == n_t
 
 
-@pytest.mark.parametrize("custom_max_val, timesteps",
-                        [(None, None),
-                         (None, np.arange(22, 57)),
-                         (900, None),
-                         (900, np.arange(22, 57))])
+@pytest.mark.parametrize("normalization, timesteps",
+                        [('local', None),
+                         ('local', np.arange(22, 57)),
+                         ('global', None),
+                         ('global', np.arange(22, 57))])
 def test_thumbnail_from_path(tmpdir,
                              example_unnormalized_rgb_video,
-                             custom_max_val,
+                             normalization,
                              timesteps):
     """
     Test thumbnail_from_path by comparing output to result
@@ -396,8 +396,11 @@ def test_thumbnail_from_path(tmpdir,
 
     sub_video = example_unnormalized_rgb_video[:, 18:30, 14:29, :]
 
-    if custom_max_val is None:
+    if normalization == 'local':
         custom_max_val = sub_video.max()
+    else:
+        custom_max_val = example_unnormalized_rgb_video.max()
+
     sub_video = scale_video_to_uint8(sub_video, max_val=custom_max_val)
 
     control_video = thumbnail_video_from_array(
@@ -412,7 +415,7 @@ def test_thumbnail_from_path(tmpdir,
                      (18, 14),
                      (12, 15),
                      tmp_dir=pathlib.Path(tmpdir),
-                     max_val=custom_max_val,
+                     normalization=normalization,
                      timesteps=timesteps)
 
     assert test_video.origin == (18, 14)
@@ -425,18 +428,18 @@ def test_thumbnail_from_path(tmpdir,
         np.testing.assert_array_equal(control_data[ii], test_data[ii])
 
 
-@pytest.mark.parametrize("custom_max_val,roi_color,timesteps",
-                         [(None, None, None),
-                          (None, None, np.arange(22, 76)),
-                          (None, (255, 0, 0), None),
-                          (None, (255, 0, 0), np.arange(22, 76)),
-                          (900, None, None),
-                          (900, None, np.arange(22, 76)),
-                          (900, (255, 0, 0), None),
-                          (900, (255, 0, 0), np.arange(22, 76))])
+@pytest.mark.parametrize("normalization,roi_color,timesteps",
+                         [('global', None, None),
+                          ('global', None, np.arange(22, 76)),
+                          ('global', (255, 0, 0), None),
+                          ('global', (255, 0, 0), np.arange(22, 76)),
+                          ('local', None, None),
+                          ('local', None, np.arange(22, 76)),
+                          ('local', (255, 0, 0), None),
+                          ('local', (255, 0, 0), np.arange(22, 76))])
 def test_thumbnail_from_roi_and_path(tmpdir,
                                      example_unnormalized_rgb_video,
-                                     custom_max_val,
+                                     normalization,
                                      roi_color,
                                      timesteps):
     """
@@ -462,10 +465,10 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     with h5py.File(h5_fname, 'w') as out_file:
         out_file.create_dataset('data', data=example_unnormalized_rgb_video)
 
-    if custom_max_val is None:
+    if normalization == 'local':
         mx = example_unnormalized_rgb_video[:, 18:30, 14:29, :].max()
     else:
-        mx = custom_max_val
+        mx = example_unnormalized_rgb_video.max()
 
     normalized_video = scale_video_to_uint8(example_unnormalized_rgb_video,
                                             max_val=mx)
@@ -482,7 +485,7 @@ def test_thumbnail_from_roi_and_path(tmpdir,
                      roi,
                      roi_color=roi_color,
                      tmp_dir=pathlib.Path(tmpdir),
-                     max_val=custom_max_val,
+                     normalization=normalization,
                      timesteps=timesteps)
 
     control_data = imageio.mimread(control_video.video_path)

@@ -244,21 +244,30 @@ def test_thumbnail_from_array(tmpdir, example_video, timesteps):
     assert not file_path.exists()
 
 
-def test_thumbnail_from_rgb_array(tmpdir, example_rgb_video):
+@pytest.mark.parametrize("timesteps",
+                         [None, np.arange(22, 56)])
+def test_thumbnail_from_rgb_array(tmpdir, example_rgb_video, timesteps):
 
     th_video = thumbnail_video_from_array(example_rgb_video,
                                           (11, 3),
-                                          (16, 32))
+                                          (16, 32),
+                                          timesteps=timesteps)
 
     assert type(th_video) == ThumbnailVideo
     assert th_video.video_path.is_file()
     assert th_video.origin == (11, 3)
     assert th_video.frame_shape == (16, 32)
-    assert th_video.timesteps is None
+    if timesteps is None:
+        n_t = example_rgb_video.shape[0]
+        assert th_video.timesteps is None
+    else:
+        n_t = len(timesteps)
+        np.testing.assert_array_equal(timesteps,
+                                      th_video.timesteps)
 
     read_data = imageio.mimread(th_video.video_path)
 
-    assert len(read_data) == example_rgb_video.shape[0]
+    assert len(read_data) == n_t
     assert read_data[0].shape == (16, 32, 3)
 
     # cannot to bitwise comparison of input to read data;

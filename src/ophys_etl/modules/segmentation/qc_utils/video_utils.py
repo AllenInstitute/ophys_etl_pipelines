@@ -196,7 +196,7 @@ def thumbnail_video_from_array(
 
     tmp_dir: Optional[pathlib.Path]
         Directory where file will be written (ignored if file_path is
-        not None). If none, tempfile will be used to create a temporary
+        not None). If None, tempfile will be used to create a temporary
         directory (default: None)
 
     fps: int
@@ -256,10 +256,8 @@ def thumbnail_video_from_path(
         max_val: Optional[Union[int, float]] = None,
         origin_offset: Optional[Tuple[int,int]] = None) -> ThumbnailVideo:
     """
-    Create a ThumbnailVideo (mp4) from a path to an h5 file.
-    This method does the work of trimming the video in space
-    and time.  Automatically converts video to an array of
-    np.uint8s
+    Create a ThumbnailVideo (mp4) from a path to an HDF5 file.
+    Automatically converts video to an array of np.uint8s
 
     Parameters
     ----------

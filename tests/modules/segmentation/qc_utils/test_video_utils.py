@@ -140,7 +140,7 @@ def test_scale_video():
     data = np.array([[1.0, 2.0, 3.0, 4.0],
                      [5.0, 6.0, 7.0, 8.0]])
 
-    scaled = scale_video_to_uint8(data)
+    scaled = scale_video_to_uint8(data, max_val=data.max())
     assert scaled.dtype == np.uint8
 
     expected = np.array([[32, 64, 96, 128],
@@ -153,6 +153,12 @@ def test_scale_video():
                          [85, 102, 119, 136]]).astype(np.uint8)
 
     np.testing.assert_array_equal(expected, scaled)
+
+    with pytest.raises(RuntimeError, match="must specify a max_val"):
+        _ = scale_video_to_uint8(data, None)
+
+    with pytest.raises(RuntimeError, match="values > 255"):
+        _ = scale_video_to_uint8(data, 3)
 
 
 def test_video_bounds_from_ROI():
@@ -389,6 +395,9 @@ def test_thumbnail_from_path(tmpdir,
         out_file.create_dataset('data', data=example_unnormalized_rgb_video)
 
     sub_video = example_unnormalized_rgb_video[:, 18:30, 14:29, :]
+
+    if custom_max_val is None:
+        custom_max_val = sub_video.max()
     sub_video = scale_video_to_uint8(sub_video, max_val=custom_max_val)
 
     control_video = thumbnail_video_from_array(

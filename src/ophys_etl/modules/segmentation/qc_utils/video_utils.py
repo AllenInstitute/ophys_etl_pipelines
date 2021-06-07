@@ -88,7 +88,7 @@ class ThumbnailVideo(object):
 
 
 def scale_video_to_uint8(video: np.ndarray,
-                         max_val: Optional[Union[int, float]] = None):
+                         max_val: Union[int, float]):
     """
     Convert a video (as a numpy.ndarray) to uint8 by dividing by the
     array's maximum value and multiplying by 255
@@ -98,16 +98,23 @@ def scale_video_to_uint8(video: np.ndarray,
     video: np.ndarray
 
     max_val: Optional[Union[int, float]]
-        If you want to normalize by something other than video.max(),
-        specify it here. If None, will normalize by video.max().
-        (default: None)
+        The value by which to normalize before multiplying by 255
 
     Returns
     -------
     np.ndarray
     """
     if max_val is None:
-        max_val = video.max()
+        raise RuntimeError("must specify a max_val in "
+                           "scale_video_to_uint8")
+
+    if max_val < video.max():
+        msg = "in scale_video_to_uint8, video.max() is "
+        msg += f"{video.max()}; you specified "
+        msg += f"max_val = {max_val}; this will result "
+        msg += "in values > 255 after normalization"
+        raise RuntimeError(msg)
+
     return np.round(255*video.astype(float)/max_val).astype(np.uint8)
 
 
@@ -332,6 +339,8 @@ def thumbnail_video_from_path(
                                origin[0]:origin[0]+frame_shape[0],
                                origin[1]:origin[1]+frame_shape[1]]
 
+    if max_val is None:
+        max_val = data.max()
     data = scale_video_to_uint8(data, max_val=max_val)
 
     # origin is set to (0,0) because, when we read in the
@@ -668,6 +677,9 @@ def _thumbnail_video_from_ROI_path(
         full_video = in_file['data'][:,
                                      origin[0]:origin[0]+fov_shape[0],
                                      origin[1]:origin[1]+fov_shape[1]]
+
+    if max_val is None:
+        max_val = full_video.max()
 
     full_video = scale_video_to_uint8(full_video,
                                       max_val=max_val)

@@ -276,6 +276,11 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
         description=("path to json file where seed points "
                      "will be saved"))
 
+    n_tiles = argschema.fields.Int(
+        required=False,
+        default=-1,
+        description=("how many tiles to subdivide FOV into"))
+
     n_parallel_workers = argschema.fields.Int(
         required=False,
         default=1,

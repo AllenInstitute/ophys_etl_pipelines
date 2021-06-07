@@ -302,9 +302,13 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                  attribute: str = 'filtered_hnc_Gaussian',
                  filter_fraction: float = 0.2,
                  n_processors=8,
+                 n_tiles=-1,
                  roi_class=PearsonFeatureROI):
 
         self.slop = 20
+        self.n_tiles = n_tiles
+        if self.n_tiles <= 0:
+            self.n_tiles = 9*n_processors
 
         super().__init__(graph_input,
                          video_input,
@@ -333,9 +337,9 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
 
         # pre-compute correlations
         img_shape = img_data.shape
-        sqrt_proc = max(1, np.ceil(np.sqrt(self.n_processors-1)).astype(int))
-        drow = max(1, img_shape[0]//(2*sqrt_proc))
-        dcol = max(1, img_shape[1]//(2*sqrt_proc))
+        sqrt_tiles = max(1, np.ceil(np.sqrt(self.n_tiles)).astype(int))
+        drow = max(1, img_shape[0]//(sqrt_tiles))
+        dcol = max(1, img_shape[1]//(sqrt_tiles))
 
         n_pixels = img_shape[0]*img_shape[1]
         max_indices = 1+(4*self.slop+1)**2

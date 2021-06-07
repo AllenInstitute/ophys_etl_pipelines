@@ -39,8 +39,11 @@ class ThumbnailVideo(object):
 
     Notes
     -----
-    When the instantiation is deleted, the file containing
-    the movie is also deleted
+    The constructor for this class will save video_data as
+    an mp4 to a file at the specivied video_path.
+
+    When the instantiation of this class is deleted, the mp4
+    it created will be deleted.
     """
 
     def __init__(self,

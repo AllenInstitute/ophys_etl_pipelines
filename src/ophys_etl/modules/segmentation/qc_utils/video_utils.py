@@ -174,7 +174,7 @@ def thumbnail_video_from_array(
         tmp_dir: Optional[pathlib.Path] = None,
         fps: int = 31,
         quality: int = 5,
-        origin_offset: Optional[Tuple[int,int]] = None,
+        origin_offset: Optional[Tuple[int, int]] = None,
         timestep_offset: Optional[np.ndarray] = None) -> ThumbnailVideo:
     """
     Create a ThumbnailVideo (mp4) from a numpy array. This method
@@ -271,6 +271,7 @@ def thumbnail_video_from_array(
                                quality=quality)
     return container
 
+
 def thumbnail_video_from_path(
         full_video_path: pathlib.Path,
         origin: Tuple[int, int],
@@ -281,7 +282,7 @@ def thumbnail_video_from_path(
         fps: int = 31,
         quality: int = 5,
         normalization: Union[str, float, int] = 'local',
-        origin_offset: Optional[Tuple[int,int]] = None) -> ThumbnailVideo:
+        origin_offset: Optional[Tuple[int, int]] = None) -> ThumbnailVideo:
     """
     Create a ThumbnailVideo (mp4) from a path to an HDF5 file.
     Automatically converts video to an array of np.uint8s
@@ -361,7 +362,7 @@ def thumbnail_video_from_path(
     # wanted for the thumbnail
     thumbnail = thumbnail_video_from_array(
                     data,
-                    (0,0),
+                    (0, 0),
                     frame_shape,
                     timesteps=timesteps,
                     file_path=file_path,
@@ -478,10 +479,11 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
                 sub_video_bdry[:, row, col, i_color] = roi_color[i_color]
     return sub_video_bdry
 
+
 def get_rgb_sub_video(full_video: np.ndarray,
                       origin: Tuple[int, int],
                       fov_shape: Tuple[int, int],
-                      timesteps: Optional[np.ndarray]=None) -> np.ndarray:
+                      timesteps: Optional[np.ndarray] = None) -> np.ndarray:
     """
     Take a (n_times, nrows, ncols) np.ndarray and extract a
     into a (n_times, nrows, ncols, 3) thumbnail from it.
@@ -536,7 +538,7 @@ def get_rgb_sub_video(full_video: np.ndarray,
 def _thumbnail_video_from_ROI_array(
         full_video: np.ndarray,
         roi: ExtractROI,
-        roi_color: Optional[Tuple[int, int, int]]=None,
+        roi_color: Optional[Tuple[int, int, int]] = None,
         timesteps: Optional[np.ndarray] = None,
         file_path: Optional[pathlib.Path] = None,
         tmp_dir: Optional[pathlib.Path] = None,
@@ -591,7 +593,6 @@ def _thumbnail_video_from_ROI_array(
      fov_shape) = video_bounds_from_ROI(roi,
                                         full_video.shape[1:3])
 
-
     sub_video = get_rgb_sub_video(full_video,
                                   origin,
                                   fov_shape,
@@ -622,13 +623,13 @@ def _thumbnail_video_from_ROI_array(
 def _thumbnail_video_from_ROI_path(
         video_path: pathlib.Path,
         roi: ExtractROI,
-        roi_color: Optional[Tuple[int, int, int]]=None,
+        roi_color: Optional[Tuple[int, int, int]] = None,
         timesteps: Optional[np.ndarray] = None,
         file_path: Optional[pathlib.Path] = None,
         tmp_dir: Optional[pathlib.Path] = None,
         fps: int = 31,
         quality: int = 5,
-        normalization: Union[str, int , float] = 'local') -> ThumbnailVideo:
+        normalization: Union[str, int, float] = 'local') -> ThumbnailVideo:
     """
     Get a thumbnail video from a HDF5 file path and an ROI
 
@@ -711,7 +712,7 @@ def _thumbnail_video_from_ROI_path(
                                       max_val=max_val)
 
     sub_video = get_rgb_sub_video(full_video,
-                                  (0,0),
+                                  (0, 0),
                                   fov_shape,
                                   timesteps=timesteps)
 
@@ -740,7 +741,7 @@ def _thumbnail_video_from_ROI_path(
 def thumbnail_video_from_ROI(
         video: Union[np.ndarray, pathlib.Path],
         roi: ExtractROI,
-        roi_color: Optional[Tuple[int, int, int]]=None,
+        roi_color: Optional[Tuple[int, int, int]] = None,
         timesteps: Optional[np.ndarray] = None,
         file_path: Optional[pathlib.Path] = None,
         tmp_dir: Optional[pathlib.Path] = None,

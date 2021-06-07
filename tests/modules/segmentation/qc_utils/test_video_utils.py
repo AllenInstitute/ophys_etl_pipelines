@@ -26,7 +26,7 @@ def example_video():
     rng = np.random.RandomState(16412)
     data = rng.randint(0, 100, (100, 30, 40)).astype(np.uint8)
     for ii in range(100):
-        data[ii,::,:] = ii
+        data[ii, ::, :] = ii
     return data
 
 
@@ -35,7 +35,7 @@ def example_rgb_video():
     rng = np.random.RandomState(16412)
     data = rng.randint(0, 100, (100, 30, 40, 3)).astype(np.uint8)
     for ii in range(100):
-        data[ii,::,:] = ii
+        data[ii, ::, :] = ii
     return data
 
 
@@ -121,10 +121,9 @@ def test_trim_video(video_data_fixture, request):
     np.testing.assert_array_equal(trimmed_video, expected)
     assert len(trimmed_video.shape) == len(video_data.shape)
 
-
     # specify timesteps
-    timesteps = np.concatenate([np.arange(15,45),
-                                np.arange(76,83)])
+    timesteps = np.concatenate([np.arange(15, 45),
+                                np.arange(76, 83)])
 
     expected = expected[timesteps]
     trimmed_video = trim_video(video_data,
@@ -175,8 +174,8 @@ def test_video_bounds_from_ROI():
     assert origin[1]+fov[1] >= 37
     assert origin[0] >= 0
     assert origin[1] >= 0
-    assert origin[0]+fov[0]<=128
-    assert origin[1]+fov[1]<=128
+    assert origin[0]+fov[0] <= 128
+    assert origin[1]+fov[1] <= 128
 
     # constrained dimensions
     roi = ExtractROI(x=2,
@@ -191,8 +190,8 @@ def test_video_bounds_from_ROI():
     assert origin[1]+fov[1] >= 6
     assert origin[0] >= 0
     assert origin[1] >= 0
-    assert origin[0]+fov[0]<=10
-    assert origin[1]+fov[1]<=10
+    assert origin[0]+fov[0] <= 10
+    assert origin[1]+fov[1] <= 10
 
     # constrained dimensions
     roi = ExtractROI(x=120,
@@ -208,8 +207,8 @@ def test_video_bounds_from_ROI():
     assert origin[1]+fov[1] >= 124
     assert origin[0] >= 0
     assert origin[1] >= 0
-    assert origin[0]+fov[0]<=128
-    assert origin[1]+fov[1]<=128
+    assert origin[0]+fov[0] <= 128
+    assert origin[1]+fov[1] <= 128
 
 
 @pytest.mark.parametrize("timesteps",
@@ -297,7 +296,7 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
     else:
         n_t = len(timesteps)
 
-    mask = np.zeros((7,8), dtype=bool)
+    mask = np.zeros((7, 8), dtype=bool)
     mask[3:5, 1:6] = True
 
     y0 = 20
@@ -306,13 +305,12 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
     width = 8
 
     bdry_pix = []
-    for row in (3,4):
-        for col in range(1,6):
+    for row in (3, 4):
+        for col in range(1, 6):
             bdry_pix.append((row+y0, col+x0))
-    for row in range(3,5):
-        for col in (1,5):
+    for row in range(3, 5):
+        for col in (1, 5):
             bdry_pix.append((row+y0, col+x0))
-
 
     roi = ExtractROI(y=y0,
                      height=height,
@@ -346,7 +344,7 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
                                   3)
 
     # now with color
-    example_video[:,:,:] = 0
+    example_video[:, :, :] = 0
     thumbnail = _thumbnail_video_from_ROI_array(
                     example_video,
                     roi,
@@ -371,12 +369,12 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
 
 
 @pytest.mark.parametrize("normalization, timesteps",
-                        [('local', None),
-                         ('local', np.arange(22, 57)),
-                         ('global', None),
-                         ('global', np.arange(22, 57)),
-                         (900, None),
-                         (900, np.arange(22, 57))])
+                         [('local', None),
+                          ('local', np.arange(22, 57)),
+                          ('global', None),
+                          ('global', np.arange(22, 57)),
+                          (900, None),
+                          (900, np.arange(22, 57))])
 def test_thumbnail_from_path(tmpdir,
                              example_unnormalized_rgb_video,
                              normalization,
@@ -409,7 +407,7 @@ def test_thumbnail_from_path(tmpdir,
 
     control_video = thumbnail_video_from_array(
                        sub_video,
-                       (0,0),
+                       (0, 0),
                        (12, 15),
                        tmp_dir=pathlib.Path(tmpdir),
                        timesteps=timesteps)

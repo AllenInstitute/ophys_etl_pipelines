@@ -382,7 +382,6 @@ def test_thumbnail_from_path(tmpdir,
     else:
         n_t = len(timesteps)
 
-
     # write video to a tempfile
     h5_fname = tempfile.mkstemp(dir=tmpdir, prefix='input_video_',
                                 suffix='.h5')[1]

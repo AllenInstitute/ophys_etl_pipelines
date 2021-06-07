@@ -335,6 +335,32 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
                               origin: Tuple[int, int],
                               roi: ExtractROI,
                               roi_color: Tuple[int, int, int]) -> np.ndarray:
+    """
+    Add the boundary of an ROI to a video
+
+    Parameters
+    ----------
+    sub_video: np.ndarray
+        The video as an RGB movie. Shape is (n_t, nrows, ncols, 3)
+
+    origin: Tuple[int, int]
+        global (romin, colmin) of the video in sub_video
+
+    roi: ExtractROI
+        The parameters of this ROI are in global coordinates,
+        which is why we need origin as an argument
+
+    roi_color: Tuple[int, int, int]
+        RGB color of the ROI boundary
+
+    Returns
+    -------
+    sub_video_bdry: np.ndarray
+        sub_video with the ROI boundary
+    """
+
+    sub_video_bdry = np.copy(sub_video)
+
     # construct an ROI object to get the boundary mask
     # for us
     ophys_roi = OphysROI(roi_id=-1,
@@ -353,8 +379,8 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
                 continue
             col = icol+ophys_roi.x0-origin[1]
             for i_color in range(3):
-                sub_video[:, row, col, i_color] = roi_color[i_color]
-
+                sub_video_bdry[:, row, col, i_color] = roi_color[i_color]
+    return sub_video_bdry
 
 def get_rgb_sub_video(full_video: np.ndarray,
                       origin: Tuple[int, int],
@@ -413,10 +439,10 @@ def _thumbnail_video_from_ROI_array(
     # if an ROI color has been specified, plot the ROI
     # boundary over the video in the specified color
     if roi_color is not None:
-        add_roi_boundary_to_video(sub_video,
-                                  origin,
-                                  roi,
-                                  roi_color)
+        sub_video = add_roi_boundary_to_video(sub_video,
+                                              origin,
+                                              roi,
+                                              roi_color)
 
     thumbnail = thumbnail_video_from_array(
                     sub_video,
@@ -467,10 +493,10 @@ def _thumbnail_video_from_ROI_path(
     # if an ROI color has been specified, plot the ROI
     # boundary over the video in the specified color
     if roi_color is not None:
-        add_roi_boundary_to_video(sub_video,
-                                  origin,
-                                  roi,
-                                  roi_color)
+        sub_video = add_roi_boundary_to_video(sub_video,
+                                              origin,
+                                              roi,
+                                              roi_color)
 
     thumbnail = thumbnail_video_from_array(
                     sub_video,

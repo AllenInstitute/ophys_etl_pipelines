@@ -21,14 +21,12 @@ class ThumbnailVideo(object):
         The path to the video file
 
     origin: Tuple[int, int]
-        (row_min, col_min)
-
-    frame_shape: Tuple[int, int]
-        (n_rows, n_cols)
+        The origin used to create video_data,
+        if relevant (row_min, col_min)
 
     timesteps: Optional[np.ndarray]
         The timesteps from the original movie that were used
-        (if None, use all timesteps)
+        to create video_data, if relevant (default: None)
 
     quality: int
         Quality parameter passed to imageio.mimsave
@@ -50,13 +48,12 @@ class ThumbnailVideo(object):
                  video_data: np.ndarray,
                  video_path: pathlib.Path,
                  origin: Tuple[int, int],
-                 frame_shape: Tuple[int, int],
                  timesteps: Optional[np.ndarray] = None,
                  quality: int = 5,
                  fps: int = 31):
         self._path = video_path
         self._origin = origin
-        self._frame_shape = frame_shape
+        self._frame_shape = video_data.shape[1:3]
         self._timesteps = timesteps
 
         imageio.mimsave(self._path,
@@ -192,7 +189,6 @@ def thumbnail_video_from_array(
                                file_path,
                                (origin[0]+origin_offset[0],
                                 origin[1]+origin_offset[1]),
-                               frame_shape,
                                timesteps=timesteps,
                                fps=fps,
                                quality=quality)

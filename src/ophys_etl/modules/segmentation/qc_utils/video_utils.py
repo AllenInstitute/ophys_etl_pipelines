@@ -4,6 +4,7 @@ import pathlib
 import tempfile
 import imageio
 import h5py
+import numbers
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
@@ -279,7 +280,7 @@ def thumbnail_video_from_path(
         tmp_dir: Optional[pathlib.Path] = None,
         fps: int = 31,
         quality: int = 5,
-        normalization: str = 'local',
+        normalization: Union[str, float, int] = 'local',
         origin_offset: Optional[Tuple[int,int]] = None) -> ThumbnailVideo:
     """
     Create a ThumbnailVideo (mp4) from a path to an HDF5 file.
@@ -316,10 +317,11 @@ def thumbnail_video_from_path(
         Parameter passed to imageio.mimsave controlling
         quality of video file produced (max is 10; default is 5)
 
-    normalization: str
+    normalization: Union[str, float, int]
         If 'global', normalize video to maximum value of full
         video. If 'local', normalize video to maximum value of
-        spatial thumbnail. (default: 'local')
+        spatial thumbnail. If a number, the numerical
+        value to normalize by (default: 'local')
 
     origin_offset: Optional[Tuple[int, int]]
         Offset values to be added to origin in container.
@@ -333,11 +335,14 @@ def thumbnail_video_from_path(
         Containing the metadata about the written thumbnail video
     """
 
-    if normalization not in ('global', 'local'):
-        msg = "normalization in thumbnail_video_from_path "
-        msg += "must be either 'global' or 'local'; "
-        msg += f"you gave '{normalization}'"
-        raise RuntimeError(msg)
+    if not isinstance(normalization, numbers.Number):
+        if normalization not in ('global', 'local'):
+            msg = "normalization in thumbnail_video_from_path "
+            msg += "must be either 'global' or 'local'; "
+            msg += f"you gave '{normalization}'"
+            raise RuntimeError(msg)
+    else:
+        max_val = normalization
 
     with h5py.File(full_video_path, 'r') as in_file:
         if normalization == 'global':
@@ -623,7 +628,7 @@ def _thumbnail_video_from_ROI_path(
         tmp_dir: Optional[pathlib.Path] = None,
         fps: int = 31,
         quality: int = 5,
-        normalization: str = 'local') -> ThumbnailVideo:
+        normalization: Union[str, int , float] = 'local') -> ThumbnailVideo:
     """
     Get a thumbnail video from a HDF5 file path and an ROI
 
@@ -659,10 +664,11 @@ def _thumbnail_video_from_ROI_path(
         Quality parameter passed to imageio.mimsave
         (maximum is 10; default is 5)
 
-    normalization: str
+    normalization: Union[str, float]
         If 'global', normalize video to maximum value of full
         video. If 'local', normalize video to maximum value of
-        spatial thumbnail. (default: 'local')
+        spatial thumbnail. If a number, the numerical
+        value to normalize by (default: 'local')
 
     Returns
     -------
@@ -673,11 +679,14 @@ def _thumbnail_video_from_ROI_path(
     This method will scale video data values to [0, 255]
     """
 
-    if normalization not in ('global', 'local'):
-        msg = "normalization in _thumbnail_video_from_ROI_path "
-        msg += "must be either 'global' or 'local'; "
-        msg += f"you gave '{normalization}'"
-        raise RuntimeError(msg)
+    if not isinstance(normalization, numbers.Number):
+        if normalization not in ('global', 'local'):
+            msg = "normalization in _thumbnail_video_from_ROI_path "
+            msg += "must be either 'global' or 'local'; "
+            msg += f"you gave '{normalization}'"
+            raise RuntimeError(msg)
+    else:
+        max_val = normalization
 
     with h5py.File(video_path, 'r') as in_file:
         img_shape = in_file['data'].shape
@@ -737,7 +746,7 @@ def thumbnail_video_from_ROI(
         tmp_dir: Optional[pathlib.Path] = None,
         fps: int = 31,
         quality: int = 5,
-        normalization: str = 'local') -> ThumbnailVideo:
+        normalization: Union[str, int, float] = 'local') -> ThumbnailVideo:
     """
     Get a thumbnail video from a HDF5 file path and an ROI
 
@@ -774,10 +783,11 @@ def thumbnail_video_from_ROI(
         Quality parameter passed to imageio.mimsave
         (maximum is 10; default is 5)
 
-    normalization: str
+    normalization: Union[str, float]
         If 'global', normalize video to maximum value of full
         video. If 'local', normalize video to maximum value of
-        spatial thumbnail. (default: 'local')
+        spatial thumbnail. If a number, the numerical
+        value to normalize by (default: 'local')
 
     Returns
     -------

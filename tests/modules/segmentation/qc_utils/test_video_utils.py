@@ -374,7 +374,9 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
                         [('local', None),
                          ('local', np.arange(22, 57)),
                          ('global', None),
-                         ('global', np.arange(22, 57))])
+                         ('global', np.arange(22, 57)),
+                         (900, None),
+                         (900, np.arange(22, 57))])
 def test_thumbnail_from_path(tmpdir,
                              example_unnormalized_rgb_video,
                              normalization,
@@ -398,8 +400,10 @@ def test_thumbnail_from_path(tmpdir,
 
     if normalization == 'local':
         custom_max_val = sub_video.max()
-    else:
+    elif normalization == 'global':
         custom_max_val = example_unnormalized_rgb_video.max()
+    else:
+        custom_max_val = normalization
 
     sub_video = scale_video_to_uint8(sub_video, max_val=custom_max_val)
 
@@ -436,7 +440,11 @@ def test_thumbnail_from_path(tmpdir,
                           ('local', None, None),
                           ('local', None, np.arange(22, 76)),
                           ('local', (255, 0, 0), None),
-                          ('local', (255, 0, 0), np.arange(22, 76))])
+                          ('local', (255, 0, 0), np.arange(22, 76)),
+                          (900, None, None),
+                          (900, None, np.arange(22, 76)),
+                          (900, (255, 0, 0), None),
+                          (900, (255, 0, 0), np.arange(22, 76))])
 def test_thumbnail_from_roi_and_path(tmpdir,
                                      example_unnormalized_rgb_video,
                                      normalization,
@@ -467,8 +475,10 @@ def test_thumbnail_from_roi_and_path(tmpdir,
 
     if normalization == 'local':
         mx = example_unnormalized_rgb_video[:, 18:30, 14:29, :].max()
-    else:
+    elif normalization == 'global':
         mx = example_unnormalized_rgb_video.max()
+    else:
+        mx = normalization
 
     normalized_video = scale_video_to_uint8(example_unnormalized_rgb_video,
                                             max_val=mx)

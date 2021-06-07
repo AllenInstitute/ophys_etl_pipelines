@@ -81,11 +81,11 @@ def correlate_pixel(pixel_pt: Tuple[int, int],
     for i_other in range(n_pixels):
         other = video_data[i_other, :]
         th = threshold[i_other]
-        valid = (other >= threshold)
+        valid = (other >= th)
         time_mask[i_other, valid] = 1
 
     nn = np.sum(time_mask, axis=1)
-    assert denom.shape == (n_pixels,)
+    assert nn.shape == (n_pixels,)
 
     # the pixel trace
     mu = np.dot(time_mask, trace)/nn
@@ -96,7 +96,7 @@ def correlate_pixel(pixel_pt: Tuple[int, int],
 
     # numerator
     absq = np.einsum('i,ji,ji->j',trace,time_mask,video_data)
-    assert ab.shape == (n_pixels,)
+    assert absq.shape == (n_pixels,)
     absq = absq/nn
 
     # other trace
@@ -381,7 +381,6 @@ class FeaturePairwiseSegmenter(FeatureVectorSegmenter):
                 tot_tiles += (row1-row0)*(col1-col0)
                 # make sure that all processors are working at all times,
                 # if possible
-
 
                 while len(p_list) > 0 and len(p_list) >= (self.n_processors-1):
                     median_tiles = np.median(tiles_per_p)

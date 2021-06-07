@@ -416,19 +416,29 @@ def test_thumbnail_from_path(tmpdir,
         np.testing.assert_array_equal(control_data[ii], test_data[ii])
 
 
-@pytest.mark.parametrize("custom_max_val,roi_color",
-                         [(None, None),
-                          (None, (255, 0, 0)),
-                          (900, None),
-                          (900, (255, 0, 0))])
+@pytest.mark.parametrize("custom_max_val,roi_color,timesteps",
+                         [(None, None, None),
+                          (None, None, np.arange(22, 76)),
+                          (None, (255, 0, 0), None),
+                          (None, (255, 0, 0), np.arange(22, 76)),
+                          (900, None, None),
+                          (900, None, np.arange(22, 76)),
+                          (900, (255, 0, 0), None),
+                          (900, (255, 0, 0), np.arange(22, 76))])
 def test_thumbnail_from_roi_and_path(tmpdir,
                                      example_unnormalized_rgb_video,
                                      custom_max_val,
-                                     roi_color):
+                                     roi_color,
+                                     timesteps):
     """
     Test _thumbnail_from_ROI_path by comparing output to result
     from _thumbnail_from_ROI_array
     """
+
+    if timesteps is None:
+        n_t = example_unnormalized_rgb_video.shape[0]
+    else:
+        n_t = len(timesteps)
 
     mask = np.zeros((12, 15), dtype=bool)
     mask[2:10, 3:13] = True
@@ -455,20 +465,23 @@ def test_thumbnail_from_roi_and_path(tmpdir,
                        normalized_video,
                        roi,
                        roi_color=roi_color,
-                       tmp_dir=pathlib.Path(tmpdir))
+                       tmp_dir=pathlib.Path(tmpdir),
+                       timesteps=timesteps)
 
     test_video = _thumbnail_video_from_ROI_path(
                      pathlib.Path(h5_fname),
                      roi,
                      roi_color=roi_color,
                      tmp_dir=pathlib.Path(tmpdir),
-                     max_val=custom_max_val)
+                     max_val=custom_max_val,
+                     timesteps=timesteps)
 
     control_data = imageio.mimread(control_video.video_path)
     test_data = imageio.mimread(test_video.video_path)
     assert test_video.origin == control_video.origin
     assert test_video.frame_shape == control_video.frame_shape
     assert len(control_data) == len(test_data)
+    assert len(test_data) == n_t
     for ii in range(len(control_data)):
         np.testing.assert_array_equal(control_data[ii], test_data[ii])
 

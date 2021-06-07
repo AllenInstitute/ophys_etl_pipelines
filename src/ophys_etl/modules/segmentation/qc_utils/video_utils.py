@@ -54,7 +54,10 @@ class ThumbnailVideo(object):
         self._path = video_path
         self._origin = origin
         self._frame_shape = video_data.shape[1:3]
-        self._timesteps = timesteps
+        if timesteps is None:
+            self._timesteps = timesteps
+        else:
+            self._timesteps = np.copy(timesteps)
 
         imageio.mimsave(self._path,
                         video_data,

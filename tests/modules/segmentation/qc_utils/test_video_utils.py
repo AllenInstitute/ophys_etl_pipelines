@@ -10,6 +10,7 @@ import gc
 from ophys_etl.types import ExtractROI
 
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
+    trim_video,
     thumbnail_video_from_array,
     thumbnail_video_from_path,
     _thumbnail_video_from_ROI_array,
@@ -100,6 +101,38 @@ def test_thumbnail_video(data_fixture, tmpdir, request):
     del thumbnail
     gc.collect()
     assert not test_path.exists()
+
+
+@pytest.mark.parametrize("video_data_fixture",
+                         ["example_video",
+                          "example_rgb_video"])
+def test_trim_video(video_data_fixture, request):
+    video_data = request.getfixturevalue(video_data_fixture)
+
+    origin = (3, 9)
+    frame_shape = (10, 14)
+
+    # no timesteps specified
+    expected = video_data[:,
+                          origin[0]:origin[0]+frame_shape[0],
+                          origin[1]:origin[1]+frame_shape[1]]
+
+    trimmed_video = trim_video(video_data, origin, frame_shape)
+    np.testing.assert_array_equal(trimmed_video, expected)
+    assert len(trimmed_video.shape) == len(video_data.shape)
+
+
+    # specify timesteps
+    timesteps = np.concatenate([np.arange(15,45),
+                                np.arange(76,83)])
+
+    expected = expected[timesteps]
+    trimmed_video = trim_video(video_data,
+                               origin,
+                               frame_shape,
+                               timesteps=timesteps)
+    np.testing.assert_array_equal(trimmed_video, expected)
+    assert len(trimmed_video.shape) == len(video_data.shape)
 
 
 def test_scale_video():

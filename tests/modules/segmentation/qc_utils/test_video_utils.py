@@ -17,7 +17,7 @@ from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     thumbnail_video_from_ROI,
     scale_video_to_uint8,
     video_bounds_from_ROI,
-    ThumbnailVideo)    
+    ThumbnailVideo)
 
 
 @pytest.fixture
@@ -43,6 +43,60 @@ def example_unnormalized_rgb_video():
     rng = np.random.RandomState(6125321)
     data = rng.randint(0, 700, (100, 50, 40, 3))
     return data
+
+
+def test_thumbnail_video(tmpdir, example_video):
+    """
+    Just test that ThumbnailVideo can write the video
+    and set its properties correctly
+    """
+
+    video_path = tempfile.mkstemp(dir=tmpdir, suffix='.mp4')[1]
+    thumbnail = ThumbnailVideo(example_video,
+                               pathlib.Path(video_path),
+                               (111, 222),
+                               quality=6,
+                               fps=22)
+
+    assert thumbnail.video_path.is_file()
+    read_data = imageio.mimread(thumbnail.video_path)
+    assert len(read_data) == example_video.shape[0]
+    assert thumbnail.frame_shape == (example_video.shape[1],
+                                     example_video.shape[2])
+
+    assert thumbnail.origin == (111, 222)
+    assert thumbnail.timesteps is None
+
+    # check that the video is deleted when the thumbnail is deleted
+    test_path = copy.deepcopy(thumbnail.video_path)
+    del thumbnail
+    gc.collect()
+    assert not test_path.exists()
+
+    # test non-None timesteps
+    video_path = tempfile.mkstemp(dir=tmpdir, suffix='.mp4')[1]
+    thumbnail = ThumbnailVideo(example_video,
+                               pathlib.Path(video_path),
+                               (111, 222),
+                               quality=6,
+                               fps=22,
+                               timesteps=np.arange(450, 550))
+
+    assert thumbnail.video_path.is_file()
+    read_data = imageio.mimread(thumbnail.video_path)
+    assert len(read_data) == example_video.shape[0]
+    assert thumbnail.frame_shape == (example_video.shape[1],
+                                     example_video.shape[2])
+
+    assert thumbnail.origin == (111, 222)
+    np.testing.assert_array_equal(thumbnail.timesteps,
+                                  np.arange(450, 550))
+
+    # check that the video is deleted when the thumbnail is deleted
+    test_path = copy.deepcopy(thumbnail.video_path)
+    del thumbnail
+    gc.collect()
+    assert not test_path.exists()
 
 
 def test_scale_video():

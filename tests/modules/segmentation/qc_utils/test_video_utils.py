@@ -45,14 +45,17 @@ def example_unnormalized_rgb_video():
     return data
 
 
-def test_thumbnail_video(tmpdir, example_video):
+@pytest.mark.parametrize("data_fixture", ["example_video",
+                                          "example_rgb_video"])
+def test_thumbnail_video(data_fixture, tmpdir, request):
     """
     Just test that ThumbnailVideo can write the video
     and set its properties correctly
     """
-
+    video_data = request.getfixturevalue(data_fixture)
+    n_t = video_data.shape[0]
     video_path = tempfile.mkstemp(dir=tmpdir, suffix='.mp4')[1]
-    thumbnail = ThumbnailVideo(example_video,
+    thumbnail = ThumbnailVideo(video_data,
                                pathlib.Path(video_path),
                                (111, 222),
                                quality=6,
@@ -60,9 +63,9 @@ def test_thumbnail_video(tmpdir, example_video):
 
     assert thumbnail.video_path.is_file()
     read_data = imageio.mimread(thumbnail.video_path)
-    assert len(read_data) == example_video.shape[0]
-    assert thumbnail.frame_shape == (example_video.shape[1],
-                                     example_video.shape[2])
+    assert len(read_data) == n_t
+    assert thumbnail.frame_shape == (video_data.shape[1],
+                                     video_data.shape[2])
 
     assert thumbnail.origin == (111, 222)
     assert thumbnail.timesteps is None
@@ -75,18 +78,18 @@ def test_thumbnail_video(tmpdir, example_video):
 
     # test non-None timesteps
     video_path = tempfile.mkstemp(dir=tmpdir, suffix='.mp4')[1]
-    thumbnail = ThumbnailVideo(example_video,
+    thumbnail = ThumbnailVideo(video_data,
                                pathlib.Path(video_path),
                                (111, 222),
                                quality=6,
                                fps=22,
-                               timesteps=np.arange(450, 550))
+                               timesteps=np.arange(450, 450+n_t))
 
     assert thumbnail.video_path.is_file()
     read_data = imageio.mimread(thumbnail.video_path)
-    assert len(read_data) == example_video.shape[0]
-    assert thumbnail.frame_shape == (example_video.shape[1],
-                                     example_video.shape[2])
+    assert len(read_data) == n_t
+    assert thumbnail.frame_shape == (video_data.shape[1],
+                                     video_data.shape[2])
 
     assert thumbnail.origin == (111, 222)
     np.testing.assert_array_equal(thumbnail.timesteps,

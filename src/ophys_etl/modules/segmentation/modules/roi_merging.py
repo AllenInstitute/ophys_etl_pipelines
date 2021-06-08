@@ -34,19 +34,16 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             roi_list.append(merging.extract_roi_to_ophys_roi(roi))
         del raw_roi_list
 
-        with h5py.File(self.args['video_input'], 'r') as in_file:
-            video_data = in_file['data'][()]
-
         keep_going = True
         while keep_going:
             n_roi_0 = len(roi_list)
 
             (keep_going,
              roi_list) = merging.attempt_merger_pixel_correlation(
-                                                video_data,
-                                                roi_list,
-                                                self.args['filter_fraction'],
-                                                self.args['n_parallel_workers'])
+                                        pathlib.Path(self.args['video_input']),
+                                        roi_list,
+                                        self.args['filter_fraction'],
+                                        self.args['n_parallel_workers'])
             n_roi_1 = len(roi_list)
             duration = time.time()-t0
             self.logger.info(f'Merged {n_roi_0} ROIs to {n_roi_1} '

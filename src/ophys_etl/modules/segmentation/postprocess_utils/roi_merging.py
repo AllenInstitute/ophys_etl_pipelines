@@ -286,8 +286,16 @@ def _evaluate_merger(roi0_id: int,
     for ii in range(self_corr_0.shape[0]):
         mask[ii,ii] = False
     self_corr_0 = self_corr_0[mask].flatten()
-    mu0 = np.mean(self_corr_0)
-    std0 = np.std(self_corr_0, ddof=1)
+
+    if len(self_corr_0) > 0:
+        mu0 = np.mean(self_corr_0)
+    else:
+        mu0 = 0.0
+
+    if len(self_corr_0) > 1:
+        std0 = np.std(self_corr_0, ddof=1)
+    else:
+        std0 = 0.0
 
     self_corr_1 = correlate_sub_videos(sub_video_1,
                                        sub_video_1,
@@ -299,8 +307,16 @@ def _evaluate_merger(roi0_id: int,
     for ii in range(self_corr_1.shape[0]):
         mask[ii,ii] = False
     self_corr_1 = self_corr_1[mask].flatten()
-    mu1 = np.mean(self_corr_1)
-    std1 = np.std(self_corr_1, ddof=1)
+
+    if len(self_corr_1) > 0:
+        mu1 = np.mean(self_corr_1)
+    else:
+        mu1 = 0.0
+
+    if len(self_corr_1) > 1:
+        std1 = np.std(self_corr_1, ddof=1)
+    else:
+        std1 = 0.0
 
     if len(self_corr_0) > len(self_corr_1):
         big_self = self_corr_0
@@ -320,7 +336,10 @@ def _evaluate_merger(roi0_id: int,
                                      filter_fraction)
     cross = cross.flatten()
     mu_cross = np.mean(cross)
-    std_cross = np.std(cross, ddof=1)
+    if len(cross) > 1:
+        std_cross = np.std(cross, ddof=1)
+    else:
+        std_cross = 0.0
     dist = np.abs(mu_cross-mu)
     if dist < (std+std_cross):
         output_dict[(roi0_id, roi1_id)] = dist/(std+std_cross)

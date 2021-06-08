@@ -4,7 +4,6 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     merge_rois,
-    _get_bdry_array,
     do_rois_abut)
 
 
@@ -87,8 +86,6 @@ def test_roi_abut():
                     mask_matrix=mask,
                     roi_id=0,
                     valid_roi=True) 
-
-    bdry0 = _get_bdry_array(roi0)
 
     roi1 = OphysROI(x0=23,
                     y0=46,

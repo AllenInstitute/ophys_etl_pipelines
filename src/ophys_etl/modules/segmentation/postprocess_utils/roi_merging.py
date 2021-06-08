@@ -68,30 +68,30 @@ def merge_rois(roi0: OphysROI,
     return new_roi
 
 
-def _get_bdry_array(roi: OphysROI):
+def _get_pixel_array(roi: OphysROI):
     """
     get Nx2 array of pixels (in global coordinates)
-    that are on boundary of ROI
+    that are in the ROI
     """
-    bdry_mask = roi.boundary_mask
-    n_bdry = bdry_mask.sum()
-    bdry_array = -1*np.ones((n_bdry, 2), dtype=int)
+    mask = roi.mask_matrix
+    n_bdry = mask.sum()
+    roi_array = -1*np.ones((n_bdry, 2), dtype=int)
     i_pix = 0
     for ir in range(roi.height):
         row = ir+roi.y0
         for ic in range(roi.width):
             col =ic+roi.x0
-            if not bdry_mask[ir, ic]:
+            if not mask[ir, ic]:
                 continue
 
-            bdry_array[i_pix, 0] = row
-            bdry_array[i_pix, 1] = col
+            roi_array[i_pix, 0] = row
+            roi_array[i_pix, 1] = col
             i_pix += 1
 
-    if bdry_array.min() < 0:
+    if roi_array.min() < 0:
         raise RuntimeError("did not assign all boundary pixels")
 
-    return bdry_array
+    return roi_array
 
 
 def do_rois_abut(roi0: OphysROI,
@@ -104,17 +104,10 @@ def do_rois_abut(roi0: OphysROI,
     Note: dpix is such that if two boundaries are next to each other,
     that is dpix=1; dpix=2 is a 1 blank pixel between ROIs
     """
+    array_0 = _get_pixel_array(roi0)
+    array_1 = _get_pixel_array(roi1)
 
-    # do the ROIs overlap
-    pixel_dict = get_roi_pixels([roi0, roi1])
-    intersection = pixel_dict[roi0.roi_id].intersection(pixel_dict[roi1.roi_id])
-    if len(intersection) > 0:
-        return True
-
-    bdry_0 = _get_bdry_array(roi0)
-    bdry_1 = _get_bdry_array(roi1)
-
-    distances = cdist(bdry_0, bdry_1, metric='euclidean')
+    distances = cdist(array_0, array_1, metric='euclidean')
     if distances.min() <= dpix:
         return True
     return False

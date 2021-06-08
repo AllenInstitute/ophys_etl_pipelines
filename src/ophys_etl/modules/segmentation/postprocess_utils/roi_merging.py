@@ -164,40 +164,6 @@ def correlate_traces(trace0: np.ndarray,
     return np.mean((trace0-mu0)*(trace1-mu1))/np.sqrt(var0*var1)
 
 
-def correlate_sub_videos(sub_video_0: np.ndarray,
-                         sub_video_1: np.ndarray,
-                         filter_fraction:float) -> np.ndarray:
-    """
-    correlate pixels in sub_video_0 with pixels in sub_video_1
-    """
-
-    assert sub_video_0.shape[0] == sub_video_1.shape[0]
-    npix0 = sub_video_0.shape[1]
-    npix1 = sub_video_1.shape[1]
-    discard = max(0.0, 1.0-filter_fraction)
-
-    corr = np.zeros((npix0, npix1), dtype=float)
-
-    for i_pixel in range(npix0):
-        trace0 = sub_video_0[:, i_pixel]
-        th = np.quantile(trace0, discard)
-        mask = (trace0 > th)
-        trace0 = trace0[mask]
-        other_video = sub_video_1[mask, :]
-        other_mu = np.mean(other_video, axis=0)
-        assert other_mu.shape == (npix1, )
-        mu = np.mean(trace0)
-        var = np.mean((trace0-mu)**2)
-        other_video = other_video-other_mu
-        other_var = np.mean(other_video**2, axis=0)
-        assert other_var.shape == (npix1, )
-        numerator = np.dot(other_video.T, (trace0-mu))/mask.sum()
-        assert numerator.shape == (npix1, )
-        corr[i_pixel,:] = numerator/np.sqrt(var*other_var)
-    return corr
-
-
-
 def attempt_merger(video: np.ndarray,
                    roi_list: List[OphysROI],
                    filter_fraction: float,
@@ -253,3 +219,148 @@ def attempt_merger(video: np.ndarray,
     for roi_id in roi_lookup:
         new_roi_list.append(roi_lookup[roi_id])
     return has_merged, new_roi_list
+
+
+def correlate_sub_videos(sub_video_0: np.ndarray,
+                         sub_video_1: np.ndarray,
+                         filter_fraction:float) -> np.ndarray:
+    """
+    correlate pixels in sub_video_0 with pixels in sub_video_1
+    """
+
+    assert sub_video_0.shape[0] == sub_video_1.shape[0]
+    npix0 = sub_video_0.shape[1]
+    npix1 = sub_video_1.shape[1]
+    discard = max(0.0, 1.0-filter_fraction)
+
+    corr = np.zeros((npix0, npix1), dtype=float)
+
+    for i_pixel in range(npix0):
+        trace0 = sub_video_0[:, i_pixel]
+        th = np.quantile(trace0, discard)
+        mask = (trace0 > th)
+        trace0 = trace0[mask]
+        other_video = sub_video_1[mask, :]
+        other_mu = np.mean(other_video, axis=0)
+        assert other_mu.shape == (npix1, )
+        mu = np.mean(trace0)
+        var = np.mean((trace0-mu)**2)
+        other_video = other_video-other_mu
+        other_var = np.mean(other_video**2, axis=0)
+        assert other_var.shape == (npix1, )
+        numerator = np.dot(other_video.T, (trace0-mu))/mask.sum()
+        assert numerator.shape == (npix1, )
+        corr[i_pixel,:] = numerator/np.sqrt(var*other_var)
+    return corr
+
+
+def sub_video_from_roi(video: np.ndarray,
+                       roi: OphysROI) -> np.ndarray:
+    """
+    Video is not flattened in space; output will be
+    flattened in space
+    """
+    sub_video = video[:,
+                      roi.y0:roi.y0+roi.height,
+                      roi.x0:roi.x0+roi.width]
+
+    sub_video = sub_video.reshape(sub_video.shape[0], -1)
+    roi_mask = roi.mask_matrix.flatten()
+    return sub_video[:, roi_mask]
+
+def attempt_merger_pixel_correlation(
+                   video: np.ndarray,
+                   roi_list: List[OphysROI],
+                   filter_fraction: float,
+                   threshold: float) -> Tuple[bool, List[OphysROI]]:
+
+    n_roi = len(roi_list)
+    merger_candidates = []
+    merger_goodness = []
+    for i0 in range(n_roi):
+        roi0 = roi_list[i0]
+        sub_video_0 = sub_video_from_roi(video, roi0)
+        self_corr_0 = correlate_sub_videos(sub_video_0,
+                                           sub_video_0,
+                                           filter_fraction)
+        assert self_corr_0.shape[0] == self_corr_0.shape[1]
+        mask = np.ones(self_corr_0.shape, dtype=bool)
+        for ii in range(self_corr_0.shape[0]):
+            mask[ii,ii] = False
+        self_corr_0 = self_corr_0[mask].flatten()
+        mu0 = np.mean(self_corr_0)
+        std0 = np.std(self_corr_0, ddof=1)
+
+        for i1 in range(i0+1, n_roi):
+            roi1 = roi_list[i1]
+            if not do_rois_abut(roi0, roi1, dpix=np.sqrt(2)):
+                continue
+            sub_video_1 = sub_video_from_roi(video, roi1)
+            self_corr_1 = correlate_sub_videos(sub_video_1,
+                                               sub_video_1,
+                                               filter_fraction)
+
+            assert self_corr_1.shape[0] == self_corr_1.shape[1]
+
+            mask = np.ones(self_corr_1.shape, dtype=bool)
+            for ii in range(self_corr_1.shape[0]):
+                mask[ii,ii] = False
+            self_corr_1 = self_corr_1[mask].flatten()
+            mu1 = np.mean(self_corr_1)
+            std1 = np.std(self_corr_1, ddof=1)
+
+            if len(self_corr_0) > len(self_corr_1):
+                big_self = self_corr_0
+                small_self = self_corr_1
+                mu = mu0
+                std = std0
+                cross = correlate_sub_videos(sub_video_1,
+                                             sub_video_0,
+                                             filter_fraction)
+            else:
+                big_self = self_corr_1
+                small_self = self_corr_0
+                mu = mu1
+                std = std1
+                cross = correlate_sub_videos(sub_video_0,
+                                             sub_video_1,
+                                             filter_fraction)
+            cross = cross.flatten()
+            mu_cross = np.mean(cross)
+            std_cross = np.std(cross, ddof=1)
+            dist = np.abs(mu_cross-mu)
+            if dist < (std+std_cross):
+                merger_candidates.append((i0, i1))
+                merger_goodness.append(dist/(std+std_cross))
+
+    if len(merger_candidates) == 0:
+        return False, roi_list
+
+    has_merged = False
+    merger_goodness = np.array(merger_goodness)
+    sorted_indices = np.argsort(merger_goodness)
+    merged_rois = set()
+    output_list = []
+    for i_merger in sorted_indices:
+        candidate = merger_candidates[i_merger]
+        i0 = candidate[0]
+        i1 = candidate[1]
+        if i0 in merged_rois or i1 in merged_rois:
+            continue
+        roi0 = roi_list[i0]
+        roi1 = roi_list[i1]
+        if roi0.mask_matrix.sum()>roi1.mask_matrix.sum():
+            new_id = roi0.roi_id
+        else:
+            new_id = roi1.roi_id
+        new_roi = merge_rois(roi0, roi1, new_id)
+        has_merged = True
+        output_list.append(new_roi)
+        merged_rois.add(i0)
+        merged_rois.add(i1)
+
+    for i_roi in range(len(roi_list)):
+        if i_roi in merged_rois:
+            continue
+        output_list.append(roi_list[i_roi])
+    return has_merged, output_list

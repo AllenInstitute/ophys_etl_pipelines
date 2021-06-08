@@ -42,7 +42,8 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             n_roi_0 = len(roi_list)
 
             (keep_going,
-             roi_list) = merging.attempt_merger(video_data,
+             roi_list) = merging.attempt_merger_pixel_correlation(
+                                                video_data,
                                                 roi_list,
                                                 self.args['filter_fraction'],
                                                 self.args['merger_threshold'])

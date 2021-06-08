@@ -263,6 +263,7 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
     plot_output = argschema.fields.OutputFile(
         required=False,
         default=None,
+        allow_none=True,
         description="path to summary plot of segmentation")
 
     seed_output = argschema.fields.OutputFile(
@@ -275,3 +276,9 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
         required=False,
         default=1,
         description=("how many multiprocessing workers to use."))
+
+    roi_class = argschema.fields.Str(
+        required=False,
+        default="PearsonFeatureROI",
+        validate=OneOf(["PearsonFeatureROI", "PCAFeatureROI"]),
+        description="which class to use.")

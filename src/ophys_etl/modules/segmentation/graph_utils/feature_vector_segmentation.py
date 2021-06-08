@@ -332,8 +332,7 @@ class FeatureVectorSegmenter(object):
                                        attribute_name=attribute)
 
         with h5py.File(self._video_input, 'r') as in_file:
-            self._movie_data = in_file['data'][()]
-            movie_shape = self._movie_data.shape
+            movie_shape = in_file["data"].shape
             if movie_shape[1:] != self._graph_img.shape:
                 msg = f'movie shape: {movie_shape}\n'
                 msg += f'img shape: {self._graph_img.shape}'

@@ -3,7 +3,9 @@ import numpy as np
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
-    merge_rois)
+    merge_rois,
+    _get_bdry_array,
+    do_rois_abut)
 
 
 def test_merge_rois():
@@ -68,3 +70,70 @@ def test_merge_rois():
                 true_pix.add((row, col))
     # make sure no extraneous pixels were marked True
     assert len(true_pix) == new_mask.sum()
+
+
+def test_roi_abut():
+
+    height = 6
+    width = 7
+    mask = np.zeros((height, width), dtype=bool)
+    mask[1:5, 1:6] = True
+
+    # overlapping
+    roi0 = OphysROI(x0=22,
+                    y0=44,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=0,
+                    valid_roi=True) 
+
+    bdry0 = _get_bdry_array(roi0)
+
+    roi1 = OphysROI(x0=23,
+                    y0=46,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=1,
+                    valid_roi=True)
+
+    assert do_rois_abut(roi0, roi1)
+
+    # just touching
+    roi1 = OphysROI(x0=26,
+                    y0=48,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=1,
+                    valid_roi=True)
+
+    assert do_rois_abut(roi0, roi1)
+
+    roi1 = OphysROI(x0=27,
+                    y0=48,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=1,
+                    valid_roi=True)
+
+    assert not do_rois_abut(roi0, roi1)
+
+    # they are, however, just diagonally 1 pixel away
+    # from each other
+    assert do_rois_abut(roi0, roi1, dpix=np.sqrt(2))
+
+    # gap of one pixel
+    assert do_rois_abut(roi0, roi1, dpix=2)
+
+    roi1 = OphysROI(x0=28,
+                    y0=48,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=1,
+                    valid_roi=True)
+
+    assert not do_rois_abut(roi0, roi1, dpix=2)

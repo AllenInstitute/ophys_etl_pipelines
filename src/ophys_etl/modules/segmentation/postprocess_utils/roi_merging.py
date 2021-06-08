@@ -1,4 +1,6 @@
 import numpy as np
+from typing import List, Tuple
+
 from scipy.spatial.distance import cdist
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
@@ -10,7 +12,7 @@ def extract_roi_to_ophys_roi(roi):
                        y0=roi['y'],
                        width=roi['width'],
                        height=roi['height'],
-                       mask_matrix=roi['mask_matrix'],
+                       mask_matrix=roi['mask'],
                        roi_id=roi['id'],
                        valid_roi=True)
 
@@ -18,11 +20,21 @@ def extract_roi_to_ophys_roi(roi):
 
 
 def ophys_roi_to_extract_roi(roi):
+    mask = []
+    for roi_row in roi.mask_matrix:
+        row = []
+        for el in roi_row:
+            if el:
+                row.append(True)
+            else:
+                row.append(False)
+        mask.append(row)
+
     new_roi = ExtractROI(x=roi.x0,
                          y=roi.y0,
                          width=roi.width,
                          height=roi.height,
-                         mask=[list(i) for i in roi.mask_matrix],
+                         mask=mask,
                          valid_roi=True,
                          id=roi.roi_id)
     return new_roi
@@ -111,3 +123,99 @@ def do_rois_abut(roi0: OphysROI,
     if distances.min() <= dpix:
         return True
     return False
+
+
+def trace_from_array(video: np.ndarray,
+                     roi: OphysROI) -> np.ndarray:
+
+    xmin = roi.x0
+    ymin = roi.y0
+    xmax = roi.x0+roi.width
+    ymax = roi.y0+roi.height
+
+    sub_video = video[:, xmin:xmax, ymin:ymax]
+    sub_video = sub_video.reshape(sub_video.shape[0], -1)
+    mask_flat = roi.mask_matrix.flatten()
+
+    npix = mask_flat.sum()
+    trace = sub_video[:, mask_flat].sum(axis=1)/npix
+    assert trace.shape == (sub_video.shape[0],)
+    return trace
+
+
+def correlate_traces(trace0: np.ndarray,
+                     trace1: np.ndarray,
+                     filter_fraction: float) -> float:
+
+    discard = 1.0-filter_fraction
+    if discard > 0.0:
+        th0 = np.quantile(trace0, discard)
+        mask0 = (trace0 > th0)
+        th1 = np.quantile(trace1, discard)
+        mask1 = (trace1 > th1)
+        mask = np.logical_or(mask0, mask1)
+        trace0 = trace0[mask]
+        trace1 = trace1[mask]
+
+    mu0 = np.mean(trace0)
+    var0 = np.mean((trace0-mu0)**2)
+    mu1 = np.mean(trace1)
+    var1 = np.mean((trace1-mu1)**2)
+    return np.mean((trace0-mu0)*(trace1-mu1))/np.sqrt(var0*var1)
+
+
+def attempt_merger(video: np.ndarray,
+                   roi_list: List[OphysROI],
+                   filter_fraction: float,
+                   threshold: float) -> Tuple[bool, List[OphysROI]]:
+
+    pairs = []
+    metric_values = []
+
+    n_roi = len(roi_list)
+    n_time = video.shape[0]
+    traces = np.zeros((n_roi, n_time), dtype=float)
+    roi_lookup = {}
+    for i_roi in range(n_roi):
+        traces[i_roi, :] = trace_from_array(video, roi_list[i_roi])
+        roi_lookup[i_roi] = roi_list[i_roi]
+
+    for i0 in range(n_roi):
+        roi0 = roi_list[i0]
+        for i1 in range(i0+1, n_roi):
+            roi1 = roi_list[i1]
+            if not do_rois_abut(roi0, roi1, dpix=np.sqrt(2)):
+                continue
+            pearson = correlate_traces(traces[i0,:],
+                                       traces[i1,:],
+                                       filter_fraction=filter_fraction)
+
+            if pearson >= threshold:
+                pairs.append((i0, i1))
+                metric_values.append(pearson)
+
+    if len(metric_values) == 0:
+        return False, roi_list
+
+    # sort potential mergers by correlation
+    metric_values = np.array(metric_values)
+    sorted_indices = np.argsort(-1.0*metric_values)
+
+    new_roi_list = []
+    has_merged = False
+    for metric_index in sorted_indices:
+        candidate_pair = pairs[metric_index]
+        if candidate_pair[0] in roi_lookup and candidate_pair[1] in roi_lookup:
+            roi0 = roi_lookup.pop(candidate_pair[0])
+            roi1 = roi_lookup.pop(candidate_pair[1])
+            if roi0.mask_matrix.sum() > roi1.mask_matrix.sum():
+                new_roi_id = roi0.roi_id
+            else:
+                new_roi_id = roi1.roi_id
+            new_roi = merge_rois(roi0, roi1, new_roi_id)
+            new_roi_list.append(new_roi)
+            has_merged = True
+
+    for roi_id in roi_lookup:
+        new_roi_list.append(roi_lookup[roi_id])
+    return has_merged, new_roi_list

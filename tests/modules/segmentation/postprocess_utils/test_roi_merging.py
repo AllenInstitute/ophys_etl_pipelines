@@ -8,15 +8,19 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
 
 def test_merge_rois():
 
-    mask = np.zeros((5,6), dtype=bool)
+    x0 = 11
+    y0 = 22
+    height = 5
+    width = 6
+    mask = np.zeros((height, width), dtype=bool)
     mask[4, 5] = True
     mask[3, 5] = True
     mask[0, 0] = True
     mask[1, 4] = True
-    roi0 = OphysROI(x0=11,
-                    width=6,
-                    y0=22,
-                    height=5,
+    roi0 = OphysROI(x0=x0,
+                    width=width,
+                    y0=y0,
+                    height=height,
                     mask_matrix=mask,
                     roi_id=0,
                     valid_roi=True)

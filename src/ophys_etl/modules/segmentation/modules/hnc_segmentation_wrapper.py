@@ -27,6 +27,7 @@ def hnc_roi_to_extract_roi(hnc_roi: HNC_ROI, id: int) -> ExtractROI:
             y=int(y0),
             width=int(width),
             height=int(height),
+            valid=True,
             mask=[i.tolist() for i in mask])
     return roi
 
@@ -47,6 +48,8 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
 
         hnc_segmenter = HNCcorr.from_config(config=hconfig)
         hnc_segmenter.segment(movie)
+
+        self.logger.setLevel(self.args["log_level"])
         self.logger.info("segmentation complete")
 
         segmentations = hnc_segmenter.segmentations_to_list()

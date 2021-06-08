@@ -164,6 +164,40 @@ def correlate_traces(trace0: np.ndarray,
     return np.mean((trace0-mu0)*(trace1-mu1))/np.sqrt(var0*var1)
 
 
+def correlate_sub_videos(sub_video_0: np.ndarray,
+                         sub_video_1: np.ndarray,
+                         filter_fraction:float) -> np.ndarray:
+    """
+    correlate pixels in sub_video_0 with pixels in sub_video_1
+    """
+
+    assert sub_video_0.shape[0] == sub_video_1.shape[0]
+    npix0 = sub_video_0.shape[1]
+    npix1 = sub_video_1.shape[1]
+    discard = max(0.0, 1.0-filter_fraction)
+
+    corr = np.zeros((npix0, npix1), dtype=float)
+
+    for i_pixel in range(npix0):
+        trace0 = sub_video_0[:, i_pixel]
+        th = np.quantile(trace0, discard)
+        mask = (trace0 > th)
+        trace0 = trace0[mask]
+        other_video = sub_video_1[mask, :]
+        other_mu = np.mean(other_video, axis=0)
+        assert other_mu.shape == (npix1, )
+        mu = np.mean(trace0)
+        var = np.mean((trace0-mu)**2)
+        other_video = other_video-other_mu
+        other_var = np.mean(other_video**2, axis=0)
+        assert other_var.shape == (npix1, )
+        numerator = np.dot(other_video.T, (trace0-mu))/mask.sum()
+        assert numerator.shape == (npix1, )
+        corr[i_pixel,:] = numerator/np.sqrt(var*other_var)
+    return corr
+
+
+
 def attempt_merger(video: np.ndarray,
                    roi_list: List[OphysROI],
                    filter_fraction: float,

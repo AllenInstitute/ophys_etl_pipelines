@@ -4,7 +4,8 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     merge_rois,
-    do_rois_abut)
+    do_rois_abut,
+    correlate_sub_videos)
 
 
 def test_merge_rois():
@@ -134,3 +135,33 @@ def test_roi_abut():
                     valid_roi=True)
 
     assert not do_rois_abut(roi0, roi1, dpix=2)
+
+
+def test_correlate_sub_videos():
+    """
+    compare to brute force
+    """
+    rng = np.random.RandomState(11823)
+    nt = 2000
+    npix0 = 20
+    npix1 = 10
+    filter_fraction = 0.2
+    video0 = rng.random_sample((nt, npix0))
+    video1 = rng.random_sample((nt, npix1))
+    corr = correlate_sub_videos(video0, video1, filter_fraction)
+
+    for ipix0 in range(npix0):
+        trace0 = video0[:,ipix0]
+        th = np.quantile(trace0, 1.0-filter_fraction)
+        mask = (trace0>th)
+        trace0 = trace0[mask]
+        mu0 = np.mean(trace0)
+        var0 = np.mean((trace0-mu0)**2)
+        for ipix1 in range(npix1):
+            trace1 = video1[:, ipix1]
+            trace1 = trace1[mask]
+            mu1 = np.mean(trace1)
+            var1 = np.mean((trace1-mu1)**2)
+            val = np.mean((trace0-mu0)*(trace1-mu1))
+            val = val/np.sqrt(var1*var0)
+            assert np.abs((val-corr[ipix0,ipix1])/val)<1.0e-10

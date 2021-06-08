@@ -333,3 +333,8 @@ class RoiMergerSchema(argschema.ArgSchema):
             required=False,
             default=0.8,
             description=("minimum Pearson correlation to consider merging"))
+
+    n_parallel_workers = argschema.fields.Int(
+            required=False,
+            default=8,
+            description=("number of parallel processes to use"))

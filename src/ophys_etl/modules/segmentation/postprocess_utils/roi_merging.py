@@ -1,5 +1,7 @@
 import numpy as np
 from typing import List, Tuple
+import pathlib
+import h5py
 import multiprocessing
 import multiprocessing.managers
 
@@ -7,6 +9,12 @@ from scipy.spatial.distance import cdist
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
+
+import logging
+
+logger = logging.getLogger(__name__)
+logging.captureWarnings(True)
+logging.basicConfig(level=logging.INFO)
 
 
 def extract_roi_to_ophys_roi(roi):
@@ -256,132 +264,160 @@ def correlate_sub_videos(sub_video_0: np.ndarray,
     return corr
 
 
-def sub_video_from_roi(video: np.ndarray,
-                       roi: OphysROI) -> np.ndarray:
+def sub_video_from_roi(video_path: pathlib.Path,
+                       roi_list: List[OphysROI]) -> np.ndarray:
     """
     Video is not flattened in space; output will be
     flattened in space
     """
-    sub_video = video[:,
-                      roi.y0:roi.y0+roi.height,
-                      roi.x0:roi.x0+roi.width]
+    sub_video_list = []
+    with h5py.File(video_path, 'r') as in_file:
+        for roi in roi_list:
+            sub_video = in_file['data'][:,
+                                        roi.y0:roi.y0+roi.height,
+                                        roi.x0:roi.x0+roi.width]
 
-    sub_video = sub_video.reshape(sub_video.shape[0], -1)
-    roi_mask = roi.mask_matrix.flatten()
-    return sub_video[:, roi_mask]
+            sub_video_list.append(sub_video)
+
+    output_list = []
+    for roi, sub_video in zip(roi_list, sub_video_list):
+        sub_video = sub_video.reshape(sub_video.shape[0], -1)
+        roi_mask = roi.mask_matrix.flatten()
+        output_list.append(sub_video[:, roi_mask])
+    return output_list
 
 
-def _evaluate_merger(roi0_id: int,
-                     roi1_id: int,
-                     sub_video_0: np.ndarray,
-                     sub_video_1: np.ndarray,
+def _evaluate_merger(roi_pair_list,
+                     video_path: pathlib.Path,
                      filter_fraction: float,
                      output_dict: multiprocessing.managers.DictProxy):
 
-    self_corr_0 = correlate_sub_videos(sub_video_0,
-                                       sub_video_0,
-                                       filter_fraction)
-    assert self_corr_0.shape[0] == self_corr_0.shape[1]
-    mask = np.ones(self_corr_0.shape, dtype=bool)
-    for ii in range(self_corr_0.shape[0]):
-        mask[ii,ii] = False
-    self_corr_0 = self_corr_0[mask].flatten()
+    for roi_pair in roi_pair_list:
+        roi0 = roi_pair[0]
+        roi1 = roi_pair[1]
 
-    if len(self_corr_0) > 0:
-        mu0 = np.mean(self_corr_0)
-    else:
-        mu0 = 0.0
+        sub_video_list = sub_video_from_roi(
+                              video_path,
+                              [roi0, roi1])
 
-    if len(self_corr_0) > 1:
-        std0 = np.std(self_corr_0, ddof=1)
-    else:
-        std0 = 0.0
+        sub_video_0 = sub_video_list[0]
+        sub_video_1 = sub_video_list[1]
 
-    self_corr_1 = correlate_sub_videos(sub_video_1,
-                                       sub_video_1,
-                                       filter_fraction)
+        self_corr_0 = correlate_sub_videos(sub_video_0,
+                                           sub_video_0,
+                                           filter_fraction)
+        assert self_corr_0.shape[0] == self_corr_0.shape[1]
+        mask = np.ones(self_corr_0.shape, dtype=bool)
+        for ii in range(self_corr_0.shape[0]):
+            mask[ii,ii] = False
+        self_corr_0 = self_corr_0[mask].flatten()
 
-    assert self_corr_1.shape[0] == self_corr_1.shape[1]
+        if len(self_corr_0) > 0:
+            mu0 = np.mean(self_corr_0)
+        else:
+            mu0 = 0.0
 
-    mask = np.ones(self_corr_1.shape, dtype=bool)
-    for ii in range(self_corr_1.shape[0]):
-        mask[ii,ii] = False
-    self_corr_1 = self_corr_1[mask].flatten()
+        if len(self_corr_0) > 1:
+            std0 = np.std(self_corr_0, ddof=1)
+        else:
+            std0 = 0.0
 
-    if len(self_corr_1) > 0:
-        mu1 = np.mean(self_corr_1)
-    else:
-        mu1 = 0.0
+        self_corr_1 = correlate_sub_videos(sub_video_1,
+                                           sub_video_1,
+                                           filter_fraction)
 
-    if len(self_corr_1) > 1:
-        std1 = np.std(self_corr_1, ddof=1)
-    else:
-        std1 = 0.0
+        assert self_corr_1.shape[0] == self_corr_1.shape[1]
 
-    if len(self_corr_0) > len(self_corr_1):
-        big_self = self_corr_0
-        small_self = self_corr_1
-        mu = mu0
-        std = std0
-        cross = correlate_sub_videos(sub_video_1,
-                                     sub_video_0,
-                                     filter_fraction)
-    else:
-        big_self = self_corr_1
-        small_self = self_corr_0
-        mu = mu1
-        std = std1
-        cross = correlate_sub_videos(sub_video_0,
-                                     sub_video_1,
-                                     filter_fraction)
-    cross = cross.flatten()
-    mu_cross = np.mean(cross)
-    if len(cross) > 1:
-        std_cross = np.std(cross, ddof=1)
-    else:
-        std_cross = 0.0
-    dist = np.abs(mu_cross-mu)
-    if dist < (std+std_cross):
-        output_dict[(roi0_id, roi1_id)] = dist/(std+std_cross)
+        mask = np.ones(self_corr_1.shape, dtype=bool)
+        for ii in range(self_corr_1.shape[0]):
+            mask[ii,ii] = False
+        self_corr_1 = self_corr_1[mask].flatten()
+
+        if len(self_corr_1) > 0:
+            mu1 = np.mean(self_corr_1)
+        else:
+            mu1 = 0.0
+
+        if len(self_corr_1) > 1:
+            std1 = np.std(self_corr_1, ddof=1)
+        else:
+            std1 = 0.0
+
+        if len(self_corr_0) > len(self_corr_1):
+            big_self = self_corr_0
+            small_self = self_corr_1
+            mu = mu0
+            std = std0
+            cross = correlate_sub_videos(sub_video_1,
+                                         sub_video_0,
+                                         filter_fraction)
+        else:
+            big_self = self_corr_1
+            small_self = self_corr_0
+            mu = mu1
+            std = std1
+            cross = correlate_sub_videos(sub_video_0,
+                                         sub_video_1,
+                                         filter_fraction)
+        cross = cross.flatten()
+        mu_cross = np.mean(cross)
+        if len(cross) > 1:
+            std_cross = np.std(cross, ddof=1)
+        else:
+            std_cross = 0.0
+        dist = np.abs(mu_cross-mu)
+        if dist < (std+std_cross):
+            output_dict[(roi0.roi_id, roi1.roi_id)] = dist/(std+std_cross)
 
 
 def attempt_merger_pixel_correlation(
-                   video: np.ndarray,
+                   video_path: pathlib.Path,
                    roi_list: List[OphysROI],
                    filter_fraction: float,
                    n_processors: int = 8) -> Tuple[bool, List[OphysROI]]:
 
+    roi_lookup = {}
+    for roi in roi_list:
+        assert roi.roi_id not in roi_lookup
+        roi_lookup[roi.roi_id] = roi
+
     n_roi = len(roi_list)
-    process_list = []
-    mgr = multiprocessing.Manager()
-    mgr_dict = mgr.dict()
+    possible_pairs = []
     for i0 in range(n_roi):
         roi0 = roi_list[i0]
-        sub_video_0 = sub_video_from_roi(video, roi0)
-
         for i1 in range(i0+1, n_roi):
             roi1 = roi_list[i1]
             if not do_rois_abut(roi0, roi1, dpix=np.sqrt(2)):
                 continue
-            sub_video_1 = sub_video_from_roi(video, roi1)
+            possible_pairs.append((roi0, roi1))
 
-            args = (i0,
-                    i1,
-                    sub_video_0,
-                    sub_video_1,
-                    filter_fraction,
-                    mgr_dict)
-            p = multiprocessing.Process(target=_evaluate_merger,
-                                        args=args)
-            p.start()
-            process_list.append(p)
-            while len(process_list) > 0 and len(process_list) >= n_processors-1:
-                to_pop = []
-                for ii in range(len(process_list)-1, -1, -1):
-                    if process_list[ii].exitcode is not None:
-                        to_pop.append(ii)
-                for ii in to_pop:
-                    process_list.pop(ii)
+    logger.info(f'found {len(possible_pairs)} possible pairs')
+
+    process_list = []
+    mgr = multiprocessing.Manager()
+    mgr_dict = mgr.dict()
+    if n_processors == 1:
+        d_pairs = max(1, len(possible_pairs)//2)
+    else:
+        d_pairs = max(1, len(possible_pairs)//(n_processors-1))
+
+    for i0 in range(0, len(possible_pairs), d_pairs):
+        subset = possible_pairs[i0:i0+d_pairs]
+        args = (subset,
+                video_path,
+                filter_fraction,
+                mgr_dict)
+        p = multiprocessing.Process(target=_evaluate_merger,
+                                    args=args)
+        p.start()
+        process_list.append(p)
+        while len(process_list) > 0 and len(process_list) >= n_processors-1:
+            to_pop = []
+            for ii in range(len(process_list)-1, -1, -1):
+                if process_list[ii].exitcode is not None:
+                    to_pop.append(ii)
+            for ii in to_pop:
+                process_list.pop(ii)
 
     for p in process_list:
         p.join()
@@ -406,8 +442,8 @@ def attempt_merger_pixel_correlation(
         i1 = candidate[1]
         if i0 in merged_rois or i1 in merged_rois:
             continue
-        roi0 = roi_list[i0]
-        roi1 = roi_list[i1]
+        roi0 = roi_lookup[i0]
+        roi1 = roi_lookup[i1]
         if roi0.mask_matrix.sum()>roi1.mask_matrix.sum():
             new_id = roi0.roi_id
         else:
@@ -418,8 +454,8 @@ def attempt_merger_pixel_correlation(
         merged_rois.add(i0)
         merged_rois.add(i1)
 
-    for i_roi in range(len(roi_list)):
-        if i_roi in merged_rois:
+    for roi_id in roi_lookup:
+        if roi_id in merged_rois:
             continue
-        output_list.append(roi_list[i_roi])
+        output_list.append(roi_lookup[roi_id])
     return has_merged, output_list

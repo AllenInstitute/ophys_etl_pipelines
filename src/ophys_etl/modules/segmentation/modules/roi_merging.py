@@ -46,7 +46,7 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
                                                 video_data,
                                                 roi_list,
                                                 self.args['filter_fraction'],
-                                                self.args['merger_threshold'])
+                                                self.args['n_parallel_workers'])
             n_roi_1 = len(roi_list)
             duration = time.time()-t0
             self.logger.info(f'Merged {n_roi_0} ROIs to {n_roi_1} '

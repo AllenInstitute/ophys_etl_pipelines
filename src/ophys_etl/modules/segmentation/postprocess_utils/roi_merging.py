@@ -265,26 +265,31 @@ def correlate_sub_videos(sub_video_0: np.ndarray,
 
 
 def sub_video_from_roi(video_path: pathlib.Path,
-                       roi_list: List[OphysROI]) -> np.ndarray:
+                       roi_list: List[OphysROI]) -> dict:
     """
     Video is not flattened in space; output will be
     flattened in space
     """
-    sub_video_list = []
+    sub_video_lookup = {}
+    roi_lookup = {}
     with h5py.File(video_path, 'r') as in_file:
         for roi in roi_list:
+            if roi.roi_id in sub_video_lookup:
+                continue
             sub_video = in_file['data'][:,
                                         roi.y0:roi.y0+roi.height,
                                         roi.x0:roi.x0+roi.width]
 
-            sub_video_list.append(sub_video)
+            sub_video_lookup[roi.roi_id] = sub_video
+            roi_lookup[roi.roi_id] = roi
 
-    output_list = []
-    for roi, sub_video in zip(roi_list, sub_video_list):
+    for roi_id in roi_lookup:
+        sub_video = sub_video_lookup[roi_id]
+        roi = roi_lookup[roi_id]
         sub_video = sub_video.reshape(sub_video.shape[0], -1)
         roi_mask = roi.mask_matrix.flatten()
-        output_list.append(sub_video[:, roi_mask])
-    return output_list
+        sub_video_lookup[roi_id] = sub_video[:, roi_mask]
+    return sub_video_lookup
 
 
 def _evaluate_merger(roi_pair_list,
@@ -292,16 +297,21 @@ def _evaluate_merger(roi_pair_list,
                      filter_fraction: float,
                      output_dict: multiprocessing.managers.DictProxy):
 
+    roi_lookup = {}
+    for roi_pair in roi_pair_list:
+        roi_lookup[roi_pair[0].roi_id] = roi_pair[0]
+        roi_lookup[roi_pair[1].roi_id] = roi_pair[1]
+
+    roi_list = list(roi_lookup.values())
+    sub_video_lookup = sub_video_from_roi(video_path, roi_list)
+
+
     for roi_pair in roi_pair_list:
         roi0 = roi_pair[0]
         roi1 = roi_pair[1]
 
-        sub_video_list = sub_video_from_roi(
-                              video_path,
-                              [roi0, roi1])
-
-        sub_video_0 = sub_video_list[0]
-        sub_video_1 = sub_video_list[1]
+        sub_video_0 = sub_video_lookup[roi0.roi_id]
+        sub_video_1 = sub_video_lookup[roi1.roi_id]
 
         self_corr_0 = correlate_sub_videos(sub_video_0,
                                            sub_video_0,
@@ -400,6 +410,9 @@ def attempt_merger_pixel_correlation(
         d_pairs = max(1, len(possible_pairs)//2)
     else:
         d_pairs = max(1, len(possible_pairs)//(n_processors-1))
+
+    if (n_processors-1)*d_pairs < len(possible_pairs):
+        d_pairs += 1
 
     for i0 in range(0, len(possible_pairs), d_pairs):
         subset = possible_pairs[i0:i0+d_pairs]

@@ -362,6 +362,7 @@ def get_dist(data, binsize):
 
 def _evaluate_merger(roi_pair_list,
                      sub_video_lookup,
+                     self_corr_lookup,
                      filter_fraction: float,
                      output_dict: multiprocessing.managers.DictProxy):
 
@@ -379,14 +380,7 @@ def _evaluate_merger(roi_pair_list,
         sub_video_0 = sub_video_lookup[roi0.roi_id]
         sub_video_1 = sub_video_lookup[roi1.roi_id]
 
-        self_corr_0 = correlate_sub_videos(sub_video_0,
-                                           sub_video_0,
-                                           filter_fraction)
-        assert self_corr_0.shape[0] == self_corr_0.shape[1]
-        mask = np.ones(self_corr_0.shape, dtype=bool)
-        for ii in range(self_corr_0.shape[0]):
-            mask[ii,ii] = False
-        self_corr_0 = self_corr_0[mask].flatten()
+        self_corr_0 = self_corr_lookup[roi0.roi_id]
 
         if len(self_corr_0) > 0:
             mu0 = np.mean(self_corr_0)
@@ -398,16 +392,7 @@ def _evaluate_merger(roi_pair_list,
         else:
             std0 = 0.0
 
-        self_corr_1 = correlate_sub_videos(sub_video_1,
-                                           sub_video_1,
-                                           filter_fraction)
-
-        assert self_corr_1.shape[0] == self_corr_1.shape[1]
-
-        mask = np.ones(self_corr_1.shape, dtype=bool)
-        for ii in range(self_corr_1.shape[0]):
-            mask[ii,ii] = False
-        self_corr_1 = self_corr_1[mask].flatten()
+        self_corr_1 = self_corr_lookup[roi1.roi_id]
 
         if len(self_corr_1) > 0:
             mu1 = np.mean(self_corr_1)
@@ -456,6 +441,45 @@ def _evaluate_merger(roi_pair_list,
             output_dict[(roi0.roi_id, roi1.roi_id)] = chisq_per_dof
 
 
+def _get_self_corr(sub_vid, filter_fraction, out_dict, roi_id):
+    corr = correlate_sub_videos(sub_vid, sub_vid, filter_fraction)
+
+    mask = np.ones(corr.shape, dtype=bool)
+    for ii in range(corr.shape[0]):
+        mask[ii,ii] = False
+    corr = corr[mask].flatten()
+    out_dict[roi_id] = corr
+
+def create_self_corr_lookup(sub_video_lookup, filter_fraction, n_processors):
+    mgr = multiprocessing.Manager()
+    out_dict = mgr.dict()
+    p_list = []
+    for roi_id in sub_video_lookup.keys():
+        args = (sub_video_lookup[roi_id],
+                filter_fraction,
+                out_dict,
+                roi_id)
+        p = multiprocessing.Process(target=_get_self_corr,
+                                    args=args)
+        p.start()
+        p_list.append(p)
+
+        while len(p_list) > 0 and len(p_list) >= n_processors-1:
+            to_pop = []
+            for ii in range(len(p_list)-1, -1, -1):
+                if p_list[ii].exitcode is not None:
+                    to_pop.append(ii)
+            for ii in to_pop:
+                p_list.pop(ii)
+    for p in p_list:
+        p.join()
+
+    lookup = {}
+    k_list = list(out_dict.keys())
+    for k in k_list:
+        lookup[k] = out_dict.pop(k)
+    return lookup
+
 def attempt_merger_pixel_correlation(
                    video_path: pathlib.Path,
                    roi_list: List[OphysROI],
@@ -467,8 +491,17 @@ def attempt_merger_pixel_correlation(
         assert roi.roi_id not in roi_lookup
         roi_lookup[roi.roi_id] = roi
 
+    t0 = time.time()
     sub_video_lookup = sub_video_from_roi(video_path, roi_list)
-    logger.info('created sub video lookup')
+    logger.info(f'created sub video lookup ({time.time()-t0:.2f} seconds)')
+
+    t0 = time.time()
+    self_corr_lookup = create_self_corr_lookup(sub_video_lookup,
+                                               filter_fraction,
+                                               n_processors)
+
+    logger.info(f'created self_corr_lookup '
+                f'({time.time()-t0:.2f} seconds)')
 
     possible_pairs = find_neighbor_rois(roi_list, dpix=np.sqrt(2))
 
@@ -476,6 +509,7 @@ def attempt_merger_pixel_correlation(
 
     logger.info(f'found {len(possible_pairs)} possible pairs')
 
+    t0 = time.time()
     process_list = []
     mgr = multiprocessing.Manager()
     mgr_dict = mgr.dict()
@@ -490,14 +524,17 @@ def attempt_merger_pixel_correlation(
     for i0 in range(0, len(possible_pairs), d_pairs):
         subset_of_rois = possible_pairs[i0:i0+d_pairs]
         sub_sub_video = {}
+        sub_self_corr = {}
         for pair in subset_of_rois:
             for roi in pair:
                 if roi.roi_id in sub_sub_video:
                     continue
                 sub_sub_video[roi.roi_id] = sub_video_lookup[roi.roi_id]
+                sub_self_corr[roi.roi_id] = self_corr_lookup[roi.roi_id]
 
         args = (subset_of_rois,
                 sub_sub_video,
+                sub_self_corr,
                 filter_fraction,
                 mgr_dict)
         p = multiprocessing.Process(target=_evaluate_merger,
@@ -514,6 +551,8 @@ def attempt_merger_pixel_correlation(
 
     for p in process_list:
         p.join()
+
+    logger.info(f'Processing pairs took {time.time()-t0:.2f} seconds')
 
     t0 = time.time()
     merger_candidates = []

@@ -322,15 +322,17 @@ def sub_video_from_roi(video_path: pathlib.Path,
     sub_video_lookup = {}
     roi_lookup = {}
     with h5py.File(video_path, 'r') as in_file:
-        for roi in roi_list:
-            if roi.roi_id in sub_video_lookup:
-                continue
-            sub_video = in_file['data'][:,
-                                        roi.y0:roi.y0+roi.height,
-                                        roi.x0:roi.x0+roi.width]
+        whole_video = in_file['data'][()]
 
-            sub_video_lookup[roi.roi_id] = sub_video
-            roi_lookup[roi.roi_id] = roi
+    for roi in roi_list:
+        if roi.roi_id in sub_video_lookup:
+            continue
+        sub_video = whole_video[:,
+                                roi.y0:roi.y0+roi.height,
+                                roi.x0:roi.x0+roi.width]
+
+        sub_video_lookup[roi.roi_id] = sub_video
+        roi_lookup[roi.roi_id] = roi
 
     for roi_id in roi_lookup:
         sub_video = sub_video_lookup[roi_id]

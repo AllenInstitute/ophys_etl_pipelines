@@ -445,6 +445,8 @@ def attempt_merger_pixel_correlation(
 
     possible_pairs = find_neighbor_rois(roi_list, dpix=np.sqrt(2))
 
+    np.random.shuffle(possible_pairs)
+
     logger.info(f'found {len(possible_pairs)} possible pairs')
 
     process_list = []

@@ -55,21 +55,17 @@ def create_roi_plot(plot_path: pathlib.Path,
 
     color_list = ((255, 0, 0),
                   (0, 255, 0),
-                  (0, 0, 255),
-                  (127, 0, 127),
-                  (255, 51, 153),
-                  (0, 255, 255))
+                  (0, 0, 255))
 
-    for axis, roi_list in zip(axes[1:], (roi_list_0, roi_list_1)):
+    for axis, raw_roi_list in zip(axes[1:], (roi_list_0, roi_list_1)):
 
         img_data = np.copy(rgb_img_data)
         color_index = 0
 
-        for roi in roi_list:
-            color = color_list[color_index]
-            color_index += 1
-            if color_index >= len(color_list):
-                color_index = 0
+        ophys_roi_list = []
+        centroids = np.zeros((len(raw_roi_list), 2), dtype=float)
+        i_roi = 0
+        for roi in raw_roi_list:
             ophys_roi = OphysROI(
                         roi_id=0,
                         x0=roi['x'],
@@ -78,6 +74,28 @@ def create_roi_plot(plot_path: pathlib.Path,
                         height=roi['height'],
                         valid_roi=False,
                         mask_matrix=roi['mask'])
+            ophys_roi_list.append(ophys_roi)
+            centroids[i_roi,0] = ophys_roi.centroid_y
+            centroids[i_roi,1] = ophys_roi.centroid_x
+            i_roi += 1
+
+        last_row = 0
+        last_col = 0
+        plotted = 0
+        while plotted < len(ophys_roi_list):
+            dist = (centroids[:,0]-last_row)**2+(centroids[:,1]-last_col)**2
+            chosen = np.argmin(dist)
+            ophys_roi = ophys_roi_list[chosen]
+            last_row = centroids[chosen, 0]
+            last_col = centroids[chosen, 1]
+            centroids[chosen, 0] = -9999
+            centroids[chosen, 1] = -9999
+            plotted += 1
+
+            color = color_list[color_index]
+            color_index += 1
+            if color_index >= len(color_list):
+                color_index = 0
 
             bdry = ophys_roi.mask_matrix
             for ir in range(ophys_roi.height):

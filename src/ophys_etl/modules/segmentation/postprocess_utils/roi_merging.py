@@ -343,6 +343,23 @@ def sub_video_from_roi(video_path: pathlib.Path,
     return sub_video_lookup
 
 
+def get_dist(data, binsize):
+    bin_vals = np.round(data/binsize)*binsize
+    unq_bin, unq_ct = np.unique(bin_vals, return_counts=True)
+    unq_bin = np.concatenate([np.array([unq_bin[0]-binsize]),
+                              unq_bin,
+                              np.array([unq_bin[-1]+binsize])])
+
+    unq_ct = np.concatenate([np.array([0]), unq_ct]).astype(float)
+    tot = 0.5*(unq_bin[1:]-unq_bin[:-1])*unq_ct
+    assert tot.min()>-1.0e-10
+    tot = tot.sum()
+    assert tot>=0.0
+    out_bin = unq_bin
+    out_prob = np.concatenate([unq_ct, np.array([0])]).astype(float)/tot
+    assert out_bin.shape == out_prob.shape
+    return out_bin, out_prob
+
 def _evaluate_merger(roi_pair_list,
                      sub_video_lookup,
                      filter_fraction: float,
@@ -402,6 +419,9 @@ def _evaluate_merger(roi_pair_list,
         else:
             std1 = 0.0
 
+        if len(self_corr_0)==0 and len(self_corr_1)==0:
+            return
+
         if len(self_corr_0) > len(self_corr_1):
             big_self = self_corr_0
             small_self = self_corr_1
@@ -419,10 +439,19 @@ def _evaluate_merger(roi_pair_list,
                                          sub_video_1,
                                          filter_fraction)
 
-        std = max(std, 1.0e-6)
-        cross = cross.flatten()
-        chisq = np.sum(((cross-mu)/std)**2)
+        (distribution_bin,
+         distribution_val) = get_dist(big_self,
+                                      (big_self.max()-big_self.min())/50.0)
+
+        eps = 1.0e-5
+        prob = np.interp(cross, distribution_bin, distribution_val,
+                         left=0.0,right=0.0)
+        prob = np.where(prob>eps, prob, eps)
+
+        chisq = -2.0*np.log(prob)
+        chisq = chisq.sum()
         chisq_per_dof = chisq/len(cross)
+
         if chisq_per_dof<1.0:
             output_dict[(roi0.roi_id, roi1.roi_id)] = chisq_per_dof
 

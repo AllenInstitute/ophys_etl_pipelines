@@ -307,6 +307,63 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
         return data
 
 
+class HNC_args(argschema.schemas.DefaultSchema):
+    """
+    see
+    https://github.com/hochbaumGroup/HNCcorr/blob/764e45ae3976fbc2519c75cd13b7f7b22c6a38dc/src/hnccorr/base.py#L347-L362  # noqa: E501
+    and
+    https://hnccorr.readthedocs.io/en/latest/quickstart.html#configuration  # noqa: E501
+    """
+    postprocessor_min_cell_size = argschema.fields.Int(
+        default=40,
+        description="Lower bound on pixel count of a cell.")
+    postprocessor_preferred_cell_size = argschema.fields.Int(
+        default=80,
+        description="Pixel count of a typical cell.")
+    postprocessor_max_cell_size = argschema.fields.Int(
+        default=200,
+        description="Upper bound on pixel count of a cell.")
+    patch_size = argschema.fields.Int(
+        default=31,
+        description="Size in pixel of each dimension of the patch.")
+    positive_seed_radius = argschema.fields.Int(
+        default=0,
+        description="Radius of the positive seed square / superpixel.")
+    negative_seed_circle_radius = argschema.fields.Int(
+        default=10,
+        description="Radius in pixels of the circle with negative seeds.")
+    seeder_mask_size = argschema.fields.Int(
+        default=3,
+        description=("Width in pixels of the region used by the seeder to "
+                     "compute the average correlation between a pixel and "
+                     "its neighbors."))
+    seeder_grid_size = argschema.fields.Int(
+        default=5,
+        description=("Size of grid bloc per dimension. Seeder maintains "
+                     "only the best candidate pixel for each grid block."))
+    seeder_exclusion_padding = argschema.fields.Int(
+        default=4,
+        description=("Distance for excluding additional pixels surrounding "
+                     "segmented cells."))
+    percentage_of_seeds = argschema.fields.Float(
+        default=0.40,
+        description="Fraction of candidate seeds to evaluate.")
+    negative_seed_circle_count = argschema.fields.Int(
+        default=10,
+        description="Number of negative seeds.")
+    gaussian_similarity_alpha = argschema.fields.Float(
+        default=1,
+        description="Decay factor in gaussian similarity function.")
+    sparse_computation_grid_distance = argschema.fields.Float(
+        default=1 / 35.0,
+        description=("1 / grid_resolution. Width of each block in "
+                     "sparse computation."))
+    sparse_computation_dimension = argschema.fields.Int(
+        default=3,
+        description=("Dimension of the low-dimensional space in sparse "
+                     "computation."))
+
+
 class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
     video_input = argschema.fields.InputFile(
@@ -317,16 +374,7 @@ class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
         required=False,
         default="movie_name",
         description="passed to HNCcorr.Movie as 'name'")
-    hnc_args = argschema.fields.Dict(
-        required=False,
-        missing=dict(),
-        description=("will be passed to HNCcorrConfig. if empty, or "
-                     "partially empty, HNCCorr.from_config() populates "
-                     "from `DEFAULT_CONFIG`"))
+    hnc_args = argschema.fields.Nested(HNC_args, default={})
     roi_output = argschema.fields.OutputFile(
         required=True,
         description="path to json file where ROIs will be saved")
-    plot_output = argschema.fields.OutputFile(
-        required=False,
-        default=None,
-        description="path to summary plot of segmentation")

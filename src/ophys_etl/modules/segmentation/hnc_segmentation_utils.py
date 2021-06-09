@@ -100,17 +100,21 @@ class AllenLocalCorrelationSeeder:
         self.reset()
 
     def reset(self):
-        """Reinitialize the sequence of seed pixels and empties `_excluded_seeds`."""
+        """Reinitialize the sequence of seed pixels and empties
+        `_excluded_seeds`.
+        """
         self._current_index = 0
         self._excluded_pixels = set()
 
     def next(self):
         """Provides next seed pixel for segmentation.
         Returns the movie coordinates of the next available seed pixel for
-        segmentation. Seed pixels that have previously been excluded will be ignored.
+        segmentation. Seed pixels that have previously been excluded will
+        be ignored.
         Returns None when all seeds are exhausted.
         Returns:
-            tuple or None: Coordinates of next seed pixel. None if no seeds remaining.
+            tuple or None: Coordinates of next seed pixel.
+            None if no seeds remaining.
         """
         while self._current_index < len(self._seeds):
             center_seed = self._seeds[self._current_index]
@@ -122,10 +126,14 @@ class AllenLocalCorrelationSeeder:
 
     def exclude_pixels(self, pixels):
         """Excludes pixels from being returned by `next()` method.
-        All pixels within in the set `pixels` as well as pixels that are within an L-
-        infinity distance of `_padding` from any excluded pixel are excluded as seeds.
-        Method enables exclusion of pixels in previously segmented cells from serving
-        as new seeds. This may help to prevent repeated segmentation of the cell.
+        All pixels within in the set `pixels` as well as pixels that are
+        within an L-
+        infinity distance of `_padding` from any excluded pixel are excluded
+        as seeds.
+        Method enables exclusion of pixels in previously segmented cells
+        from serving
+        as new seeds. This may help to prevent repeated segmentation of the
+        cell.
         Args:
             pixels (set): Set of pixel coordinates to exclude.
         Returns:

@@ -2,6 +2,7 @@ import numpy as np
 from typing import List, Tuple
 import pathlib
 import h5py
+import time
 import multiprocessing
 import multiprocessing.managers
 
@@ -115,6 +116,15 @@ def _get_pixel_array(roi: OphysROI):
 
     return roi_array
 
+def _do_rois_abut(array_0: np.ndarray,
+                  array_1: np.ndarray,
+                  dpix: float = 1) -> bool:
+
+    distances = cdist(array_0, array_1, metric='euclidean')
+    if distances.min() <= dpix:
+        return True
+    return False
+
 
 def do_rois_abut(roi0: OphysROI,
                  roi1: OphysROI,
@@ -129,10 +139,49 @@ def do_rois_abut(roi0: OphysROI,
     array_0 = _get_pixel_array(roi0)
     array_1 = _get_pixel_array(roi1)
 
-    distances = cdist(array_0, array_1, metric='euclidean')
-    if distances.min() <= dpix:
-        return True
-    return False
+    return _do_rois_abut(array_0,
+                         array_1,
+                         dpix=dpix)
+
+
+def find_neighbor_rois(roi_list: List[OphysROI],
+                       dpix: float = 1) -> List[Tuple[OphysROI, OphysROI]]:
+    t0 = time.time()
+    roi_lookup = {}
+    roi_array_lookup = {}
+    for roi in roi_list:
+        arr = _get_pixel_array(roi)
+        roi_lookup[roi.roi_id] = roi
+        roi_array_lookup[roi.roi_id] = arr
+
+    roi_id_list = list(roi_lookup.keys())
+    n_roi = len(roi_id_list)
+    output = []
+    n_tot = n_roi*(n_roi-1)//2
+    ct = 0
+    timing_step = min(10000, n_tot//5)
+
+    for i0 in range(n_roi):
+        roi0_id = roi_id_list[i0]
+        roi0 = roi_lookup[roi0_id]
+        arr0 = roi_array_lookup[roi0_id]
+
+        for i1 in range(i0+1, n_roi):
+            roi1_id = roi_id_list[i1]
+            roi1 = roi_lookup[roi1_id]
+            arr1 = roi_array_lookup[roi1_id]
+            if _do_rois_abut(arr0, arr1, dpix=dpix):
+                output.append((roi0, roi1))
+            ct += 1
+            if ct%timing_step == 0:
+                duration = time.time()-t0
+                per = duration/ct
+                pred = n_tot*per
+                left = pred-duration
+                logger.info(f'Tested {ct} pairs in {duration:.2f} seconds; '
+                            f'estimate {left:.2f} seconds remaining')
+
+    return output
 
 
 def trace_from_array(video: np.ndarray,
@@ -391,15 +440,7 @@ def attempt_merger_pixel_correlation(
         assert roi.roi_id not in roi_lookup
         roi_lookup[roi.roi_id] = roi
 
-    n_roi = len(roi_list)
-    possible_pairs = []
-    for i0 in range(n_roi):
-        roi0 = roi_list[i0]
-        for i1 in range(i0+1, n_roi):
-            roi1 = roi_list[i1]
-            if not do_rois_abut(roi0, roi1, dpix=np.sqrt(2)):
-                continue
-            possible_pairs.append((roi0, roi1))
+    possible_pairs = find_neighbor_rois(roi_list, dpix=np.sqrt(2))
 
     logger.info(f'found {len(possible_pairs)} possible pairs')
 

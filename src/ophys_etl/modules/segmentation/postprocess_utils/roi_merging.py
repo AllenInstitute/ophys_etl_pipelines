@@ -418,15 +418,13 @@ def _evaluate_merger(roi_pair_list,
             cross = correlate_sub_videos(sub_video_0,
                                          sub_video_1,
                                          filter_fraction)
+
+        std = max(std, 1.0e-6)
         cross = cross.flatten()
-        mu_cross = np.mean(cross)
-        if len(cross) > 1:
-            std_cross = np.std(cross, ddof=1)
-        else:
-            std_cross = 0.0
-        dist = np.abs(mu_cross-mu)
-        if dist < (std+std_cross):
-            output_dict[(roi0.roi_id, roi1.roi_id)] = dist/(std+std_cross)
+        chisq = np.sum(((cross-mu)/std)**2)
+        chisq_per_dof = chisq/len(cross)
+        if chisq_per_dof<1.0:
+            output_dict[(roi0.roi_id, roi1.roi_id)] = chisq_per_dof
 
 
 def attempt_merger_pixel_correlation(

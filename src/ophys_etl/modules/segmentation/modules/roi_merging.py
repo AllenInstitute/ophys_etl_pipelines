@@ -56,7 +56,8 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
 
         with open(self.args['roi_output'], 'w') as out_file:
             out_file.write(json.dumps(output_list, indent=2))
-
+        duration = time.time()-t0
+        self.logger.info(f'Finished in {duration:.2f} seconds')
 
 if __name__ == "__main__":
     merger_engine = RoiMergerEngine()

@@ -441,24 +441,32 @@ def _evaluate_merger(roi_pair_list,
             output_dict[(roi0.roi_id, roi1.roi_id)] = chisq_per_dof
 
 
-def _get_self_corr(sub_vid, filter_fraction, out_dict, roi_id):
-    corr = correlate_sub_videos(sub_vid, sub_vid, filter_fraction)
-
-    mask = np.ones(corr.shape, dtype=bool)
-    for ii in range(corr.shape[0]):
-        mask[ii,ii] = False
-    corr = corr[mask].flatten()
-    out_dict[roi_id] = corr
+def _get_self_corr(sub_vid, filter_fraction, out_dict):
+    for roi_id in sub_vid:
+        corr = correlate_sub_videos(sub_vid[roi_id],
+                                    sub_vid[roi_id],
+                                    filter_fraction)
+        mask = np.ones(corr.shape, dtype=bool)
+        for ii in range(corr.shape[0]):
+            mask[ii,ii] = False
+        corr = corr[mask].flatten()
+        out_dict[roi_id] = corr
 
 def create_self_corr_lookup(sub_video_lookup, filter_fraction, n_processors):
     mgr = multiprocessing.Manager()
     out_dict = mgr.dict()
     p_list = []
-    for roi_id in sub_video_lookup.keys():
-        args = (sub_video_lookup[roi_id],
+    k_list = list(sub_video_lookup.keys())
+    np.random.shuffle(k_list)
+    d_k = max(1, len(k_list)//(2*n_processors-1))
+    for i0 in range(0, len(k_list), d_k):
+        sub_keys = k_list[i0:i0+d_k]
+        subset = {}
+        for k in sub_keys:
+            subset[k] = sub_video_lookup[k]
+        args = (subset,
                 filter_fraction,
-                out_dict,
-                roi_id)
+                out_dict)
         p = multiprocessing.Process(target=_get_self_corr,
                                     args=args)
         p.start()

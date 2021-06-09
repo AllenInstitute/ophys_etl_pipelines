@@ -500,6 +500,7 @@ def attempt_merger_pixel_correlation(
     sorted_indices = np.argsort(merger_goodness)
     merged_rois = set()
     output_list = []
+    logger.info(f'evaluating {len(merger_candidates)} candidates')
     for i_merger in sorted_indices:
         candidate = merger_candidates[i_merger]
         i0 = candidate[0]

@@ -57,8 +57,9 @@ def create_roi_plot(plot_path: pathlib.Path,
     color_list = ((255, 0, 0),
                   (0, 255, 0),
                   (0, 0, 255),
-                  (125, 0, 125),
-                  (0, 100, 50))
+                  (127, 0, 127),
+                  (255, 51, 153),
+                  (0, 255, 255))
 
     for axis, roi_list in zip(axes[1:], (roi_list_0, roi_list_1)):
 

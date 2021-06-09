@@ -455,7 +455,7 @@ def attempt_merger_pixel_correlation(
     if n_processors == 1:
         d_pairs = max(1, len(possible_pairs)//2)
     else:
-        d_pairs = max(1, len(possible_pairs)//(n_processors-1))
+        d_pairs = max(1, len(possible_pairs)//(2*n_processors-1))
 
     if (n_processors-1)*d_pairs < len(possible_pairs):
         d_pairs += 1
@@ -488,6 +488,7 @@ def attempt_merger_pixel_correlation(
     for p in process_list:
         p.join()
 
+    t0 = time.time()
     merger_candidates = []
     merger_goodness = []
     for key in mgr_dict:
@@ -502,7 +503,9 @@ def attempt_merger_pixel_correlation(
     sorted_indices = np.argsort(merger_goodness)
     merged_rois = set()
     output_list = []
-    logger.info(f'evaluating {len(merger_candidates)} candidates')
+    logger.info(f'evaluating {len(merger_candidates)} candidates; '
+                f'({time.time()-t0:.2f} seconds to transcribe)')
+    t0 = time.time()
     for i_merger in sorted_indices:
         candidate = merger_candidates[i_merger]
         i0 = candidate[0]
@@ -525,4 +528,6 @@ def attempt_merger_pixel_correlation(
         if roi_id in merged_rois:
             continue
         output_list.append(roi_lookup[roi_id])
+
+    logger.info(f'Evaluation took {time.time()-t0:.2f} seconds')
     return has_merged, output_list

@@ -15,7 +15,7 @@ import ophys_etl.modules.segmentation.postprocess_utils.roi_merging as merging
 
 
 def create_roi_plot(plot_path: pathlib.Path,
-                    img_data: np.ndarray,
+                    raw_img_data: np.ndarray,
                     roi_list_0: List[dict],
                     roi_list_1: List[dict]) -> None:
     """
@@ -37,16 +37,40 @@ def create_roi_plot(plot_path: pathlib.Path,
     -------
     None
     """
+
+    rgb_img_data = np.zeros((raw_img_data.shape[0],
+                             raw_img_data.shape[1],
+                             3),dtype=np.uint8)
+
+    mx = raw_img_data.max()
+    img_data = np.round(255*raw_img_data.astype(float)/mx).astype(np.uint8)
+    for ic in range(3):
+        rgb_img_data[:,:,ic] = img_data
+
     fig = figure.Figure(figsize=(60, 20))
     axes = [fig.add_subplot(1, 3, i) for i in [1, 2, 3]]
-    axes[0].imshow(img_data)
-    axes[1].imshow(img_data)
-    axes[2].imshow(img_data)
+    img = axes[0].imshow(rgb_img_data)
+    #axes[1].imshow(rgb_img_data)
+    #axes[2].imshow(rgb_img_data)
+
+    alpha = 0.5
+    color_list = ((255, 0, 0),
+                  (0, 255, 0),
+                  (0, 0, 255),
+                  (125, 125, 0),
+                  (0, 125, 125),
+                  (125, 0, 125))
 
     for axis, roi_list in zip(axes[1:], (roi_list_0, roi_list_1)):
 
-        bdry_pixels = np.zeros(img_data.shape, dtype=int)
+        img_data = np.copy(rgb_img_data)
+        color_index = 0
+
         for roi in roi_list:
+            color = color_list[color_index]
+            color_index += 1
+            if color_index >= len(color_list):
+                color_index = 0
             ophys_roi = OphysROI(
                         roi_id=0,
                         x0=roi['x'],
@@ -56,16 +80,19 @@ def create_roi_plot(plot_path: pathlib.Path,
                         valid_roi=False,
                         mask_matrix=roi['mask'])
 
-            bdry = ophys_roi.boundary_mask
+            bdry = ophys_roi.mask_matrix
             for ir in range(ophys_roi.height):
                 for ic in range(ophys_roi.width):
                     if bdry[ir, ic]:
-                        bdry_pixels[ir+ophys_roi.y0,
-                                    ic+ophys_roi.x0] = 1
+                        row = ir+ophys_roi.y0
+                        col = ic+ophys_roi.x0
+                        old = img_data[row, col, :]
+                        for i_color in range(3):
+                            new = old[i_color]*(1.0-alpha)+color[i_color]*alpha
+                            new = np.uint8(min(new,255))
+                            img_data[row, col, i_color] = new
 
-        bdry_pixels = np.ma.masked_where(bdry_pixels == 0,
-                                     bdry_pixels)
-        axis.imshow(bdry_pixels, cmap='autumn', alpha=1.0)
+        axis.imshow(img_data)
     fig.tight_layout()
     fig.savefig(plot_path)
     return None

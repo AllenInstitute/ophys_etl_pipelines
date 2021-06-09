@@ -53,13 +53,12 @@ def create_roi_plot(plot_path: pathlib.Path,
     #axes[1].imshow(rgb_img_data)
     #axes[2].imshow(rgb_img_data)
 
-    alpha = 0.5
+    alpha = 0.75
     color_list = ((255, 0, 0),
                   (0, 255, 0),
                   (0, 0, 255),
-                  (125, 125, 0),
-                  (0, 125, 125),
-                  (125, 0, 125))
+                  (125, 0, 125),
+                  (0, 100, 50))
 
     for axis, roi_list in zip(axes[1:], (roi_list_0, roi_list_1)):
 

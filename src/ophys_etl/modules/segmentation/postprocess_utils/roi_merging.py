@@ -159,7 +159,7 @@ def find_neighbor_rois(roi_list: List[OphysROI],
     output = []
     n_tot = n_roi*(n_roi-1)//2
     ct = 0
-    timing_step = min(10000, n_tot//5)
+    timing_step = min(1000000, n_tot//5)
 
     for i0 in range(n_roi):
         roi0_id = roi_id_list[i0]

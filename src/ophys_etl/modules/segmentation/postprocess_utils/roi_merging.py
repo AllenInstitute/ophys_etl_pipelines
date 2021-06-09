@@ -455,7 +455,7 @@ def attempt_merger_pixel_correlation(
     if n_processors == 1:
         d_pairs = max(1, len(possible_pairs)//2)
     else:
-        d_pairs = max(1, len(possible_pairs)//(2*n_processors-1))
+        d_pairs = max(1, len(possible_pairs)//(5*n_processors-1))
 
     if (n_processors-1)*d_pairs < len(possible_pairs):
         d_pairs += 1

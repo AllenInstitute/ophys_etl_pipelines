@@ -342,7 +342,7 @@ def sub_video_from_roi(video_path: pathlib.Path,
 
 
 def _evaluate_merger(roi_pair_list,
-                     video_path: pathlib.Path,
+                     sub_video_lookup,
                      filter_fraction: float,
                      output_dict: multiprocessing.managers.DictProxy):
 
@@ -352,8 +352,6 @@ def _evaluate_merger(roi_pair_list,
         roi_lookup[roi_pair[1].roi_id] = roi_pair[1]
 
     roi_list = list(roi_lookup.values())
-    sub_video_lookup = sub_video_from_roi(video_path, roi_list)
-
 
     for roi_pair in roi_pair_list:
         roi0 = roi_pair[0]
@@ -440,6 +438,9 @@ def attempt_merger_pixel_correlation(
         assert roi.roi_id not in roi_lookup
         roi_lookup[roi.roi_id] = roi
 
+    sub_video_lookup = sub_video_from_roi(video_path, roi_list)
+    logger.info('created sub video lookup')
+
     possible_pairs = find_neighbor_rois(roi_list, dpix=np.sqrt(2))
 
     logger.info(f'found {len(possible_pairs)} possible pairs')
@@ -456,9 +457,16 @@ def attempt_merger_pixel_correlation(
         d_pairs += 1
 
     for i0 in range(0, len(possible_pairs), d_pairs):
-        subset = possible_pairs[i0:i0+d_pairs]
-        args = (subset,
-                video_path,
+        subset_of_rois = possible_pairs[i0:i0+d_pairs]
+        sub_sub_video = {}
+        for pair in subset_of_rois:
+            for roi in pair:
+                if roi.roi_id in sub_sub_video:
+                    continue
+                sub_sub_video[roi.roi_id] = sub_video_lookup[roi.roi_id]
+
+        args = (subset_of_rois,
+                sub_sub_video,
                 filter_fraction,
                 mgr_dict)
         p = multiprocessing.Process(target=_evaluate_merger,

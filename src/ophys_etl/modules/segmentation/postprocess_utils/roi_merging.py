@@ -187,6 +187,13 @@ def make_cdf(img_flat):
     return val, cdf
 
 
+def step_from_processors(n_elements, n_processors, min_step):
+    step = n_elements/(4*n_processors-1)
+    if step < min_step:
+        step = min_step
+    return step
+
+
 def _find_merger_candidates(roi_pair_list, dpix, output_list):
     local = []
     for pair in roi_pair_list:
@@ -207,11 +214,7 @@ def find_merger_candidates(roi_list: List[OphysROI],
     p_list = []
 
     n_pairs = n_rois*(n_rois-1)//2
-    d_pairs = n_pairs/(4*n_processors-1)
-    if d_pairs < 10:
-        d_pairs = n_pairs/(2*n_processors-1)
-    if d_pairs < 100:
-        d_pairs = 100
+    d_pairs = step_from_processors(n_rois, n_processors, 100)
 
     subset = []
     for i0 in range(n_rois):

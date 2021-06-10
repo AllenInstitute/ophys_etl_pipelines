@@ -45,16 +45,19 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
 
         shuffler = np.random.RandomState(551234)
         keep_going = True
+        reusable_self_corr = {}
         while keep_going:
             n_roi_0 = len(roi_list)
 
             (keep_going,
-             roi_list) = merging.attempt_merger_pixel_correlation(
+             roi_list,
+             reusable_self_corr) = merging.attempt_merger_pixel_correlation(
                                         whole_video,
                                         roi_list,
                                         self.args['filter_fraction'],
                                         shuffler,
-                                        self.args['n_parallel_workers'])
+                                        self.args['n_parallel_workers'],
+                                        reused_self_corr=reusable_self_corr)
             n_roi_1 = len(roi_list)
             duration = time.time()-t0
             self.logger.info(f'Merged {n_roi_0} ROIs to {n_roi_1} '

@@ -314,7 +314,7 @@ def create_self_correlation_lookup(roi_list: List[OphysROI],
     shuffler.shuffle(roi_id_list)
 
     n_rois = len(roi_list)
-    d_roi = step_from_processors(n_rois, n_processors, 5)
+    d_roi = step_from_processors(n_rois, n_processors, 1)
 
     mgr = multiprocessing.Manager()
     output_dict = mgr.dict()

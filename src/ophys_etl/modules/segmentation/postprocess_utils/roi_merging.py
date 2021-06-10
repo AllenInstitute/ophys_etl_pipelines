@@ -461,7 +461,7 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
 
         roi_lookup[roi.roi_id] = roi
 
-    p_value = 0.05
+    p_value = 0.01
 
     t0 = time.time()
     sub_video_lookup = create_sub_video_lookup(video_data, roi_list)

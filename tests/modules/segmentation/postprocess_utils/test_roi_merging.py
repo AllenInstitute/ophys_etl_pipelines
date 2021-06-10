@@ -9,7 +9,8 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     correlate_sub_videos,
     make_cdf,
     find_merger_candidates,
-    create_sub_video_lookup)
+    create_sub_video_lookup,
+    create_self_correlation_lookup)
 
 @pytest.fixture
 def example_roi_list():
@@ -29,6 +30,14 @@ def example_roi_list():
         roi_list.append(roi)
 
     return roi_list
+
+@pytest.fixture
+def example_movie_data():
+    rng = np.random.RandomState(871123)
+    data = np.zeros((100, 60, 60), dtype=float)
+    data[:, 30:, 30:] = rng.normal(15.0, 7.0, size=(100, 30, 30))
+    data[:, :30, :30] = rng.random_sample((100, 30, 30))*17.0
+    return data
 
 def test_merge_rois():
 
@@ -244,3 +253,36 @@ def test_sub_video_lookup(example_roi_list):
             expected[ii, :] = video_data[ii, mask].flatten()
         np.testing.assert_array_equal(expected,
                                       sub_video_lookup[roi.roi_id])
+
+
+@pytest.mark.parametrize("n_processors, seed, filter_fraction",
+                         [(4, 1552, 0.2),
+                          (4, 55654, 0.2),
+                          (7, 1237, 0.35),
+                          (7, 8834, 0.35)])
+def test_create_self_corr(n_processors, seed, filter_fraction,
+                          example_roi_list, example_movie_data):
+    shuffler = np.random.RandomState(seed)
+    sub_video_lookup = create_sub_video_lookup(example_movie_data,
+                                               example_roi_list)
+
+    self_corr_lookup = create_self_correlation_lookup(
+                           example_roi_list,
+                           sub_video_lookup,
+                           filter_fraction,
+                           n_processors,
+                           shuffler)
+
+    for roi in example_roi_list:
+        actual = self_corr_lookup[roi.roi_id]
+        v0 = np.copy(sub_video_lookup[roi.roi_id])
+        v1 = np.copy(sub_video_lookup[roi.roi_id])
+        expected = correlate_sub_videos(v0,
+                                        v1,
+                                        filter_fraction)
+        mask = np.ones(expected.shape, dtype=bool)
+        for ii in range(expected.shape[0]):
+            mask[ii, ii] = False
+        expected = expected[mask]
+        assert expected.shape == (v0.shape[1]*(v0.shape[1]-1),)
+        np.testing.assert_array_equal(expected, actual)

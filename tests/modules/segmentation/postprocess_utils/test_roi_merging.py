@@ -11,7 +11,8 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     find_merger_candidates,
     create_sub_video_lookup,
     create_self_correlation_lookup,
-    calculate_merger_chisq)
+    calculate_merger_chisq,
+    evaluate_mergers)
 
 @pytest.fixture
 def example_roi_list():
@@ -307,3 +308,57 @@ def test_evaluate_merger_chisq():
     chisq = calculate_merger_chisq(data, cross_corr)
     assert np.isfinite(chisq)
     assert chisq >= 0.0
+
+
+def test_evaluate_mergers(example_roi_list, example_movie_data):
+
+    filter_fraction = 0.1
+    p_value = 0.4
+
+    sub_video_lookup = create_sub_video_lookup(example_movie_data,
+                                               example_roi_list)
+
+    self_corr_lookup = create_self_correlation_lookup(
+                           example_roi_list,
+                           sub_video_lookup,
+                           filter_fraction,
+                           3,
+                           np.random.RandomState(17231))
+
+    n_rois = len(example_roi_list)
+    all_pairs = []
+    for i0 in range(n_rois):
+        for i1 in range(i0+1, n_rois):
+            all_pairs.append((i0, i1))
+
+    mergers = evaluate_mergers(all_pairs,
+                               self_corr_lookup,
+                               sub_video_lookup,
+                               filter_fraction,
+                               p_value,
+                               3,
+                               np.random.RandomState(88123))
+
+    assert len(mergers) > 0
+    assert len(mergers) < len(all_pairs)
+
+    # make sure that shuffling does not affect result
+    for seed in (1112, 2223, 143356):
+        repeat_mergers = evaluate_mergers(
+                               all_pairs,
+                               self_corr_lookup,
+                               sub_video_lookup,
+                               filter_fraction,
+                               p_value,
+                               3,
+                               np.random.RandomState(seed))
+
+
+        assert len(repeat_mergers) == len(mergers)
+        for k in repeat_mergers:
+            assert k in mergers
+            assert repeat_mergers[k] >= 0.0
+            d = np.abs(repeat_mergers[k]-mergers[k])
+            if repeat_mergers[k]>0.0:
+                d = d/repeat_mergers[k]
+            assert d < 1.0e-6

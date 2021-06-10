@@ -53,6 +53,8 @@ def create_roi_plot(plot_path: pathlib.Path,
     #axes[1].imshow(rgb_img_data)
     #axes[2].imshow(rgb_img_data)
 
+    alpha = 0.5
+
     color_list = ((255, 0, 0),
                   (0, 255, 0),
                   (0, 0, 255))
@@ -108,7 +110,8 @@ def create_roi_plot(plot_path: pathlib.Path,
                         col = ic+ophys_roi.x0
                         old = img_data[row, col, :]
                         for i_color in range(3):
-                            new = color[i_color]
+                            new = alpha*color[i_color]+(1.0-alpha)*img_data[row, col, i_color]
+                            new = np.round(new).astype(np.uint8)
                             img_data[row, col, i_color] = new
 
         for ophys_roi in ophys_roi_list:

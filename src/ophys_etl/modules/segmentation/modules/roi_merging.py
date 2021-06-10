@@ -1,5 +1,6 @@
 import argschema
 import pathlib
+import numpy as np
 
 import h5py
 import json
@@ -30,19 +31,29 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             raw_roi_list = json.load(in_file)
 
         roi_list = []
+        roi_id_set = set()
         for roi in raw_roi_list:
-            roi_list.append(merging.extract_roi_to_ophys_roi(roi))
+            ophys_roi = merging.extract_roi_to_ophys_roi(roi)
+            if ophys_roi.roi_id in roi_id_set:
+                raise RuntimeError(f'roi id {ophys_roi.roi_id} duplicated '
+                                   'in initial input')
+            roi_list.append(ophys_roi)
         del raw_roi_list
 
+        with h5py.File(self.args['video_input'], 'r') as in_file:
+            whole_video = in_file['data'][()]
+
+        shuffler = np.random.RandomState(551234)
         keep_going = True
         while keep_going:
             n_roi_0 = len(roi_list)
 
             (keep_going,
              roi_list) = merging.attempt_merger_pixel_correlation(
-                                        pathlib.Path(self.args['video_input']),
+                                        whole_video,
                                         roi_list,
                                         self.args['filter_fraction'],
+                                        shuffler,
                                         self.args['n_parallel_workers'])
             n_roi_1 = len(roi_list)
             duration = time.time()-t0

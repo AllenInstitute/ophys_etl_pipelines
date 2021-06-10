@@ -443,3 +443,96 @@ def evaluate_mergers(roi_pair_list: List[Tuple[int, int]],
     for k in k_list:
         final_output[k] = output_dict.pop(k)
     return final_output
+
+
+def attempt_merger_pixel_correlation(video_data: np.ndarray,
+                                     roi_list: List[OphysROI],
+                                     filter_fraction: float,
+                                     shuffler: np.random.RandomState,
+                                     n_processors: int):
+
+    did_a_merger = False
+    roi_lookup = {}
+    for roi in roi_list:
+        if roi.roi_id in roi_lookup:
+            raise RuntimeError(f'roi_id {roi.roi_id} duplicated in '
+                               'attempt_merger_pixel_correlation')
+
+        roi_lookup[roi.roi_id] = roi
+
+    p_value = 0.05
+
+    t0 = time.time()
+    sub_video_lookup = create_sub_video_lookup(video_data, roi_list)
+    logger.info(f'created sub_video_lookup in {time.time()-t0:.2f} seconds')
+
+    t0 = time.time()
+    self_corr_lookup = create_self_correlation_lookup(
+                           roi_list,
+                           sub_video_lookup,
+                           filter_fraction,
+                           n_processors,
+                           shuffler)
+    logger.info(f'created self_corr_lookup in {time.time()-t0:.2f} seconds')
+
+    t0 = time.time()
+    merger_candidates = find_merger_candidates(roi_list,
+                                               np.sqrt(2.0),
+                                               n_processors)
+    logger.info(f'found merger_candidates ({len(merger_candidates)})'
+                f' in {time.time()-t0:.2f} seconds')
+
+    t0 = time.time()
+    mergers = evaluate_mergers(merger_candidates,
+                               self_corr_lookup,
+                               sub_video_lookup,
+                               filter_fraction,
+                               p_value,
+                               n_processors,
+                               shuffler)
+    logger.info(f'evaluated mergers in {time.time()-t0:.2f} seconds')
+
+    merger_values = []
+    merger_pairs = []
+    k_list = list(mergers.keys())
+    for k in k_list:
+        merger_pairs.append(k)
+        merger_values.append(mergers.pop(k))
+    merger_values = np.array(merger_values)
+    sorted_indexes = np.argsort(merger_values)
+
+    new_roi_lookup = {}
+
+    has_been_merged = set()
+    for ii in sorted_indexes:
+        pair = merger_pairs[ii]
+        if pair[0] in has_been_merged:
+            continue
+        if pair[1] in has_been_merged:
+            continue
+        has_been_merged.add(pair[0])
+        has_been_merged.add(pair[1])
+
+        roi0 = roi_lookup[pair[0]]
+        roi1 = roi_lookup[pair[1]]
+        if roi0.mask_matrix.sum() > roi1.mask_matrix.sum():
+            new_roi_id = roi0.roi_id
+        else:
+            new_roi_id = roi1.roi_id
+        new_roi = merge_rois(roi0, roi1, new_roi_id)
+
+        if new_roi.roi_id in new_roi_lookup:
+            raise RuntimeError(f'roi_id {new_roi.roi_id} '
+                               'duplicated in new lookup')
+
+        new_roi_lookup[new_roi.roi_id] = new_roi
+        did_a_merger = True
+
+    for roi_id in roi_lookup:
+        if roi_id in has_been_merged:
+            continue
+        if roi_id in new_roi_lookup:
+            raise RuntimeError(f'on final pass roi_id {roi_id} '
+                               'duplicated in new lookup')
+        new_roi_lookup[roi_id] = roi_lookup[roi_id]
+    return did_a_merger, list(new_roi_lookup.values())

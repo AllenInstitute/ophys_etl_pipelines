@@ -201,7 +201,7 @@ def make_cdf(img_flat):
 
 
 def step_from_processors(n_elements, n_processors, min_step):
-    step = n_elements/(4*n_processors-1)
+    step = n_elements//(4*n_processors-1)
     if step < min_step:
         step = min_step
     return step

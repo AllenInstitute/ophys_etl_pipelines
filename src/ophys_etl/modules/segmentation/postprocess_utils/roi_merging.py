@@ -343,22 +343,14 @@ def sub_video_from_roi(video_path: pathlib.Path,
     return sub_video_lookup
 
 
-def get_dist(data, binsize):
-    bin_vals = np.round(data/binsize)*binsize
-    unq_bin, unq_ct = np.unique(bin_vals, return_counts=True)
-    unq_bin = np.concatenate([np.array([unq_bin[0]-binsize]),
-                              unq_bin,
-                              np.array([unq_bin[-1]+binsize])])
-
-    unq_ct = np.concatenate([np.array([0]), unq_ct]).astype(float)
-    tot = 0.5*(unq_bin[1:]-unq_bin[:-1])*unq_ct
-    assert tot.min()>-1.0e-10
-    tot = tot.sum()
-    assert tot>=0.0
-    out_bin = unq_bin
-    out_prob = np.concatenate([unq_ct, np.array([0])]).astype(float)/tot
-    assert out_bin.shape == out_prob.shape
-    return out_bin, out_prob
+def make_cdf(img_flat):
+    val, val_ct = np.unique(img_flat, return_counts=True)
+    cdf = np.cumsum(val_ct)
+    cdf = cdf/val_ct.sum()
+    assert len(val) == len(cdf)
+    assert cdf.max()<=1.0
+    assert cdf.min()>=0.0
+    return val, cdf
 
 def _evaluate_merger(roi_pair_list,
                      sub_video_lookup,
@@ -424,20 +416,24 @@ def _evaluate_merger(roi_pair_list,
                                          sub_video_1,
                                          filter_fraction)
 
-        (distribution_bin,
-         distribution_val) = get_dist(big_self,
-                                      (big_self.max()-big_self.min())/50.0)
+        cross = cross.flatten()
+
+        (cdf_bins,
+         cdf_vals) = make_cdf(big_self)
 
         eps = 1.0e-5
-        prob = np.interp(cross, distribution_bin, distribution_val,
-                         left=0.0,right=0.0)
-        prob = np.where(prob>eps, prob, eps)
+        prob = np.interp(cross, cdf_bins, cdf_vals,
+                         left=0.0,right=1.0)
+
+        prob = np.where(prob<0.5, prob, 1.0-prob)
+        prob = np.where(prob>0.0, prob, eps)
 
         chisq = -2.0*np.log(prob)
         chisq = chisq.sum()
         chisq_per_dof = chisq/len(cross)
+        #print('chisq_per_dof ',chisq_per_dof,chisq,len(cross),np.median(prob))
 
-        if chisq_per_dof<1.0:
+        if chisq_per_dof<5.0:
             output_dict[(roi0.roi_id, roi1.roi_id)] = chisq_per_dof
 
 
@@ -450,6 +446,7 @@ def _get_self_corr(sub_vid, filter_fraction, out_dict):
         for ii in range(corr.shape[0]):
             mask[ii,ii] = False
         corr = corr[mask].flatten()
+        assert roi_id not in out_dict
         out_dict[roi_id] = corr
 
 def create_self_corr_lookup(sub_video_lookup, filter_fraction, n_processors):
@@ -580,6 +577,8 @@ def attempt_merger_pixel_correlation(
     logger.info(f'evaluating {len(merger_candidates)} candidates; '
                 f'({time.time()-t0:.2f} seconds to transcribe)')
     t0 = time.time()
+    print('merger goodness ')
+    print(merger_goodness[sorted_indices])
     for i_merger in sorted_indices:
         candidate = merger_candidates[i_merger]
         i0 = candidate[0]

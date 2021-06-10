@@ -186,3 +186,63 @@ def make_cdf(img_flat):
     assert cdf.min()>=0.0
     return val, cdf
 
+
+def _find_neighboring_rois(roi_pair_list, dpix, output_list):
+    local = []
+    for pair in roi_pair_list:
+        if do_rois_abut(pair[0], pair[1], dpix=dpix):
+            local.append((pair[0].roi_id, pair[1].roi_id))
+    for pair in local:
+        output_list.append(pair)
+
+
+def find_neighboring_rois(roi_list: List[OphysROI],
+                          dpix: float,
+                          n_processors: int):
+    mgr = multiprocessing.Manager()
+    output_list = mgr.list()
+
+    n_rois = len(roi_list)
+
+    p_list = []
+
+    n_pairs = n_rois*(n_rois-1)//2
+    d_pairs = n_pairs/(4*n_processors-1)
+    if d_pairs < 10:
+        d_pairs = n_pairs/(2*n_processors-1)
+    if d_pairs < 100:
+        d_pairs = 100
+
+    subset = []
+    for i0 in range(n_rois):
+        roi0 = roi_list[i0]
+        for i1 in range(i0+1, n_rois, 1):
+            roi1 = roi_list[i1]
+            subset.append((roi0, roi1))
+            if len(subset) >= d_pairs:
+                args = (subset, dpix, output_list)
+                p = multiprocessing.Process(target=_find_neighboring_rois,
+                                            args=args)
+                p.start()
+                p_list.append(p)
+                subset = []
+                while len(p_list) > 0 and len(p_list) >= (n_processors-1):
+                    to_pop = []
+                    for ii in range(len(p_list)-1, -1, -1):
+                        if p_list[ii].exitcode is not None:
+                            to_pop.append(ii)
+                    for ii in to_pop:
+                        p_list.pop(ii)
+
+    if len(subset) > 0:
+        args = (subset, dpix, output_list)
+        p = multiprocessing.Process(target=_find_neighboring_rois,
+                                    args=args)
+        p.start()
+        p_list.append(p)
+
+    for p in p_list:
+        p.join()
+
+    pair_list = [pair for pair in output_list]
+    return pair_list

@@ -1,3 +1,4 @@
+import pytest
 import numpy as np
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
@@ -6,8 +7,27 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     merge_rois,
     do_rois_abut,
     correlate_sub_videos,
-    make_cdf)
+    make_cdf,
+    find_neighboring_rois)
 
+@pytest.fixture
+def example_roi_list():
+    rng = np.random.RandomState(6412439)
+    roi_list = []
+    for ii in range(30):
+        x0 = rng.randint(0, 25)
+        y0 = rng.randint(0, 25)
+        height = rng.randint(3, 7)
+        width = rng.randint(3, 7)
+        mask = rng.randint(0, 2, (height, width)).astype(bool)
+        roi = OphysROI(x0=x0, y0=y0,
+                       height=height, width=width,
+                       mask_matrix=mask,
+                       roi_id=ii,
+                       valid_roi=True)
+        roi_list.append(roi)
+
+    return roi_list
 
 def test_merge_rois():
 
@@ -180,3 +200,26 @@ def test_cdf():
         for xx, yy in zip(test, interped_cdf):
             ct = (data_set<xx).sum()
             assert np.abs(yy-ct/len(data_set)) < 1.0e-2
+
+
+@pytest.mark.parametrize("dpix",[np.sqrt(2), 4, 5])
+def test_find_neighboring_rois(dpix, example_roi_list):
+    true_matches = set()
+    has_been_matched = set()
+    for i0 in range(len(example_roi_list)):
+        roi0 = example_roi_list[i0]
+        for i1 in range(i0+1, len(example_roi_list), 1):
+            roi1 = example_roi_list[i1]
+            if do_rois_abut(roi0, roi1, dpix=dpix):
+                true_matches.add((roi0.roi_id, roi1.roi_id))
+                has_been_matched.add(roi0.roi_id)
+                has_been_matched.add(roi1.roi_id)
+
+    assert len(has_been_matched) > 0
+    assert len(has_been_matched) < len(example_roi_list)
+    expected = set(true_matches)
+
+    for n in (3, 5):
+        matches = find_neighboring_rois(example_roi_list, dpix, 5)
+        matches = set(matches)
+        assert matches == expected

@@ -449,7 +449,8 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
                                      roi_list: List[OphysROI],
                                      filter_fraction: float,
                                      shuffler: np.random.RandomState,
-                                     n_processors: int):
+                                     n_processors: int,
+                                     reused_self_corr: dict = {}):
 
     did_a_merger = False
     roi_lookup = {}
@@ -467,13 +468,25 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
     logger.info(f'created sub_video_lookup in {time.time()-t0:.2f} seconds')
 
     t0 = time.time()
+    corr_roi_list = []
+    for roi in roi_list:
+        if roi.roi_id not in reused_self_corr:
+            corr_roi_list.append(roi)
     self_corr_lookup = create_self_correlation_lookup(
-                           roi_list,
+                           corr_roi_list,
                            sub_video_lookup,
                            filter_fraction,
                            n_processors,
                            shuffler)
-    logger.info(f'created self_corr_lookup in {time.time()-t0:.2f} seconds')
+
+    for roi_id in reused_self_corr:
+        if roi_id in self_corr_lookup:
+            raise RuntimeError(f'roi_id {roi_id} in both reusable '
+                               'self corr and new self corr')
+        self_corr_lookup[roi_id] = reused_self_corr[roi_id]
+
+    logger.info(f'created self_corr_lookup in {time.time()-t0:.2f} seconds '
+                f'(calculated {len(corr_roi_list)} of {len(roi_list)} rois)')
 
     t0 = time.time()
     merger_candidates = find_merger_candidates(roi_list,
@@ -528,6 +541,7 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
         new_roi_lookup[new_roi.roi_id] = new_roi
         did_a_merger = True
 
+    reusable_self_corr = {}
     for roi_id in roi_lookup:
         if roi_id in has_been_merged:
             continue
@@ -535,4 +549,8 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
             raise RuntimeError(f'on final pass roi_id {roi_id} '
                                'duplicated in new lookup')
         new_roi_lookup[roi_id] = roi_lookup[roi_id]
-    return did_a_merger, list(new_roi_lookup.values())
+        reusable_self_corr[roi_id] = self_corr_lookup[roi_id]
+
+    return (did_a_merger,
+           list(new_roi_lookup.values()),
+           reusable_self_corr)

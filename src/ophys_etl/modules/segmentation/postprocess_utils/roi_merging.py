@@ -269,3 +269,68 @@ def create_sub_video_lookup(video_data: np.ndarray,
         sub_video_lookup[roi.roi_id] = sub_video
 
     return sub_video_lookup
+
+
+def _self_corr_subset(roi_id_list: List[int],
+                      sub_video_lookup: dict,
+                      filter_fraction:float,
+                      output_dict):
+
+    local_dict = {}
+    for roi_id in roi_id_list:
+        sub_video = sub_video_lookup[roi_id]
+        corr = correlate_sub_videos(sub_video,
+                                    sub_video,
+                                    filter_fraction)
+
+        assert corr.shape[0] == corr.shape[1]
+        mask = np.ones(corr.shape, dtype=bool)
+        for ii in range(corr.shape[0]):
+            mask[ii,ii] = False
+        corr = corr[mask].flatten()
+        local_dict[roi_id] = corr
+
+    k_list = list(local_dict.keys())
+    for k in k_list:
+        output_dict[k] = local_dict.pop(k)
+
+
+def create_self_correlation_lookup(roi_list: List[OphysROI],
+                                   sub_video_lookup: dict,
+                                   filter_fraction: float,
+                                   n_processors: int,
+                                   shuffler: np.random.RandomState):
+
+    roi_id_list = [roi.roi_id for roi in roi_list]
+    shuffler.shuffle(roi_id_list)
+
+    n_rois = len(roi_list)
+    d_roi = step_from_processors(n_rois, n_processors, 5)
+
+    mgr = multiprocessing.Manager()
+    output_dict = mgr.dict()
+    p_list = []
+    for i0 in range(0, n_rois, d_roi):
+        subset = roi_id_list[i0: i0+d_roi]
+        args = (subset,
+                sub_video_lookup,
+                filter_fraction,
+                output_dict)
+        p = multiprocessing.Process(target=_self_corr_subset,
+                                    args=args)
+        p.start()
+        p_list.append(p)
+        if len(p_list) > 0 and len(p_list) >= (n_processors-1):
+            to_pop = []
+            for ii in range(len(p_list)-1,-1,-1):
+                if p_list[ii].exitcode is not None:
+                    to_pop.append(ii)
+            for ii in to_pop:
+                p_list.pop(ii)
+    for p in p_list:
+        p.join()
+    final_output = {}
+    k_list = list(output_dict.keys())
+    for k in k_list:
+        final_output[k] = output_dict.pop(k)
+    return final_output

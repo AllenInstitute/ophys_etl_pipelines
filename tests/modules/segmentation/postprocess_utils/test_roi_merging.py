@@ -10,7 +10,8 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     make_cdf,
     find_merger_candidates,
     create_sub_video_lookup,
-    create_self_correlation_lookup)
+    create_self_correlation_lookup,
+    evaluate_merger_chisq)
 
 @pytest.fixture
 def example_roi_list():
@@ -286,3 +287,21 @@ def test_create_self_corr(n_processors, seed, filter_fraction,
         expected = expected[mask]
         assert expected.shape == (v0.shape[1]*(v0.shape[1]-1),)
         np.testing.assert_array_equal(expected, actual)
+
+
+def test_evaluate_merger_chisq():
+
+    rng = np.random.RandomState(7544)
+    data = rng.random_sample(1000)
+    (cdf_bins,
+     cdf_vals) = make_cdf(data)
+
+    p_value = 0.14
+    index = np.argmin(np.abs(cdf_vals-p_value))
+    assert index > 2
+
+    cross_corr = rng.random_sample(20)*cdf_bins[index-1]
+    assert not evaluate_merger_chisq(data, cross_corr, p_value)
+
+    cross_corr = cdf_bins[index]+rng.random_sample(20)
+    assert evaluate_merger_chisq(data, cross_corr, p_value)

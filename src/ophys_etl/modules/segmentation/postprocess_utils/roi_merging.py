@@ -334,3 +334,33 @@ def create_self_correlation_lookup(roi_list: List[OphysROI],
     for k in k_list:
         final_output[k] = output_dict.pop(k)
     return final_output
+
+
+def evaluate_merger_chisq(large_self_corr: np.ndarray,
+                          cross_corr: np.ndarray,
+                          p_value: float):
+    """
+    Take the self correlation of a large ROI and
+    the cross-correlation between a smaller ROI and
+    the larger ROI. Find the probability that the
+    cross correlation values fall within the
+    CDF of the larger cross correlations. Sum those
+    to make a chisquared. If chisquared <= ln(p_value),
+    return True. Else, return False.
+    """
+    (cdf_bins,
+     cdf_vals) = make_cdf(large_self_corr)
+
+    prob = np.interp(cross_corr, cdf_bins, cdf_vals,
+                     left=0.0, right=1.0)
+
+    eps = 1.0e-6
+    prob = np.where(prob>eps, prob, eps)
+    chisq = -2.0*np.log(prob).sum()
+    chisq_per_dof = chisq/len(cross_corr)
+
+    target_chisq = -2.0*np.log(p_value)
+
+    if chisq_per_dof <= target_chisq:
+        return True
+    return False

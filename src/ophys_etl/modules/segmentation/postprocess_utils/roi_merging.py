@@ -3,6 +3,7 @@ from typing import List, Tuple
 import pathlib
 import h5py
 import time
+import copy
 import multiprocessing
 import multiprocessing.managers
 
@@ -159,6 +160,8 @@ def correlate_sub_videos(sub_video_0: np.ndarray,
                          filter_fraction:float) -> np.ndarray:
     """
     correlate pixels in sub_video_0 with pixels in sub_video_1
+
+    pixel mask is chosen from sub_video_0
     """
 
     assert sub_video_0.shape[0] == sub_video_1.shape[0]

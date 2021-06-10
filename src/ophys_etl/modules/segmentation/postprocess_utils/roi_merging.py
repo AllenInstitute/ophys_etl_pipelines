@@ -200,8 +200,9 @@ def make_cdf(img_flat):
     return val, cdf
 
 
-def step_from_processors(n_elements, n_processors, min_step):
-    step = n_elements//(4*n_processors-1)
+def step_from_processors(n_elements, n_processors,
+                         min_step, denom_factor=4):
+    step = n_elements//(denom_factor*n_processors-1)
     if step < min_step:
         step = min_step
     return step
@@ -376,6 +377,7 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
     for pair in roi_pair_list:
         sub0 = sub_video_lookup[pair[0]]
         sub1 = sub_video_lookup[pair[1]]
+
         if sub0.shape[1] > sub1.shape[1]:
             big = sub0
             small = sub1
@@ -387,6 +389,9 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
 
         cross_corr = correlate_sub_videos(big, small, filter_fraction)
         cross_corr = cross_corr.flatten()
+        if len(cross_corr) == 0 or len(self_corr) == 0:
+            continue
+
         chisq_per_dof = calculate_merger_chisq(self_corr, cross_corr)
         if chisq_per_dof <= target_chisq:
             local_output[(pair[0], pair[1])] = chisq_per_dof
@@ -403,6 +408,7 @@ def evaluate_mergers(roi_pair_list: List[Tuple[int, int]],
                      n_processors: int,
                      shuffler: np.random.RandomState):
 
+    t0 = time.time()
     roi_pair_list = copy.deepcopy(roi_pair_list)
     shuffler.shuffle(roi_pair_list)
 
@@ -410,12 +416,13 @@ def evaluate_mergers(roi_pair_list: List[Tuple[int, int]],
     output_dict = mgr.dict()
 
     n_pairs = len(roi_pair_list)
-    d_pairs = step_from_processors(n_pairs, n_processors, 2)
+    d_pairs = step_from_processors(n_pairs, n_processors, 2,
+                                   denom_factor=2)
 
     p_list = []
     for i0 in range(0, n_pairs, d_pairs):
         subset = roi_pair_list[i0:i0+d_pairs]
-        args = (roi_pair_list,
+        args = (subset,
                 self_corr_lookup,
                 sub_video_lookup,
                 filter_fraction,

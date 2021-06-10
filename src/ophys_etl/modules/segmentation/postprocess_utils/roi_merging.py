@@ -18,6 +18,16 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
+def _winnow_p_list(p_list):
+    to_pop = []
+    for ii in range(len(p_list)-1, -1, -1):
+        if p_list[ii].exitcode is not None:
+            to_pop.append(ii)
+    for ii in to_pop:
+        p_list.pop(ii)
+    return p_list
+
+
 def extract_roi_to_ophys_roi(roi):
     new_roi = OphysROI(x0=roi['x'],
                        y0=roi['y'],
@@ -230,12 +240,7 @@ def find_merger_candidates(roi_list: List[OphysROI],
                 p_list.append(p)
                 subset = []
                 while len(p_list) > 0 and len(p_list) >= (n_processors-1):
-                    to_pop = []
-                    for ii in range(len(p_list)-1, -1, -1):
-                        if p_list[ii].exitcode is not None:
-                            to_pop.append(ii)
-                    for ii in to_pop:
-                        p_list.pop(ii)
+                    p_list = _winnow_p_list(p_list)
 
     if len(subset) > 0:
         args = (subset, dpix, output_list)
@@ -321,12 +326,7 @@ def create_self_correlation_lookup(roi_list: List[OphysROI],
         p.start()
         p_list.append(p)
         if len(p_list) > 0 and len(p_list) >= (n_processors-1):
-            to_pop = []
-            for ii in range(len(p_list)-1,-1,-1):
-                if p_list[ii].exitcode is not None:
-                    to_pop.append(ii)
-            for ii in to_pop:
-                p_list.pop(ii)
+            p_list = _winnow_p_list(p_list)
     for p in p_list:
         p.join()
     final_output = {}

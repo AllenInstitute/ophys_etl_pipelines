@@ -249,3 +249,23 @@ def find_merger_candidates(roi_list: List[OphysROI],
 
     pair_list = [pair for pair in output_list]
     return pair_list
+
+
+def create_sub_video_lookup(video_data: np.ndarray,
+                            roi_list: List[OphysROI]) -> dict:
+    """
+    Video is not flattened in space; output will be
+    flattened in space
+    """
+    sub_video_lookup = {}
+    for roi in roi_list:
+        sub_video = video_data[:,
+                               roi.y0:roi.y0+roi.height,
+                               roi.x0:roi.x0+roi.width]
+
+        sub_video = sub_video.reshape(sub_video.shape[0], -1)
+        roi_mask = roi.mask_matrix.flatten()
+        sub_video_lookup[roi.roi_id] = sub_video[:, roi_mask]
+        sub_video_lookup[roi.roi_id] = sub_video
+
+    return sub_video_lookup

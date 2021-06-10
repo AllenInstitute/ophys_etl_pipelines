@@ -19,6 +19,16 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
+def write_out_rois(roi_list, out_name):
+    output_list = []
+    for roi in roi_list:
+        new_roi = merging.ophys_roi_to_extract_roi(roi)
+        output_list.append(new_roi)
+
+    with open(out_name, 'w') as out_file:
+        out_file.write(json.dumps(output_list, indent=2))
+
+
 class RoiMergerEngine(argschema.ArgSchemaParser):
 
     default_schema = RoiMergerSchema
@@ -46,7 +56,9 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
         shuffler = np.random.RandomState(551234)
         keep_going = True
         reusable_self_corr = {}
+        i_pass = -1
         while keep_going:
+            i_pass += 1
             n_roi_0 = len(roi_list)
 
             (keep_going,
@@ -62,14 +74,11 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             duration = time.time()-t0
             self.logger.info(f'Merged {n_roi_0} ROIs to {n_roi_1} '
                              f'after {duration:.2f} seconds')
+            write_out_rois(roi_list, self.args['roi_output'].replace('.json',f'_{i_pass}.json'))
 
-        output_list = []
-        for roi in roi_list:
-            new_roi = merging.ophys_roi_to_extract_roi(roi)
-            output_list.append(new_roi)
 
-        with open(self.args['roi_output'], 'w') as out_file:
-            out_file.write(json.dumps(output_list, indent=2))
+        write_out_rois(roi_list, self.args['roi_output'])
+
         duration = time.time()-t0
         self.logger.info(f'Finished in {duration:.2f} seconds')
 

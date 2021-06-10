@@ -8,7 +8,7 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     do_rois_abut,
     correlate_sub_videos,
     make_cdf,
-    find_neighboring_rois)
+    find_merger_candidates)
 
 @pytest.fixture
 def example_roi_list():
@@ -203,7 +203,7 @@ def test_cdf():
 
 
 @pytest.mark.parametrize("dpix",[np.sqrt(2), 4, 5])
-def test_find_neighboring_rois(dpix, example_roi_list):
+def test_find_merger_candidates(dpix, example_roi_list):
     true_matches = set()
     has_been_matched = set()
     for i0 in range(len(example_roi_list)):
@@ -220,6 +220,8 @@ def test_find_neighboring_rois(dpix, example_roi_list):
     expected = set(true_matches)
 
     for n in (3, 5):
-        matches = find_neighboring_rois(example_roi_list, dpix, 5)
+        matches = find_merger_candidates(example_roi_list,
+                                         dpix,
+                                         5)
         matches = set(matches)
         assert matches == expected

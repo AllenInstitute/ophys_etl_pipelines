@@ -187,7 +187,7 @@ def make_cdf(img_flat):
     return val, cdf
 
 
-def _find_neighboring_rois(roi_pair_list, dpix, output_list):
+def _find_merger_candidates(roi_pair_list, dpix, output_list):
     local = []
     for pair in roi_pair_list:
         if do_rois_abut(pair[0], pair[1], dpix=dpix):
@@ -196,9 +196,9 @@ def _find_neighboring_rois(roi_pair_list, dpix, output_list):
         output_list.append(pair)
 
 
-def find_neighboring_rois(roi_list: List[OphysROI],
-                          dpix: float,
-                          n_processors: int):
+def find_merger_candidates(roi_list: List[OphysROI],
+                           dpix: float,
+                           n_processors: int):
     mgr = multiprocessing.Manager()
     output_list = mgr.list()
 
@@ -221,7 +221,7 @@ def find_neighboring_rois(roi_list: List[OphysROI],
             subset.append((roi0, roi1))
             if len(subset) >= d_pairs:
                 args = (subset, dpix, output_list)
-                p = multiprocessing.Process(target=_find_neighboring_rois,
+                p = multiprocessing.Process(target=_find_merger_candidates,
                                             args=args)
                 p.start()
                 p_list.append(p)
@@ -236,7 +236,7 @@ def find_neighboring_rois(roi_list: List[OphysROI],
 
     if len(subset) > 0:
         args = (subset, dpix, output_list)
-        p = multiprocessing.Process(target=_find_neighboring_rois,
+        p = multiprocessing.Process(target=_find_merger_candidates,
                                     args=args)
         p.start()
         p_list.append(p)

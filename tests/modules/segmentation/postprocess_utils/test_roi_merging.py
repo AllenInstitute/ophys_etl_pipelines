@@ -11,7 +11,7 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     find_merger_candidates,
     create_sub_video_lookup,
     create_self_correlation_lookup,
-    evaluate_merger_chisq)
+    calculate_merger_chisq)
 
 @pytest.fixture
 def example_roi_list():
@@ -118,7 +118,7 @@ def test_roi_abut():
                     width=width,
                     mask_matrix=mask,
                     roi_id=0,
-                    valid_roi=True) 
+                    valid_roi=True)
 
     roi1 = OphysROI(x0=23,
                     y0=46,
@@ -293,15 +293,17 @@ def test_evaluate_merger_chisq():
 
     rng = np.random.RandomState(7544)
     data = rng.random_sample(1000)
-    (cdf_bins,
-     cdf_vals) = make_cdf(data)
+    cross_corr = rng.random_sample(20)
+    chisq = calculate_merger_chisq(data, cross_corr)
+    assert np.isfinite(chisq)
+    assert chisq >= 0.0
 
-    p_value = 0.14
-    index = np.argmin(np.abs(cdf_vals-p_value))
-    assert index > 2
+    cross_corr = -1.0*np.ones(20)
+    chisq = calculate_merger_chisq(data, cross_corr)
+    assert np.isfinite(chisq)
+    assert chisq >= 0.0
 
-    cross_corr = rng.random_sample(20)*cdf_bins[index-1]
-    assert not evaluate_merger_chisq(data, cross_corr, p_value)
-
-    cross_corr = cdf_bins[index]+rng.random_sample(20)
-    assert evaluate_merger_chisq(data, cross_corr, p_value)
+    cross_corr = 2.0*np.ones(20)
+    chisq = calculate_merger_chisq(data, cross_corr)
+    assert np.isfinite(chisq)
+    assert chisq >= 0.0

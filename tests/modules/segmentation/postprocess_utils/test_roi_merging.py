@@ -8,7 +8,8 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     do_rois_abut,
     correlate_sub_videos,
     make_cdf,
-    find_merger_candidates)
+    find_merger_candidates,
+    create_sub_video_lookup)
 
 @pytest.fixture
 def example_roi_list():
@@ -225,3 +226,21 @@ def test_find_merger_candidates(dpix, example_roi_list):
                                          5)
         matches = set(matches)
         assert matches == expected
+
+
+def test_sub_video_lookup(example_roi_list):
+    rng = np.random.RandomState(67)
+    video_data = rng.random_sample((100, 60, 60))
+    sub_video_lookup = create_sub_video_lookup(video_data,
+                                               example_roi_list)
+
+    for roi in example_roi_list:
+        mask = np.zeros((60, 60), dtype=bool)
+        mask[roi.y0:roi.y0+roi.height,
+             roi.x0:roi.x0+roi.width] = True
+        n_pix = mask.sum()
+        expected = np.zeros((100, n_pix), dtype=float)
+        for ii in range(100):
+            expected[ii, :] = video_data[ii, mask].flatten()
+        np.testing.assert_array_equal(expected,
+                                      sub_video_lookup[roi.roi_id])

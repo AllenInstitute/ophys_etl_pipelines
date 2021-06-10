@@ -361,3 +361,78 @@ def calculate_merger_chisq(large_self_corr: np.ndarray,
     chisq_per_dof = chisq/len(cross_corr)
 
     return chisq_per_dof
+
+
+def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
+                            self_corr_lookup: dict,
+                            sub_video_lookup: dict,
+                            filter_fraction: float,
+                            p_value: float,
+                            output_dict):
+
+    local_output = {}
+    target_chisq = -2.0*np.log(p_value)
+
+    for pair in roi_pair_list:
+        sub0 = sub_video_lookup[pair[0]]
+        sub1 = sub_video_lookup[pair[1]]
+        if sub0.shape[1] > sub1.shape[1]:
+            big = sub0
+            small = sub1
+            self_corr = self_corr_lookup[pair[0]]
+        else:
+            big = sub1
+            small = sub0
+            self_corr = self_corr_lookup[pair[1]]
+
+        cross_corr = correlate_sub_videos(big, small, filter_fraction)
+        cross_corr = cross_corr.flatten()
+        chisq_per_dof = calculate_merger_chisq(self_corr, cross_corr)
+        if chisq_per_dof <= target_chisq:
+            local_output[(pair[0], pair[1])] = chisq_per_dof
+    k_list = list(local_output.keys())
+    for k in k_list:
+        output_dict[k] = local_output.pop(k)
+
+
+def evaluate_mergers(roi_pair_list: List[Tuple[int, int]],
+                     self_corr_lookup: dict,
+                     sub_video_lookup: dict,
+                     filter_fraction: float,
+                     p_value: float,
+                     n_processors: int,
+                     shuffler: np.random.RandomState):
+
+    roi_pair_list = copy.deepcopy(roi_pair_list)
+    shuffler.shuffle(roi_pair_list)
+
+    mgr = multiprocessing.Manager()
+    output_dict = mgr.dict()
+
+    n_pairs = len(roi_pair_list)
+    d_pairs = step_from_processors(n_pairs, n_processors, 2)
+
+    p_list = []
+    for i0 in range(0, n_pairs, d_pairs):
+        subset = roi_pair_list[i0:i0+d_pairs]
+        args = (roi_pair_list,
+                self_corr_lookup,
+                sub_video_lookup,
+                filter_fraction,
+                p_value,
+                output_dict)
+        p = multiprocessing.Process(target=_evaluate_merger_subset,
+                                    args=args)
+        p.start()
+        p_list.append(p)
+        while len(p_list) > 0 and len(p_list) >= (n_processors-1):
+            p_list = _winnow_p_list(p_list)
+
+    for p in p_list:
+        p.join()
+
+    final_output = {}
+    k_list = list(output_dict.keys())
+    for k in k_list:
+        final_output[k] = output_dict.pop(k)
+    return final_output

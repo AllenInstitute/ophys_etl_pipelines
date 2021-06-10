@@ -57,6 +57,8 @@ def create_roi_plot(plot_path: pathlib.Path,
                   (0, 255, 0),
                   (0, 0, 255))
 
+    bdry_color = (255, 128, 0)
+
     for axis, raw_roi_list in zip(axes[1:], (roi_list_0, roi_list_1)):
 
         img_data = np.copy(rgb_img_data)
@@ -79,6 +81,7 @@ def create_roi_plot(plot_path: pathlib.Path,
             centroids[i_roi,1] = ophys_roi.centroid_x
             i_roi += 1
 
+        print(f'{len(ophys_roi_list)} rois')
         last_row = 0
         last_col = 0
         plotted = 0
@@ -97,7 +100,19 @@ def create_roi_plot(plot_path: pathlib.Path,
             if color_index >= len(color_list):
                 color_index = 0
 
-            bdry = ophys_roi.mask_matrix
+            msk = ophys_roi.mask_matrix
+            for ir in range(ophys_roi.height):
+                for ic in range(ophys_roi.width):
+                    if msk[ir, ic]:
+                        row = ir+ophys_roi.y0
+                        col = ic+ophys_roi.x0
+                        old = img_data[row, col, :]
+                        for i_color in range(3):
+                            new = color[i_color]
+                            img_data[row, col, i_color] = new
+
+        for ophys_roi in ophys_roi_list:
+            bdry = ophys_roi.boundary_mask
             for ir in range(ophys_roi.height):
                 for ic in range(ophys_roi.width):
                     if bdry[ir, ic]:
@@ -105,8 +120,9 @@ def create_roi_plot(plot_path: pathlib.Path,
                         col = ic+ophys_roi.x0
                         old = img_data[row, col, :]
                         for i_color in range(3):
-                            new = color[i_color]
+                            new = bdry_color[i_color]
                             img_data[row, col, i_color] = new
+
 
         axis.imshow(img_data)
     fig.tight_layout()

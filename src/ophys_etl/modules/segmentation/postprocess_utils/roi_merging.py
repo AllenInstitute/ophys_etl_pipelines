@@ -314,8 +314,7 @@ def correlate_sub_videos(sub_video_0: np.ndarray,
 
 
 def sub_video_from_roi(video_path: pathlib.Path,
-                       roi_list: List[OphysROI],
-                       needed_rois) -> dict:
+                       roi_list: List[OphysROI]) -> dict:
     """
     Video is not flattened in space; output will be
     flattened in space
@@ -327,8 +326,6 @@ def sub_video_from_roi(video_path: pathlib.Path,
 
     for roi in roi_list:
         if roi.roi_id in sub_video_lookup:
-            continue
-        if roi.roi_id not in needed_rois:
             continue
         sub_video = whole_video[:,
                                 roi.y0:roi.y0+roi.height,
@@ -455,8 +452,7 @@ def _get_self_corr(sub_vid, filter_fraction, out_dict):
         corr = corr[mask].flatten()
         out_dict[roi_id] = corr
 
-def create_self_corr_lookup(sub_video_lookup, filter_fraction,
-                           n_processors):
+def create_self_corr_lookup(sub_video_lookup, filter_fraction, n_processors):
     mgr = multiprocessing.Manager()
     out_dict = mgr.dict()
     p_list = []
@@ -503,19 +499,8 @@ def attempt_merger_pixel_correlation(
         assert roi.roi_id not in roi_lookup
         roi_lookup[roi.roi_id] = roi
 
-    possible_pairs = find_neighbor_rois(roi_list, dpix=np.sqrt(2))
-    np.random.shuffle(possible_pairs)
-    logger.info(f'found {len(possible_pairs)} possible pairs')
-
-    needed_rois = set()
-    for pair in possible_pairs:
-        for roi in pair:
-            needed_rois.add(roi.roi_id)
-
-    logger.info(f'{len(roi_list)} rois; {len(needed_rois)} needed')
-
     t0 = time.time()
-    sub_video_lookup = sub_video_from_roi(video_path, roi_list, needed_rois)
+    sub_video_lookup = sub_video_from_roi(video_path, roi_list)
     logger.info(f'created sub video lookup ({time.time()-t0:.2f} seconds)')
 
     t0 = time.time()
@@ -526,6 +511,11 @@ def attempt_merger_pixel_correlation(
     logger.info(f'created self_corr_lookup '
                 f'({time.time()-t0:.2f} seconds)')
 
+    possible_pairs = find_neighbor_rois(roi_list, dpix=np.sqrt(2))
+
+    np.random.shuffle(possible_pairs)
+
+    logger.info(f'found {len(possible_pairs)} possible pairs')
 
     t0 = time.time()
     process_list = []

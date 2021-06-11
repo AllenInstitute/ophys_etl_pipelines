@@ -233,7 +233,7 @@ def find_merger_candidates(roi_list: List[OphysROI],
     p_list = []
 
     n_pairs = n_rois*(n_rois-1)//2
-    d_pairs = step_from_processors(n_rois, n_processors, 100)
+    d_pairs = step_from_processors(n_pairs, n_processors, 100)
 
     subset = []
     for i0 in range(n_rois):

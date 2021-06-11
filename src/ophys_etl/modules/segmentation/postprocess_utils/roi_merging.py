@@ -397,9 +397,20 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
         if len(cross_corr) == 0 or len(self_corr) == 0:
             continue
 
-        chisq_per_dof = calculate_merger_chisq(self_corr, cross_corr)
-        if chisq_per_dof <= target_chisq:
-            local_output[(pair[0], pair[1])] = chisq_per_dof
+        self_avg_corr = np.mean(1.0-self_corr)
+        self_std = np.std(1.0-self_corr, ddof=1)
+        cross_avg_corr = np.mean(1.0-cross_corr)
+        cross_std = np.std(1.0-cross_corr, ddof=1)
+
+        metric = (cross_avg_corr-self_avg_corr)/(self_std)
+        #print('metric ',metric,big_avg_corr,cross_avg_corr,big_avg_std)
+        if metric <= 1.0:
+            local_output[(pair[0], pair[1])] = metric
+
+        #chisq_per_dof = calculate_merger_chisq(self_corr, cross_corr)
+        #if chisq_per_dof <= target_chisq:
+        #    local_output[(pair[0], pair[1])] = chisq_per_dof
+
     k_list = list(local_output.keys())
     for k in k_list:
         output_dict[k] = local_output.pop(k)

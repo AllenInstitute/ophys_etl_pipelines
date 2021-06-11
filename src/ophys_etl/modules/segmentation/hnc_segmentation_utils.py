@@ -1,61 +1,15 @@
-import json
-import h5py
 import numpy as np
 import tempfile
-from typing import TypedDict, List, Tuple
 from pathlib import Path
 import networkx as nx
 import hnccorr.base as hncbase
 from hnccorr.utils import eight_neighborhood, add_offset_set_coordinates
 from scipy.ndimage import gaussian_filter
 
-from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation.modules.schemas import HNC_args
 from ophys_etl.modules.segmentation.modules.calculate_edges import \
         CalculateEdges
-from ophys_etl.modules.segmentation.graph_utils.plotting import \
-        graph_to_img, add_rois_to_axes
-
-
-class HNC_ROI(TypedDict):
-    coordinates: List[Tuple[int, int]]
-
-
-def hnc_roi_to_extract_roi(hnc_roi: HNC_ROI, id: int) -> ExtractROI:
-    coords = np.array(hnc_roi["coordinates"])
-    y0, x0 = coords.min(axis=0)
-    height, width = coords.ptp(axis=0) + 1
-    mask = np.zeros(shape=(height, width), dtype=bool)
-    for y, x in coords:
-        mask[y - y0, x - x0] = True
-    roi = ExtractROI(
-            id=id,
-            x=int(x0),
-            y=int(y0),
-            width=int(width),
-            height=int(height),
-            valid=True,
-            mask=[i.tolist() for i in mask])
-    return roi
-
-
-def plot_seeds_and_rois(axes, seed_h5_path, rois_path):
-    with open("sub64_rois.json", "r") as f:
-        rois = json.load(f)
-
-    with h5py.File("./sub64_seeds.h5", "r") as f:
-        seeds = f["seeds"]
-        s_coords = seeds["coordinates"][()]
-        s_excluded = seeds["excluded"][()]
-        seed_img = f["seed_image"][()]
-
-    axes.imshow(seed_img, cmap="gray")
-    for c, e in zip(s_coords, s_excluded):
-        marker = "o"
-        if e:
-            marker = "x"
-        axes.plot(c[1], c[0], marker=marker, color="b")
-    add_rois_to_axes(axes, rois, seed_img.shape)
+from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
 
 
 class AllenLocalCorrelationSeeder:

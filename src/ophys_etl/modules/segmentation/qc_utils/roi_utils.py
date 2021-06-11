@@ -2,7 +2,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib import figure
-from typing import List, Tuple, Callable, Optional, Union, Dict
+from typing import List, Tuple, Callable, Optional, Union, Dict, TypedDict
 import numpy as np
 import pathlib
 
@@ -705,3 +705,25 @@ def create_roi_plot(plot_path: pathlib.Path,
     fig.tight_layout()
     fig.savefig(plot_path)
     return None
+
+
+class HNC_ROI(TypedDict):
+    coordinates: List[Tuple[int, int]]
+
+
+def hnc_roi_to_extract_roi(hnc_roi: HNC_ROI, id: int) -> ExtractROI:
+    coords = np.array(hnc_roi["coordinates"])
+    y0, x0 = coords.min(axis=0)
+    height, width = coords.ptp(axis=0) + 1
+    mask = np.zeros(shape=(height, width), dtype=bool)
+    for y, x in coords:
+        mask[y - y0, x - x0] = True
+    roi = ExtractROI(
+            id=id,
+            x=int(x0),
+            y=int(y0),
+            width=int(width),
+            height=int(height),
+            valid=True,
+            mask=[i.tolist() for i in mask])
+    return roi

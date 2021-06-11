@@ -6,7 +6,9 @@ from hnccorr import Movie
 
 from ophys_etl.modules.segmentation.modules.schemas import \
         HNCSegmentationWrapperInputSchema
-from ophys_etl.modules.segmentation import hnc_segmentation_utils as hsu
+from ophys_etl.modules.segmentation.hnc_segmentation_utils import hnc_construct
+from ophys_etl.modules.segmentation.qc_utils.roi_utils import \
+        hnc_roi_to_extract_roi
 
 
 class HNCSegmentationWrapper(argschema.ArgSchemaParser):
@@ -15,8 +17,8 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
     def run(self):
         self.logger.name = type(self).__name__
 
-        hnc_segmenter = hsu.hnc_construct(self.args["hnc_args"],
-                                          self.args["video_input"])
+        hnc_segmenter = hnc_construct(self.args["hnc_args"],
+                                      self.args["video_input"])
 
         with h5py.File(self.args["video_input"], "r") as f:
             data = f["data"][()]
@@ -30,12 +32,12 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
         self.logger.info("segmentation complete")
 
         segmentations = hnc_segmenter.segmentations_to_list()
-        rois = [hsu.hnc_roi_to_extract_roi(s, i + 1)
+        rois = [hnc_roi_to_extract_roi(s, i + 1)
                 for i, s in enumerate(segmentations)]
 
-        seed_coords = data=[i["coords"] for i in hnc_segmenter.seeder._seeds]
-        seed_values = data=[i["value"] for i in hnc_segmenter.seeder._seeds]
-        seed_excluded = data=[i["excluded"] for i in hnc_segmenter.seeder._seeds]
+        seed_coords = [i["coords"] for i in hnc_segmenter.seeder._seeds]
+        seed_values = [i["value"] for i in hnc_segmenter.seeder._seeds]
+        seed_excluded = [i["excluded"] for i in hnc_segmenter.seeder._seeds]
         with h5py.File(self.args["seed_output"], "w") as f:
             seeds = f.create_group("seeds")
             seeds.create_dataset("coordinates", data=np.array(seed_coords))
@@ -49,7 +51,6 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
             json.dump(rois, f, indent=2)
         self.logger.info("segmented ROIs written to "
                          f"{self.args['roi_output']}")
-
 
 
 if __name__ == "__main__":

@@ -397,7 +397,7 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
 
         cross_corr = correlate_sub_videos(big, small, filter_fraction)
         cross_corr = cross_corr.max(axis=0)
-        if len(cross_corr) == 0 or len(self_corr) == 0:
+        if len(cross_corr) == 0 or len(self_corr) < 2:
             continue
         assert cross_corr.shape == (small.shape[1],)
 

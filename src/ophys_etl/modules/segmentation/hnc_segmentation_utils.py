@@ -1,3 +1,5 @@
+import json
+import h5py
 import numpy as np
 import tempfile
 from typing import TypedDict, List, Tuple
@@ -5,13 +7,14 @@ from pathlib import Path
 import networkx as nx
 import hnccorr.base as hncbase
 from hnccorr.utils import eight_neighborhood, add_offset_set_coordinates
+from scipy.ndimage import gaussian_filter
 
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation.modules.schemas import HNC_args
 from ophys_etl.modules.segmentation.modules.calculate_edges import \
         CalculateEdges
 from ophys_etl.modules.segmentation.graph_utils.plotting import \
-        graph_to_img
+        graph_to_img, add_rois_to_axes
 
 
 class HNC_ROI(TypedDict):
@@ -34,6 +37,25 @@ def hnc_roi_to_extract_roi(hnc_roi: HNC_ROI, id: int) -> ExtractROI:
             valid=True,
             mask=[i.tolist() for i in mask])
     return roi
+
+
+def plot_seeds_and_rois(axes, seed_h5_path, rois_path):
+    with open("sub64_rois.json", "r") as f:
+        rois = json.load(f)
+
+    with h5py.File("./sub64_seeds.h5", "r") as f:
+        seeds = f["seeds"]
+        s_coords = seeds["coordinates"][()]
+        s_excluded = seeds["excluded"][()]
+        seed_img = f["seed_image"][()]
+
+    axes.imshow(seed_img, cmap="gray")
+    for c, e in zip(s_coords, s_excluded):
+        marker = "o"
+        if e:
+            marker = "x"
+        axes.plot(c[1], c[0], marker=marker, color="b")
+    add_rois_to_axes(axes, rois, seed_img.shape)
 
 
 class AllenLocalCorrelationSeeder:
@@ -72,6 +94,8 @@ class AllenLocalCorrelationSeeder:
         g = nx.read_gpickle(graph_file.name)
         graph_file.close()
         img = graph_to_img(g, attribute_name=attribute)
+        img = gaussian_filter(img, mode="constant", sigma=3)
+
         row = 0
         seeds = dict()
         while row < img.shape[0]:
@@ -95,8 +119,9 @@ class AllenLocalCorrelationSeeder:
                        len(best_per_grid_block_sorted))
 
         # store best seeds
-        self._seeds = [seed
-                       for seed, _ in best_per_grid_block_sorted[:num_keep]]
+        self._seeds = [{"coords": (int(seed[0]), int(seed[1])), "value": val}
+                       for seed, val in best_per_grid_block_sorted[:num_keep]]
+        self._seed_img = img
         self.reset()
 
     def reset(self):
@@ -117,10 +142,13 @@ class AllenLocalCorrelationSeeder:
             None if no seeds remaining.
         """
         while self._current_index < len(self._seeds):
-            center_seed = self._seeds[self._current_index]
+            center_seed = self._seeds[self._current_index]["coords"]
             self._current_index += 1
 
-            if center_seed not in self._excluded_pixels:
+            if center_seed in self._excluded_pixels:
+                self._seeds[self._current_index - 1]["excluded"] = True
+            else:
+                self._seeds[self._current_index - 1]["excluded"] = False
                 return center_seed
         return None
 

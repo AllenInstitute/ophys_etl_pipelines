@@ -378,3 +378,6 @@ class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
     roi_output = argschema.fields.OutputFile(
         required=True,
         description="path to json file where ROIs will be saved")
+    seed_output = argschema.fields.OutputFile(
+        required=True,
+        description="path to json file where seeds will be saved")

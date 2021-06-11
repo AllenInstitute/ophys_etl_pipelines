@@ -1,6 +1,7 @@
 import argschema
 import h5py
 import json
+import numpy as np
 from hnccorr import Movie
 
 from ophys_etl.modules.segmentation.modules.schemas import \
@@ -32,10 +33,23 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
         rois = [hsu.hnc_roi_to_extract_roi(s, i + 1)
                 for i, s in enumerate(segmentations)]
 
+        seed_coords = data=[i["coords"] for i in hnc_segmenter.seeder._seeds]
+        seed_values = data=[i["value"] for i in hnc_segmenter.seeder._seeds]
+        seed_excluded = data=[i["excluded"] for i in hnc_segmenter.seeder._seeds]
+        with h5py.File(self.args["seed_output"], "w") as f:
+            seeds = f.create_group("seeds")
+            seeds.create_dataset("coordinates", data=np.array(seed_coords))
+            seeds.create_dataset("values", data=seed_values)
+            seeds.create_dataset("excluded", data=seed_excluded)
+            f.create_dataset("seed_image", data=hnc_segmenter.seeder._seed_img)
+        self.logger.info("seeds written to "
+                         f"{self.args['seed_output']}")
+
         with open(self.args["roi_output"], "w") as f:
             json.dump(rois, f, indent=2)
         self.logger.info("segmented ROIs written to "
                          f"{self.args['roi_output']}")
+
 
 
 if __name__ == "__main__":

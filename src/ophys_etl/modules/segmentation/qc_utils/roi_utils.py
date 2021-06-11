@@ -1,6 +1,7 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from matplotlib import figure
 from typing import List, Tuple, Callable, Optional, Union, Dict
 import numpy as np
 import pathlib
@@ -9,6 +10,7 @@ from ophys_etl.modules.decrosstalk.ophys_plane import (
     OphysROI,
     OphysMovie,
     find_overlapping_roi_pairs)
+from ophys_etl.types import ExtractROI
 
 
 def convert_keys(roi_list: List[Dict]) -> List[Dict]:
@@ -647,3 +649,59 @@ class ROIExaminer(object):
         trace_axis.set_ylim(tmin, tmax)
         trace_axis.tick_params(axis='both', labelsize=20)
         return None
+
+
+def add_rois_to_axes(axes, roi_list, shape):
+    bdry_pixels = np.zeros(shape, dtype=int)
+    for roi in roi_list:
+        ophys_roi = OphysROI(
+                        roi_id=0,
+                        x0=roi['x'],
+                        y0=roi['y'],
+                        width=roi['width'],
+                        height=roi['height'],
+                        valid_roi=False,
+                        mask_matrix=roi['mask'])
+
+        bdry = ophys_roi.boundary_mask
+        for ir in range(ophys_roi.height):
+            for ic in range(ophys_roi.width):
+                if bdry[ir, ic]:
+                    bdry_pixels[ir+ophys_roi.y0,
+                                ic+ophys_roi.x0] = 1
+
+    bdry_pixels = np.ma.masked_where(bdry_pixels == 0,
+                                     bdry_pixels)
+    axes.imshow(bdry_pixels, cmap='autumn', alpha=1.0)
+
+
+def create_roi_plot(plot_path: pathlib.Path,
+                    img_data: np.ndarray,
+                    roi_list: List[ExtractROI]) -> None:
+    """
+    Generate a side-by-side plot comparing the image data
+    used to seed ROI generation with the borders of the
+    discovered ROIs
+
+    Parameters
+    ----------
+    plot_path: pathlib.Path
+        Path to file where plot will be saved
+
+    img_data: np.ndarray
+        The baseline image over which to plot the ROIs
+
+    roi_list: List[ExtractROI]
+
+    Returns
+    -------
+    None
+    """
+    fig = figure.Figure(figsize=(40, 20))
+    axes = [fig.add_subplot(1, 2, i) for i in [1, 2]]
+    axes[0].imshow(img_data)
+    axes[1].imshow(img_data)
+    add_rois_to_axes(axes[1], roi_list, img_data.shape)
+    fig.tight_layout()
+    fig.savefig(plot_path)
+    return None

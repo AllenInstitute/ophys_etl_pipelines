@@ -12,7 +12,8 @@ from ophys_etl.modules.segmentation.modules.create_graph import CreateGraph
 from ophys_etl.modules.segmentation.modules.schemas import \
     CalculateEdgesInputSchema
 from ophys_etl.modules.segmentation.graph_utils import (
-    partition, edge_attributes, plotting)
+        partition, edge_attributes)
+from ophys_etl.modules.segmentation.qc_utils import graph_plotting
 
 matplotlib.use("agg")
 
@@ -110,7 +111,8 @@ class CalculateEdges(argschema.ArgSchemaParser):
         if "plot_output" in self.args:
             fig = matplotlib.figure.Figure(figsize=(16, 16), dpi=300)
             axes = fig.add_subplot(111)
-            plotting.draw_graph_edges(fig, axes, graph, self.args["attribute"])
+            graph_plotting.draw_graph_edges(
+                    fig, axes, graph, self.args["attribute"])
             fig.savefig(self.args["plot_output"])
             self.logger.info(f"wrote {self.args['plot_output']}")
 

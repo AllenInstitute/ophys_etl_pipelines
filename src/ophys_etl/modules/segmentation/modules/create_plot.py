@@ -3,7 +3,7 @@ import networkx as nx
 import matplotlib
 from matplotlib import figure
 
-from ophys_etl.modules.segmentation.graph_utils import plotting
+from ophys_etl.modules.segmentation.qc_utils import graph_plotting
 from ophys_etl.modules.segmentation.modules.schemas import \
     GraphPlotInputSchema
 
@@ -20,15 +20,17 @@ class GraphPlot(argschema.ArgSchemaParser):
         fig = figure.Figure(figsize=(16, 16))
         axis = fig.add_subplot(111)
         if self.args['draw_edges']:
-            plotting.draw_graph_edges(fig,
-                                      axis,
-                                      graph,
-                                      attribute_name=self.args['attribute'])
+            graph_plotting.draw_graph_edges(
+                    fig,
+                    axis,
+                    graph,
+                    attribute_name=self.args['attribute'])
         else:
-            plotting.draw_graph_img(fig,
-                                    axis,
-                                    graph,
-                                    attribute_name=self.args['attribute'])
+            graph_plotting.draw_graph_img(
+                    fig,
+                    axis,
+                    graph,
+                    attribute_name=self.args['attribute'])
         fig.savefig(self.args["plot_output"], dpi=300)
         self.logger.info(f"wrote {self.args['plot_output']}")
 

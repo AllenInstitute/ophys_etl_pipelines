@@ -6,9 +6,8 @@ import networkx as nx
 from matplotlib.figure import Figure
 from pathlib import Path
 
-from ophys_etl.modules.segmentation.graph_utils import (partition,
-                                                        community,
-                                                        plotting)
+from ophys_etl.modules.segmentation.graph_utils import partition, community
+from ophys_etl.modules.segmentation.qc_utils import graph_plotting
 from ophys_etl.modules.segmentation.modules.schemas import \
     SegmentV0InputSchema
 
@@ -51,10 +50,10 @@ class SegmentV0(argschema.ArgSchemaParser):
             fig = Figure(figsize=(18, 9), dpi=300)
             a0 = fig.add_subplot(121)
             a1 = fig.add_subplot(122, sharex=a0, sharey=a0)
-            plotting.draw_graph_edges(fig, a0, graph,
-                                      self.args["attribute_name"])
-            plotting.draw_graph_edges(fig, a1, new_graph,
-                                      self.args["attribute_name"])
+            graph_plotting.draw_graph_edges(fig, a0, graph,
+                                            self.args["attribute_name"])
+            graph_plotting.draw_graph_edges(fig, a1, new_graph,
+                                            self.args["attribute_name"])
             fig.savefig(self.args["plot_output"])
             self.logger.info(f"wrote {self.args['plot_output']}")
 

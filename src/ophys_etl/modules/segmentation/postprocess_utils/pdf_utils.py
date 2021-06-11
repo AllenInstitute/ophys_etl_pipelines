@@ -1,4 +1,5 @@
 import numpy as np
+import time
 
 
 def make_cdf(img_flat):
@@ -11,23 +12,60 @@ def make_cdf(img_flat):
     return val, cdf
 
 
-def cdf_to_pdf(cdf_bins, cdf_vals):
+def _fit_with_wgt(x0, xx, yy, dx):
+    w = np.exp(-0.5*((x0-xx)/dx)**2)
+    w = w/w.max()
+    w_sum = w.sum()
+    wy_sum = np.sum(w*yy)
+    wxy_sum = np.sum(w*yy*xx)
+    wx_sum = np.sum(w*xx)
+    wxsq_sum = np.sum(w*(xx**2))
 
-    delta = np.diff(cdf_bins)
-    pdf_bins = np.concatenate([np.array([cdf_bins[0]-0.5*delta[0]]),
-                               cdf_bins,
-                               np.array([cdf_bins[-1]+0.5*delta[-1]])])
+    b_denom = w_sum-wx_sum*wx_sum/wxsq_sum
+    b_num = wy_sum-wx_sum*wxy_sum/wxsq_sum
+    if np.abs(b_denom)<1.0e-20:
+        assert np.abs(b_num)<1.0e-10
+        return 0.0, 0.0
+    else:
+        b = b_num/b_denom
 
-    pdf_values = np.zeros(len(pdf_bins), dtype=float)
+    m_denom = wxsq_sum
+    m_num = (wxy_sum-b*wx_sum)
+    m = m_num/m_denom
 
-    pdf_values[1] = (cdf_vals[1]-cdf_vals[0])/(cdf_bins[1]-cdf_bins[0])
-    pdf_values[-2] = (cdf_vals[-1]-cdf_vals[-2])/(cdf_bins[-1]-cdf_bins[-2])
+    return m, b
 
-    num = (cdf_vals[2:]-cdf_vals[:-2])
-    denom = (cdf_bins[2:]-cdf_bins[:-2])
-    pdf_values[2:-2] = num/denom
+def cdf_to_pdf(cdf_x, cdf_y):
 
-    return pdf_bins, pdf_values
+    pdf_x = np.copy(cdf_x)
+    pdf_y = np.zeros(pdf_x.shape, dtype=float)
+    dx = (cdf_x.max()-cdf_x.min())/len(cdf_x)
+    for ix in range(len(pdf_x)):
+        x0 = pdf_x[ix]
+        m, b = _fit_with_wgt(pdf_x[ix],
+                             cdf_x,
+                             cdf_y,
+                             dx)
+        pdf_y[ix] = m
+    delta = np.diff(pdf_x).min()
+    if delta <= 0.0:
+        raise RuntimeError(f'delta = {delta} in cdf_to_pdf')
+    xmin = pdf_x[0]-0.5*delta
+    xmax = pdf_x[-1]+0.5*delta
+    pdf_x = np.concatenate([np.array([xmin]),
+                            pdf_x,
+                            np.array([xmax])])
+    if not (np.diff(pdf_x)>0).all():
+        raise RuntimeError(f'pdf_x diff min {np.diff(pdf_x).min()} '
+                           'in cdf to pdf')
+    pdf_y = np.concatenate([np.array([0.0]),
+                            pdf_y,
+                            np.array([0.0])])
+
+    integral = 0.5*(pdf_x[1:]-pdf_x[:-1])*(pdf_y[1:]+pdf_y[:-1])
+    integral = integral.sum()
+
+    return pdf_x, pdf_y/integral
 
 
 def pdf_to_entropy(pdf_bins, pdf_vals):

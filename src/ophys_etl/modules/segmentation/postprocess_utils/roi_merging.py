@@ -172,21 +172,26 @@ def correlate_sub_videos(sub_video_0: np.ndarray,
     corr = np.zeros((npix0, npix1), dtype=float)
 
     for i_pixel in range(npix0):
-        trace0 = sub_video_0[:, i_pixel]
-        th = np.quantile(trace0, discard)
-        mask = (trace0 > th)
-        trace0 = trace0[mask]
-        other_video = sub_video_1[mask, :]
-        other_mu = np.mean(other_video, axis=0)
-        assert other_mu.shape == (npix1, )
-        mu = np.mean(trace0)
-        var = np.mean((trace0-mu)**2)
-        other_video = other_video-other_mu
-        other_var = np.mean(other_video**2, axis=0)
-        assert other_var.shape == (npix1, )
-        numerator = np.dot(other_video.T, (trace0-mu))/mask.sum()
-        assert numerator.shape == (npix1, )
-        corr[i_pixel,:] = numerator/np.sqrt(var*other_var)
+        raw_trace0 = sub_video_0[:, i_pixel]
+        th = np.quantile(raw_trace0, discard)
+        mask0 = (raw_trace0 > th)
+        for i_other in range(npix1):
+            trace1 = sub_video_1[:, i_other]
+            th = np.quantile(trace1, discard)
+            mask1 = (trace1 > th)
+            mask = np.logical_or(mask0, mask1)
+            trace0 = raw_trace0[mask]
+            mu0 = np.mean(trace0)
+            var0 = np.mean((trace0-mu0)**2)
+            trace1 = trace1[mask]
+            mu1 = np.mean(trace1)
+            var1 = np.mean((trace1-mu1)**2)
+            num = np.mean((trace0-mu0)*(trace1-mu1))
+            denom = np.sqrt(var1*var0)
+            corr[i_pixel, i_other] = num/denom
+
+    assert corr.max()<=1.0
+    assert corr.min()>=-1.0
     return corr
 
 

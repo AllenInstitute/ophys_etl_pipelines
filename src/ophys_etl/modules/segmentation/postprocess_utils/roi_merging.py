@@ -248,8 +248,8 @@ def find_merger_candidates(roi_list: List[OphysROI],
                 p.start()
                 p_list.append(p)
                 subset = []
-                while len(p_list) > 0 and len(p_list) >= (n_processors-1):
-                    p_list = _winnow_p_list(p_list)
+            while len(p_list) > 0 and len(p_list) >= (n_processors-1):
+                p_list = _winnow_p_list(p_list)
 
     if len(subset) > 0:
         args = (subset, dpix, output_list)

@@ -2,7 +2,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib import figure
-from typing import List, Tuple, Callable, Optional, Union, Dict, TypedDict
+from typing import List, Tuple, Callable, Optional, Union, Dict
 import numpy as np
 import pathlib
 
@@ -11,6 +11,12 @@ from ophys_etl.modules.decrosstalk.ophys_plane import (
     OphysMovie,
     find_overlapping_roi_pairs)
 from ophys_etl.types import ExtractROI
+
+import sys
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
 
 
 def convert_keys(roi_list: List[Dict]) -> List[Dict]:

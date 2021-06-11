@@ -13,6 +13,8 @@ from scipy.spatial.distance import cdist
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
+from ophys_etl.modules.segmentation.postprocess_utils.pdf_utils import (
+    make_cdf)
 
 import logging
 
@@ -257,15 +259,6 @@ def correlate_sub_videos(sub_video_0: np.ndarray,
     assert corr.min()>=-1.0
     return corr
 
-
-def make_cdf(img_flat):
-    val, val_ct = np.unique(img_flat, return_counts=True)
-    cdf = np.cumsum(val_ct)
-    cdf = cdf/val_ct.sum()
-    assert len(val) == len(cdf)
-    assert cdf.max()<=1.0
-    assert cdf.min()>=0.0
-    return val, cdf
 
 
 def step_from_processors(n_elements, n_processors,

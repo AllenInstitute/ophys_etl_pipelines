@@ -1,6 +1,6 @@
 import numpy as np
 
-from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
+from ophys_etl.modules.segmentation.postprocess_utils.pdf_utils import (
     make_cdf)
 
 def test_cdf():

@@ -363,10 +363,12 @@ def _self_corr_subset(roi_id_list: List[int],
                                     filter_fraction)
 
         assert corr.shape[0] == corr.shape[1]
-        mask = np.ones(corr.shape, dtype=bool)
-        for ii in range(corr.shape[0]):
-            mask[ii,ii] = False
-        corr = corr[mask].flatten()
+        #mask = np.ones(corr.shape, dtype=bool)
+        #for ii in range(corr.shape[0]):
+        #    mask[ii,ii] = False
+        #corr = corr[mask].flatten()
+
+        corr = np.median(corr, axis=1)
         local_dict[roi_id] = corr
 
     k_list = list(local_dict.keys())
@@ -459,7 +461,7 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
             self_corr = self_corr_lookup[pair[1]]
 
         cross_corr = correlate_sub_videos(big, small, filter_fraction)
-        cross_corr = cross_corr.max(axis=0)
+        cross_corr = np.median(cross_corr, axis=0)
         if len(cross_corr) == 0 or len(self_corr) < 2:
             continue
         assert cross_corr.shape == (small.shape[1],)

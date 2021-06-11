@@ -3,7 +3,7 @@ import networkx as nx
 import matplotlib
 from matplotlib import figure
 
-from ophys_etl.modules.segmentation.graph_utils import plotting
+from ophys_etl.modules.segmentation.qc_utils import graph_plotting
 
 matplotlib.use('agg')
 
@@ -27,4 +27,4 @@ def graph_path(graph, tmpdir):
 def test_draw_graph_edges(graph):
     fig = figure.Figure()
     axis = fig.add_subplot(111)
-    plotting.draw_graph_edges(fig, axis, graph, attribute_name="weight")
+    graph_plotting.draw_graph_edges(fig, axis, graph, attribute_name="weight")

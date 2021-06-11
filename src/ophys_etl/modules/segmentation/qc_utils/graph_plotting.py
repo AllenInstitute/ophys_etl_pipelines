@@ -1,12 +1,11 @@
 import networkx as nx
 import numpy as np
-from typing import List, Union
-import pathlib
 from matplotlib import figure, axes
 from matplotlib.collections import LineCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
-from ophys_etl.types import ExtractROI
-from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+
+from ophys_etl.modules.segmentation.graph_utils.conversion import \
+    graph_to_img
 
 
 def draw_graph_edges(figure: figure.Figure,
@@ -60,100 +59,6 @@ def draw_graph_edges(figure: figure.Figure,
         cax = divider.append_axes("right", size="5%", pad=0.05)
         figure.colorbar(line_coll, ax=axis, cax=cax)
     axis.set_title(attribute_name)
-
-
-def create_roi_plot(plot_path: pathlib.Path,
-                    img_data: np.ndarray,
-                    roi_list: List[ExtractROI]) -> None:
-    """
-    Generate a side-by-side plot comparing the image data
-    used to seed ROI generation with the borders of the
-    discovered ROIs
-
-    Parameters
-    ----------
-    plot_path: pathlib.Path
-        Path to file where plot will be saved
-
-    img_data: np.ndarray
-        The baseline image over which to plot the ROIs
-
-    roi_list: List[ExtractROI]
-
-    Returns
-    -------
-    None
-    """
-    fig = figure.Figure(figsize=(40, 20))
-    axes = [fig.add_subplot(1, 2, i) for i in [1, 2]]
-    axes[0].imshow(img_data)
-    axes[1].imshow(img_data)
-
-    bdry_pixels = np.zeros(img_data.shape, dtype=int)
-    for roi in roi_list:
-        ophys_roi = OphysROI(
-                        roi_id=0,
-                        x0=roi['x'],
-                        y0=roi['y'],
-                        width=roi['width'],
-                        height=roi['height'],
-                        valid_roi=False,
-                        mask_matrix=roi['mask'])
-
-        bdry = ophys_roi.boundary_mask
-        for ir in range(ophys_roi.height):
-            for ic in range(ophys_roi.width):
-                if bdry[ir, ic]:
-                    bdry_pixels[ir+ophys_roi.y0,
-                                ic+ophys_roi.x0] = 1
-
-    bdry_pixels = np.ma.masked_where(bdry_pixels == 0,
-                                     bdry_pixels)
-    axes[1].imshow(bdry_pixels, cmap='autumn', alpha=1.0)
-    fig.tight_layout()
-    fig.savefig(plot_path)
-    return None
-
-
-def graph_to_img(graph: Union[pathlib.Path, nx.Graph],
-                 attribute_name: str = 'filtered_hnc_Gaussian') -> np.ndarray:
-    """
-    Convert a graph into a np.ndarray image
-
-    Parameters
-    ----------
-    graph: Union[pathlib.Path, nx.Graph]
-        Either a networkx.Graph or the path to a pickle file
-        containing the graph
-
-    attribute_name: str
-        Name of the attribute used to create the image
-        (default = 'filtered_hnc_Gaussian')
-
-    Returns
-    -------
-    np.ndarray
-        An image in which the value of each pixel is the
-        mean of the edge weights connected to that node in
-        the graph.
-    """
-    if isinstance(graph, pathlib.Path):
-        graph = nx.read_gpickle(graph)
-    else:
-        if not isinstance(graph, nx.Graph):
-            msg = "graph must be either a pathlib.Path or "
-            msg += f"a networkx.Graph. You gave {type(graph)}"
-            raise RuntimeError(msg)
-
-    node_coords = np.array(graph.nodes).T
-    row_max = node_coords[0].max()
-    col_max = node_coords[1].max()
-    img = np.zeros((row_max+1, col_max+1), dtype=float)
-    for node in graph.nodes:
-        vals = [graph[node][i][attribute_name]
-                for i in graph.neighbors(node)]
-        img[node[0], node[1]] = np.mean(vals)
-    return img
 
 
 def draw_graph_img(figure: figure.Figure,

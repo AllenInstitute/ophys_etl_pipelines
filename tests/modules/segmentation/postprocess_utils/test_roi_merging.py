@@ -200,19 +200,6 @@ def test_correlate_sub_videos():
             assert np.abs((val-corr[ipix0,ipix1])/val)<1.0e-10
 
 
-def test_cdf():
-    rng = np.random.RandomState(221144)
-    data_set_list = [rng.random_sample(200)*5.0,
-                     rng.normal(5.0, 2.0, size=300)]
-    for data_set in data_set_list:
-        (bins,
-         cdf) = make_cdf(data_set)
-        test = rng.random_sample(50)*5.2
-        interped_cdf = np.interp(test, bins, cdf)
-        for xx, yy in zip(test, interped_cdf):
-            ct = (data_set<xx).sum()
-            assert np.abs(yy-ct/len(data_set)) < 1.0e-2
-
 
 @pytest.mark.parametrize("dpix",[np.sqrt(2), 4, 5])
 def test_find_merger_candidates(dpix, example_roi_list):

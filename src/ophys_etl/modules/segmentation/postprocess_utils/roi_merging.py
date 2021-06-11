@@ -242,7 +242,7 @@ def find_merger_candidates(roi_list: List[OphysROI],
             roi1 = roi_list[i1]
             subset.append((roi0, roi1))
             if len(subset) >= d_pairs:
-                args = (subset, dpix, output_list)
+                args = (copy.deepcopy(subset), dpix, output_list)
                 p = multiprocessing.Process(target=_find_merger_candidates,
                                             args=args)
                 p.start()

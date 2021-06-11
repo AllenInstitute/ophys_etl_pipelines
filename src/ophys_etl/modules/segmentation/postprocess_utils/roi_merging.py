@@ -322,6 +322,7 @@ def create_self_correlation_lookup(roi_list: List[OphysROI],
 
     n_rois = len(roi_list)
     d_roi = step_from_processors(n_rois, n_processors, 1)
+    print('self corr step ',d_roi)
 
     mgr = multiprocessing.Manager()
     output_dict = mgr.dict()

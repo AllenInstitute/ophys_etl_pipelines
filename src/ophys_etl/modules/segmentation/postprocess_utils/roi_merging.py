@@ -224,6 +224,7 @@ def _find_merger_candidates(roi_pair_list, dpix, output_list):
 
 def find_merger_candidates(roi_list: List[OphysROI],
                            dpix: float,
+                           unchanged_rois: set,
                            n_processors: int):
     mgr = multiprocessing.Manager()
     output_list = mgr.list()
@@ -240,7 +241,8 @@ def find_merger_candidates(roi_list: List[OphysROI],
         roi0 = roi_list[i0]
         for i1 in range(i0+1, n_rois, 1):
             roi1 = roi_list[i1]
-            subset.append((roi0, roi1))
+            if roi0.roi_id not in unchanged_rois or roi1.roi_id not in unchanged_rois:
+                subset.append((roi0, roi1))
             if len(subset) >= d_pairs:
                 args = (copy.deepcopy(subset), dpix, output_list)
                 p = multiprocessing.Process(target=_find_merger_candidates,
@@ -466,7 +468,9 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
                                      filter_fraction: float,
                                      shuffler: np.random.RandomState,
                                      n_processors: int,
-                                     reused_self_corr: dict = {}):
+                                     reused_self_corr: dict):
+
+    unchanged_rois = set(reused_self_corr.keys())
 
     did_a_merger = False
     roi_lookup = {}
@@ -507,9 +511,14 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
     t0 = time.time()
     merger_candidates = find_merger_candidates(roi_list,
                                                np.sqrt(2.0),
+                                               unchanged_rois,
                                                n_processors)
-    logger.info(f'found merger_candidates ({len(merger_candidates)})'
+    logger.info('found merger_candidates '
+                f'({len(merger_candidates)} {len(unchanged_rois)})'
                 f' in {time.time()-t0:.2f} seconds')
+
+    for pair in merger_candidates:
+        assert (pair[0] not in unchanged_rois or pair[1] not in unchanged_rois)
 
     t0 = time.time()
     mergers = evaluate_mergers(merger_candidates,

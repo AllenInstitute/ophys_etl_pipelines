@@ -396,19 +396,23 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
             self_corr = self_corr_lookup[pair[1]]
 
         cross_corr = correlate_sub_videos(big, small, filter_fraction)
-        cross_corr = cross_corr.flatten()
+        cross_corr = cross_corr.max(axis=0)
         if len(cross_corr) == 0 or len(self_corr) == 0:
             continue
+        assert cross_corr.shape == (small.shape[1],)
 
         self_avg_corr = np.mean(1.0-self_corr)
         self_std = np.std(1.0-self_corr, ddof=1)
-        cross_avg_corr = np.mean(1.0-cross_corr)
-        cross_std = np.std(1.0-cross_corr, ddof=1)
+        #cross_avg_corr = np.mean(1.0-cross_corr)
+        #cross_std = np.std(1.0-cross_corr, ddof=1)
 
-        metric = (cross_avg_corr-self_avg_corr)/(self_std)
+        chisq_per_dof = ((cross_corr-self_avg_corr)/self_std)**2
+        chisq_per_dof = chisq_per_dof.sum()/len(cross_corr)
+
+        #metric = (cross_avg_corr-self_avg_corr)/(self_std)
         #print('metric ',metric,big_avg_corr,cross_avg_corr,big_avg_std)
-        if metric <= 1.0:
-            local_output[(pair[0], pair[1])] = metric
+        if chisq_per_dof <= 1.0:
+            local_output[(pair[0], pair[1])] = chisq_per_dof
 
         #chisq_per_dof = calculate_merger_chisq(self_corr, cross_corr)
         #if chisq_per_dof <= target_chisq:

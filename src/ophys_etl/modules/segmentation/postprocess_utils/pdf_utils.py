@@ -28,3 +28,17 @@ def cdf_to_pdf(cdf_bins, cdf_vals):
     pdf_values[2:-2] = num/denom
 
     return pdf_bins, pdf_values
+
+
+def pdf_to_entropy(pdf_bins, pdf_vals):
+    ln_pdf = np.where(pdf_vals>0.0,
+                      np.log(pdf_vals),
+                      0.0)
+    p_lnp = pdf_vals*ln_pdf
+    integral = 0.5*(pdf_bins[1:]-pdf_bins[:-1])*(p_lnp[1:]+p_lnp[:-1])
+    if not np.isfinite(integral).all():
+        raise RuntimeError("non finite value in entropy integral")
+    entropy = integral.sum()
+    if not np.isfinite(entropy):
+        raise RuntimeError("entropy is not finite")
+    return -1.0*integral.sum()

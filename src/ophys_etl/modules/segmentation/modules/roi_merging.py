@@ -9,6 +9,8 @@ from ophys_etl.modules.segmentation.modules.schemas import \
     RoiMergerSchema
 
 import ophys_etl.modules.segmentation.postprocess_utils.roi_merging as merging
+from ophys_etl.modules.segmentation.graph_utils.plotting import graph_to_img
+import networkx
 
 import logging
 import time
@@ -53,6 +55,12 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
         with h5py.File(self.args['video_input'], 'r') as in_file:
             whole_video = in_file['data'][()]
 
+        if self.args['graph_input'] is None:
+            graph_img = None
+        else:
+            graph_img = graph_to_img(networkx.read_gpickle(self.args['graph_input']),
+                                     attribute_name='filtered_hnc_Gaussian')
+
         shuffler = np.random.RandomState(551234)
         keep_going = True
         reusable_self_corr = {}
@@ -69,7 +77,9 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
                                         self.args['filter_fraction'],
                                         shuffler,
                                         self.args['n_parallel_workers'],
-                                        reused_self_corr=reusable_self_corr)
+                                        reused_self_corr=reusable_self_corr,
+                                        img_data=graph_img,
+                                        i_pass=i_pass)
             n_roi_1 = len(roi_list)
             duration = time.time()-t0
             self.logger.info(f'Merged {n_roi_0} ROIs to {n_roi_1} '

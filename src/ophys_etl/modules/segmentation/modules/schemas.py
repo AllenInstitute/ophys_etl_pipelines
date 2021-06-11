@@ -429,3 +429,8 @@ class RoiMergerSchema(argschema.ArgSchema):
             required=False,
             default=8,
             description=("number of parallel processes to use"))
+
+    graph_input = argschema.fields.InputFile(
+            required=False,
+            default=None,
+            allow_none=True)

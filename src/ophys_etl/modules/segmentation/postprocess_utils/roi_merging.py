@@ -1,3 +1,5 @@
+import matplotlib.figure as mplt_fig
+
 import numpy as np
 from typing import List, Tuple
 import pathlib
@@ -17,6 +19,67 @@ import logging
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
+
+
+def _plot_mergers(img_arr: np.ndarray,
+                 roi_lookup,
+                 merger_pairs,
+                 merger_metrics,
+                 out_name):
+
+    n = np.ceil(np.sqrt(len(merger_pairs))).astype(int)
+    fig = mplt_fig.Figure(figsize=(n*7, n*7))
+    axes = [fig.add_subplot(n,n,i) for i in range(1,len(merger_pairs)+1,1)]
+    mx = img_arr.max()
+    rgb_img = np.zeros((img_arr.shape[0], img_arr.shape[1], 3),
+                       dtype=np.uint8)
+    img = np.round(255*img_arr.astype(float)/max(1,mx)).astype(np.uint8)
+    for ic in range(3):
+        rgb_img[:,:,ic] = img
+    del img
+
+    alpha=0.5
+    for ii in range(len(merger_pairs)):
+        roi0 = roi_lookup[merger_pairs[ii][0]]
+        roi1 = roi_lookup[merger_pairs[ii][1]]
+        img = np.copy(rgb_img)
+
+        for roi, color in zip((roi0, roi1),[(255,0,0),(0,255,0)]):
+            msk = roi.mask_matrix
+            for ir in range(roi.height):
+                for ic in range(roi.width):
+                    if not msk[ir, ic]:
+                        continue
+                    row = ir+roi.y0
+                    col = ic+roi.x0
+                    for jj in range(3):
+                        old = rgb_img[row, col, jj]
+                        new = np.round(alpha*color[jj]+(1.0-alpha)*old)
+                        new = np.uint8(new)
+                        img[row, col, jj] = new
+            axes[ii].imshow(img)
+            axes[ii].set_title('%.2e' % merger_metrics[ii], fontsize=15)
+    for jj in range(ii, len(axes), 1):
+        axes[jj].tick_params(left=0,bottom=0,labelleft=0,labelbottom=0)
+        for s in ('top', 'left', 'bottom','right'):
+            axes[jj].spines[s].set_visible(False)
+
+    fig.tight_layout()
+    fig.savefig(out_name)
+
+
+def plot_mergers(img_arr: np.ndarray,
+                 roi_lookup,
+                 merger_pairs,
+                 merger_metrics,
+                 out_name):
+
+    n_sub = 16
+    for i0 in range(0, len(merger_pairs), n_sub):
+        s_pairs = merger_pairs[i0:i0+n_sub]
+        s_metrics = merger_metrics[i0:i0+n_sub]
+        _plot_mergers(img_arr, roi_lookup, s_pairs, s_metrics,
+                      out_name.replace('.png',f'_{i0}.png'))
 
 
 def _winnow_p_list(p_list):
@@ -473,7 +536,9 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
                                      filter_fraction: float,
                                      shuffler: np.random.RandomState,
                                      n_processors: int,
-                                     reused_self_corr: dict):
+                                     reused_self_corr: dict,
+                                     img_data=None,
+                                     i_pass:int = 0):
 
     unchanged_rois = set(reused_self_corr.keys())
 
@@ -534,6 +599,7 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
                                n_processors,
                                shuffler)
     logger.info(f'evaluated mergers in {time.time()-t0:.2f} seconds')
+    logger.info(f'found {len(mergers)} potential mergers')
 
     merger_values = []
     merger_pairs = []
@@ -542,13 +608,20 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
         merger_pairs.append(k)
         merger_values.append(mergers.pop(k))
     merger_values = np.array(merger_values)
+    merger_pairs = np.array(merger_pairs)
     sorted_indexes = np.argsort(merger_values)
+    merger_values = merger_values[sorted_indexes]
+    merger_pairs = merger_pairs[sorted_indexes]
+
+    if img_data is None:
+        img_data = np.zeros(video_data.shape[1:], dtype=np.uint8)
+    plot_mergers(img_data, roi_lookup, merger_pairs, merger_values,
+                 f'candidates/merger_candidate_{i_pass}.png')
 
     new_roi_lookup = {}
 
     has_been_merged = set()
-    for ii in sorted_indexes:
-        pair = merger_pairs[ii]
+    for pair in merger_pairs:
         if pair[0] in has_been_merged:
             continue
         if pair[1] in has_been_merged:

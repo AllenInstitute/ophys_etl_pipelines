@@ -502,7 +502,7 @@ def _chisq_from_video(sub_video, n_components=3):
     std = np.std(distances, ddof=1)
     chisq = ((transformed_video-mu)/std)**2
     chisq = chisq.sum()
-    return chisq+2.0*npix*n_components*np.log(std)
+    return chisq+npix*n_components*np.log(std)
 
 
 def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],

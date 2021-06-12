@@ -484,7 +484,7 @@ def _chisq_from_video(sub_video, n_components=3):
     #global_mask = np.unique(np.concatenate(global_mask))
     #sub_video = sub_video[:, global_mask]
 
-t    mean_pix = np.mean(sub_video, axis=0)
+    mean_pix = np.mean(sub_video, axis=0)
     assert mean_pix.shape == (ntime, )
     th = np.quantile(mean_pix, 0.8)
     mask = (mean_pix>th)

@@ -14,7 +14,9 @@ from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
 from ophys_etl.modules.segmentation.postprocess_utils.pdf_utils import (
-    make_cdf)
+    make_cdf,
+    cdf_to_pdf,
+    pdf_to_entropy)
 
 import logging
 
@@ -323,6 +325,22 @@ def find_merger_candidates(roi_list: List[OphysROI],
     return pair_list
 
 
+def create_merger_video_lookup(sub_video_lookup: dict,
+                               roi_pairs: list) -> dict:
+
+    merger_video_lookup = {}
+    for pair in roi_pairs:
+        n0 = sub_video_lookup[pair[0]].shape[1]
+        nt = sub_video_lookup[pair[0]].shape[0]
+        n1 = sub_video_lookup[pair[1]].shape[1]
+        assert sub_video_lookup[pair[1]].shape[0] == nt
+        new_sub_video = np.zeros((nt, n0+n1), dtype=float)
+        new_sub_video[:, :n0] = sub_video_lookup[pair[0]]
+        new_sub_video[:, n0:] = sub_video_lookup[pair[1]]
+        merger_video_lookup[pair] = new_sub_video
+    return merger_video_lookup
+
+
 def create_sub_video_lookup(video_data: np.ndarray,
                             roi_list: List[OphysROI]) -> dict:
     """
@@ -433,6 +451,7 @@ def calculate_merger_chisq(large_self_corr: np.ndarray,
 def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
                             self_corr_lookup: dict,
                             sub_video_lookup: dict,
+                            merger_video_lookup: dict,
                             filter_fraction: float,
                             p_value: float,
                             output_dict):
@@ -442,53 +461,61 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
     target_chisq = 2
 
     for pair in roi_pair_list:
-        sub0 = sub_video_lookup[pair[0]]
-        sub1 = sub_video_lookup[pair[1]]
 
-        if sub0.shape[1] > sub1.shape[1]:
-            big = sub0
-            small = sub1
-            self_corr = self_corr_lookup[pair[0]]
+        merger_video = merger_video_lookup[pair]
+        merger_corr = correlate_sub_videos(merger_video,
+                                           merger_video,
+                                           filter_fraction)
+
+        merger_corr = np.median(merger_corr, axis=1)
+
+        video0_corr = self_corr_lookup[pair[0]]
+        video1_corr = self_corr_lookup[pair[1]]
+
+        cdfx0, cdfy0 = make_cdf(video0_corr)
+        if len(cdfx0) < 2:
+            entropy0 = 0.0
         else:
-            big = sub1
-            small = sub0
-            self_corr = self_corr_lookup[pair[1]]
+            pdfx0, pdfy0 = cdf_to_pdf(cdfx0, cdfy0)
+            entropy0 = pdf_to_entropy(pdfx0, pdfy0)
 
-        cross_corr = correlate_sub_videos(big, small, filter_fraction)
-        cross_corr = np.median(cross_corr, axis=0)
-        if len(cross_corr) == 0 or len(self_corr) < 2:
-            continue
-        assert cross_corr.shape == (small.shape[1],)
+        cdfx1, cdfy1 = make_cdf(video1_corr)
+        if len(cdfx1) < 2:
+            entropy1 = 0.0
+        else:
+            pdfx1, pdfy1 = cdf_to_pdf(cdfx1, cdfy1)
+            entropy1 = pdf_to_entropy(pdfx1, pdfy1)
 
-        chisq_per_dof = calculate_merger_chisq(self_corr, cross_corr)
-        if chisq_per_dof < target_chisq:
-            local_output[(pair[0], pair[1])] = chisq_per_dof
+        cdfxm, cdfym = make_cdf(merger_corr)
+        if len(cdfxm) < 2:
+            entropym = 0.0
+        else:
+            pdfxm, pdfym = cdf_to_pdf(cdfxm, cdfym)
+            entropym = pdf_to_entropy(pdfxm, pdfym)
 
-        """
-        self_avg_corr = np.mean(1.0-self_corr)
-        self_std = np.std(1.0-self_corr, ddof=1)
+        dS = entropym-entropy0-entropy1
+        n0 = len(video0_corr)
+        n1 = len(video1_corr)
+        print(f'dS {dS:.2e} Sm {entropym:.2e} S0 {entropy0:.2e} {entropym-entropy0:.2e} '
+              f'S1 {entropy1: .2e} {entropym-entropy1:.2e} n0 {n0} n1 {n1} -- {merger_corr.shape}')
 
-        chisq_per_dof = ((cross_corr-self_avg_corr)/self_std)**2
-        chisq_per_dof = chisq_per_dof.sum()/len(cross_corr)
-
-        #metric = (cross_avg_corr-self_avg_corr)/(self_std)
-        #print('metric ',metric,big_avg_corr,cross_avg_corr,big_avg_std)
-        if chisq_per_dof <= 2.0:
-            local_output[(pair[0], pair[1])] = chisq_per_dof
-
-        #chisq_per_dof = calculate_merger_chisq(self_corr, cross_corr)
-        #if chisq_per_dof <= target_chisq:
-        #    local_output[(pair[0], pair[1])] = chisq_per_dof
-        """
+        if dS < 0.0:
+            local_output[(pair[0], pair[1])] = dS
 
     k_list = list(local_output.keys())
     for k in k_list:
         output_dict[k] = local_output.pop(k)
+    """
+    spock
+    probably, the basline entropy should be concatenating the two self correlations;
+    then, if median correlation gets worse by merging, entropy should go up (?)
 
+    """
 
 def evaluate_mergers(roi_pair_list: List[Tuple[int, int]],
                      self_corr_lookup: dict,
                      sub_video_lookup: dict,
+                     merger_video_lookup: dict,
                      filter_fraction: float,
                      p_value: float,
                      n_processors: int,
@@ -511,6 +538,7 @@ def evaluate_mergers(roi_pair_list: List[Tuple[int, int]],
         args = (subset,
                 self_corr_lookup,
                 sub_video_lookup,
+                merger_video_lookup,
                 filter_fraction,
                 p_value,
                 output_dict)
@@ -591,9 +619,15 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
         assert (pair[0] not in unchanged_rois or pair[1] not in unchanged_rois)
 
     t0 = time.time()
+    merger_video_lookup = create_merger_video_lookup(sub_video_lookup,
+                                                     merger_candidates)
+    logger.info(f'created merger video lookup in {time.time()-t0:.2f} seconds')
+
+    t0 = time.time()
     mergers = evaluate_mergers(merger_candidates,
                                self_corr_lookup,
                                sub_video_lookup,
+                               merger_video_lookup,
                                filter_fraction,
                                p_value,
                                n_processors,
@@ -624,7 +658,7 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
 
         roi_id_0 = pair[0]
         roi_id_1 = pair[1]
-        
+
         new0 = False
         new1 = False
         if roi_id_0 in merger_mapping:

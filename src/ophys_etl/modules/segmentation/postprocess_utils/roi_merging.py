@@ -1,7 +1,7 @@
 import matplotlib.figure as mplt_fig
 
 import numpy as np
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import pathlib
 import h5py
 import time
@@ -283,8 +283,8 @@ def _find_merger_candidates(roi_pair_list, dpix, output_list):
 
 def find_merger_candidates(roi_list: List[OphysROI],
                            dpix: float,
-                           unchanged_rois: set,
-                           n_processors: int):
+                           unchanged_rois: Optional[set]=None,
+                           n_processors: int = 8):
     mgr = multiprocessing.Manager()
     output_list = mgr.list()
 
@@ -300,8 +300,11 @@ def find_merger_candidates(roi_list: List[OphysROI],
         roi0 = roi_list[i0]
         for i1 in range(i0+1, n_rois, 1):
             roi1 = roi_list[i1]
-            if roi0.roi_id not in unchanged_rois or roi1.roi_id not in unchanged_rois:
+            if unchanged_rois is None:
                 subset.append((roi0, roi1))
+            else:
+                if roi0.roi_id not in unchanged_rois or roi1.roi_id not in unchanged_rois:
+                    subset.append((roi0, roi1))
             if len(subset) >= d_pairs:
                 args = (copy.deepcopy(subset), dpix, output_list)
                 p = multiprocessing.Process(target=_find_merger_candidates,
@@ -469,7 +472,24 @@ def _chisq_from_video(sub_video, n_components=3):
     if sub_video.shape[1] < (n_components+1):
         return 0.0
     npix = sub_video.shape[1]
+    ntime = sub_video.shape[0]
     sub_video = sub_video.T
+
+    # select brightest pixels
+    #global_mask = []
+    #for i_pixel in range(npix):
+    #    th = np.quantile(sub_video[i_pixel, :], 0.9)
+    #    mask = np.where(sub_video[i_pixel, :]>th)[0]
+    #    global_mask.append(mask)
+    #global_mask = np.unique(np.concatenate(global_mask))
+    #sub_video = sub_video[:, global_mask]
+
+t    mean_pix = np.mean(sub_video, axis=0)
+    assert mean_pix.shape == (ntime, )
+    th = np.quantile(mean_pix, 0.8)
+    mask = (mean_pix>th)
+    sub_video = sub_video[:, mask]
+
     pca = sklearn_PCA(n_components=n_components, copy=True)
 
     transformed_video = pca.fit_transform(sub_video)
@@ -477,7 +497,7 @@ def _chisq_from_video(sub_video, n_components=3):
 
     mu = np.mean(transformed_video, axis=0)
     assert mu.shape == (3,)
-    distances = np.sqrt((transformed_video-mu)**2).sum(axis=1)
+    distances = np.sqrt(((transformed_video-mu)**2).sum(axis=1))
     assert distances.shape == (npix,)
     std = np.std(distances, ddof=1)
     chisq = ((transformed_video-mu)/std)**2
@@ -598,14 +618,14 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
     t0 = time.time()
     merger_candidates = find_merger_candidates(roi_list,
                                                np.sqrt(2.0),
-                                               unchanged_roi,
-                                               n_processors)
+                                               unchanged_rois=None,
+                                               n_processors=n_processors)
     logger.info('found merger_candidates '
                 f'({len(merger_candidates)} {len(unchanged_roi)})'
                 f' in {time.time()-t0:.2f} seconds')
 
-    for pair in merger_candidates:
-        assert (pair[0] not in unchanged_roi or pair[1] not in unchanged_roi)
+    #for pair in merger_candidates:
+    #    assert (pair[0] not in unchanged_roi or pair[1] not in unchanged_roi)
 
     t0 = time.time()
     merger_video_lookup = create_merger_video_lookup(sub_video_lookup,
@@ -641,13 +661,29 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
                  f'candidates/merger_candidate_{i_pass}.png')
 
     new_roi_lookup = {}
+    has_been_considered = set()
     has_been_merged = set()
-    for pair in merger_pairs:
+
+    been_merged_pairs = []
+    been_merged_lookup = {}
+    been_merged_values = []
+
+    for pair, vv in zip(merger_pairs, merger_values):
 
         roi_id_0 = pair[0]
         roi_id_1 = pair[1]
 
         if roi_id_0 == roi_id_1:
+            continue
+
+        keep_going = True
+        if roi_id_0 in has_been_considered or roi_id_1 in has_been_considered:
+            keep_going = False
+
+        has_been_considered.add(roi_id_0)
+        has_been_considered.add(roi_id_1)
+
+        if not keep_going:
             continue
 
         if roi_id_0 in has_been_merged or roi_id_1 in has_been_merged:
@@ -660,6 +696,12 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
             new_roi_id = roi0.roi_id
         else:
             new_roi_id = roi1.roi_id
+
+        been_merged_pairs.append((roi_id_0, roi_id_1))
+        been_merged_lookup[roi_id_0] = roi0
+        been_merged_lookup[roi_id_1] = roi1
+        been_merged_values.append(vv)
+
         new_roi = merge_rois(roi0, roi1, new_roi_id)
 
         if new_roi.roi_id in new_roi_lookup:
@@ -670,6 +712,10 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
         did_a_merger = True
         has_been_merged.add(roi_id_0)
         has_been_merged.add(roi_id_1)
+
+    plot_mergers(img_data, been_merged_lookup, been_merged_pairs, been_merged_values,
+                 f'candidates/accepted_merger_candidate_{i_pass}.png')
+
 
     unchanged_roi = set()
     for roi_id in roi_lookup:

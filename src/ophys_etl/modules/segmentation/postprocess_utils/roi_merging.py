@@ -493,16 +493,16 @@ def _chisq_from_video(sub_video, n_components=3):
     pca = sklearn_PCA(n_components=n_components, copy=True)
 
     transformed_video = pca.fit_transform(sub_video)
-    assert transformed_video.shape==(sub_video.shape[0], 3)
+    assert transformed_video.shape==(sub_video.shape[0], n_components)
 
     mu = np.mean(transformed_video, axis=0)
-    assert mu.shape == (3,)
+    assert mu.shape == (n_components,)
     distances = np.sqrt(((transformed_video-mu)**2).sum(axis=1))
     assert distances.shape == (npix,)
     std = np.std(distances, ddof=1)
     chisq = ((transformed_video-mu)/std)**2
     chisq = chisq.sum()
-    return chisq
+    return chisq+2.0*npix*n_components*np.log(std)
 
 
 def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],

@@ -8,6 +8,7 @@ import time
 import copy
 import multiprocessing
 import multiprocessing.managers
+from sklearn.decomposition import PCA as sklearn_PCA
 
 from scipy.spatial.distance import cdist
 from ophys_etl.types import ExtractROI
@@ -380,7 +381,7 @@ def _self_corr_subset(roi_id_list: List[int],
         #       mask[ii,jj] = False
         #corr = corr[mask].flatten()
 
-        corr = np.median(corr, axis=1)
+        corr = np.mean(corr, axis=1)
         local_dict[roi_id] = corr
 
     k_list = list(local_dict.keys())
@@ -460,8 +461,31 @@ def _calc_entropy(corr: np.ndarray):
     prob = unq_ct/tot
     return -1.0*np.sum(prob*np.log(prob))
 
+
+def _chisq_from_video(sub_video, n_components=3):
+    """
+    sub_video is (nt, npix)
+    """
+    if sub_video.shape[1] < (n_components+1):
+        return 0.0
+    npix = sub_video.shape[1]
+    sub_video = sub_video.T
+    pca = sklearn_PCA(n_components=n_components, copy=True)
+
+    transformed_video = pca.fit_transform(sub_video)
+    assert transformed_video.shape==(sub_video.shape[0], 3)
+
+    mu = np.mean(transformed_video, axis=0)
+    assert mu.shape == (3,)
+    distances = np.sqrt((transformed_video-mu)**2).sum(axis=1)
+    assert distances.shape == (npix,)
+    std = np.std(distances, ddof=1)
+    chisq = ((transformed_video-mu)/std)**2
+    chisq = chisq.sum()
+    return chisq
+
+
 def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
-                            self_corr_lookup: dict,
                             sub_video_lookup: dict,
                             merger_video_lookup: dict,
                             filter_fraction: float,
@@ -469,38 +493,33 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
                             output_dict):
 
     local_output = {}
-    target_chisq = -2.0*np.log(p_value)
-    target_chisq = 2
+    n_components=3
 
     for pair in roi_pair_list:
 
+        video0 = sub_video_lookup[pair[0]]
+        video1 = sub_video_lookup[pair[1]]
         merger_video = merger_video_lookup[pair]
-        merger_corr = correlate_sub_videos(merger_video,
-                                           merger_video,
-                                           filter_fraction)
-
-        merger_corr = np.median(merger_corr, axis=1)
-        #mask = np.ones(merger_corr.shape, dtype=bool)
-        #for ii in range(merger_corr.shape[0]):
-        #    for jj in range(ii+1):
-        #       mask[ii,jj] = False
-        #merger_corr = merger_corr[mask].flatten()
-
-        video0_corr = self_corr_lookup[pair[0]]
-        video1_corr = self_corr_lookup[pair[1]]
-        entropy0 = _calc_entropy(video0_corr)
-        entropy1 = _calc_entropy(video1_corr)
-        entropym = _calc_entropy(merger_corr)
+        npix = merger_video.shape[1]
+        assert npix == (video0.shape[1]+video1.shape[1])
 
 
-        dS = min(entropym-entropy0, entropym-entropy1)
-        n0 = len(video0_corr)
-        n1 = len(video1_corr)
-        print(f'dS {dS:.2e} Sm {entropym:.2e} S0 {entropy0:.2e} {entropym-entropy0:.2e} '
-              f'S1 {entropy1: .2e} {entropym-entropy1:.2e} n0 {n0} n1 {n1} -- {merger_corr.shape}')
+        chisq0 = _chisq_from_video(video0,
+                                   n_components=n_components)
+        chisq1 = _chisq_from_video(video1,
+                                   n_components=n_components)
+        chisq_merger = _chisq_from_video(merger_video,
+                                         n_components=n_components)
 
-        if dS < 0.0:
-            local_output[(pair[0], pair[1])] = dS
+        bic_baseline = 2*(n_componens+1)*np.log(npix) + chisq0 + chisq1
+        bic_merger = (n_components+1)*np.log(npix) + chisq_merger
+        d_bic = bic_merger-bic_baseline
+
+        print(f'd_bic {d_bic} chisq_m {chisq_merger} chisq0 {chisq0} chisq1 {chisq1} '
+              f'pixels {video0.shape[1]} {video1.shape[1]}')
+
+        if d_bic < 0.0:
+            local_output[(pair[0], pair[1])] = d_bic
 
     k_list = list(local_output.keys())
     for k in k_list:
@@ -513,7 +532,6 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
     """
 
 def evaluate_mergers(roi_pair_list: List[Tuple[int, int]],
-                     self_corr_lookup: dict,
                      sub_video_lookup: dict,
                      merger_video_lookup: dict,
                      filter_fraction: float,
@@ -536,7 +554,6 @@ def evaluate_mergers(roi_pair_list: List[Tuple[int, int]],
     for i0 in range(0, n_pairs, d_pairs):
         subset = roi_pair_list[i0:i0+d_pairs]
         args = (subset,
-                self_corr_lookup,
                 sub_video_lookup,
                 merger_video_lookup,
                 filter_fraction,
@@ -564,11 +581,9 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
                                      filter_fraction: float,
                                      shuffler: np.random.RandomState,
                                      n_processors: int,
-                                     reused_self_corr: dict,
+                                     unchanged_roi: set,
                                      img_data=None,
                                      i_pass:int = 0):
-
-    unchanged_rois = set(reused_self_corr.keys())
 
     did_a_merger = False
     roi_lookup = {}
@@ -586,37 +601,16 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
     logger.info(f'created sub_video_lookup in {time.time()-t0:.2f} seconds')
 
     t0 = time.time()
-    corr_roi_list = []
-    for roi in roi_list:
-        if roi.roi_id not in reused_self_corr:
-            corr_roi_list.append(roi)
-    self_corr_lookup = create_self_correlation_lookup(
-                           corr_roi_list,
-                           sub_video_lookup,
-                           filter_fraction,
-                           n_processors,
-                           shuffler)
-
-    for roi_id in reused_self_corr:
-        if roi_id in self_corr_lookup:
-            raise RuntimeError(f'roi_id {roi_id} in both reusable '
-                               'self corr and new self corr')
-        self_corr_lookup[roi_id] = reused_self_corr[roi_id]
-
-    logger.info(f'created self_corr_lookup in {time.time()-t0:.2f} seconds '
-                f'(calculated {len(corr_roi_list)} of {len(roi_list)} rois)')
-
-    t0 = time.time()
     merger_candidates = find_merger_candidates(roi_list,
                                                np.sqrt(2.0),
-                                               unchanged_rois,
+                                               unchanged_roi,
                                                n_processors)
     logger.info('found merger_candidates '
-                f'({len(merger_candidates)} {len(unchanged_rois)})'
+                f'({len(merger_candidates)} {len(unchanged_roi)})'
                 f' in {time.time()-t0:.2f} seconds')
 
     for pair in merger_candidates:
-        assert (pair[0] not in unchanged_rois or pair[1] not in unchanged_rois)
+        assert (pair[0] not in unchanged_roi or pair[1] not in unchanged_roi)
 
     t0 = time.time()
     merger_video_lookup = create_merger_video_lookup(sub_video_lookup,
@@ -625,7 +619,6 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
 
     t0 = time.time()
     mergers = evaluate_mergers(merger_candidates,
-                               self_corr_lookup,
                                sub_video_lookup,
                                merger_video_lookup,
                                filter_fraction,
@@ -653,34 +646,20 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
                  f'candidates/merger_candidate_{i_pass}.png')
 
     new_roi_lookup = {}
-    merger_mapping = {}  # map original roi_id to new roi_id
+    has_been_merged = set()
     for pair in merger_pairs:
 
         roi_id_0 = pair[0]
         roi_id_1 = pair[1]
 
-        new0 = False
-        new1 = False
-        if roi_id_0 in merger_mapping:
-            roi_id_0 = merger_mapping[roi_id_0]
-            new0 = True
-
-        if roi_id_1 in merger_mapping:
-            roi_id_1 = merger_mapping[roi_id_1]
-            new1 = True
-
         if roi_id_0 == roi_id_1:
             continue
 
-        if new0:
-            roi0 = new_roi_lookup.pop(roi_id_0)
-        else:
-            roi0 = roi_lookup.pop(roi_id_0)
+        if roi_id_0 in has_been_merged or roi_id_1 in has_been_merged:
+            continue
 
-        if new1:
-            roi1 = new_roi_lookup.pop(roi_id_1)
-        else:
-            roi1 = roi_lookup.pop(roi_id_1)
+        roi0 = roi_lookup.pop(roi_id_0)
+        roi1 = roi_lookup.pop(roi_id_1)
 
         if roi0.mask_matrix.sum() > roi1.mask_matrix.sum():
             new_roi_id = roi0.roi_id
@@ -688,30 +667,23 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
             new_roi_id = roi1.roi_id
         new_roi = merge_rois(roi0, roi1, new_roi_id)
 
-        for k in merger_mapping:
-            if merger_mapping[k] == roi0.roi_id:
-                merger_mapping[k] = new_roi_id
-            if merger_mapping[k] == roi1.roi_id:
-                merger_mapping[k] = new_roi_id
-
-        merger_mapping[roi0.roi_id] = new_roi_id
-        merger_mapping[roi1.roi_id] = new_roi_id
-
         if new_roi.roi_id in new_roi_lookup:
             raise RuntimeError(f'roi_id {new_roi.roi_id} '
                                'duplicated in new lookup')
 
         new_roi_lookup[new_roi.roi_id] = new_roi
         did_a_merger = True
+        has_been_merged.add(roi_id_0)
+        has_been_merged.add(roi_id_1)
 
-    reusable_self_corr = {}
+    unchanged_roi = set()
     for roi_id in roi_lookup:
         if roi_id in new_roi_lookup:
             raise RuntimeError(f'on final pass roi_id {roi_id} '
                                'duplicated in new lookup')
         new_roi_lookup[roi_id] = roi_lookup[roi_id]
-        reusable_self_corr[roi_id] = self_corr_lookup[roi_id]
+        unchanged_roi.add(roi_id)
 
     return (did_a_merger,
            list(new_roi_lookup.values()),
-           reusable_self_corr)
+           unchanged_roi)

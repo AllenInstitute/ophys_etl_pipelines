@@ -502,7 +502,8 @@ def _chisq_from_video(sub_video, n_components=3):
     std = np.std(distances, ddof=1)
     chisq = ((transformed_video-mu)/std)**2
     chisq = chisq.sum()
-    return chisq+npix*n_components*np.log(std)+n_components*npix*np.log(2.0*np.pi)
+
+    return chisq+n_components*npix*np.log(std)+n_components*npix*np.log(2.0*np.pi)
 
 
 def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
@@ -521,18 +522,23 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
         video1 = sub_video_lookup[pair[1]]
         merger_video = merger_video_lookup[pair]
         npix = merger_video.shape[1]
-        assert npix == (video0.shape[1]+video1.shape[1])
-
+        npix0 = video0.shape[1]
+        npix1 = video1.shape[1]
+        assert npix == (npix0+npix1)
 
         chisq0 = _chisq_from_video(video0,
                                    n_components=n_components)
+
         chisq1 = _chisq_from_video(video1,
                                    n_components=n_components)
+
         chisq_merger = _chisq_from_video(merger_video,
                                          n_components=n_components)
 
-        bic_baseline = 2*(n_components+1)*np.log(npix) + chisq0 + chisq1
-        bic_merger = (n_components+1)*np.log(npix) + chisq_merger
+        # PCA is effectively finding the three center components
+        # and the three sigmas
+        bic_baseline = 4*n_components*np.log(npix) + chisq0 + chisq1
+        bic_merger = 2*n_components*np.log(npix) + chisq_merger
         d_bic = bic_merger-bic_baseline
 
         print(f'd_bic {d_bic} chisq_m {chisq_merger} chisq0 {chisq0} chisq1 {chisq1} '

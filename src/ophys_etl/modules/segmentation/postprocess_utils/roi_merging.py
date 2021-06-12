@@ -376,7 +376,8 @@ def _self_corr_subset(roi_id_list: List[int],
         assert corr.shape[0] == corr.shape[1]
         #mask = np.ones(corr.shape, dtype=bool)
         #for ii in range(corr.shape[0]):
-        #    mask[ii,ii] = False
+        #    for jj in range(ii+1):
+        #       mask[ii,jj] = False
         #corr = corr[mask].flatten()
 
         corr = np.median(corr, axis=1)
@@ -448,6 +449,17 @@ def calculate_merger_chisq(large_self_corr: np.ndarray,
     return chisq_per_dof
 
 
+def _calc_entropy(corr: np.ndarray):
+    if len(corr) == 0:
+        return 0.0
+    dx = 0.01
+    hist = np.round(corr/dx).astype(int)
+    unq, unq_ct = np.unique(hist, return_counts=True)
+    unq_ct = unq_ct.astype(float)
+    tot = unq_ct.sum()
+    prob = unq_ct/tot
+    return -1.0*np.sum(prob*np.log(prob))
+
 def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
                             self_corr_lookup: dict,
                             sub_video_lookup: dict,
@@ -468,32 +480,20 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
                                            filter_fraction)
 
         merger_corr = np.median(merger_corr, axis=1)
+        #mask = np.ones(merger_corr.shape, dtype=bool)
+        #for ii in range(merger_corr.shape[0]):
+        #    for jj in range(ii+1):
+        #       mask[ii,jj] = False
+        #merger_corr = merger_corr[mask].flatten()
 
         video0_corr = self_corr_lookup[pair[0]]
         video1_corr = self_corr_lookup[pair[1]]
+        entropy0 = _calc_entropy(video0_corr)
+        entropy1 = _calc_entropy(video1_corr)
+        entropym = _calc_entropy(merger_corr)
 
-        cdfx0, cdfy0 = make_cdf(video0_corr)
-        if len(cdfx0) < 2:
-            entropy0 = 0.0
-        else:
-            pdfx0, pdfy0 = cdf_to_pdf(cdfx0, cdfy0)
-            entropy0 = pdf_to_entropy(pdfx0, pdfy0)
 
-        cdfx1, cdfy1 = make_cdf(video1_corr)
-        if len(cdfx1) < 2:
-            entropy1 = 0.0
-        else:
-            pdfx1, pdfy1 = cdf_to_pdf(cdfx1, cdfy1)
-            entropy1 = pdf_to_entropy(pdfx1, pdfy1)
-
-        cdfxm, cdfym = make_cdf(merger_corr)
-        if len(cdfxm) < 2:
-            entropym = 0.0
-        else:
-            pdfxm, pdfym = cdf_to_pdf(cdfxm, cdfym)
-            entropym = pdf_to_entropy(pdfxm, pdfym)
-
-        dS = entropym-entropy0-entropy1
+        dS = min(entropym-entropy0, entropym-entropy1)
         n0 = len(video0_corr)
         n1 = len(video1_corr)
         print(f'dS {dS:.2e} Sm {entropym:.2e} S0 {entropy0:.2e} {entropym-entropy0:.2e} '

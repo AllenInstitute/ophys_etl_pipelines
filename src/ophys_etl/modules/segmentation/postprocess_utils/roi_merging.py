@@ -524,12 +524,7 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
     k_list = list(local_output.keys())
     for k in k_list:
         output_dict[k] = local_output.pop(k)
-    """
-    spock
-    probably, the basline entropy should be concatenating the two self correlations;
-    then, if median correlation gets worse by merging, entropy should go up (?)
 
-    """
 
 def evaluate_mergers(roi_pair_list: List[Tuple[int, int]],
                      sub_video_lookup: dict,

@@ -511,7 +511,7 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
         chisq_merger = _chisq_from_video(merger_video,
                                          n_components=n_components)
 
-        bic_baseline = 2*(n_componens+1)*np.log(npix) + chisq0 + chisq1
+        bic_baseline = 2*(n_components+1)*np.log(npix) + chisq0 + chisq1
         bic_merger = (n_components+1)*np.log(npix) + chisq_merger
         d_bic = bic_merger-bic_baseline
 

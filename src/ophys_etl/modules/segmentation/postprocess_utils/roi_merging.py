@@ -475,21 +475,6 @@ def _chisq_from_video(sub_video, n_components=3):
     ntime = sub_video.shape[0]
     sub_video = sub_video.T
 
-    # select brightest pixels
-    #global_mask = []
-    #for i_pixel in range(npix):
-    #    th = np.quantile(sub_video[i_pixel, :], 0.9)
-    #    mask = np.where(sub_video[i_pixel, :]>th)[0]
-    #    global_mask.append(mask)
-    #global_mask = np.unique(np.concatenate(global_mask))
-    #sub_video = sub_video[:, global_mask]
-
-    mean_pix = np.mean(sub_video, axis=0)
-    assert mean_pix.shape == (ntime, )
-    th = np.quantile(mean_pix, 0.8)
-    mask = (mean_pix>th)
-    sub_video = sub_video[:, mask]
-
     pca = sklearn_PCA(n_components=n_components, copy=True)
 
     transformed_video = pca.fit_transform(sub_video)
@@ -541,7 +526,7 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
         bic_merger = 2*n_components*np.log(npix) + chisq_merger
         d_bic = bic_merger-bic_baseline
 
-        if d_bic < -0.5*(npix0+npix1):
+        if d_bic < 0.0:
             print(f'd_bic {d_bic} chisq_m {chisq_merger} chisq0 {chisq0} chisq1 {chisq1} '
                   f'pixels {video0.shape[1]} {video1.shape[1]}')
             local_output[(pair[0], pair[1])] = d_bic

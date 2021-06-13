@@ -541,10 +541,9 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
         bic_merger = 2*n_components*np.log(npix) + chisq_merger
         d_bic = bic_merger-bic_baseline
 
-        print(f'd_bic {d_bic} chisq_m {chisq_merger} chisq0 {chisq0} chisq1 {chisq1} '
-              f'pixels {video0.shape[1]} {video1.shape[1]}')
-
-        if d_bic < 0.0:
+        if d_bic < -0.5*(npix0+npix1):
+            print(f'd_bic {d_bic} chisq_m {chisq_merger} chisq0 {chisq0} chisq1 {chisq1} '
+                  f'pixels {video0.shape[1]} {video1.shape[1]}')
             local_output[(pair[0], pair[1])] = d_bic
 
     k_list = list(local_output.keys())

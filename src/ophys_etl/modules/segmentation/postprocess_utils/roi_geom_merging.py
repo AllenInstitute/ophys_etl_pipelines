@@ -163,6 +163,18 @@ class SegmentationROI(OphysROI):
                    ancestors=ancestors,
                    flux_value=flux_value)
 
+    @property
+    def peak(self):
+        if len(self.ancestors) == 0:
+            return self
+        peak_val = None
+        peak_roi = None
+        for roi in self.ancestors:
+            if peak_val is None or roi.flux_value > peak_val:
+                peak_roi = roi
+                peak_value = roi.flux_value
+        return peak_roi
+
 
 def merge_segmentation_rois(roi0, roi1, new_roi_id, flux_value):
     new_roi = merge_rois(roi0, roi1, new_roi_id=new_roi_id)

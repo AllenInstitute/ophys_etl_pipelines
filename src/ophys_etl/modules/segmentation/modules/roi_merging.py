@@ -38,6 +38,15 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
 
     def run(self):
 
+        diagnostic_dir = None
+        if self.args['diagnostic_dir'] is not None:
+            diagnostic_dir = pathlib.Path(self.args['diagnostic_dir'])
+            if diagnostic_dir.exists():
+                if not diagnostic_dir.is_dir():
+                    raise RuntimeError(f'{str(diagnostic_dir)} is not a dir')
+            else:
+                diagnostic_dir.mkdir(parents=True)
+
         t0 = time.time()
         with open(self.args['roi_input'], 'rb') as in_file:
             raw_roi_list = json.load(in_file)
@@ -79,12 +88,15 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
                                         self.args['n_parallel_workers'],
                                         unchanged_roi=unchanged_roi,
                                         img_data=graph_img,
-                                        i_pass=i_pass)
+                                        i_pass=i_pass,
+                                        diagnostic_dir=diagnostic_dir)
             n_roi_1 = len(roi_list)
             duration = time.time()-t0
             self.logger.info(f'Merged {n_roi_0} ROIs to {n_roi_1} '
                              f'after {duration:.2f} seconds')
-            write_out_rois(roi_list, self.args['roi_output'].replace('.json',f'_{i_pass}.json'))
+            if diagnostic_dir is not None:
+                intermediate_out = diagnostic_dir / f'rois_{i_pass}.json'
+                write_out_rois(roi_list, intermediate_out)
 
 
         write_out_rois(roi_list, self.args['roi_output'])

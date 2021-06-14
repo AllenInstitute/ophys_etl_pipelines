@@ -343,3 +343,8 @@ class RoiMergerSchema(argschema.ArgSchema):
             required=False,
             default=None,
             allow_none=True)
+
+    diagnostic_dir = argschema.fields.Str(
+            required=True,
+            default=None,
+            allow_none=True)

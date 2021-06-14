@@ -84,7 +84,7 @@ def plot_mergers(img_arr: np.ndarray,
         s_pairs = merger_pairs[i0:i0+n_sub]
         s_metrics = merger_metrics[i0:i0+n_sub]
         _plot_mergers(img_arr, roi_lookup, s_pairs, s_metrics,
-                      out_name.replace('.png',f'_{i0}.png'))
+                      str(out_name).replace('.png',f'_{i0}.png'))
 
 
 def _winnow_p_list(p_list):
@@ -588,7 +588,8 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
                                      n_processors: int,
                                      unchanged_roi: set,
                                      img_data=None,
-                                     i_pass:int = 0):
+                                     i_pass:int = 0,
+                                     diagnostic_dir=None):
 
     did_a_merger = False
     roi_lookup = {}
@@ -647,8 +648,6 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
 
     if img_data is None:
         img_data = np.zeros(video_data.shape[1:], dtype=np.uint8)
-    plot_mergers(img_data, roi_lookup, merger_pairs, merger_values,
-                 f'candidates/merger_candidate_{i_pass}.png')
 
     new_roi_lookup = {}
     has_been_considered = set()
@@ -703,8 +702,10 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
         has_been_merged.add(roi_id_0)
         has_been_merged.add(roi_id_1)
 
-    plot_mergers(img_data, been_merged_lookup, been_merged_pairs, been_merged_values,
-                 f'candidates/accepted_merger_candidate_{i_pass}.png')
+    if diagnostic_dir is not None:
+        accepted_file = diagnostic_dir / f'accepted_mergers_{i_pass}.png'
+        plot_mergers(img_data, been_merged_lookup, been_merged_pairs, been_merged_values,
+                     accepted_file)
 
 
     unchanged_roi = set()

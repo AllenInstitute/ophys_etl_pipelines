@@ -305,12 +305,14 @@ def validate_merger(seed_roi, child):
     rings = _get_rings(seed_roi)
 
     intersection = []
-    for pair0 in rings[-1]:
-        id0 = pair0[1]
-        r0 = seed_roi.ancestor_lookup(id0)
-        if do_rois_abut(r0, child, dpix=np.sqrt(2)):
-            if r0.flux_value >= (child.flux_value+eps):
-                return True
+    for ii in range(len(rings)-1,-1,-1):
+        this_ring = rings[ii]
+        for pair0 in this_ring:
+            id0 = pair0[1]
+            r0 = seed_roi.ancestor_lookup(id0)
+            if do_rois_abut(r0, child, dpix=np.sqrt(2)):
+                if r0.flux_value >= (child.flux_value+eps):
+                    return True
     return False
 
 
@@ -384,6 +386,7 @@ def do_geometric_merger(raw_roi_list,
     incoming_rois = list(roi_lookup.keys())
 
     t0 = time.time()
+    _children = {}
     while keep_going and len(seed_list)>0:
 
         for s in seed_list:
@@ -443,7 +446,7 @@ def do_geometric_merger(raw_roi_list,
                                               seed_roi.roi_id,
                                               seed_roi.flux_value)
             assert len(new_roi.ancestors) > 0
-            roi_lookup.pop(child_id)
+            _children[child_id] = roi_lookup.pop(child_id)
             roi_lookup[best_seed] = new_roi
             have_been_merged.add(child_id)
             keep_going = True
@@ -457,10 +460,7 @@ def do_geometric_merger(raw_roi_list,
             plot_mergers(img_data,
                          merged_pairs,
                          accepted_file)
-            #rejected_file = diagnostic_dir / f'rejected_mergers_{i_pass}.png'
-            #plot_mergers(img_data,
-            #             rejected_pairs,
-            #             rejected_file)
+
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '
                     f'after {time.time()-t0:.2f} seconds')
 

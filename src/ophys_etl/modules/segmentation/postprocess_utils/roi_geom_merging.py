@@ -76,9 +76,11 @@ def plot_mergers(img_arr: np.ndarray,
 
     n_sub = 16
     for i0 in range(0, len(merger_pairs), n_sub):
+        new_out = str(out_name).replace('.png',f'_{i0}.png')
+        print(f'{i0} -- {new_out}')
         s_pairs = merger_pairs[i0:i0+n_sub]
         _plot_mergers(img_arr, s_pairs,
-                      str(out_name).replace('.png',f'_{i0}.png'))
+                      new_out)
 
 
 
@@ -206,6 +208,17 @@ class SegmentationROI(OphysROI):
 
 
 def merge_segmentation_rois(roi0, roi1, new_roi_id, flux_value):
+
+    has_valid_step = False
+    if len(roi0.ancestors)>0:
+        for a in roi0.ancestors:
+            if do_rois_abut(a, roi1, dpix=np.sqrt(2)):
+                if a.flux_value >= (roi1.flux_value+0.001):
+                    has_valid_step = True
+
+        abut = do_rois_abut(roi1, roi0, dpix=np.sqrt(2))
+        assert has_valid_step
+
     new_roi = merge_rois(roi0, roi1, new_roi_id=new_roi_id)
     return SegmentationROI.from_ophys_roi(new_roi,
                                           ancestors=[roi0, roi1],
@@ -290,8 +303,20 @@ def _get_rings(roi):
                 have_seen.add(a.roi_id)
 
         if len(this_ring) == 0:
-            raise RuntimeError(f"empty ring {len(have_seen)} "
-                               f"{len(roi.ancestors)}")
+            msg = f"empty ring {len(have_seen)} "
+            msg += f"{len(roi.ancestors)}"
+
+            for a in roi.ancestors:
+                if a.roi_id in have_seen:
+                    continue
+                msg += f'\n{roi.roi_id} -- ancestor {a.roi_id} {a.x0} {a.y0}'
+                for pair in last_ring:
+                    up = roi.ancestor_lookup(pair[1])
+                    abut = do_rois_abut(up, a, dpix=np.sqrt(2))
+                    msg += f'\n    {up.roi_id} -- {abut} -- '
+                    msg += f'{up.flux_value} -- {a.flux_value}'
+            raise RuntimeError(msg)
+
         rings.append(this_ring)
     return rings
 
@@ -363,6 +388,9 @@ def do_geometric_merger(raw_roi_list,
         if is_seed:
             seed_list.append(candidate)
 
+    logger.info(f'got {len(seed_list)} seeds in {time.time()-t0:2f} seconds')
+
+    """
     seed_pairs = []
     for ii in range(0, len(seed_list), 2):
         if ii+1 < len(seed_list)-1:
@@ -372,11 +400,12 @@ def do_geometric_merger(raw_roi_list,
         roi1 = roi_lookup[seed_list[ii]]
         seed_pairs.append((roi0, roi1))
         accepted_file = diagnostic_dir / f'seeds.png'
-        plot_mergers(img_data,
-                     seed_pairs,
-                     accepted_file)
+    plot_mergers(img_data,
+                 seed_pairs,
+                 accepted_file)
+    """
 
-    logger.info(f'got {len(seed_list)} seeds in {time.time()-t0:2f} seconds')
+    logger.info(f'plotted {len(seed_list)} seeds in {time.time()-t0:2f} seconds')
 
     t0 = time.time()
     logger.info('starting merger')
@@ -407,6 +436,8 @@ def do_geometric_merger(raw_roi_list,
                                        have_been_merged)
 
             for n in neighbors:
+                if n in seed_list:
+                    continue
                 if n not in child_to_seed:
                     child_to_seed[n] = []
                 child_to_seed[n].append(seed_id)
@@ -455,11 +486,13 @@ def do_geometric_merger(raw_roi_list,
             if seed_list[ii] not in roi_lookup:
                 seed_list.pop(ii)
 
+        """
         if diagnostic_dir is not None:
             accepted_file = diagnostic_dir / f'accepted_mergers_{i_pass}.png'
             plot_mergers(img_data,
                          merged_pairs,
                          accepted_file)
+        """
 
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '
                     f'after {time.time()-t0:.2f} seconds')

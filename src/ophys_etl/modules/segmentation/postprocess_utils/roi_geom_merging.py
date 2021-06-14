@@ -6,9 +6,11 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     merge_rois,
     find_merger_candidates,
-    do_rois_abut)
+    do_rois_abut,
+    ophys_roi_to_extract_roi)
 
 import logging
+import json
 import time
 
 """
@@ -390,20 +392,12 @@ def do_geometric_merger(raw_roi_list,
 
     logger.info(f'got {len(seed_list)} seeds in {time.time()-t0:2f} seconds')
 
-    """
-    seed_pairs = []
-    for ii in range(0, len(seed_list), 2):
-        if ii+1 < len(seed_list)-1:
-            roi0 = roi_lookup[seed_list[ii+1]]
-        else:
-            roi0 = roi_lookup[seed_list[ii-1]]
-        roi1 = roi_lookup[seed_list[ii]]
-        seed_pairs.append((roi0, roi1))
-        accepted_file = diagnostic_dir / f'seeds.png'
-    plot_mergers(img_data,
-                 seed_pairs,
-                 accepted_file)
-    """
+    if diagnostic_dir is not None:
+        seed_file = diagnostic_dir / f'seeds.json'
+        seed_rois = [ophys_roi_to_extract_roi(roi_lookup[cc])
+                     for cc in seed_list]
+        with open(seed_file, 'w') as out_file:
+            out_file.write(json.dumps(seed_rois, indent=2))
 
     logger.info(f'plotted {len(seed_list)} seeds in {time.time()-t0:2f} seconds')
 

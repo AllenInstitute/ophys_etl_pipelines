@@ -17,7 +17,8 @@ import ophys_etl.modules.segmentation.postprocess_utils.roi_merging as merging
 def create_roi_plot(plot_path: pathlib.Path,
                     raw_img_data: np.ndarray,
                     roi_list_0: List[dict],
-                    roi_list_1: List[dict]) -> None:
+                    roi_list_1: List[dict],
+                    seeds=None) -> None:
     """
     Generate a side-by-side plot comparing the image data
     used to seed ROI generation with the borders of the
@@ -61,7 +62,9 @@ def create_roi_plot(plot_path: pathlib.Path,
 
     bdry_color = (255, 128, 0)
 
-    for axis, raw_roi_list in zip(axes[1:], (roi_list_0, roi_list_1)):
+    for axis, raw_roi_list, seed_set in zip(axes[1:],
+                                            (roi_list_0, roi_list_1),
+                                            (None, seeds)):
 
         img_data = np.copy(rgb_img_data)
         color_index = 0
@@ -128,6 +131,12 @@ def create_roi_plot(plot_path: pathlib.Path,
 
 
         axis.imshow(img_data)
+        if seed_set is not None:
+            roi_list = [merging.extract_roi_to_ophys_roi(r) for r in seed_set]
+            xx = [r.centroid_x for r in roi_list]
+            yy = [r.centroid_y for r in roi_list]
+            axis.scatter(xx, yy, marker='+', color='w', s=200)
+
     fig.tight_layout()
     fig.savefig(plot_path)
     return None
@@ -140,6 +149,7 @@ if __name__ == "__main__":
     parser.add_argument('--roi0', type=str, default=None)
     parser.add_argument('--roi1', type=str, default=None)
     parser.add_argument('--plot', type=str, default=None)
+    parser.add_argument('--seeds', type=str, default=None)
     args = parser.parse_args()
 
     graph = nx.read_gpickle(args.graph)
@@ -147,5 +157,10 @@ if __name__ == "__main__":
         roi0 = json.load(in_file)
     with open(args.roi1,'rb') as in_file:
         roi1 = json.load(in_file)
+    seeds = None
+    if args.seeds is not None:
+        with open(args.seeds, 'rb') as in_file:
+            seeds = json.load(in_file)
+
     create_roi_plot(pathlib.Path(args.plot),
-                                 graph_to_img(graph),roi0,roi1)
+                                 graph_to_img(graph),roi0,roi1,seeds=seeds)

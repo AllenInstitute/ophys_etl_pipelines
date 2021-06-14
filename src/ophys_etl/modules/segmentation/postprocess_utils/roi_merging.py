@@ -653,6 +653,7 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
     has_been_considered = set()
     has_been_merged = set()
 
+    incoming_rois = list(roi_lookup.keys())
     been_merged_pairs = []
     been_merged_lookup = {}
     been_merged_values = []
@@ -678,8 +679,24 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
         if roi_id_0 in has_been_merged or roi_id_1 in has_been_merged:
             continue
 
-        roi0 = roi_lookup.pop(roi_id_0)
-        roi1 = roi_lookup.pop(roi_id_1)
+        roi0 = roi_lookup[roi_id_0]
+        roi1 = roi_lookup[roi_id_1]
+
+        # if candidate ROIs abut a merger,
+        # do not consider them (in case they
+        # would be a better fit in the new
+        # merger)
+        for roi_id in new_roi_lookup:
+            _new_roi = new_roi_lookup[roi_id]
+            if do_rois_abut(roi0, _new_roi):
+                keep_going = False
+                break
+            if do_rois_abut(roi1, _new_roi):
+                keep_going = False
+                break
+
+        if not keep_going:
+            continue
 
         if roi0.mask_matrix.sum() > roi1.mask_matrix.sum():
             new_roi_id = roi0.roi_id
@@ -710,11 +727,17 @@ def attempt_merger_pixel_correlation(video_data: np.ndarray,
 
     unchanged_roi = set()
     for roi_id in roi_lookup:
+        if roi_id in has_been_merged:
+            continue
         if roi_id in new_roi_lookup:
             raise RuntimeError(f'on final pass roi_id {roi_id} '
                                'duplicated in new lookup')
         new_roi_lookup[roi_id] = roi_lookup[roi_id]
         unchanged_roi.add(roi_id)
+
+    for roi_id in incoming_rois:
+        if roi_id not in unchanged_roi and roi_id not in has_been_merged:
+            raise RuntimeError(f'lost track of {roi_id} in merging')
 
     return (did_a_merger,
            list(new_roi_lookup.values()),

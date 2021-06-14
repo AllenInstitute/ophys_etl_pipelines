@@ -92,7 +92,7 @@ def get_nsigma_img(img_data, roi_list, dx=10):
         ymin = roi.y0
         ymax = ymin+roi.height
         roi_pixels = img_data[ymin:ymax, xmin:xmax][mask].flatten()
-        n_sigma = np.mean((roi_pixels-mu)/std)
+        n_sigma = np.median((roi_pixels-mu)/std)
         final_img[ymin:ymax, xmin:xmax][mask] = n_sigma
     return final_img
 
@@ -136,9 +136,9 @@ if __name__ == "__main__":
     cax = divider.append_axes("right", size="5%", pad=0.05)
     fig.colorbar(shown_img, ax=axes[2], cax=cax)
 
-    nsigma_img = get_nsigma_img(img, roi_list)
-    nsigma_img_cut = np.where(nsigma_img<10,nsigma_img,10)
-    shown_img = axes[3].imshow(nsigma_img_cut)
+    nsigma_img = get_nsigma_img(img, roi_list, dx=30)
+    #nsigma_img_cut = np.where(nsigma_img<10,nsigma_img,10)
+    shown_img = axes[3].imshow(nsigma_img)
     divider = make_axes_locatable(axes[3])
     cax = divider.append_axes("right", size="5%", pad=0.05)
     fig.colorbar(shown_img, ax=axes[3], cax=cax)

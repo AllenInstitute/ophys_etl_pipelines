@@ -90,7 +90,6 @@ def get_inactive_mask(img_data_shape, roi_list):
                            roi.x0:roi.x0+roi.width]
         full_mask[roi.y0:roi.y0+roi.height,
                   roi.x0:roi.x0+roi.width] = np.logical_or(mask, region)
-    print('full mask ',full_mask.min(),full_mask.max())
     return np.logical_not(full_mask)
 
 
@@ -145,11 +144,30 @@ class SegmentationROI(OphysROI):
                         assert isinstance(sub_roi, SegmentationROI)
                         self.ancestors.append(sub_roi)
 
+        if len(self.ancestors) > 0:
+            ancestor_id = set([a.roi_id for a in self.ancestors])
+            if len(ancestor_id) != len(self.ancestors):
+                msg = 'ancestors do not have unique IDs! '
+                msg += f'{len(self.ancestors)} ancestors; '
+                msg += f'{len(ancestor_id)} IDs; '
+                id_list = list(ancestor_id)
+                id_list.sort()
+                msg += f'{id_list}'
+                raise RuntimeError(msg)
+
+        self._ancestor_lookup = self._create_ancestor_lookup()
+
         super().__init__(x0=x0, y0=y0,
                          height=height, width=width,
                          valid_roi=valid_roi,
                          mask_matrix=mask_matrix,
                          roi_id=roi_id)
+
+    def _create_ancestor_lookup(self):
+        lookup = {}
+        for a in self.ancestors:
+            lookup[a.roi_id] = a
+        return lookup
 
     @classmethod
     def from_ophys_roi(cls, input_roi, ancestors=None, flux_value=0.0):
@@ -172,8 +190,19 @@ class SegmentationROI(OphysROI):
         for roi in self.ancestors:
             if peak_val is None or roi.flux_value > peak_val:
                 peak_roi = roi
-                peak_value = roi.flux_value
+                peak_val = roi.flux_value
         return peak_roi
+
+    def ancestor_lookup(self, roi_id):
+        if roi_id in self._ancestor_lookup:
+            return self._ancestor_lookup[roi_id]
+        if roi_id != self.roi_id:
+            id_list = list(self._ancestor_lookup.keys())
+            id_list.append(self.roi_id)
+            id_list.sort()
+            raise RuntimeError(f"cannot lookup {roi_id}; "
+                               f"{id_list}")
+        return self
 
 
 def merge_segmentation_rois(roi0, roi1, new_roi_id, flux_value):
@@ -228,13 +257,61 @@ def find_neighbors(seed_roi,
     return neighbors
 
 
-def validate_merger(seed_roi,
-                    child_roi):
-    for ancestor in seed_roi.ancestors:
-        if do_rois_abut(ancestor, child_roi, dpix=np.sqrt(2)):
-            if child_roi.flux_value > ancestor.flux_value:
-                return False
-    return True
+def _get_rings(roi):
+    """
+    Returns list of lists.
+    Each sub list is a ring around the "mountain"
+    Contains tuples of the form (last_step, this_step)
+    """
+    eps = 0.001
+
+    peak = roi.peak
+    rings = [[(None, peak.roi_id)]]
+    have_seen = set()
+    have_seen.add(peak.roi_id)
+    while len(have_seen) < len(roi.ancestors):
+        last_ring = rings[-1]
+        this_ring = []
+        for a in roi.ancestors:
+            if a.roi_id in have_seen:
+                continue
+
+            keep_it = False
+            prev = None
+            for r_pair in last_ring:
+                r = roi.ancestor_lookup(r_pair[1])
+                if do_rois_abut(r, a, dpix=np.sqrt(2)):
+                    if r.flux_value >= (a.flux_value+eps):
+                        prev = r.roi_id
+                        keep_it = True
+                        break
+            if keep_it:
+                this_ring.append((prev, a.roi_id))
+                have_seen.add(a.roi_id)
+
+        if len(this_ring) == 0:
+            raise RuntimeError(f"empty ring {len(have_seen)} "
+                               f"{len(roi.ancestors)}")
+        rings.append(this_ring)
+    return rings
+
+
+def validate_merger(seed_roi, child):
+    eps = 0.001
+
+    if not do_rois_abut(seed_roi, child):
+        return None
+
+    rings = _get_rings(seed_roi)
+
+    intersection = []
+    for pair0 in rings[-1]:
+        id0 = pair0[1]
+        r0 = seed_roi.ancestor_lookup(id0)
+        if do_rois_abut(r0, child, dpix=np.sqrt(2)):
+            if r0.flux_value >= (child.flux_value+eps):
+                return True
+    return False
 
 
 def do_geometric_merger(raw_roi_list,
@@ -283,7 +360,21 @@ def do_geometric_merger(raw_roi_list,
                 break
         if is_seed:
             seed_list.append(candidate)
-    logger.info(f'got {len(seed_list)} d in {time.time()-t0:2f} seconds')
+
+    seed_pairs = []
+    for ii in range(0, len(seed_list), 2):
+        if ii+1 < len(seed_list)-1:
+            roi0 = roi_lookup[seed_list[ii+1]]
+        else:
+            roi0 = roi_lookup[seed_list[ii-1]]
+        roi1 = roi_lookup[seed_list[ii]]
+        seed_pairs.append((roi0, roi1))
+        accepted_file = diagnostic_dir / f'seeds.png'
+        plot_mergers(img_data,
+                     seed_pairs,
+                     accepted_file)
+
+    logger.info(f'got {len(seed_list)} seeds in {time.time()-t0:2f} seconds')
 
     t0 = time.time()
     logger.info('starting merger')

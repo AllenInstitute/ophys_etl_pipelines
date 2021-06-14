@@ -49,6 +49,8 @@ def _plot_mergers(img_arr: np.ndarray,
         roi1 = roi_lookup[merger_pairs[ii][1]]
         img = np.copy(rgb_img)
 
+        npix = roi0.mask_matrix.sum()+roi1.mask_matrix.sum()
+
         for roi, color in zip((roi0, roi1),[(255,0,0),(0,255,0)]):
             msk = roi.mask_matrix
             for ir in range(roi.height):
@@ -63,7 +65,9 @@ def _plot_mergers(img_arr: np.ndarray,
                         new = np.uint8(new)
                         img[row, col, jj] = new
             axes[ii].imshow(img)
-            axes[ii].set_title('%.2e' % merger_metrics[ii], fontsize=15)
+            per_dof = merger_metrics[ii]/npix
+            axes[ii].set_title('%.2e (%.2e per pix)' % (merger_metrics[ii], per_dof),
+                              fontsize=15)
     for jj in range(ii, len(axes), 1):
         axes[jj].tick_params(left=0,bottom=0,labelleft=0,labelbottom=0)
         for s in ('top', 'left', 'bottom','right'):
@@ -465,7 +469,9 @@ def _calc_entropy(corr: np.ndarray):
     return -1.0*np.sum(prob*np.log(prob))
 
 
-def _chisq_from_video(sub_video, n_components=3):
+def _chisq_from_video(sub_video,
+                      fit_video,
+                      n_components=3):
     """
     sub_video is (nt, npix)
     """
@@ -477,7 +483,9 @@ def _chisq_from_video(sub_video, n_components=3):
 
     pca = sklearn_PCA(n_components=n_components, copy=True)
 
+    pca.fit(fit_video)
     transformed_video = pca.fit_transform(sub_video)
+
     assert transformed_video.shape==(sub_video.shape[0], n_components)
 
     mu = np.mean(transformed_video, axis=0)
@@ -511,13 +519,18 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
         npix1 = video1.shape[1]
         assert npix == (npix0+npix1)
 
-        chisq0 = _chisq_from_video(video0,
+        if npix0>npix1:
+            fit_video = video0
+        else:
+            fit_video = video1
+
+        chisq0 = _chisq_from_video(video0, video0,
                                    n_components=n_components)
 
-        chisq1 = _chisq_from_video(video1,
+        chisq1 = _chisq_from_video(video1, video1,
                                    n_components=n_components)
 
-        chisq_merger = _chisq_from_video(merger_video,
+        chisq_merger = _chisq_from_video(merger_video, merger_video,
                                          n_components=n_components)
 
         # PCA is effectively finding the three center components
@@ -527,9 +540,9 @@ def _evaluate_merger_subset(roi_pair_list: List[Tuple[int, int]],
         d_bic = bic_merger-bic_baseline
 
         if d_bic < 0.0:
-            print(f'd_bic {d_bic} chisq_m {chisq_merger} chisq0 {chisq0} chisq1 {chisq1} '
+            print(f'd_bic/dof {d_bic/npix} chisq_m {chisq_merger} chisq0 {chisq0} chisq1 {chisq1} '
                   f'pixels {video0.shape[1]} {video1.shape[1]}')
-            local_output[(pair[0], pair[1])] = d_bic
+            local_output[(pair[0], pair[1])] = d_bic/npix
 
     k_list = list(local_output.keys())
     for k in k_list:

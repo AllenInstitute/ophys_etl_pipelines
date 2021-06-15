@@ -14,43 +14,6 @@ import json
 import pathlib
 import ophys_etl.modules.segmentation.postprocess_utils.roi_merging as merging
 
-def select_color(this_roi, raw_plotted_rois, color_list, roi_to_color):
-    neighbor_colors = []
-    neighbor_color_sizes = []
-
-    centroid_x = np.array([r.centroid_x for r in raw_plotted_rois])
-    centroid_y = np.array([r.centroid_y for r in raw_plotted_rois])
-    dist = np.sqrt((this_roi.centroid_x-centroid_x)**2 +
-                   (this_roi.centroid_y-centroid_y)**2)
-
-    valid = dist<10
-    plotted_rois = np.array(raw_plotted_rois)[valid]
-    for roi in plotted_rois:
-        if merging.do_rois_abut(this_roi, roi, dpix=3):
-            neighbor_colors.append(roi_to_color[roi.roi_id])
-            neighbor_color_sizes.append(roi.mask_matrix.sum())
-    if len(neighbor_colors) == 0:
-        return color_list[0]
-
-    if len(set(neighbor_colors)) < len(color_list):
-        neighbor_colors = set(neighbor_colors)
-        for color in color_list:
-            if color not in neighbor_colors:
-                return color
-
-    neighbor_color_sizes = np.array(neighbor_color_sizes)
-    sorted_dex = np.argsort(-1*neighbor_color_sizes)
-    unq_color_set = set()
-    for ii in sorted_dex:
-        if len(unq_color_set) == len(color_list)-1:
-            return neighbor_colors[ii]
-        unq_color_set.add(neighbor_colors[ii])
-        print(neighbor_colors[ii],unq_color_set)
-
-    print(len(neighbor_colors))
-    print(len(color_list))
-    print(len(unq_color_set))
-    raise RuntimeError("should not be here")
 
 def create_roi_plot(plot_path: pathlib.Path,
                     raw_img_data: np.ndarray,
@@ -118,9 +81,8 @@ def create_roi_plot(plot_path: pathlib.Path,
         img_data = np.copy(rgb_img_data)
         color_index = 0
 
-        plotted_rois = []
-        roi_to_color = {}
         ophys_roi_list = []
+        centroids = np.zeros((len(raw_roi_list), 2), dtype=float)
         i_roi = 0
         for roi in raw_roi_list:
             ophys_roi = OphysROI(
@@ -132,20 +94,28 @@ def create_roi_plot(plot_path: pathlib.Path,
                         valid_roi=False,
                         mask_matrix=roi['mask'])
             ophys_roi_list.append(ophys_roi)
+            centroids[i_roi,0] = ophys_roi.centroid_y
+            centroids[i_roi,1] = ophys_roi.centroid_x
+            i_roi += 1
 
         print(f'{len(ophys_roi_list)} rois')
-        ct = 0
-        for ophys_roi in ophys_roi_list:
-            ct += 1
-            if ct%100 ==0:
-                print(ct)
-            color = select_color(ophys_roi,
-                                 plotted_rois,
-                                 color_list,
-                                 roi_to_color)
+        last_row = 0
+        last_col = 0
+        plotted = 0
+        while plotted < len(ophys_roi_list):
+            dist = (centroids[:,0]-last_row)**2+(centroids[:,1]-last_col)**2
+            chosen = np.argmin(dist)
+            ophys_roi = ophys_roi_list[chosen]
+            last_row = centroids[chosen, 0]
+            last_col = centroids[chosen, 1]
+            centroids[chosen, 0] = -9999
+            centroids[chosen, 1] = -9999
+            plotted += 1
 
-            plotted_rois.append(ophys_roi)
-            roi_to_color[ophys_roi.roi_id] = color
+            color = color_list[color_index]
+            color_index += 1
+            if color_index >= len(color_list):
+                color_index = 0
 
             msk = ophys_roi.mask_matrix
             for ir in range(ophys_roi.height):
@@ -230,7 +200,7 @@ if __name__ == "__main__":
     assert expdir.is_dir()
     sfd = pathlib.Path('/allen/aibs/informatics/danielsf/frog_eggs/topography')
 
-    for exp_id in experiment_ids[:1]:
+    for exp_id in experiment_ids:
         this_dir = expdir/f'ophys_experiment_{exp_id}'
         assert this_dir.is_dir()
         background = this_dir/'backgrounds'

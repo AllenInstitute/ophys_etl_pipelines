@@ -63,9 +63,6 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             roi_list.append(ophys_roi)
         del raw_roi_list
 
-        with h5py.File(self.args['video_input'], 'r') as in_file:
-            whole_video = in_file['data'][()]
-
         if self.args['graph_input'] is None:
             raise RuntimeError("must specify graph_input")
             graph_img = None

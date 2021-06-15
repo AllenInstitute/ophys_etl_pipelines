@@ -10,7 +10,7 @@ from ophys_etl.modules.segmentation.modules.schemas import \
 
 import ophys_etl.modules.segmentation.postprocess_utils.roi_merging as merging
 from ophys_etl.modules.segmentation.graph_utils.plotting import graph_to_img
-from ophys_etl.modules.segmentation.postprocess_utils.roi_geom_merging import (
+from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     do_geometric_merger)
 import networkx
 

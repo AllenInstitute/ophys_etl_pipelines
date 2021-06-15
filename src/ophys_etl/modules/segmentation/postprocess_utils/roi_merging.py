@@ -397,7 +397,24 @@ def find_merger_candidates(roi_list: List[OphysROI],
     return pair_list
 
 
-def get_inactive_mask(img_data_shape, roi_list):
+def get_inactive_mask(img_data_shape: Tuple[int, int],
+                      roi_list: List[OphysROI]) -> np.ndarray:
+    """
+    Return a pixel mask that is marked False for all
+    pixels that are part of an ROI, and True for all
+    other pixels
+
+    Parameters
+    ----------
+    img_data_shape: Tuple[int, int]
+        Shape of the full field of view
+
+    roi_list: List[OphysROI]
+
+    Returns
+    -------
+    inactive_pixel_mask: np.ndarray
+    """
     full_mask = np.zeros(img_data_shape, dtype=bool)
     for roi in roi_list:
         mask = roi.mask_matrix
@@ -405,6 +422,7 @@ def get_inactive_mask(img_data_shape, roi_list):
                            roi.x0:roi.x0+roi.width]
         full_mask[roi.y0:roi.y0+roi.height,
                   roi.x0:roi.x0+roi.width] = np.logical_or(mask, region)
+
     return np.logical_not(full_mask)
 
 

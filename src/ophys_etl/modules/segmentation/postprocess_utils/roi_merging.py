@@ -426,7 +426,41 @@ def get_inactive_mask(img_data_shape: Tuple[int, int],
     return np.logical_not(full_mask)
 
 
-def get_inactive_dist(img_data, roi, inactive_mask, dx=10):
+def get_inactive_dist(img_data: np.ndarray,
+                      roi: OphysROI,
+                      inactive_mask: np.ndarray,
+                      dx: int = 10) -> Tuple[float, float]:
+    """
+    Given an ROI, an array of image data, and a mask marked True at
+    all of the non-ROI pixels, return the mean and standard deviation
+    of the inactive pixels in a neighborhood about the ROI.
+
+    Parameters
+    ----------
+    img_data: np.ndarray
+        The full field of view image data
+
+    roi: OphysROI
+
+    inactive_mask: np.ndarray
+        An array of booleans the same shape as img_data.
+        Marked True for any pixel not in an ROI; False
+        for all other pixels.
+
+    dx: int
+        Number of pixels to either side of the ROI to use
+        when constructing the neighborhood.
+
+    Returns
+    -------
+    mu: float
+        Mean of the inactive pixels in the neighborhood
+
+    std: float
+        Standard deviation of the inactive pixels in the
+        neighborhood
+    """
+
     xmin = max(0, roi.x0-dx)
     ymin = max(0, roi.y0-dx)
     xmax = xmin+roi.width+2*dx

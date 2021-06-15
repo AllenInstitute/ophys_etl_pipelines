@@ -401,11 +401,6 @@ class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
 class RoiMergerSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
 
-    video_input = argschema.fields.InputFile(
-        required=True,
-        description=("path to hdf5 video with movie stored "
-                     "in dataset 'data' nframes x nrow x ncol"))
-
     roi_input = argschema.fields.InputFile(
         required=True,
         description=("path to JSON file with ROIs to merge"))
@@ -414,28 +409,17 @@ class RoiMergerSchema(argschema.ArgSchema):
         required=True,
         description=("path to JSON file where we will write merged ROIs"))
 
-    filter_fraction = argschema.fields.Float(
-            required=False,
-            default=1.0,
-            description=("use brightest filter_fraction of timesteps "
-                         "when correlating traces"))
-
-    merger_threshold = argschema.fields.Float(
-            required=False,
-            default=0.8,
-            description=("minimum Pearson correlation to consider merging"))
-
     n_parallel_workers = argschema.fields.Int(
             required=False,
             default=8,
             description=("number of parallel processes to use"))
 
     graph_input = argschema.fields.InputFile(
-            required=False,
+            required=True,
             default=None,
             allow_none=True)
 
     diagnostic_dir = argschema.fields.Str(
-            required=True,
+            required=False,
             default=None,
             allow_none=True)

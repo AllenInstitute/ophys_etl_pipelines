@@ -36,7 +36,18 @@ def _winnow_process_list(
     return process_list
 
 
-def extract_roi_to_ophys_roi(roi):
+def extract_roi_to_ophys_roi(roi: ExtractROI):
+    """
+    Convert an ExtractROI to an equivalent OphysROI
+
+    Parameters
+    ----------
+    ExtractROI
+
+    Returns
+    -------
+    OphysROI
+    """
     new_roi = OphysROI(x0=roi['x'],
                        y0=roi['y'],
                        width=roi['width'],

@@ -19,14 +19,21 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
-def _winnow_p_list(p_list):
+def _winnow_process_list(
+    process_list: List[multiprocessing.Process]) -> List[multiprocessing.Process]:
+    """
+    Utility that loops over a list of multiprocessing.Processes and
+    pops any that have completed. Returns the new, truncated list of
+    multiprocessing.Processes
+    """
+
     to_pop = []
-    for ii in range(len(p_list)-1, -1, -1):
-        if p_list[ii].exitcode is not None:
+    for ii in range(len(process_list)-1, -1, -1):
+        if process_list[ii].exitcode is not None:
             to_pop.append(ii)
     for ii in to_pop:
-        p_list.pop(ii)
-    return p_list
+        process_list.pop(ii)
+    return process_list
 
 
 def extract_roi_to_ophys_roi(roi):
@@ -209,7 +216,7 @@ def find_merger_candidates(roi_list: List[OphysROI],
                 p_list.append(p)
                 subset = []
             while len(p_list) > 0 and len(p_list) >= (n_processors-1):
-                p_list = _winnow_p_list(p_list)
+                p_list = _winnow_process_list(p_list)
 
     if len(subset) > 0:
         args = (subset, dpix, output_list)

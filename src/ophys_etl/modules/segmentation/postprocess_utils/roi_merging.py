@@ -1,7 +1,8 @@
 import matplotlib.figure as mplt_fig
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import multiprocessing
+import multiprocessing.managers
 from scipy.spatial.distance import cdist
 import numpy as np
 import copy
@@ -287,25 +288,77 @@ def chunk_size_from_processors(n_elements: int,
     return chunk_size
 
 
-def _find_merger_candidates(roi_pair_list, dpix, output_list):
+def _find_merger_candidates(roi_pair_list: List[Tuple[OphysROI, OphysROI]],
+                            dpix: float,
+                            output_list: multiprocessing.managers.ListProxy) -> None:
+    """
+    Find all of the abutting ROIs in a list of OphysROIs
+
+    Parameters
+    ----------
+    roi_pair_list: List[Tuple[OphysROI, OphysROI]]
+        A list of tuples of OphysROIs that need to be tested
+        to see if they abut
+
+    dpix: float
+       The maximum distance from each other two ROIs can be at
+       their nearest point and still be considered to abut
+
+    output_list: multiprocessing.managers.ListProxy
+        List where tuples of IDs of abutting ROIs will be written
+
+    Returns
+    -------
+    None
+        Appends tuples of (roi_id_0, roi_id_1) corresponding
+        to abutting ROIs into output_list
+    """
     local = []
     for pair in roi_pair_list:
         if do_rois_abut(pair[0], pair[1], dpix=dpix):
             local.append((pair[0].roi_id, pair[1].roi_id))
     for pair in local:
         output_list.append(pair)
+    return None
 
 
 def find_merger_candidates(roi_list: List[OphysROI],
                            dpix: float,
                            rois_to_ignore: Optional[set]=None,
-                           n_processors: int = 8):
+                           n_processors: int = 8) -> List[Tuple[int, int]]:
+    """
+    Find all the pairs of abutting ROIs in a list of OphysROIs.
+    Return a list of tuples like (roi_id_0, roi_id_1) specifying
+    the ROIs that abut.
+
+    Parameters
+    ----------
+    roi_list: List[OphysROI]
+
+    dpix: float
+       The maximum distance from each other two ROIs can be at
+       their nearest point and still be considered to abut
+
+    rois_to_ignore: Optional[set]
+       Optional set of ints specifying roi_id of ROIs not to consider
+       when looking for pairs (default: None)
+
+    n_processors: int
+       Number of cores to use (this method uses multiprocessing since, for
+       full fields of view, there can be tens of millions of pairs of
+       ROIs to consider)
+
+   Returns
+   -------
+   output: List[Tuple[int, int]]
+       List of tuples of roi_ids specifying pairs of abutting ROIs
+    """
     mgr = multiprocessing.Manager()
     output_list = mgr.list()
 
     n_rois = len(roi_list)
 
-    p_list = []
+    process_list = []
 
     n_pairs = n_rois*(n_rois-1)//2
     d_pairs = chunk_size_from_processors(n_pairs, n_processors, 100)
@@ -325,19 +378,19 @@ def find_merger_candidates(roi_list: List[OphysROI],
                 p = multiprocessing.Process(target=_find_merger_candidates,
                                             args=args)
                 p.start()
-                p_list.append(p)
+                process_list.append(p)
                 subset = []
-            while len(p_list) > 0 and len(p_list) >= (n_processors-1):
-                p_list = _winnow_process_list(p_list)
+            while len(process_list) > 0 and len(process_list) >= (n_processors-1):
+                process_list = _winnow_process_list(process_list)
 
     if len(subset) > 0:
         args = (subset, dpix, output_list)
         p = multiprocessing.Process(target=_find_merger_candidates,
                                     args=args)
         p.start()
-        p_list.append(p)
+        process_list.append(p)
 
-    for p in p_list:
+    for p in process_list:
         p.join()
 
     pair_list = [pair for pair in output_list]

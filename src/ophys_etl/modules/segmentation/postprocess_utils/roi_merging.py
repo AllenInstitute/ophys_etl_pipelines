@@ -1,5 +1,3 @@
-import matplotlib.figure as mplt_fig
-
 from typing import List, Optional, Tuple
 import multiprocessing
 import multiprocessing.managers

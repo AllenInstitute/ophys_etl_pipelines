@@ -36,7 +36,7 @@ def _winnow_process_list(
     return process_list
 
 
-def extract_roi_to_ophys_roi(roi: ExtractROI):
+def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:
     """
     Convert an ExtractROI to an equivalent OphysROI
 

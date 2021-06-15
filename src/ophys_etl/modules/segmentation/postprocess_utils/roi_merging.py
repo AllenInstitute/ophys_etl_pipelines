@@ -59,7 +59,18 @@ def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:
     return new_roi
 
 
-def ophys_roi_to_extract_roi(roi):
+def ophys_roi_to_extract_roi(roi: OphysROI) -> ExtractROI:
+    """
+    Convert at OphysROI to an equivalent ExtractROI
+
+    Parameters
+    ----------
+    OphysROI
+
+    Returns
+    -------
+    ExtractROI
+    """
     mask = []
     for roi_row in roi.mask_matrix:
         row = []

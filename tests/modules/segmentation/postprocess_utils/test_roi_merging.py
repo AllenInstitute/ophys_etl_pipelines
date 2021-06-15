@@ -7,7 +7,8 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     merge_rois,
     do_rois_abut,
     find_merger_candidates,
-    extract_roi_to_ophys_roi)
+    extract_roi_to_ophys_roi,
+    ophys_roi_to_extract_roi)
 
 @pytest.fixture
 def example_roi_list():
@@ -55,6 +56,17 @@ def test_extract_roi_to_ophys_roi():
     assert ophys_roi.roi_id == roi['id']
     np.testing.assert_array_equal(ophys_roi.mask_matrix, mask)
 
+
+def test_ophys_roi_to_extract_roi(example_roi_list):
+    for roi_in in example_roi_list:
+        roi_out = ophys_roi_to_extract_roi(roi_in)
+        assert roi_out['x'] == roi_in.x0
+        assert roi_out['y'] == roi_in.y0
+        assert roi_out['width'] == roi_in.width
+        assert roi_out['height'] == roi_in.height
+        assert roi_out['id'] == roi_in.roi_id
+        np.testing.assert_array_equal(roi_in.mask_matrix,
+                                      roi_out['mask'])
 
 def test_merge_rois():
 

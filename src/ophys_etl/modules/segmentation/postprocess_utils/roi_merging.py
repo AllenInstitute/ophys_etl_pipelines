@@ -550,7 +550,7 @@ def do_geometric_merger(raw_roi_list,
     t0 = time.time()
     merger_candidates = find_merger_candidates(raw_roi_list,
                                                np.sqrt(2.0),
-                                               unchanged_rois=None,
+                                               rois_to_ignore=None,
                                                n_processors=n_processors)
 
     # create a look up table mapping from roi_id to all of the

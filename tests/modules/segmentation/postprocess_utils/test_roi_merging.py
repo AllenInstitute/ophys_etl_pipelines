@@ -156,7 +156,7 @@ def test_roi_abut():
                     roi_id=1,
                     valid_roi=True)
 
-    assert do_rois_abut(roi0, roi1)
+    assert do_rois_abut(roi0, roi1, dpix=1.0)
 
     # just touching
     roi1 = OphysROI(x0=26,
@@ -167,7 +167,7 @@ def test_roi_abut():
                     roi_id=1,
                     valid_roi=True)
 
-    assert do_rois_abut(roi0, roi1)
+    assert do_rois_abut(roi0, roi1, dpix=1.0)
 
     roi1 = OphysROI(x0=27,
                     y0=48,
@@ -177,7 +177,7 @@ def test_roi_abut():
                     roi_id=1,
                     valid_roi=True)
 
-    assert not do_rois_abut(roi0, roi1)
+    assert not do_rois_abut(roi0, roi1, dpix=1.0)
 
     # they are, however, just diagonally 1 pixel away
     # from each other

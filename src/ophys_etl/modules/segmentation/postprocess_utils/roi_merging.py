@@ -630,7 +630,13 @@ class SegmentationROI(OphysROI):
                    flux_value=flux_value)
 
     @property
-    def peak(self):
+    def peak(self) -> SegmentationROI:
+        """
+        Return the ancestor with the highest flux_value
+        (this is the 'peak' of the group of ROIs that have been
+        merged to create this ROI). If there are no ancestors, return
+        self.
+        """
         if len(self.ancestors) == 0:
             return self
         peak_val = None
@@ -641,7 +647,14 @@ class SegmentationROI(OphysROI):
                 peak_val = roi.flux_value
         return peak_roi
 
-    def get_ancestor(self, roi_id):
+    def get_ancestor(self, roi_id: int) -> SegmentationROI:
+        """
+        Return the ancestor with the specified roi_id.
+
+        Note, if this SegmentationROI has the same roi_id as one
+        of its ancestors, its ancestor will be returned. Otherwise,
+        if you specify this ROI's roi_id, you will get self back.
+        """
         if roi_id in self._ancestor_lookup:
             return self._ancestor_lookup[roi_id]
         if roi_id != self.roi_id:

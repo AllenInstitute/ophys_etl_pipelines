@@ -251,12 +251,40 @@ def merge_rois(roi0: OphysROI,
     return new_roi
 
 
-def step_from_processors(n_elements, n_processors,
-                         min_step, denom_factor=4):
-    step = n_elements//(denom_factor*n_processors-1)
-    if step < min_step:
-        step = min_step
-    return step
+def chunk_size_from_processors(n_elements: int,
+                               n_cores: int,
+                               min_chunk: int,
+                               denom_factor: int = 4) -> int:
+    """
+    Given a number of data elements that need to be
+    processed and a number of available processors,
+    try to find a good chunk size so that the processors
+    are always busy.
+
+    Parameters
+    ----------
+    n_elements: int
+        The number of data elements that you are trying
+        to chunk
+
+    n_cores: int
+        The number of available cores
+
+    min_chunk: int
+        Minimum acceptable chunk_size
+
+    denom_factor: int
+        number of chunks that should ultimately be
+        sent to each core (default=4)
+
+    Returns
+    -------
+    chunk_size: int
+    """
+    chunk_size = n_elements//(denom_factor*n_cores-1)
+    if chunk_size < min_chunk:
+        chunk_size = min_chunk
+    return chunk_size
 
 
 def _find_merger_candidates(roi_pair_list, dpix, output_list):
@@ -280,7 +308,7 @@ def find_merger_candidates(roi_list: List[OphysROI],
     p_list = []
 
     n_pairs = n_rois*(n_rois-1)//2
-    d_pairs = step_from_processors(n_pairs, n_processors, 100)
+    d_pairs = chunk_size_from_processors(n_pairs, n_processors, 100)
 
     subset = []
     for i0 in range(n_rois):

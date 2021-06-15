@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import List, Optional, Tuple
 import multiprocessing
 import multiprocessing.managers
@@ -527,7 +528,7 @@ class SegmentationROI(OphysROI):
     flux_value: float
         The scalar flux valuea associated with this ROI (default=0)
 
-    ancestors: Optional[list]
+    ancestors: Optional[List[SegmentationROI]]
         A list of the SegmentationROIs from which this ROI
         was assembled (if relevant). Default=None
     """
@@ -541,7 +542,7 @@ class SegmentationROI(OphysROI):
                  valid_roi: bool,
                  mask_matrix: list,
                  flux_value: float = 0.0,
-                 ancestors: Optional[list] = None):
+                 ancestors: Optional[List[SegmentationROI]] = None):
 
         self.flux_value = flux_value
 
@@ -549,13 +550,23 @@ class SegmentationROI(OphysROI):
         if ancestors is not None:
             self.ancestors = []
             for roi in ancestors:
+                if not isinstance(roi, SegmentationROI):
+                    msg = 'ancestors must be of class SegmentationROI; '
+                    msg += f'these ancestors include a {type(sub_roi)}'
+                    raise RuntimeError(msg)
+
                 if len(roi.ancestors) == 0:
                     self.ancestors.append(roi)
                 else:
                     for sub_roi in roi.ancestors:
-                        assert isinstance(sub_roi, SegmentationROI)
+                        if not isinstance(sub_roi, SegmentationROI):
+                            msg = 'ancestors must be of class SegmentationROI; '
+                            msg += f'these ancestors include a {type(sub_roi)}'
+                            raise RuntimeError(msg)
                         self.ancestors.append(sub_roi)
 
+        # verify that ancestors have unique ID values
+        # (this will be necessary when assessing merger candidates)
         if len(self.ancestors) > 0:
             ancestor_id = set([a.roi_id for a in self.ancestors])
             if len(ancestor_id) != len(self.ancestors):
@@ -575,14 +586,39 @@ class SegmentationROI(OphysROI):
                          mask_matrix=mask_matrix,
                          roi_id=roi_id)
 
-    def _create_ancestor_lookup(self):
+    def _create_ancestor_lookup(self) -> dict:
+        """
+        Create a lookup table mapping roi_id to SegmentationROI
+        """
         lookup = {}
         for a in self.ancestors:
             lookup[a.roi_id] = a
         return lookup
 
     @classmethod
-    def from_ophys_roi(cls, input_roi, ancestors=None, flux_value=0.0):
+    def from_ophys_roi(cls,
+                       input_roi: OphysROI,
+                       ancestors: Optional[list] = None,
+                       flux_value: float = 0.0) -> SegmentationROI:
+        """
+        Create a SegmentationROI from an OphysROI
+
+        Parameters
+        ----------
+        input_roi: OphysROI
+
+        ancestors: Optional[list]
+            List of ancestor SegmentationROIs to assign to the new
+            SegmentationROI (default: None)
+
+        flux_value: float
+            flux value to assign to the new SegmentationROI (default: 0.0)
+
+        Returns
+        -------
+        SegmentationROI
+        """
+
         return cls(x0=input_roi.x0,
                    y0=input_roi.y0,
                    width=input_roi.width,

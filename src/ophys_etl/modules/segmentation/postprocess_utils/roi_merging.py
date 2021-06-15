@@ -92,22 +92,52 @@ def ophys_roi_to_extract_roi(roi: OphysROI) -> ExtractROI:
 
 def _do_rois_abut(array_0: np.ndarray,
                   array_1: np.ndarray,
-                  dpix: float = 1) -> bool:
+                  dpix: float = np.sqrt(2)) -> bool:
+    """
+    Method that does the work behind user-facing do_rois_abut.
 
+    This method takes in two arrays of pixel coordinates
+    calculates the distance between every pair of pixels
+    across the two arrays. If the minimum distance is less
+    than or equal dpix, it returns True. If not, it return False.
+
+    Parameters
+    ----------
+    array_0: np.ndarray
+        Array of the first set of pixels. Shape is (npix0, 2).
+        array_0[:, 0] are the row coodinates of the pixels
+        in array_0. array_0[:, 1] are the column coordinates.
+
+    array_1: np.ndarray
+        Same as array_0 for the second array of pixels
+
+    dpix: float
+        Maximum distance two arrays can be from each other
+        at their closest point and still be considered
+        to abut (default: sqrt(2)).
+
+    Return
+    ------
+    boolean
+    """
     distances = cdist(array_0, array_1, metric='euclidean')
     if distances.min() <= dpix:
         return True
     return False
 
 
-
-
-
-
-def _get_pixel_array(roi: OphysROI):
+def _get_pixel_array(roi: OphysROI) -> np.ndarray:
     """
     get Nx2 array of pixels (in global coordinates)
     that are in the ROI
+
+    Parameters
+    ----------
+    OphysROI
+
+    Returns
+    -------
+    np.ndarray
     """
     mask = roi.mask_matrix
     n_bdry = mask.sum()
@@ -131,13 +161,30 @@ def _get_pixel_array(roi: OphysROI):
 
 def do_rois_abut(roi0: OphysROI,
                  roi1: OphysROI,
-                 dpix: float = 1) -> bool:
+                 dpix: float = np.sqrt(2)) -> bool:
     """
-    Returns True if ROIs are within dpix of each other at any point along
-    their boundaries
+    Returns True if ROIs are within dpix of each other at any point.
 
-    Note: dpix is such that if two boundaries are next to each other,
-    that is dpix=1; dpix=2 is a 1 blank pixel between ROIs
+    Parameters
+    ----------
+    roi0: OphysROI
+
+    roi1: OphysROI
+
+    dpix: float
+        The maximum distance from each other the ROIs can be at
+        their closest point and still be considered to abut.
+        (Default: np.sqrt(2))
+
+    Returns
+    -------
+    boolean
+
+    Notes
+    -----
+    dpix is such that if two boundaries are next to each other,
+    that corresponds to dpix=1; dpix=2 corresponds to 1 blank pixel
+    between ROIs
     """
     array_0 = _get_pixel_array(roi0)
     array_1 = _get_pixel_array(roi1)

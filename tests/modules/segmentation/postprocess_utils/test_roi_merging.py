@@ -8,7 +8,8 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     do_rois_abut,
     find_merger_candidates,
     extract_roi_to_ophys_roi,
-    ophys_roi_to_extract_roi)
+    ophys_roi_to_extract_roi,
+    get_inactive_mask)
 
 @pytest.fixture
 def example_roi_list():
@@ -259,3 +260,30 @@ def test_find_merger_candidates_with_ignore(dpix, example_roi_list):
                 assert m not in matches
             else:
                 assert m in matches
+
+
+def test_get_inactive_mask(example_roi_list):
+
+    img_shape = (33, 33)
+    inactive_mask = get_inactive_mask(img_shape,
+                                      example_roi_list)
+
+    assert inactive_mask.shape == img_shape
+    assert inactive_mask.sum() > 0
+    assert inactive_mask.sum() < 33**2
+
+    roi_pixels = []
+    not_roi_pixels = []
+    active_mask = np.zeros(img_shape, dtype=bool)
+    for roi in example_roi_list:
+        x0 = roi.x0
+        y0 = roi.y0
+        mask = roi.mask_matrix
+        for ir in range(roi.height):
+            for ic in range(roi.width):
+                if mask[ir, ic]:
+                    assert not inactive_mask[y0+ir, x0+ic]
+                    active_mask[y0+ir, x0+ic] = True
+
+    np.testing.assert_array_equal(np.logical_not(active_mask),
+                                  inactive_mask)

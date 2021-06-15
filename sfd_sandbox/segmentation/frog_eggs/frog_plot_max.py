@@ -66,11 +66,17 @@ def create_roi_plot(plot_path: pathlib.Path,
     #axes[1].imshow(rgb_img_data)
     #axes[2].imshow(rgb_img_data)
 
-    alpha = 0.5
+    alpha = 0.8
 
     color_list = ((255, 0, 0),
                   (0, 255, 0),
-                  (0, 0, 255))
+                  (0, 0, 255),
+                  (204, 153, 255),
+                  (51, 255, 255),
+                  (255, 255, 0),
+                  (255, 205, 204),
+                  (153, 255, 255),
+                  (153, 255, 153))
 
     bdry_color = (255, 128, 0)
 

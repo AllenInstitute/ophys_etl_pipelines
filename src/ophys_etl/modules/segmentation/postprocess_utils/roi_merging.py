@@ -486,17 +486,62 @@ def get_inactive_dist(img_data: np.ndarray,
 
 
 class SegmentationROI(OphysROI):
+    """
+    A class that expands on the functionality provided by
+    OphysROI. Specifically, it carries with it a flux_value
+    and a list of ancestor ROIs (in the event that this ROI
+    was created by merging some subset of raw ROIs).
+
+    The flux value really only has meaning in the case of ROIs
+    with no ancestors.
+
+    The ancestors are all ROIs with no ancestors themselves.
+
+    These properties are used when assessing a merger between
+    ROIs to make sure it does not involve the flux value
+    going "downhill" and then "uphill" again.
+
+    Parameters
+    ----------
+    roi_id: int
+
+    x0: int
+        Defines the starting x pixel of the mask_array
+
+    y0: int
+        Defines the starting y pixel of the mask_array
+
+    width: int
+        Defines the width of the mask_array
+
+    height: int
+        Definings the width of the mask_array
+
+    valid_roi: bool
+        Indicate the validity of the ROI
+
+    mask_matrix: list
+        a list of lists of booleans defining the pixels
+        that are a part of the ROI
+
+    flux_value: float
+        The scalar flux valuea associated with this ROI (default=0)
+
+    ancestors: Optional[list]
+        A list of the SegmentationROIs from which this ROI
+        was assembled (if relevant). Default=None
+    """
 
     def __init__(self,
-                 x0,
-                 y0,
-                 height,
-                 width,
-                 valid_roi,
-                 mask_matrix,
-                 roi_id,
-                 flux_value=0.0,
-                 ancestors=None):
+                 roi_id: int,
+                 x0: int,
+                 y0: int,
+                 width: int,
+                 height: int,
+                 valid_roi: bool,
+                 mask_matrix: list,
+                 flux_value: float = 0.0,
+                 ancestors: Optional[list] = None):
 
         self.flux_value = flux_value
 

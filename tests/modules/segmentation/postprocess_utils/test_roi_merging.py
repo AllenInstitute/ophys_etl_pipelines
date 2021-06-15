@@ -9,7 +9,8 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     find_merger_candidates,
     extract_roi_to_ophys_roi,
     ophys_roi_to_extract_roi,
-    get_inactive_mask)
+    get_inactive_mask,
+    get_inactive_dist)
 
 @pytest.fixture
 def example_roi_list():
@@ -287,3 +288,36 @@ def test_get_inactive_mask(example_roi_list):
 
     np.testing.assert_array_equal(np.logical_not(active_mask),
                                   inactive_mask)
+
+
+@pytest.mark.parametrize("dx", [10, 15, 20])
+def test_get_inactive_dist(example_roi_list, dx):
+    rng = np.random.RandomState(556123)
+    random_image = rng.random_sample((100, 100))
+
+    random_image[:5, :5] *= 2.0
+    random_image[3:11, 2:14] -= 13.0
+    random_image[4:11, 5:20] += rng.normal(15, 3.0, size=(7, 15))
+
+    inactive_mask = get_inactive_mask(random_image.shape,
+                                      example_roi_list)
+
+    for roi in example_roi_list:
+        (mu_test,
+         std_test) = get_inactive_dist(random_image,
+                                       roi,
+                                       inactive_mask,
+                                       dx=dx)
+
+        xmin = max(0, roi.x0-dx)
+        xmax = xmin+roi.width+2*dx
+        ymin = max(0, roi.y0-dx)
+        ymax = ymin+roi.height+2*dx
+
+        sub_mask = inactive_mask[ymin:ymax, xmin:xmax]
+        sub_img = random_image[ymin:ymax, xmin:xmax]
+        sub_data = sub_img[sub_mask].flatten()
+        mu = np.mean(sub_data)
+        std = np.std(sub_data, ddof=1)
+        assert np.abs(mu_test-mu) < 1.0e-10
+        assert np.abs(std_test-std) < 1.0e-10

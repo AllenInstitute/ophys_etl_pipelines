@@ -675,8 +675,10 @@ def merge_segmentation_rois(roi0, roi1, new_roi_id, flux_value):
                 if a.flux_value >= (roi1.flux_value+0.001):
                     has_valid_step = True
 
-        abut = do_rois_abut(roi1, roi0, dpix=np.sqrt(2))
-        assert has_valid_step
+        if not has_valid_step:
+            msg = 'There is not valid step between the ROIs '
+            msg += 'you are trying to merge'
+            raise RuntimeError(msg)
 
     new_roi = merge_rois(roi0, roi1, new_roi_id=new_roi_id)
     return SegmentationROI.from_ophys_roi(new_roi,

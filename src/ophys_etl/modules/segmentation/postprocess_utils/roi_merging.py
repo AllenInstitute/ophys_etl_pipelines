@@ -194,11 +194,26 @@ def do_rois_abut(roi0: OphysROI,
                          dpix=dpix)
 
 
-
-
 def merge_rois(roi0: OphysROI,
                roi1: OphysROI,
                new_roi_id: int) -> OphysROI:
+    """
+    Merge two OphysROIs into one OphysROI whose
+    mask is the union of the two input masks
+
+    Parameters
+    ----------
+    roi0: OphysROI
+
+    roi1: OphysROI
+
+    new_roi_id: int
+        The roi_id to assign to the output ROI
+
+    Returns
+    -------
+    OphysROI
+    """
 
     xmin0 = roi0.x0
     xmax0 = roi0.x0+roi0.width

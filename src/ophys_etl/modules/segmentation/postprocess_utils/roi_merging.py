@@ -341,7 +341,9 @@ def find_merger_candidates(roi_list: List[OphysROI],
 
     rois_to_ignore: Optional[set]
        Optional set of ints specifying roi_id of ROIs not to consider
-       when looking for pairs (default: None)
+       when looking for pairs. Note: a pair will only be ignored
+       if *both* ROIs are in rois_to_ignore. If one of them is not,
+       the pair is valid (default: None)
 
     n_processors: int
        Number of cores to use (this method uses multiprocessing since, for

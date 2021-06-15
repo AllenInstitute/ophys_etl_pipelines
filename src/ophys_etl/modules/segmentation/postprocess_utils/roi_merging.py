@@ -179,7 +179,7 @@ def _find_merger_candidates(roi_pair_list, dpix, output_list):
 
 def find_merger_candidates(roi_list: List[OphysROI],
                            dpix: float,
-                           unchanged_rois: Optional[set]=None,
+                           rois_to_ignore: Optional[set]=None,
                            n_processors: int = 8):
     mgr = multiprocessing.Manager()
     output_list = mgr.list()
@@ -196,10 +196,10 @@ def find_merger_candidates(roi_list: List[OphysROI],
         roi0 = roi_list[i0]
         for i1 in range(i0+1, n_rois, 1):
             roi1 = roi_list[i1]
-            if unchanged_rois is None:
+            if rois_to_ignore is None:
                 subset.append((roi0, roi1))
             else:
-                if roi0.roi_id not in unchanged_rois or roi1.roi_id not in unchanged_rois:
+                if roi0.roi_id not in rois_to_ignore or roi1.roi_id not in rois_to_ignore:
                     subset.append((roi0, roi1))
             if len(subset) >= d_pairs:
                 args = (copy.deepcopy(subset), dpix, output_list)

@@ -398,66 +398,6 @@ def find_merger_candidates(roi_list: List[OphysROI],
     pair_list = [pair for pair in output_list]
     return pair_list
 
-def _plot_mergers(img_arr: np.ndarray,
-                  merger_pairs,
-                  out_name):
-
-    n = np.ceil(np.sqrt(len(merger_pairs))).astype(int)
-    fig = mplt_fig.Figure(figsize=(n*7, n*7))
-    axes = [fig.add_subplot(n,n,i) for i in range(1,len(merger_pairs)+1,1)]
-    mx = img_arr.max()
-    rgb_img = np.zeros((img_arr.shape[0], img_arr.shape[1], 3),
-                       dtype=np.uint8)
-    img = np.round(255*img_arr.astype(float)/max(1,mx)).astype(np.uint8)
-    for ic in range(3):
-        rgb_img[:,:,ic] = img
-    del img
-
-    alpha=0.5
-    for ii in range(len(merger_pairs)):
-        roi0 = merger_pairs[ii][0]
-        roi1 = merger_pairs[ii][1]
-        img = np.copy(rgb_img)
-
-        npix = roi0.mask_matrix.sum()+roi1.mask_matrix.sum()
-
-        for roi, color in zip((roi0, roi1),[(255,0,0),(0,255,0)]):
-            msk = roi.mask_matrix
-            for ir in range(roi.height):
-                for ic in range(roi.width):
-                    if not msk[ir, ic]:
-                        continue
-                    row = ir+roi.y0
-                    col = ic+roi.x0
-                    for jj in range(3):
-                        old = rgb_img[row, col, jj]
-                        new = np.round(alpha*color[jj]+(1.0-alpha)*old)
-                        new = np.uint8(new)
-                        img[row, col, jj] = new
-            axes[ii].imshow(img)
-
-    for jj in range(ii, len(axes), 1):
-        axes[jj].tick_params(left=0,bottom=0,labelleft=0,labelbottom=0)
-        for s in ('top', 'left', 'bottom','right'):
-            axes[jj].spines[s].set_visible(False)
-
-    fig.tight_layout()
-    fig.savefig(out_name)
-
-
-def plot_mergers(img_arr: np.ndarray,
-                 merger_pairs,
-                 out_name):
-
-    n_sub = 16
-    for i0 in range(0, len(merger_pairs), n_sub):
-        new_out = str(out_name).replace('.png',f'_{i0}.png')
-        print(f'{i0} -- {new_out}')
-        s_pairs = merger_pairs[i0:i0+n_sub]
-        _plot_mergers(img_arr, s_pairs,
-                      new_out)
-
-
 
 def get_inactive_mask(img_data_shape, roi_list):
     full_mask = np.zeros(img_data_shape, dtype=bool)
@@ -852,14 +792,6 @@ def do_geometric_merger(raw_roi_list,
         for ii in range(len(seed_list)-1,-1,-1):
             if seed_list[ii] not in roi_lookup:
                 seed_list.pop(ii)
-
-        """
-        if diagnostic_dir is not None:
-            accepted_file = diagnostic_dir / f'accepted_mergers_{i_pass}.png'
-            plot_mergers(img_data,
-                         merged_pairs,
-                         accepted_file)
-        """
 
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '
                     f'after {time.time()-t0:.2f} seconds')

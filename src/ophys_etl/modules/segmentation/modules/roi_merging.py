@@ -10,8 +10,6 @@ from ophys_etl.modules.segmentation.modules.schemas import \
 
 import ophys_etl.modules.segmentation.postprocess_utils.roi_merging as merging
 from ophys_etl.modules.segmentation.graph_utils.plotting import graph_to_img
-from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
-    do_geometric_merger)
 import networkx
 
 import logging
@@ -70,7 +68,8 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             graph_img = graph_to_img(networkx.read_gpickle(self.args['graph_input']),
                                      attribute_name='filtered_hnc_Gaussian')
 
-        roi_list = do_geometric_merger(roi_list,
+        roi_list = merging.do_geometric_merger(
+                                       roi_list,
                                        graph_img,
                                        self.args['n_parallel_workers'],
                                        diagnostic_dir=diagnostic_dir)

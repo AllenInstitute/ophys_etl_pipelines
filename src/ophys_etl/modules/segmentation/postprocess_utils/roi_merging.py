@@ -605,15 +605,15 @@ class SegmentationROI(OphysROI):
                 peak_val = roi.flux_value
         return peak_roi
 
-    def ancestor_lookup(self, roi_id):
+    def get_ancestor(self, roi_id):
         if roi_id in self._ancestor_lookup:
             return self._ancestor_lookup[roi_id]
         if roi_id != self.roi_id:
             id_list = list(self._ancestor_lookup.keys())
             id_list.append(self.roi_id)
             id_list.sort()
-            raise RuntimeError(f"cannot lookup {roi_id}; "
-                               f"{id_list}")
+            raise RuntimeError(f"cannot get ancestor {roi_id}; "
+                               f"valid ancestors: {id_list}")
         return self
 
 
@@ -702,7 +702,7 @@ def _get_rings(roi):
             keep_it = False
             prev = None
             for r_pair in last_ring:
-                r = roi.ancestor_lookup(r_pair[1])
+                r = roi.get_ancestor(r_pair[1])
                 if do_rois_abut(r, a, dpix=np.sqrt(2)):
                     if r.flux_value >= (a.flux_value+eps):
                         prev = r.roi_id
@@ -721,7 +721,7 @@ def _get_rings(roi):
                     continue
                 msg += f'\n{roi.roi_id} -- ancestor {a.roi_id} {a.x0} {a.y0}'
                 for pair in last_ring:
-                    up = roi.ancestor_lookup(pair[1])
+                    up = roi.get_ancestor(pair[1])
                     abut = do_rois_abut(up, a, dpix=np.sqrt(2))
                     msg += f'\n    {up.roi_id} -- {abut} -- '
                     msg += f'{up.flux_value} -- {a.flux_value}'
@@ -744,7 +744,7 @@ def validate_merger(seed_roi, child):
         this_ring = rings[ii]
         for pair0 in this_ring:
             id0 = pair0[1]
-            r0 = seed_roi.ancestor_lookup(id0)
+            r0 = seed_roi.get_ancestor(id0)
             if do_rois_abut(r0, child, dpix=np.sqrt(2)):
                 if r0.flux_value >= (child.flux_value+eps):
                     return True

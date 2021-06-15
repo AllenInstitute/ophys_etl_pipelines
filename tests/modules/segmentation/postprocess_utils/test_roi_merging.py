@@ -6,7 +6,8 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     merge_rois,
     do_rois_abut,
-    find_merger_candidates)
+    find_merger_candidates,
+    extract_roi_to_ophys_roi)
 
 @pytest.fixture
 def example_roi_list():
@@ -34,6 +35,26 @@ def example_movie_data():
     data[:, 30:, 30:] = rng.normal(15.0, 7.0, size=(100, 30, 30))
     data[:, :30, :30] = rng.random_sample((100, 30, 30))*17.0
     return data
+
+
+def test_extract_roi_to_ophys_roi():
+    rng = np.random.RandomState(345)
+    mask = rng.randint(0,2,(9,7)).astype(bool)
+    roi = {'x': 5,
+           'y': 6,
+           'width': 7,
+           'height': 9,
+           'id': 991,
+           'mask': [list(i) for i in mask]}
+
+    ophys_roi = extract_roi_to_ophys_roi(roi)
+    assert ophys_roi.x0 == roi['x']
+    assert ophys_roi.y0 == roi['y']
+    assert ophys_roi.height == roi['height']
+    assert ophys_roi.width == roi['width']
+    assert ophys_roi.roi_id == roi['id']
+    np.testing.assert_array_equal(ophys_roi.mask_matrix, mask)
+
 
 def test_merge_rois():
 

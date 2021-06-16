@@ -898,22 +898,23 @@ def _get_rings(roi: SegmentationROI) -> List[List[Tuple[int, int]]]:
     return rings
 
 
-def validate_merger(seed_roi, child):
+def validate_merger(uphill_roi: SegmentationROI,
+                    downhill_roi: SegmentationROI):
     eps = 0.001
 
-    if not do_rois_abut(seed_roi, child):
+    if not do_rois_abut(uphill_roi, downhill_roi):
         return None
 
-    rings = _get_rings(seed_roi)
+    rings = _get_rings(uphill_roi)
 
     intersection = []
     for ii in range(len(rings)-1,-1,-1):
         this_ring = rings[ii]
         for pair0 in this_ring:
             id0 = pair0[1]
-            r0 = seed_roi.get_ancestor(id0)
-            if do_rois_abut(r0, child, dpix=np.sqrt(2)):
-                if r0.flux_value >= (child.flux_value+eps):
+            r0 = uphill_roi.get_ancestor(id0)
+            if do_rois_abut(r0, downhill_roi, dpix=np.sqrt(2)):
+                if r0.flux_value >= (downhill_roi.flux_value+eps):
                     return True
     return False
 

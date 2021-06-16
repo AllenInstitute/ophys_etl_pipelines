@@ -3,7 +3,8 @@ import numpy as np
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     SegmentationROI,
-    merge_rois)
+    do_rois_abut,
+    merge_segmentation_rois)
 
 
 @pytest.fixture
@@ -43,6 +44,16 @@ def ophys_roi_list():
     return roi_list
 
 
+@pytest.fixture
+def segmentation_roi_list(ophys_roi_list):
+    roi_list = []
+    for roi in ophys_roi_list:
+        s_roi = SegmentationROI.from_ophys_roi(roi,
+                                               flux_value=roi.roi_id)
+        roi_list.append(s_roi)
+    return roi_list
+
+
 def compare_ophys_rois(roi0, roi1):
     assert roi0.x0 == roi1.x0
     assert roi0.y0 == roi1.y0
@@ -58,9 +69,11 @@ def compare_segmentation_rois(roi0, roi1):
 
 def test_segmentation_roi_factory(ophys_roi_list):
     rng = np.random.RandomState(88)
+    s_roi_list = []
     for roi in ophys_roi_list:
         f = rng.random_sample()
         s_roi = SegmentationROI.from_ophys_roi(roi, flux_value=f)
+        s_roi_list.append(s_roi)
         compare_ophys_rois(roi, s_roi)
         assert np.abs(s_roi.flux_value-f) < 1.0e-10
         assert len(s_roi.ancestors) == 0
@@ -68,3 +81,28 @@ def test_segmentation_roi_factory(ophys_roi_list):
         # check that you can get self from get_ancestor
         anc = s_roi.get_ancestor(roi.roi_id)
         compare_segmentation_rois(anc, s_roi)
+
+    # test ancestors
+    test_roi = SegmentationROI.from_ophys_roi(ophys_roi_list[2],
+                                              flux_value=55.0,
+                                              ancestors=[s_roi_list[2],
+                                                         s_roi_list[5]])
+    compare_segmentation_rois(s_roi_list[2],
+                              test_roi.get_ancestor(3))
+    compare_segmentation_rois(s_roi_list[5],
+                              test_roi.get_ancestor(6))
+
+    assert test_roi.roi_id == 3
+    assert np.abs(test_roi.flux_value-s_roi_list[2].flux_value) > 10.0
+
+    with pytest.raises(RuntimeError, match='cannot get ancestor'):
+        test_roi.get_ancestor(11)
+
+
+def test_merge_segmentation_rois(segmentation_roi_list):
+
+    with pytest.raises(RuntimeError, match='There is no valid step'):
+        merge_segmentation_rois(segmentation_roi_list[8],
+                                segmentation_roi_list[0],
+                                22,
+                                99.0)

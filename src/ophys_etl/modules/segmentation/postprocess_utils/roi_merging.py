@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Set
 import multiprocessing
 import multiprocessing.managers
 from scipy.spatial.distance import cdist
@@ -775,9 +775,35 @@ def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
     return lookup
 
 
-def find_neighbors(seed_roi,
-                   neighbor_lookup,
-                   have_been_merged):
+def find_neighbors(seed_roi: SegmentationROI,
+                   neighbor_lookup: Dict[int, List[int]],
+                   have_been_merged: Set[int]) -> List[int]:
+    """
+    Given a SegmentationROI, a dict mapping roi_id to the roi_id
+    of all neighboring roi_ids, and a set of roi_ids that have already
+    been merged, find all of the roi_ids corresponding to ROIs that
+    neighbor the input SegmentationROI and its ancestors but have
+    not already been merged.
+
+    Parameters
+    ----------
+    seed_roi: SegmentationROI
+        The ROI whose neighbors we want to find
+
+    neighbor_lookup: Dict[int, List[int]]
+        A dict mapping roi_id to a list of all the roi_ids of
+        ROIs that neighbor that ROI
+
+    have_been_merged: Set[int]
+        Set of roi_ids that are to be ignored because they have
+        already been merged
+
+t    Returns
+    -------
+    neighbors: List[int]
+        List of the roi_ids of all the ROIs that neighbor seed_roi
+        and its ancestors, but are not in have_been_merged
+    """
 
     neighbors = []
     for n in neighbor_lookup[seed_roi.roi_id]:

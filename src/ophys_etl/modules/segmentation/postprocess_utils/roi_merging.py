@@ -779,6 +779,7 @@ def do_geometric_merger(
     img_data: np.ndarray,
     video_data: np.ndarray,
     n_processors: int,
+    corr_acceptance: float,
     diagnostic_dir: Optional[pathlib.Path] = None) -> List[SegmentationROI]:
     """
     Merge ROIs based on a static image.
@@ -936,7 +937,8 @@ def do_geometric_merger(
                 if not validate_merger_corr(seed_roi,
                                             child_roi,
                                             video_data,
-                                            filter_fraction=0.2):
+                                            filter_fraction=0.2,
+                                            acceptance=corr_acceptance):
                     continue
                 if best_seed is None or seed_roi.flux_value > best_seed_flux:
                     best_seed = seed_id

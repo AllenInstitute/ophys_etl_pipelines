@@ -87,7 +87,8 @@ def correlate_sub_video(sub_video: np.ndarray,
 def validate_merger_corr(uphill_roi: SegmentationROI,
                          downhill_roi: SegmentationROI,
                          video_data: np.ndarray,
-                         filter_fraction: float=0.2):
+                         filter_fraction: float=0.2,
+                         acceptance: float=1.0):
 
     (uphill_video,
      uphill_centroid) = sub_video_from_roi(uphill_roi, video_data)
@@ -120,7 +121,7 @@ def validate_merger_corr(uphill_roi: SegmentationROI,
     uphill_mu = np.mean(uphill_corr)
     uphill_std = np.std(uphill_corr, ddof=1)
     z_score = (downhill_to_uphill-uphill_mu)/uphill_std
-    return np.median(z_score)<1.0
+    return np.median(z_score)<acceptance
 
 
 

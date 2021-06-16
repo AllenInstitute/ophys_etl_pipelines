@@ -767,20 +767,43 @@ def find_neighbors(seed_roi,
     return neighbors
 
 
-def _get_rings(roi):
+def _get_rings(roi: SegmentationROI) -> List[List[Tuple[int, int]]]:
     """
-    Returns list of lists.
-    Each sub list is a ring around the "mountain"
-    Contains tuples of the form (last_step, this_step)
+    Construct a topographical map of a compound SegmentationROI.
+    The end result is a list of lists. The first list is of the
+    form
+
+    (None, roi.peak.roi_id)
+
+    Each subsequent list represents a level in the topographical
+    map. The tuples in that list look like
+
+    (prev_roi_id, this_roi_id)
+
+    where prev_roi_id is an roi_id from the previous (higher level)
+    that abuts this_roi_id, which is an roi_id from the present
+    level. In effect, we are constructing a list of paths from the
+    peak of the SegmentationROI down to its lowest levels where
+    "altitude" is determined by flux_value.
+
+    Parameters
+    ----------
+    roi: SegmentationROI
+
+    Returns
+    -------
+    List[List[Tuple[int, int]]]
     """
-    eps = 0.001
+    eps = 0.001  # allowed slop in determination of "uphill"
 
     peak = roi.peak
     rings = [[(None, peak.roi_id)]]
-    have_seen = set()
+
+    have_seen = set()  # do not revisit the same ROI twise
     have_seen.add(peak.roi_id)
+
     while len(have_seen) < len(roi.ancestors):
-        last_ring = rings[-1]
+        previous_ring = rings[-1]
         this_ring = []
         for a in roi.ancestors:
             if a.roi_id in have_seen:
@@ -788,17 +811,24 @@ def _get_rings(roi):
 
             keep_it = False
             prev = None
-            for r_pair in last_ring:
+
+            # find an ROI in the previous ring that abuts
+            # this current ROI and is uphill from it
+            for r_pair in previous_ring:
                 r = roi.get_ancestor(r_pair[1])
                 if do_rois_abut(r, a, dpix=np.sqrt(2)):
                     if r.flux_value >= (a.flux_value+eps):
                         prev = r.roi_id
                         keep_it = True
                         break
+
             if keep_it:
                 this_ring.append((prev, a.roi_id))
                 have_seen.add(a.roi_id)
 
+        # something is wrong; the ROIs making up this
+        # SegmentationROI cannot be connected by descending
+        # paths from the peak
         if len(this_ring) == 0:
             msg = f"empty ring {len(have_seen)} "
             msg += f"{len(roi.ancestors)}"
@@ -807,7 +837,7 @@ def _get_rings(roi):
                 if a.roi_id in have_seen:
                     continue
                 msg += f'\n{roi.roi_id} -- ancestor {a.roi_id} {a.x0} {a.y0}'
-                for pair in last_ring:
+                for pair in previous_ring:
                     up = roi.get_ancestor(pair[1])
                     abut = do_rois_abut(up, a, dpix=np.sqrt(2))
                     msg += f'\n    {up.roi_id} -- {abut} -- '

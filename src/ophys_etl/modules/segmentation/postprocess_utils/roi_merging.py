@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 import multiprocessing
 import multiprocessing.managers
 from scipy.spatial.distance import cdist
@@ -722,10 +722,34 @@ def merge_segmentation_rois(uphill_roi: SegmentationROI,
                                           flux_value=new_flux_value)
 
 
-def create_segmentation_roi_lookup(raw_roi_list,
-                                   img_data,
-                                   dx=20):
+def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
+                                   img_data: np.ndarray,
+                                   dx: int = 20) -> Dict[int, SegmentationROI]:
+    """
+    Create a lookup table mapping roi_id to SegmentationROI.
 
+    The flux_values assigned to each ROI will be median z score of the
+    pixels in the ROI in img_data relative to the background of
+    non-ROI pixels in a neighborhood centered on the ROI.
+
+    Parameters
+    ----------
+    raw_roi_list: List[OphysROI]
+
+    img_data: np.ndarray
+        The image data used to calculate the flux_value of each SegmentationROI
+
+    dx: int
+        The number of pixels above, below, to the left, and to the right of
+        the ROI used when constructing the neighborhood of pixels used to
+        calculate flux_value
+
+    Returns
+    -------
+    lookup: Dict[int, SegmentationROI]
+        A dict allowing you to lookup the SegmentationROI based on its
+        roi_id
+    """
     lookup = {}
     inactive_mask = get_inactive_mask(img_data.shape, raw_roi_list)
     for roi in raw_roi_list:

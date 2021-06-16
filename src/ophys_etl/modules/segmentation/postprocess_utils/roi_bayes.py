@@ -1,4 +1,5 @@
 import numpy as np
+from typing import Tuple
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 from sklearn.decomposition import PCA as sklearn_PCA
@@ -35,26 +36,103 @@ def chisq_from_video(sub_video: np.ndarray,
 
 
 def sub_video_from_roi(roi: SegmentationROI,
-                       video_data: np.ndarray) -> np.ndarray:
+                       video_data: np.ndarray) -> Tuple[np.ndarray,
+                                                        np.ndarray]:
+    """
+    Returns sub-video and centroid pixel
+    """
 
     xmin = roi.x0
     ymin = roi.y0
     xmax = roi.x0+roi.width
     ymax = roi.y0+roi.height
 
+    cy = np.round(roi.centroid_y).astype(int)
+    cx = np.round(roi.centroid_x).astype(int)
+
     sub_video = video_data[:,ymin:ymax,xmin:xmax]
+
+    centroid_pixel = video_data[:, cy, cx]
 
     mask = roi.mask_matrix
     sub_video = sub_video[:,mask].reshape(video_data.shape[0], -1)
-    return sub_video
+    return sub_video, centroid_pixel
+
+
+def correlate_sub_video(sub_video: np.ndarray,
+                        key_pixel: np.ndarray,
+                        filter_fraction: float = 0.2):
+    npix = sub_video.shape[1]
+    discard = 1.0-filter_fraction
+    th = np.quantile(key_pixel, discard)
+    mask = (key_pixel >= th)
+    sub_video = sub_video[mask, :]
+    key_pixel = key_pixel[mask]
+
+    key_mu = np.mean(key_pixel)
+    vid_mu = np.mean(sub_video, axis=0)
+    assert vid_mu.shape == (npix,)
+    key_var = np.mean((key_pixel-key_mu)**2)
+    sub_vid_minus_mu = sub_video-vid_mu
+    sub_var = np.mean(sub_vid_minus_mu**2, axis=0)
+    assert sub_var.shape == (npix,)
+
+    numerator = np.dot((key_pixel-key_mu), sub_vid_minus_mu)
+    assert numerator.shape == (npix,)
+
+    corr = numerator/np.sqrt(sub_var*key_var)
+    return corr
+
+
+def validate_merger_corr(uphill_roi: SegmentationROI,
+                         downhill_roi: SegmentationROI,
+                         video_data: np.ndarray,
+                         filter_fraction: float=0.2):
+
+    (uphill_video,
+     uphill_centroid) = sub_video_from_roi(uphill_roi, video_data)
+
+    (downhill_video,
+     downhill_centroid) = sub_video_from_roi(downhill_roi, video_data)
+
+    #npix_uphill = uphill_video.shape[1]
+    #npix_downhill = downhill_video.shape[1]
+    #npix = npix_uphill+npix_downhill
+    #ntime = video_data.shape[0]
+
+    #merger_video = np.zeros((ntime,
+    #                         npix_uphill+npix_downhill), dtype=float)
+    #merger_video[:, :npix_uphill] = uphill_video
+    #merger_video[:, npix_uphill:] = downhill_video
+
+    uphill_corr = correlate_sub_video(uphill_video,
+                                      uphill_centroid,
+                                      filter_fraction=filter_fraction)
+
+    #downhill_corr = correlate_sub_video(downhill_video,
+    #                                    downhill_centroid,
+    #                                    filter_fraction=filter_fraction)
+
+    downhill_to_uphill = correlate_sub_video(downhill_video,
+                                             uphill_centroid,
+                                             filter_fraction=filter_fraction)
+
+    uphill_mu = np.mean(uphill_corr)
+    uphill_std = np.std(uphill_corr, ddof=1)
+    z_score = (downhill_to_uphill-uphill_mu)/uphill_std
+    return np.median(z_score)<1.0
+
 
 
 def validate_merger_bic(uphill_roi: SegmentationROI,
                         downhill_roi: SegmentationROI,
                         video_data: np.ndarray,
                         n_components: int = 3):
-    uphill_video = sub_video_from_roi(uphill_roi, video_data)
-    downhill_video = sub_video_from_roi(downhill_roi, video_data)
+    (uphill_video,
+     uphill_centroid) = sub_video_from_roi(uphill_roi, video_data)
+
+    (downhill_video,
+     downhill_centroid) = sub_video_from_roi(downhill_roi, video_data)
 
     npix_uphill = uphill_video.shape[1]
     npix_downhill = downhill_video.shape[1]

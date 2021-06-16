@@ -8,7 +8,8 @@ import pathlib
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.segmentation.postprocess_utils.roi_bayes import (
-    validate_merger_bic)
+    validate_merger_bic,
+    validate_merger_corr)
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.types import ExtractROI
@@ -932,10 +933,10 @@ def do_geometric_merger(
                 seed_roi = roi_lookup[seed_id]
                 if not validate_merger(seed_roi, child_roi):
                     continue
-                if not validate_merger_bic(seed_roi,
-                                           child_roi,
-                                           video_data,
-                                           n_components=6):
+                if not validate_merger_corr(seed_roi,
+                                            child_roi,
+                                            video_data,
+                                            filter_fraction=0.2):
                     continue
                 if best_seed is None or seed_roi.flux_value > best_seed_flux:
                     best_seed = seed_id

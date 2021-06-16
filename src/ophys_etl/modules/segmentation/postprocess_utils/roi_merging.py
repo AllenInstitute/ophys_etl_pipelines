@@ -666,23 +666,27 @@ class SegmentationROI(OphysROI):
         return self
 
 
-def merge_segmentation_rois(roi0, roi1, new_roi_id, flux_value):
+def merge_segmentation_rois(seed_roi, child_roi, new_roi_id, flux_value):
 
     has_valid_step = False
-    if len(roi0.ancestors)>0:
-        for a in roi0.ancestors:
-            if do_rois_abut(a, roi1, dpix=np.sqrt(2)):
-                if a.flux_value >= (roi1.flux_value+0.001):
+    if len(seed_roi.ancestors)>0:
+        for a in seed_roi.ancestors:
+            if do_rois_abut(a, child_roi, dpix=np.sqrt(2)):
+                if a.flux_value >= (child_roi.flux_value+0.001):
                     has_valid_step = True
+    else:
+        if do_rois_abut(seed_roi, child_roi):
+            if seed_roi.flux_value >= (child_roi.flux_value+0.001):
+                has_valid_step = True
 
-        if not has_valid_step:
-            msg = 'There is not valid step between the ROIs '
-            msg += 'you are trying to merge'
-            raise RuntimeError(msg)
+    if not has_valid_step:
+        msg = 'There is no valid step between the ROIs '
+        msg += 'you are trying to merge'
+        raise RuntimeError(msg)
 
-    new_roi = merge_rois(roi0, roi1, new_roi_id=new_roi_id)
+    new_roi = merge_rois(seed_roi, child_roi, new_roi_id=new_roi_id)
     return SegmentationROI.from_ophys_roi(new_roi,
-                                          ancestors=[roi0, roi1],
+                                          ancestors=[seed_roi, child_roi],
                                           flux_value=flux_value)
 
 

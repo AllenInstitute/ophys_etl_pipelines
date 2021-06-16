@@ -114,9 +114,17 @@ def test_segmentation_roi_factory(ophys_roi_list):
 
 def test_merge_segmentation_rois(segmentation_roi_list):
 
+    # merger should fail when ROIs do not abut
     with pytest.raises(RuntimeError, match='There is no valid step'):
         merge_segmentation_rois(segmentation_roi_list[8],
                                 segmentation_roi_list[0],
+                                22,
+                                99.0)
+
+    # merger should fail when going uphill
+    with pytest.raises(RuntimeError, match='There is no valid step'):
+        merge_segmentation_rois(segmentation_roi_list[7],
+                                segmentation_roi_list[8],
                                 22,
                                 99.0)
 

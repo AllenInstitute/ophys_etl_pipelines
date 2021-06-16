@@ -119,3 +119,17 @@ def test_merge_segmentation_rois(segmentation_roi_list):
                                 segmentation_roi_list[0],
                                 22,
                                 99.0)
+
+    # merge all ROIs together
+    new_roi = segmentation_roi_list[8]
+    for ii in (7, 6, 3, 4, 2, 5, 1, 0):
+        new_roi = merge_segmentation_rois(new_roi,
+                                          segmentation_roi_list[ii],
+                                          9,
+                                          9)
+    for ii in range(9):
+        compare_segmentation_rois(segmentation_roi_list[ii],
+                                  new_roi.get_ancestor(ii+1))
+
+    compare_segmentation_rois(new_roi.peak,
+                              segmentation_roi_list[8])

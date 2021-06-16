@@ -63,6 +63,9 @@ def correlate_sub_video(sub_video: np.ndarray,
     mask = (key_pixel >= th)
     sub_video = sub_video[mask, :]
     key_pixel = key_pixel[mask]
+    ntime = len(key_pixel)
+    assert key_pixel.shape == (ntime,)
+    assert sub_video.shape == (ntime, npix)
 
     key_mu = np.mean(key_pixel)
     vid_mu = np.mean(sub_video, axis=0)
@@ -72,10 +75,11 @@ def correlate_sub_video(sub_video: np.ndarray,
     sub_var = np.mean(sub_vid_minus_mu**2, axis=0)
     assert sub_var.shape == (npix,)
 
-    numerator = np.dot((key_pixel-key_mu), sub_vid_minus_mu)
+    numerator = np.dot((key_pixel-key_mu), sub_vid_minus_mu)/ntime
     assert numerator.shape == (npix,)
 
     corr = numerator/np.sqrt(sub_var*key_var)
+    assert corr.shape == (npix,)
     return corr
 
 
@@ -138,7 +142,8 @@ def validate_merger_corr(uphill_roi: SegmentationROI,
     uphill_mu = np.mean(uphill_corr)
     uphill_std = np.std(uphill_corr, ddof=1)
     z_score = (downhill_to_uphill-uphill_mu)/uphill_std
-    return np.median(z_score)<acceptance
+    metric = np.median(z_score)
+    return metric>(-1.0*acceptance)
 
 
 

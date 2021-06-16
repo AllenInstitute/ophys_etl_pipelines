@@ -666,17 +666,49 @@ class SegmentationROI(OphysROI):
         return self
 
 
-def merge_segmentation_rois(seed_roi, child_roi, new_roi_id, flux_value):
+def merge_segmentation_rois(uphill_roi: SegmentationROI,
+                            downhill_roi: SegmetnationROI,
+                            new_roi_id: int,
+                            new_flux_value: float) -> SegmentationROI:
+    """
+    Merge two SegmentationROIs, making sure that the ROIs actually
+    abut and that the uphill ROI has a larger flux value than the
+    downhill ROI (this is a requirement imposed by the way we are
+    currently using this method to merge ROIs for cell segmentation)
+
+    Parameters
+    ----------
+    uphill_roi: SegmentationROI
+        The ROI with the larger flux_value
+
+    downhill_roi: SegmentationROI
+        The ROI with the smaller flux_value
+
+    new_roi_id: int
+        The roi_id to assign to the new ROI
+
+    new_flux_value: float
+        The flux value to assign to the new ROI
+
+    Return
+    ------
+    SegmentationROI
+
+    Raises
+    ------
+    Runtime error if there is no valid way, always stepping downhill
+    in flux_value, to go from uphill_roi.peak to downhill_roi
+    """
 
     has_valid_step = False
-    if len(seed_roi.ancestors)>0:
-        for a in seed_roi.ancestors:
-            if do_rois_abut(a, child_roi, dpix=np.sqrt(2)):
-                if a.flux_value >= (child_roi.flux_value+0.001):
+    if len(uphill_roi.ancestors)>0:
+        for a in uphill_roi.ancestors:
+            if do_rois_abut(a, downhill_roi, dpix=np.sqrt(2)):
+                if a.flux_value >= (downhill_roi.flux_value+0.001):
                     has_valid_step = True
     else:
-        if do_rois_abut(seed_roi, child_roi):
-            if seed_roi.flux_value >= (child_roi.flux_value+0.001):
+        if do_rois_abut(uphill_roi, downhill_roi):
+            if uphill_roi.flux_value >= (downhill_roi.flux_value+0.001):
                 has_valid_step = True
 
     if not has_valid_step:
@@ -684,10 +716,10 @@ def merge_segmentation_rois(seed_roi, child_roi, new_roi_id, flux_value):
         msg += 'you are trying to merge'
         raise RuntimeError(msg)
 
-    new_roi = merge_rois(seed_roi, child_roi, new_roi_id=new_roi_id)
+    new_roi = merge_rois(uphill_roi, downhill_roi, new_roi_id=new_roi_id)
     return SegmentationROI.from_ophys_roi(new_roi,
-                                          ancestors=[seed_roi, child_roi],
-                                          flux_value=flux_value)
+                                          ancestors=[uphill_roi, downhill_roi],
+                                          flux_value=new_flux_value)
 
 
 def create_segmentation_roi_lookup(raw_roi_list,

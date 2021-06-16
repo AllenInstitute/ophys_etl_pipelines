@@ -428,3 +428,8 @@ class RoiMergerSchema(argschema.ArgSchema):
             required=False,
             default=None,
             allow_none=True)
+
+    corr_acceptance = argschema.fields.Float(
+        required=False,
+        default=1.0,
+        decription=("level of correlation needed to accept merger"))

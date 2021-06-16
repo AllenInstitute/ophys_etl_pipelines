@@ -76,6 +76,7 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
                                        graph_img,
                                        video_data,
                                        self.args['n_parallel_workers'],
+                                       self.args['corr_acceptance'],
                                        diagnostic_dir=diagnostic_dir)
 
         write_out_rois(roi_list, self.args['roi_output'])

@@ -937,6 +937,7 @@ def do_geometric_merger(
                 if not validate_merger_corr(seed_roi,
                                             child_roi,
                                             video_data,
+                                            img_data,
                                             filter_fraction=0.2,
                                             acceptance=corr_acceptance):
                     continue

@@ -4,7 +4,8 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     SegmentationROI,
     do_rois_abut,
-    merge_segmentation_rois)
+    merge_segmentation_rois,
+    _get_rings)
 
 
 @pytest.fixture
@@ -141,3 +142,29 @@ def test_merge_segmentation_rois(segmentation_roi_list):
 
     compare_segmentation_rois(new_roi.peak,
                               segmentation_roi_list[8])
+
+    topography = _get_rings(new_roi)
+    ring_contents = []
+    for ring in topography:
+        this = set([p[1] for p in ring])
+        ring_contents.append(this)
+
+    # first ring is the peak
+    ring_contents[0] == set([new_roi.peak.roi_id])
+
+    for ii in range(1, len(ring_contents), 1):
+        for pair in topography[ii]:
+            # make sure that the root of the node points back to the
+            # previous ring
+            assert pair[0] in ring_contents[ii-1]
+
+            # make sure that ROIs in a node do, in fact, abut
+            assert do_rois_abut(segmentation_roi_list[pair[0]-1],
+                                segmentation_roi_list[pair[1]-1],
+                                dpix=np.sqrt(2))
+
+            # make sure that the uphill node has a larger
+            # flux value than the downhill node
+            r0 = segmentation_roi_list[pair[0]-1]
+            r1 = segmentation_roi_list[pair[1]-1]
+            assert r0.flux_value > r1.flux_value

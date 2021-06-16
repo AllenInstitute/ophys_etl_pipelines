@@ -328,6 +328,11 @@ class RoiMergerSchema(argschema.ArgSchema):
             default=None,
             allow_none=True)
 
+    video_input = argschema.fields.InputFile(
+        required=True,
+        description=("path to hdf5 video with movie stored "
+                     "in dataset 'data' nframes x nrow x ncol"))
+
     diagnostic_dir = argschema.fields.Str(
             required=False,
             default=None,

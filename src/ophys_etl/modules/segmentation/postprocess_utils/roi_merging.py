@@ -7,6 +7,8 @@ import copy
 import pathlib
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
+from ophys_etl.modules.segmentation.postprocess_utils.roi_bayes import (
+    validate_merger_bic)
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.types import ExtractROI
@@ -774,6 +776,7 @@ def validate_merger(uphill_roi: SegmentationROI,
 def do_geometric_merger(
     raw_roi_list: List[OphysROI],
     img_data: np.ndarray,
+    video_data: np.ndarray,
     n_processors: int,
     diagnostic_dir: Optional[pathlib.Path] = None) -> List[SegmentationROI]:
     """
@@ -785,6 +788,9 @@ def do_geometric_merger(
 
     img_data: np.ndarray
         The static image used to guide merging
+
+    video_data: np.ndarray
+        (ntime, nrows, ncols)
 
     n_processors: int
         The number of processors to invoke with multiprocessing
@@ -925,6 +931,10 @@ def do_geometric_merger(
             for seed_id in child_to_seed[child_id]:
                 seed_roi = roi_lookup[seed_id]
                 if not validate_merger(seed_roi, child_roi):
+                    continue
+                if not validate_merger_bic(seed_roi,
+                                           child_roi,
+                                           video_data):
                     continue
                 if best_seed is None or seed_roi.flux_value > best_seed_flux:
                     best_seed = seed_id

@@ -47,6 +47,9 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             else:
                 diagnostic_dir.mkdir(parents=True)
 
+        with h5py.File(self.args['video_input'], 'r') as in_file:
+            video_data = in_file['data'][()]
+
         t0 = time.time()
         with open(self.args['roi_input'], 'rb') as in_file:
             raw_roi_list = json.load(in_file)
@@ -71,6 +74,7 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
         roi_list = merging.do_geometric_merger(
                                        roi_list,
                                        graph_img,
+                                       video_data,
                                        self.args['n_parallel_workers'],
                                        diagnostic_dir=diagnostic_dir)
 

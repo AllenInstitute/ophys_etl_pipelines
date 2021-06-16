@@ -925,7 +925,7 @@ def validate_merger(uphill_roi: SegmentationROI,
         If downhill_roi has non-zero number of ancestors.
         Our algorithm is not yet ready to handle that
     """
-    eps = 0.001
+    eps = 0.001  # slop in determining uphill vs downhill
 
     if len(downhill_roi.ancestors) != 0:
         raise RuntimeError("downhill ROI has ancestors; "
@@ -934,9 +934,11 @@ def validate_merger(uphill_roi: SegmentationROI,
     if not do_rois_abut(uphill_roi, downhill_roi):
         return None
 
+    # get the topological map of the uphill ROI
     rings = _get_rings(uphill_roi)
 
-    intersection = []
+    # loop over rings, looking for an ROI that is a feasible
+    # next step up towards the peak from downhill ROI
     for ii in range(len(rings)-1,-1,-1):
         this_ring = rings[ii]
         for pair0 in this_ring:

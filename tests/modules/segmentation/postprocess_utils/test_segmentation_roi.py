@@ -6,7 +6,8 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     do_rois_abut,
     merge_segmentation_rois,
     _get_rings,
-    create_segmentation_roi_lookup)
+    create_segmentation_roi_lookup,
+    validate_merger)
 
 
 @pytest.fixture
@@ -194,3 +195,40 @@ def test_create_segmentation_roi_lookup(ophys_roi_list):
                                             dx=20)
     for ii in range(1, 10, 1):
         assert np.abs(lookup[ii].flux_value-ii*10) < 5.0
+
+
+def test_validate_merger(segmentation_roi_list):
+    assert validate_merger(segmentation_roi_list[8],
+                           segmentation_roi_list[6])
+
+    # moving uphill
+    assert not validate_merger(segmentation_roi_list[6],
+                               segmentation_roi_list[8])
+
+    # not connected
+    assert not validate_merger(segmentation_roi_list[8],
+                               segmentation_roi_list[0])
+
+    joined = merge_segmentation_rois(segmentation_roi_list[8],
+                                     segmentation_roi_list[6],
+                                     9,
+                                     9)
+
+    assert validate_merger(joined,
+                           segmentation_roi_list[5])
+    assert not validate_merger(segmentation_roi_list[8],
+                               segmentation_roi_list[5])
+
+    assert validate_merger(segmentation_roi_list[5],
+                           segmentation_roi_list[0])
+    joined2 = merge_segmentation_rois(segmentation_roi_list[5],
+                                      segmentation_roi_list[0],
+                                      6, 6)
+
+    # uphill
+    assert not validate_merger(joined2,
+                               segmentation_roi_list[6])
+
+    # downhill has ancestors
+    with pytest.raises(RuntimeError, match='downhill ROI has ancestors'):
+        validate_merger(joined, joined2)

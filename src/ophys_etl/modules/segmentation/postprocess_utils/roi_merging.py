@@ -899,8 +899,37 @@ def _get_rings(roi: SegmentationROI) -> List[List[Tuple[int, int]]]:
 
 
 def validate_merger(uphill_roi: SegmentationROI,
-                    downhill_roi: SegmentationROI):
+                    downhill_roi: SegmentationROI) -> bool:
+    """
+    Validate that a merger follows the rules (ROIs are connected
+    and there is a path from the peak of the uphill ROI to the
+    downhill ROI that only descends in flux_value)
+
+    Parameters
+    ----------
+    uphill_roi: SegmentationROI
+        The ROI (probably already composed through multiple mergers)
+        into which you want to merge
+
+    downhill_roi: SegmentationROI
+        The ROI being merged
+
+    Return
+    ------
+    boolean
+        Indicates whether or not the merger is valid.
+
+    Raises
+    ------
+    RuntimeError
+        If downhill_roi has non-zero number of ancestors.
+        Our algorithm is not yet ready to handle that
+    """
     eps = 0.001
+
+    if len(downhill_roi.ancestors) != 0:
+        raise RuntimeError("downhill ROI has ancestors; "
+                           "not sure how to handle that")
 
     if not do_rois_abut(uphill_roi, downhill_roi):
         return None

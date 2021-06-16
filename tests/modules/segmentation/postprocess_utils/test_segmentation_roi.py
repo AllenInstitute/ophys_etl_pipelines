@@ -98,6 +98,19 @@ def test_segmentation_roi_factory(ophys_roi_list):
     with pytest.raises(RuntimeError, match='cannot get ancestor'):
         test_roi.get_ancestor(11)
 
+    # test that the only ancestors written are the raw ancestors
+    new_roi = SegmentationROI.from_ophys_roi(ophys_roi_list[7],
+                                             flux_value=45.0,
+                                             ancestors=[test_roi,
+                                                        s_roi_list[7]])
+    for ii in range(9):
+        if ii in (2, 5, 7):
+            compare_segmentation_rois(s_roi_list[ii],
+                                      new_roi.get_ancestor(ii+1))
+        else:
+            with pytest.raises(RuntimeError, match='cannot get ancestor'):
+                new_roi.get_ancestor(ii+1)
+
 
 def test_merge_segmentation_rois(segmentation_roi_list):
 

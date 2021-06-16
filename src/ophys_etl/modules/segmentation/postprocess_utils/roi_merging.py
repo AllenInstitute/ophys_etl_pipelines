@@ -934,7 +934,8 @@ def do_geometric_merger(
                     continue
                 if not validate_merger_bic(seed_roi,
                                            child_roi,
-                                           video_data):
+                                           video_data,
+                                           n_components=6):
                     continue
                 if best_seed is None or seed_roi.flux_value > best_seed_flux:
                     best_seed = seed_id

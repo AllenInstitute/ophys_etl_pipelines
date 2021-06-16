@@ -950,11 +950,62 @@ def validate_merger(uphill_roi: SegmentationROI,
     return False
 
 
-def do_geometric_merger(raw_roi_list,
-                        img_data,
-                        n_processors,
-                        diagnostic_dir = None):
+def do_geometric_merger(
+    raw_roi_list: List[OphysROI],
+    img_data: np.ndarray,
+    n_processors: int,
+    diagnostic_dir: Optional[path.Pathlib] = None) -> List[SegmentationROI]:
+    """
+    Merge ROIs based on a static image.
 
+    Parameters
+    ----------
+    raw_roi_list: List[OphysROI]
+
+    img_data: np.ndarray
+        The static image used to guide merging
+
+    n_processors: int
+        The number of processors to invoke with multiprocessing
+        (only used when comparing all pairs of ROIs to find neighbors)
+
+    diagnostic_dir: Optional[path.Pathlib]
+        Director in which to write optional file containing
+        seeds around which mergers were attempted
+        (default: None)
+
+    Returns
+    -------
+    List[SegmentationROI]
+        List of ROIs after merger. ROIs will have been cast
+        to SegmentationROIs, but they have the same spatial
+        information and API as OphysROIs
+
+    Notes
+    -----
+    This algorithm works as follows:
+    1) Find all pairs of ROIs that are neighbors (in this case, being
+    a neighbor means physically abutting one another)
+
+    2) Assign to each ROI a uniform brightness that is the median
+    of its z-score relative to the local background of non-ROI pixels.
+
+    3) Identify all ROIs that are brighter then each of their neighbors.
+    These are the seeds of the merging process.
+
+    4) Iteratively merge ROIs by following paths that are "downhill"
+    in brightness (i.e. do not merge an ROI into a group unless there
+    is a path from the peak ROI to the new ROI that is monotonically
+    descending in brightness)
+
+    5) Continue until there are no more mergers
+
+    As implemented, if an ROI is between two peaks, it will ultimately
+    get merged with the peak that has the fewest intervening ROIs. Future
+    development should address this ambiguity more rigorously.
+    """
+
+    # find all pairs of ROIs that abut
     t0 = time.time()
     merger_candidates = find_merger_candidates(raw_roi_list,
                                                np.sqrt(2.0),
@@ -1000,13 +1051,13 @@ def do_geometric_merger(raw_roi_list,
     logger.info(f'got {len(seed_list)} seeds in {time.time()-t0:2f} seconds')
 
     if diagnostic_dir is not None:
-        seed_file = diagnostic_dir / f'seeds.json'
+        seed_file = diagnostic_dir / f'merger_seeds.json'
         seed_rois = [ophys_roi_to_extract_roi(roi_lookup[cc])
                      for cc in seed_list]
         with open(seed_file, 'w') as out_file:
             out_file.write(json.dumps(seed_rois, indent=2))
 
-    logger.info(f'plotted {len(seed_list)} seeds in {time.time()-t0:2f} seconds')
+        logger.info(f'wrote {len(seed_list)} seeds in {time.time()-t0:2f} seconds')
 
     t0 = time.time()
     logger.info('starting merger')
@@ -1015,19 +1066,15 @@ def do_geometric_merger(raw_roi_list,
     i_pass = -1
     incoming_rois = list(roi_lookup.keys())
 
-    t0 = time.time()
     _children = {}
     while keep_going and len(seed_list)>0:
 
         for s in seed_list:
-            assert s in roi_lookup
+            if s not in roi_lookup:
+                raise RuntimeError(f"seed ROI {s} missing from lookup")
 
         n0 = len(roi_lookup)
         i_pass += 1
-
-        # keep track of ROIs that have been merged
-        merged_pairs = []
-        rejected_pairs = []
 
         # mapping from a potential child ROI to its seed
         child_to_seed = {}
@@ -1044,8 +1091,9 @@ def do_geometric_merger(raw_roi_list,
                 child_to_seed[n].append(seed_id)
 
         # loop over children; find the brightest original seed;
-        # that is where you will merge it (as long as the merger
-        # does not require you to go "uphill")
+        # that is where you will merge the child (as long as the
+        # merger does not require you to violoate the "monotonic
+        # path to peak" rule)
         keep_going = False
 
         for child_id in child_to_seed:
@@ -1054,17 +1102,8 @@ def do_geometric_merger(raw_roi_list,
             best_seed_flux = None
 
             for seed_id in child_to_seed[child_id]:
-
-                # if a possible seed got merged, we should
-                # move on, considering this merger later
-                if seed_id not in roi_lookup:
-                    assert keep_going  # should mean a merger already happend
-                    best_seed = None
-                    break
-
                 seed_roi = roi_lookup[seed_id]
                 if not validate_merger(seed_roi, child_roi):
-                    rejected_pairs.append((seed_roi, child_roi))
                     continue
                 if best_seed is None or seed_roi.flux_value > best_seed_flux:
                     best_seed = seed_id
@@ -1072,12 +1111,11 @@ def do_geometric_merger(raw_roi_list,
             if best_seed is None:
                 continue
             seed_roi = roi_lookup[best_seed]
-            merged_pairs.append((seed_roi, child_roi))
             new_roi = merge_segmentation_rois(seed_roi,
                                               child_roi,
                                               seed_roi.roi_id,
                                               seed_roi.flux_value)
-            assert len(new_roi.ancestors) > 0
+
             _children[child_id] = roi_lookup.pop(child_id)
             roi_lookup[best_seed] = new_roi
             have_been_merged.add(child_id)
@@ -1090,9 +1128,8 @@ def do_geometric_merger(raw_roi_list,
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '
                     f'after {time.time()-t0:.2f} seconds')
 
-
-    # now just need to validate that all input rois were preserved
-
+    # loop over the original list of roi_ids, copying
+    # any ROIs that were not merged into the output list
     new_roi_list = []
     for roi_id in incoming_rois:
         if roi_id not in have_been_merged:

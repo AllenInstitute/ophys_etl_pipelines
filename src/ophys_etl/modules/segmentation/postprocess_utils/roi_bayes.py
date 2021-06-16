@@ -47,16 +47,11 @@ def sub_video_from_roi(roi: SegmentationROI,
     xmax = roi.x0+roi.width
     ymax = roi.y0+roi.height
 
-    cy = np.round(roi.centroid_y).astype(int)
-    cx = np.round(roi.centroid_x).astype(int)
-
     sub_video = video_data[:,ymin:ymax,xmin:xmax]
-
-    centroid_pixel = video_data[:, cy, cx]
 
     mask = roi.mask_matrix
     sub_video = sub_video[:,mask].reshape(video_data.shape[0], -1)
-    return sub_video, centroid_pixel
+    return sub_video
 
 
 def correlate_sub_video(sub_video: np.ndarray,
@@ -84,17 +79,39 @@ def correlate_sub_video(sub_video: np.ndarray,
     return corr
 
 
+def get_brightest_pixel(roi: SegmentationROI,
+                        img_data: np.ndarray,
+                        video_data: np.ndarray) -> np.ndarray:
+
+    xmin = roi.x0
+    ymin = roi.y0
+    xmax = roi.x0+roi.width
+    ymax = roi.y0+roi.height
+    sub_img = img_data[ymin:ymax, xmin:xmax]
+    sub_video = video_data[:, ymin:ymax, xmin:xmax]
+    mask = roi.mask_matrix
+    sub_img = sub_img[mask]
+    sub_video = sub_video[:, mask]
+    assert len(sub_video.shape) == 2
+    assert sub_video.shape[1] == sub_img.shape[0]
+    assert len(sub_img.shape) == 1
+    brightest_pixel = np.argmax(sub_img)
+    return sub_video[:, brightest_pixel]
+
+
 def validate_merger_corr(uphill_roi: SegmentationROI,
                          downhill_roi: SegmentationROI,
                          video_data: np.ndarray,
+                         img_data: np.ndarray,
                          filter_fraction: float=0.2,
                          acceptance: float=1.0):
 
-    (uphill_video,
-     uphill_centroid) = sub_video_from_roi(uphill_roi, video_data)
+    uphill_video = sub_video_from_roi(uphill_roi, video_data)
+    downhill_video = sub_video_from_roi(downhill_roi, video_data)
 
-    (downhill_video,
-     downhill_centroid) = sub_video_from_roi(downhill_roi, video_data)
+    uphill_centroid = get_brightest_pixel(uphill_roi,
+                                          img_data,
+                                          video_data)
 
     #npix_uphill = uphill_video.shape[1]
     #npix_downhill = downhill_video.shape[1]

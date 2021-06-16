@@ -143,6 +143,7 @@ def test_merge_segmentation_rois(segmentation_roi_list):
     compare_segmentation_rois(new_roi.peak,
                               segmentation_roi_list[8])
 
+    # now test _get_rings
     topography = _get_rings(new_roi)
     ring_contents = []
     for ring in topography:

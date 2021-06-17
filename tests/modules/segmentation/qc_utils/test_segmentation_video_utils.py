@@ -323,7 +323,7 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
                     example_video,
                     roi,
                     tmp_dir=pathlib.Path(tmpdir),
-                    quality=10,
+                    quality=9,
                     timesteps=timesteps)
 
     rowmin = thumbnail.origin[0]

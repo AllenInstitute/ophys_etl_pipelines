@@ -89,7 +89,7 @@ class ThumbnailVideo(object):
 
     quality: int
         Quality parameter passed to imageio.mimsave
-        (maximum is 10; default is 5)
+        (maximum is 9; default is 5)
 
     fps: int
         frames per second; default 31
@@ -645,7 +645,7 @@ def _thumbnail_video_from_ROI_array(
 
     quality: int
         Quality parameter passed to imageio.mimsave
-        (maximum is 10; default is 5)
+        (maximum is 9; default is 5)
 
     Returns
     -------
@@ -732,7 +732,7 @@ def _thumbnail_video_from_ROI_path(
 
     quality: int
         Quality parameter passed to imageio.mimsave
-        (maximum is 10; default is 5)
+        (maximum is 9; default is 5)
 
     normalization: Union[str, float]
         If 'global', normalize video to maximum value of full
@@ -851,7 +851,7 @@ def thumbnail_video_from_ROI(
 
     quality: int
         Quality parameter passed to imageio.mimsave
-        (maximum is 10; default is 5)
+        (maximum is 9; default is 5)
 
     normalization: Union[str, float]
         If 'global', normalize video to maximum value of full

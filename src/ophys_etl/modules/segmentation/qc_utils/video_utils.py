@@ -9,6 +9,64 @@ from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 
+def upscale_video_frame(raw_video: np.ndarray,
+                        upscale_factor: int) -> np.ndarray:
+    """
+    Increase the frame size of a video. Return the new video.
+
+    Parameters
+    ---------
+    raw_video: np.ndarray
+        Video data of shape (ntime, nrows, ncols) or
+        (ntime, nrows, ncols)
+
+    upscale_factor: int
+        The factor by which to upscale each dimension of the video's
+        frame size
+
+    Returns
+    -------
+    new_video: np.ndarray
+        Video produced by upscaling the dimensions of raw_video
+        (if necessar) and replicating pixels in blocks to produce
+        the same video.
+
+    Notes
+    -----
+    This is necessary because the pixel format we are forced to use
+    (yuv420p) is such that each 4-pixel block of pixels shares UV
+    values, small thumbnails can come out fuzzy due to interpolation
+    across pixels that should be distinct. This method works around
+    that shortcoming by duplicating pixels so that each pixel in the
+    input video corresponds to a contiguous block of pixels in the
+    output video.
+    """
+    nt = raw_video.shape[0]
+    nrows = raw_video.shape[1]
+    ncols = raw_video.shape[2]
+    if len(raw_video.shape) == 4:
+        new_video = np.zeros((nt,
+                              upscale_factor*nrows,
+                              upscale_factor*ncols,
+                              raw_video.shape[3]), dtype=raw_video.dtype)
+    elif len(raw_video.shape) == 3:
+        new_video = np.zeros((nt,
+                              upscale_factor*nrows,
+                              upscale_factor*ncols), dtype=raw_video.dtype)
+    else:
+        raise RuntimeError("upscale_video_frame does not know how to handle "
+                           f"video of shape {raw_video.shape}; must be either "
+                           "(nt, nrows, ncols) or (nt, nrow, ncols, ncolors)")
+
+    for ii in range(upscale_factor):
+        for jj in range(upscale_factor):
+            new_video[:,
+                      ii:new_video.shape[1]:upscale_factor,
+                      jj:new_video.shape[2]:upscale_factor] = raw_video
+
+    return new_video
+
+
 class ThumbnailVideo(object):
     """
     Container class to carry around the metadata describing
@@ -67,6 +125,9 @@ class ThumbnailVideo(object):
             self._timesteps = timesteps
         else:
             self._timesteps = np.copy(timesteps)
+
+        if video_data.shape[1] < 128 or video_data.shape[0] < 128:
+            video_data = upscale_video_frame(video_data, 4)
 
         imageio.mimsave(self._path,
                         video_data,

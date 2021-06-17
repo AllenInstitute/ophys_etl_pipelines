@@ -10,6 +10,7 @@ import gc
 from ophys_etl.types import ExtractROI
 
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
+    upscale_video_frame,
     trim_video,
     thumbnail_video_from_array,
     thumbnail_video_from_path,
@@ -558,3 +559,37 @@ def test_generic_generation_from_ROI(tmpdir, example_video, timesteps):
 
     read_data = imageio.mimread(th.video_path)
     assert len(read_data) == n_t
+
+
+@pytest.mark.parametrize('factor',[3,4,5])
+def test_upscale_video_frame(factor):
+    rng = np.random.RandomState(88123)
+    raw_data = rng.randint(0, 256, (100, 14, 17), dtype=np.uint8)
+    new_data = upscale_video_frame(raw_data, factor)
+    assert new_data.shape == (100, factor*14, factor*17)
+    assert new_data.dtype == raw_data.dtype
+
+    # brute force check that pixels were all correctly copied
+    for ii in range(14):
+        for ii1 in range(factor*ii, factor*(ii+1)):
+            for jj in range(17):
+                expected = raw_data[:, ii, jj]
+                for jj1 in range(factor*jj, factor*(jj+1)):
+                    actual = new_data[:, ii1, jj1]
+                    np.testing.assert_array_equal(expected, actual)
+
+    # now try on data with a color axis
+    raw_data = rng.randint(0, 256, (100, 14, 17, 5), dtype=np.uint8)
+    new_data = upscale_video_frame(raw_data, factor)
+    assert new_data.shape == (100, factor*14, factor*17, 5)
+    assert new_data.dtype == raw_data.dtype
+
+    # brute force check that pixels were all correctly copied
+    for color in range(5):
+        for ii in range(14):
+            for ii1 in range(factor*ii, factor*(ii+1)):
+                for jj in range(17):
+                    expected = raw_data[:, ii, jj, color]
+                    for jj1 in range(factor*jj, factor*(jj+1)):
+                        actual = new_data[:, ii1, jj1, color]
+                        np.testing.assert_array_equal(expected, actual)

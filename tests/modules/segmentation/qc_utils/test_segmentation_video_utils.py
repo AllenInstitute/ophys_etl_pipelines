@@ -561,7 +561,7 @@ def test_generic_generation_from_ROI(tmpdir, example_video, timesteps):
     assert len(read_data) == n_t
 
 
-@pytest.mark.parametrize('factor',[3,4,5])
+@pytest.mark.parametrize('factor', [3, 4, 5])
 def test_upscale_video_frame(factor):
     rng = np.random.RandomState(88123)
     raw_data = rng.randint(0, 256, (100, 14, 17), dtype=np.uint8)

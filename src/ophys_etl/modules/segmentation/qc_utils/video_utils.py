@@ -52,6 +52,14 @@ class ThumbnailVideo(object):
                  timesteps: Optional[np.ndarray] = None,
                  quality: int = 5,
                  fps: int = 31):
+
+        if quality > 9:
+            raise ValueError("You are trying to write an mp4 "
+                             f"with quality = {quality}; "
+                             "quality > 9 is not compatible with "
+                             "all players; please run again with "
+                             "different quality setting.")
+
         self._path = video_path
         self._origin = origin
         self._frame_shape = video_data.shape[1:3]

@@ -64,7 +64,7 @@ class ThumbnailVideo(object):
                         video_data,
                         fps=fps,
                         quality=quality,
-                        pixelformat='yuv444p',
+                        pixelformat='yuv420p',
                         codec='libx264')
 
     def __del__(self):

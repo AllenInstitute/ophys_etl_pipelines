@@ -235,7 +235,10 @@ def test_thumbnail_from_array(tmpdir, example_video, timesteps):
     read_data = imageio.mimread(th_video.video_path)
 
     assert len(read_data) == n_t
-    assert read_data[0].shape == (16, 32, 3)
+
+    # shape gets automatically upscaled when
+    # written to temporary video file
+    assert read_data[0].shape == (64, 128, 3)
 
     # cannot to bitwise comparison of input to read data;
     # mp4 compression leads to slight differences
@@ -273,7 +276,10 @@ def test_thumbnail_from_rgb_array(tmpdir, example_rgb_video, timesteps):
     read_data = imageio.mimread(th_video.video_path)
 
     assert len(read_data) == n_t
-    assert read_data[0].shape == (16, 32, 3)
+
+    # shape gets automatically upscaled by factor of 4
+    # when written to temporary video file
+    assert read_data[0].shape == (64, 128, 3)
 
     # cannot to bitwise comparison of input to read data;
     # mp4 compression leads to slight differences
@@ -339,8 +345,10 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
 
     read_data = imageio.mimread(thumbnail.video_path)
     assert len(read_data) == n_t
-    assert read_data[0].shape == (thumbnail.frame_shape[0],
-                                  thumbnail.frame_shape[1],
+
+    # factor of 4 reflects the upscaling of video frame sizes
+    assert read_data[0].shape == (4*thumbnail.frame_shape[0],
+                                  4*thumbnail.frame_shape[1],
                                   3)
 
     # now with color

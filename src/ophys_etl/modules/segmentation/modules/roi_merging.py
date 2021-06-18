@@ -67,7 +67,7 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
         else:
             graph_img = graph_to_img(
                           networkx.read_gpickle(self.args['graph_input']),
-                          attribute_name='filtered_hnc_Gaussian')
+                          attribute_name=self.args['attribute'])
 
         roi_list = merging.do_roi_merger(
                                 roi_list,

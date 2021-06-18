@@ -55,7 +55,27 @@ def correlate_sub_video(sub_video: np.ndarray,
 def get_brightest_pixel(roi: SegmentationROI,
                         img_data: np.ndarray,
                         video_data: np.ndarray) -> np.ndarray:
+    """
+    Return the brightest pixel in an ROI (as measured against
+    some image) as a time series.
 
+    Parameters
+    ----------
+    roi: SegmentationROI
+
+    img_data: np.ndarray
+        The image used to assess "brightest pixel".
+        Shape is (nrows, ncols).
+
+    video_data: np.ndarray
+        Shape is (ntime, nrows, ncols)
+
+    Returns
+    -------
+    brightest_pixel: np.ndarray
+        Time series of taken from the video at the
+        brightest pixel in the ROI
+    """
     xmin = roi.x0
     ymin = roi.y0
     xmax = roi.x0+roi.width

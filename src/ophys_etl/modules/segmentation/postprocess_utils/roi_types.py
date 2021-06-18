@@ -1,5 +1,7 @@
 from __future__ import annotations
+from typing import Optional, List
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+
 
 class SegmentationROI(OphysROI):
     """
@@ -67,7 +69,7 @@ class SegmentationROI(OphysROI):
             for roi in ancestors:
                 if not isinstance(roi, SegmentationROI):
                     msg = 'ancestors must be of class SegmentationROI; '
-                    msg += f'these ancestors include a {type(sub_roi)}'
+                    msg += f'these ancestors include a {type(roi)}'
                     raise RuntimeError(msg)
 
                 if len(roi.ancestors) == 0:
@@ -75,7 +77,8 @@ class SegmentationROI(OphysROI):
                 else:
                     for sub_roi in roi.ancestors:
                         if not isinstance(sub_roi, SegmentationROI):
-                            msg = 'ancestors must be of class SegmentationROI; '
+                            msg = 'ancestors must be of class '
+                            msg += 'SegmentationROI; '
                             msg += f'these ancestors include a {type(sub_roi)}'
                             raise RuntimeError(msg)
                         self.ancestors.append(sub_roi)

@@ -2,10 +2,12 @@ import pytest
 import numpy as np
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
-from ophys_etl.modules.segmentation.postprocess_utils.roi_time_correlation import (
-    get_brightest_pixel,
-    sub_video_from_roi,
-    correlate_sub_video)
+from ophys_etl.modules.segmentation.\
+    postprocess_utils.roi_time_correlation import (
+        get_brightest_pixel,
+        sub_video_from_roi,
+        correlate_sub_video)
+
 
 @pytest.fixture
 def example_roi():
@@ -17,7 +19,8 @@ def example_roi():
                           height=11,
                           valid_roi=True,
                           flux_value=0.0,
-                          mask_matrix = rng.randint(0, 2, (11, 7)).astype(bool))
+                          mask_matrix=rng.randint(0, 2,
+                                                  (11, 7)).astype(bool))
 
     return roi
 

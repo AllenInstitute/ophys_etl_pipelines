@@ -86,23 +86,9 @@ def validate_merger_corr(uphill_roi: SegmentationROI,
                                           img_data,
                                           video_data)
 
-    #npix_uphill = uphill_video.shape[1]
-    #npix_downhill = downhill_video.shape[1]
-    #npix = npix_uphill+npix_downhill
-    #ntime = video_data.shape[0]
-
-    #merger_video = np.zeros((ntime,
-    #                         npix_uphill+npix_downhill), dtype=float)
-    #merger_video[:, :npix_uphill] = uphill_video
-    #merger_video[:, npix_uphill:] = downhill_video
-
     uphill_corr = correlate_sub_video(uphill_video,
                                       uphill_centroid,
                                       filter_fraction=filter_fraction)
-
-    #downhill_corr = correlate_sub_video(downhill_video,
-    #                                    downhill_centroid,
-    #                                    filter_fraction=filter_fraction)
 
     downhill_to_uphill = correlate_sub_video(downhill_video,
                                              uphill_centroid,

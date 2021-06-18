@@ -1,5 +1,4 @@
 import numpy as np
-from typing import Tuple
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 
@@ -29,10 +28,10 @@ def sub_video_from_roi(roi: SegmentationROI,
     xmax = roi.x0+roi.width
     ymax = roi.y0+roi.height
 
-    sub_video = video_data[:,ymin:ymax,xmin:xmax]
+    sub_video = video_data[:, ymin:ymax, xmin:xmax]
 
     mask = roi.mask_matrix
-    sub_video = sub_video[:,mask].reshape(video_data.shape[0], -1)
+    sub_video = sub_video[:, mask].reshape(video_data.shape[0], -1)
     return sub_video
 
 
@@ -137,8 +136,8 @@ def validate_merger_corr(uphill_roi: SegmentationROI,
                          downhill_roi: SegmentationROI,
                          video_data: np.ndarray,
                          img_data: np.ndarray,
-                         filter_fraction: float=0.2,
-                         acceptance: float=1.0):
+                         filter_fraction: float = 0.2,
+                         acceptance: float = 1.0):
 
     uphill_video = sub_video_from_roi(uphill_roi, video_data)
     downhill_video = sub_video_from_roi(downhill_roi, video_data)
@@ -159,4 +158,4 @@ def validate_merger_corr(uphill_roi: SegmentationROI,
     uphill_std = np.std(uphill_corr, ddof=1)
     z_score = (downhill_to_uphill-uphill_mu)/uphill_std
     metric = np.median(z_score)
-    return metric>(-1.0*acceptance)
+    return metric > (-1.0*acceptance)

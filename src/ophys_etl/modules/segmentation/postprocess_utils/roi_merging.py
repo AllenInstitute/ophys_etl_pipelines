@@ -7,8 +7,9 @@ import copy
 import pathlib
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
-from ophys_etl.modules.segmentation.postprocess_utils.roi_time_correlation import (
-    validate_merger_corr)
+from ophys_etl.modules.segmentation.\
+    postprocess_utils.roi_time_correlation import (
+        validate_merger_corr)
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.types import ExtractROI
@@ -24,7 +25,8 @@ logging.basicConfig(level=logging.INFO)
 
 
 def _winnow_process_list(
-    process_list: List[multiprocessing.Process]) -> List[multiprocessing.Process]:
+    process_list: List[multiprocessing.Process]) \
+        -> List[multiprocessing.Process]:
     """
     Utility that loops over a list of multiprocessing.Processes and
     pops any that have completed. Returns the new, truncated list of
@@ -94,6 +96,7 @@ def ophys_roi_to_extract_roi(roi: OphysROI) -> ExtractROI:
                          id=roi.roi_id)
     return new_roi
 
+
 def _do_rois_abut(array_0: np.ndarray,
                   array_1: np.ndarray,
                   dpix: float = np.sqrt(2)) -> bool:
@@ -150,7 +153,7 @@ def _get_pixel_array(roi: OphysROI) -> np.ndarray:
     for ir in range(roi.height):
         row = ir+roi.y0
         for ic in range(roi.width):
-            col =ic+roi.x0
+            col = ic+roi.x0
             if not mask[ir, ic]:
                 continue
 
@@ -162,6 +165,7 @@ def _get_pixel_array(roi: OphysROI) -> np.ndarray:
         raise RuntimeError("did not assign all boundary pixels")
 
     return roi_array
+
 
 def do_rois_abut(roi0: OphysROI,
                  roi1: OphysROI,
@@ -291,9 +295,10 @@ def chunk_size_from_processors(n_elements: int,
     return chunk_size
 
 
-def _find_merger_candidates(roi_pair_list: List[Tuple[OphysROI, OphysROI]],
-                            dpix: float,
-                            output_list: multiprocessing.managers.ListProxy) -> None:
+def _find_merger_candidates(
+        roi_pair_list: List[Tuple[OphysROI, OphysROI]],
+        dpix: float,
+        output_list: multiprocessing.managers.ListProxy) -> None:
     """
     Find all of the abutting ROIs in a list of OphysROIs
 
@@ -327,7 +332,7 @@ def _find_merger_candidates(roi_pair_list: List[Tuple[OphysROI, OphysROI]],
 
 def find_merger_candidates(roi_list: List[OphysROI],
                            dpix: float,
-                           rois_to_ignore: Optional[set]=None,
+                           rois_to_ignore: Optional[set] = None,
                            n_processors: int = 8) -> List[Tuple[int, int]]:
     """
     Find all the pairs of abutting ROIs in a list of OphysROIs.
@@ -376,7 +381,9 @@ def find_merger_candidates(roi_list: List[OphysROI],
             if rois_to_ignore is None:
                 subset.append((roi0, roi1))
             else:
-                if roi0.roi_id not in rois_to_ignore or roi1.roi_id not in rois_to_ignore:
+                if (roi0.roi_id not in rois_to_ignore
+                        or roi1.roi_id not in rois_to_ignore):
+
                     subset.append((roi0, roi1))
             if len(subset) >= d_pairs:
                 args = (copy.deepcopy(subset), dpix, output_list)
@@ -385,7 +392,8 @@ def find_merger_candidates(roi_list: List[OphysROI],
                 p.start()
                 process_list.append(p)
                 subset = []
-            while len(process_list) > 0 and len(process_list) >= (n_processors-1):
+            while (len(process_list) > 0
+                   and len(process_list) >= (n_processors-1)):
                 process_list = _winnow_process_list(process_list)
 
     if len(subset) > 0:
@@ -524,7 +532,7 @@ def merge_segmentation_rois(uphill_roi: SegmentationROI,
     """
 
     has_valid_step = False
-    if len(uphill_roi.ancestors)>0:
+    if len(uphill_roi.ancestors) > 0:
         for a in uphill_roi.ancestors:
             if do_rois_abut(a, downhill_roi, dpix=np.sqrt(2)):
                 if a.flux_value >= (downhill_roi.flux_value+0.001):
@@ -589,7 +597,7 @@ def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
                                                  flux_value=n_sigma)
 
         if new_roi.roi_id in lookup:
-            msg = f'{roi_id} duplicated in '
+            msg = f'{new_roi.roi_id} duplicated in '
             msg += 'segmentation_roi_lookup'
             raise RuntimeError(msg)
 
@@ -762,7 +770,7 @@ def validate_merger(uphill_roi: SegmentationROI,
 
     # loop over rings, looking for an ROI that is a feasible
     # next step up towards the peak from downhill ROI
-    for ii in range(len(rings)-1,-1,-1):
+    for ii in range(len(rings)-1, -1, -1):
         this_ring = rings[ii]
         for pair0 in this_ring:
             id0 = pair0[1]
@@ -774,12 +782,12 @@ def validate_merger(uphill_roi: SegmentationROI,
 
 
 def do_roi_merger(
-    raw_roi_list: List[OphysROI],
-    img_data: np.ndarray,
-    video_data: np.ndarray,
-    n_processors: int,
-    corr_acceptance: float,
-    diagnostic_dir: Optional[pathlib.Path] = None) -> List[SegmentationROI]:
+      raw_roi_list: List[OphysROI],
+      img_data: np.ndarray,
+      video_data: np.ndarray,
+      n_processors: int,
+      corr_acceptance: float,
+      diagnostic_dir: Optional[pathlib.Path] = None) -> List[SegmentationROI]:
     """
     Merge ROIs based on a static image.
 
@@ -897,13 +905,14 @@ def do_roi_merger(
     logger.info(f'got {len(seed_list)} seeds in {time.time()-t0:2f} seconds')
 
     if diagnostic_dir is not None:
-        seed_file = diagnostic_dir / f'merger_seeds.json'
+        seed_file = diagnostic_dir / 'merger_seeds.json'
         seed_rois = [ophys_roi_to_extract_roi(roi_lookup[cc])
                      for cc in seed_list]
         with open(seed_file, 'w') as out_file:
             out_file.write(json.dumps(seed_rois, indent=2))
 
-        logger.info(f'wrote {len(seed_list)} seeds in {time.time()-t0:2f} seconds')
+        logger.info(f'wrote {len(seed_list)} seeds '
+                    f'in {time.time()-t0:2f} seconds')
 
     t0 = time.time()
     logger.info('starting merger')
@@ -913,7 +922,7 @@ def do_roi_merger(
     incoming_rois = list(roi_lookup.keys())
 
     _children = {}
-    while keep_going and len(seed_list)>0:
+    while keep_going and len(seed_list) > 0:
 
         for s in seed_list:
             if s not in roi_lookup:
@@ -974,7 +983,7 @@ def do_roi_merger(
             have_been_merged.add(child_id)
             keep_going = True
 
-        for ii in range(len(seed_list)-1,-1,-1):
+        for ii in range(len(seed_list)-1, -1, -1):
             if seed_list[ii] not in roi_lookup:
                 seed_list.pop(ii)
 

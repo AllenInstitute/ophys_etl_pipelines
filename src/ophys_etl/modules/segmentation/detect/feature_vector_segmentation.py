@@ -6,12 +6,16 @@ import h5py
 import pathlib
 import time
 import json
+from matplotlib.figure import Figure
 
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
     PearsonFeatureROI)
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import create_roi_plot
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
+from ophys_etl.modules.segmentation.seed.seeder import \
+        ParallelImageBlockMetricSeeder
+from ophys_etl.modules.segmentation.qc.seed import add_seeds_to_axes
 
 import logging
 
@@ -31,133 +35,6 @@ class ROISeed(TypedDict):
     center: Tuple[int, int]
     rows: Tuple[int, int]
     cols: Tuple[int, int]
-
-
-def find_a_peak(img_masked: np.ma.core.MaskedArray,
-                mu: float,
-                sigma: float,
-                n_sigma: int = 2) -> Optional[int]:
-    """
-    Find a peak in a masked, flattened image array
-
-    Parameters
-    ----------
-    img_masked: np.ma.core.MaskedArray
-        A flattened, masked image array
-
-    mu: float
-        The value taken as the mean pixel value for
-        assessing peak validity
-
-    sigma: float
-        The value taken as the standard deviation of pixel
-        values for assessing peak validity
-
-    n_sigma: int
-        The number of standard deviations a peak must deviate
-        from mu to be considered valid (default: 2)
-
-    Returns
-    -------
-    i_max: Optional[int]
-        The indes of the peak value of img_masked if
-        img_masked[i_max] > mu + n_sigma*sigma.
-        If not, return None
-    """
-    candidate = np.argmax(img_masked)
-    if img_masked[candidate] > mu+n_sigma*sigma:
-        return candidate
-    return None
-
-
-def find_peaks(img: np.ndarray,
-               mask: Optional[np.ndarray] = None,
-               slop: int = 20,
-               n_sigma: int = 2) -> List[ROISeed]:
-    """
-    Find the peaks in an image to be used as seeds for ROI finding
-
-    Parameters
-    ----------
-    img: np.ndarray
-
-    mask: Optional[np.ndarray]
-        Optional mask set to True in every pixel that has already been
-        identified as part of an ROI. These pixels will be ignored in
-        peak finding (default: None)
-
-    slop: int
-        The number of pixels to each side of a peak that will be masked
-        out from further peak consideration on the assumption that they
-        are part of the centrail peak's ROI (default: 20)
-
-    n_sigma: int
-        The number of sigma a peak must deviate from the median of the
-        pixel brightness distribution to be considered an ROI candidate.
-        (default: 2)
-
-    Returns
-    -------
-    seeds: List[ROISeed]
-       A list of seeds for ROI finding. Seeds are dicts of the form
-       {'center': a tuple of the form (row, col),
-        'rows': a tuple of the form (rowmin, rowmax),
-        'cols': a tuple of the form (colmin, colmax)}
-
-    Notes
-    -----
-    This method first calculates mu, the median of all unmasked
-    pixel values, and sigma, an estimate of the standard deviation
-    of those values taken from the interquartile range. It then
-    enters a loop in which it looks for the brightest pixel. If that
-    pixel is n_sigma*sigma brighter than mu, that pixel is marked as
-    a potential seed. The chosen pixel and a box surrounding it
-    (2*slop pixels to a side) are then masked out and the next unmasked
-    peak is considered. This process continues until no n_sigma peaks
-    are found.
-    """
-
-    output = []
-    shape = img.shape
-    img_flat = img.flatten()
-
-    if mask is None:
-        mask_flat = np.zeros(img_flat.shape, dtype=bool)
-    else:
-        mask_flat = mask.flatten()
-
-    img_masked = np.ma.masked_array(img_flat, mask=mask_flat)
-    i25 = np.quantile(img_masked, 0.25)
-    i75 = np.quantile(img_masked, 0.75)
-    sigma = (i75-i25)/1.349
-    mu = np.median(img_masked)
-
-    keep_going = True
-    while keep_going:
-        candidate = find_a_peak(img_masked,
-                                mu,
-                                sigma,
-                                n_sigma=n_sigma)
-        if candidate is None:
-            keep_going = False
-        else:
-            pixel = np.unravel_index(candidate, shape)
-            rowmin = max(0, pixel[0]-slop)
-            rowmax = min(shape[0], pixel[0]+slop)
-            colmin = max(0, pixel[1]-slop)
-            colmax = min(shape[1], pixel[1]+slop)
-
-            obj = ROISeed(center=(int(pixel[0]), int(pixel[1])),
-                          rows=(int(rowmin), int(rowmax)),
-                          cols=(int(colmin), int(colmax)))
-
-            output.append(obj)
-            for irow in range(rowmin, rowmax):
-                for icol in range(colmin, colmax):
-                    ii = np.ravel_multi_index((irow, icol), shape)
-                    img_masked.mask[ii] = True
-
-    return output
 
 
 def _get_roi(seed_obj: ROISeed,
@@ -328,12 +205,22 @@ class FeatureVectorSegmenter(object):
         self._graph_img = graph_to_img(graph_input,
                                        attribute_name=attribute)
 
+        # NOTE: we should expose these parameters
+        self.seeder = ParallelImageBlockMetricSeeder(
+                n_samples=self.n_processors,
+                minimum_distance=20.0,
+                keep_fraction=0.8,
+                seeder_grid_size=10,
+                exclusion_buffer=0)
+        self.seeder.select_seeds(self._graph_img, sigma=None)
+
         with h5py.File(self._video_input, 'r') as in_file:
             movie_shape = in_file["data"].shape
             if movie_shape[1:] != self._graph_img.shape:
                 msg = f'movie shape: {movie_shape}\n'
                 msg += f'img shape: {self._graph_img.shape}'
                 raise RuntimeError(msg)
+        self.movie_shape = movie_shape
 
     def _run(self,
              img_data: np.ndarray,
@@ -364,9 +251,19 @@ class FeatureVectorSegmenter(object):
         appended to self.roi_list.
         """
 
-        seed_list = find_peaks(img_data,
-                               mask=self.roi_pixels,
-                               slop=20)
+        # NOTE: we should rewrite run() and _run() so that they can
+        # use the parallel seed iterator like
+        # ```
+        # for seed_list in self.seeder:
+        #     <farm out processes>
+        # ```
+        # for now:
+        try:
+            seed_list = next(self.seeder)
+        except StopIteration:
+            seed_list = []
+
+        slop = 20
 
         logger.info(f'got {len(seed_list)} seeds')
 
@@ -377,15 +274,29 @@ class FeatureVectorSegmenter(object):
         mgr_dict = mgr.dict()
         for i_seed, seed in enumerate(seed_list):
             self.roi_id += 1
-            mask = self.roi_pixels[seed['rows'][0]:seed['rows'][1],
-                                   seed['cols'][0]:seed['cols'][1]]
+            r0 = int(max(0, seed[0] - slop))
+            r1 = int(min(self.movie_shape[0], seed[0] + slop))
+            c0 = int(max(0, seed[1] - slop))
+            c1 = int(min(self.movie_shape[1], seed[1] + slop))
 
-            video_data_subset = video_data[:,
-                                           seed['rows'][0]:seed['rows'][1],
-                                           seed['cols'][0]:seed['cols'][1]]
+            # NOTE: forcing mask to False is introduced with the
+            # generic seeder without this, there is a KeyError in
+            # PotentialROI.__init__(). We should resolve this if
+            # we want to retain the designed behavior of FVS
+            mask = np.zeros_like(self.roi_pixels[r0:r1, c0:c1])
+
+            video_data_subset = video_data[:, r0:r1, c0:c1]
+
+            # NOTE: eventually, get rid of ROISeed
+            # rationale: seeding produces seeds (coordinates), this object
+            # specifies a growth region, which should be a "segment",
+            # i.e. "detect" role.
+            this_seed = ROISeed(center=seed,
+                                rows=[r0, r1],
+                                cols=[c0, c1])
 
             p = multiprocessing.Process(target=_get_roi,
-                                        args=(seed,
+                                        args=(this_seed,
                                               video_data_subset,
                                               self._filter_fraction,
                                               mask,
@@ -424,6 +335,9 @@ class FeatureVectorSegmenter(object):
                     cc = origin[1]+ic
                     if mask[ir, ic]:
                         self.roi_pixels[rr, cc] = True
+                        # NOTE: this makes sure the seeder does not
+                        # supply new seeds that are in these ROIs
+                        self.seeder.exclude_pixels({(rr, cc)})
 
         return seed_list
 
@@ -504,6 +418,14 @@ class FeatureVectorSegmenter(object):
 
             n_roi_0 = self.roi_pixels.sum()
             roi_seeds = self._run(img_data, video_data)
+
+            # NOTE: this change lets the seeder/iterator control
+            # the stopping condition of segmentation. I.e. when seeds
+            # are exhausted. run() and _run() should be rewritten to use
+            # the iterator in a more canonical way.
+            if len(roi_seeds) == 0:
+                break
+
             n_roi_1 = self.roi_pixels.sum()
 
             duration = time.time()-t0
@@ -517,15 +439,29 @@ class FeatureVectorSegmenter(object):
                 seed_record[i_iteration] = roi_seeds
 
             i_iteration += 1
+
+            # NOTE: the seeder supports allowing FVS to terminate segmentation
+            # and will label unused candidate seeds as such. But, we should
+            # consider whether we just want to let the seeder terminate
+            # segmentation when candidate seeds are exhausted
             if n_roi_1 <= n_roi_0:
                 keep_going = False
 
         logger.info('finished iterating on ROIs')
 
         if seed_output is not None:
-            logger.info(f'writing {str(seed_output)}')
-            with open(seed_output, 'w') as out_file:
-                out_file.write(json.dumps(seed_record, indent=2))
+            # NOTE: seeder implements output to hdf5
+            with h5py.File(seed_output, "w") as f:
+                self.seeder.log_to_h5_group(f)
+            logger.info(f'wrote {str(seed_output)}')
+
+            # NOTE: we should make this plot a CLI arg
+            seed_plot = pathlib.Path(seed_output).parent / "seed_plot.png"
+            f = Figure(figsize=(8, 8))
+            axes = f.add_subplot(111)
+            add_seeds_to_axes(axes, seed_h5_path=seed_output)
+            f.savefig(seed_plot)
+            logger.info(f'wrote {seed_plot}')
 
         logger.info(f'writing {str(roi_output)}')
         with open(roi_output, 'w') as out_file:

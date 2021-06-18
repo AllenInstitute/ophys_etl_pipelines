@@ -33,7 +33,8 @@ def seed_h5_file(tmp_path):
 def test_add_seeds_to_axes_default(seed_h5_file,  image_background):
     fig = Figure()
     axes = fig.add_subplot(111)
-    qcseed.add_seeds_to_axes(axes=axes,
+    qcseed.add_seeds_to_axes(figure=fig,
+                             axes=axes,
                              seed_h5_path=seed_h5_file,
                              image_background=image_background)
 
@@ -43,7 +44,8 @@ def test_add_seeds_to_axes_from_group(seed_h5_file):
     axes = fig.add_subplot(111)
     with h5py.File(seed_h5_file, "r") as f:
         group = f["seeding"]
-        qcseed.add_seeds_to_axes(axes=axes,
+        qcseed.add_seeds_to_axes(figure=fig,
+                                 axes=axes,
                                  seed_h5_path=None,
                                  seed_h5_group=group)
 
@@ -53,7 +55,8 @@ def test_add_seeds_no_group(seed_h5_file):
     axes = fig.add_subplot(111)
     with pytest.raises(ValueError,
                        match=r"for (seed_h5_path, seed_h5_group)*"):
-        qcseed.add_seeds_to_axes(axes=axes,
+        qcseed.add_seeds_to_axes(figure=fig,
+                                 axes=axes,
                                  seed_h5_path=seed_h5_file,
                                  seed_h5_group=None)
 
@@ -64,6 +67,7 @@ def test_add_seeds_bad_image(seed_h5_file, tmp_path):
     axes = fig.add_subplot(111)
     with pytest.raises(ValueError,
                        match=r"image background should be *"):
-        qcseed.add_seeds_to_axes(axes=axes,
+        qcseed.add_seeds_to_axes(figure=fig,
+                                 axes=axes,
                                  seed_h5_path=seed_h5_file,
                                  image_background=junk)

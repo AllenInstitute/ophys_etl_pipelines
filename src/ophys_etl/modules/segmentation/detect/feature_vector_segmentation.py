@@ -459,7 +459,7 @@ class FeatureVectorSegmenter(object):
             seed_plot = pathlib.Path(seed_output).parent / "seed_plot.png"
             f = Figure(figsize=(8, 8))
             axes = f.add_subplot(111)
-            add_seeds_to_axes(axes, seed_h5_path=seed_output)
+            add_seeds_to_axes(f, axes, seed_h5_path=seed_output)
             f.savefig(seed_plot)
             logger.info(f'wrote {seed_plot}')
 

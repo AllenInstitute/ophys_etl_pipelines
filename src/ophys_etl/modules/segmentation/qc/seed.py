@@ -3,9 +3,11 @@ import numpy as np
 from pathlib import Path
 from typing import Union, Optional
 from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 
 def add_seeds_to_axes(
+        figure: Figure,
         axes: Axes,
         seed_h5_group: Union[str, h5py.Group] = "seeding",
         image_background: Optional[Union[np.ndarray, str]] = "seed_image",
@@ -66,7 +68,8 @@ def add_seeds_to_axes(
                          marker="x",
                          label=reason)
 
-    axes.legend()
+    axes.legend(bbox_to_anchor=(1.05, 1))
+    figure.tight_layout()
 
     if isinstance(seed_h5_path, Path) | isinstance(seed_h5_path, str):
         h5file.close()

@@ -5,10 +5,23 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
 
 
 def sub_video_from_roi(roi: SegmentationROI,
-                       video_data: np.ndarray) -> Tuple[np.ndarray,
-                                                        np.ndarray]:
+                       video_data: np.ndarray) -> np.ndarray:
     """
-    Returns sub-video and centroid pixel
+    Get a sub-video that is flattened in space corresponding
+    to the video data at the ROI
+
+    Parameters
+    ----------
+    roi: SegmentationROI
+
+    video_data: np.ndarray
+        Shape is (ntime, nrows, ncols)
+
+    Returns
+    -------
+    sub_video: np.ndarray
+        Shape is (ntime, npix) where npix is the number
+        of pixels marked True in the ROI
     """
 
     xmin = roi.x0

@@ -41,7 +41,7 @@ class SegmentationROI(OphysROI):
         that are a part of the ROI
 
     flux_value: float
-        The scalar flux valuea associated with this ROI (default=0)
+        The scalar flux value associated with this ROI (default=0)
 
     ancestors: Optional[List[SegmentationROI]]
         A list of the SegmentationROIs from which this ROI

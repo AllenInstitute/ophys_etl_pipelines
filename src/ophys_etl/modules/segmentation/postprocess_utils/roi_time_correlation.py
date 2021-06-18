@@ -137,8 +137,51 @@ def validate_merger_corr(uphill_roi: SegmentationROI,
                          video_data: np.ndarray,
                          img_data: np.ndarray,
                          filter_fraction: float = 0.2,
-                         acceptance: float = 1.0):
+                         acceptance: float = 1.0) -> bool:
+    """
+    Validate the merger between two ROIs based on time correlation
+    information.
 
+    Parameters
+    ----------
+    uphill_roi: SegmentationROI
+
+    downhill_roi: SegmentationROI
+
+    video_data: np.ndarray
+        Shape is (ntime, nrows, ncols)
+
+    img_data: np.ndarray
+        Shape is (nrows, ncols)
+
+    filter_fraction: float
+        The fraction of time steps to keep when doing
+        time correlation (default = 0.2)
+
+    acceptance: float
+        The z-score threshold for accepting the merger
+        (default = 1.0)
+
+    Returns
+    -------
+    boolean
+
+    Notes
+    -----
+    To assess whether a merger should happen, find the
+    brightest pixel in uphill_roi (reckoned with img_data).
+    Extract that pixel from video_data as a time series.
+    Select only the brightest filter_fraction of pixels
+    from that time series. Correlate the rest of the pixels
+    in uphill_roi against that brightest_pixel timeseries.
+    Use those correlations to construct a Gaussian distribution.
+
+    Correlate the pixels in downhill_roi against that
+    brightest_pixel from uphill_roi. Convert these correlations
+    into a z-score relative to the Gaussian distribution.
+    Accept the merger if the median z-score is greater
+    than -1*acceptance. Reject it, otherwise.
+    """
     uphill_video = sub_video_from_roi(uphill_roi, video_data)
     downhill_video = sub_video_from_roi(downhill_roi, video_data)
 

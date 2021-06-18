@@ -774,7 +774,7 @@ def validate_merger(uphill_roi: SegmentationROI,
     return False
 
 
-def do_geometric_merger(
+def do_roi_merger(
     raw_roi_list: List[OphysROI],
     img_data: np.ndarray,
     video_data: np.ndarray,

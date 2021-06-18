@@ -13,6 +13,7 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     get_inactive_dist,
     do_roi_merger)
 
+
 @pytest.fixture
 def example_roi_list():
     rng = np.random.RandomState(6412439)
@@ -31,6 +32,7 @@ def example_roi_list():
         roi_list.append(roi)
 
     return roi_list
+
 
 @pytest.fixture
 def example_movie_data():
@@ -75,7 +77,7 @@ def whole_dataset():
             for c0 in range(0, width, width//2):
                 roi_id += 1
                 this_mask = mask[r0:r0+height//2, c0:c0+width//2]
-                if this_mask.sum() ==0:
+                if this_mask.sum() == 0:
                     continue
                 roi = OphysROI(x0=x0+c0, y0=y0+r0,
                                height=this_mask.shape[0],
@@ -90,7 +92,7 @@ def whole_dataset():
 
 def test_extract_roi_to_ophys_roi():
     rng = np.random.RandomState(345)
-    mask = rng.randint(0,2,(9,7)).astype(bool)
+    mask = rng.randint(0, 2, (9, 7)).astype(bool)
     roi = {'x': 5,
            'y': 6,
            'width': 7,
@@ -118,6 +120,7 @@ def test_ophys_roi_to_extract_roi(example_roi_list):
         np.testing.assert_array_equal(roi_in.mask_matrix,
                                       roi_out['mask'])
 
+
 def test_merge_rois():
 
     x0 = 11
@@ -137,10 +140,10 @@ def test_merge_rois():
                     roi_id=0,
                     valid_roi=True)
 
-    y0=19
-    x0=16
-    height=6
-    width=4
+    y0 = 19
+    x0 = 16
+    height = 6
+    width = 4
     mask = np.zeros((height, width), dtype=bool)
     mask[5, 0] = True
     mask[5, 1] = True
@@ -247,7 +250,7 @@ def test_roi_abut():
     assert not do_rois_abut(roi0, roi1, dpix=2)
 
 
-@pytest.mark.parametrize("dpix",[np.sqrt(2), 4, 5])
+@pytest.mark.parametrize("dpix", [np.sqrt(2), 4, 5])
 def test_find_merger_candidates(dpix, example_roi_list):
     true_matches = set()
     has_been_matched = set()
@@ -272,7 +275,7 @@ def test_find_merger_candidates(dpix, example_roi_list):
         assert matches == expected
 
 
-@pytest.mark.parametrize("dpix",[np.sqrt(2), 4, 5])
+@pytest.mark.parametrize("dpix", [np.sqrt(2), 4, 5])
 def test_find_merger_candidates_with_ignore(dpix, example_roi_list):
     full_matches = set()
     has_been_matched = set()
@@ -321,8 +324,6 @@ def test_get_inactive_mask(example_roi_list):
     assert inactive_mask.sum() > 0
     assert inactive_mask.sum() < 33**2
 
-    roi_pixels = []
-    not_roi_pixels = []
     active_mask = np.zeros(img_shape, dtype=bool)
     for roi in example_roi_list:
         x0 = roi.x0

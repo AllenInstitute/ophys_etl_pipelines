@@ -326,7 +326,16 @@ class RoiMergerSchema(argschema.ArgSchema):
     graph_input = argschema.fields.InputFile(
             required=True,
             default=None,
-            allow_none=True)
+            allow_none=True,
+            description=("file containing graph used to produce "
+                         "image over which ROIs are laid"))
+
+    attribute = argschema.fields.Str(
+        required=False,
+        default="filtered_hnc_Gaussian",
+        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
+                        "filtered_hnc_Gaussian"]),
+        description="which attribute to use in image")
 
     video_input = argschema.fields.InputFile(
         required=True,
@@ -336,9 +345,12 @@ class RoiMergerSchema(argschema.ArgSchema):
     diagnostic_dir = argschema.fields.Str(
             required=False,
             default=None,
-            allow_none=True)
+            allow_none=True,
+            description=("optional directory where diagnostic files "
+                         "will be written"))
 
     corr_acceptance = argschema.fields.Float(
         required=False,
         default=1.0,
-        decription=("level of correlation needed to accept merger"))
+        decription=("level of time series correlation needed "
+                    "to accept a merger (in units of z-score)"))

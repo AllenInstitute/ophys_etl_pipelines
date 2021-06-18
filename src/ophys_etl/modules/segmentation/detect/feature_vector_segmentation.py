@@ -8,7 +8,7 @@ import time
 import json
 
 from ophys_etl.types import ExtractROI
-from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import (
+from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
     PearsonFeatureROI)
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import create_roi_plot
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img

@@ -4,12 +4,11 @@ import pathlib
 from ophys_etl.modules.segmentation.modules.schemas import \
     FeatureVectorSegmentationInputSchema
 
-from ophys_etl.modules.segmentation.graph_utils.\
-    feature_vector_segmentation import (
+from ophys_etl.modules.segmentation.detect.feature_vector_segmentation import (
         FeatureVectorSegmenter)
 
-from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import \
-    PearsonFeatureROI, PCAFeatureROI
+from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
+    PearsonFeatureROI, PCAFeatureROI)
 
 ROI_CLASS_MAP = {"PearsonFeatureROI": PearsonFeatureROI,
                  "PCAFeatureROI": PCAFeatureROI}

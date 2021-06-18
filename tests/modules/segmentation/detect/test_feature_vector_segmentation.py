@@ -9,8 +9,7 @@ from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
-from ophys_etl.modules.segmentation.\
-    graph_utils.feature_vector_segmentation import (
+from ophys_etl.modules.segmentation.detect.feature_vector_segmentation import (
         convert_to_lims_roi,
         find_peaks,
         FeatureVectorSegmenter)

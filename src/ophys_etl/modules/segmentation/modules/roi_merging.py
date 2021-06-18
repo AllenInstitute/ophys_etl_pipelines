@@ -1,7 +1,5 @@
 import argschema
 import pathlib
-import numpy as np
-
 import h5py
 import json
 
@@ -35,7 +33,6 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
 
     default_schema = RoiMergerSchema
 
-
     def run(self):
 
         diagnostic_dir = None
@@ -68,8 +65,9 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             raise RuntimeError("must specify graph_input")
             graph_img = None
         else:
-            graph_img = graph_to_img(networkx.read_gpickle(self.args['graph_input']),
-                                     attribute_name='filtered_hnc_Gaussian')
+            graph_img = graph_to_img(
+                          networkx.read_gpickle(self.args['graph_input']),
+                          attribute_name='filtered_hnc_Gaussian')
 
         roi_list = merging.do_roi_merger(
                                 roi_list,
@@ -83,6 +81,7 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
 
         duration = time.time()-t0
         self.logger.info(f'Finished in {duration:.2f} seconds')
+
 
 if __name__ == "__main__":
     merger_engine = RoiMergerEngine()

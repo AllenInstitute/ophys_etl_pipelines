@@ -278,7 +278,7 @@ class ParallelImageBlockMetricSeeder(ImageBlockMetricSeeder):
         if len(self._candidate_seeds) == 0:
             raise StopIteration
 
-        next_seeds = [self._candidate_seeds.pop(0)]
+        next_seeds = []
         i = 0
         while len(next_seeds) < self._n_samples:
             if i > (len(self._candidate_seeds) - 1):
@@ -295,6 +295,12 @@ class ParallelImageBlockMetricSeeder(ImageBlockMetricSeeder):
 
             coords = np.array(candidate['coordinates'])
             next_coords = [np.array(i['coordinates']) for i in next_seeds]
+            if len(next_coords) == 0:
+                # first entry in next_seeds
+                next_seeds.append(self._candidate_seeds.pop(i))
+                continue
+
+            # 1 or more seeds already
             dists = cdist([coords], next_coords, metric="euclidean")[0]
             if dists.min() >= self._minimum_distance:
                 next_seeds.append(self._candidate_seeds.pop(i))

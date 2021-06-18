@@ -192,8 +192,9 @@ class ImageBlockMetricSeeder(SeederBase):
                 inds = np.array(
                         np.unravel_index(np.argmax(block), block.shape))
                 inds += np.array([row, col])
+                inds = tuple([int(i) for i in inds])
                 seeds.append(
-                        Seed(coordinates=tuple(inds),
+                        Seed(coordinates=inds,
                              value=block.max(),
                              excluded_by_roi=False,
                              excluded_by_quantile=False))

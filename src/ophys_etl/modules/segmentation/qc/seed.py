@@ -50,20 +50,19 @@ def add_seeds_to_axes(
 
     # plot the seeds
     provided = group["provided_seeds"][()]
-    print(provided)
     if len(provided) != 0:
-        axes.scatter(provided[:, 0], provided[:, 1],
+        axes.scatter(provided[:, 1], provided[:, 0],
                      marker="o", label="provided seeds")
 
     excluded = group["excluded_seeds"][()]
     if len(excluded) != 0:
         exclusion_reason = np.array([i.decode("utf-8")
                                      for i in group["exclusion_reason"][()]])
-        reasons, indices = np.unique(exclusion_reason, return_inverse=True)
+        reasons = np.unique(exclusion_reason)
         for reason in reasons:
-            index = indices == reason
-            axes.scatter(excluded[index, 0],
-                         excluded[index, 1],
+            index = np.array([i == reason for i in exclusion_reason])
+            axes.scatter(excluded[index, 1],
+                         excluded[index, 0],
                          marker="x",
                          label=reason)
 

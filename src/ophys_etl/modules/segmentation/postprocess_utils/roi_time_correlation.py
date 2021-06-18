@@ -38,7 +38,35 @@ def sub_video_from_roi(roi: SegmentationROI,
 
 def correlate_sub_video(sub_video: np.ndarray,
                         key_pixel: np.ndarray,
-                        filter_fraction: float = 0.2):
+                        filter_fraction: float = 0.2) -> np.ndarray:
+    """
+    Correlated all of the pixels in a sub_video against
+    a provided time series using only the brightest N
+    timesteps
+
+    Parameters
+    ----------
+    sub_video: np.ndarray
+        Shape is (ntime, npixels)
+
+    key_pixel: np.ndarray
+        Shape is (ntime,)
+        This is the time series against which to correlate
+        the pixels in sub_video
+
+    filter_fraction: float
+        Keep the brightest filter_fraction timesteps when doing
+        the correlation (this is reckoned by the flux values in
+        key_pixel)
+
+    Returns
+    -------
+    corr: np.ndarray
+        Shape is (npix,)
+        These are the correlation values of the pixels in
+        sub_video against key_pixel
+    """
+
     npix = sub_video.shape[1]
     discard = 1.0-filter_fraction
     th = np.quantile(key_pixel, discard)

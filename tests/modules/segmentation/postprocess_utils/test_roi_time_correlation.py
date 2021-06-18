@@ -4,7 +4,8 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.segmentation.postprocess_utils.roi_time_correlation import (
     get_brightest_pixel,
-    sub_video_from_roi)
+    sub_video_from_roi,
+    correlate_sub_video)
 
 @pytest.fixture
 def example_roi():
@@ -68,3 +69,29 @@ def test_sub_video_from_roi(example_roi):
                                             example_roi.x0+ic]
             i_pix += 1
     np.testing.assert_array_equal(expected, sub_video)
+
+
+@pytest.mark.parametrize('filter_fraction', [0.1, 0.2, 0.3])
+def test_correlate_sub_video(filter_fraction):
+    ntime = 137
+    npixels = 45
+    rng = np.random.RandomState(8234)
+    video_data = rng.random_sample((ntime, npixels))
+    key_pixel = rng.random_sample(ntime)
+
+    corr = correlate_sub_video(video_data,
+                               key_pixel,
+                               filter_fraction=filter_fraction)
+
+    th = np.quantile(key_pixel, 1.0-filter_fraction)
+    mask = (key_pixel >= th)
+    key_pixel = key_pixel[mask]
+    mu = np.mean(key_pixel)
+    var = np.var(key_pixel)
+    for i_pix in range(npixels):
+        pixel = video_data[:, i_pix]
+        pixel = pixel[mask]
+        mu_p = np.mean(pixel)
+        var_p = np.var(pixel)
+        expected = np.mean((key_pixel-mu)*(pixel-mu_p))/np.sqrt(var*var_p)
+        assert np.abs((expected-corr[i_pix])/expected) < 1.0e-6

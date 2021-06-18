@@ -798,6 +798,10 @@ def do_geometric_merger(
         The number of processors to invoke with multiprocessing
         (only used when comparing all pairs of ROIs to find neighbors)
 
+    corr_acceptance: float
+        The pixel time correlation threshold for accepting a
+        merger (see "Notes")
+
     diagnostic_dir: Optional[path.Pathlib]
         Director in which to write optional file containing
         seeds around which mergers were attempted
@@ -825,7 +829,21 @@ def do_geometric_merger(
     4) Iteratively merge ROIs by following paths that are "downhill"
     in brightness (i.e. do not merge an ROI into a group unless there
     is a path from the peak ROI to the new ROI that is monotonically
-    descending in brightness)
+    descending in brightness).
+
+    4a) When considering a merger, select the brightest pixel in the
+    uphill ROI. Treating every pixel in the ROI as a time series,
+    correlate each pixel in the uphill ROI with the brightest pixel,
+    using only the brightest 80% of timesteps (for the brightest pixel).
+    Use this set of correlations to construct a Gaussian distribution.
+    Correlate every pixel in the downhill ROI against the brightest
+    pixel in the uphill ROI. Assess the z-scores of these cross
+    correlations relative to the distribution of the self-correlation
+    of pixels in the uphill ROI. Only accept the merger if the
+    median z-score is greater than -1*corr_acceptance (i.e. if the
+    pixels in the downhill ROI are, on average, more correlated
+    with the brightest pixel in the uphill ROI than some threshold
+    specified by corr_acceptance).
 
     5) Continue until there are no more mergers
 

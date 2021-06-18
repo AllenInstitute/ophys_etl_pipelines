@@ -71,13 +71,13 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             graph_img = graph_to_img(networkx.read_gpickle(self.args['graph_input']),
                                      attribute_name='filtered_hnc_Gaussian')
 
-        roi_list = merging.do_geometric_merger(
-                                       roi_list,
-                                       graph_img,
-                                       video_data,
-                                       self.args['n_parallel_workers'],
-                                       self.args['corr_acceptance'],
-                                       diagnostic_dir=diagnostic_dir)
+        roi_list = merging.do_roi_merger(
+                                roi_list,
+                                graph_img,
+                                video_data,
+                                self.args['n_parallel_workers'],
+                                self.args['corr_acceptance'],
+                                diagnostic_dir=diagnostic_dir)
 
         write_out_rois(roi_list, self.args['roi_output'])
 

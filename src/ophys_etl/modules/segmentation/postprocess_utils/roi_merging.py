@@ -8,7 +8,6 @@ import pathlib
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.segmentation.postprocess_utils.roi_bayes import (
-    validate_merger_bic,
     validate_merger_corr)
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI

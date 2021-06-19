@@ -209,9 +209,9 @@ class FeatureVectorSegmenter(object):
         self.seeder = ParallelImageBlockMetricSeeder(
                 n_samples=self.n_processors,
                 minimum_distance=20.0,
-                keep_fraction=0.8,
-                seeder_grid_size=10,
-                exclusion_buffer=0)
+                keep_fraction=0.3,
+                seeder_grid_size=3,
+                exclusion_buffer=1)
         self.seeder.select_seeds(self._graph_img, sigma=None)
 
         with h5py.File(self._video_input, 'r') as in_file:
@@ -279,11 +279,7 @@ class FeatureVectorSegmenter(object):
             c0 = int(max(0, seed[1] - slop))
             c1 = int(min(self.movie_shape[1], seed[1] + slop))
 
-            # NOTE: forcing mask to False is introduced with the
-            # generic seeder without this, there is a KeyError in
-            # PotentialROI.__init__(). We should resolve this if
-            # we want to retain the designed behavior of FVS
-            mask = np.zeros_like(self.roi_pixels[r0:r1, c0:c1])
+            mask = self.roi_pixels[r0:r1, c0:c1]
 
             video_data_subset = video_data[:, r0:r1, c0:c1]
 

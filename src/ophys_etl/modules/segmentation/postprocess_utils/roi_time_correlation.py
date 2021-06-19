@@ -132,7 +132,7 @@ def get_brightest_pixel(roi: SegmentationROI,
     return sub_video[:, brightest_pixel]
 
 
-def validate_merger_corr(uphill_roi: SegmentationROI,
+def _validate_merger_corr(uphill_roi: SegmentationROI,
                          downhill_roi: SegmentationROI,
                          video_data: np.ndarray,
                          img_data: np.ndarray,
@@ -202,3 +202,28 @@ def validate_merger_corr(uphill_roi: SegmentationROI,
     z_score = (downhill_to_uphill-uphill_mu)/uphill_std
     metric = np.median(z_score)
     return metric > (-1.0*acceptance)
+
+def validate_merger_corr(uphill_roi: SegmentationROI,
+                         downhill_roi: SegmentationROI,
+                         video_data: np.ndarray,
+                         img_data: np.ndarray,
+                         filter_fraction: float = 0.2,
+                         acceptance: float = 1.0) -> bool:
+    test1 = _validate_merger_corr(uphill_roi,
+                                  downhill_roi,
+                                  video_data,
+                                  img_data,
+                                  filter_fraction=filter_fraction,
+                                  acceptance=acceptance)
+
+    if test1:
+        return True
+
+    test2 = _validate_merger_corr(downhill_roi,
+                                  uphill_roi,
+                                  video_data,
+                                  img_data,
+                                  filter_fraction=filter_fraction,
+                                  acceptance=acceptance)
+
+    return test2

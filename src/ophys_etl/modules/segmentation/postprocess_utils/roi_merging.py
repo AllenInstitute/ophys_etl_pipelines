@@ -531,22 +531,6 @@ def merge_segmentation_rois(uphill_roi: SegmentationROI,
     in flux_value, to go from uphill_roi.peak to downhill_roi
     """
 
-    has_valid_step = False
-    if len(uphill_roi.ancestors) > 0:
-        for a in uphill_roi.ancestors:
-            if do_rois_abut(a, downhill_roi, dpix=np.sqrt(2)):
-                if a.flux_value >= (downhill_roi.flux_value+0.001):
-                    has_valid_step = True
-    else:
-        if do_rois_abut(uphill_roi, downhill_roi):
-            if uphill_roi.flux_value >= (downhill_roi.flux_value+0.001):
-                has_valid_step = True
-
-    if not has_valid_step:
-        msg = 'There is no valid step between the ROIs '
-        msg += 'you are trying to merge'
-        raise RuntimeError(msg)
-
     new_roi = merge_rois(uphill_roi, downhill_roi, new_roi_id=new_roi_id)
     return SegmentationROI.from_ophys_roi(new_roi,
                                           ancestors=[uphill_roi, downhill_roi],
@@ -958,8 +942,6 @@ def do_roi_merger(
 
             for seed_id in child_to_seed[child_id]:
                 seed_roi = roi_lookup[seed_id]
-                if not validate_merger(seed_roi, child_roi):
-                    continue
                 if not validate_merger_corr(seed_roi,
                                             child_roi,
                                             video_data,

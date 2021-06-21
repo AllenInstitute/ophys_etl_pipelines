@@ -943,7 +943,7 @@ def do_roi_merger(
                 if ct % 1000 == 0:
                     dur = time.time()-t0_pass
                     per = dur/ct
-                    per_action = dur/actual
+                    per_actual = dur/actual
                     logger.info(f'{ct} of {n_pairs_0} (actual {actual}) in '
                                 f'{dur:.2f} seconds ({per:.2f};'
                                 f'{per_actual:.2f} per)')

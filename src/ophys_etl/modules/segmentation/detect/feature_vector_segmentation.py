@@ -210,7 +210,7 @@ class FeatureVectorSegmenter(object):
                 n_samples=self.n_processors,
                 minimum_distance=20.0,
                 keep_fraction=0.3,
-                seeder_grid_size=3,
+                seeder_grid_size=None,
                 exclusion_buffer=1)
         self.seeder.select_seeds(self._graph_img, sigma=None)
 

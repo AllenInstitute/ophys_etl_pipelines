@@ -156,7 +156,7 @@ class ImageBlockMetricSeeder(SeederBase):
     """
     def __init__(self,
                  keep_fraction: float = 0.4,
-                 seeder_grid_size: int = 5,
+                 seeder_grid_size: Optional[int] = None,
                  *args, **kwargs):
         self._seeder_grid_size = seeder_grid_size
         self._keep_fraction = keep_fraction
@@ -182,24 +182,36 @@ class ImageBlockMetricSeeder(SeederBase):
             image = gaussian_filter(image, mode="constant", sigma=sigma)
         self._seed_image = image
 
-        row = 0
         seeds = []
-        while row < image.shape[0]:
-            col = 0
-            while col < image.shape[1]:
-                block = image[row: (row + self._seeder_grid_size),
-                              col: (col + self._seeder_grid_size)]
-                inds = np.array(
-                        np.unravel_index(np.argmax(block), block.shape))
-                inds += np.array([row, col])
-                inds = tuple([int(i) for i in inds])
+
+        if self._seeder_grid_size is None:
+            # every pixel in image is used
+            rows, cols = np.mgrid[0: image.shape[0], 0: image.shape[1]]
+            for r, c, v in zip(rows.flat, cols.flat, image.flat):
                 seeds.append(
-                        Seed(coordinates=inds,
-                             value=block.max(),
+                        Seed(coordinates=(int(r), int(c)),
+                             value=v,
                              excluded_by_roi=False,
                              excluded_by_quantile=False))
-                col += self._seeder_grid_size
-            row += self._seeder_grid_size
+        else:
+            # only max value pixels in blockwise neighborhoods (HNCcorr-like)
+            row = 0
+            while row < image.shape[0]:
+                col = 0
+                while col < image.shape[1]:
+                    block = image[row: (row + self._seeder_grid_size),
+                                  col: (col + self._seeder_grid_size)]
+                    inds = np.array(
+                            np.unravel_index(np.argmax(block), block.shape))
+                    inds += np.array([row, col])
+                    inds = tuple([int(i) for i in inds])
+                    seeds.append(
+                            Seed(coordinates=inds,
+                                 value=block.max(),
+                                 excluded_by_roi=False,
+                                 excluded_by_quantile=False))
+                    col += self._seeder_grid_size
+                row += self._seeder_grid_size
 
         seeds_sorted = sorted(seeds,
                               key=lambda x: x['value'],

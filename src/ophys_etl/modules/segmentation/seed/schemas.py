@@ -5,7 +5,7 @@ class SeederBaseSchema(argschema.schemas.DefaultSchema):
     exclusion_buffer = argschema.fields.Int(
         required=False,
         default=1,
-        description=("when exlucding pixels, and additional dilated boundary "
+        description=("when exlucding pixels, an additional dilated boundary "
                      "of this thickness (in pixels) will be added to the "
                      "excluded pixels. I.e. one might exclude an ROI and "
                      "also the extra pixels that result from a binary "

@@ -441,10 +441,11 @@ class FeatureVectorSegmenter(object):
             logger.info(f'wrote {str(seed_output)}')
 
             if seed_plot_output is not None:
-                f = Figure(figsize=(8, 8))
-                axes = f.add_subplot(111)
-                add_seeds_to_axes(f, axes, seed_h5_path=seed_output)
-                f.savefig(seed_plot_output)
+                fig = Figure(figsize=(8, 8))
+                axes = fig.add_subplot(111)
+                with h5py.File(seed_output, "r") as f:
+                    add_seeds_to_axes(fig, axes, seed_h5_group=f["seeding"])
+                fig.savefig(seed_plot_output)
                 logger.info(f'wrote {seed_plot_output}')
 
         logger.info(f'writing {str(roi_output)}')

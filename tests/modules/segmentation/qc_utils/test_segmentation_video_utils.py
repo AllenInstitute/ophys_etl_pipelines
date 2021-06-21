@@ -167,7 +167,6 @@ def test_scale_video():
 
     np.testing.assert_array_equal(expected, scaled)
 
-
     with pytest.raises(RuntimeError, match="in scale_video_to_uint8"):
         _ = scale_video_to_uint8(data, 1.0, 0.0)
 

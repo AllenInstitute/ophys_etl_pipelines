@@ -918,6 +918,7 @@ def do_roi_merger(
     have_been_merged = set()
     i_pass = -1
     incoming_rois = list(roi_lookup.keys())
+    valid_roi_id = set(roi_lookup.keys())
 
     while keep_going:
         t0_pass = time.time()
@@ -929,12 +930,12 @@ def do_roi_merger(
         ct = 0
         actual = 0
         for seed_id in ordered_roi_ids:
-            if seed_id not in roi_lookup:
+            if seed_id not in valid_roi_id:
                 continue
             if seed_id not in neighbor_lookup:
                 continue
             seed_roi = roi_lookup[seed_id]
-            neighbor_list = copy.deepcopy(neighbor_lookup[seed_id])
+            neighbor_list = neighbor_lookup[seed_id].intersection(valid_roi_id)
             for child_id in neighbor_list:
                 ct += 1
                 if ct % 1000 == 0:
@@ -944,8 +945,7 @@ def do_roi_merger(
                     logger.info(f'{ct} of {n_pairs_0} (actual {actual}) in '
                                 f'{dur:.2f} seconds ({per:.2f};'
                                 f'{per_actual:.2f} per)')
-                if child_id not in roi_lookup:
-                    continue
+
                 child_roi = roi_lookup[child_id]
                 actual += 1
 
@@ -962,6 +962,8 @@ def do_roi_merger(
                                                   seed_roi.flux_value)
 
                 roi_lookup.pop(child_id)
+                valid_roi_id.remove(child_id)
+
                 roi_lookup[seed_id] = new_roi
                 seed_roi = new_roi
                 have_been_merged.add(child_id)
@@ -969,21 +971,21 @@ def do_roi_merger(
 
                 # update neighbor lookup
                 severed_neighbors = neighbor_lookup.pop(child_id)
+                severed_neighbors = severed_neighbors.intersection(valid_roi_id)
                 for roi_id in severed_neighbors:
                     if roi_id == seed_id:
                         continue
-                    if roi_id in roi_lookup:
-                        neighbor_lookup[seed_id].add(roi_id)
-                        neighbor_lookup[roi_id].add(seed_id)
+                    neighbor_lookup[seed_id].add(roi_id)
+                    neighbor_lookup[roi_id].add(seed_id)
 
             # get rid of obsolet ROI IDs
             neighbor_keys = list(neighbor_lookup.keys())
-            valid_roi_id = set(roi_lookup.keys())
             for roi_id in neighbor_lookup:
                 if roi_id not in valid_roi_id:
                     neighbor_lookup.pop(roi_id)
                     continue
                 new_set = neighbor_lookup[roi_id].intersection(valid_roi_id)
+                neighbor_lookup[roi_id] = new_set
 
         ordered_roi_ids = order_mergers(roi_lookup)
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '

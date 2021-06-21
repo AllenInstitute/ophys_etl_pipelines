@@ -18,7 +18,6 @@ from ophys_etl.modules.segmentation.detect.feature_vector_segmentation import (
 def seeder_args():
     args = {
             'exclusion_buffer': 1,
-            'fov_shape': None,
             'n_samples': 10,
             'keep_fraction': 0.05,
             'minimum_distance': 3.0,

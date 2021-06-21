@@ -2,15 +2,6 @@ import argschema
 
 
 class SeederBaseSchema(argschema.schemas.DefaultSchema):
-    fov_shape = argschema.fields.Tuple(
-        (argschema.fields.Int(), argschema.fields.Int()),
-        required=False,
-        default=None,
-        allow_none=True,
-        description=("shape of movie/image field-of-view (nrows, ncols). "
-                     "Used to restrict dilated exclusion coordinates to "
-                     "actual pixel values. Defaulting to None defers "
-                     "setting to subclass 'select_seeds', for example"))
     exclusion_buffer = argschema.fields.Int(
         required=False,
         default=1,

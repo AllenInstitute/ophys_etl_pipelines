@@ -7,11 +7,8 @@ from ophys_etl.modules.segmentation.seed import seeder
 
 
 def test_SeederBase_init():
-    fov_shape = (512, 512)
     exclusion_buffer = 3
-    sb = seeder.SeederBase(fov_shape=fov_shape,
-                           exclusion_buffer=exclusion_buffer)
-    assert sb._fov_shape == fov_shape
+    sb = seeder.SeederBase(exclusion_buffer=exclusion_buffer)
     assert sb._exclusion_buffer == exclusion_buffer
     for attr in ["_candidate_seeds", "_provided_seeds",
                  "_excluded_seeds", "_excluded_pixels"]:
@@ -19,11 +16,11 @@ def test_SeederBase_init():
 
 
 def test_SeederBase_exclude(monkeypatch):
-    def dummy_dilate(pixels, dummay_arg1, dummay_arg2):
+    def dummy_dilate(pixels, dummay_arg1):
         return pixels
     monkeypatch.setattr(seeder, "dilated_coordinates", dummy_dilate)
     pixels = {(1, 1), (3, 3), (5, 8)}
-    sb = seeder.SeederBase(fov_shape=(512, 512))
+    sb = seeder.SeederBase()
     sb.exclude_pixels(pixels)
     assert sb._excluded_pixels == pixels
 
@@ -47,7 +44,7 @@ def test_SeederBase_exclude(monkeypatch):
                 [(0, 0), (0, 2)]),
             ])
 def test_SeederBase_iter(seeds, exclude_by_roi, expected):
-    sb = seeder.SeederBase(fov_shape=(512, 512))
+    sb = seeder.SeederBase()
     sb._candidate_seeds = list(seeds)
     # manually add to excluded_pixels list
     for seed, exclude in zip(seeds, exclude_by_roi):
@@ -57,7 +54,7 @@ def test_SeederBase_iter(seeds, exclude_by_roi, expected):
         assert pixel == seed
 
     # check that the iteration stops by itself (not zipped with expected)
-    sb = seeder.SeederBase(fov_shape=(512, 512))
+    sb = seeder.SeederBase()
     sb._candidate_seeds = list(seeds)
     # manually add to excluded_pixels list
     for seed, exclude in zip(seeds, exclude_by_roi):
@@ -67,21 +64,18 @@ def test_SeederBase_iter(seeds, exclude_by_roi, expected):
 
 
 def test_SeederBase_no_select():
-    sb = seeder.SeederBase(fov_shape=(512, 512))
+    sb = seeder.SeederBase()
     with pytest.raises(NotImplementedError):
         sb.select_seeds()
 
 
 def test_ImageMetricSeeder_init():
-    fov_shape = (512, 512)
     exclusion_buffer = 3
     seeder_grid_size = 4
     keep_fraction = 0.5
-    sb = seeder.ImageMetricSeeder(fov_shape=fov_shape,
-                                  exclusion_buffer=exclusion_buffer,
+    sb = seeder.ImageMetricSeeder(exclusion_buffer=exclusion_buffer,
                                   keep_fraction=keep_fraction,
                                   seeder_grid_size=seeder_grid_size)
-    assert sb._fov_shape == fov_shape
     assert sb._exclusion_buffer == exclusion_buffer
     assert sb._seeder_grid_size == seeder_grid_size
     assert sb._keep_fraction == keep_fraction
@@ -122,8 +116,7 @@ def test_ImageMetricSeeder_init():
                 [(1, 0), (2, 1), (0, 2), (1, 2), (0, 0), (0, 1)]),
             ])
 def test_ImageMetricSeeder_select(image, sigma, percentage, expected):
-    sb = seeder.ImageMetricSeeder(fov_shape=(12, 12),
-                                  keep_fraction=percentage,
+    sb = seeder.ImageMetricSeeder(keep_fraction=percentage,
                                   seeder_grid_size=1)
     sb.select_seeds(image, sigma)
     found_seeds = [i['coordinates']

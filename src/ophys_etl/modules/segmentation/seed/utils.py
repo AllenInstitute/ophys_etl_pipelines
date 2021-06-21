@@ -10,7 +10,6 @@ else:
 
 
 def dilated_coordinates(pixels: Set[Tuple[int, int]],
-                        shape: Tuple[int, int],
                         dilation_buffer: int) -> Set[Tuple[int, int]]:
     """binary dilation of a set of coordinates
 
@@ -18,8 +17,6 @@ def dilated_coordinates(pixels: Set[Tuple[int, int]],
     ----------
     pixels: Set[Tuple[int, int]]
         coordinates to dilate
-    shape: Tuple[int, int]
-        the shape of the FOV, which bounds the returned coordinates
     dilation_buffer: int
         in pixels, the buffer around the provided pixels to dilate
 
@@ -29,6 +26,10 @@ def dilated_coordinates(pixels: Set[Tuple[int, int]],
         the updated set of pixels
 
     """
+    extents = np.array([i for i in pixels]).max(axis=0)
+    shape = (extents[0] + 1 + dilation_buffer,
+             extents[1] + 1 + dilation_buffer)
+
     # create an empty FOV with only specified pixels
     full_fov = np.zeros(shape, dtype=bool)
     rows, cols = np.array([i for i in pixels]).T

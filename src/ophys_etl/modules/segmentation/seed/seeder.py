@@ -34,8 +34,6 @@ class SeederBase(Iterator):
         list of current excluded pixels, excluded by 'exclude_pixels()'
     _exclusion_buffer: int
         see Parameter 'exclusion_buffer'
-    _fov_shape: Tuple[int, int]
-        see Parameter 'fov_shape'
 
     Notes
     -----
@@ -56,9 +54,7 @@ class SeederBase(Iterator):
 
     """
     def __init__(self,
-                 fov_shape: Optional[Tuple[int, int]] = None,
                  exclusion_buffer: int = 1):
-        self._fov_shape = fov_shape
         self._candidate_seeds: List[Seed] = []
         self._provided_seeds: List[Seed] = []
         self._excluded_seeds: List[Seed] = []
@@ -79,7 +75,6 @@ class SeederBase(Iterator):
 
         """
         dilated_pixels = dilated_coordinates(pixels,
-                                             self._fov_shape,
                                              self._exclusion_buffer)
         self._excluded_pixels.update(dilated_pixels)
 
@@ -176,8 +171,6 @@ class ImageMetricSeeder(SeederBase):
             operation on the image before any additional processing.
 
         """
-        self._fov_shape = image.shape
-
         if sigma is not None:
             image = gaussian_filter(image, mode="constant", sigma=sigma)
         self._seed_image = image

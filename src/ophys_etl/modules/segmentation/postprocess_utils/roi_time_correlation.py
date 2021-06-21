@@ -125,8 +125,11 @@ def get_brightest_pixel(roi: SegmentationROI,
     mask = roi.mask_matrix
     sub_img = sub_img[mask]
     sub_video = sub_video[:, mask]
-    brightest_pixel = np.mean(sub_video, axis=1)
-    return brightest_pixel
+    assert len(sub_video.shape) == 2
+    assert sub_video.shape[1] == sub_img.shape[0]
+    assert len(sub_img.shape) == 1
+    brightest_pixel = np.argmax(sub_img)
+    return sub_video[:, brightest_pixel]
 
 
 def _validate_merger_corr(uphill_roi: SegmentationROI,

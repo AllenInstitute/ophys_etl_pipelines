@@ -72,15 +72,15 @@ def test_SeederBase_no_select():
         sb.select_seeds()
 
 
-def test_ImageBlockMetricSeeder_init():
+def test_ImageMetricSeeder_init():
     fov_shape = (512, 512)
     exclusion_buffer = 3
     seeder_grid_size = 4
     keep_fraction = 0.5
-    sb = seeder.ImageBlockMetricSeeder(fov_shape=fov_shape,
-                                       exclusion_buffer=exclusion_buffer,
-                                       keep_fraction=keep_fraction,
-                                       seeder_grid_size=seeder_grid_size)
+    sb = seeder.ImageMetricSeeder(fov_shape=fov_shape,
+                                  exclusion_buffer=exclusion_buffer,
+                                  keep_fraction=keep_fraction,
+                                  seeder_grid_size=seeder_grid_size)
     assert sb._fov_shape == fov_shape
     assert sb._exclusion_buffer == exclusion_buffer
     assert sb._seeder_grid_size == seeder_grid_size
@@ -121,23 +121,23 @@ def test_ImageBlockMetricSeeder_init():
                 6 / 16,
                 [(1, 0), (2, 1), (0, 2), (1, 2), (0, 0), (0, 1)]),
             ])
-def test_ImageBlockMetricSeeder_select(image, sigma, percentage, expected):
-    sb = seeder.ImageBlockMetricSeeder(fov_shape=(12, 12),
-                                       keep_fraction=percentage,
-                                       seeder_grid_size=1)
+def test_ImageMetricSeeder_select(image, sigma, percentage, expected):
+    sb = seeder.ImageMetricSeeder(fov_shape=(12, 12),
+                                  keep_fraction=percentage,
+                                  seeder_grid_size=1)
     sb.select_seeds(image, sigma)
     found_seeds = [i['coordinates']
                    for i in sb._candidate_seeds]
     assert found_seeds == expected
 
 
-def test_ImageBlockMetricSeeder_log(tmpdir):
+def test_ImageMetricSeeder_log(tmpdir):
     image = np.array([[0.0, 0.0, 0.4, 0.0],
                       [0.5, 0.0, 0.3, 0.0],
                       [0.0, 0.5, 0.0, 0.0],
                       [0.0, 0.0, 0.0, 0.0]])
-    sb = seeder.ImageBlockMetricSeeder(keep_fraction=1.0,
-                                       seeder_grid_size=1)
+    sb = seeder.ImageMetricSeeder(keep_fraction=1.0,
+                                  seeder_grid_size=1)
     sb.select_seeds(image, sigma=None)
 
     h5path = tmpdir / "seed_qc.h5"
@@ -182,9 +182,9 @@ def test_ImageBlockMetricSeeder_log(tmpdir):
                  [(1, 1)],
                  [(0, 1)]]),
                 ])
-def test_ParallelImageBlockMetricSeeder(image, n_samples,
-                                        minimum_distance, excluded, expected):
-    sb = seeder.ParallelImageBlockMetricSeeder(
+def test_BatchImageMetricSeeder(image, n_samples,
+                                minimum_distance, excluded, expected):
+    sb = seeder.BatchImageMetricSeeder(
             keep_fraction=1.0,
             seeder_grid_size=1,
             n_samples=n_samples,

@@ -13,8 +13,8 @@ def seed_h5_file(tmp_path):
                       [0.5, 0.0, 0.3, 0.0],
                       [0.0, 0.5, 0.0, 0.0],
                       [0.0, 0.0, 0.0, 0.0]])
-    sb = seeder.ImageBlockMetricSeeder(keep_fraction=1.0,
-                                       seeder_grid_size=1)
+    sb = seeder.ImageMetricSeeder(keep_fraction=1.0,
+                                  seeder_grid_size=1)
     sb.select_seeds(image, sigma=None)
     # iterate through a few seeds, so smoe show as provided
     # and some show as excluded

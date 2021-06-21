@@ -24,11 +24,13 @@ class FeatureVectorSegmentationRunner(argschema.ArgSchemaParser):
         n_processors = self.args['n_parallel_workers']
         attr = self.args['attribute']
         roi_class = ROI_CLASS_MAP[self.args["roi_class"]]
-        segmenter = FeatureVectorSegmenter(graph_input,
-                                           video_input,
-                                           attribute=attr,
-                                           n_processors=n_processors,
-                                           roi_class=roi_class)
+        segmenter = FeatureVectorSegmenter(
+                graph_input,
+                video_input,
+                attribute=attr,
+                n_processors=n_processors,
+                roi_class=roi_class,
+                seeder_args=self.args['seeder_args'])
 
         if self.args['plot_output'] is not None:
             plot_output = pathlib.Path(self.args['plot_output'])

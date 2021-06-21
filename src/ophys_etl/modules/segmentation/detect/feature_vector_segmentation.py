@@ -14,7 +14,7 @@ from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import create_roi_plot
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
 from ophys_etl.modules.segmentation.seed.seeder import \
-        ParallelImageBlockMetricSeeder
+        BatchImageMetricSeeder
 from ophys_etl.modules.segmentation.qc.seed import add_seeds_to_axes
 
 import logging
@@ -179,6 +179,9 @@ class FeatureVectorSegmenter(object):
         The sub-class of PotentialROI that is used to grow ROIs from a seed
         to a mask (default: PearsonFeatureROI)
 
+    seeder_args: dict
+        passed to BatchImageMetricSeeder.__init__()
+
     Notes
     -----
     After calling the run() method in this class, ROIs will be written to
@@ -190,6 +193,7 @@ class FeatureVectorSegmenter(object):
     def __init__(self,
                  graph_input: pathlib.Path,
                  video_input: pathlib.Path,
+                 seeder_args: dict,
                  attribute: str = 'filtered_hnc_Gaussian',
                  filter_fraction: float = 0.2,
                  n_processors=8,
@@ -205,13 +209,7 @@ class FeatureVectorSegmenter(object):
         self._graph_img = graph_to_img(graph_input,
                                        attribute_name=attribute)
 
-        # NOTE: we should expose these parameters
-        self.seeder = ParallelImageBlockMetricSeeder(
-                n_samples=self.n_processors,
-                minimum_distance=20.0,
-                keep_fraction=0.3,
-                seeder_grid_size=None,
-                exclusion_buffer=1)
+        self.seeder = BatchImageMetricSeeder(**seeder_args)
         self.seeder.select_seeds(self._graph_img, sigma=None)
 
         with h5py.File(self._video_input, 'r') as in_file:

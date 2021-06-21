@@ -119,7 +119,7 @@ class SeederBase(Iterator):
                                   "implement the method 'select_seeds()'")
 
 
-class ImageBlockMetricSeeder(SeederBase):
+class ImageMetricSeeder(SeederBase):
     """Finds seeds based on an image input and non-overlapping blocks
     of that image
 
@@ -161,7 +161,7 @@ class ImageBlockMetricSeeder(SeederBase):
         self._seeder_grid_size = seeder_grid_size
         self._keep_fraction = keep_fraction
         self._seed_image: np.ndarray = None
-        super(ImageBlockMetricSeeder, self).__init__(*args, **kwargs)
+        super(ImageMetricSeeder, self).__init__(*args, **kwargs)
 
     def select_seeds(self, image: np.ndarray, sigma: Optional[float] = None):
         """select seeds from an image
@@ -262,7 +262,7 @@ class ImageBlockMetricSeeder(SeederBase):
                 data=self._seed_image)
 
 
-class ParallelImageBlockMetricSeeder(ImageBlockMetricSeeder):
+class BatchImageMetricSeeder(ImageMetricSeeder):
     """Can serve up to 'n_samples' size batches of seeds that exceed a
     minimum distance criteria. This is useful for sending to parallel
     jobs where the potential exclusion zones are unlikely reach the other
@@ -280,7 +280,7 @@ class ParallelImageBlockMetricSeeder(ImageBlockMetricSeeder):
                  minimum_distance: float, *args, **kwargs):
         self._n_samples = n_samples
         self._minimum_distance = minimum_distance
-        super(ParallelImageBlockMetricSeeder, self).__init__(*args, **kwargs)
+        super(BatchImageMetricSeeder, self).__init__(*args, **kwargs)
 
     def __next__(self):
         """returns the next 'n_samples' valid seeds, subject to minimum

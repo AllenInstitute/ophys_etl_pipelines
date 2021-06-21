@@ -14,6 +14,18 @@ from ophys_etl.modules.segmentation.detect.feature_vector_segmentation import (
         FeatureVectorSegmenter)
 
 
+@pytest.fixture
+def seeder_args():
+    args = {
+            'exclusion_buffer': 1,
+            'fov_shape': None,
+            'n_samples': 10,
+            'keep_fraction': 0.05,
+            'minimum_distance': 3.0,
+            'seeder_grid_size': None}
+    return args
+
+
 @pytest.mark.parametrize(
     "origin,mask,expected",
     [
@@ -70,7 +82,7 @@ def test_graph_to_img(example_graph):
     assert roi_mu > not_mu+roi_std+not_std
 
 
-def test_segmenter(tmpdir, example_graph, example_video):
+def test_segmenter(tmpdir, example_graph, example_video, seeder_args):
     """
     Smoke test for segmenter
     """
@@ -79,7 +91,8 @@ def test_segmenter(tmpdir, example_graph, example_video):
                                        video_input=example_video,
                                        attribute='dummy_attribute',
                                        filter_fraction=0.2,
-                                       n_processors=1)
+                                       n_processors=1,
+                                       seeder_args=seeder_args)
 
     dir_path = pathlib.Path(tmpdir)
     roi_path = dir_path / 'roi.json'
@@ -121,7 +134,7 @@ def test_segmenter(tmpdir, example_graph, example_video):
     assert not plot_path.exists()
 
 
-def test_segmenter_blank(tmpdir, blank_graph, blank_video):
+def test_segmenter_blank(tmpdir, blank_graph, blank_video, seeder_args):
     """
     Smoke test for segmenter on blank inputs
     """
@@ -130,7 +143,8 @@ def test_segmenter_blank(tmpdir, blank_graph, blank_video):
                                        video_input=blank_video,
                                        attribute='dummy_attribute',
                                        filter_fraction=0.2,
-                                       n_processors=1)
+                                       n_processors=1,
+                                       seeder_args=seeder_args)
     dir_path = pathlib.Path(tmpdir)
     roi_path = dir_path / 'roi.json'
     segmenter.run(roi_output=roi_path)

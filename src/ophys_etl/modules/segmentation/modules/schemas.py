@@ -5,6 +5,9 @@ from marshmallow import pre_load, post_load, ValidationError
 from marshmallow.fields import Int
 from marshmallow.validate import OneOf
 
+from ophys_etl.modules.segmentation.seed.schemas import \
+    BatchImageMetricSeederSchema
+
 
 class CreateGraphInputSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
@@ -239,6 +242,10 @@ class SimpleDenoiseInputSchema(argschema.ArgSchema, DenoiseBaseSchema):
 
 class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
+
+    seeder_args = argschema.fields.Nested(
+        BatchImageMetricSeederSchema,
+        default={})
 
     video_input = argschema.fields.InputFile(
         required=False,

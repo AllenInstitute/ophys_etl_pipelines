@@ -533,7 +533,7 @@ def merge_segmentation_rois(uphill_roi: SegmentationROI,
 
     new_roi = merge_rois(uphill_roi, downhill_roi, new_roi_id=new_roi_id)
     return SegmentationROI.from_ophys_roi(new_roi,
-                                          ancestors=[uphill_roi, downhill_roi],
+                                          ancestors=None,
                                           flux_value=new_flux_value)
 
 
@@ -613,7 +613,7 @@ def find_neighbors(seed_roi: SegmentationROI,
         Set of roi_ids that are to be ignored because they have
         already been merged
 
-t    Returns
+    Returns
     -------
     neighbors: List[int]
         List of the roi_ids of all the ROIs that neighbor seed_roi
@@ -765,6 +765,37 @@ def validate_merger(uphill_roi: SegmentationROI,
     return False
 
 
+def find_seeds(neighbor_lookup,
+               roi_lookup) -> List[SegmentationROI]:
+    seed_list = []
+    for candidate in neighbor_lookup:
+        if candidate not in roi_lookup:
+            continue
+        is_seed = True
+        f0 = roi_lookup[candidate].flux_value
+        for neighbor in neighbor_lookup[candidate]:
+            if neighbor not in roi_lookup:
+                continue
+            if roi_lookup[neighbor].flux_value > f0:
+                is_seed = False
+                break
+        if is_seed:
+            seed_list.append(candidate)
+    return seed_list
+
+
+def order_mergers(roi_lookup):
+    flux_value_list = []
+    roi_id_list = []
+    for roi_id in roi_lookup:
+        roi_id_list.append(roi_id)
+        flux_value_list.append(roi_lookup[roi_id].flux_value)
+    roi_id_list = np.array(roi_id_list)
+    flux_value_list = np.array(flux_value_list)
+    sorted_indices = np.argsort(-1*flux_value_list)
+    return roi_id_list[sorted_indices]
+
+
 def do_roi_merger(
       raw_roi_list: List[OphysROI],
       img_data: np.ndarray,
@@ -863,6 +894,9 @@ def do_roi_merger(
         neighbor_lookup[roi0].add(roi1)
         neighbor_lookup[roi1].add(roi0)
 
+    for roi_id in neighbor_lookup:
+        neighbor_lookup[roi_id] = list(neighbor_lookup[roi_id])
+
     logger.info(f'found {len(merger_candidates)} merger_candidates'
                 f' in {time.time()-t0:.2f} seconds')
 
@@ -873,30 +907,10 @@ def do_roi_merger(
                                                 dx=20)
     logger.info(f'created roi lookup in {time.time()-t0:.2f} seconds')
 
-    # find all ROIs that are brighter than their neighbors
+    # order ROIs by flux value, descending
     t0 = time.time()
-    seed_list = []
-    for candidate in neighbor_lookup:
-        is_seed = True
-        f0 = roi_lookup[candidate].flux_value
-        for neighbor in neighbor_lookup[candidate]:
-            if roi_lookup[neighbor].flux_value > f0:
-                is_seed = False
-                break
-        if is_seed:
-            seed_list.append(candidate)
-
-    logger.info(f'got {len(seed_list)} seeds in {time.time()-t0:2f} seconds')
-
-    if diagnostic_dir is not None:
-        seed_file = diagnostic_dir / 'merger_seeds.json'
-        seed_rois = [ophys_roi_to_extract_roi(roi_lookup[cc])
-                     for cc in seed_list]
-        with open(seed_file, 'w') as out_file:
-            out_file.write(json.dumps(seed_rois, indent=2))
-
-        logger.info(f'wrote {len(seed_list)} seeds '
-                    f'in {time.time()-t0:2f} seconds')
+    ordered_roi_ids = order_mergers(roi_lookup)
+    logger.info(f'order ROIs seeds in {time.time()-t0:2f} seconds')
 
     t0 = time.time()
     logger.info('starting merger')
@@ -905,43 +919,25 @@ def do_roi_merger(
     i_pass = -1
     incoming_rois = list(roi_lookup.keys())
 
-    _children = {}
-    while keep_going and len(seed_list) > 0:
-
-        for s in seed_list:
-            if s not in roi_lookup:
-                raise RuntimeError(f"seed ROI {s} missing from lookup")
+    while keep_going:
 
         n0 = len(roi_lookup)
         i_pass += 1
 
-        # mapping from a potential child ROI to its seed
-        child_to_seed = {}
-        for seed_id in seed_list:
-            neighbors = find_neighbors(roi_lookup[seed_id],
-                                       neighbor_lookup,
-                                       have_been_merged)
-
-            for n in neighbors:
-                if n in seed_list:
-                    continue
-                if n not in child_to_seed:
-                    child_to_seed[n] = []
-                child_to_seed[n].append(seed_id)
-
-        # loop over children; find the brightest original seed;
-        # that is where you will merge the child (as long as the
-        # merger does not require you to violoate the "monotonic
-        # path to peak" rule)
         keep_going = False
 
-        for child_id in child_to_seed:
-            child_roi = roi_lookup[child_id]
-            best_seed = None
-            best_seed_flux = None
+        for seed_id in ordered_roi_ids:
+            if seed_id not in roi_lookup:
+                continue
+            if seed_id not in neighbor_lookup:
+                continue
+            seed_roi = roi_lookup[seed_id]
+            neighbor_list = copy.deepcopy(neighbor_lookup[seed_id])
+            for child_id in neighbor_list:
+                if child_id not in roi_lookup:
+                    continue
+                child_roi = roi_lookup[child_id]
 
-            for seed_id in child_to_seed[child_id]:
-                seed_roi = roi_lookup[seed_id]
                 if not validate_merger_corr(seed_roi,
                                             child_roi,
                                             video_data,
@@ -949,33 +945,48 @@ def do_roi_merger(
                                             filter_fraction=0.2,
                                             acceptance=corr_acceptance):
                     continue
-                if best_seed is None or seed_roi.flux_value > best_seed_flux:
-                    best_seed = seed_id
-                    best_seed_flux = seed_roi.flux_value
-            if best_seed is None:
-                continue
-            seed_roi = roi_lookup[best_seed]
-            new_roi = merge_segmentation_rois(seed_roi,
-                                              child_roi,
-                                              seed_roi.roi_id,
-                                              seed_roi.flux_value)
+                new_roi = merge_segmentation_rois(seed_roi,
+                                                  child_roi,
+                                                  seed_roi.roi_id,
+                                                  seed_roi.flux_value)
 
-            _children[child_id] = roi_lookup.pop(child_id)
-            roi_lookup[best_seed] = new_roi
-            have_been_merged.add(child_id)
-            keep_going = True
+                roi_lookup.pop(child_id)
+                roi_lookup[seed_id] = new_roi
+                seed_roi = new_roi
+                have_been_merged.add(child_id)
+                keep_going = True
 
-        for ii in range(len(seed_list)-1, -1, -1):
-            if seed_list[ii] not in roi_lookup:
-                seed_list.pop(ii)
+                # update neighbor lookup
+                severed_neighbors = neighbor_lookup.pop(child_id)
+                for roi_id in severed_neighbors:
+                    if roi_id == seed_id:
+                        continue
+                    if roi_id in roi_lookup:
+                        if roi_id not in neighbor_lookup[seed_id]:
+                            neighbor_lookup[seed_id].append(roi_id)
+                        if seed_id not in neighbor_lookup[roi_id]:
+                            neighbor_lookup[roi_id].append(seed_id)
 
+                # get rid of obsolet ROI IDs
+                neighbor_keys = list(neighbor_lookup.keys())
+                for roi_id in neighbor_lookup:
+                    if roi_id not in roi_lookup:
+                        neighbor_lookup.pop(roi_id)
+                        continue
+                    for ii in range(len(neighbor_lookup[roi_id])-1 -1, -1):
+                        if neighbor_lookup[roi_id][ii] not in roi_lookup:
+                            neighbor_lookup[roi_id].pop(ii)
+
+        ordered_roi_ids = order_mergers(roi_lookup)
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '
                     f'after {time.time()-t0:.2f} seconds')
 
-    # loop over the original list of roi_ids, copying
-    # any ROIs that were not merged into the output list
-    new_roi_list = []
     for roi_id in incoming_rois:
         if roi_id not in have_been_merged:
-            new_roi_list.append(roi_lookup[roi_id])
+            if roi_id not in roi_lookup:
+                raise RuntimeError(f"lost track of {roi_id}")
+
+    # loop over the original list of roi_ids, copying
+    # any ROIs that were not merged into the output list
+    new_roi_list = list(roi_lookup.values())
     return new_roi_list

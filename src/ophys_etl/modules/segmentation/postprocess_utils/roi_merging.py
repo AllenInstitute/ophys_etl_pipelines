@@ -895,9 +895,6 @@ def do_roi_merger(
         neighbor_lookup[roi0].add(roi1)
         neighbor_lookup[roi1].add(roi0)
 
-    for roi_id in neighbor_lookup:
-        neighbor_lookup[roi_id] = list(neighbor_lookup[roi_id])
-
     merger_candidates = set(merger_candidates)
 
     logger.info(f'found {len(merger_candidates)} merger_candidates'
@@ -977,19 +974,18 @@ def do_roi_merger(
                         continue
                     if roi_id in roi_lookup:
                         if roi_id not in neighbor_lookup[seed_id]:
-                            neighbor_lookup[seed_id].append(roi_id)
+                            neighbor_lookup[seed_id].add(roi_id)
                         if seed_id not in neighbor_lookup[roi_id]:
-                            neighbor_lookup[roi_id].append(seed_id)
+                            neighbor_lookup[roi_id].add(seed_id)
 
-                # get rid of obsolet ROI IDs
-                neighbor_keys = list(neighbor_lookup.keys())
-                for roi_id in neighbor_lookup:
-                    if roi_id not in roi_lookup:
-                        neighbor_lookup.pop(roi_id)
-                        continue
-                    for ii in range(len(neighbor_lookup[roi_id])-1 -1, -1):
-                        if neighbor_lookup[roi_id][ii] not in roi_lookup:
-                            neighbor_lookup[roi_id].pop(ii)
+            # get rid of obsolet ROI IDs
+            neighbor_keys = list(neighbor_lookup.keys())
+            valid_roi_id = set(roi_lookup.keys())
+            for roi_id in neighbor_lookup:
+                if roi_id not in valid_roi_id:
+                    neighbor_lookup.pop(roi_id)
+                    continue
+                new_set = neighbor_lookup[roi_id].intersection(valid_roi_id)
 
         ordered_roi_ids = order_mergers(roi_lookup)
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '

@@ -329,7 +329,7 @@ class FeatureVectorSegmenter(object):
                     cc = origin[1]+ic
                     if mask[ir, ic]:
                         self.roi_pixels[rr, cc] = True
-                        # NOTE: this makes sure the seeder does not
+                        # make sure the seeder does not
                         # supply new seeds that are in these ROIs
                         self.seeder.exclude_pixels({(rr, cc)})
 
@@ -412,7 +412,6 @@ class FeatureVectorSegmenter(object):
 
         while keep_going:
 
-            n_roi_0 = self.roi_pixels.sum()
             roi_seeds = self._run(img_data, video_data)
 
             # NOTE: this change lets the seeder/iterator control
@@ -422,26 +421,17 @@ class FeatureVectorSegmenter(object):
             if len(roi_seeds) == 0:
                 break
 
-            n_roi_1 = self.roi_pixels.sum()
-
             duration = time.time()-t0
 
             msg = f'Completed iteration with {len(roi_seeds)} ROIs '
             msg += f'after {duration:.2f} seconds; '
-            msg += f'{n_roi_1} total ROI pixels'
+            msg += f'{self.roi_pixels.sum()} total ROI pixels'
             logger.info(msg)
 
             if seed_output is not None:
                 seed_record[i_iteration] = roi_seeds
 
             i_iteration += 1
-
-            # NOTE: the seeder supports allowing FVS to terminate segmentation
-            # and will label unused candidate seeds as such. But, we should
-            # consider whether we just want to let the seeder terminate
-            # segmentation when candidate seeds are exhausted
-            if n_roi_1 <= n_roi_0:
-                keep_going = False
 
         logger.info('finished iterating on ROIs')
 

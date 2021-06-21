@@ -140,7 +140,9 @@ def test_scale_video():
     data = np.array([[1.0, 2.0, 3.0, 4.0],
                      [5.0, 6.0, 7.0, 8.0]])
 
-    scaled = scale_video_to_uint8(data, max_val=data.max())
+    scaled = scale_video_to_uint8(data,
+                                  0.0,
+                                  8.0)
     assert scaled.dtype == np.uint8
 
     expected = np.array([[32, 64, 96, 128],
@@ -148,17 +150,16 @@ def test_scale_video():
 
     np.testing.assert_array_equal(expected, scaled)
 
-    scaled = scale_video_to_uint8(data, max_val=15)
+    scaled = scale_video_to_uint8(data,
+                                  0.0,
+                                  15.0)
     expected = np.array([[17, 34, 51, 68],
                          [85, 102, 119, 136]]).astype(np.uint8)
 
     np.testing.assert_array_equal(expected, scaled)
 
-    with pytest.raises(RuntimeError, match="must specify a max_val"):
-        _ = scale_video_to_uint8(data, None)
-
-    with pytest.raises(RuntimeError, match="values > 255"):
-        _ = scale_video_to_uint8(data, 3)
+    with pytest.raises(RuntimeError, match="in scale_video_to_uint8"):
+        _ = scale_video_to_uint8(data, 1.0, 0.0)
 
 
 def test_video_bounds_from_ROI():
@@ -377,16 +378,20 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
     assert len(read_data) == n_t
 
 
-@pytest.mark.parametrize("normalization, timesteps",
-                         [('local', None),
-                          ('local', np.arange(22, 57)),
-                          ('global', None),
-                          ('global', np.arange(22, 57)),
-                          (900, None),
-                          (900, np.arange(22, 57))])
+@pytest.mark.parametrize("min_max, quantiles, timesteps",
+                         [((50, 650), None, None),
+                          ((50, 650), None, np.arange(22, 57)),
+                          ((50, 650), None, None),
+                          ((50, 650), None, np.arange(22, 57)),
+                          ((111, 556), None, None),
+                          ((111, 556), None, np.arange(22, 57)),
+                          (None, (0.1, 0.75), None),
+                          (None, (0.1, 0.75), np.arange(22, 57))
+                          ])
 def test_thumbnail_from_path(tmpdir,
                              example_unnormalized_rgb_video,
-                             normalization,
+                             min_max,
+                             quantiles,
                              timesteps):
     """
     Test thumbnail_from_path by comparing output to result
@@ -405,14 +410,15 @@ def test_thumbnail_from_path(tmpdir,
 
     sub_video = example_unnormalized_rgb_video[:, 18:30, 14:29, :]
 
-    if normalization == 'local':
-        custom_max_val = sub_video.max()
-    elif normalization == 'global':
-        custom_max_val = example_unnormalized_rgb_video.max()
+    if quantiles is not None:
+        local_min_max = np.quantile(example_unnormalized_rgb_video,
+                                    quantiles)
     else:
-        custom_max_val = normalization
+        local_min_max = min_max
 
-    sub_video = scale_video_to_uint8(sub_video, max_val=custom_max_val)
+    sub_video = scale_video_to_uint8(sub_video,
+                                     local_min_max[0],
+                                     local_min_max[1])
 
     control_video = thumbnail_video_from_array(
                        sub_video,
@@ -426,7 +432,8 @@ def test_thumbnail_from_path(tmpdir,
                      (18, 14),
                      (12, 15),
                      tmp_dir=pathlib.Path(tmpdir),
-                     normalization=normalization,
+                     min_max=min_max,
+                     quantiles=quantiles,
                      timesteps=timesteps)
 
     assert test_video.origin == (18, 14)
@@ -439,22 +446,19 @@ def test_thumbnail_from_path(tmpdir,
         np.testing.assert_array_equal(control_data[ii], test_data[ii])
 
 
-@pytest.mark.parametrize("normalization,roi_color,timesteps",
-                         [('global', None, None),
-                          ('global', None, np.arange(22, 76)),
-                          ('global', (255, 0, 0), None),
-                          ('global', (255, 0, 0), np.arange(22, 76)),
-                          ('local', None, None),
-                          ('local', None, np.arange(22, 76)),
-                          ('local', (255, 0, 0), None),
-                          ('local', (255, 0, 0), np.arange(22, 76)),
-                          (900, None, None),
-                          (900, None, np.arange(22, 76)),
-                          (900, (255, 0, 0), None),
-                          (900, (255, 0, 0), np.arange(22, 76))])
+@pytest.mark.parametrize("quantiles,min_max,roi_color,timesteps",
+                         [((0.1, 0.9), None, None, None),
+                          ((0.1, 0.9), None, None, np.arange(22, 76)),
+                          ((0.1, 0.9), None, (255, 0, 0), None),
+                          ((0.1, 0.9), None, (255, 0, 0), np.arange(22, 76)),
+                          (None, (250, 600), None, None),
+                          (None, (250, 600), None, np.arange(22, 76)),
+                          (None, (250, 600), (255, 0, 0), None),
+                          (None, (250, 600), (255, 0, 0), np.arange(22, 76))])
 def test_thumbnail_from_roi_and_path(tmpdir,
                                      example_unnormalized_rgb_video,
-                                     normalization,
+                                     quantiles,
+                                     min_max,
                                      roi_color,
                                      timesteps):
     """
@@ -480,15 +484,15 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     with h5py.File(h5_fname, 'w') as out_file:
         out_file.create_dataset('data', data=example_unnormalized_rgb_video)
 
-    if normalization == 'local':
-        mx = example_unnormalized_rgb_video[:, 18:30, 14:29, :].max()
-    elif normalization == 'global':
-        mx = example_unnormalized_rgb_video.max()
+    if quantiles is not None:
+        local_min_max = np.quantile(example_unnormalized_rgb_video,
+                                    quantiles)
     else:
-        mx = normalization
+        local_min_max = min_max
 
     normalized_video = scale_video_to_uint8(example_unnormalized_rgb_video,
-                                            max_val=mx)
+                                            local_min_max[0],
+                                            local_min_max[1])
 
     control_video = _thumbnail_video_from_ROI_array(
                        normalized_video,
@@ -502,7 +506,8 @@ def test_thumbnail_from_roi_and_path(tmpdir,
                      roi,
                      roi_color=roi_color,
                      tmp_dir=pathlib.Path(tmpdir),
-                     normalization=normalization,
+                     quantiles=quantiles,
+                     min_max=min_max,
                      timesteps=timesteps)
 
     control_data = imageio.mimread(control_video.video_path)
@@ -539,7 +544,8 @@ def test_generic_generation_from_ROI(tmpdir, example_video, timesteps):
                                   file_path=None,
                                   tmp_dir=pathlib.Path(tmpdir),
                                   quality=7,
-                                  timesteps=timesteps)
+                                  timesteps=timesteps,
+                                  quantiles=(0.1, 0.99))
 
     read_data = imageio.mimread(th.video_path)
     assert len(read_data) == n_t
@@ -555,7 +561,8 @@ def test_generic_generation_from_ROI(tmpdir, example_video, timesteps):
                                   file_path=None,
                                   tmp_dir=pathlib.Path(tmpdir),
                                   quality=7,
-                                  timesteps=timesteps)
+                                  timesteps=timesteps,
+                                  quantiles=(0.01, 0.99))
 
     read_data = imageio.mimread(th.video_path)
     assert len(read_data) == n_t

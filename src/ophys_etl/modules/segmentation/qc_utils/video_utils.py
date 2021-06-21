@@ -158,7 +158,8 @@ class ThumbnailVideo(object):
 
 
 def scale_video_to_uint8(video: np.ndarray,
-                         max_val: Union[int, float]):
+                         min_value: Union[int, float],
+                         max_value: Union[int, float]) -> np.ndarray:
     """
     Convert a video (as a numpy.ndarray) to uint8 by dividing by the
     array's maximum value and multiplying by 255
@@ -167,25 +168,39 @@ def scale_video_to_uint8(video: np.ndarray,
     ----------
     video: np.ndarray
 
-    max_val: Optional[Union[int, float]]
-        The value by which to normalize before multiplying by 255
+    min_value: Optional[Union[int, float]]
+
+    max_value: Optional[Union[int, float]]
+        Video will be clipped at min_value and max_value and
+        then normalized to (max_value-min_value) before being
+        converted to uint8
 
     Returns
     -------
     np.ndarray
+
+    Raises
+    ------
+    RuntimeError
+        If min_value > max_value
     """
-    if max_val is None:
-        raise RuntimeError("must specify a max_val in "
-                           "scale_video_to_uint8")
 
-    if max_val < video.max():
-        msg = "in scale_video_to_uint8, video.max() is "
-        msg += f"{video.max()}; you specified "
-        msg += f"max_val = {max_val}; this will result "
-        msg += "in values > 255 after normalization"
-        raise RuntimeError(msg)
+    if min_value > max_value:
+        raise RuntimeError("in scale_video_to_uint8 "
+                           f"min_value ({min_value}) > "
+                           f"max_value ({max_value})")
 
-    return np.round(255*video.astype(float)/max_val).astype(np.uint8)
+    rescaled_video = np.where(video < max_value,
+                              video,
+                              max_value)
+
+    rescaled_video = np.where(rescaled_video > min_value,
+                              rescaled_video,
+                              min_value)
+
+    delta = (max_value-min_value)
+    rescaled_video -= min_value
+    return np.round(255*rescaled_video.astype(float)/delta).astype(np.uint8)
 
 
 def trim_video(
@@ -350,7 +365,8 @@ def thumbnail_video_from_path(
         tmp_dir: Optional[pathlib.Path] = None,
         fps: int = 31,
         quality: int = 5,
-        normalization: Union[str, float, int] = 'local',
+        min_max: Optional[Tuple[numbers.Number, numbers.Number]] = None,
+        quantiles: Optional[Tuple[numbers.Number, numbers.Number]] = None,
         origin_offset: Optional[Tuple[int, int]] = None) -> ThumbnailVideo:
     """
     Create a ThumbnailVideo (mp4) from a path to an HDF5 file.
@@ -387,11 +403,13 @@ def thumbnail_video_from_path(
         Parameter passed to imageio.mimsave controlling
         quality of video file produced (max is 10; default is 5)
 
-    normalization: Union[str, float, int]
-        If 'global', normalize video to maximum value of full
-        video. If 'local', normalize video to maximum value of
-        spatial thumbnail. If a number, the numerical
-        value to normalize by (default: 'local')
+    min_max: Optional[Tuple[numbers.Number, numbers.Number]]
+        If not None, the minimum and maximum values used to clip
+        and normalize the movie brightness values (default: None).
+
+    quantiles: Optional[Tuple[numbers.Number, numbers.Number]]
+        If not None, the minimum and maximum quantiles used to
+        clip and normalize the movie brightness values (default: None)
 
     origin_offset: Optional[Tuple[int, int]]
         Offset values to be added to origin in container.
@@ -403,28 +421,46 @@ def thumbnail_video_from_path(
     -------
     ThumbnailVideo
         Containing the metadata about the written thumbnail video
+
+    Raises
+    ------
+    RuntimeError
+       If both min_max and quantiles are None or if both
+       min_max and quantiles are not None (i.e. one and only
+       one of min_max and quantiles must be not None)
+
+    RuntimeError
+        If min_max[0] > min_max[1]
     """
 
-    if not isinstance(normalization, numbers.Number):
-        if normalization not in ('global', 'local'):
-            msg = "normalization in thumbnail_video_from_path "
-            msg += "must be either 'global' or 'local'; "
-            msg += f"you gave '{normalization}'"
-            raise RuntimeError(msg)
-    else:
-        max_val = normalization
+    if min_max is None and quantiles is None:
+        raise RuntimeError("both min_max and quantiles are None "
+                           "in thumbnail_video_from_path; must "
+                           "specify one")
+
+    if min_max is not None and quantiles is not None:
+        raise RuntimeError("both min_max and quantiles are are not None "
+                           "in thumbnail_video_from_path; can only specify "
+                           "one")
 
     with h5py.File(full_video_path, 'r') as in_file:
-        if normalization == 'global':
-            max_val = in_file['data'][()].max()
-        data = in_file['data'][:,
-                               origin[0]:origin[0]+frame_shape[0],
-                               origin[1]:origin[1]+frame_shape[1]]
+        if quantiles is not None:
+            read_data = in_file['data'][()]
+            min_max = np.quantile(read_data, quantiles)
+            data = read_data[:,
+                             origin[0]:origin[0]+frame_shape[0],
+                             origin[1]:origin[1]+frame_shape[1]]
+            del read_data
+        else:
+            data = in_file['data'][:,
+                                   origin[0]:origin[0]+frame_shape[0],
+                                   origin[1]:origin[1]+frame_shape[1]]
 
-    if normalization == 'local':
-        max_val = data.max()
+    if min_max[0] > min_max[1]:
+        raise RuntimeError(f"min_max {min_max} in thumbnail_video_from_path; "
+                           "order seems to be reversed")
 
-    data = scale_video_to_uint8(data, max_val=max_val)
+    data = scale_video_to_uint8(data, min_max[0], min_max[1])
 
     # origin is set to (0,0) because, when we read in the
     # HDF5 file, we only read in the pixels we actually
@@ -698,7 +734,9 @@ def _thumbnail_video_from_ROI_path(
         tmp_dir: Optional[pathlib.Path] = None,
         fps: int = 31,
         quality: int = 5,
-        normalization: Union[str, int, float] = 'local') -> ThumbnailVideo:
+        min_max: Optional[Tuple[numbers.Number, numbers.Number]] = None,
+        quantiles: Optional[Tuple[numbers.Number, numbers.Number]] = None,
+        ) -> ThumbnailVideo:
     """
     Get a thumbnail video from a HDF5 file path and an ROI
 
@@ -734,29 +772,42 @@ def _thumbnail_video_from_ROI_path(
         Quality parameter passed to imageio.mimsave
         (maximum is 9; default is 5)
 
-    normalization: Union[str, float]
-        If 'global', normalize video to maximum value of full
-        video. If 'local', normalize video to maximum value of
-        spatial thumbnail. If a number, the numerical
-        value to normalize by (default: 'local')
+    min_max: Optional[Tuple[numbers.Number, numbers.Number]]
+        If not None, the minimum and maximum values used to clip
+        and normalize the movie brightness values (default: None).
+
+    quantiles: Optional[Tuple[numbers.Number, numbers.Number]]
+        If not None, the minimum and maximum quantiles used to
+        clip and normalize the movie brightness values (default: None)
 
     Returns
     -------
     thumbnail: ThumbnailVideo
+
+    Raises
+    ------
+    RuntimeError
+       If both min_max and quantiles are None or if both
+       min_max and quantiles are not None (i.e. one and only
+       one of min_max and quantiles must be not None)
+
+    RuntimeError
+        If min_max[0] > min_max[1]
 
     Notes
     -----
     This method will scale video data values to [0, 255]
     """
 
-    if not isinstance(normalization, numbers.Number):
-        if normalization not in ('global', 'local'):
-            msg = "normalization in _thumbnail_video_from_ROI_path "
-            msg += "must be either 'global' or 'local'; "
-            msg += f"you gave '{normalization}'"
-            raise RuntimeError(msg)
-    else:
-        max_val = normalization
+    if min_max is None and quantiles is None:
+        raise RuntimeError("both min_max and quantiles are None "
+                           "in thumbnail_video_from_path; must "
+                           "specify one")
+
+    if min_max is not None and quantiles is not None:
+        raise RuntimeError("both min_max and quantiles are are not None "
+                           "in thumbnail_video_from_path; can only specify "
+                           "one")
 
     with h5py.File(video_path, 'r') as in_file:
         img_shape = in_file['data'].shape
@@ -767,18 +818,25 @@ def _thumbnail_video_from_ROI_path(
                                         img_shape[1:3])
 
     with h5py.File(video_path, 'r') as in_file:
-        if normalization == 'global':
-            max_val = in_file['data'][()].max()
+        if quantiles is not None:
+            read_in_data = in_file['data'][()]
+            min_max = np.quantile(read_in_data, quantiles)
+            full_video = read_in_data[:,
+                                      origin[0]:origin[0]+fov_shape[0],
+                                      origin[1]:origin[1]+fov_shape[1]]
+            del read_in_data
+        else:
+            full_video = in_file['data'][:,
+                                         origin[0]:origin[0]+fov_shape[0],
+                                         origin[1]:origin[1]+fov_shape[1]]
 
-        full_video = in_file['data'][:,
-                                     origin[0]:origin[0]+fov_shape[0],
-                                     origin[1]:origin[1]+fov_shape[1]]
-
-    if normalization == 'local':
-        max_val = full_video.max()
+    if min_max[0] > min_max[1]:
+        raise RuntimeError(f"min_max {min_max} in thumbnail_video_from_path; "
+                           "order seems to be reversed")
 
     full_video = scale_video_to_uint8(full_video,
-                                      max_val=max_val)
+                                      min_max[0],
+                                      min_max[1])
 
     sub_video = get_rgb_sub_video(full_video,
                                   (0, 0),
@@ -816,7 +874,9 @@ def thumbnail_video_from_ROI(
         tmp_dir: Optional[pathlib.Path] = None,
         fps: int = 31,
         quality: int = 5,
-        normalization: Union[str, int, float] = 'local') -> ThumbnailVideo:
+        min_max: Optional[Tuple[numbers.Number, numbers.Number]] = None,
+        quantiles: Optional[Tuple[numbers.Number, numbers.Number]] = None,
+        ) -> ThumbnailVideo:
     """
     Get a thumbnail video from a HDF5 file path and an ROI
 
@@ -853,11 +913,13 @@ def thumbnail_video_from_ROI(
         Quality parameter passed to imageio.mimsave
         (maximum is 9; default is 5)
 
-    normalization: Union[str, float]
-        If 'global', normalize video to maximum value of full
-        video. If 'local', normalize video to maximum value of
-        spatial thumbnail. If a number, the numerical
-        value to normalize by (default: 'local')
+    min_max: Optional[Tuple[numbers.Number, numbers.Number]]
+        If not None, the minimum and maximum values used to clip
+        and normalize the movie brightness values (default: None).
+
+    quantiles: Optional[Tuple[numbers.Number, numbers.Number]]
+        If not None, the minimum and maximum quantiles used to
+        clip and normalize the movie brightness values (default: None)
 
     Returns
     -------
@@ -868,6 +930,9 @@ def thumbnail_video_from_ROI(
     If video is a np.ndarray, data will not be scaled so that values
     are in [0, 255]. If video is a path, the data will be scaled
     so that values are in [0, 255]
+
+    min_max and quantile are only used if video is a path. In that case
+    one and only one of them must be non-None
     """
 
     if isinstance(video, np.ndarray):
@@ -890,7 +955,8 @@ def thumbnail_video_from_ROI(
                            tmp_dir=tmp_dir,
                            fps=fps,
                            quality=quality,
-                           normalization=normalization)
+                           min_max=min_max,
+                           quantiles=quantiles)
     else:
         msg = "video must be either a np.ndarray "
         msg += "or a pathlib.Path; you passed in "

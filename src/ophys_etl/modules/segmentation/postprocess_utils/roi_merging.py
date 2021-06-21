@@ -959,7 +959,7 @@ def do_roi_merger(
         n_seeds = len(neighbor_lookup)
         chunk_size = chunk_size_from_processors(n_seeds,
                                                 n_processors,
-                                                10,
+                                                1,
                                                 2)
 
         mgr = multiprocessing.Manager()

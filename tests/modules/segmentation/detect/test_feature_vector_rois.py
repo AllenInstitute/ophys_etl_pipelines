@@ -2,7 +2,7 @@ import pytest
 import numpy as np
 import h5py
 
-from ophys_etl.modules.segmentation.graph_utils.feature_vector_rois import (
+from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
     calculate_pearson_feature_vectors,
     PearsonFeatureROI)
 

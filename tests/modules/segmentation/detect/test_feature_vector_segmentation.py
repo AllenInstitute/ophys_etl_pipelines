@@ -9,11 +9,20 @@ from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
-from ophys_etl.modules.segmentation.\
-    graph_utils.feature_vector_segmentation import (
+from ophys_etl.modules.segmentation.detect.feature_vector_segmentation import (
         convert_to_lims_roi,
-        find_peaks,
         FeatureVectorSegmenter)
+
+
+@pytest.fixture
+def seeder_args():
+    args = {
+            'exclusion_buffer': 1,
+            'n_samples': 10,
+            'keep_fraction': 0.05,
+            'minimum_distance': 3.0,
+            'seeder_grid_size': None}
+    return args
 
 
 @pytest.mark.parametrize(
@@ -72,38 +81,7 @@ def test_graph_to_img(example_graph):
     assert roi_mu > not_mu+roi_std+not_std
 
 
-def test_find_peaks(example_img):
-    """
-    Test that find_peaks works with no mask
-    """
-    peaks = find_peaks(example_img, slop=2)
-    assert len(peaks) == 2
-
-    assert {'center': (2, 3),
-            'rows': (0, 4),
-            'cols': (1, 5)} in peaks
-
-    assert {'center': (11, 12),
-            'rows': (9, 13),
-            'cols': (10, 14)} in peaks
-
-    # test that, when the second peak is
-    # masked, the third is found
-    mask = np.zeros((20, 20), dtype=bool)
-    mask[11, 12] = True
-    peaks = find_peaks(example_img, mask=mask, slop=2)
-    assert len(peaks) == 2
-
-    assert {'center': (2, 3),
-            'rows': (0, 4),
-            'cols': (1, 5)} in peaks
-
-    assert {'center': (10, 11),
-            'rows': (8, 12),
-            'cols': (9, 13)} in peaks
-
-
-def test_segmenter(tmpdir, example_graph, example_video):
+def test_segmenter(tmpdir, example_graph, example_video, seeder_args):
     """
     Smoke test for segmenter
     """
@@ -112,7 +90,8 @@ def test_segmenter(tmpdir, example_graph, example_video):
                                        video_input=example_video,
                                        attribute='dummy_attribute',
                                        filter_fraction=0.2,
-                                       n_processors=1)
+                                       n_processors=1,
+                                       seeder_args=seeder_args)
 
     dir_path = pathlib.Path(tmpdir)
     roi_path = dir_path / 'roi.json'
@@ -154,7 +133,7 @@ def test_segmenter(tmpdir, example_graph, example_video):
     assert not plot_path.exists()
 
 
-def test_segmenter_blank(tmpdir, blank_graph, blank_video):
+def test_segmenter_blank(tmpdir, blank_graph, blank_video, seeder_args):
     """
     Smoke test for segmenter on blank inputs
     """
@@ -163,7 +142,8 @@ def test_segmenter_blank(tmpdir, blank_graph, blank_video):
                                        video_input=blank_video,
                                        attribute='dummy_attribute',
                                        filter_fraction=0.2,
-                                       n_processors=1)
+                                       n_processors=1,
+                                       seeder_args=seeder_args)
     dir_path = pathlib.Path(tmpdir)
     roi_path = dir_path / 'roi.json'
     segmenter.run(roi_output=roi_path)

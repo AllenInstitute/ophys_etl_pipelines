@@ -403,7 +403,8 @@ class PotentialROI(object):
         self.n_pixels = 0
         for ii in range(self.img_shape[0]*self.img_shape[1]):
             if pixel_ignore is None or not pixel_ignore_flat[ii]:
-                p = np.unravel_index(ii, self.img_shape)
+                p = tuple([int(i)
+                           for i in np.unravel_index(ii, self.img_shape)])
                 self.index_to_pixel.append(p)
                 self.pixel_to_index[p] = len(self.index_to_pixel)-1
                 self.n_pixels += 1

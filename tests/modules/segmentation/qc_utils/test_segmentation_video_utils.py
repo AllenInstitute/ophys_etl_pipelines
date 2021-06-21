@@ -158,6 +158,16 @@ def test_scale_video():
 
     np.testing.assert_array_equal(expected, scaled)
 
+    scaled = scale_video_to_uint8(data,
+                                  2.0,
+                                  7.0)
+
+    expected = np.array([[0, 0, 51, 102],
+                         [153, 204, 255, 255]]).astype(np.uint8)
+
+    np.testing.assert_array_equal(expected, scaled)
+
+
     with pytest.raises(RuntimeError, match="in scale_video_to_uint8"):
         _ = scale_video_to_uint8(data, 1.0, 0.0)
 

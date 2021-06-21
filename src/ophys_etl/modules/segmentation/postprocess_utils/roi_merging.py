@@ -880,6 +880,7 @@ def do_roi_merger(
                                                np.sqrt(2.0),
                                                rois_to_ignore=None,
                                                n_processors=n_processors)
+    n_pairs_0 = len(merger_candidates)
 
     # create a look up table mapping from roi_id to all of the
     # ROI's neighbors
@@ -896,6 +897,8 @@ def do_roi_merger(
 
     for roi_id in neighbor_lookup:
         neighbor_lookup[roi_id] = list(neighbor_lookup[roi_id])
+
+    merger_candidates = set(merger_candidates)
 
     logger.info(f'found {len(merger_candidates)} merger_candidates'
                 f' in {time.time()-t0:.2f} seconds')
@@ -920,12 +923,14 @@ def do_roi_merger(
     incoming_rois = list(roi_lookup.keys())
 
     while keep_going:
-
+        t0_pass = time.time()
         n0 = len(roi_lookup)
         i_pass += 1
 
         keep_going = False
 
+        ct = 0
+        actual = 0
         for seed_id in ordered_roi_ids:
             if seed_id not in roi_lookup:
                 continue
@@ -934,9 +939,18 @@ def do_roi_merger(
             seed_roi = roi_lookup[seed_id]
             neighbor_list = copy.deepcopy(neighbor_lookup[seed_id])
             for child_id in neighbor_list:
+                ct += 1
+                if ct % 1000 == 0:
+                    dur = time.time()-t0_pass
+                    per = dur/ct
+                    per_action = dur/actual
+                    logger.info(f'{ct} of {n_pairs_0} (actual {actual}) in '
+                                f'{dur:.2f} seconds ({per:.2f};'
+                                f'{per_actual:.2f} per)')
                 if child_id not in roi_lookup:
                     continue
                 child_roi = roi_lookup[child_id]
+                actual += 1
 
                 if not validate_merger_corr(seed_roi,
                                             child_roi,

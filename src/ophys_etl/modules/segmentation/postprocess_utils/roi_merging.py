@@ -533,7 +533,7 @@ def merge_segmentation_rois(uphill_roi: SegmentationROI,
 
     new_roi = merge_rois(uphill_roi, downhill_roi, new_roi_id=new_roi_id)
     return SegmentationROI.from_ophys_roi(new_roi,
-                                          ancestors=None,
+                                          ancestors=[uphill_roi, downhill_roi],
                                           flux_value=new_flux_value)
 
 

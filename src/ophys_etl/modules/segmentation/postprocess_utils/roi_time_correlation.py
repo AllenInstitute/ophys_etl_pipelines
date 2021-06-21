@@ -94,7 +94,7 @@ def correlate_sub_video(sub_video: np.ndarray,
 
 def get_brightest_pixel(roi: SegmentationROI,
                         img_data: np.ndarray,
-                        video_data: np.ndarray) -> np.ndarray:
+                        sub_video: np.ndarray) -> np.ndarray:
     """
     Return the brightest pixel in an ROI (as measured against
     some image) as a time series.
@@ -116,15 +116,16 @@ def get_brightest_pixel(roi: SegmentationROI,
         Time series of taken from the video at the
         brightest pixel in the ROI
     """
+    #v = sub_video.mean(axis=1)
+    #assert v.shape == (sub_video.shape[0],)
+    #return v
     xmin = roi.x0
     ymin = roi.y0
     xmax = roi.x0+roi.width
     ymax = roi.y0+roi.height
     sub_img = img_data[ymin:ymax, xmin:xmax]
-    sub_video = video_data[:, ymin:ymax, xmin:xmax]
     mask = roi.mask_matrix
     sub_img = sub_img[mask]
-    sub_video = sub_video[:, mask]
     assert len(sub_video.shape) == 2
     assert sub_video.shape[1] == sub_img.shape[0]
     assert len(sub_img.shape) == 1
@@ -134,7 +135,7 @@ def get_brightest_pixel(roi: SegmentationROI,
 
 def _validate_merger_corr(uphill_roi: SegmentationROI,
                          downhill_roi: SegmentationROI,
-                         video_data: np.ndarray,
+                         video_lookup: np.ndarray,
                          img_data: np.ndarray,
                          filter_fraction: float = 0.2,
                          acceptance: float = 1.0) -> bool:
@@ -182,12 +183,12 @@ def _validate_merger_corr(uphill_roi: SegmentationROI,
     Accept the merger if the median z-score is greater
     than -1*acceptance. Reject it, otherwise.
     """
-    uphill_video = sub_video_from_roi(uphill_roi, video_data)
-    downhill_video = sub_video_from_roi(downhill_roi, video_data)
+    uphill_video = video_lookup[uphill_roi.roi_id]
+    downhill_video = video_lookup[downhill_roi.roi_id]
 
     uphill_centroid = get_brightest_pixel(uphill_roi,
                                           img_data,
-                                          video_data)
+                                          uphill_video)
 
     uphill_corr = correlate_sub_video(uphill_video,
                                       uphill_centroid,
@@ -198,30 +199,40 @@ def _validate_merger_corr(uphill_roi: SegmentationROI,
                                              filter_fraction=filter_fraction)
 
     uphill_mu = np.mean(uphill_corr)
-    uphill_std = np.std(uphill_corr, ddof=1)
+    if len(uphill_corr) > 1:
+        uphill_std = np.std(uphill_corr, ddof=1)
+    else:
+        return False, -999.0
+
     z_score = (downhill_to_uphill-uphill_mu)/uphill_std
     metric = np.median(z_score)
-    return metric > (-1.0*acceptance)
+    return metric > (-1.0*acceptance), metric
 
 def validate_merger_corr(uphill_roi: SegmentationROI,
                          downhill_roi: SegmentationROI,
-                         video_data: np.ndarray,
+                         video_lookup: dict,
                          img_data: np.ndarray,
                          filter_fraction: float = 0.2,
                          acceptance: float = 1.0) -> bool:
+
+    #if downhill_roi.mask_matrix.sum() > uphill_roi.mask_matrix.sum():
+    #    a = downhill_roi
+    #    downhill_roi = uphill_roi
+    #    uphill_roi = a
+
     test1 = _validate_merger_corr(uphill_roi,
                                   downhill_roi,
-                                  video_data,
+                                  video_lookup,
                                   img_data,
                                   filter_fraction=filter_fraction,
                                   acceptance=acceptance)
 
-    if test1:
-        return True
+    if test1[0]:
+        return test1
 
     test2 = _validate_merger_corr(downhill_roi,
                                   uphill_roi,
-                                  video_data,
+                                  video_lookup,
                                   img_data,
                                   filter_fraction=filter_fraction,
                                   acceptance=acceptance)

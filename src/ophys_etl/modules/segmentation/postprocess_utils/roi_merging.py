@@ -9,7 +9,8 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.segmentation.\
     postprocess_utils.roi_time_correlation import (
-        validate_merger_corr)
+        validate_merger_corr,
+        sub_video_from_roi)
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.types import ExtractROI
@@ -796,12 +797,37 @@ def order_mergers(roi_lookup):
     return roi_id_list[sorted_indices]
 
 
+def _validate_mergers(seed_list,
+                      neighbor_lookup,
+                      roi_lookup,
+                      video_lookup,
+                      img_data,
+                      filter_fraction,
+                      corr_acceptance,
+                      pair_list):
+
+    for roi_id in seed_list:
+        neighbor_list = neighbor_lookup[roi_id]
+        seed_roi = roi_lookup[roi_id]
+        for neighbor_id in neighbor_list:
+            neighbor_roi = roi_lookup[neighbor_id]
+            valid = validate_merger_corr(seed_roi,
+                                         neighbor_roi,
+                                         video_lookup,
+                                         img_data,
+                                         filter_fraction=filter_fraction,
+                                         acceptance=corr_acceptance)
+            if valid[0]:
+                pair_list.append((roi_id, neighbor_id, valid[1]))
+
+
 def do_roi_merger(
       raw_roi_list: List[OphysROI],
       img_data: np.ndarray,
       video_data: np.ndarray,
       n_processors: int,
       corr_acceptance: float,
+      filter_fraction = 0.2,
       diagnostic_dir: Optional[pathlib.Path] = None) -> List[SegmentationROI]:
     """
     Merge ROIs based on a static image.
@@ -907,11 +933,6 @@ def do_roi_merger(
                                                 dx=20)
     logger.info(f'created roi lookup in {time.time()-t0:.2f} seconds')
 
-    # order ROIs by flux value, descending
-    t0 = time.time()
-    ordered_roi_ids = order_mergers(roi_lookup)
-    logger.info(f'order ROIs seeds in {time.time()-t0:2f} seconds')
-
     t0 = time.time()
     logger.info('starting merger')
     keep_going = True
@@ -927,67 +948,105 @@ def do_roi_merger(
 
         keep_going = False
 
-        ct = 0
-        actual = 0
-        for seed_id in ordered_roi_ids:
-            if seed_id not in valid_roi_id:
+        sub_video_lookup = {}
+        for roi_id in roi_lookup:
+            roi = roi_lookup[roi_id]
+            sub_video_lookup[roi_id] = sub_video_from_roi(roi,
+                                                          video_data)
+        logger.info(f'got sub video lookup in {time.time()-t0_pass:.2f}')
+
+
+        n_seeds = len(neighbor_lookup)
+        chunk_size = chunk_size_from_processors(n_seeds,
+                                                n_processors,
+                                                10,
+                                                2)
+
+        mgr = multiprocessing.Manager()
+        output_list = mgr.list()
+        process_list = []
+        seed_list = list(neighbor_lookup.keys())
+        for i0 in range(0, n_seeds, chunk_size):
+            chunk = seed_list[i0: i0+chunk_size]
+            args = (chunk,
+                    neighbor_lookup,
+                    roi_lookup,
+                    sub_video_lookup,
+                    img_data,
+                    filter_fraction,
+                    corr_acceptance,
+                    output_list)
+
+            process = multiprocessing.Process(target=_validate_mergers,
+                                              args=args)
+
+            process.start()
+            process_list.append(process)
+            while len(process_list) > 0 and len(process_list) > (n_processors-1):
+                process_list = _winnow_process_list(process_list)
+
+
+        for p in process_list:
+            p.join()
+        logger.info(f'done processing after {time.time()-t0_pass:.2f}')
+
+        potential_mergers = np.array(output_list)
+        merger_metrics = np.array([p[2] for p in potential_mergers])
+        sorted_indices = np.argsort(-1*merger_metrics)
+        potential_mergers = potential_mergers[sorted_indices]
+        if len(merger_metrics) > 0:
+            print('merger metrics ',merger_metrics.min(), np.median(merger_metrics), merger_metrics.max())
+
+        recently_merged = set()
+        for merger in potential_mergers:
+            roi_id_0 = merger[0]
+            roi_id_1 = merger[1]
+            if roi_id_0 not in valid_roi_id:
                 continue
-            if seed_id not in neighbor_lookup:
+            if roi_id_1 not in valid_roi_id:
                 continue
+            if roi_id_0 in recently_merged:
+                continue
+            if roi_id_1 in recently_merged:
+                continue
+
+            if roi_lookup[roi_id_0].peak.flux_value > roi_lookup[roi_id_1].peak.flux_value:
+                seed_id = roi_id_0
+                child_id = roi_id_1
+            else:
+                seed_id = roi_id_1
+                child_id = roi_id_0
+
             seed_roi = roi_lookup[seed_id]
-            neighbor_list = neighbor_lookup[seed_id].intersection(valid_roi_id)
-            for child_id in neighbor_list:
-                ct += 1
-                if ct % 1000 == 0:
-                    dur = time.time()-t0_pass
-                    per = dur/ct
-                    per_actual = dur/actual
-                    logger.info(f'{ct} of {n_pairs_0} (actual {actual}) in '
-                                f'{dur:.2f} seconds ({per:.2f};'
-                                f'{per_actual:.2f} per)')
+            child_roi = roi_lookup[child_id]
+            keep_going = True
+            new_roi = merge_segmentation_rois(seed_roi,
+                                              child_roi,
+                                              seed_roi.roi_id,
+                                              seed_roi.flux_value)
+            roi_lookup.pop(child_roi.roi_id)
+            valid_roi_id.remove(child_roi.roi_id)
+            have_been_merged.add(child_roi.roi_id)
+            recently_merged.add(child_roi.roi_id)
+            recently_merged.add(new_roi.roi_id)
+            roi_lookup[seed_roi.roi_id] = new_roi
 
-                child_roi = roi_lookup[child_id]
-                actual += 1
-
-                if not validate_merger_corr(seed_roi,
-                                            child_roi,
-                                            video_data,
-                                            img_data,
-                                            filter_fraction=0.2,
-                                            acceptance=corr_acceptance):
+            # update neighbor lookup
+            severed_neighbors = neighbor_lookup.pop(child_roi.roi_id)
+            severed_neighbors = severed_neighbors.intersection(valid_roi_id)
+            for roi_id in severed_neighbors:
+                if roi_id == seed_id:
                     continue
-                new_roi = merge_segmentation_rois(seed_roi,
-                                                  child_roi,
-                                                  seed_roi.roi_id,
-                                                  seed_roi.flux_value)
+                neighbor_lookup[seed_id].add(roi_id)
+                neighbor_lookup[roi_id].add(seed_id)
 
-                roi_lookup.pop(child_id)
-                valid_roi_id.remove(child_id)
+        for roi_id in neighbor_lookup:
+            if roi_id not in valid_roi_id:
+                neighbor_lookup.pop(roi_id)
+                continue
+            new_set = neighbor_lookup[roi_id].intersection(valid_roi_id)
+            neighbor_lookup[roi_id] = new_set
 
-                roi_lookup[seed_id] = new_roi
-                seed_roi = new_roi
-                have_been_merged.add(child_id)
-                keep_going = True
-
-                # update neighbor lookup
-                severed_neighbors = neighbor_lookup.pop(child_id)
-                severed_neighbors = severed_neighbors.intersection(valid_roi_id)
-                for roi_id in severed_neighbors:
-                    if roi_id == seed_id:
-                        continue
-                    neighbor_lookup[seed_id].add(roi_id)
-                    neighbor_lookup[roi_id].add(seed_id)
-
-            # get rid of obsolete ROI IDs
-            neighbor_keys = list(neighbor_lookup.keys())
-            for roi_id in neighbor_keys:
-                if roi_id not in valid_roi_id:
-                    neighbor_lookup.pop(roi_id)
-                    continue
-                new_set = neighbor_lookup[roi_id].intersection(valid_roi_id)
-                neighbor_lookup[roi_id] = new_set
-
-        ordered_roi_ids = order_mergers(roi_lookup)
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '
                     f'after {time.time()-t0:.2f} seconds')
 

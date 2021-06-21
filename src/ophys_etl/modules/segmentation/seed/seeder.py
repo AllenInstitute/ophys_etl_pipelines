@@ -152,11 +152,11 @@ class ImageMetricSeeder(SeederBase):
     def __init__(self,
                  keep_fraction: float = 0.4,
                  seeder_grid_size: Optional[int] = None,
-                 *args, **kwargs):
+                 **kwargs):
         self._seeder_grid_size = seeder_grid_size
         self._keep_fraction = keep_fraction
         self._seed_image: np.ndarray = None
-        super(ImageMetricSeeder, self).__init__(*args, **kwargs)
+        super(ImageMetricSeeder, self).__init__(**kwargs)
 
     def select_seeds(self, image: np.ndarray, sigma: Optional[float] = None):
         """select seeds from an image
@@ -270,10 +270,11 @@ class BatchImageMetricSeeder(ImageMetricSeeder):
 
     """
     def __init__(self, n_samples: int,
-                 minimum_distance: float, *args, **kwargs):
+                 minimum_distance: float,
+                 **kwargs):
         self._n_samples = n_samples
         self._minimum_distance = minimum_distance
-        super(BatchImageMetricSeeder, self).__init__(*args, **kwargs)
+        super(BatchImageMetricSeeder, self).__init__(**kwargs)
 
     def __next__(self):
         """returns the next 'n_samples' valid seeds, subject to minimum

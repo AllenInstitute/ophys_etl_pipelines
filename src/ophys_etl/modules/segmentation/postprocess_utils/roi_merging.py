@@ -978,9 +978,9 @@ def do_roi_merger(
                     neighbor_lookup[seed_id].add(roi_id)
                     neighbor_lookup[roi_id].add(seed_id)
 
-            # get rid of obsolet ROI IDs
+            # get rid of obsolete ROI IDs
             neighbor_keys = list(neighbor_lookup.keys())
-            for roi_id in neighbor_lookup:
+            for roi_id in neighbor_keys:
                 if roi_id not in valid_roi_id:
                     neighbor_lookup.pop(roi_id)
                     continue

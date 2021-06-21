@@ -1,6 +1,7 @@
 import h5py
 import argschema
 import numpy as np
+from pathlib import Path
 from marshmallow import pre_load, post_load, ValidationError
 from marshmallow.fields import Int
 from marshmallow.validate import OneOf
@@ -279,6 +280,12 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
         description=("path to json file where seed points "
                      "will be saved"))
 
+    seed_plot_output = argschema.fields.OutputFile(
+        required=False,
+        default=None,
+        allow_none=True,
+        description=("path to plot of seeding summary."))
+
     n_parallel_workers = argschema.fields.Int(
         required=False,
         default=1,
@@ -289,3 +296,12 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
         default="PearsonFeatureROI",
         validate=OneOf(["PearsonFeatureROI", "PCAFeatureROI"]),
         description="which class to use.")
+
+    @post_load
+    def plot_outputs(self, data, **kwargs):
+        if data['seed_plot_output'] is None:
+            if data['plot_output'] is not None:
+                plot_path = Path(data['plot_output'])
+            data['seed_plot_output'] = str(
+                    plot_path.parent / f"{plot_path.stem}_seeds.png")
+        return data

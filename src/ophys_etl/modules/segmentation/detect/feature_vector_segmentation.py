@@ -338,7 +338,9 @@ class FeatureVectorSegmenter(object):
     def run(self,
             roi_output: pathlib.Path,
             seed_output: Optional[pathlib.Path] = None,
-            plot_output: Optional[pathlib.Path] = None) -> None:
+            plot_output: Optional[pathlib.Path] = None,
+            seed_plot_output: Optional[pathlib.Path] = None,
+            ) -> None:
         """
         Actually perform the work of detecting ROIs in the video
 
@@ -444,18 +446,16 @@ class FeatureVectorSegmenter(object):
         logger.info('finished iterating on ROIs')
 
         if seed_output is not None:
-            # NOTE: seeder implements output to hdf5
             with h5py.File(seed_output, "w") as f:
                 self.seeder.log_to_h5_group(f)
             logger.info(f'wrote {str(seed_output)}')
 
-            # NOTE: we should make this plot a CLI arg
-            seed_plot = pathlib.Path(seed_output).parent / "seed_plot.png"
-            f = Figure(figsize=(8, 8))
-            axes = f.add_subplot(111)
-            add_seeds_to_axes(f, axes, seed_h5_path=seed_output)
-            f.savefig(seed_plot)
-            logger.info(f'wrote {seed_plot}')
+            if seed_plot_output is not None:
+                f = Figure(figsize=(8, 8))
+                axes = f.add_subplot(111)
+                add_seeds_to_axes(f, axes, seed_h5_path=seed_output)
+                f.savefig(seed_plot_output)
+                logger.info(f'wrote {seed_plot_output}')
 
         logger.info(f'writing {str(roi_output)}')
         with open(roi_output, 'w') as out_file:

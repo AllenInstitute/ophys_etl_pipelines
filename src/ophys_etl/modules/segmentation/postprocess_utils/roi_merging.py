@@ -533,7 +533,7 @@ def merge_segmentation_rois(uphill_roi: SegmentationROI,
 
     new_roi = merge_rois(uphill_roi, downhill_roi, new_roi_id=new_roi_id)
     return SegmentationROI.from_ophys_roi(new_roi,
-                                          ancestors=None,
+                                          ancestors=[uphill_roi, downhill_roi],
                                           flux_value=new_flux_value)
 
 
@@ -918,6 +918,7 @@ def do_roi_merger(
     have_been_merged = set()
     i_pass = -1
     incoming_rois = list(roi_lookup.keys())
+    next_roi_id = max(incoming_rois)+1
 
     while keep_going:
 
@@ -947,19 +948,28 @@ def do_roi_merger(
                     continue
                 new_roi = merge_segmentation_rois(seed_roi,
                                                   child_roi,
-                                                  seed_roi.roi_id,
+                                                  next_roi_id,
                                                   seed_roi.flux_value)
 
+                next_roi_id += 1
                 roi_lookup.pop(child_id)
-                roi_lookup[seed_id] = new_roi
-                seed_roi = new_roi
+                roi_lookup.pop(seed_id)
                 have_been_merged.add(child_id)
+                have_been_merged.add(seed_id)
+
+                roi_lookup[new_roi.roi_id] = new_roi
+                seed_roi = new_roi
+                neighbor_lookup[new_roi.roi_id] = copy.deepcopy(neighbor_lookup[seed_id])
+                neighbor_lookup.pop(seed_id)
+                old_seed_id = seed_id
+                seed_id = new_roi.roi_id
+
                 keep_going = True
 
                 # update neighbor lookup
                 severed_neighbors = neighbor_lookup.pop(child_id)
                 for roi_id in severed_neighbors:
-                    if roi_id == seed_id:
+                    if roi_id not in roi_lookup:
                         continue
                     if roi_id in roi_lookup:
                         if roi_id not in neighbor_lookup[seed_id]:
@@ -967,9 +977,15 @@ def do_roi_merger(
                         if seed_id not in neighbor_lookup[roi_id]:
                             neighbor_lookup[roi_id].append(seed_id)
 
+                # replace instances of old_seed_id with new seed_id
+                for roi_id in neighbor_lookup:
+                    for ii in range(len(neighbor_lookup[roi_id])):
+                        if neighbor_lookup[roi_id][ii] == old_seed_id:
+                            neighbor_lookup[roi_id][ii] = seed_id
+
                 # get rid of obsolet ROI IDs
                 neighbor_keys = list(neighbor_lookup.keys())
-                for roi_id in neighbor_lookup:
+                for roi_id in neighbor_keys:
                     if roi_id not in roi_lookup:
                         neighbor_lookup.pop(roi_id)
                         continue

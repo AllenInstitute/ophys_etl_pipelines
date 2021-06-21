@@ -182,7 +182,7 @@ def _validate_merger_corr(uphill_roi: SegmentationROI,
     uphill_video = sub_video_from_roi(uphill_roi, video_data)
     downhill_video = sub_video_from_roi(downhill_roi, video_data)
 
-    uphill_centroid = get_brightest_pixel(uphill_roi,
+    uphill_centroid = get_brightest_pixel(uphill_roi.peak,
                                           img_data,
                                           video_data)
 

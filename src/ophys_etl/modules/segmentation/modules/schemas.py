@@ -416,8 +416,6 @@ class RoiMergerSchema(argschema.ArgSchema):
 
     graph_input = argschema.fields.InputFile(
             required=True,
-            default=None,
-            allow_none=True,
             description=("file containing graph used to produce "
                          "image over which ROIs are laid"))
 

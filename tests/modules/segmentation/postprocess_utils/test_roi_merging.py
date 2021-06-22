@@ -10,7 +10,7 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     extract_roi_to_ophys_roi,
     ophys_roi_to_extract_roi,
     get_inactive_mask,
-    get_inactive_dist,
+    get_inactive_distribution,
     do_roi_merger)
 
 
@@ -340,7 +340,7 @@ def test_get_inactive_mask(example_roi_list):
 
 
 @pytest.mark.parametrize("dx", [10, 15, 20])
-def test_get_inactive_dist(example_roi_list, dx):
+def test_get_inactive_distribution(example_roi_list, dx):
     rng = np.random.RandomState(556123)
     random_image = rng.random_sample((100, 100))
 
@@ -353,10 +353,10 @@ def test_get_inactive_dist(example_roi_list, dx):
 
     for roi in example_roi_list:
         (mu_test,
-         std_test) = get_inactive_dist(random_image,
-                                       roi,
-                                       inactive_mask,
-                                       dx=dx)
+         std_test) = get_inactive_distribution(random_image,
+                                               roi,
+                                               inactive_mask,
+                                               dx=dx)
 
         xmin = max(0, roi.x0-dx)
         xmax = xmin+roi.width+2*dx

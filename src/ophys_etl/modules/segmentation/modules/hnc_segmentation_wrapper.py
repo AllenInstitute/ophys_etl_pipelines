@@ -9,6 +9,7 @@ from ophys_etl.modules.segmentation.modules.schemas import \
 from ophys_etl.modules.segmentation.hnc_segmentation_utils import hnc_construct
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import \
         hnc_roi_to_extract_roi
+from ophys_etl.modules.segmentation.seed.seeder import ImageMetricSeeder
 
 
 class HNCSegmentationWrapper(argschema.ArgSchemaParser):
@@ -17,7 +18,9 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
     def run(self):
         self.logger.name = type(self).__name__
 
-        hnc_segmenter = hnc_construct(self.args["hnc_args"],
+        seeder = ImageMetricSeeder(**self.args['seeder_args'])
+        hnc_segmenter = hnc_construct(seeder,
+                                      self.args["hnc_args"],
                                       self.args["video_input"])
 
         with h5py.File(self.args["video_input"], "r") as f:
@@ -35,15 +38,14 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
         rois = [hnc_roi_to_extract_roi(s, i + 1)
                 for i, s in enumerate(segmentations)]
 
-        seed_coords = [i["coords"] for i in hnc_segmenter.seeder._seeds]
-        seed_values = [i["value"] for i in hnc_segmenter.seeder._seeds]
-        seed_excluded = [i["excluded"] for i in hnc_segmenter.seeder._seeds]
+        fig = Figure(figsize=(8, 8))
+        axes = fig.add_subplot(111)
         with h5py.File(self.args["seed_output"], "w") as f:
-            seeds = f.create_group("seeds")
-            seeds.create_dataset("coordinates", data=np.array(seed_coords))
-            seeds.create_dataset("values", data=seed_values)
-            seeds.create_dataset("excluded", data=seed_excluded)
-            f.create_dataset("seed_image", data=hnc_segmenter.seeder._seed_img)
+                with h5py.File(seed_output, "r") as f:
+                    add_seeds_to_axes(fig, axes, seed_h5_group=f["seeding"])
+                fig.savefig(seed_plot_output)
+                logger.info(f'wrote {seed_plot_output}')
+            seeds = f.create_group("seeding")
         self.logger.info("seeds written to "
                          f"{self.args['seed_output']}")
 

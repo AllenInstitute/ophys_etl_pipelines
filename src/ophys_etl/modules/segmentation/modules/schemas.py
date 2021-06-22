@@ -7,7 +7,7 @@ from marshmallow.fields import Int
 from marshmallow.validate import OneOf
 
 from ophys_etl.modules.segmentation.seed.schemas import \
-    BatchImageMetricSeederSchema
+    ImageMetricSeederSchema, BatchImageMetricSeederSchema
 
 
 class CreateGraphInputSchema(argschema.ArgSchema):
@@ -374,6 +374,9 @@ class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
         required=False,
         default="movie_name",
         description="passed to HNCcorr.Movie as 'name'")
+    seeder_args = argschema.fields.Nested(
+        ImageMetricSeederSchema,
+        default={})
     hnc_args = argschema.fields.Nested(HNC_args, default={})
     roi_output = argschema.fields.OutputFile(
         required=True,

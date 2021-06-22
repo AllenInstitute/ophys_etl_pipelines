@@ -1,3 +1,4 @@
+from typing import Tuple
 import numpy as np
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
@@ -119,24 +120,23 @@ def get_brightest_pixel(roi: SegmentationROI,
     return sub_video[:, brightest_pixel]
 
 
-def _validate_merger_corr(uphill_roi: SegmentationROI,
-                         downhill_roi: SegmentationROI,
-                         video_lookup: np.ndarray,
-                         img_data: np.ndarray,
-                         filter_fraction: float = 0.2,
-                         acceptance: float = 1.0) -> bool:
+def calculate_merger_metric(roi0: SegmentationROI,
+                            roi1: SegmentationROI,
+                            video_lookup: dict,
+                            img_data: np.ndarray,
+                            filter_fraction: float = 0.2) -> float:
     """
-    Validate the merger between two ROIs based on time correlation
-    information.
+    Calculate the merger metric between two ROIs
 
     Parameters
     ----------
-    uphill_roi: SegmentationROI
+    roi0: SegmentationROI
 
-    downhill_roi: SegmentationROI
+    roi1: SegmentationROI
 
-    video_data: np.ndarray
-        Shape is (ntime, nrows, ncols)
+    video_lookup: dict
+        A dict mapping roi_id to sub-videos like those produced
+        by sub_video_from_roi
 
     img_data: np.ndarray
         Shape is (nrows, ncols)
@@ -145,83 +145,38 @@ def _validate_merger_corr(uphill_roi: SegmentationROI,
         The fraction of time steps to keep when doing
         time correlation (default = 0.2)
 
-    acceptance: float
-        The z-score threshold for accepting the merger
-        (default = 1.0)
-
     Returns
     -------
-    boolean
+    metric: float
+        The median z-score of the correlation of roi1's
+        pixels to the brightest pixel in roi0 relative
+        to the distribution of roi0's pixels to the same.
 
-    Notes
-    -----
-    To assess whether a merger should happen, find the
-    brightest pixel in uphill_roi (reckoned with img_data).
-    Extract that pixel from video_data as a time series.
-    Select only the brightest filter_fraction of pixels
-    from that time series. Correlate the rest of the pixels
-    in uphill_roi against that brightest_pixel timeseries.
-    Use those correlations to construct a Gaussian distribution.
-
-    Correlate the pixels in downhill_roi against that
-    brightest_pixel from uphill_roi. Convert these correlations
-    into a z-score relative to the Gaussian distribution.
-    Accept the merger if the median z-score is greater
-    than -1*acceptance. Reject it, otherwise.
+    Note
+    ----
+    If there are fewer than 2 pixels in roi0, return -999
     """
-    uphill_video = video_lookup[uphill_roi.roi_id]
-    downhill_video = video_lookup[downhill_roi.roi_id]
+    if roi0.mask_matrix.sum() < 2:
+        return -999.0
 
-    uphill_centroid = get_brightest_pixel(uphill_roi,
-                                          img_data,
-                                          uphill_video)
+    roi0_video = video_lookup[roi0.roi_id]
+    roi1_video = video_lookup[roi1.roi_id]
 
-    uphill_corr = correlate_sub_video(uphill_video,
-                                      uphill_centroid,
-                                      filter_fraction=filter_fraction)
+    roi0_centroid = get_brightest_pixel(roi0,
+                                        img_data,
+                                        roi0_video)
 
-    downhill_to_uphill = correlate_sub_video(downhill_video,
-                                             uphill_centroid,
-                                             filter_fraction=filter_fraction)
+    roi0_corr = correlate_sub_video(roi0_video,
+                                    roi0_centroid,
+                                    filter_fraction=filter_fraction)
 
-    uphill_mu = np.mean(uphill_corr)
-    if len(uphill_corr) > 1:
-        uphill_std = np.std(uphill_corr, ddof=1)
-    else:
-        return False, -999.0
+    roi1_to_roi0 = correlate_sub_video(roi1_video,
+                                       roi0_centroid,
+                                       filter_fraction=filter_fraction)
 
-    z_score = (downhill_to_uphill-uphill_mu)/uphill_std
+    roi0_mu = np.mean(roi0_corr)
+    roi0_std = np.std(roi0_corr, ddof=1)
+
+    z_score = (roi1_to_roi0-roi0_mu)/roi0_std
     metric = np.median(z_score)
-    return metric > (-1.0*acceptance), metric
-
-def validate_merger_corr(uphill_roi: SegmentationROI,
-                         downhill_roi: SegmentationROI,
-                         video_lookup: dict,
-                         img_data: np.ndarray,
-                         filter_fraction: float = 0.2,
-                         acceptance: float = 1.0) -> bool:
-
-    test1 = _validate_merger_corr(uphill_roi,
-                                  downhill_roi,
-                                  video_lookup,
-                                  img_data,
-                                  filter_fraction=filter_fraction,
-                                  acceptance=acceptance)
-
-    test2 = _validate_merger_corr(downhill_roi,
-                                  uphill_roi,
-                                  video_lookup,
-                                  img_data,
-                                  filter_fraction=filter_fraction,
-                                  acceptance=acceptance)
-
-    if test1[0] and not test2[0]:
-        return test1
-    elif test2[0] and not test1[0]:
-        return test2
-    elif test2[0] and test1[0]:
-        if test2[1] > test1[1]:
-            return test2
-        else:
-            return test1
-    return test1
+    return metric

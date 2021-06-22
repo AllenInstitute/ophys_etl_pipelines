@@ -6,9 +6,7 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
 from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     do_rois_abut,
     merge_segmentation_rois,
-    _get_rings,
-    create_segmentation_roi_lookup,
-    validate_merger)
+    create_segmentation_roi_lookup)
 
 
 @pytest.fixture
@@ -118,20 +116,6 @@ def test_segmentation_roi_factory(ophys_roi_list):
 
 def test_merge_segmentation_rois(segmentation_roi_list):
 
-    # merger should fail when ROIs do not abut
-    with pytest.raises(RuntimeError, match='There is no valid step'):
-        merge_segmentation_rois(segmentation_roi_list[8],
-                                segmentation_roi_list[0],
-                                22,
-                                99.0)
-
-    # merger should fail when going uphill
-    with pytest.raises(RuntimeError, match='There is no valid step'):
-        merge_segmentation_rois(segmentation_roi_list[7],
-                                segmentation_roi_list[8],
-                                22,
-                                99.0)
-
     # merge all ROIs together
     new_roi = segmentation_roi_list[8]
     for ii in (7, 6, 3, 4, 2, 5, 1, 0):
@@ -145,34 +129,6 @@ def test_merge_segmentation_rois(segmentation_roi_list):
 
     compare_segmentation_rois(new_roi.peak,
                               segmentation_roi_list[8])
-
-    # now test _get_rings
-    topography = _get_rings(new_roi)
-    ring_contents = []
-    for ring in topography:
-        this = set([p[1] for p in ring])
-        ring_contents.append(this)
-
-    # first ring is the peak
-    ring_contents[0] == set([new_roi.peak.roi_id])
-
-    for ii in range(1, len(ring_contents), 1):
-        for pair in topography[ii]:
-            # make sure that the root of the node points back to the
-            # previous ring
-            assert pair[0] in ring_contents[ii-1]
-
-            # make sure that ROIs in a node do, in fact, abut
-            assert do_rois_abut(segmentation_roi_list[pair[0]-1],
-                                segmentation_roi_list[pair[1]-1],
-                                dpix=np.sqrt(2))
-
-            # make sure that the uphill node has a larger
-            # flux value than the downhill node
-            r0 = segmentation_roi_list[pair[0]-1]
-            r1 = segmentation_roi_list[pair[1]-1]
-            assert r0.flux_value > r1.flux_value
-
 
 def test_create_segmentation_roi_lookup(ophys_roi_list):
     """
@@ -195,40 +151,3 @@ def test_create_segmentation_roi_lookup(ophys_roi_list):
                                             dx=20)
     for ii in range(1, 10, 1):
         assert np.abs(lookup[ii].flux_value-ii*10) < 5.0
-
-
-def test_validate_merger(segmentation_roi_list):
-    assert validate_merger(segmentation_roi_list[8],
-                           segmentation_roi_list[6])
-
-    # moving uphill
-    assert not validate_merger(segmentation_roi_list[6],
-                               segmentation_roi_list[8])
-
-    # not connected
-    assert not validate_merger(segmentation_roi_list[8],
-                               segmentation_roi_list[0])
-
-    joined = merge_segmentation_rois(segmentation_roi_list[8],
-                                     segmentation_roi_list[6],
-                                     9,
-                                     9)
-
-    assert validate_merger(joined,
-                           segmentation_roi_list[5])
-    assert not validate_merger(segmentation_roi_list[8],
-                               segmentation_roi_list[5])
-
-    assert validate_merger(segmentation_roi_list[5],
-                           segmentation_roi_list[0])
-    joined2 = merge_segmentation_rois(segmentation_roi_list[5],
-                                      segmentation_roi_list[0],
-                                      6, 6)
-
-    # uphill
-    assert not validate_merger(joined2,
-                               segmentation_roi_list[6])
-
-    # downhill has ancestors
-    with pytest.raises(RuntimeError, match='downhill ROI has ancestors'):
-        validate_merger(joined, joined2)

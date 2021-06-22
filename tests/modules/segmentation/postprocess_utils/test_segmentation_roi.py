@@ -4,7 +4,6 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
-    do_rois_abut,
     merge_segmentation_rois,
     create_segmentation_roi_lookup)
 
@@ -129,6 +128,7 @@ def test_merge_segmentation_rois(segmentation_roi_list):
 
     compare_segmentation_rois(new_roi.peak,
                               segmentation_roi_list[8])
+
 
 def test_create_segmentation_roi_lookup(ophys_roi_list):
     """

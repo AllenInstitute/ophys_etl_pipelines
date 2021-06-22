@@ -1,10 +1,9 @@
-from typing import List, Optional, Tuple, Dict, Set
+from typing import List, Optional, Dict, Tuple
 import multiprocessing
 import multiprocessing.managers
 from scipy.spatial.distance import cdist
 import numpy as np
 import copy
-import pathlib
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.segmentation.\
@@ -16,7 +15,6 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.types import ExtractROI
 
 import logging
-import json
 import time
 
 
@@ -669,7 +667,7 @@ def do_roi_merger(
       video_data: np.ndarray,
       n_processors: int,
       corr_acceptance: float,
-      filter_fraction = 0.2) -> List[SegmentationROI]:
+      filter_fraction: float = 0.2) -> List[SegmentationROI]:
     """
     Merge ROIs based on a static image.
 
@@ -690,6 +688,10 @@ def do_roi_merger(
     corr_acceptance: float
         The pixel time correlation threshold for accepting a
         merger (see "Notes")
+
+    filter_fraction: float
+        Fraction of timesteps to keep when correlating pixels
+        in sub_videos (default=0.2)
 
     Returns
     -------
@@ -746,7 +748,6 @@ def do_roi_merger(
 
     shuffler = np.random.RandomState(11723412)
 
-
     merger_candidates = find_merger_candidates(list(roi_lookup.values()),
                                                np.sqrt(2.0),
                                                rois_to_ignore=None,
@@ -761,8 +762,8 @@ def do_roi_merger(
         neighbor_lookup[pair[1]].add(pair[0])
         neighbor_lookup[pair[0]].add(pair[1])
 
-
-    logger.info(f'found global merger candidates in {time.time()-t0:.2f} seconds')
+    logger.info('found global merger candidates in '
+                f'{time.time()-t0:.2f} seconds')
 
     # global lookup tables for per-ROI sub-videos and mappings
     # between potential merger pairs and merger metrics
@@ -831,9 +832,9 @@ def do_roi_merger(
 
             process.start()
             process_list.append(process)
-            while len(process_list) > 0 and len(process_list) > (n_processors-1):
+            while (len(process_list) > 0
+                   and len(process_list) > (n_processors-1)):
                 process_list = _winnow_process_list(process_list)
-
 
         for p in process_list:
             p.join()
@@ -867,7 +868,9 @@ def do_roi_merger(
             if roi_id_1 in recently_merged:
                 continue
 
-            if roi_lookup[roi_id_0].peak.flux_value > roi_lookup[roi_id_1].peak.flux_value:
+            f0 = roi_lookup[roi_id_0].peak.flux_value
+            f1 = roi_lookup[roi_id_1].peak.flux_value
+            if f0 > f1:
                 seed_id = roi_id_0
                 child_id = roi_id_1
             else:

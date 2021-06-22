@@ -149,7 +149,6 @@ def test_calculate_merger_metric(example_roi0, example_roi1, filter_fraction):
                     pixel = video_data[:, roi.y0+ir, roi.x0+ic]
         brightest_pixel[roi.roi_id] = pixel
 
-
     for roi_pair in ((example_roi0, example_roi1),
                      (example_roi1, example_roi0)):
         roi0 = roi_pair[0]

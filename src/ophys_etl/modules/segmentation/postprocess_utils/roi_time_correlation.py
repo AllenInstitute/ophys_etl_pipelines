@@ -105,7 +105,6 @@ def _self_correlate(sub_video, i_pixel):
 
 
 def get_brightest_pixel(roi: SegmentationROI,
-                        img_data: np.ndarray,
                         sub_video: np.ndarray) -> np.ndarray:
     """
     Return the brightest pixel in an ROI (as measured against
@@ -134,7 +133,6 @@ def get_brightest_pixel(roi: SegmentationROI,
     for ipix in range(npix):
         wgts[ipix] = _self_correlate(sub_video, ipix)
 
-    #sprint('wgts ',wgts.min(),np.median(wgts),wgts.max())
     i_max = np.argmax(wgts)
     return sub_video[:, i_max]
 
@@ -142,6 +140,7 @@ def get_brightest_pixel(roi: SegmentationROI,
 def calculate_merger_metric(roi0: SegmentationROI,
                             roi1: SegmentationROI,
                             video_lookup: dict,
+                            pixel_lookup: dict,
                             img_data: np.ndarray,
                             filter_fraction: float = 0.2) -> float:
     """
@@ -181,9 +180,7 @@ def calculate_merger_metric(roi0: SegmentationROI,
     roi0_video = video_lookup[roi0.roi_id]
     roi1_video = video_lookup[roi1.roi_id]
 
-    roi0_centroid = get_brightest_pixel(roi0,
-                                        img_data,
-                                        roi0_video)
+    roi0_centroid = pixel_lookup[roi0.roi_id]
 
     roi0_corr = correlate_sub_video(roi0_video,
                                     roi0_centroid,

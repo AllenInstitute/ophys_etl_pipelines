@@ -35,15 +35,6 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
 
     def run(self):
 
-        diagnostic_dir = None
-        if self.args['diagnostic_dir'] is not None:
-            diagnostic_dir = pathlib.Path(self.args['diagnostic_dir'])
-            if diagnostic_dir.exists():
-                if not diagnostic_dir.is_dir():
-                    raise RuntimeError(f'{str(diagnostic_dir)} is not a dir')
-            else:
-                diagnostic_dir.mkdir(parents=True)
-
         with h5py.File(self.args['video_input'], 'r') as in_file:
             video_data = in_file['data'][()]
 
@@ -74,8 +65,7 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
                                 graph_img,
                                 video_data,
                                 self.args['n_parallel_workers'],
-                                self.args['corr_acceptance'],
-                                diagnostic_dir=diagnostic_dir)
+                                self.args['corr_acceptance'])
 
         write_out_rois(roi_list, self.args['roi_output'])
 

@@ -11,7 +11,7 @@ import ophys_etl.modules.segmentation.postprocess_utils.roi_merging as merging
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
-from ophys_etl.modules.segmentation.graph_utils.plotting import graph_to_img
+from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
 import networkx
 
 import logging

@@ -594,13 +594,48 @@ def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
     return lookup
 
 
-def _validate_mergers(input_pair_list,
-                      roi_lookup,
-                      video_lookup,
-                      img_data,
-                      filter_fraction,
-                      corr_acceptance,
-                      output_pair_list):
+def _validate_mergers(
+        input_pair_list: List[Tuple[int, int]],
+        roi_lookup: dict,
+        video_lookup: dict,
+        img_data: np.ndarray,
+        filter_fraction: float,
+        corr_acceptance: float,
+        output_pair_list: multiprocessing.managers.ListProxy) -> None:
+    """
+    Evaluate a list of potetial mergers. Store results in
+    a multiprocessing ListProxy
+
+    Parameters
+    ----------
+    input_pair_list: List[Tuple[int, int]]
+        List of tuples of roi_id pairs to evaluate for merging
+
+    roi_lookup: dict
+        Maps roi_id to SegmentationROI
+
+    video_lookup: dict
+        Maps roi_id to sub_video
+
+    img_data: np.ndarray
+
+    filter_fraction: float
+        The fraction of brightest timesteps to keep when correlating pixels
+
+    corr_acceptance: float
+        Mergers are marked as valid if metric>(-1*corr_acceptance)
+
+    output_pair_list: multiprocessing.managers.ListProxy
+        List where results will be stored. Only valid mergers are stored.
+        They are stored in the form (roi_id_0, roi_id_1, merger_metric_value)
+
+    Notes
+    -----
+    Mergers are evaluated by calling calculate_merger_metric on both possible
+    orderings of the ROI pair (roi0, roi1) and (roi1, roi0). If the largest
+    resulting merger metric is greater than the threshold, the merger is
+    accepted.
+    """
 
     for pair in input_pair_list:
         roi0 = roi_lookup[pair[0]]
@@ -624,6 +659,8 @@ def _validate_mergers(input_pair_list,
 
         if metric > (-1.0*corr_acceptance):
             output_pair_list.append((pair[0], pair[1], metric))
+
+    return None
 
 
 def do_roi_merger(

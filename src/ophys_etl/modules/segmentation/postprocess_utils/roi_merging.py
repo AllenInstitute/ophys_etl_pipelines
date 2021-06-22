@@ -656,36 +656,29 @@ def do_roi_merger(
     1) Find all pairs of ROIs that are neighbors (in this case, being
     a neighbor means physically abutting one another)
 
-    2) Assign to each ROI a uniform brightness that is the median
-    of its z-score relative to the local background of non-ROI pixels.
+    2) Loop over all pairs of ROIs. For each pair, assess the validity
+    of the merger by
 
-    3) Identify all ROIs that are brighter then each of their neighbors.
-    These are the seeds of the merging process.
+        2a) Correlate all of the pixels in roi0 against the brightest
+        pixel in roi0 using the brightest filter_fraction of time steps.
+        Use these correlations to construct a Gaussian distribution.
 
-    4) Iteratively merge ROIs by following paths that are "downhill"
-    in brightness (i.e. do not merge an ROI into a group unless there
-    is a path from the peak ROI to the new ROI that is monotonically
-    descending in brightness).
+        2b) Correlate all of the pixels in roi1 against the brightest
+        pixel in roi0 using the same timesteps.
 
-    4a) When considering a merger, select the brightest pixel in the
-    uphill ROI. Treating every pixel in the ROI as a time series,
-    correlate each pixel in the uphill ROI with the brightest pixel,
-    using only the brightest 80% of timesteps (for the brightest pixel).
-    Use this set of correlations to construct a Gaussian distribution.
-    Correlate every pixel in the downhill ROI against the brightest
-    pixel in the uphill ROI. Assess the z-scores of these cross
-    correlations relative to the distribution of the self-correlation
-    of pixels in the uphill ROI. Only accept the merger if the
-    median z-score is greater than -1*corr_acceptance (i.e. if the
-    pixels in the downhill ROI are, on average, more correlated
-    with the brightest pixel in the uphill ROI than some threshold
-    specified by corr_acceptance).
+        2c) Calculate the z-score of the correlations from (2b) using
+        the Gaussian distribution from (2a).
 
-    5) Continue until there are no more mergers
+        2d) Reverse roi0 and roi1 and repeat steps (2a-c). Evaluate the
+        merger based on the highest resulting median z-score. If that
+        z-score is greater than -1*corr_acceptance, the merger is valid.
 
-    As implemented, if an ROI is between two peaks, it will ultimately
-    get merged with the peak that has the fewest intervening ROIs. Future
-    development should address this ambiguity more rigorously.
+    3) Rank the potential valid mergers based on the median z-sccore
+    from step (2d). Move down the list of ranked mergers, merging ROIs.
+    Once an ROI participates in the merger, it is removed from
+    consideration until the next iteration.
+
+    4) Repeat steps (1-3) until no more mergers occur.
     """
 
     # create a lookup table of SegmentationROIs

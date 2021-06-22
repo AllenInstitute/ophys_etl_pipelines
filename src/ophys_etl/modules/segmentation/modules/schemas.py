@@ -48,6 +48,18 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
         default=1,
         description=("how many multiprocessing workers to use. If set to "
                      "1, multiprocessing is not invoked."))
+    kernel = argschema.fields.List(
+        argschema.fields.Tuple(
+            (argschema.fields.Int(),
+             argschema.fields.Int())),
+        cli_as_single_argument=True,
+        required=False,
+        allow_none=True,
+        default=None,
+        description=("list of (row, col) entries that define the "
+                     "relative location of nodes for establishing edges. "
+                     "If left as None, an 8 nearest-neighbor kernel "
+                     "will be used."))
 
 
 class GraphPlotInputSchema(argschema.ArgSchema):

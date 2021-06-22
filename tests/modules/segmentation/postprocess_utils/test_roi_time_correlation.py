@@ -32,9 +32,10 @@ def test_get_brightest_pixel(example_roi):
     rng = np.random.RandomState(771234)
     img_data = rng.randint(11, 355, (nrows, ncols))
     video_data = rng.random_sample((ntime, nrows, ncols))
+    sub_video = sub_video_from_roi(example_roi, video_data)
     brightest_pixel = get_brightest_pixel(example_roi,
                                           img_data,
-                                          video_data)
+                                          sub_video)
 
     expected = None
     expected_flux = -1.0

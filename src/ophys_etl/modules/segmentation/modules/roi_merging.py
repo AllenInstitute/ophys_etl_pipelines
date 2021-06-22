@@ -53,13 +53,9 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             roi_id_set.add(ophys_roi.roi_id)
         del raw_roi_list
 
-        if self.args['graph_input'] is None:
-            raise RuntimeError("must specify graph_input")
-            graph_img = None
-        else:
-            graph_img = graph_to_img(
-                          networkx.read_gpickle(self.args['graph_input']),
-                          attribute_name=self.args['attribute'])
+        graph_img = graph_to_img(
+                      networkx.read_gpickle(self.args['graph_input']),
+                      attribute_name=self.args['attribute'])
 
         roi_list = merging.do_roi_merger(
                                 roi_list,

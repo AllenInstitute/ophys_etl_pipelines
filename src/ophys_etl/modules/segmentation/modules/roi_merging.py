@@ -1,3 +1,4 @@
+from typing import Union, List
 import argschema
 import pathlib
 import h5py
@@ -7,6 +8,9 @@ from ophys_etl.modules.segmentation.modules.schemas import \
     RoiMergerSchema
 
 import ophys_etl.modules.segmentation.postprocess_utils.roi_merging as merging
+from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
+    SegmentationROI)
+from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.graph_utils.plotting import graph_to_img
 import networkx
 
@@ -19,7 +23,22 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
-def write_out_rois(roi_list, out_name):
+def write_out_rois(roi_list: Union[List[SegmentationROI], List[OphysROI]],
+                   out_name: Union[str, pathlib.Path]) -> None:
+    """
+    Write a list of ROIs into the LIMS-friendly JSONized format
+
+    Parameters
+    ----------
+    roi_list: Union[List[SegmentationROI], List[OphysROI]]
+
+    out_name: Union[str, pathlib.Path]
+        Path to file to be written
+
+    Returns
+    -------
+    None
+    """
     output_list = []
     for roi in roi_list:
         new_roi = merging.ophys_roi_to_extract_roi(roi)
@@ -28,6 +47,7 @@ def write_out_rois(roi_list, out_name):
     with open(out_name, 'w') as out_file:
         out_file.write(json.dumps(output_list, indent=2))
 
+    return None
 
 class RoiMergerEngine(argschema.ArgSchemaParser):
 

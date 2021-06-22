@@ -49,6 +49,7 @@ def write_out_rois(roi_list: Union[List[SegmentationROI], List[OphysROI]],
 
     return None
 
+
 class RoiMergerEngine(argschema.ArgSchemaParser):
 
     default_schema = RoiMergerSchema

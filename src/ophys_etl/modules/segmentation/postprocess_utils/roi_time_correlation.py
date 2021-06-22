@@ -1,4 +1,3 @@
-from typing import Tuple
 import numpy as np
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)

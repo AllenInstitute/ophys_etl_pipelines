@@ -108,15 +108,16 @@ def get_brightest_pixel(roi: SegmentationROI,
         Time series of taken from the video at the
         brightest pixel in the ROI
     """
-    xmin = roi.x0
-    ymin = roi.y0
-    xmax = roi.x0+roi.width
-    ymax = roi.y0+roi.height
-    sub_img = img_data[ymin:ymax, xmin:xmax]
-    mask = roi.mask_matrix
-    sub_img = sub_img[mask]
-    brightest_pixel = np.argmax(sub_img)
-    return sub_video[:, brightest_pixel]
+    return roi.peak.key_pixel
+    #xmin = roi.x0
+    #ymin = roi.y0
+    #xmax = roi.x0+roi.width
+    #ymax = roi.y0+roi.height
+    #sub_img = img_data[ymin:ymax, xmin:xmax]
+    #mask = roi.mask_matrix
+    #sub_img = sub_img[mask]
+    #brightest_pixel = np.argmax(sub_img)
+    #return sub_video[:, brightest_pixel]
 
 
 def calculate_merger_metric(roi0: SegmentationROI,

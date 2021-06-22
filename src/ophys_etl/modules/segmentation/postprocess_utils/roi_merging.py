@@ -797,28 +797,25 @@ def order_mergers(roi_lookup):
     return roi_id_list[sorted_indices]
 
 
-def _validate_mergers(seed_list,
-                      neighbor_lookup,
+def _validate_mergers(input_pair_list,
                       roi_lookup,
                       video_lookup,
                       img_data,
                       filter_fraction,
                       corr_acceptance,
-                      pair_list):
+                      output_pair_list):
 
-    for roi_id in seed_list:
-        neighbor_list = neighbor_lookup[roi_id]
-        seed_roi = roi_lookup[roi_id]
-        for neighbor_id in neighbor_list:
-            neighbor_roi = roi_lookup[neighbor_id]
-            valid = validate_merger_corr(seed_roi,
-                                         neighbor_roi,
-                                         video_lookup,
-                                         img_data,
-                                         filter_fraction=filter_fraction,
-                                         acceptance=corr_acceptance)
-            if valid[0]:
-                pair_list.append((roi_id, neighbor_id, valid[1]))
+    for pair in input_pair_list:
+        roi0 = roi_lookup[pair[0]]
+        roi1 = roi_lookup[pair[1]]
+        valid = validate_merger_corr(roi0,
+                                     roi1,
+                                     video_lookup,
+                                     img_data,
+                                     filter_fraction=filter_fraction,
+                                     acceptance=corr_acceptance)
+        if valid[0]:
+            output_pair_list.append((pair[0], pair[1], valid[1]))
 
 
 def do_roi_merger(
@@ -900,32 +897,6 @@ def do_roi_merger(
     development should address this ambiguity more rigorously.
     """
 
-    # find all pairs of ROIs that abut
-    t0 = time.time()
-    merger_candidates = find_merger_candidates(raw_roi_list,
-                                               np.sqrt(2.0),
-                                               rois_to_ignore=None,
-                                               n_processors=n_processors)
-    n_pairs_0 = len(merger_candidates)
-
-    # create a look up table mapping from roi_id to all of the
-    # ROI's neighbors
-    neighbor_lookup = {}
-    for pair in merger_candidates:
-        roi0 = pair[0]
-        roi1 = pair[1]
-        if roi0 not in neighbor_lookup:
-            neighbor_lookup[roi0] = set()
-        if roi1 not in neighbor_lookup:
-            neighbor_lookup[roi1] = set()
-        neighbor_lookup[roi0].add(roi1)
-        neighbor_lookup[roi1].add(roi0)
-
-    merger_candidates = set(merger_candidates)
-
-    logger.info(f'found {len(merger_candidates)} merger_candidates'
-                f' in {time.time()-t0:.2f} seconds')
-
     # create a lookup table of SegmentationROIs
     t0 = time.time()
     roi_lookup = create_segmentation_roi_lookup(raw_roi_list,
@@ -941,10 +912,22 @@ def do_roi_merger(
     incoming_rois = list(roi_lookup.keys())
     valid_roi_id = set(roi_lookup.keys())
 
+    shuffler = np.random.RandomState(11723412)
+
     while keep_going:
         t0_pass = time.time()
         n0 = len(roi_lookup)
         i_pass += 1
+
+        # find all pairs of ROIs that abut
+        merger_candidates = find_merger_candidates(list(roi_lookup.values()),
+                                                   np.sqrt(2.0),
+                                                   rois_to_ignore=None,
+                                                   n_processors=n_processors)
+
+        logger.info(f'found merger candidates in {time.time()-t0_pass:.2f} seconds')
+
+        shuffler.shuffle(merger_candidates)
 
         keep_going = False
 
@@ -956,8 +939,8 @@ def do_roi_merger(
         logger.info(f'got sub video lookup in {time.time()-t0_pass:.2f}')
 
 
-        n_seeds = len(neighbor_lookup)
-        chunk_size = chunk_size_from_processors(n_seeds,
+        n_pairs = len(merger_candidates)
+        chunk_size = chunk_size_from_processors(n_pairs,
                                                 n_processors,
                                                 1,
                                                 2)
@@ -965,11 +948,9 @@ def do_roi_merger(
         mgr = multiprocessing.Manager()
         output_list = mgr.list()
         process_list = []
-        seed_list = list(neighbor_lookup.keys())
-        for i0 in range(0, n_seeds, chunk_size):
-            chunk = seed_list[i0: i0+chunk_size]
+        for i0 in range(0, n_pairs, chunk_size):
+            chunk = merger_candidates[i0: i0+chunk_size]
             args = (chunk,
-                    neighbor_lookup,
                     roi_lookup,
                     sub_video_lookup,
                     img_data,
@@ -994,8 +975,6 @@ def do_roi_merger(
         merger_metrics = np.array([p[2] for p in potential_mergers])
         sorted_indices = np.argsort(-1*merger_metrics)
         potential_mergers = potential_mergers[sorted_indices]
-        if len(merger_metrics) > 0:
-            print('merger metrics ',merger_metrics.min(), np.median(merger_metrics), merger_metrics.max())
 
         recently_merged = set()
         for merger in potential_mergers:
@@ -1030,22 +1009,6 @@ def do_roi_merger(
             recently_merged.add(child_roi.roi_id)
             recently_merged.add(new_roi.roi_id)
             roi_lookup[seed_roi.roi_id] = new_roi
-
-            # update neighbor lookup
-            severed_neighbors = neighbor_lookup.pop(child_roi.roi_id)
-            severed_neighbors = severed_neighbors.intersection(valid_roi_id)
-            for roi_id in severed_neighbors:
-                if roi_id == seed_id:
-                    continue
-                neighbor_lookup[seed_id].add(roi_id)
-                neighbor_lookup[roi_id].add(seed_id)
-
-        for roi_id in neighbor_lookup:
-            if roi_id not in valid_roi_id:
-                neighbor_lookup.pop(roi_id)
-                continue
-            new_set = neighbor_lookup[roi_id].intersection(valid_roi_id)
-            neighbor_lookup[roi_id] = new_set
 
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '
                     f'after {time.time()-t0:.2f} seconds')

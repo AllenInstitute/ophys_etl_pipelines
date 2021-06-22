@@ -227,9 +227,6 @@ def validate_merger_corr(uphill_roi: SegmentationROI,
                                   filter_fraction=filter_fraction,
                                   acceptance=acceptance)
 
-    if test1[0]:
-        return test1
-
     test2 = _validate_merger_corr(downhill_roi,
                                   uphill_roi,
                                   video_lookup,
@@ -237,4 +234,13 @@ def validate_merger_corr(uphill_roi: SegmentationROI,
                                   filter_fraction=filter_fraction,
                                   acceptance=acceptance)
 
-    return test2
+    if test1[0] and not test2[0]:
+        return test1
+    elif test2[0] and not test1[0]:
+        return test2
+    elif test2[0] and test1[0]:
+        if test2[1] > test1[1]:
+            return test2
+        else:
+            return test1
+    return test1

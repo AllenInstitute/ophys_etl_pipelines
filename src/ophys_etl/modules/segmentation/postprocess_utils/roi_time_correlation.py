@@ -1,5 +1,4 @@
 import numpy as np
-from sklearn.decomposition import PCA as sklearn_pca
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 
@@ -85,6 +84,26 @@ def correlate_sub_video(sub_video: np.ndarray,
     return corr
 
 
+def _self_correlate(sub_video, i_pixel):
+    npix = sub_video.shape[1]
+    ntime = sub_video.shape[0]
+    th = np.quantile(sub_video[:,i_pixel], 0.8)
+    mask = (sub_video[:,i_pixel]>=th)
+    sub_video = sub_video[mask, :]
+    this_pixel = sub_video[:, i_pixel]
+
+    this_mu = np.mean(this_pixel)
+    other_mu = np.mean(sub_video, axis=0)
+    this_var = np.var(this_pixel, ddof=1)
+    other_var = np.var(sub_video, axis=0, ddof=1)
+
+    d_other = sub_video-other_mu
+    numerator = np.dot((this_pixel-this_mu), d_other)/ntime
+    denom = np.sqrt(other_var*this_var)
+    corr = numerator/denom
+    return np.median(corr)
+
+
 def get_brightest_pixel(roi: SegmentationROI,
                         img_data: np.ndarray,
                         sub_video: np.ndarray) -> np.ndarray:
@@ -109,24 +128,15 @@ def get_brightest_pixel(roi: SegmentationROI,
         Time series of taken from the video at the
         brightest pixel in the ROI
     """
-    roi_mask = roi.mask_matrix
-    ymin = roi.y0
-    ymax = roi.y0+roi.height
-    xmin = roi.x0
-    xmax = roi.x0+roi.width
-    img_data = img_data[ymin:ymax, xmin:xmax]
-    img_data = img_data[roi_mask].flatten()
+    npix = sub_video.shape[1]
+    ntime = sub_video.shape[0]
+    wgts = np.zeros(npix, dtype=float)
+    for ipix in range(npix):
+        wgts[ipix] = _self_correlate(sub_video, ipix)
 
-
-    pca = sklearn_pca(n_components=1)
-    transformed = pca.fit_transform(sub_video.transpose())
-    assert transformed.shape == (sub_video.shape[1], 1)
-
-    norm = np.dot(img_data,transformed[:,])/np.sum(img_data)
-
-    key_pixel = pca.components_[0, :]
-    assert key_pixel.shape == (sub_video.shape[0],)
-    return norm*key_pixel
+    #sprint('wgts ',wgts.min(),np.median(wgts),wgts.max())
+    i_max = np.argmax(wgts)
+    return sub_video[:, i_max]
 
 
 def calculate_merger_metric(roi0: SegmentationROI,

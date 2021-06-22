@@ -914,20 +914,44 @@ def do_roi_merger(
 
     shuffler = np.random.RandomState(11723412)
 
+
+    merger_candidates = find_merger_candidates(list(roi_lookup.values()),
+                                               np.sqrt(2.0),
+                                               rois_to_ignore=None,
+                                               n_processors=n_processors)
+
+    neighbor_lookup = {}
+    for pair in merger_candidates:
+        if pair[0] not in neighbor_lookup:
+            neighbor_lookup[pair[0]] = set()
+        if pair[1] not in neighbor_lookup:
+            neighbor_lookup[pair[1]] = set()
+        neighbor_lookup[pair[1]].add(pair[0])
+        neighbor_lookup[pair[0]].add(pair[1])
+
+
+    logger.info(f'found global merger candidates in {time.time()-t0:.2f} seconds')
+
     while keep_going:
         t0_pass = time.time()
         n0 = len(roi_lookup)
         i_pass += 1
 
         # find all pairs of ROIs that abut
-        merger_candidates = find_merger_candidates(list(roi_lookup.values()),
-                                                   np.sqrt(2.0),
-                                                   rois_to_ignore=None,
-                                                   n_processors=n_processors)
+        merger_candidates = set()
+        for roi_id_0 in neighbor_lookup:
+            for roi_id_1 in neighbor_lookup[roi_id_0]:
+                if roi_id_0 > roi_id_1:
+                    pair = (roi_id_0, roi_id_1)
+                else:
+                    pair = (roi_id_1, roi_id_0)
+                merger_candidates.add(pair)
 
-        logger.info(f'found merger candidates in {time.time()-t0_pass:.2f} seconds')
-
+        merger_candidates = list(merger_candidates)
         shuffler.shuffle(merger_candidates)
+
+        logger.info(f'found {len(merger_candidates)} merger candidates '
+                    f'in {time.time()-t0_pass:.2f} seconds')
 
         keep_going = False
 
@@ -969,7 +993,6 @@ def do_roi_merger(
 
         for p in process_list:
             p.join()
-        logger.info(f'done processing after {time.time()-t0_pass:.2f}')
 
         potential_mergers = np.array(output_list)
         merger_metrics = np.array([p[2] for p in potential_mergers])
@@ -1009,6 +1032,20 @@ def do_roi_merger(
             recently_merged.add(child_roi.roi_id)
             recently_merged.add(new_roi.roi_id)
             roi_lookup[seed_roi.roi_id] = new_roi
+
+            severed_neighbors = neighbor_lookup.pop(child_roi.roi_id)
+            severed_neighbors = severed_neighbors.intersection(valid_roi_id)
+            for roi_id in severed_neighbors:
+                if roi_id == new_roi.roi_id:
+                    continue
+                neighbor_lookup[new_roi.roi_id].add(roi_id)
+                neighbor_lookup[roi_id].add(new_roi.roi_id)
+
+        for roi_id in neighbor_lookup:
+            new_set = neighbor_lookup[roi_id].intersection(valid_roi_id)
+            neighbor_lookup[roi_id] = new_set
+
+        logger.info(f'done processing after {time.time()-t0_pass:.2f}')
 
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '
                     f'after {time.time()-t0:.2f} seconds')

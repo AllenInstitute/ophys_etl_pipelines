@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict, Tuple
+from functools import partial
 import multiprocessing
 import multiprocessing.managers
 from scipy.spatial.distance import cdist
@@ -592,22 +593,19 @@ def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
     return lookup
 
 
-def _validate_mergers(
-        input_pair_list: List[Tuple[int, int]],
+def _calculate_merger_metric(
+        input_pair: Tuple[int, int],
         roi_lookup: dict,
         video_lookup: dict,
         img_data: np.ndarray,
-        filter_fraction: float,
-        corr_acceptance: float,
-        output_pair_list: multiprocessing.managers.ListProxy) -> None:
+        filter_fraction: float) -> Tuple[int, int, float]:
     """
-    Evaluate a list of potetial mergers. Store results in
-    a multiprocessing ListProxy
+    Calculate the merger metric for a pair of ROIs
 
     Parameters
     ----------
-    input_pair_list: List[Tuple[int, int]]
-        List of tuples of roi_id pairs to evaluate for merging
+    input_pair: Tuple[int, int]
+        pair of roi_ids to consider for merging
 
     roi_lookup: dict
         Maps roi_id to SegmentationROI
@@ -620,45 +618,33 @@ def _validate_mergers(
     filter_fraction: float
         The fraction of brightest timesteps to keep when correlating pixels
 
-    corr_acceptance: float
-        Mergers are marked as valid if metric>(-1*corr_acceptance)
-
-    output_pair_list: multiprocessing.managers.ListProxy
-        List where results will be stored. Only valid mergers are stored.
-        They are stored in the form (roi_id_0, roi_id_1, merger_metric_value)
-
-    Notes
-    -----
-    Mergers are evaluated by calling calculate_merger_metric on both possible
-    orderings of the ROI pair (roi0, roi1) and (roi1, roi0). If the largest
-    resulting merger metric is greater than the threshold, the merger is
-    accepted.
+    Returns
+    -------
+    result: Tuple[int, int, float]
+        The roi_ids of the pair and the largest value of the
+        merger metric yielded by calling calculate_merger_metric on
+        both permutations of the ROIs [(roi0, roi1) and (roi1, roi0)]
     """
 
-    for pair in input_pair_list:
-        roi0 = roi_lookup[pair[0]]
-        roi1 = roi_lookup[pair[1]]
+    roi0 = roi_lookup[input_pair[0]]
+    roi1 = roi_lookup[input_pair[1]]
 
-        metric01 = calculate_merger_metric(
+    metric01 = calculate_merger_metric(
                      roi0,
                      roi1,
                      video_lookup,
                      img_data,
                      filter_fraction=filter_fraction)
 
-        metric10 = calculate_merger_metric(
+    metric10 = calculate_merger_metric(
                      roi1,
                      roi0,
                      video_lookup,
                      img_data,
                      filter_fraction=filter_fraction)
 
-        metric = max(metric01, metric10)
-
-        if metric > (-1.0*corr_acceptance):
-            output_pair_list.append((pair[0], pair[1], metric))
-
-    return None
+    metric = max(metric01, metric10)
+    return (input_pair[0], input_pair[1], metric)
 
 
 def do_roi_merger(
@@ -721,7 +707,8 @@ def do_roi_merger(
 
         2d) Reverse roi0 and roi1 and repeat steps (2a-c). Evaluate the
         merger based on the highest resulting median z-score. If that
-        z-score is greater than -1*corr_acceptance, the merger is valid.
+        z-score is greater than or equal to -1*corr_acceptance,
+        the merger is valid.
 
     3) Rank the potential valid mergers based on the median z-sccore
     from step (2d). Move down the list of ranked mergers, merging ROIs.
@@ -814,35 +801,22 @@ def do_roi_merger(
                                                 n_processors,
                                                 1,
                                                 2)
-        mgr = multiprocessing.Manager()
-        output_list = mgr.list()
-        process_list = []
-        for i0 in range(0, n_pairs, chunk_size):
-            chunk = merger_candidates[i0: i0+chunk_size]
-            args = (chunk,
-                    roi_lookup,
-                    sub_video_lookup,
-                    img_data,
-                    filter_fraction,
-                    corr_acceptance,
-                    output_list)
+        metric_calculator = partial(_calculate_merger_metric,
+                                    roi_lookup=roi_lookup,
+                                    video_lookup=sub_video_lookup,
+                                    img_data=img_data,
+                                    filter_fraction=filter_fraction)
 
-            process = multiprocessing.Process(target=_validate_mergers,
-                                              args=args)
-
-            process.start()
-            process_list.append(process)
-            while (len(process_list) > 0
-                   and len(process_list) > (n_processors-1)):
-                process_list = _winnow_process_list(process_list)
-
-        for p in process_list:
-            p.join()
+        with multiprocessing.Pool(n_processors-1) as metric_pool:
+            output_list = metric_pool.map(metric_calculator,
+                                          merger_candidates,
+                                          chunksize=chunk_size)
 
         for potential_merger in output_list:
             pair = (potential_merger[0], potential_merger[1])
             metric = potential_merger[2]
-            merger_to_metric[pair] = metric
+            if metric >= -1.0*corr_acceptance:
+                merger_to_metric[pair] = metric
 
         potential_mergers = []
         merger_metrics = []

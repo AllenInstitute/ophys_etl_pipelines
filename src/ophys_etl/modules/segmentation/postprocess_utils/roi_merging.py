@@ -2,7 +2,6 @@ from typing import List, Optional, Dict, Tuple, Union
 from functools import partial
 from itertools import combinations
 import multiprocessing
-import multiprocessing.managers
 from scipy.spatial.distance import cdist
 import numpy as np
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
@@ -22,24 +21,6 @@ import time
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
-
-
-def _winnow_process_list(
-    process_list: List[multiprocessing.Process]) \
-        -> List[multiprocessing.Process]:
-    """
-    Utility that loops over a list of multiprocessing.Processes and
-    pops any that have completed. Returns the new, truncated list of
-    multiprocessing.Processes
-    """
-
-    to_pop = []
-    for ii in range(len(process_list)-1, -1, -1):
-        if process_list[ii].exitcode is not None:
-            to_pop.append(ii)
-    for ii in to_pop:
-        process_list.pop(ii)
-    return process_list
 
 
 def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:

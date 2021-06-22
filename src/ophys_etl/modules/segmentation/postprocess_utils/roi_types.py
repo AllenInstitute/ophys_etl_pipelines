@@ -1,6 +1,5 @@
 from __future__ import annotations
 from typing import Optional, List
-import numpy as np
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 
@@ -59,12 +58,10 @@ class SegmentationROI(OphysROI):
                  height: int,
                  valid_roi: bool,
                  mask_matrix: list,
-                 key_pixel: np.ndarray,
                  flux_value: float = 0.0,
                  ancestors: Optional[List[SegmentationROI]] = None):
 
         self.flux_value = flux_value
-        self.key_pixel = np.copy(key_pixel)
 
         self.ancestors = []
         if ancestors is not None:
@@ -119,7 +116,6 @@ class SegmentationROI(OphysROI):
     @classmethod
     def from_ophys_roi(cls,
                        input_roi: OphysROI,
-                       key_pixel: np.ndarray,
                        ancestors: Optional[list] = None,
                        flux_value: float = 0.0) -> SegmentationROI:
         """
@@ -148,7 +144,6 @@ class SegmentationROI(OphysROI):
                    valid_roi=input_roi.valid_roi,
                    mask_matrix=input_roi.mask_matrix,
                    roi_id=input_roi.roi_id,
-                   key_pixel=key_pixel,
                    ancestors=ancestors,
                    flux_value=flux_value)
 

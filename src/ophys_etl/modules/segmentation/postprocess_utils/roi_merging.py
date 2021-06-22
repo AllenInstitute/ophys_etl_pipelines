@@ -495,14 +495,12 @@ def merge_segmentation_rois(uphill_roi: SegmentationROI,
 
     new_roi = merge_rois(uphill_roi, downhill_roi, new_roi_id=new_roi_id)
     return SegmentationROI.from_ophys_roi(new_roi,
-                                          key_pixel=uphill_roi.key_pixel,
                                           ancestors=[uphill_roi, downhill_roi],
                                           flux_value=new_flux_value)
 
 
 def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
                                    img_data: np.ndarray,
-                                   video_data: np.ndarray,
                                    dx: int = 20) -> Dict[int, SegmentationROI]:
     """
     Create a lookup table mapping roi_id to SegmentationROI.
@@ -532,11 +530,6 @@ def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
     lookup = {}
     inactive_mask = get_inactive_mask(img_data.shape, raw_roi_list)
     for roi in raw_roi_list:
-        sub_video = sub_video_from_roi(roi, video_data)
-        key_pixel = np.mean(sub_video, axis=1)
-        assert key_pixel.shape == (video_data.shape[0],)
-
-
         mu, sigma = get_inactive_distribution(img_data,
                                               roi,
                                               inactive_mask,
@@ -549,7 +542,6 @@ def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
         roi_pixels = img_data[ymin:ymax, xmin:xmax][mask].flatten()
         n_sigma = np.median((roi_pixels-mu)/sigma)
         new_roi = SegmentationROI.from_ophys_roi(roi,
-                                                 key_pixel=key_pixel,
                                                  ancestors=None,
                                                  flux_value=n_sigma)
 
@@ -692,7 +684,6 @@ def do_roi_merger(
     t0 = time.time()
     roi_lookup = create_segmentation_roi_lookup(raw_roi_list,
                                                 img_data,
-                                                video_data,
                                                 dx=20)
     logger.info(f'created roi lookup in {time.time()-t0:.2f} seconds')
 

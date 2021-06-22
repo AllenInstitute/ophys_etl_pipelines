@@ -440,10 +440,10 @@ def get_inactive_mask(img_data_shape: Tuple[int, int],
     return np.logical_not(full_mask)
 
 
-def get_inactive_dist(img_data: np.ndarray,
-                      roi: OphysROI,
-                      inactive_mask: np.ndarray,
-                      dx: int = 10) -> Tuple[float, float]:
+def get_inactive_distribution(img_data: np.ndarray,
+                              roi: OphysROI,
+                              inactive_mask: np.ndarray,
+                              dx: int = 10) -> Tuple[float, float]:
     """
     Given an ROI, an array of image data, and a mask marked True at
     all of the non-ROI pixels, return the mean and standard deviation
@@ -569,7 +569,10 @@ def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
     lookup = {}
     inactive_mask = get_inactive_mask(img_data.shape, raw_roi_list)
     for roi in raw_roi_list:
-        mu, sigma = get_inactive_dist(img_data, roi, inactive_mask, dx=dx)
+        mu, sigma = get_inactive_distribution(img_data,
+                                              roi,
+                                              inactive_mask,
+                                              dx=dx)
         mask = roi.mask_matrix
         xmin = roi.x0
         xmax = xmin + roi.width

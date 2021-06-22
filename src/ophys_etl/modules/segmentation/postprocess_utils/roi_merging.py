@@ -9,7 +9,7 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.segmentation.\
     postprocess_utils.roi_time_correlation import (
-        validate_merger_corr,
+        calculate_merger_metric,
         sub_video_from_roi)
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
@@ -605,14 +605,25 @@ def _validate_mergers(input_pair_list,
     for pair in input_pair_list:
         roi0 = roi_lookup[pair[0]]
         roi1 = roi_lookup[pair[1]]
-        valid = validate_merger_corr(roi0,
-                                     roi1,
-                                     video_lookup,
-                                     img_data,
-                                     filter_fraction=filter_fraction,
-                                     acceptance=corr_acceptance)
-        if valid[0]:
-            output_pair_list.append((pair[0], pair[1], valid[1]))
+
+        metric01 = calculate_merger_metric(
+                     roi0,
+                     roi1,
+                     video_lookup,
+                     img_data,
+                     filter_fraction=filter_fraction)
+
+        metric10 = calculate_merger_metric(
+                     roi1,
+                     roi0,
+                     video_lookup,
+                     img_data,
+                     filter_fraction=filter_fraction)
+
+        metric = max(metric01, metric10)
+
+        if metric > (-1.0*corr_acceptance):
+            output_pair_list.append((pair[0], pair[1], metric))
 
 
 def do_roi_merger(

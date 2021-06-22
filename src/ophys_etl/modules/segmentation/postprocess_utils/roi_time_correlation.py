@@ -1,4 +1,5 @@
 import numpy as np
+from sklearn.decomposition import PCA as sklearn_pca
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 
@@ -116,12 +117,16 @@ def get_brightest_pixel(roi: SegmentationROI,
     img_data = img_data[ymin:ymax, xmin:xmax]
     img_data = img_data[roi_mask].flatten()
 
-    ntime = sub_video.shape[0]
-    key_pixel = np.dot(sub_video, img_data)
-    assert key_pixel.shape == (ntime,)
-    key_pixel = key_pixel/np.sum(img_data)
-    return key_pixel
 
+    pca = sklearn_pca(n_components=1)
+    transformed = pca.fit_transform(sub_video.transpose())
+    assert transformed.shape == (sub_video.shape[1], 1)
+
+    norm = np.dot(img_data,transformed[:,])/np.sum(img_data)
+
+    key_pixel = pca.components_[0, :]
+    assert key_pixel.shape == (sub_video.shape[0],)
+    return norm*key_pixel
 
 
 def calculate_merger_metric(roi0: SegmentationROI,

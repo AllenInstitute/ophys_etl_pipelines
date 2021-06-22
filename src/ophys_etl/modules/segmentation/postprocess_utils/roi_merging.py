@@ -932,43 +932,55 @@ def do_roi_merger(
 
     logger.info(f'found global merger candidates in {time.time()-t0:.2f} seconds')
 
+    # global lookup tables for per-ROI sub-videos and mappings
+    # between potential merger pairs and merger metrics
+    sub_video_lookup = {}
+    merger_to_metric = {}
+
     while keep_going:
+        keep_going = False
         t0_pass = time.time()
         n0 = len(roi_lookup)
         i_pass += 1
 
+        # fill in sub-video lookup for ROIs that changed
+        # during the last iteration
+        for roi_id in roi_lookup:
+            if roi_id in sub_video_lookup:
+                continue
+            roi = roi_lookup[roi_id]
+            sub_video_lookup[roi_id] = sub_video_from_roi(roi,
+                                                          video_data)
+        logger.info(f'got sub video lookup in {time.time()-t0_pass:.2f}')
+
         # find all pairs of ROIs that abut
-        merger_candidates = set()
+        raw_merger_candidates = set()
         for roi_id_0 in neighbor_lookup:
             for roi_id_1 in neighbor_lookup[roi_id_0]:
                 if roi_id_0 > roi_id_1:
                     pair = (roi_id_0, roi_id_1)
                 else:
                     pair = (roi_id_1, roi_id_0)
-                merger_candidates.add(pair)
+                raw_merger_candidates.add(pair)
 
-        merger_candidates = list(merger_candidates)
+        # only need to calculate metrics for those that have
+        # changed since the last iteration, though
+        raw_merger_candidates = list(raw_merger_candidates)
+        merger_candidates = []
+        for pair in raw_merger_candidates:
+            if pair not in merger_to_metric:
+                merger_candidates.append(pair)
+
         shuffler.shuffle(merger_candidates)
 
         logger.info(f'found {len(merger_candidates)} merger candidates '
                     f'in {time.time()-t0_pass:.2f} seconds')
-
-        keep_going = False
-
-        sub_video_lookup = {}
-        for roi_id in roi_lookup:
-            roi = roi_lookup[roi_id]
-            sub_video_lookup[roi_id] = sub_video_from_roi(roi,
-                                                          video_data)
-        logger.info(f'got sub video lookup in {time.time()-t0_pass:.2f}')
-
 
         n_pairs = len(merger_candidates)
         chunk_size = chunk_size_from_processors(n_pairs,
                                                 n_processors,
                                                 1,
                                                 2)
-
         mgr = multiprocessing.Manager()
         output_list = mgr.list()
         process_list = []
@@ -994,8 +1006,19 @@ def do_roi_merger(
         for p in process_list:
             p.join()
 
-        potential_mergers = np.array(output_list)
-        merger_metrics = np.array([p[2] for p in potential_mergers])
+        for potential_merger in output_list:
+            pair = (potential_merger[0], potential_merger[1])
+            metric = potential_merger[2]
+            merger_to_metric[pair] = metric
+
+        potential_mergers = []
+        merger_metrics = []
+        for pair in merger_to_metric:
+            potential_mergers.append(pair)
+            merger_metrics.append(merger_to_metric[pair])
+
+        potential_mergers = np.array(potential_mergers)
+        merger_metrics = np.array(merger_metrics)
         sorted_indices = np.argsort(-1*merger_metrics)
         potential_mergers = potential_mergers[sorted_indices]
 
@@ -1033,6 +1056,7 @@ def do_roi_merger(
             recently_merged.add(new_roi.roi_id)
             roi_lookup[seed_roi.roi_id] = new_roi
 
+            # all ROIs that neighbored child_roi now neighbor new_roi
             severed_neighbors = neighbor_lookup.pop(child_roi.roi_id)
             severed_neighbors = severed_neighbors.intersection(valid_roi_id)
             for roi_id in severed_neighbors:
@@ -1041,9 +1065,21 @@ def do_roi_merger(
                 neighbor_lookup[new_roi.roi_id].add(roi_id)
                 neighbor_lookup[roi_id].add(new_roi.roi_id)
 
+        # remove an obsolete ROI IDs from neighbor lookup
         for roi_id in neighbor_lookup:
             new_set = neighbor_lookup[roi_id].intersection(valid_roi_id)
             neighbor_lookup[roi_id] = new_set
+
+        # remove ROIs that have changed from sub_video and
+        # merger metric lookup tables
+        for roi_id in recently_merged:
+            if roi_id in sub_video_lookup:
+                sub_video_lookup.pop(roi_id)
+
+        merger_keys = list(merger_to_metric.keys())
+        for pair in merger_keys:
+            if pair[0] in recently_merged or pair[1] in recently_merged:
+                merger_to_metric.pop(pair)
 
         logger.info(f'done processing after {time.time()-t0_pass:.2f}')
 

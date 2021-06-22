@@ -1,10 +1,10 @@
-from typing import List, Optional, Dict, Tuple
+from typing import List, Optional, Dict, Tuple, Union
 from functools import partial
+from itertools import combinations
 import multiprocessing
 import multiprocessing.managers
 from scipy.spatial.distance import cdist
 import numpy as np
-import copy
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.segmentation.\
@@ -296,37 +296,48 @@ def chunk_size_from_processors(n_elements: int,
 
 
 def _find_merger_candidates(
-        roi_pair_list: List[Tuple[OphysROI, OphysROI]],
+        roi_id_pair: Tuple[int, int],
+        roi_lookup: dict,
         dpix: float,
-        output_list: multiprocessing.managers.ListProxy) -> None:
+        rois_to_ignore: Optional[set] = None) -> Union[None, Tuple[int, int]]:
     """
     Find all of the abutting ROIs in a list of OphysROIs
 
     Parameters
     ----------
-    roi_pair_list: List[Tuple[OphysROI, OphysROI]]
-        A list of tuples of OphysROIs that need to be tested
-        to see if they abut
+    roi_id_pair: Tuple[int, int]
+        Pair of roi_ids to consider for merging
+
+    roi_lookup: dict
+        Maps roi_id to OphysROI
 
     dpix: float
        The maximum distance from each other two ROIs can be at
        their nearest point and still be considered to abut
 
-    output_list: multiprocessing.managers.ListProxy
-        List where tuples of IDs of abutting ROIs will be written
+    rois_to_ignore: Optional[set]
+       Optional set of ints specifying roi_id of ROIs not to consider
+       when looking for pairs. Note: a pair will only be ignored
+       if *both* ROIs are in rois_to_ignore. If one of them is not,
+       the pair is valid (default: None)
 
     Returns
     -------
-    None
-        Appends tuples of (roi_id_0, roi_id_1) corresponding
-        to abutting ROIs into output_list
+    output: Union[None, Tuple[int, int]]
+        None if the ROIs do not abut; the tuple of roi_ids if they do
     """
-    local = []
-    for pair in roi_pair_list:
-        if do_rois_abut(pair[0], pair[1], dpix=dpix):
-            local.append((pair[0].roi_id, pair[1].roi_id))
-    for pair in local:
-        output_list.append(pair)
+    if roi_id_pair[0] == roi_id_pair[1]:
+        return None
+
+    if rois_to_ignore is not None:
+        if roi_id_pair[0] in rois_to_ignore:
+            if roi_id_pair[1] in rois_to_ignore:
+                return None
+
+    roi0 = roi_lookup[roi_id_pair[0]]
+    roi1 = roi_lookup[roi_id_pair[1]]
+    if do_rois_abut(roi0, roi1, dpix=dpix):
+        return roi_id_pair
     return None
 
 
@@ -363,50 +374,20 @@ def find_merger_candidates(roi_list: List[OphysROI],
    output: List[Tuple[int, int]]
        List of tuples of roi_ids specifying pairs of abutting ROIs
     """
-    mgr = multiprocessing.Manager()
-    output_list = mgr.list()
+    lookup = {}
+    roi_id_list = []
+    for roi in roi_list:
+        lookup[roi.roi_id] = roi
+        roi_id_list.append(roi.roi_id)
 
-    n_rois = len(roi_list)
+    finder = partial(_find_merger_candidates,
+                     roi_lookup=lookup,
+                     dpix=dpix,
+                     rois_to_ignore=rois_to_ignore)
 
-    process_list = []
-
-    n_pairs = n_rois*(n_rois-1)//2
-    d_pairs = chunk_size_from_processors(n_pairs, n_processors, 100)
-
-    subset = []
-    for i0 in range(n_rois):
-        roi0 = roi_list[i0]
-        for i1 in range(i0+1, n_rois, 1):
-            roi1 = roi_list[i1]
-            if rois_to_ignore is None:
-                subset.append((roi0, roi1))
-            else:
-                if (roi0.roi_id not in rois_to_ignore
-                        or roi1.roi_id not in rois_to_ignore):
-
-                    subset.append((roi0, roi1))
-            if len(subset) >= d_pairs:
-                args = (copy.deepcopy(subset), dpix, output_list)
-                p = multiprocessing.Process(target=_find_merger_candidates,
-                                            args=args)
-                p.start()
-                process_list.append(p)
-                subset = []
-            while (len(process_list) > 0
-                   and len(process_list) >= (n_processors-1)):
-                process_list = _winnow_process_list(process_list)
-
-    if len(subset) > 0:
-        args = (subset, dpix, output_list)
-        p = multiprocessing.Process(target=_find_merger_candidates,
-                                    args=args)
-        p.start()
-        process_list.append(p)
-
-    for p in process_list:
-        p.join()
-
-    pair_list = [pair for pair in output_list]
+    with multiprocessing.Pool(n_processors-1) as candidate_pool:
+        result = candidate_pool.map(finder, combinations(roi_id_list, 2))
+    pair_list = [p for p in result if p is not None]
     return pair_list
 
 

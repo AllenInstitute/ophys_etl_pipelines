@@ -50,6 +50,7 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
                 raise RuntimeError(f'roi id {ophys_roi.roi_id} duplicated '
                                    'in initial input')
             roi_list.append(ophys_roi)
+            roi_id_set.add(ophys_roi.roi_id)
         del raw_roi_list
 
         if self.args['graph_input'] is None:

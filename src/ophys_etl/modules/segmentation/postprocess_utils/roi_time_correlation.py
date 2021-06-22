@@ -65,30 +65,22 @@ def correlate_sub_video(sub_video: np.ndarray,
         These are the correlation values of the pixels in
         sub_video against key_pixel
     """
-
-    npix = sub_video.shape[1]
     discard = 1.0-filter_fraction
     th = np.quantile(key_pixel, discard)
     mask = (key_pixel >= th)
     sub_video = sub_video[mask, :]
     key_pixel = key_pixel[mask]
     ntime = len(key_pixel)
-    assert key_pixel.shape == (ntime,)
-    assert sub_video.shape == (ntime, npix)
 
     key_mu = np.mean(key_pixel)
     vid_mu = np.mean(sub_video, axis=0)
-    assert vid_mu.shape == (npix,)
     key_var = np.mean((key_pixel-key_mu)**2)
     sub_vid_minus_mu = sub_video-vid_mu
     sub_var = np.mean(sub_vid_minus_mu**2, axis=0)
-    assert sub_var.shape == (npix,)
 
     numerator = np.dot((key_pixel-key_mu), sub_vid_minus_mu)/ntime
-    assert numerator.shape == (npix,)
 
     corr = numerator/np.sqrt(sub_var*key_var)
-    assert corr.shape == (npix,)
     return corr
 
 
@@ -116,9 +108,6 @@ def get_brightest_pixel(roi: SegmentationROI,
         Time series of taken from the video at the
         brightest pixel in the ROI
     """
-    #v = sub_video.mean(axis=1)
-    #assert v.shape == (sub_video.shape[0],)
-    #return v
     xmin = roi.x0
     ymin = roi.y0
     xmax = roi.x0+roi.width
@@ -126,9 +115,6 @@ def get_brightest_pixel(roi: SegmentationROI,
     sub_img = img_data[ymin:ymax, xmin:xmax]
     mask = roi.mask_matrix
     sub_img = sub_img[mask]
-    assert len(sub_video.shape) == 2
-    assert sub_video.shape[1] == sub_img.shape[0]
-    assert len(sub_img.shape) == 1
     brightest_pixel = np.argmax(sub_img)
     return sub_video[:, brightest_pixel]
 
@@ -214,11 +200,6 @@ def validate_merger_corr(uphill_roi: SegmentationROI,
                          img_data: np.ndarray,
                          filter_fraction: float = 0.2,
                          acceptance: float = 1.0) -> bool:
-
-    #if downhill_roi.mask_matrix.sum() > uphill_roi.mask_matrix.sum():
-    #    a = downhill_roi
-    #    downhill_roi = uphill_roi
-    #    uphill_roi = a
 
     test1 = _validate_merger_corr(uphill_roi,
                                   downhill_roi,

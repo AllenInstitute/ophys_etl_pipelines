@@ -382,8 +382,7 @@ def test_do_roi_merger(whole_dataset):
                                  img_data,
                                  whole_dataset['video'],
                                  3,
-                                 2.0,
-                                 diagnostic_dir=None)
+                                 2.0)
 
     # test that some mergers were performed
     assert len(new_roi_list) > 0

@@ -618,8 +618,7 @@ def do_roi_merger(
       video_data: np.ndarray,
       n_processors: int,
       corr_acceptance: float,
-      filter_fraction = 0.2,
-      diagnostic_dir: Optional[pathlib.Path] = None) -> List[SegmentationROI]:
+      filter_fraction = 0.2) -> List[SegmentationROI]:
     """
     Merge ROIs based on a static image.
 
@@ -640,11 +639,6 @@ def do_roi_merger(
     corr_acceptance: float
         The pixel time correlation threshold for accepting a
         merger (see "Notes")
-
-    diagnostic_dir: Optional[path.Pathlib]
-        Director in which to write optional file containing
-        seeds around which mergers were attempted
-        (default: None)
 
     Returns
     -------

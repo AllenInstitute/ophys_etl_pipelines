@@ -342,13 +342,6 @@ class RoiMergerSchema(argschema.ArgSchema):
         description=("path to hdf5 video with movie stored "
                      "in dataset 'data' nframes x nrow x ncol"))
 
-    diagnostic_dir = argschema.fields.Str(
-            required=False,
-            default=None,
-            allow_none=True,
-            description=("optional directory where diagnostic files "
-                         "will be written"))
-
     corr_acceptance = argschema.fields.Float(
         required=False,
         default=1.0,

@@ -1,5 +1,6 @@
 import networkx as nx
 import numpy as np
+from typing import List, Optional
 from matplotlib import figure, axes
 from matplotlib.collections import LineCollection
 from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -8,10 +9,32 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import \
     graph_to_img
 
 
+def find_graph_edge_attribute_names(graph: nx.Graph) -> List[str]:
+    """return the edge attribute names from the graph
+
+    Parameters
+    ----------
+    graph: nx.Graph
+        the graph
+
+    Returns
+    -------
+    names: List[str]
+        the edge_attribute names
+
+    """
+    names = set()
+    for _, _, attr in graph.edges(data=True):
+        for k in attr:
+            names.add(k)
+    names = list(names)
+    return names
+
+
 def draw_graph_edges(figure: figure.Figure,
                      axis: axes.Axes,
                      graph: nx.Graph,
-                     attribute_name: str = "Pearson",
+                     attribute_name: Optional[str] = None,
                      colorbar: bool = True):
     """draws graph edges from node to node, colored by weight
 
@@ -25,13 +48,22 @@ def draw_graph_edges(figure: figure.Figure,
         a networkx graph, assumed to have edges formed like
         graph.add_edge((0, 1), (0, 2), weight=1.234)
     attibute_name: str
-        which edge attribute to plot
+        which edge attribute to plot. If None, will try to find the name
 
     Notes
     -----
     modifes figure and axis in-place
 
     """
+    if attribute_name is None:
+        names = find_graph_edge_attribute_names(graph)
+        if len(names) != 1:
+            raise ValueError("'attribute_name' was not specified, but when "
+                             "searching for one and only one name, found "
+                             f"{len(names)}: {names}. Specify "
+                             "'attribute_name'")
+        attribute_name = names[0]
+
     # graph is (row, col), transpose to get (x, y)
     edges = nx.get_edge_attributes(graph, name=attribute_name)
     segments = [np.array([edge[0][::-1], edge[1][::-1]]) for edge in edges]
@@ -64,7 +96,7 @@ def draw_graph_edges(figure: figure.Figure,
 def draw_graph_image(figure: figure.Figure,
                      axis: axes.Axes,
                      graph: nx.Graph,
-                     attribute_name: str = "Pearson"):
+                     attribute_name: Optional[str] = None):
     """draws graph as an image where every pixel's intensity is the
     sum of the edge weights connected to that pixel
 
@@ -85,6 +117,15 @@ def draw_graph_image(figure: figure.Figure,
     modifes figure and axis in-place
 
     """
+    if attribute_name is None:
+        names = find_graph_edge_attribute_names(graph)
+        if len(names) != 1:
+            raise ValueError("'attribute_name' was not specified, but when "
+                             "searching for one and only one name, found "
+                             f"{len(names)}: {names}. Specify "
+                             "'attribute_name'")
+        attribute_name = names[0]
+
     img = graph_to_img(graph,
                        attribute_name=attribute_name)
     shape = img.shape

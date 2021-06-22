@@ -15,10 +15,37 @@ def graph():
 
 
 @pytest.fixture
+def graph_with_names(request):
+    edges = [[(0, 0), (0, 1)],
+             [(0, 0), (0, 2)],
+             [(1, 0), (0, 2)]]
+    g = nx.Graph()
+    for edge in edges:
+        g.add_edge(*edge)
+    for name in request.param.get("names"):
+        values = {e: {name: 42} for e in g.edges}
+        nx.set_edge_attributes(g, values)
+    return g, request.param.get("names")
+
+
+@pytest.fixture
 def graph_path(graph, tmpdir):
     gpath = tmpdir / "graph.pkl"
     nx.write_gpickle(graph, str(gpath))
     yield gpath
+
+
+@pytest.mark.parametrize(
+        "graph_with_names",
+        [
+            {"names": []},
+            {"names": ["a"]},
+            {"names": ["a", "b"]}],
+        indirect=["graph_with_names"])
+def test_find_graph_edge_attribute_names(graph_with_names):
+    graph, names = graph_with_names
+    found_names = set(graph_plotting.find_graph_edge_attribute_names(graph))
+    assert found_names == set(names)
 
 
 def test_draw_graph_edges(graph):

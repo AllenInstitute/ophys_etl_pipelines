@@ -1086,10 +1086,11 @@ def do_roi_merger(
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '
                     f'after {time.time()-t0:.2f} seconds')
 
-    for roi_id in incoming_rois:
-        if roi_id not in have_been_merged:
-            if roi_id not in roi_lookup:
-                raise RuntimeError(f"lost track of {roi_id}")
+        # make sure we did not lose track of any ROIs
+        for roi_id in incoming_rois:
+            if roi_id not in have_been_merged:
+                if roi_id not in roi_lookup:
+                    raise RuntimeError(f"lost track of {roi_id}")
 
     # loop over the original list of roi_ids, copying
     # any ROIs that were not merged into the output list

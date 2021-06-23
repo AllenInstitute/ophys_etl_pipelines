@@ -190,17 +190,14 @@ def scale_video_to_uint8(video: np.ndarray,
                            f"min_value ({min_value}) > "
                            f"max_value ({max_value})")
 
-    rescaled_video = np.where(video < max_value,
-                              video,
-                              max_value)
-
-    rescaled_video = np.where(rescaled_video > min_value,
-                              rescaled_video,
-                              min_value)
+    mask = video > max_value
+    video[mask] = max_value
+    mask = video < min_value
+    video[mask] = min_value
 
     delta = (max_value-min_value)
-    rescaled_video -= min_value
-    return np.round(255*rescaled_video.astype(float)/delta).astype(np.uint8)
+    video = video-min_value
+    return np.round(255*video.astype(float)/delta).astype(np.uint8)
 
 
 def trim_video(

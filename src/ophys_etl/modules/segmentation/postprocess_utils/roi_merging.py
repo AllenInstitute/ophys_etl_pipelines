@@ -795,11 +795,8 @@ def do_roi_merger(
         logger.info('updated pixel lookup '
                     f'in {time.time()-t0_pass:.2f} seconds')
 
-        n_pairs = len(merger_candidates)
-        chunk_size = chunk_size_from_processors(n_pairs,
-                                                n_processors,
-                                                1,
-                                                2)
+        chunksize = min(100, len(merger_candidates)//(n_processors-1))
+        logger.info(f'calculating metrics with chunksize {chunksize}')
         metric_calculator = partial(_calculate_merger_metric,
                                     roi_lookup=roi_lookup,
                                     video_lookup=sub_video_lookup,
@@ -810,7 +807,9 @@ def do_roi_merger(
         with multiprocessing.Pool(n_processors-1) as metric_pool:
             output_list = metric_pool.map(metric_calculator,
                                           merger_candidates,
-                                          chunksize=chunk_size)
+                                          chunksize=chunksize)
+
+        logger.info(f'calculated metrics after {time.time()-t0_pass:.2f}')
 
         for potential_merger in output_list:
             pair = (potential_merger[0], potential_merger[1])

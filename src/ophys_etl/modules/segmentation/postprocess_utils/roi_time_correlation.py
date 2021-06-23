@@ -1,6 +1,4 @@
 import numpy as np
-import multiprocessing
-from functools import partial
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 
@@ -86,7 +84,7 @@ def correlate_sub_video(sub_video: np.ndarray,
     return corr
 
 
-def _self_correlate(i_pixel, sub_video):
+def _self_correlate(sub_video, i_pixel):
     npix = sub_video.shape[1]
     ntime = sub_video.shape[0]
     th = np.quantile(sub_video[:,i_pixel], 0.8)
@@ -107,8 +105,7 @@ def _self_correlate(i_pixel, sub_video):
 
 
 def get_brightest_pixel(roi: SegmentationROI,
-                        sub_video: np.ndarray,
-                        n_processors: int = 8) -> np.ndarray:
+                        sub_video: np.ndarray) -> np.ndarray:
     """
     Return the brightest pixel in an ROI (as measured against
     some image) as a time series.
@@ -132,11 +129,9 @@ def get_brightest_pixel(roi: SegmentationROI,
     """
     npix = sub_video.shape[1]
     ntime = sub_video.shape[0]
-    correlator = partial(_self_correlate, sub_video=sub_video)
-    with multiprocessing.Pool(n_processors-1) as pixel_pool:
-        wgts = pixel_pool.map(correlator,
-                              range(npix),
-                              chunksize=100)
+    wgts = np.zeros(npix, dtype=float)
+    for ipix in range(npix):
+        wgts[ipix] = _self_correlate(sub_video, ipix)
 
     i_max = np.argmax(wgts)
     return sub_video[:, i_max]

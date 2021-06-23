@@ -613,6 +613,15 @@ def _calculate_merger_metric(
     return (input_pair[0], input_pair[1], metric)
 
 
+def _get_brightest_pixel(roi_id: int,
+                         roi_lookup: dict,
+                         sub_video_lookup: dict):
+    pixel = get_brightest_pixel(roi_lookup[roi_id],
+                                sub_video_lookup[roi_id])
+
+    return (roi_id, pixel)
+
+
 def do_roi_merger(
       raw_roi_list: List[OphysROI],
       img_data: np.ndarray,
@@ -767,10 +776,16 @@ def do_roi_merger(
         for pair in merger_candidates:
             for roi_id in pair:
                 if roi_id not in pixel_lookup:
-                    key_pixel = get_brightest_pixel(roi_lookup[roi_id],
-                                                    sub_video_lookup[roi_id],
-                                                    n_processors=n_processors)
-                    pixel_lookup[roi_id] = key_pixel
+                    needed_pixels.add(roi_id)
+
+        pixel_generator = partial(_get_brightest_pixel,
+                                  roi_lookup=roi_lookup,
+                                  sub_video_lookup=sub_video_lookup)
+        with multiprocessing.Pool(n_processors-1) as pixel_pool:
+            new_pixels = pixel_pool.map(pixel_generator, needed_pixels)
+
+        for n in new_pixels:
+            pixel_lookup[n[0]] = n[1]
 
         logger.info('updated pixel lookup '
                     f'in {time.time()-t0_pass:.2f} seconds')

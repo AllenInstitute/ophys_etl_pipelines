@@ -379,7 +379,7 @@ def find_merger_candidates(roi_list: List[OphysROI],
     output_list = mgr.list()
     n_rois = len(roi_id_list)
     n_pairs = (n_rois)*(n_rois-1)//2
-    chunk_size = n_pairs//(n_processors-1))
+    chunk_size = n_pairs//(n_processors-1)
     chunk_size = max(chunk_size, 1)
     process_list = []
     pair_list = []

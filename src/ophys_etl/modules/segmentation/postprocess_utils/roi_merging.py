@@ -911,7 +911,7 @@ def do_roi_merger(
             for roi_id in pair:
                 if roi_id not in pixel_lookup:
                     s = roi_lookup[roi_id].mask_matrix.sum()
-                    if s >= 500:
+                    if s >= 2000:
                         needed_big_pixels.add(roi_id)
                     else:
                         needed_small_pixels.add(roi_id)

@@ -160,8 +160,8 @@ def get_brightest_pixel_parallel(
     for ipix in range(npix):
         wgts[ipix] = output_dict[ipix]
 
-    i_max = np.argmax(wgts)
-    return sub_video[:, i_max]
+    key_pixel = np.dot(sub_video, wgts)
+    return key_pixel/wgts.sum()
 
 
 
@@ -194,8 +194,8 @@ def get_brightest_pixel(roi: SegmentationROI,
     for ipix in range(npix):
         wgts[ipix] = _self_correlate(sub_video, ipix)
 
-    i_max = np.argmax(wgts)
-    return sub_video[:, i_max]
+    key_pixel = np.dot(sub_video, wgts)
+    return key_pixel/wgts.sum()
 
 
 def calculate_merger_metric(roi0: SegmentationROI,

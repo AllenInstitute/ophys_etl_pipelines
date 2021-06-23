@@ -709,13 +709,27 @@ def update_key_pixel_lookup(needed_pixels,
                             roi_lookup,
                             sub_video_lookup,
                             n_processors):
+    chunksize = len(needed_pixels)//(4*n_processors-1)
+    chunksize = max(chunksize, 1)
+    mgr = multiprocessing.Manager()
+    output_dict = mgr.dict()
+    process_list = []
+    needed_pixels = list(needed_pixels)
+    for i0 in range(0, len(needed_pixels), chunksize):
+        chunk = needed_pixels[i0:i0+chunksize]
+        args = (chunk, roi_lookup, sub_video_lookup, output_dict)
+        p = multiprocessing.Process(target=_get_brightest_pixel,
+                                    args=args)
+        p.start()
+        process_list.append(p)
+        while len(process_list)>0 and len(process_list)>=(n_processors-1):
+            process_list = _winnow_process_list(process_list)
+    for p in process_list:
+        p.join()
     final_output = {}
-    for ipix in  needed_pixels:
-        roi = roi_lookup[ipix]
-        sub_video = sub_video_lookup[ipix]
-        final_output[ipix] = get_brightest_pixel(roi,
-                                                 sub_video,
-                                                 n_processors=n_processors)
+    k_list = list(output_dict.keys())
+    for k in k_list:
+        final_output[k] = output_dict.pop(k)
     return final_output
 
 

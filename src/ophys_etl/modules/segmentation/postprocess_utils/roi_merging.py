@@ -5,6 +5,8 @@ import multiprocessing
 import multiprocessing.managers
 from scipy.spatial.distance import cdist
 import numpy as np
+from ophys_etl.modules.segmentation.postprocess_utils.utils import (
+    _winnow_process_list)
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.segmentation.\
@@ -23,16 +25,6 @@ import time
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
-
-
-def _winnow_process_list(process_list):
-    to_pop = []
-    for ii in range(len(process_list)-1, -1, -1):
-        if process_list[ii].exitcode is not None:
-            to_pop.append(ii)
-    for ii in to_pop:
-        process_list.pop(ii)
-    return process_list
 
 
 def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:

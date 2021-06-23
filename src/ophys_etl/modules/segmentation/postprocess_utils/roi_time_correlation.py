@@ -1,4 +1,7 @@
 import numpy as np
+import multiprocessing
+from ophys_etl.modules.segmentation.postprocess_utils.utils import (
+    _winnow_process_list)
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 

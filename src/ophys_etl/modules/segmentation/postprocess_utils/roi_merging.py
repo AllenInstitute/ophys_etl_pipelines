@@ -2,6 +2,7 @@ from typing import List, Optional, Dict, Tuple, Union
 from functools import partial
 from itertools import combinations
 import multiprocessing
+import multiprocessing.managers
 from scipy.spatial.distance import cdist
 import numpy as np
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
@@ -22,6 +23,16 @@ import time
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
+
+
+def _winnow_process_list(process_list):
+    to_pop = []
+    for ii in range(len(process_list)-1, -1, -1):
+        if process_list[ii].exitcode is not None:
+            to_pop.append(ii)
+    for ii in to_pop:
+        process_list.pop(ii)
+    return process_list
 
 
 def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:
@@ -278,10 +289,11 @@ def chunk_size_from_processors(n_elements: int,
 
 
 def _find_merger_candidates(
-        roi_id_pair: Tuple[int, int],
+        roi_id_pair_list: List[Tuple[int, int]],
         roi_lookup: dict,
         dpix: float,
-        rois_to_ignore: Optional[set] = None) -> Union[None, Tuple[int, int]]:
+        rois_to_ignore: Optional[set],
+        output_list: multiprocessing.managers.ListProxy) -> None:
     """
     Find all of the abutting ROIs in a list of OphysROIs
 
@@ -308,18 +320,19 @@ def _find_merger_candidates(
     output: Union[None, Tuple[int, int]]
         None if the ROIs do not abut; the tuple of roi_ids if they do
     """
-    if roi_id_pair[0] == roi_id_pair[1]:
-        return None
+    for roi_id_pair in roi_id_pair_list:
+        if roi_id_pair[0] == roi_id_pair[1]:
+            continue
 
-    if rois_to_ignore is not None:
-        if roi_id_pair[0] in rois_to_ignore:
-            if roi_id_pair[1] in rois_to_ignore:
-                return None
+        if rois_to_ignore is not None:
+            if roi_id_pair[0] in rois_to_ignore:
+                if roi_id_pair[1] in rois_to_ignore:
+                    continue
 
-    roi0 = roi_lookup[roi_id_pair[0]]
-    roi1 = roi_lookup[roi_id_pair[1]]
-    if do_rois_abut(roi0, roi1, dpix=dpix):
-        return roi_id_pair
+        roi0 = roi_lookup[roi_id_pair[0]]
+        roi1 = roi_lookup[roi_id_pair[1]]
+        if do_rois_abut(roi0, roi1, dpix=dpix):
+            output_list.append(roi_id_pair)
     return None
 
 
@@ -362,15 +375,48 @@ def find_merger_candidates(roi_list: List[OphysROI],
         lookup[roi.roi_id] = roi
         roi_id_list.append(roi.roi_id)
 
-    finder = partial(_find_merger_candidates,
-                     roi_lookup=lookup,
-                     dpix=dpix,
-                     rois_to_ignore=rois_to_ignore)
+    mgr = multiprocessing.Manager()
+    output_list = mgr.list()
+    n_rois = len(roi_id_list)
+    n_pairs = (n_rois)*(n_rois-1)//2
+    chunk_size = min(100, n_pairs//(4*n_processors-1))
+    chunk_size = max(chunk_size, 1)
+    process_list = []
+    pair_list = []
+    for combo in combinations(roi_id_list, 2):
+        pair_list.append(combo)
+        if len(pair_list) >= chunk_size:
+            args = (pair_list,
+                    lookup,
+                    dpix,
+                    rois_to_ignore,
+                    output_list)
 
-    result = []
-    with multiprocessing.Pool(n_processors-1) as candidate_pool:
-        result = candidate_pool.map(finder, combinations(roi_id_list, 2))
-    pair_list = [p for p in result if p is not None]
+            p = multiprocessing.Process(target=_find_merger_candidates,
+                                        args=args)
+            p.start()
+            process_list.append(p)
+            pair_list = []
+        while len(process_list) > 0 and len(process_list) >= (n_processors-1):
+            process_list = _winnow_process_list(process_list)
+
+    if len(pair_list) > 0:
+
+        args = (pair_list,
+                lookup,
+                dpix,
+                rois_to_ignore,
+                output_list)
+
+        p = multiprocessing.Process(target=_find_merger_candidates,
+                                    args=args)
+        p.start()
+        process_list.append(p)
+
+    for p in process_list:
+        p.join()
+
+    pair_list = [p for p in output_list]
     return pair_list
 
 
@@ -558,12 +604,13 @@ def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
 
 
 def _calculate_merger_metric(
-        input_pair: Tuple[int, int],
+        input_pair_list: List[Tuple[int, int]],
         roi_lookup: dict,
         video_lookup: dict,
         pixel_lookup: dict,
         img_data: np.ndarray,
-        filter_fraction: float) -> Tuple[int, int, float]:
+        filter_fraction: float,
+        output_dict: multiprocessing.managers.DictProxy) -> None:
     """
     Calculate the merger metric for a pair of ROIs
 
@@ -590,37 +637,108 @@ def _calculate_merger_metric(
         merger metric yielded by calling calculate_merger_metric on
         both permutations of the ROIs [(roi0, roi1) and (roi1, roi0)]
     """
+    for input_pair in input_pair_list:
 
-    roi0 = roi_lookup[input_pair[0]]
-    roi1 = roi_lookup[input_pair[1]]
+        roi0 = roi_lookup[input_pair[0]]
+        roi1 = roi_lookup[input_pair[1]]
 
-    metric01 = calculate_merger_metric(
-                     roi0,
-                     roi1,
-                     video_lookup,
-                     pixel_lookup,
-                     img_data,
-                     filter_fraction=filter_fraction)
+        metric01 = calculate_merger_metric(
+                         roi0,
+                         roi1,
+                         video_lookup,
+                         pixel_lookup,
+                         img_data,
+                         filter_fraction=filter_fraction)
 
-    metric10 = calculate_merger_metric(
-                     roi1,
-                     roi0,
-                     video_lookup,
-                     pixel_lookup,
-                     img_data,
-                     filter_fraction=filter_fraction)
+        metric10 = calculate_merger_metric(
+                         roi1,
+                         roi0,
+                         video_lookup,
+                         pixel_lookup,
+                         img_data,
+                         filter_fraction=filter_fraction)
 
-    metric = max(metric01, metric10)
-    return (input_pair[0], input_pair[1], metric)
+        metric = max(metric01, metric10)
+        output_dict[input_pair] = metric
+    return None
 
 
-def _get_brightest_pixel(roi_id: int,
+def get_merger_metric(potential_mergers,
+                      roi_lookup,
+                      video_lookup,
+                      pixel_lookup,
+                      filter_fraction,
+                      n_processors):
+
+    mgr = multiprocessing.Manager()
+    output_dict = mgr.dict()
+    n_pairs = len(potential_mergers)
+    chunksize = n_pairs//(4*n_processors-1)
+    chunksize = max(chunksize, 1)
+    process_list = []
+    for i0 in range(0, n_pairs, chunksize):
+        chunk = potential_mergers[i0:i0+chunksize]
+        args = (chunk,
+                roi_lookup,
+                video_lookup,
+                pixel_lookup,
+                None,
+                filter_fraction,
+                output_dict)
+
+        p = multiprocessing.Process(target=_calculate_merger_metric,
+                                    args=args)
+        p.start()
+        process_list.append(p)
+        while len(process_list) > 0 and len(process_list) >= (n_processors-1):
+            process_list = _winnow_process_list(process_list)
+    for p in process_list:
+        p.join()
+
+    final_output = {}
+    k_list = list(output_dict.keys())
+    for k in k_list:
+        final_output[k] = output_dict.pop(k)
+
+    return final_output
+
+def _get_brightest_pixel(roi_id_list: List[int],
                          roi_lookup: dict,
-                         sub_video_lookup: dict):
-    pixel = get_brightest_pixel(roi_lookup[roi_id],
-                                sub_video_lookup[roi_id])
+                         sub_video_lookup: dict,
+                         output_dict: multiprocessing.managers.DictProxy):
+    for roi_id in roi_id_list:
+        pixel = get_brightest_pixel(roi_lookup[roi_id],
+                                    sub_video_lookup[roi_id])
 
-    return (roi_id, pixel)
+        output_dict[roi_id] = pixel
+
+
+def update_key_pixel_lookup(needed_pixels,
+                            roi_lookup,
+                            sub_video_lookup,
+                            n_processors):
+    chunksize = len(needed_pixels)//(4*n_processors-1)
+    chunksize = max(chunksize, 1)
+    mgr = multiprocessing.Manager()
+    output_dict = mgr.dict()
+    process_list = []
+    needed_pixels = list(needed_pixels)
+    for i0 in range(0, len(needed_pixels), chunksize):
+        chunk = needed_pixels[i0:i0+chunksize]
+        args = (chunk, roi_lookup, sub_video_lookup, output_dict)
+        p = multiprocessing.Process(target=_get_brightest_pixel,
+                                    args=args)
+        p.start()
+        process_list.append(p)
+        while len(process_list)>0 and len(process_list)>=(n_processors-1):
+            process_list = _winnow_process_list(process_list)
+    for p in process_list:
+        p.join()
+    final_output = {}
+    k_list = list(output_dict.keys())
+    for k in k_list:
+        final_output[k] = output_dict.pop(k)
+    return final_output
 
 
 def do_roi_merger(
@@ -779,46 +897,29 @@ def do_roi_merger(
                 if roi_id not in pixel_lookup:
                     needed_pixels.add(roi_id)
 
-        pixel_generator = partial(_get_brightest_pixel,
-                                  roi_lookup=roi_lookup,
-                                  sub_video_lookup=sub_video_lookup)
-
-        chunksize = min(100, len(needed_pixels)//(n_processors-1))
-        chunksize = max(chunksize, 1)
-
-        new_pixels = []
-        with multiprocessing.Pool(n_processors-1) as pixel_pool:
-            new_pixels = pixel_pool.map(pixel_generator,
-                                        needed_pixels,
-                                        chunksize=chunksize)
+        new_pixels = update_key_pixel_lookup(needed_pixels,
+                                             roi_lookup,
+                                             sub_video_lookup,
+                                             n_processors)
 
         for n in new_pixels:
-            pixel_lookup[n[0]] = n[1]
+            pixel_lookup[n] = new_pixels[n]
 
         logger.info('updated pixel lookup '
                     f'in {time.time()-t0_pass:.2f} seconds')
 
-        chunksize = min(100, len(merger_candidates)//(n_processors-1))
-        chunksize = max(chunksize, 1)
-        logger.info(f'calculating metrics with chunksize {chunksize}')
-        metric_calculator = partial(_calculate_merger_metric,
-                                    roi_lookup=roi_lookup,
-                                    video_lookup=sub_video_lookup,
-                                    pixel_lookup=pixel_lookup,
-                                    img_data=img_data,
-                                    filter_fraction=filter_fraction)
-
-        output_list = []
-        with multiprocessing.Pool(n_processors-1) as metric_pool:
-            output_list = metric_pool.map(metric_calculator,
-                                          merger_candidates,
-                                          chunksize=chunksize)
+        new_merger_metrics = get_merger_metric(merger_candidates,
+                                               roi_lookup,
+                                               sub_video_lookup,
+                                               pixel_lookup,
+                                               filter_fraction,
+                                               n_processors)
 
         logger.info(f'calculated metrics after {time.time()-t0_pass:.2f}')
 
-        for potential_merger in output_list:
+        for potential_merger in new_merger_metrics:
             pair = (potential_merger[0], potential_merger[1])
-            metric = potential_merger[2]
+            metric = new_merger_metrics[potential_merger]
             if metric >= -1.0*corr_acceptance:
                 merger_to_metric[pair] = metric
 

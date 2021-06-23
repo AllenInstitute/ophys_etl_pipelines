@@ -370,6 +370,15 @@ class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
         required=False,
         description=("path to hdf5 video with movie stored "
                      "in dataset 'data' nframes x nrow x ncol"))
+    graph_input = argschema.fields.InputFile(
+        required=True,
+        description=("path to graph used to seed ROIS"))
+    attribute_name = argschema.fields.Str(
+        required=False,
+        default='filtered_hnc_Gaussian',
+        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
+                        "filtered_hnc_Gaussian"]),
+        description="which graph edge attribute to use to create image.")
     experiment_name = argschema.fields.Str(
         required=False,
         default="movie_name",
@@ -384,3 +393,22 @@ class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
     seed_output = argschema.fields.OutputFile(
         required=True,
         description="path to json file where seeds will be saved")
+    plot_output = argschema.fields.OutputFile(
+        required=False,
+        default=None,
+        allow_none=True,
+        description="path to summary plot of segmentation")
+    seed_plot_output = argschema.fields.OutputFile(
+        required=False,
+        default=None,
+        allow_none=True,
+        description=("path to plot of seeding summary."))
+
+    @post_load
+    def plot_outputs(self, data, **kwargs):
+        if data['seed_plot_output'] is None:
+            if data['plot_output'] is not None:
+                plot_path = Path(data['plot_output'])
+            data['seed_plot_output'] = str(
+                    plot_path.parent / f"{plot_path.stem}_seeds.png")
+        return data

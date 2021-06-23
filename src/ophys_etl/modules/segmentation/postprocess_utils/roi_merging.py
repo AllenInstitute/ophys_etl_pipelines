@@ -367,6 +367,7 @@ def find_merger_candidates(roi_list: List[OphysROI],
                      dpix=dpix,
                      rois_to_ignore=rois_to_ignore)
 
+    result = []
     with multiprocessing.Pool(n_processors-1) as candidate_pool:
         result = candidate_pool.map(finder, combinations(roi_id_list, 2))
     pair_list = [p for p in result if p is not None]
@@ -783,7 +784,9 @@ def do_roi_merger(
                                   sub_video_lookup=sub_video_lookup)
 
         chunksize = min(100, len(needed_pixels)//(n_processors-1))
+        chunksize = max(chunksize, 1)
 
+        new_pixels = []
         with multiprocessing.Pool(n_processors-1) as pixel_pool:
             new_pixels = pixel_pool.map(pixel_generator,
                                         needed_pixels,
@@ -796,6 +799,7 @@ def do_roi_merger(
                     f'in {time.time()-t0_pass:.2f} seconds')
 
         chunksize = min(100, len(merger_candidates)//(n_processors-1))
+        chunksize = max(chunksize, 1)
         logger.info(f'calculating metrics with chunksize {chunksize}')
         metric_calculator = partial(_calculate_merger_metric,
                                     roi_lookup=roi_lookup,
@@ -804,6 +808,7 @@ def do_roi_merger(
                                     img_data=img_data,
                                     filter_fraction=filter_fraction)
 
+        output_list = []
         with multiprocessing.Pool(n_processors-1) as metric_pool:
             output_list = metric_pool.map(metric_calculator,
                                           merger_candidates,

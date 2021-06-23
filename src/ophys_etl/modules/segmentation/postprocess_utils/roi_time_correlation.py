@@ -1,4 +1,7 @@
 import numpy as np
+import multiprocessing
+from ophys_etl.modules.segmentation.postprocess_utils.utils import (
+    _winnow_process_list)
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 
@@ -104,8 +107,15 @@ def _self_correlate(sub_video, i_pixel):
     return np.median(corr)
 
 
+def _correlate_batch(pixel_list, sub_video, output_dict):
+    for ipix in pixel_list:
+        value = _self_correlate(sub_video, ipix)
+        output_dict[ipix] = value
+        
+
 def get_brightest_pixel(roi: SegmentationROI,
-                        sub_video: np.ndarray) -> np.ndarray:
+                        sub_video: np.ndarray,
+                        n_processors: int = 8) -> np.ndarray:
     """
     Return the brightest pixel in an ROI (as measured against
     some image) as a time series.
@@ -128,10 +138,26 @@ def get_brightest_pixel(roi: SegmentationROI,
         brightest pixel in the ROI
     """
     npix = sub_video.shape[1]
-    ntime = sub_video.shape[0]
+    chunksize = max(1, npix//(n_processors-1))
+    mgr = multiprocessing.Manager()
+    output_dict = mgr.dict()
+    pix_list = list(range(npix))
+    process_list = []
+    for i0 in range(0, npix, chunksize):
+        chunk = pix_list[i0:i0+chunksize]
+        args = (chunk, sub_video, output_dict)
+        p = multiprocessing.Process(target=_correlate_batch,
+                                    args=args)
+        p.start()
+        process_list.append(p)
+        while len(process_list)>0 and len(process_list)>=(n_processors-1):
+            process_list = _winnow_process_list(process_list)
+    for p in process_list:
+        p.join()
+
     wgts = np.zeros(npix, dtype=float)
     for ipix in range(npix):
-        wgts[ipix] = _self_correlate(sub_video, ipix)
+        wgts[ipix] = output_dict[ipix]
 
     i_max = np.argmax(wgts)
     return sub_video[:, i_max]

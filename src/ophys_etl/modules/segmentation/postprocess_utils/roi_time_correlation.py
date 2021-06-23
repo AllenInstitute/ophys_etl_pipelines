@@ -104,6 +104,64 @@ def _self_correlate(sub_video, i_pixel):
     return np.median(corr)
 
 
+def _correlate_batch(pixel_list, sub_video, output_dict):
+    for ipix in pixel_list:
+        value = _self_correlate(sub_video, ipix)
+        output_dict[ipix] = value
+
+
+def get_brightest_pixel_parallel(
+        roi: SegmentationROI,
+        sub_video: np.ndarray,
+        n_processors: int = 8) -> np.ndarray:
+    """
+    Return the brightest pixel in an ROI (as measured against
+    some image) as a time series.
+
+    Parameters
+    ----------
+    roi: SegmentationROI
+
+    img_data: np.ndarray
+        The image used to assess "brightest pixel".
+        Shape is (nrows, ncols).
+
+    video_data: np.ndarray
+        Shape is (ntime, nrows, ncols)
+
+    Returns
+    -------
+    brightest_pixel: np.ndarray
+        Time series of taken from the video at the
+        brightest pixel in the ROI
+    """
+    npix = sub_video.shape[1]
+    chunksize = max(1, npix//(n_processors-1))
+    mgr = multiprocessing.Manager()
+    output_dict = mgr.dict()
+    pix_list = list(range(npix))
+    process_list = []
+    for i0 in range(0, npix, chunksize):
+        chunk = pix_list[i0:i0+chunksize]
+        args = (chunk, sub_video, output_dict)
+        p = multiprocessing.Process(target=_correlate_batch,
+                                    args=args)
+        p.start()
+        process_list.append(p)
+        while len(process_list)>0 and len(process_list)>=(n_processors-1):
+            process_list = _winnow_process_list(process_list)
+    for p in process_list:
+        p.join()
+
+    wgts = np.zeros(npix, dtype=float)
+    for ipix in range(npix):
+        wgts[ipix] = output_dict[ipix]
+
+    i_max = np.argmax(wgts)
+    return sub_video[:, i_max]
+
+
+
 def get_brightest_pixel(roi: SegmentationROI,
                         sub_video: np.ndarray) -> np.ndarray:
     """

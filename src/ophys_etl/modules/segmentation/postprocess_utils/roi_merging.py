@@ -13,7 +13,8 @@ from ophys_etl.modules.segmentation.\
     postprocess_utils.roi_time_correlation import (
         calculate_merger_metric,
         sub_video_from_roi,
-        get_brightest_pixel)
+        get_brightest_pixel,
+        get_brightest_pixel+parallel)
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.types import ExtractROI
@@ -705,6 +706,24 @@ def _get_brightest_pixel(roi_id_list: List[int],
         output_dict[roi_id] = pixel
 
 
+def update_key_pixel_lookup_per_pix(
+        needed_pixels,
+        roi_lookup,
+        sub_video_lookup,
+        n_processors):
+
+    final_output = {}
+    for ipix in needed_pixels:
+        roi = roi_lookup[ipix]
+        sub_video = sub_video_lookup[ipix]
+        final_outpt[ipix] = get_brightest_pixel_parallel(
+                                      roi,
+                                      sub_video,
+                                      n_processors=n_processors)
+
+    return final_output
+
+
 def update_key_pixel_lookup(needed_pixels,
                             roi_lookup,
                             sub_video_lookup,
@@ -889,10 +908,25 @@ def do_roi_merger(
                 if roi_id not in pixel_lookup:
                     needed_pixels.add(roi_id)
 
-        new_pixels = update_key_pixel_lookup(needed_pixels,
-                                             roi_lookup,
-                                             sub_video_lookup,
-                                             n_processors)
+        biggest = 0
+        for ipix in needed_pixels:
+            s = roi_lookup[ipix].mask_matrix.sum()
+            if s > biggest:
+                biggest = s
+
+        if biggest < 500:
+            new_pixels = update_key_pixel_lookup(needed_pixels,
+                                                 roi_lookup,
+                                                 sub_video_lookup,
+                                                 n_processors)
+        else:
+            logger.info('calling the per pixel parallelized '
+                        f'update_key_pixel {biggest}')
+            new_pixels = update_key_pixel_lookup_per_pix(
+                                 needed_pixels,
+                                 roi_lookup,
+                                 sub_video_lookup,
+                                 n_processors)
 
         for n in new_pixels:
             pixel_lookup[n] = new_pixels[n]

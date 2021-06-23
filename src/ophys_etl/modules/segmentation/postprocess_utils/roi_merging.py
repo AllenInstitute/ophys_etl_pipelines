@@ -781,8 +781,13 @@ def do_roi_merger(
         pixel_generator = partial(_get_brightest_pixel,
                                   roi_lookup=roi_lookup,
                                   sub_video_lookup=sub_video_lookup)
+
+        chunksize = min(100, len(needed_pixels)//(n_processors-1))
+
         with multiprocessing.Pool(n_processors-1) as pixel_pool:
-            new_pixels = pixel_pool.map(pixel_generator, needed_pixels)
+            new_pixels = pixel_pool.map(pixel_generator,
+                                        needed_pixels,
+                                        chunksize=chunksize)
 
         for n in new_pixels:
             pixel_lookup[n[0]] = n[1]

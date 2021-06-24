@@ -133,7 +133,7 @@ class OphysROI(object):
                    mask_matrix=schema_dict['mask_matrix'])
 
     @property
-    def area(self)) -> int:
+    def area(self) -> int:
         if self._area is None:
             self._area = self._mask_matrix.sum()
         return self._area

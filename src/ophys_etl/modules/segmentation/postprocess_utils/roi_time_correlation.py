@@ -241,7 +241,7 @@ def calculate_merger_metric(roi0: SegmentationROI,
     roi0_video = video_lookup[roi0.roi_id]
     roi1_video = video_lookup[roi1.roi_id]
 
-    roi0_centroid = pixel_lookup[roi0.roi_id]
+    roi0_centroid = pixel_lookup[roi0.roi_id]['key_pixel']
 
     roi0_corr = correlate_sub_video(roi0_video,
                                     roi0_centroid,

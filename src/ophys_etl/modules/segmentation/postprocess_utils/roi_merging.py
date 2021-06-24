@@ -706,7 +706,7 @@ def _get_brightest_pixel(roi_id_list: List[int],
         output_dict[roi_id] = pixel
 
 
-def update_key_pixel_lookup_per_pix(
+def _update_key_pixel_lookup_per_pix(
         needed_pixels,
         roi_lookup,
         sub_video_lookup,
@@ -724,10 +724,10 @@ def update_key_pixel_lookup_per_pix(
     return final_output
 
 
-def update_key_pixel_lookup(needed_pixels,
-                            roi_lookup,
-                            sub_video_lookup,
-                            n_processors):
+def _update_key_pixel_lookup(needed_pixels,
+                             roi_lookup,
+                             sub_video_lookup,
+                             n_processors):
     chunksize = len(needed_pixels)//(4*n_processors-1)
     chunksize = max(chunksize, 1)
     mgr = multiprocessing.Manager()
@@ -750,6 +750,60 @@ def update_key_pixel_lookup(needed_pixels,
     for k in k_list:
         final_output[k] = output_dict.pop(k)
     return final_output
+
+
+def update_key_pixel_lookup(merger_candidates,
+                            roi_lookup,
+                            pixel_lookup,
+                            sub_video_lookup,
+                            n_processors):
+
+    needed_big_pixels = set()
+    needed_small_pixels = set()
+
+    roi_to_consider = set()
+    for pair in merger_candidates:
+        roi_to_consider.add(pair[0])
+        roi_to_consider.add(pair[1])
+
+    for roi_id in roi_to_consider:
+        needs_update = False
+        if roi_id not in pixel_lookup:
+            needs_update = True
+        elif roi_lookup[roi_id].area > 1.1*pixel_lookup[roi_id]['area']:
+            needs_update = True
+
+        if needs_update:
+            s = roi_lookup[roi_id].area
+            if s >= 2000:
+                needed_big_pixels.add(roi_id)
+            else:
+                needed_small_pixels.add(roi_id)
+
+    new_small_pixels = {}
+    if len(needed_small_pixels) > 0:
+        new_small_pixels = _update_key_pixel_lookup(
+                                             needed_small_pixels,
+                                             roi_lookup,
+                                             sub_video_lookup,
+                                             n_processors)
+    new_big_pixels = {}
+    if len(needed_big_pixels) > 0:
+        logger.info('CALLING BIG PIXEL CORRELATION')
+        new_big_pixels = _update_key_pixel_lookup_per_pix(
+                             needed_big_pixels,
+                             roi_lookup,
+                             sub_video_lookup,
+                             n_processors)
+
+    for n in new_big_pixels:
+        pixel_lookup[n] = {'area': roi_lookup[n].area,
+                           'key_pixel': new_big_pixels[n]}
+    for n in new_small_pixels:
+        pixel_lookup[n] = {'area': roi_lookup[n],
+                           'key_pixel': new_small_pixels[n]}
+
+    return pixel_lookup
 
 
 def do_roi_merger(
@@ -902,40 +956,14 @@ def do_roi_merger(
         logger.info(f'found {len(merger_candidates)} merger candidates '
                     f'in {time.time()-t0_pass:.2f} seconds')
 
-        needed_small_pixels = set()
-        needed_big_pixels = set()
+        pixel_lookup = update_key_pixel_lookup(
+                          merger_candidates,
+                          roi_lookup,
+                          pixel_lookup,
+                          sub_video_lookup,
+                          n_processors)
 
 
-
-        for pair in merger_candidates:
-            for roi_id in pair:
-                if roi_id not in pixel_lookup:
-                    s = roi_lookup[roi_id].mask_matrix.sum()
-                    if s >= 2000:
-                        needed_big_pixels.add(roi_id)
-                    else:
-                        needed_small_pixels.add(roi_id)
-
-        new_small_pixels = {}
-        if len(needed_small_pixels) > 0:
-            new_small_pixels = update_key_pixel_lookup(
-                                                 needed_small_pixels,
-                                                 roi_lookup,
-                                                 sub_video_lookup,
-                                                 n_processors)
-        new_big_pixels = {}
-        if len(needed_big_pixels) > 0:
-            logger.info('CALLING BIG PIXEL CORRELATION')
-            new_big_pixels = update_key_pixel_lookup_per_pix(
-                                 needed_big_pixels,
-                                 roi_lookup,
-                                 sub_video_lookup,
-                                 n_processors)
-
-        for n in new_big_pixels:
-            pixel_lookup[n] = new_big_pixels[n]
-        for n in new_small_pixels:
-            pixel_lookup[n] = new_small_pixels[n]
         logger.info('updated pixel lookup '
                     f'in {time.time()-t0_pass:.2f} seconds')
 

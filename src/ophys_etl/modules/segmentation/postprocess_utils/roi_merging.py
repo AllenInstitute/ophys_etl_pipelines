@@ -568,11 +568,25 @@ def get_merger_metric(potential_mergers,
     process_list = []
     for i0 in range(0, n_pairs, chunksize):
         chunk = potential_mergers[i0:i0+chunksize]
+        this_roi_id = set()
+        for pair in chunk:
+            this_roi_id.add(pair[0])
+            this_roi_id.add(pair[1])
+        this_roi = {}
+        this_video = {}
+        this_pixel = {}
+        this_corr = {}
+        for roi_id in this_roi_id:
+            this_roi[roi_id] = roi_lookup[roi_id]
+            this_video[roi_id] = video_lookup[roi_id]
+            this_pixel[roi_id] = pixel_lookup[roi_id]
+            this_corr[roi_id] = self_corr_lookup[roi_id]
+
         args = (chunk,
-                roi_lookup,
-                video_lookup,
-                pixel_lookup,
-                self_corr_lookup,
+                this_roi,
+                this_video,
+                this_pixel,
+                this_corr,
                 filter_fraction,
                 output_dict)
 

@@ -51,7 +51,7 @@ def normalize_graph(graph: nx.Graph,
         local = 0.5 * (avg_attr[i[0][0], i[0][1]] + avg_attr[i[1][0], i[1][0]])
         edge_values[i] = {new_attribute_name: v[attribute_name] / local}
 
-    nx.set_edge_attributes(graph, edge_values)
+    nx.set_edge_attributes(G=graph, values=edge_values)
     return graph
 
 
@@ -376,6 +376,6 @@ def add_hnc_gaussian_metric(graph: nx.Graph,
 
         dist = np.linalg.norm(pearsons[0] - pearsons[1])
         values[edge] = np.exp(-1.0 * (dist ** 2.0))
-    nx.set_edge_attributes(graph, values, name=attribute_name)
+    nx.set_edge_attributes(G=graph, values=values, name=attribute_name)
 
     return graph

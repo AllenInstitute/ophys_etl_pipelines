@@ -61,7 +61,7 @@ def test_add_edge_attributes(video_path,
     nx.set_node_attributes(graph, na)
     # add edge attributes
     ea = {e: {"edge_attr": i} for i, e in enumerate(graph.edges)}
-    nx.set_edge_attributes(graph, ea)
+    nx.set_edge_attributes(G=graph, values=ea)
 
     # original graph has only "edge_attr"
     for n1, n2, attr in graph.edges(data=True):

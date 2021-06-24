@@ -24,7 +24,7 @@ def graph_with_names(request):
         g.add_edge(*edge)
     for name in request.param.get("names"):
         values = {e: {name: 42} for e in g.edges}
-        nx.set_edge_attributes(g, values)
+        nx.set_edge_attributes(G=g, values=values)
     return g, request.param.get("names")
 
 

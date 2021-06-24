@@ -19,7 +19,7 @@ def test_partition_graph_by_edges(graph, n_groups):
     nx.set_node_attributes(graph, na)
     # add edge attributes
     ea = {e: {"edge_attr": i} for i, e in enumerate(graph.edges)}
-    nx.set_edge_attributes(graph, ea)
+    nx.set_edge_attributes(G=graph, values=ea)
 
     subgraphs = partition.partition_graph_by_edges(graph, n_groups)
 

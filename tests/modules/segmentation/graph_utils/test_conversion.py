@@ -10,7 +10,7 @@ def graph_fixture(request):
     attr_name = request.param.get('attribute_name')
     g = creation.create_graph(0, 99, 0, 99)
     edge_dict = {i: {attr_name: 42} for i in g.edges()}
-    nx.set_edge_attributes(g, edge_dict)
+    nx.set_edge_attributes(G=g, values=edge_dict)
     return g, attr_name
 
 

@@ -195,26 +195,9 @@ def scale_video_to_uint8(video: np.ndarray,
     mask = video < min_value
     video[mask] = min_value
 
-    delta = float(max_value-min_value)
+    delta = (max_value-min_value)
     video = video-min_value
-
-    # convert in chunks so that conversion to float
-    # does not take up all of machine's memory
-
-    # estimate chunk size to use to limit memory usage to 1 GB
-    one_gig = 1024*1024*1024
-    n_floats = one_gig//8
-    n_el = np.product(video.shape)
-    n_chunks = max(1, n_el//n_floats)
-    chunksize = video.shape[0]//n_chunks
-    print('chunksize ',chunksize)
-
-    result = np.zeros(video.shape, dtype=np.uint8)
-    for t0 in range(0,video.shape[0],chunksize):
-        chunk = np.round(255*video[t0:t0+chunksize].astype(float)/delta).astype(np.uint8)
-        result[t0:t0+chunksize] = chunk
-
-    return result
+    return np.round(255*video.astype(float)/delta).astype(np.uint8)
 
 
 def trim_video(
@@ -474,9 +457,7 @@ def thumbnail_video_from_path(
         raise RuntimeError(f"min_max {min_max} in thumbnail_video_from_path; "
                            "order seems to be reversed")
 
-    print('scaling video')
     data = scale_video_to_uint8(data, min_max[0], min_max[1])
-    print('done scaling video')
 
     # origin is set to (0,0) because, when we read in the
     # HDF5 file, we only read in the pixels we actually

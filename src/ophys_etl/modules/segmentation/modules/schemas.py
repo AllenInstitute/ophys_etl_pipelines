@@ -332,22 +332,6 @@ class HNC_args(argschema.schemas.DefaultSchema):
     negative_seed_circle_radius = argschema.fields.Int(
         default=10,
         description="Radius in pixels of the circle with negative seeds.")
-    seeder_mask_size = argschema.fields.Int(
-        default=3,
-        description=("Width in pixels of the region used by the seeder to "
-                     "compute the average correlation between a pixel and "
-                     "its neighbors."))
-    seeder_grid_size = argschema.fields.Int(
-        default=5,
-        description=("Size of grid bloc per dimension. Seeder maintains "
-                     "only the best candidate pixel for each grid block."))
-    seeder_exclusion_padding = argschema.fields.Int(
-        default=4,
-        description=("Distance for excluding additional pixels surrounding "
-                     "segmented cells."))
-    percentage_of_seeds = argschema.fields.Float(
-        default=0.40,
-        description="Fraction of candidate seeds to evaluate.")
     negative_seed_circle_count = argschema.fields.Int(
         default=10,
         description="Number of negative seeds.")

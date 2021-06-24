@@ -11,7 +11,6 @@ import ophys_etl.modules.segmentation.postprocess_utils.roi_merging as merging
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
-from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
 import networkx
 
 import logging
@@ -74,13 +73,8 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             roi_id_set.add(ophys_roi.roi_id)
         del raw_roi_list
 
-        graph_img = graph_to_img(
-                      networkx.read_gpickle(self.args['graph_input']),
-                      attribute_name=self.args['attribute'])
-
         roi_list = merging.do_roi_merger(
                                 roi_list,
-                                graph_img,
                                 video_data,
                                 self.args['n_parallel_workers'],
                                 self.args['corr_acceptance'])

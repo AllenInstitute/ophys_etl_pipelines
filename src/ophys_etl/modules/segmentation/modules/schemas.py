@@ -414,11 +414,6 @@ class RoiMergerSchema(argschema.ArgSchema):
             default=8,
             description=("number of parallel processes to use"))
 
-    graph_input = argschema.fields.InputFile(
-            required=True,
-            description=("file containing graph used to produce "
-                         "image over which ROIs are laid"))
-
     attribute = argschema.fields.Str(
         required=False,
         default="filtered_hnc_Gaussian",

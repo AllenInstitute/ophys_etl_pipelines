@@ -160,10 +160,6 @@ def get_brightest_pixel_parallel(
     ----------
     roi: SegmentationROI
 
-    img_data: np.ndarray
-        The image used to assess "brightest pixel".
-        Shape is (nrows, ncols).
-
     video_data: np.ndarray
         Shape is (ntime, nrows, ncols)
 
@@ -209,10 +205,6 @@ def get_brightest_pixel(roi: SegmentationROI,
     ----------
     roi: SegmentationROI
 
-    img_data: np.ndarray
-        The image used to assess "brightest pixel".
-        Shape is (nrows, ncols).
-
     video_data: np.ndarray
         Shape is (ntime, nrows, ncols)
 
@@ -236,7 +228,6 @@ def calculate_merger_metric(roi0: SegmentationROI,
                             video_lookup: dict,
                             pixel_lookup: dict,
                             self_corr_lookup: dict,
-                            img_data: np.ndarray,
                             filter_fraction: float = 0.2) -> float:
     """
     Calculate the merger metric between two ROIs
@@ -250,9 +241,6 @@ def calculate_merger_metric(roi0: SegmentationROI,
     video_lookup: dict
         A dict mapping roi_id to sub-videos like those produced
         by sub_video_from_roi
-
-    img_data: np.ndarray
-        Shape is (nrows, ncols)
 
     filter_fraction: float
         The fraction of time steps to keep when doing

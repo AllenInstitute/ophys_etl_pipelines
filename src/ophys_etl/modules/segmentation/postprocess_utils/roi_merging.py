@@ -414,93 +414,6 @@ def find_merger_candidates(roi_list: List[OphysROI],
     return pair_list
 
 
-def get_inactive_mask(img_data_shape: Tuple[int, int],
-                      roi_list: List[OphysROI]) -> np.ndarray:
-    """
-    Return a pixel mask that is marked False for all
-    pixels that are part of an ROI, and True for all
-    other pixels
-
-    Parameters
-    ----------
-    img_data_shape: Tuple[int, int]
-        Shape of the full field of view
-
-    roi_list: List[OphysROI]
-
-    Returns
-    -------
-    inactive_pixel_mask: np.ndarray
-    """
-    full_mask = np.zeros(img_data_shape, dtype=bool)
-    for roi in roi_list:
-        mask = roi.mask_matrix
-        region = full_mask[roi.y0:roi.y0+roi.height,
-                           roi.x0:roi.x0+roi.width]
-        full_mask[roi.y0:roi.y0+roi.height,
-                  roi.x0:roi.x0+roi.width] = np.logical_or(mask, region)
-
-    return np.logical_not(full_mask)
-
-
-def get_inactive_distribution(img_data: np.ndarray,
-                              roi: OphysROI,
-                              inactive_mask: np.ndarray,
-                              dx: int = 10) -> Tuple[float, float]:
-    """
-    Given an ROI, an array of image data, and a mask marked True at
-    all of the non-ROI pixels, return the mean and standard deviation
-    of the inactive pixels in a neighborhood about the ROI.
-
-    Parameters
-    ----------
-    img_data: np.ndarray
-        The full field of view image data
-
-    roi: OphysROI
-
-    inactive_mask: np.ndarray
-        An array of booleans the same shape as img_data.
-        Marked True for any pixel not in an ROI; False
-        for all other pixels.
-
-    dx: int
-        Number of pixels to either side of the ROI to use
-        when constructing the neighborhood.
-
-    Returns
-    -------
-    mu: float
-        Mean of the inactive pixels in the neighborhood
-
-    std: float
-        Standard deviation of the inactive pixels in the
-        neighborhood
-    """
-
-    xmin = max(0, roi.x0-dx)
-    ymin = max(0, roi.y0-dx)
-    xmax = xmin+roi.width+2*dx
-    ymax = ymin+roi.height+2*dx
-
-    if xmax > img_data.shape[1]:
-        xmax = img_data.shape[1]
-        xmin = max(0, xmax-roi.width-2*dx)
-    if ymax > img_data.shape[1]:
-        ymin = max(0, ymax-roi.height-2*dx)
-
-    neighborhood = img_data[ymin:ymax, xmin:xmax]
-    mask = inactive_mask[ymin:ymax, xmin:xmax]
-    inactive_pixels = neighborhood[mask].flatten()
-    mu = np.mean(inactive_pixels)
-    if len(inactive_pixels) < 2:
-        std = 0.0
-    else:
-        std = np.std(inactive_pixels, ddof=1)
-
-    return mu, std
-
-
 def merge_segmentation_rois(uphill_roi: SegmentationROI,
                             downhill_roi: SegmentationROI,
                             new_roi_id: int,
@@ -542,7 +455,6 @@ def merge_segmentation_rois(uphill_roi: SegmentationROI,
 
 
 def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
-                                   img_data: np.ndarray,
                                    dx: int = 20) -> Dict[int, SegmentationROI]:
     """
     Create a lookup table mapping roi_id to SegmentationROI.
@@ -554,9 +466,6 @@ def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
     Parameters
     ----------
     raw_roi_list: List[OphysROI]
-
-    img_data: np.ndarray
-        The image data used to calculate the flux_value of each SegmentationROI
 
     dx: int
         The number of pixels above, below, to the left, and to the right of
@@ -570,22 +479,10 @@ def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
         roi_id
     """
     lookup = {}
-    inactive_mask = get_inactive_mask(img_data.shape, raw_roi_list)
     for roi in raw_roi_list:
-        mu, sigma = get_inactive_distribution(img_data,
-                                              roi,
-                                              inactive_mask,
-                                              dx=dx)
-        mask = roi.mask_matrix
-        xmin = roi.x0
-        xmax = xmin + roi.width
-        ymin = roi.y0
-        ymax = ymin + roi.height
-        roi_pixels = img_data[ymin:ymax, xmin:xmax][mask].flatten()
-        n_sigma = np.median((roi_pixels-mu)/sigma)
         new_roi = SegmentationROI.from_ophys_roi(roi,
                                                  ancestors=None,
-                                                 flux_value=n_sigma)
+                                                 flux_value=0.0)
 
         if new_roi.roi_id in lookup:
             msg = f'{new_roi.roi_id} duplicated in '
@@ -603,7 +500,6 @@ def _calculate_merger_metric(
         video_lookup: dict,
         pixel_lookup: dict,
         self_corr_lookup: dict,
-        img_data: np.ndarray,
         filter_fraction: float,
         output_dict: multiprocessing.managers.DictProxy) -> None:
     """
@@ -619,8 +515,6 @@ def _calculate_merger_metric(
 
     video_lookup: dict
         Maps roi_id to sub_video
-
-    img_data: np.ndarray
 
     filter_fraction: float
         The fraction of brightest timesteps to keep when correlating pixels
@@ -643,7 +537,6 @@ def _calculate_merger_metric(
                          video_lookup,
                          pixel_lookup,
                          self_corr_lookup,
-                         img_data,
                          filter_fraction=filter_fraction)
 
         metric10 = calculate_merger_metric(
@@ -652,7 +545,6 @@ def _calculate_merger_metric(
                          video_lookup,
                          pixel_lookup,
                          self_corr_lookup,
-                         img_data,
                          filter_fraction=filter_fraction)
 
         metric = max(metric01, metric10)
@@ -681,7 +573,6 @@ def get_merger_metric(potential_mergers,
                 video_lookup,
                 pixel_lookup,
                 self_corr_lookup,
-                None,
                 filter_fraction,
                 output_dict)
 
@@ -861,7 +752,6 @@ def update_self_correlation(merger_candidates,
 
 def do_roi_merger(
       raw_roi_list: List[OphysROI],
-      img_data: np.ndarray,
       video_data: np.ndarray,
       n_processors: int,
       corr_acceptance: float,
@@ -872,9 +762,6 @@ def do_roi_merger(
     Parameters
     ----------
     raw_roi_list: List[OphysROI]
-
-    img_data: np.ndarray
-        The static image used to guide merging
 
     video_data: np.ndarray
         (ntime, nrows, ncols)
@@ -933,7 +820,6 @@ def do_roi_merger(
     # create a lookup table of SegmentationROIs
     t0 = time.time()
     roi_lookup = create_segmentation_roi_lookup(raw_roi_list,
-                                                img_data,
                                                 dx=20)
     logger.info(f'created roi lookup in {time.time()-t0:.2f} seconds')
 

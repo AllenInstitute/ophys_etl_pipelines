@@ -771,6 +771,7 @@ def update_key_pixel_lookup(merger_candidates,
         if roi_id not in pixel_lookup:
             needs_update = True
         elif roi_lookup[roi_id].area > 1.1*pixel_lookup[roi_id]['area']:
+            raise RuntimeError("should not execute")
             needs_update = True
 
         if needs_update:
@@ -800,7 +801,7 @@ def update_key_pixel_lookup(merger_candidates,
         pixel_lookup[n] = {'area': roi_lookup[n].area,
                            'key_pixel': new_big_pixels[n]}
     for n in new_small_pixels:
-        pixel_lookup[n] = {'area': roi_lookup[n],
+        pixel_lookup[n] = {'area': roi_lookup[n].area,
                            'key_pixel': new_small_pixels[n]}
 
     return pixel_lookup
@@ -1048,8 +1049,13 @@ def do_roi_merger(
         for roi_id in recently_merged:
             if roi_id in sub_video_lookup:
                 sub_video_lookup.pop(roi_id)
-            if roi_id in pixel_lookup:
                 pixel_lookup.pop(roi_id)
+
+        # remove non-existent ROIs from pixel_lookup
+        #k_list = list(pixel_lookup.keys())
+        #or roi_id in k_list:
+        #    if roi_id not in valid_roi_id:
+        #        pixel_lookup.pop(roi_id)
 
         merger_keys = list(merger_to_metric.keys())
         for pair in merger_keys:

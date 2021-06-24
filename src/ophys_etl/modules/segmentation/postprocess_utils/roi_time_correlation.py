@@ -5,6 +5,37 @@ from ophys_etl.modules.segmentation.postprocess_utils.utils import (
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 
+def _wgts_to_series(sub_video, wgts):
+    if len(wgts) == 1:
+        return sub_video[:,0]
+
+    th = np.median(wgts)
+    wgts -= th
+
+    mask = (wgts<0)
+    wgts[mask] = 0.0
+
+    wgts -= wgts.min()
+    d = wgts.max()-wgts.min()
+    if d<1.0e-10:
+        wgts = np.ones(wgts.shape, dtype=float)
+    else:
+        wgts = 1.0-wgts/d
+        norm = 5.0
+        wgts = np.exp(-1.0*norm*wgts)
+
+    # re-apply mask on wgts that were
+    # originally negative
+    wgts[mask] = 0.0
+    n_01 = (wgts>0.01).sum()
+    n_001 = (wgts>0.001).sum()
+    n_1 = (wgts>0.1).sum()
+    print('scaled wgts %.2e %.2e %.2e %d -- %d %d %d'
+          % (np.median(wgts), np.quantile(wgts, 0.75), wgts.max(),
+             len(wgts),n_1,n_01,n_001))
+
+    key_pixel = np.dot(sub_video, wgts)
+    return key_pixel/wgts.sum()
 
 def sub_video_from_roi(roi: SegmentationROI,
                        video_data: np.ndarray) -> np.ndarray:
@@ -160,8 +191,7 @@ def get_brightest_pixel_parallel(
     for ipix in range(npix):
         wgts[ipix] = output_dict[ipix]
 
-    key_pixel = np.dot(sub_video, wgts)
-    return key_pixel/wgts.sum()
+    return _wgts_to_series(sub_video, wgts)
 
 
 
@@ -194,8 +224,7 @@ def get_brightest_pixel(roi: SegmentationROI,
     for ipix in range(npix):
         wgts[ipix] = _self_correlate(sub_video, ipix)
 
-    key_pixel = np.dot(sub_video, wgts)
-    return key_pixel/wgts.sum()
+    return _wgts_to_series(sub_video, wgts)
 
 
 def calculate_merger_metric(roi0: SegmentationROI,

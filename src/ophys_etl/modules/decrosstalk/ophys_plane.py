@@ -83,6 +83,7 @@ class OphysROI(object):
         self._valid_roi = valid_roi
         self._mask_matrix = np.array(mask_matrix, dtype=bool)
         self._boundary_mask = None
+        self._area = None
 
         height_match = (self._mask_matrix.shape[0] == self._height)
         width_match = (self._mask_matrix.shape[1] == self._width)
@@ -130,6 +131,12 @@ class OphysROI(object):
                    height=schema_dict['height'],
                    valid_roi=schema_dict['valid_roi'],
                    mask_matrix=schema_dict['mask_matrix'])
+
+    @property
+    def area(self)) -> int:
+        if self._area is None:
+            self._area = self._mask_matrix.sum()
+        return self._area
 
     @property
     def roi_id(self) -> int:

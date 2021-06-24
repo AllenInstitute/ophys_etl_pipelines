@@ -201,6 +201,26 @@ def neighborhood_pixels(coordinates: Tuple[float, float],
                         nrow: int,
                         ncol: int) -> np.ndarray:
     """return pixel coordinates of a circular region around a coordinate
+
+    Parameters
+    ----------
+    coordinates: Tuple[float, float]
+        the (row, col) coordinates that center the neighborhood
+    radius: float
+        the radius relative to 'coordinates' within which a pixel is
+        considered in the neighborhood
+    nrow: int
+        the number of rows in the full FOV. Used to restrict return values
+        to valid pixel coordinates in the FOV.
+    ncol: int
+        the number of columns in the full FOV. Used to restrict return values
+        to valid pixel coordinates in the FOV.
+
+    Returns
+    -------
+    coords: np.ndarray
+        dtype np.int64 pixel coordinates within neighborhood of 'coordinates'
+
     """
     rmin = max(0, int(coordinates[0] - radius - 1))
     rmax = min(nrow - 1, int(coordinates[0] + radius + 1))

@@ -1007,9 +1007,7 @@ def do_roi_merger(
             if roi_id_1 in recently_merged:
                 continue
 
-            f0 = roi_lookup[roi_id_0].peak.flux_value
-            f1 = roi_lookup[roi_id_1].peak.flux_value
-            if f0 > f1:
+            if roi_lookup[roi_id_0].area > roi_lookup[roi_id_1].area:
                 seed_id = roi_id_0
                 child_id = roi_id_1
             else:

@@ -30,6 +30,7 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
     filter_fraction = argschema.fields.Float(
         required=False,
         default=0.2,
+        validate=lambda x: 0.0 < x <= 1.0,
         description="Fraction of timesteps to kee if "
                     "calculating the filtered Pearson coefficient")
     neighborhood_radius = argschema.fields.Int(

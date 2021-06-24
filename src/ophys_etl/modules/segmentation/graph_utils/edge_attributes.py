@@ -154,7 +154,7 @@ def add_filtered_pearson_edge_attributes(
 
     # create a lookup table of the brightest filter_fraction
     # timesteps for each pixel
-    discard = 1.0-filter_fraction
+    discard = 1.0 - filter_fraction
     i_threshold = np.round(discard * data.shape[0]).astype(int)
 
     for node1 in graph:

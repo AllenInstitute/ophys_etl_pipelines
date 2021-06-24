@@ -2,6 +2,7 @@ import pytest
 import h5py
 import numpy as np
 from pathlib import Path
+from marshmallow import ValidationError
 
 from ophys_etl.modules.segmentation.modules import calculate_edges as ce
 
@@ -59,3 +60,23 @@ def test_CalculateEdgesMultiprocessing(video_path, tmpdir):
     ecalc.run()
     assert graph_output.exists()
     assert plot_output.exists()
+
+
+@pytest.mark.parametrize(
+        "video_path",
+        [
+            {"video_shape": (10, 8, 40)}
+        ], indirect=["video_path"])
+@pytest.mark.parametrize("filter_fraction", [0.0, 1.0001])
+def test_CalculateEdgesRangeValidate(video_path, tmpdir, filter_fraction):
+    graph_output = Path(tmpdir / "graph.pkl")
+    plot_output = Path(tmpdir / "plot.png")
+    args = {
+            "video_path": str(video_path),
+            "plot_output": str(plot_output),
+            "graph_output": str(graph_output),
+            "attribute_name": "Pearson",
+            "n_parallel_workers": 2,
+            "filter_fraction": filter_fraction}
+    with pytest.raises(ValidationError):
+        ce.CalculateEdges(input_data=args, args=[])

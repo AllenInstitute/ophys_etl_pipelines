@@ -770,11 +770,6 @@ def update_key_pixel_lookup(merger_candidates,
         needs_update = False
         if roi_id not in pixel_lookup:
             needs_update = True
-        elif roi_lookup[roi_id].area > 1.1*pixel_lookup[roi_id]['area']:
-            raise RuntimeError("should not execute")
-            needs_update = True
-
-        if needs_update:
             s = roi_lookup[roi_id].area
             if s >= 2000:
                 needed_big_pixels.add(roi_id)
@@ -918,6 +913,10 @@ def do_roi_merger(
     merger_to_metric = {}
     pixel_lookup = {}
 
+    area_lookup = {}
+    for roi_id in roi_lookup:
+        area_lookup[roi_id] = roi_lookup[roi_id].area
+
     while keep_going:
         keep_going = False
         t0_pass = time.time()
@@ -1055,13 +1054,19 @@ def do_roi_merger(
         for roi_id in recently_merged:
             if roi_id in sub_video_lookup:
                 sub_video_lookup.pop(roi_id)
-                pixel_lookup.pop(roi_id)
 
-        # remove non-existent ROIs from pixel_lookup
-        #k_list = list(pixel_lookup.keys())
-        #or roi_id in k_list:
-        #    if roi_id not in valid_roi_id:
-        #        pixel_lookup.pop(roi_id)
+        # remove non-existent ROIs and ROIs whose areas
+        # have significantly changed from pixel_lookup
+        k_list = list(pixel_lookup.keys())
+        for roi_id in k_list:
+            pop_it = False
+            if roi_id not in valid_roi_id:
+                pop_it = True
+            elif roi_lookup[roi_id].area > 1.05*pixel_lookup[roi_id]['area']:
+                pop_it = True
+
+            if pop_it:
+                pixel_lookup.pop(roi_id)
 
         merger_keys = list(merger_to_metric.keys())
         for pair in merger_keys:

@@ -27,6 +27,7 @@ def _wgts_to_series(sub_video, wgts):
     # re-apply mask on wgts that were
     # originally negative
     wgts[mask] = 0.0
+
     n_01 = (wgts>0.01).sum()
     n_001 = (wgts>0.001).sum()
     n_1 = (wgts>0.1).sum()

@@ -9,24 +9,27 @@ def _wgts_to_series(sub_video, wgts):
     if len(wgts) == 1:
         return sub_video[:,0]
 
+    # only accept pixels brigter than the median
     th = np.median(wgts)
     wgts -= th
-
     mask = (wgts<0)
     wgts[mask] = 0.0
 
     wgts -= wgts.min()
-    d = wgts.max()-wgts.min()
-    if d<1.0e-10:
+    norm = wgts.max()
+    if norm<1.0e-10:
         wgts = np.ones(wgts.shape, dtype=float)
+        # re-apply mask on wgts that were
+        # originally negative
+        wgts[mask] = 0.0
     else:
-        wgts = 1.0-wgts/d
-        norm = 5.0
-        wgts = np.exp(-1.0*norm*wgts)
+        wgts = wgts/norm
 
-    # re-apply mask on wgts that were
-    # originally negative
-    wgts[mask] = 0.0
+    if wgts.sum() < 1.0e-10:
+        # probably because all weights had
+        # the same value, so filtering on the median
+        # gave an array of zeros
+        wgts = np.ones(wgts.shape, dtype=float)
 
     n_01 = (wgts>0.01).sum()
     n_001 = (wgts>0.001).sum()

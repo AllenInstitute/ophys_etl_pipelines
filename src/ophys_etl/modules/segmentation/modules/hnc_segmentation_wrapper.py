@@ -7,14 +7,13 @@ from matplotlib.figure import Figure
 
 from ophys_etl.modules.segmentation.modules.schemas import \
         HNCSegmentationWrapperInputSchema
-from ophys_etl.modules.segmentation.hnc_segmentation_utils import hnc_construct
+from ophys_etl.modules.segmentation.detect.hnc_segmentation_utils import (
+        hnc_construct, ExplicitHNCcorrCandidate, HNCcorrSegmentationObjects)
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import \
         hnc_roi_to_extract_roi
 from ophys_etl.modules.segmentation.seed.seeder import ImageMetricSeeder
 from ophys_etl.modules.segmentation.qc.seed import add_seeds_to_axes
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
-from ophys_etl.modules.segmentation.hnc_segmentation_utils import \
-        ExplicitHNCcorrCandidate, HNCcorrSegmentationObjects
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import create_roi_plot
 
 

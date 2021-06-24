@@ -155,7 +155,7 @@ def add_filtered_pearson_edge_attributes(
     # create a lookup table of the brightest filter_fraction
     # timesteps for each pixel
     discard = 1.0-filter_fraction
-    i_threshold = np.round(discard*data.shape[0]).astype(int)
+    i_threshold = np.round(discard * data.shape[0]).astype(int)
 
     for node1 in graph:
         n1row, n1col = np.array(node1) - offset
@@ -185,12 +185,12 @@ def add_filtered_pearson_edge_attributes(
             masked_flux1 -= mu1
             masked_flux2 -= mu2
 
-            numerator = np.mean(masked_flux1*masked_flux2)
+            numerator = np.mean(masked_flux1 * masked_flux2)
             denom = np.mean(masked_flux1**2)
             denom *= np.mean(masked_flux2**2)
 
             attr = graph.get_edge_data(node1, node2)
-            attr.update({attribute_name: numerator/np.sqrt(denom)})
+            attr.update({attribute_name: numerator / np.sqrt(denom)})
             new_graph.add_edge(node1, node2, **attr)
 
     return new_graph
@@ -270,7 +270,7 @@ def _filtered_hnc_pearson(node0: np.ndarray,
         The result of running cdist on the input traces masked according
         to the specified filter_fraction
     """
-    discard = 1.0-filter_fraction
+    discard = 1.0 - filter_fraction
     thresh0 = np.quantile(node0, discard)
     mask0 = np.where(node0 >= thresh0)[0]
     thresh1 = np.quantile(node1, discard)

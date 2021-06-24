@@ -235,6 +235,7 @@ def calculate_merger_metric(roi0: SegmentationROI,
                             roi1: SegmentationROI,
                             video_lookup: dict,
                             pixel_lookup: dict,
+                            self_corr_lookup: dict,
                             img_data: np.ndarray,
                             filter_fraction: float = 0.2) -> float:
     """
@@ -268,25 +269,31 @@ def calculate_merger_metric(roi0: SegmentationROI,
     ----
     If there are fewer than 2 pixels in roi0, return -999
     """
-    if roi0.mask_matrix.sum() < 2:
+    if roi0.area < 2:
         return -999.0
 
-    roi0_video = video_lookup[roi0.roi_id]
     roi1_video = video_lookup[roi1.roi_id]
 
     roi0_centroid = pixel_lookup[roi0.roi_id]['key_pixel']
 
-    roi0_corr = correlate_sub_video(roi0_video,
-                                    roi0_centroid,
-                                    filter_fraction=filter_fraction)
+    (roi0_mu,
+     roi0_std) = self_corr_lookup[roi0.roi_id]
 
     roi1_to_roi0 = correlate_sub_video(roi1_video,
                                        roi0_centroid,
                                        filter_fraction=filter_fraction)
 
-    roi0_mu = np.mean(roi0_corr)
-    roi0_std = np.std(roi0_corr, ddof=1)
-
     z_score = (roi1_to_roi0-roi0_mu)/roi0_std
     metric = np.median(z_score)
     return metric
+
+
+def get_self_correlation(sub_video, key_pixel, filter_fraction):
+    if sub_video.shape[1] < 2:
+        return (0.0, 1.0)
+
+    corr = correlate_sub_video(sub_video,
+                               key_pixel,
+                               filter_fraction=filter_fraction)
+
+    return (np.mean(corr), np.std(corr, ddof=1))

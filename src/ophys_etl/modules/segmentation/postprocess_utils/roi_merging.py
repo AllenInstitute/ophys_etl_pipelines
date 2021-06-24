@@ -14,7 +14,8 @@ from ophys_etl.modules.segmentation.\
         calculate_merger_metric,
         sub_video_from_roi,
         get_brightest_pixel,
-        get_brightest_pixel_parallel)
+        get_brightest_pixel_parallel,
+        get_self_correlation)
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.types import ExtractROI
@@ -601,6 +602,7 @@ def _calculate_merger_metric(
         roi_lookup: dict,
         video_lookup: dict,
         pixel_lookup: dict,
+        self_corr_lookup: dict,
         img_data: np.ndarray,
         filter_fraction: float,
         output_dict: multiprocessing.managers.DictProxy) -> None:
@@ -640,6 +642,7 @@ def _calculate_merger_metric(
                          roi1,
                          video_lookup,
                          pixel_lookup,
+                         self_corr_lookup,
                          img_data,
                          filter_fraction=filter_fraction)
 
@@ -648,6 +651,7 @@ def _calculate_merger_metric(
                          roi0,
                          video_lookup,
                          pixel_lookup,
+                         self_corr_lookup,
                          img_data,
                          filter_fraction=filter_fraction)
 
@@ -660,6 +664,7 @@ def get_merger_metric(potential_mergers,
                       roi_lookup,
                       video_lookup,
                       pixel_lookup,
+                      self_corr_lookup,
                       filter_fraction,
                       n_processors):
 
@@ -675,6 +680,7 @@ def get_merger_metric(potential_mergers,
                 roi_lookup,
                 video_lookup,
                 pixel_lookup,
+                self_corr_lookup,
                 None,
                 filter_fraction,
                 output_dict)
@@ -802,6 +808,57 @@ def update_key_pixel_lookup(merger_candidates,
     return pixel_lookup
 
 
+def _self_correlate_chunk(roi_id_list,
+                          sub_video_lookup,
+                          key_pixel_lookup,
+                          filter_fraction,
+                          output_dict):
+    for roi_id in roi_id_list:
+        result = get_self_correlation(sub_video_lookup[roi_id],
+                                      key_pixel_lookup[roi_id]['key_pixel'],
+                                      filter_fraction)
+        output_dict[roi_id] = result
+    return None
+
+
+def update_self_correlation(merger_candidates,
+                            sub_video_lookup,
+                            key_pixel_lookup,
+                            filter_fraction,
+                            self_corr_lookup,
+                            n_processors):
+    roi_id_list = set()
+    for pair in merger_candidates:
+        roi_id_list.add(pair[0])
+        roi_id_list.add(pair[1])
+    roi_id_list = list(roi_id_list)
+
+    mgr = multiprocessing.Manager()
+    output_dict = mgr.dict()
+    process_list = []
+    chunksize = max(1, len(roi_id_list)//(n_processors-1))
+    for i0 in range(0, len(roi_id_list), chunksize):
+        chunk = roi_id_list[i0:i0+chunksize]
+        args = (chunk,
+                sub_video_lookup,
+                key_pixel_lookup,
+                filter_fraction,
+                output_dict)
+        p = multiprocessing.Process(target=_self_correlate_chunk,
+                                    args=args)
+        p.start()
+        process_list.append(p)
+        while len(process_list)>0 and len(process_list)>=(n_processors-1):
+            process_list = _winnow_process_list(process_list)
+    for p in process_list:
+        p.join()
+
+    k_list = list(output_dict.keys())
+    for k in k_list:
+        self_corr_lookup[k] = output_dict.pop(k)
+    return self_corr_lookup
+
+
 def do_roi_merger(
       raw_roi_list: List[OphysROI],
       img_data: np.ndarray,
@@ -912,6 +969,7 @@ def do_roi_merger(
     sub_video_lookup = {}
     merger_to_metric = {}
     pixel_lookup = {}
+    self_corr_lookup = {}
 
     area_lookup = {}
     for roi_id in roi_lookup:
@@ -967,10 +1025,22 @@ def do_roi_merger(
         logger.info('updated pixel lookup '
                     f'in {time.time()-t0_pass:.2f} seconds')
 
+        self_corr_lookup = update_self_correlation(
+                               merger_candidates,
+                               sub_video_lookup,
+                               pixel_lookup,
+                               filter_fraction,
+                               self_corr_lookup,
+                               n_processors)
+
+        logger.info('updated self_corr lookup '
+                    f'in {time.time()-t0_pass:.2f} seconds')
+
         new_merger_metrics = get_merger_metric(merger_candidates,
                                                roi_lookup,
                                                sub_video_lookup,
                                                pixel_lookup,
+                                               self_corr_lookup,
                                                filter_fraction,
                                                n_processors)
 
@@ -1054,6 +1124,7 @@ def do_roi_merger(
         for roi_id in recently_merged:
             if roi_id in sub_video_lookup:
                 sub_video_lookup.pop(roi_id)
+                self_corr_lookup.pop(roi_id)
 
         # remove non-existent ROIs and ROIs whose areas
         # have significantly changed from pixel_lookup

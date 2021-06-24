@@ -1002,9 +1002,17 @@ def do_roi_merger(
                 continue
             if roi_id_1 not in valid_roi_id:
                 continue
+
+            go_ahead = True
             if roi_id_0 in recently_merged:
-                continue
+                if roi_lookup[roi_id_0].area > 1.05*area_lookup[roi_id_0]:
+                    go_ahead = False
+
             if roi_id_1 in recently_merged:
+                if roi_lookup[roi_id_1].area > 1.05*area_lookup[roi_id_1]:
+                    go_ahead = False
+
+            if not go_ahead:
                 continue
 
             if roi_lookup[roi_id_0].area > roi_lookup[roi_id_1].area:

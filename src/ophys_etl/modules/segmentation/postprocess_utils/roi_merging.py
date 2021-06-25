@@ -47,7 +47,7 @@ def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:
                        height=roi['height'],
                        mask_matrix=roi['mask'],
                        roi_id=roi['id'],
-                       valid_roi=True)
+                       valid_roi=roi['valid'])
 
     return new_roi
 
@@ -79,7 +79,7 @@ def ophys_roi_to_extract_roi(roi: OphysROI) -> ExtractROI:
                          width=roi.width,
                          height=roi.height,
                          mask=mask,
-                         valid_roi=True,
+                         valid_roi=roi.valid_roi,
                          id=roi.roi_id)
     return new_roi
 

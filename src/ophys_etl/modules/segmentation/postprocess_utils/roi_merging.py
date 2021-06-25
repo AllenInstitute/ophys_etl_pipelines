@@ -692,7 +692,7 @@ def update_key_pixel_lookup(merger_candidates,
         if roi_id not in pixel_lookup:
             needs_update = True
             s = roi_lookup[roi_id].area
-            if s >= 100:
+            if s >= 500:
                 needed_big_pixels.add(roi_id)
             else:
                 needed_small_pixels.add(roi_id)

@@ -215,13 +215,11 @@ def get_brightest_pixel(roi: SegmentationROI,
         Time series of taken from the video at the
         brightest pixel in the ROI
     """
-    t0 = time.time()
     npix = sub_video.shape[1]
     ntime = sub_video.shape[0]
     wgts = np.zeros(npix, dtype=float)
     for ipix in range(npix):
         wgts[ipix] = _self_correlate(sub_video, ipix)
-    print(f'one ROI in {time.time()-t0:.2f} -- {npix}')
 
     return _wgts_to_series(sub_video, wgts)
 

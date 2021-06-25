@@ -886,10 +886,6 @@ def do_roi_merger(
     pixel_lookup = {}
     self_corr_lookup = {}
 
-    area_lookup = {}
-    for roi_id in roi_lookup:
-        area_lookup[roi_id] = roi_lookup[roi_id].area
-
     while keep_going:
         keep_going = False
         t0_pass = time.time()
@@ -982,6 +978,11 @@ def do_roi_merger(
         wait_for_it = set()
         larger = []
         smaller = []
+
+        area_lookup = {}
+        for roi_id in roi_lookup:
+            area_lookup[roi_id] = roi_lookup[roi_id].area
+
         for merger in potential_mergers:
             roi_id_0 = merger[0]
             roi_id_1 = merger[1]
@@ -992,15 +993,19 @@ def do_roi_merger(
             if roi_id_1 not in valid_roi_id:
                 go_ahead = False
 
-            if roi_id_0 in recently_merged:
-                go_ahead = False
-            if roi_id_1 in recently_merged:
-                go_ahead = False
+            if go_ahead:
+                if roi_id_0 in recently_merged:
+                    if roi_lookup[roi_id_0].area > 1.1*area_lookup[roi_id_0]:
+                        go_ahead = False
+                if roi_id_1 in recently_merged:
+                    if roi_lookup[roi_id_1].area > 1.1*area_lookup[roi_id_1]:
+                        go_ahead = False
 
-            if roi_id_0 in wait_for_it:
-                go_ahead = False
-            if roi_id_1 in wait_for_it:
-                go_ahead = False
+            if go_ahead:
+                if roi_id_0 in wait_for_it:
+                    go_ahead = False
+                if roi_id_1 in wait_for_it:
+                    go_ahead = False
 
             if not go_ahead:
                 wait_for_it.add(roi_id_0)

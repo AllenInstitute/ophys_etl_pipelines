@@ -647,7 +647,15 @@ def _update_key_pixel_lookup(needed_pixels,
     needed_pixels = list(needed_pixels)
     for i0 in range(0, len(needed_pixels), chunksize):
         chunk = needed_pixels[i0:i0+chunksize]
-        args = (chunk, roi_lookup, sub_video_lookup, output_dict)
+        this_roi = {}
+        this_video = {}
+        for roi_id in chunk:
+            this_roi[roi_id] = roi_lookup[roi_id]
+            this_video[roi_id] = sub_video_lookup[roi_id]
+        args = (chunk,
+                this_roi,
+                this_video,
+                output_dict)
         p = multiprocessing.Process(target=_get_brightest_pixel,
                                     args=args)
         p.start()

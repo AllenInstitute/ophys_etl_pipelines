@@ -531,21 +531,23 @@ def _calculate_merger_metric(
         roi0 = roi_lookup[input_pair[0]]
         roi1 = roi_lookup[input_pair[1]]
 
-        metric01 = calculate_merger_metric(
-                         roi0,
-                         roi1,
-                         video_lookup,
-                         pixel_lookup,
-                         self_corr_lookup,
-                         filter_fraction=filter_fraction)
+        if roi0.area < 2 or roi0.area < 0.5*roi1.area:
+            metric01 = -999.0
+        else:
+            metric01 = calculate_merger_metric(
+                             self_corr_lookup[input_pair[0]],
+                             pixel_lookup[input_pair[0]]['key_pixel'],
+                             video_lookup[input_pair[1]],
+                             filter_fraction=filter_fraction)
 
-        metric10 = calculate_merger_metric(
-                         roi1,
-                         roi0,
-                         video_lookup,
-                         pixel_lookup,
-                         self_corr_lookup,
-                         filter_fraction=filter_fraction)
+        if roi1.area < 2 or roi1.area < 0.5*roi0.area:
+            metric10 = -999.0
+        else:
+            metric10 = calculate_merger_metric(
+                             self_corr_lookup[input_pair[1]],
+                             pixel_lookup[input_pair[1]]['key_pixel'],
+                             video_lookup[input_pair[0]],
+                             filter_fraction=filter_fraction)
 
         metric = max(metric01, metric10)
         output_dict[input_pair] = metric

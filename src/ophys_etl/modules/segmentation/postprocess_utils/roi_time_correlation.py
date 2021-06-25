@@ -216,11 +216,9 @@ def get_brightest_pixel(roi: SegmentationROI,
     return _wgts_to_series(sub_video, wgts)
 
 
-def calculate_merger_metric(roi0: SegmentationROI,
-                            roi1: SegmentationROI,
-                            video_lookup: dict,
-                            pixel_lookup: dict,
-                            self_corr_lookup: dict,
+def calculate_merger_metric(distribution_params,
+                            distribution_centroid,
+                            roi1_video,
                             filter_fraction: float = 0.2) -> float:
     """
     Calculate the merger metric between two ROIs
@@ -250,22 +248,16 @@ def calculate_merger_metric(roi0: SegmentationROI,
     ----
     If there are fewer than 2 pixels in roi0, return -999
     """
-    if roi0.area < 2:
-        return -999.0
 
-    roi1_video = video_lookup[roi1.roi_id]
-
-    roi0_centroid = pixel_lookup[roi0.roi_id]['key_pixel']
-
-    (roi0_mu,
-     roi0_std) = self_corr_lookup[roi0.roi_id]
+    mu = distribution_params[0]
+    std = distribution_params[1]
 
     roi1_to_roi0 = correlate_sub_video(roi1_video,
-                                       roi0_centroid,
+                                       distribution_centroid,
                                        filter_fraction=filter_fraction)
 
-    z_score = (roi1_to_roi0-roi0_mu)/roi0_std
-    metric = np.median(z_score)
+    z_score = (roi1_to_roi0-mu)/std
+    metric = np.quantile(z_score, 0.5)
     return metric
 
 

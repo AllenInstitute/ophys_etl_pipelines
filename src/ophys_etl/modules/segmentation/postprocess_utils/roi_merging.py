@@ -846,6 +846,8 @@ def do_roi_merger(
     4) Repeat steps (1-3) until no more mergers occur.
     """
 
+    anomalous_size = 800
+
     # create a lookup table of SegmentationROIs
     t0 = time.time()
     roi_lookup = create_segmentation_roi_lookup(raw_roi_list,
@@ -885,6 +887,8 @@ def do_roi_merger(
     merger_to_metric = {}
     pixel_lookup = {}
     self_corr_lookup = {}
+
+    anomalous_rois = {}
 
     while keep_going:
         keep_going = False
@@ -1044,6 +1048,20 @@ def do_roi_merger(
                 neighbor_lookup[new_roi.roi_id].add(roi_id)
                 neighbor_lookup[roi_id].add(new_roi.roi_id)
 
+        # break out any ROIs that are too large
+        k_list = list(roi_lookup.keys())
+        for roi_id in k_list:
+            if roi_lookup[roi_id].area >= anomalous_size:
+                roi = roi_lookup.pop(roi_id)
+                roi.valid_roi = False
+                anomalous_rois[roi_id] = roi
+
+                valid_roi_id.remove(roi_id)
+                neighbor_lookup.pop(roi_id)
+                sub_video_lookup.pop(roi_id)
+                self_corr_lookup.pop(roi_id)
+                pixel_lookup.pop(roi_id)
+
         # remove an obsolete ROI IDs from neighbor lookup
         for roi_id in neighbor_lookup:
             new_set = neighbor_lookup[roi_id].intersection(valid_roi_id)
@@ -1097,9 +1115,12 @@ def do_roi_merger(
         for roi_id in incoming_rois:
             if roi_id not in have_been_merged:
                 if roi_id not in roi_lookup:
-                    raise RuntimeError(f"lost track of {roi_id}")
+                    if roi_id not in anomalous_rois:
+                        raise RuntimeError(f"lost track of {roi_id}")
 
+    logger.info(f'{len(anomalous_rois)} anomalously large ROIs found '
+                f' (size >= {anomalous_size})')
     # loop over the original list of roi_ids, copying
     # any ROIs that were not merged into the output list
-    new_roi_list = list(roi_lookup.values())
+    new_roi_list = list(roi_lookup.values()) + list(anomalous_rois.values())
     return new_roi_list

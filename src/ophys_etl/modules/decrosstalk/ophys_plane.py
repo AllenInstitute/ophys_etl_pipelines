@@ -170,6 +170,10 @@ class OphysROI(object):
     def valid_roi(self) -> bool:
         return self._valid_roi
 
+    @valid_roi.setter
+    def valid_roi(self, value):
+        self._valid_roi = value
+
     @property
     def mask_matrix(self) -> np.ndarray:
         return copy.deepcopy(self._mask_matrix)

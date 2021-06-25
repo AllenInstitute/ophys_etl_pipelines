@@ -1,4 +1,5 @@
 import numpy as np
+import time
 import multiprocessing
 from ophys_etl.modules.segmentation.postprocess_utils.utils import (
     _winnow_process_list)
@@ -119,20 +120,24 @@ def _self_correlate(sub_video, i_pixel):
     npix = sub_video.shape[1]
     ntime = sub_video.shape[0]
     th = np.quantile(sub_video[:,i_pixel], 0.8)
-    mask = (sub_video[:,i_pixel]>=th)
-    sub_video = sub_video[mask, :]
+    this_mask = (sub_video[:,i_pixel]>=th)
     this_pixel = sub_video[:, i_pixel]
+    corr = np.zeros(sub_video.shape[1], dtype=float)
+    for j_pixel in range(len(corr)):
+        other = sub_video[:, j_pixel]
+        th = np.quantile(other,0.8)
+        other_mask = (other>=th)
+        mask = np.logical_or(other_mask, this_mask)
+        masked_this = this_pixel[mask]
+        masked_other = other[mask]
+        this_mu = np.mean(masked_this)
+        other_mu = np.mean(masked_other)
+        this_var = np.var(masked_this, ddof=1)
+        other_var = np.var(masked_other, ddof=1)
+        num = np.mean((masked_this-this_mu)*(masked_other-other_mu))
+        corr[j_pixel] = num/np.sqrt(this_var*other_var)
 
-    this_mu = np.mean(this_pixel)
-    other_mu = np.mean(sub_video, axis=0)
-    this_var = np.var(this_pixel, ddof=1)
-    other_var = np.var(sub_video, axis=0, ddof=1)
-
-    d_other = sub_video-other_mu
-    numerator = np.dot((this_pixel-this_mu), d_other)/ntime
-    denom = np.sqrt(other_var*this_var)
-    corr = numerator/denom
-    return np.median(corr)
+    return np.sum(corr)
 
 
 def _correlate_batch(pixel_list, sub_video, output_dict):
@@ -207,11 +212,13 @@ def get_brightest_pixel(roi: SegmentationROI,
         Time series of taken from the video at the
         brightest pixel in the ROI
     """
+    t0 = time.time()
     npix = sub_video.shape[1]
     ntime = sub_video.shape[0]
     wgts = np.zeros(npix, dtype=float)
     for ipix in range(npix):
         wgts[ipix] = _self_correlate(sub_video, ipix)
+    print(f'one ROI in {time.time()-t0:.2f} -- {npix}')
 
     return _wgts_to_series(sub_video, wgts)
 

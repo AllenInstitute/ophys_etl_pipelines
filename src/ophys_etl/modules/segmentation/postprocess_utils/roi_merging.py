@@ -977,6 +977,8 @@ def do_roi_merger(
         potential_mergers = potential_mergers[sorted_indices]
 
         recently_merged = set()
+        larger = []
+        smaller = []
         for merger in potential_mergers:
             roi_id_0 = merger[0]
             roi_id_1 = merger[1]
@@ -1006,6 +1008,8 @@ def do_roi_merger(
 
             seed_roi = roi_lookup[seed_id]
             child_roi = roi_lookup[child_id]
+            larger.append(seed_roi.area)
+            smaller.append(child_roi.area)
             keep_going = True
             new_roi = merge_segmentation_rois(seed_roi,
                                               child_roi,
@@ -1061,6 +1065,20 @@ def do_roi_merger(
 
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '
                     f'after {time.time()-t0:.2f} seconds')
+
+        if len(larger) > 0:
+            larger = np.array(larger)
+            smaller = np.array(smaller)
+            ratio = smaller/larger
+            quartiles = np.quantile(ratio, [0.25, 0.5, 0.75])
+            logger.info(f'{len(ratio)} mergers; ratios '
+                        f'{quartiles[0]:.2f} {quartiles[1]:.2f} '
+                        f'{quartiles[2]:.2f} {ratio.max() :.2f}')
+
+            quartiles = np.quantile(larger, [0.25, 0.5, 0.75])
+            logger.info('larger '
+                        f'{quartiles[0]:.2f} {quartiles[1]:.2f} '
+                        f'{quartiles[2]:.2f} {larger.max() :.2f}')
 
         # make sure we did not lose track of any ROIs
         for roi_id in incoming_rois:

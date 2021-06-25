@@ -31,13 +31,6 @@ def _wgts_to_series(sub_video, wgts):
         # gave an array of zeros
         wgts = np.ones(wgts.shape, dtype=float)
 
-    n_01 = (wgts>0.01).sum()
-    n_001 = (wgts>0.001).sum()
-    n_1 = (wgts>0.1).sum()
-    print('scaled wgts %.2e %.2e %.2e %d -- %d %d %d'
-          % (np.median(wgts), np.quantile(wgts, 0.75), wgts.max(),
-             len(wgts),n_1,n_01,n_001))
-
     key_pixel = np.dot(sub_video, wgts)
     return key_pixel/wgts.sum()
 

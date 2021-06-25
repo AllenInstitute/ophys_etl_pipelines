@@ -17,7 +17,7 @@ class VideoGenerator(object):
     video_path
         Path to the HDF5 file containing the full video data
     """
-    
+
     def __init__(self, video_path):
         quantiles = (0.1, 0.999)
         self.tmp_dir = Path(tempfile.mkdtemp(prefix='temp_dir_'))
@@ -26,7 +26,7 @@ class VideoGenerator(object):
             self.video_shape = in_file['data'].shape
 
         self.video_path = video_path
-                    
+
     def get_thumbnail_video(self,
                             origin=None,
                             frame_shape=None,
@@ -35,26 +35,26 @@ class VideoGenerator(object):
                             quality=5):
         """
         Get a ThumbnailVideo from by-hand specified parameters
-        
+
         Parameters
         ----------
         origin: Tuple[int, int]
             (rowmin, colmin) of the desired thumbnail
-        
+
         frame_shape: Tuple[int, int]
             (nrows, ncols) of the desired thumbprint
-        
+
         timesteps: Optional[np.ndarray]
             If not None, timesteps to put in the thumbnail
             video. If None, use all timesetps (default: None)
-        
+
         fps: int
             frames per second (default: 31)
-        
+
         quality: int
             quality parameter passed to imageio. Max is 10.
             (default: 5)
-        
+
         Returns
         -------
         video_utils.ThumbnailVideo
@@ -83,27 +83,27 @@ class VideoGenerator(object):
                                      fps=31):
         """
         Get a ThumbnailVideo from an ROI
-        
+
         Parameters
         ----------
         roi: ExtractROI
-        
+
         roi_color: Optional[Tuple[int, int, int]]
             If not None, the RGB color in which to plot the ROI's
             boundary. If None, ROI is not plotted in thumbnail.
             (default: None)
-        
+
         timesteps: Optional[np.ndarray]
             If not None, timesteps to put in the thumbnail
             video. If None, use all timesetps (default: None)
-        
+
         fps: int
             frames per second (default: 31)
-        
+
         quality: int
             quality parameter passed to imageio. Max is 10.
             (default: 5)
-        
+
         Returns
         -------
         video_utils.ThumbnailVideo

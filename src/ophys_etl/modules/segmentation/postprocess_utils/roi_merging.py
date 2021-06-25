@@ -891,6 +891,8 @@ def do_roi_merger(
     anomalous_rois = {}
 
     while keep_going:
+        logger.info(f'starting iteration; {len(roi_lookup)} valid ROIs; '
+                    f'{len(anomalous_rois)} anomalous ROIs')
         keep_going = False
         t0_pass = time.time()
         n0 = len(roi_lookup)

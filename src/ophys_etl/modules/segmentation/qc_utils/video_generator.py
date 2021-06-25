@@ -1,8 +1,10 @@
+from typing import Union, Optional, Tuple
 import h5py
 import numpy as np
 import tempfile
-from pathlib import Path
+import pathlib
 
+from ophys_etl.types import ExtractROI
 import ophys_etl.modules.segmentation.qc_utils.video_utils as video_utils
 
 
@@ -14,13 +16,36 @@ class VideoGenerator(object):
 
     Parameters
     ----------
-    video_path
+    video_path: Union[str, pathlib.Path]
         Path to the HDF5 file containing the full video data
+
+    tmp_dir: Optional[pathlib.Path]
+        Parent of temporary directory where thumbnail videos
+        will be written. If None, tempfile will be used to
+        create a temporary directory in /tmp/ (default: None)
     """
 
-    def __init__(self, video_path):
+    def __init__(self,
+                 video_path: Union[str, pathlib.Path],
+                 tmp_dir: Optional[pathlib.Path] = None):
+
+        if not isinstance(video_path, pathlib.Path):
+            video_path = pathlib.Path(video_path)
+        if not video_path.is_file():
+            raise RuntimeError(f'{video_path} is not a file')
+
+        # quantiles used to normalize the thumbnail video
         quantiles = (0.1, 0.999)
-        self.tmp_dir = Path(tempfile.mkdtemp(prefix='temp_dir_'))
+
+        if tmp_dir is not None:
+            if not tmp_dir.exists():
+                tmp_dir.mkdir(parents=True)
+
+        self.tmp_dir = pathlib.Path(tempfile.mkdtemp(dir=tmp_dir,
+                                                     prefix='temp_dir_'))
+
+        # read in the video data to learn the shape of the field
+        # of view and the minimum/maximum values for normalization
         with h5py.File(video_path, 'r') as in_file:
             self.min_max = np.quantile(in_file['data'][()], quantiles)
             self.video_shape = in_file['data'].shape
@@ -28,21 +53,23 @@ class VideoGenerator(object):
         self.video_path = video_path
 
     def get_thumbnail_video(self,
-                            origin=None,
-                            frame_shape=None,
-                            timesteps=None,
-                            fps=31,
-                            quality=5):
+                            origin: Optional[Tuple[int, int]] = None,
+                            frame_shape: Optional[Tuple[int, int]] = None,
+                            timesteps: Optional[np.ndarray] = None,
+                            fps: int = 31,
+                            quality: int = 5) -> video_utils.ThumbnailVideo:
         """
         Get a ThumbnailVideo from by-hand specified parameters
 
         Parameters
         ----------
-        origin: Tuple[int, int]
-            (rowmin, colmin) of the desired thumbnail
+        origin: Optional[Tuple[int, int]]
+            (rowmin, colmin) of the desired thumbnail.
+            If None, set to (0, 0) (default=None)
 
         frame_shape: Tuple[int, int]
-            (nrows, ncols) of the desired thumbprint
+            (nrows, ncols) of the desired thumbprint.
+            If None, use the whole field of view (default=None)
 
         timesteps: Optional[np.ndarray]
             If not None, timesteps to put in the thumbnail
@@ -75,12 +102,13 @@ class VideoGenerator(object):
                         min_max=self.min_max)
         return thumbnail
 
-    def get_thumbnail_video_from_roi(self,
-                                     roi=None,
-                                     roi_color=None,
-                                     timesteps=None,
-                                     quality=5,
-                                     fps=31):
+    def get_thumbnail_video_from_roi(
+                 self,
+                 roi: ExtractROI,
+                 roi_color: Optional[Tuple[int, int, int]] = None,
+                 timesteps: Optional[np.ndarray] = None,
+                 quality: int = 5,
+                 fps: int = 31):
         """
         Get a ThumbnailVideo from an ROI
 

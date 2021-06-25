@@ -167,6 +167,7 @@ def get_brightest_pixel_parallel(
         Time series of taken from the video at the
         brightest pixel in the ROI
     """
+    t0 = time.time()
     npix = sub_video.shape[1]
     chunksize = max(1, npix//(n_processors-1))
     mgr = multiprocessing.Manager()
@@ -188,6 +189,8 @@ def get_brightest_pixel_parallel(
     wgts = np.zeros(npix, dtype=float)
     for ipix in range(npix):
         wgts[ipix] = output_dict[ipix]
+
+    print(f'one ROI (parallelized) in {time.time()-t0:.2f} -- {npix}')
 
     return _wgts_to_series(sub_video, wgts)
 

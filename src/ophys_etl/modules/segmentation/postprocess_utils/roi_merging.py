@@ -706,7 +706,7 @@ def update_key_pixel_lookup(merger_candidates,
                                              n_processors)
     new_big_pixels = {}
     if len(needed_big_pixels) > 0:
-        logger.info('CALLING BIG PIXEL CORRELATION')
+        logger.info(f'CALLING BIG PIXEL CORRELATION on {len(needed_big_pixels)} ROIs')
         new_big_pixels = _update_key_pixel_lookup_per_pix(
                              needed_big_pixels,
                              roi_lookup,

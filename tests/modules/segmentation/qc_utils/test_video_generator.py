@@ -10,6 +10,8 @@ import ophys_etl.modules.segmentation.qc_utils.video_utils as video_utils
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation.qc_utils.video_generator import (
     VideoGenerator)
+from ophys_etl.modules.segmentation.qc_utils.video_display_generator import (
+    VideoDisplayGenerator)
 
 
 @pytest.fixture
@@ -156,3 +158,40 @@ def test_get_thumbnail_video_from_roi(
     assert expected.video_path.is_file()
     assert not expected.video_path == thumbnail.video_path
     compare_hashes(expected.video_path, thumbnail.video_path)
+
+
+def test_video_display_generator(tmpdir, example_video, example_roi):
+    """
+    Test that VideoDisplayGenerator creates symlinks to thumbnail
+    videos in the expected place
+    """
+
+    video_tmpdir = pathlib.Path(tmpdir) / 'video_temp'
+    generator = VideoGenerator(example_video,
+                               tmp_dir=video_tmpdir)
+
+    fps = 11
+    quality = 6
+
+    thumbnail = generator.get_thumbnail_video_from_roi(
+                                  roi=example_roi,
+                                  roi_color=(255, 0, 0),
+                                  timesteps=None,
+                                  fps=fps,
+                                  quality=quality)
+
+    # create a test class so that we do not put symlinks
+    # in the path from which the tests are being run
+    class TestDisplayGenerator(VideoDisplayGenerator):
+        def __init__(self):
+            self.this_dir = pathlib.Path(tmpdir)
+            self.tmp_dir = self.this_dir/'silly/path/to/files'
+            self.files_written = []
+
+    display_generator = TestDisplayGenerator()
+    params = display_generator.display_video(thumbnail)
+    sym_path = pathlib.Path(tmpdir) / pathlib.Path(params['data'])
+    assert sym_path.is_file()
+    assert sym_path.resolve() == thumbnail.video_path.resolve()
+    assert sym_path.is_symlink()
+    assert sym_path.absolute() != thumbnail.video_path.absolute()

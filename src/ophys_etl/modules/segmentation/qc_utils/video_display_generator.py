@@ -100,12 +100,22 @@ class VideoDisplayGenerator(object):
         params: dict
             The parameters that need to be passed as kwargs to
             IPython.display.Video to get the video to appear in the
-            notebook
+            notebook, specifically
+
+           'data' -- the path to a symlink to the video *relative
+           to the current working directory*
+
+           'width' -- as passed to this method
+
+           'height' -- as passed to this method
+
+           'embed' -- False; so that the video is not embedded in
+           the notebook
         """
         # in case another instance of this notebook accidentally
         # deleted this notebook's tmpdir
         if not self.tmp_dir.exists():
-            self.tmp_dir.mkdir()
+            self.tmp_dir.mkdir(parents=True)
 
         tmp_path = Path(tempfile.mkstemp(dir=self.tmp_dir,
                                          prefix='thumbnail_symlink_',

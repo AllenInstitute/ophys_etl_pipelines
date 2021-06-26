@@ -78,7 +78,7 @@ class VideoDisplayGenerator(object):
     def display_video(self,
                       thumbnail: video_utils.ThumbnailVideo,
                       width: int = 512,
-                      height: int = 512):
+                      height: int = 512) -> dict:
         """
         Display a video in this notebook. As a part of displaying the video,
         a symlink to the actual video is created somewhere under the directory

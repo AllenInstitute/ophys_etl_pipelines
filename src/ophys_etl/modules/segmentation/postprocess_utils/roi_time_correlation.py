@@ -241,25 +241,40 @@ def _correlate_batch(
 
 
 def get_brightest_pixel_parallel(
-        roi: SegmentationROI,
         sub_video: np.ndarray,
-        n_processors: int = 8) -> np.ndarray:
+        n_processors: int = 8,
+        filter_fraction: float = 0.2) -> np.ndarray:
     """
-    Return the brightest pixel in an ROI (as measured against
-    some image) as a time series.
+    A variant of get_brightest_pixel to be called when the
+    spatial extent of the sub video is so large that it makes
+    more sense to parallelize on a per-pixel level than a
+    per-ROI level
 
     Parameters
     ----------
-    roi: SegmentationROI
+    sub_video: np.ndarray
+        A sub_video characterizing the ROI. It has been flattened
+        in space such that the shape is (ntime, npixels)
 
-    video_data: np.ndarray
-        Shape is (ntime, nrows, ncols)
+    n_processors: int
+        Number of processors to use (default=8)
+
+    filter_fraction: float
+        The fraction of timesteps (chosen to be the brightest) to
+        keep when doing the correlation (default=0.2)
 
     Returns
     -------
-    brightest_pixel: np.ndarray
-        Time series of taken from the video at the
-        brightest pixel in the ROI
+    characteristic_pixel: np.ndarray
+        Time series characterizing the full sub_video
+
+    Notes
+    -----
+    This method returns a weighted average of all of the
+    time series in the ROI. The weights are computed by
+    calling _self_correlate on every pixel in the sub_video
+    and then using these weights to compute a single time
+    series by calling _wgts_to_series.
     """
     t0 = time.time()
     npix = sub_video.shape[1]
@@ -271,8 +286,10 @@ def get_brightest_pixel_parallel(
     for i0 in range(0, npix, chunksize):
         chunk = pix_list[i0:i0+chunksize]
         args = (chunk, sub_video, output_dict)
+        kwargs = {'filter_fraction': filter_fraction}
         p = multiprocessing.Process(target=_correlate_batch,
-                                    args=args)
+                                    args=args,
+                                    kwargs=kwargs)
         p.start()
         process_list.append(p)
         while len(process_list)>0 and len(process_list)>=(n_processors-1):

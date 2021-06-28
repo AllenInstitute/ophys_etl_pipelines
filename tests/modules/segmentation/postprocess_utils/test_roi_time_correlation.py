@@ -5,6 +5,7 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
 from ophys_etl.modules.segmentation.\
     postprocess_utils.roi_time_correlation import (
         get_brightest_pixel,
+        get_brightest_pixel_parallel,
         sub_video_from_roi,
         correlate_sub_video,
         calculate_merger_metric,
@@ -169,6 +170,26 @@ def test_get_brightest_pixel(filter_fraction):
                                actual,
                                rtol=1.0e-10,
                                atol=1.0e-10)
+
+@pytest.mark.parametrize('filter_fraction, n_processors',
+                         [(0.2, 3), (0.2, 5),
+                          (0.3, 3), (0.3, 5)])
+def test_get_brightest_pixel_parallel(
+        filter_fraction,
+        n_processors):
+    rng = np.random.RandomState(65423)
+    sub_video = rng.random_sample((100, 91))
+    expected = get_brightest_pixel(sub_video,
+                                   filter_fraction=filter_fraction)
+    actual = get_brightest_pixel_parallel(
+                 sub_video,
+                 filter_fraction=filter_fraction)
+
+    np.testing.assert_allclose(expected,
+                               actual,
+                               atol=1.0e-10,
+                               rtol=1.0e-10)
+
 
 def test_sub_video_from_roi(example_roi0):
     rng = np.random.RandomState(51433)

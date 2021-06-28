@@ -16,33 +16,55 @@ from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
 def _calculate_merger_metric(
         input_pair_list: List[Tuple[int, int]],
         video_lookup: dict,
-        pixel_lookup: dict,
+        key_pixel_lookup: dict,
         self_corr_lookup: dict,
         filter_fraction: float,
         output_dict: multiprocessing.managers.DictProxy) -> None:
     """
-    Calculate the merger metric for a pair of ROIs
+    Calculate the merger metric for pairs of ROIs
 
     Parameters
     ----------
-    input_pair: Tuple[int, int]
-        pair of roi_ids to consider for merging
-
-    roi_lookup: dict
-        Maps roi_id to SegmentationROI
+    input_pair_list: List[Tuple[int, int]]
+        List of ROI ID pairs that are being considered for merger
 
     video_lookup: dict
-        Maps roi_id to sub_video
+        A dict that maps ROI ID to sub_videos (where sub_videos
+        are flattened in space so that their shapes are
+        (ntime, npixels))
+
+    key_pixel_lookup: dict
+        A dict that maps ROI ID to the characteristic pixels
+        associated with ROIs (i.e. their characteristic
+        timeseries)
+
+    self_corr_lookup: dict
+        A dict that maps ROI ID to the (mu, std) tuples characterizing
+        the Gaussian distributions of ROI pixels with their own
+        characteristic time series
 
     filter_fraction: float
         The fraction of brightest timesteps to keep when correlating pixels
 
+    output_dict: multiprocessing.managers.DictProxy
+        The dict where results will be stored. Keys are the ROI ID
+        pair tuples. Values are the merger metric for that pair.
+
     Returns
     -------
-    result: Tuple[int, int, float]
-        The roi_ids of the pair and the largest value of the
-        merger metric yielded by calling calculate_merger_metric on
-        both permutations of the ROIs [(roi0, roi1) and (roi1, roi0)]
+    None
+
+    Notes
+    -----
+    key_pixel_lookup actually maps ROI ID to another dict.
+
+    key_pixel_lookup[roi_id]['key_pixel'] is the time series associated
+    with the roi_id
+
+    key_pixel_lookup[roi_id]['key_pixel']['area'] is the area of the
+    ROI when the key pixel time series was calculated (tracked so that
+    we don't spend too much time re-calculating these when the ROIs
+    change a very little)
     """
     for input_pair in input_pair_list:
 
@@ -57,7 +79,7 @@ def _calculate_merger_metric(
         else:
             metric01 = calculate_merger_metric(
                              self_corr_lookup[input_pair[0]],
-                             pixel_lookup[input_pair[0]]['key_pixel'],
+                             key_pixel_lookup[input_pair[0]]['key_pixel'],
                              video1,
                              filter_fraction=filter_fraction)
 
@@ -66,7 +88,7 @@ def _calculate_merger_metric(
         else:
             metric10 = calculate_merger_metric(
                              self_corr_lookup[input_pair[1]],
-                             pixel_lookup[input_pair[1]]['key_pixel'],
+                             key_pixel_lookup[input_pair[1]]['key_pixel'],
                              video0,
                              filter_fraction=filter_fraction)
 
@@ -75,12 +97,59 @@ def _calculate_merger_metric(
     return None
 
 
-def get_merger_metric(potential_mergers,
-                      video_lookup,
-                      pixel_lookup,
-                      self_corr_lookup,
-                      filter_fraction,
-                      n_processors):
+def get_merger_metric(potential_mergers: List[Tuple[int, int]],
+                      video_lookup: dict,
+                      key_pixel_lookup: dict,
+                      self_corr_lookup: dict,
+                      filter_fraction: float,
+                      n_processors: int) -> dict:
+    """
+    Calculate the merger metric for pairs of ROIs
+
+    Parameters
+    ----------
+    input_pair_list: List[Tuple[int, int]]
+        List of ROI ID pairs that are being considered for merger
+
+    video_lookup: dict
+        A dict that maps ROI ID to sub_videos (where sub_videos
+        are flattened in space so that their shapes are
+        (ntime, npixels))
+
+    key_pixel_lookup: dict
+        A dict that maps ROI ID to the characteristic pixels
+        associated with ROIs (i.e. their characteristic
+        timeseries)
+
+    self_corr_lookup: dict
+        A dict that maps ROI ID to the (mu, std) tuples characterizing
+        the Gaussian distributions of ROI pixels with their own
+        characteristic time series
+
+    filter_fraction: float
+        The fraction of brightest timesteps to keep when correlating pixels
+
+    n_processors: int
+        Number of processors to invoke with multiprocessing
+
+    Returns
+    -------
+    output: dict
+        Maps a tuple of ROI IDs to the merger metric for that
+        potential merger.
+
+    Notes
+    -----
+    key_pixel_lookup actually maps ROI ID to another dict.
+
+    key_pixel_lookup[roi_id]['key_pixel'] is the time series associated
+    with the roi_id
+
+    key_pixel_lookup[roi_id]['key_pixel']['area'] is the area of the
+    ROI when the key pixel time series was calculated (tracked so that
+    we don't spend too much time re-calculating these when the ROIs
+    change a very little)
+    """
 
     mgr = multiprocessing.Manager()
     output_dict = mgr.dict()
@@ -99,7 +168,7 @@ def get_merger_metric(potential_mergers,
         this_corr = {}
         for roi_id in this_roi_id:
             this_video[roi_id] = video_lookup[roi_id]
-            this_pixel[roi_id] = pixel_lookup[roi_id]
+            this_pixel[roi_id] = key_pixel_lookup[roi_id]
             this_corr[roi_id] = self_corr_lookup[roi_id]
 
         args = (chunk,

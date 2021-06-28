@@ -3,7 +3,7 @@ import numpy as np
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
-from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
+from ophys_etl.modules.segmentation.merge.roi_merging import (
     merge_rois,
     do_rois_abut,
     find_merger_candidates,

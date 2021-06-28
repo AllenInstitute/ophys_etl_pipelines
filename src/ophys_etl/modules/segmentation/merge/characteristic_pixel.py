@@ -14,6 +14,12 @@ from ophys_etl.modules.segmentation.\
         get_brightest_pixel,
         get_brightest_pixel_parallel)
 
+import logging
+
+logger = logging.getLogger(__name__)
+logging.captureWarnings(True)
+logging.basicConfig(level=logging.INFO)
+
 
 def _get_brightest_pixel(roi_id_list: List[int],
                          sub_video_lookup: dict,
@@ -71,13 +77,53 @@ def _update_key_pixel_lookup(needed_pixels,
     return final_output
 
 
-def update_key_pixel_lookup(merger_candidates,
-                            pixel_lookup,
-                            sub_video_lookup,
-                            n_processors):
+def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
+                            key_pixel_lookup: dict,
+                            sub_video_lookup: dict,
+                            n_processors: int) -> dict:
+    """
+    Take a list of candidate merger ROI IDs and key_pixel_lookup dict.
+    Update key_pixel_lookup dict with the key pixel time series for
+    any pixels that are missing from the lookup table.
 
-    needed_big_pixels = set()
-    needed_small_pixels = set()
+    Parameters
+    ----------
+    merger_candidates: List[Tuple[int, int]]
+        A list of tuples representing potential ROI mergers
+
+    key_pixel_lookup: dict
+        A dict mapping ROI IDs to the characteristic timeseries
+        (the "key pixels") associated with those ROIs
+
+    sub_video_lookup: dict
+        A dict mapping ROI IDs to sub-videos which have been
+        flattened in space so that their shapes are (ntime, npixels)
+
+    n_processors: int
+        The number of processors to invoke with multiprocessing
+
+    Returns
+    -------
+    key_pixel_lookup: dict
+        Updated with any key pixels that need to be added.
+
+    Notes
+    -----
+    key_pixel_lookup actually maps ROI IDs to another dict
+
+    key_pixel_lookup[roi_id]['key_pixel'] is the characteristic
+    time series of the ROI
+
+    key_pixel_lookup[roi_id]['area'] is the area of the ROI
+    at the time when the characteristic time series was calculated
+    """
+
+    # if the ROIs are larger than 500 pixels in area,
+    # their characteristic time series will be calculated
+    # by a method that is parallelized at the pixel, rather
+    # than the ROI level
+    needed_big_rois = set()
+    needed_small_rois = set()
 
     roi_to_consider = set()
     for pair in merger_candidates:
@@ -86,33 +132,33 @@ def update_key_pixel_lookup(merger_candidates,
 
     for roi_id in roi_to_consider:
         needs_update = False
-        if roi_id not in pixel_lookup:
+        if roi_id not in key_pixel_lookup:
             needs_update = True
             area = sub_video_lookup[roi_id].shape[1]
             if area >= 500:
-                needed_big_pixels.add(roi_id)
+                needed_big_rois.add(roi_id)
             else:
-                needed_small_pixels.add(roi_id)
+                needed_small_rois.add(roi_id)
 
     new_small_pixels = {}
-    if len(needed_small_pixels) > 0:
+    if len(needed_small_rois) > 0:
         new_small_pixels = _update_key_pixel_lookup(
-                                             needed_small_pixels,
+                                             needed_small_rois,
                                              sub_video_lookup,
                                              n_processors)
     new_big_pixels = {}
-    if len(needed_big_pixels) > 0:
-        logger.info(f'CALLING BIG PIXEL CORRELATION on {len(needed_big_pixels)} ROIs')
+    if len(needed_big_rois) > 0:
+        logger.info(f'CALLING BIG PIXEL CORRELATION on {len(needed_big_rois)} ROIs')
         new_big_pixels = _update_key_pixel_lookup_per_pix(
-                             needed_big_pixels,
+                             needed_big_rois,
                              sub_video_lookup,
                              n_processors)
 
     for n in new_big_pixels:
-        pixel_lookup[n] = {'area': sub_video_lookup[n].shape[1],
-                           'key_pixel': new_big_pixels[n]}
+        key_pixel_lookup[n] = {'area': sub_video_lookup[n].shape[1],
+                               'key_pixel': new_big_pixels[n]}
     for n in new_small_pixels:
-        pixel_lookup[n] = {'area': sub_video_lookup[n].shape[1],
-                           'key_pixel': new_small_pixels[n]}
+        key_pixel_lookup[n] = {'area': sub_video_lookup[n].shape[1],
+                              'key_pixel': new_small_pixels[n]}
 
-    return pixel_lookup
+    return key_pixel_lookup

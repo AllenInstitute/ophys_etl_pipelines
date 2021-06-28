@@ -168,7 +168,8 @@ def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
                             key_pixel_lookup: dict,
                             sub_video_lookup: dict,
                             filter_fraction: float,
-                            n_processors: int) -> dict:
+                            n_processors: int,
+                            size_threshold: int = 500) -> dict:
     """
     Take a list of candidate merger ROI IDs and key_pixel_lookup dict.
     Update key_pixel_lookup dict with the key pixel time series for
@@ -193,6 +194,10 @@ def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
 
     n_processors: int
         The number of processors to invoke with multiprocessing
+
+    size_threshold: int
+        The area at which an ROI gets parallelized at the pixel level
+        (default=500)
 
     Returns
     -------
@@ -227,7 +232,7 @@ def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
         if roi_id not in key_pixel_lookup:
             needs_update = True
             area = sub_video_lookup[roi_id].shape[1]
-            if area >= 500:
+            if area >= size_threshold:
                 needed_big_rois.add(roi_id)
             else:
                 needed_small_rois.add(roi_id)

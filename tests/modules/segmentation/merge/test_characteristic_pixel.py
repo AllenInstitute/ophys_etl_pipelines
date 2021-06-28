@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+from itertools import combinations
 
 from ophys_etl.modules.segmentation.merge.characteristic_pixel import (
     _update_key_pixel_lookup,
@@ -7,6 +8,7 @@ from ophys_etl.modules.segmentation.merge.characteristic_pixel import (
     update_key_pixel_lookup)
 
 from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
+    get_brightest_pixel,
     get_brightest_pixel)
 
 
@@ -24,7 +26,8 @@ def large_rois():
     video_lookup = {}
     rng = np.random.RandomState(881223)
     for ii in range(5,8,1):
-        area = rng.randint(509,622)
+        #area = rng.randint(509,622)
+        area = rng.randint(35, 45)
         video_lookup[ii] = rng.random_sample((100, area))
     return video_lookup
 
@@ -73,5 +76,46 @@ def test_update_key_pixel(small_rois,
                                        filter_fraction=filter_fraction)
         np.testing.assert_allclose(expected,
                                    result[roi_id],
+                                   atol=1.0e-10,
+                                   rtol=1.0e-10)
+
+
+@pytest.mark.parametrize('filter_fraction, n_processors',
+                          [(0.2, 2), (0.2, 3),
+                           (0.3, 2), (0.3, 3)])
+def test_full_update_key_pixel(small_rois,
+                               large_rois,
+                               filter_fraction,
+                               n_processors):
+    video_lookup = {}
+    video_lookup.update(small_rois)
+    video_lookup.update(large_rois)
+
+    merger_list = list(combinations(range(8), 2))
+    result = update_key_pixel_lookup(
+                   merger_list,
+                   {},
+                   video_lookup,
+                   filter_fraction,
+                   n_processors,
+                   size_threshold=30)
+
+    assert len(result) == (len(small_rois) + len(large_rois))
+    for roi_id in small_rois:
+        assert result[roi_id]['area'] == small_rois[roi_id].shape[1]
+        expected = get_brightest_pixel(small_rois[roi_id],
+                                       filter_fraction=filter_fraction)
+        np.testing.assert_allclose(expected,
+                                   result[roi_id]['key_pixel'],
+                                   atol=1.0e-10,
+                                   rtol=1.0e-10)
+
+    for roi_id in large_rois:
+        assert result[roi_id]['area'] == large_rois[roi_id].shape[1]
+        expected = get_brightest_pixel(
+                       large_rois[roi_id],
+                       filter_fraction=filter_fraction)
+        np.testing.assert_allclose(expected,
+                                   result[roi_id]['key_pixel'],
                                    atol=1.0e-10,
                                    rtol=1.0e-10)

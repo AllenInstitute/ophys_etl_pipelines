@@ -619,16 +619,13 @@ def _get_brightest_pixel(roi_id_list: List[int],
 
 def _update_key_pixel_lookup_per_pix(
         needed_pixels,
-        roi_lookup,
         sub_video_lookup,
         n_processors):
 
     final_output = {}
     for ipix in needed_pixels:
-        roi = roi_lookup[ipix]
         sub_video = sub_video_lookup[ipix]
         final_output[ipix] = get_brightest_pixel_parallel(
-                                      roi,
                                       sub_video,
                                       n_processors=n_processors)
 
@@ -704,7 +701,6 @@ def update_key_pixel_lookup(merger_candidates,
         logger.info(f'CALLING BIG PIXEL CORRELATION on {len(needed_big_pixels)} ROIs')
         new_big_pixels = _update_key_pixel_lookup_per_pix(
                              needed_big_pixels,
-                             roi_lookup,
                              sub_video_lookup,
                              n_processors)
 

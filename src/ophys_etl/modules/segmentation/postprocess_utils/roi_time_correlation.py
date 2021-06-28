@@ -8,7 +8,39 @@ from ophys_etl.modules.segmentation.postprocess_utils.utils import (
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
     SegmentationROI)
 
-def _wgts_to_series(sub_video, wgts):
+
+def _wgts_to_series(sub_video: np.ndarray,
+                    wgts: np.ndarray) -> np.ndarray:
+    """
+    Given a sub_video and an array of wgts,
+    compute teh weighted sum of pixel time series to get
+    a time series characterizing the sub_video.
+
+    Parameters
+    ----------
+    sub_video: np.ndarray
+        Flattened in space so that the shape is (ntime, npixels)
+
+    wgts: np.ndarray
+        An array of the npixels weights that will be used to
+        sum the time series from sub_video to create the
+        characteristic timeseries
+
+    Returns
+    -------
+    key_pixel: np.ndarray
+       A single time series characterizing the whole sub_video
+
+    Notes
+    -----
+    This algorithm will renormalize wgts by subtracting off
+    the median, setting any weights that are < 0 to 0 (thus
+    discarding anything below the median) and dividing by the
+    resulting maximum. If, for some reason, this results in
+    an array of zeros (because, for instance, all weights
+    were the same), the algorithm will reset wgts to an array
+    of ones so that all pixels are weighted equally.
+    """
     if len(wgts) == 1:
         return sub_video[:,0]
 

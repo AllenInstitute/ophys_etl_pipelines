@@ -21,28 +21,73 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
-def _get_brightest_pixel(roi_id_list: List[int],
-                         sub_video_lookup: dict,
-                         output_dict: multiprocessing.managers.DictProxy):
-    for roi_id in roi_id_list:
-        pixel = get_brightest_pixel(sub_video_lookup[roi_id])
-
-        output_dict[roi_id] = pixel
-
-
 def _update_key_pixel_lookup_per_pix(
-        needed_pixels,
-        sub_video_lookup,
-        n_processors):
+        needed_rois:  Union[List[int], Set[int]],
+        sub_video_lookup: dict,
+        n_processors: int) -> dict:
+    """
+    Method to calculate the characteristic time series of
+    ROIs, using multiprocessing to parallelize each ROI
+    on the pixel level.
+
+    Parameters
+    ----------
+    needed_rois: Union[List[int], Set[int]]
+        List or set containing the ROI IDs of the ROIs whose
+        characteristic timeseries are being calculated
+
+    sub_video_lookup: dict
+        Dict mapping ROI ID to sub-videos which have been
+        flattened in space so that their shapes are
+        (ntime, npixels)
+
+    n_processors: int
+        Number of processors to invoke with multiprocessing
+
+    Returns
+    -------
+    output: dict
+        Maps ROI ID to the characteristic timeseries for that ROI
+    """
 
     final_output = {}
-    for ipix in needed_pixels:
-        sub_video = sub_video_lookup[ipix]
-        final_output[ipix] = get_brightest_pixel_parallel(
+    for roi_id in needed_rois:
+        sub_video = sub_video_lookup[roi_id]
+        final_output[roi_id] = get_brightest_pixel_parallel(
                                       sub_video,
                                       n_processors=n_processors)
 
     return final_output
+
+
+def _get_brightest_pixel(
+        roi_id_list: List[int],
+        sub_video_lookup: dict,
+        output_dict: multiprocessing.managers.DictProxy) -> dict:
+    """
+    Method to calculate the characteristic time series of an ROI
+    and store it in a multiprocessing DictProxy
+
+    Parameters
+    ----------
+    roi_id_list: List[int]
+
+    sub_video_lookup: dict
+        Dict mapping ROI ID to sub-videos which have been
+        flattened in space so that their shapes are
+        (ntime, npixels)
+
+    output_dict: multiprocessing.managers.DictProxy
+
+    Returns
+    -------
+    None
+        Results are stored in output_dict
+    """
+    for roi_id in roi_id_list:
+        pixel = get_brightest_pixel(sub_video_lookup[roi_id])
+        output_dict[roi_id] = pixel
+    return None
 
 
 def _update_key_pixel_lookup(needed_rois: Union[List[int], Set[int]],

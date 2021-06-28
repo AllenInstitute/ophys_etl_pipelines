@@ -26,12 +26,41 @@ def _self_correlate_chunk(roi_id_list,
     return None
 
 
-def update_self_correlation(merger_candidates,
-                            sub_video_lookup,
-                            key_pixel_lookup,
-                            filter_fraction,
-                            self_corr_lookup,
-                            n_processors):
+def update_self_correlation(merger_candidates: List[Tuple[int, int]],
+                            sub_video_lookup: dict,
+                            key_pixel_lookup: dict,
+                            filter_fraction: float,
+                            n_processors: int):
+    """
+    Create the lookup table mapping ROI ID to the parameters describing
+    the self correlation distribution of the ROI's pixels (i.e. the mean
+    and standard deviation of the fiducial Gaussian)
+
+    Parameters
+    ----------
+    merger_candidates: List[Tuple[int, int]]
+        List of ROI ID pairs being considered for merger
+
+    sub_video_lookup: dict
+        Maps ROI ID to sub-videos that have been flattened in space
+        so that their shapes are (ntime, npixels)
+
+    key_pixel_lookup: dict
+        Maps ROI ID to the characteristic timeseries of the ROI
+
+    filter_fraction: float
+        The fraction of timesteps to use when doing time correlations
+
+    n_processors: int
+        The number of processors to invoke with multiprocessing
+
+    Returns
+    -------
+    self_corr_lookup: dict
+        Maps ROI ID to a tuple of two floats containing the
+        mean and standard deviation of the corresponding ROI's
+        self-correlation distribution
+    """
     roi_id_list = set()
     for pair in merger_candidates:
         roi_id_list.add(pair[0])
@@ -63,6 +92,7 @@ def update_self_correlation(merger_candidates,
     for p in process_list:
         p.join()
 
+    self_corr_lookup = {}
     k_list = list(output_dict.keys())
     for k in k_list:
         self_corr_lookup[k] = output_dict.pop(k)

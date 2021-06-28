@@ -230,7 +230,6 @@ def do_roi_merger(
     sub_video_lookup = {}
     merger_to_metric = {}
     pixel_lookup = {}
-    self_corr_lookup = {}
 
     anomalous_rois = {}
 
@@ -291,7 +290,6 @@ def do_roi_merger(
                                sub_video_lookup,
                                pixel_lookup,
                                filter_fraction,
-                               self_corr_lookup,
                                n_processors)
 
         logger.info('updated self_corr lookup '
@@ -405,7 +403,6 @@ def do_roi_merger(
                 valid_roi_id.remove(roi_id)
                 neighbor_lookup.pop(roi_id)
                 sub_video_lookup.pop(roi_id)
-                self_corr_lookup.pop(roi_id)
                 pixel_lookup.pop(roi_id)
 
         # remove an obsolete ROI IDs from neighbor lookup
@@ -418,7 +415,6 @@ def do_roi_merger(
         for roi_id in recently_merged:
             if roi_id in sub_video_lookup:
                 sub_video_lookup.pop(roi_id)
-                self_corr_lookup.pop(roi_id)
 
         # remove non-existent ROIs and ROIs whose areas
         # have significantly changed from pixel_lookup

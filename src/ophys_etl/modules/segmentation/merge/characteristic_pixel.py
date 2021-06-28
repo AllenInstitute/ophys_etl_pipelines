@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Tuple, Union
+from typing import List, Optional, Dict, Tuple, Union, Set
 from functools import partial
 from itertools import combinations
 import multiprocessing
@@ -45,17 +45,41 @@ def _update_key_pixel_lookup_per_pix(
     return final_output
 
 
-def _update_key_pixel_lookup(needed_pixels,
-                             sub_video_lookup,
-                             n_processors):
-    chunksize = len(needed_pixels)//(4*n_processors-1)
+def _update_key_pixel_lookup(needed_rois: Union[List[int], Set[int]],
+                             sub_video_lookup: dict,
+                             n_processors: int) -> dict:
+    """
+    Method to calculate the characteristic time series of
+    ROIs, using multiprocessing to process multiple ROIs
+    in parallel
+
+    Parameters
+    ----------
+    needed_rois: Union[List[int], Set[int]]
+        List or set containing the ROI IDs of the ROIs whose
+        characteristic timeseries are being calculated
+
+    sub_video_lookup: dict
+        Dict mapping ROI ID to sub-videos which have been
+        flattened in space so that their shapes are
+        (ntime, npixels)
+
+    n_processors: int
+        Number of processors to invoke with multiprocessing
+
+    Returns
+    -------
+    output: dict
+        Maps ROI ID to the characteristic timeseries for that ROI
+    """
+    chunksize = len(needed_rois)//(4*n_processors-1)
     chunksize = max(chunksize, 1)
     mgr = multiprocessing.Manager()
     output_dict = mgr.dict()
     process_list = []
-    needed_pixels = list(needed_pixels)
-    for i0 in range(0, len(needed_pixels), chunksize):
-        chunk = needed_pixels[i0:i0+chunksize]
+    needed_rois = list(needed_rois)
+    for i0 in range(0, len(needed_rois), chunksize):
+        chunk = needed_rois[i0:i0+chunksize]
         this_video = {}
         for roi_id in chunk:
             this_video[roi_id] = sub_video_lookup[roi_id]

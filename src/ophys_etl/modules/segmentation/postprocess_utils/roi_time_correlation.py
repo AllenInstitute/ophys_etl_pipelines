@@ -1,6 +1,8 @@
+from typing import Union, List
 import numpy as np
 import time
 import multiprocessing
+import multiprocessing.managers
 from ophys_etl.modules.segmentation.postprocess_utils.utils import (
     _winnow_process_list)
 from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
@@ -168,10 +170,42 @@ def _self_correlate(sub_video: np.ndarray,
     return np.sum(corr)
 
 
-def _correlate_batch(pixel_list, sub_video, output_dict):
+def _correlate_batch(
+        pixel_list: Union[List[int], np.ndarray],
+        sub_video: np.ndarray,
+        output_dict: Union[dict, multiprocessing.managers.DictProxy],
+        filter_fraction: float = 0.2) -> None:
+    """
+    Run _self_correlate on a batch of pixels (for use when processing
+    a sub_video with multiprocessing)
+
+    Parameters
+    ----------
+    pixel_list: Union[List[int], np.ndarray]
+        List or array of pixel indices to be passed to _self_correlate
+        as i_pixel
+
+    sub_video: np.ndarray
+        Flattened in space so that the shape is (ntime, npixels)
+
+    output_dict: Union[dict, multiprocessing.managers.DictProxy]
+        Dict where output will be kept. Keys are the values in
+        pixel_list; values are the results of calling _self_correlate.
+
+    filter_fraction: float
+        The fraction of timesteps (chosen to be the brightest) to
+        keep when doing the correlation (default=0.2)
+
+    Returns
+    -------
+    None
+    """
     for ipix in pixel_list:
-        value = _self_correlate(sub_video, ipix)
+        value = _self_correlate(sub_video,
+                                ipix,
+                                filter_fraction=filter_fraction)
         output_dict[ipix] = value
+    return None
 
 
 def get_brightest_pixel_parallel(

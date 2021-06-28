@@ -8,7 +8,8 @@ from ophys_etl.modules.segmentation.\
         sub_video_from_roi,
         correlate_sub_video,
         calculate_merger_metric,
-        _self_correlate)
+        _self_correlate,
+        _correlate_batch)
 
 
 @pytest.fixture
@@ -78,6 +79,21 @@ def test_self_correlate(example_video, i_pixel, filter_fraction):
                                                   i_pixel,
                                                   filter_fraction))
 
+@pytest.mark.parametrize('filter_fraction',
+                         [0.2, 0.3, 0.4])
+def test_correlate_batch(example_video, filter_fraction):
+    example_video = example_video.reshape(example_video.shape[0], -1)
+    pixel_list = np.array([4, 6, 110, 2000, 300])
+    output_dict = {}
+    _correlate_batch(pixel_list,
+                     example_video,
+                     output_dict,
+                     filter_fraction=filter_fraction)
+    for ipix in pixel_list:
+        expected = _self_correlate(example_video,
+                                   ipix,
+                                   filter_fraction=filter_fraction)
+        assert np.abs(expected-output_dict[ipix]) < 1.0e-6
 
 def test_get_brightest_pixel(example_roi0):
     ntime = 100

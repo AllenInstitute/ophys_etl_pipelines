@@ -116,16 +116,44 @@ def correlate_sub_video(sub_video: np.ndarray,
     return corr
 
 
-def _self_correlate(sub_video, i_pixel):
+def _self_correlate(sub_video: np.ndarray,
+                    i_pixel: int,
+                    filter_fraction: float = 0.2) -> float:
+    """
+    Correlate one pixel in a sub video against all other pixels in
+    that sub video. Return the sum of the correlation coefficients
+
+    Parameters
+    ----------
+    sub_video: np.ndarray
+        Flattened in space so that the shape is (ntime, npixels)
+
+    i_pixel: int
+        The index of the pixel being correlated
+
+    filter_fraction: float
+        The fraction of timesteps (chosen to be the brightest) to
+        keep when doing the correlation (default=0.2)
+
+    Returns
+    -------
+    corr: float
+        The sum of the Pearson correlation coefficients relating each
+        other pixel to i_pixel. When comparing each pair of pixels,
+        use the union of the (1-filter_fraction) brightest
+        timesteps for i_pixel and the (1-filter_fraction) brightest
+        timesteps for the other pixel
+    """
+    discard = 1.0-filter_fraction
     npix = sub_video.shape[1]
     ntime = sub_video.shape[0]
-    th = np.quantile(sub_video[:,i_pixel], 0.8)
+    th = np.quantile(sub_video[:,i_pixel], discard)
     this_mask = (sub_video[:,i_pixel]>=th)
     this_pixel = sub_video[:, i_pixel]
     corr = np.zeros(sub_video.shape[1], dtype=float)
     for j_pixel in range(len(corr)):
         other = sub_video[:, j_pixel]
-        th = np.quantile(other,0.8)
+        th = np.quantile(other, discard)
         other_mask = (other>=th)
         mask = np.logical_or(other_mask, this_mask)
         masked_this = this_pixel[mask]

@@ -7,7 +7,8 @@ from ophys_etl.modules.segmentation.\
         get_brightest_pixel,
         sub_video_from_roi,
         correlate_sub_video,
-        calculate_merger_metric)
+        calculate_merger_metric,
+        _self_correlate)
 
 
 @pytest.fixture
@@ -40,6 +41,42 @@ def example_roi1():
                                                   (8, 13)).astype(bool))
 
     return roi
+
+
+@pytest.fixture
+def example_video():
+    rng = np.random.RandomState(1172312)
+    data = rng.random_sample((100, 50, 50))
+    return data
+
+
+@pytest.mark.parametrize('i_pixel, filter_fraction',
+                         [(22, 0.2), (22, 0.4),
+                          (13, 0.2), (13, 0.4)])
+def test_self_correlate(example_video, i_pixel, filter_fraction):
+
+    example_video = example_video.reshape(example_video.shape[0], -1)
+    this_pixel = example_video[:, i_pixel]
+    th = np.quantile(this_pixel, 1.0-filter_fraction)
+    this_mask = (this_pixel >= th)
+    expected = np.zeros(example_video.shape[1], dtype=float)
+    for i_other in range(example_video.shape[1]):
+        other_pixel = example_video[:, i_other]
+        th = np.quantile(other_pixel, 1.0-filter_fraction)
+        other_mask = (other_pixel >= th)
+        mask = np.logical_or(this_mask, other_mask)
+        p0 = this_pixel[mask]
+        p1 = other_pixel[mask]
+
+        denom = np.sqrt(np.var(p0, ddof=1)*np.var(p1, ddof=1))
+        num = np.mean((p0-np.mean(p0))*(p1-np.mean(p1)))
+
+        expected[i_other] = num/denom
+
+    np.testing.assert_array_equal(expected.sum(),
+                                  _self_correlate(example_video,
+                                                  i_pixel,
+                                                  filter_fraction))
 
 
 def test_get_brightest_pixel(example_roi0):

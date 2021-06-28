@@ -54,7 +54,7 @@ def whole_dataset():
 
     roi_list = []
     roi_id = 0
-    for ii in range(30):
+    for ii in range(4):
         x0 = rng.randint(14, 61)
         y0 = rng.randint(14, 61)
         height = rng.randint(12, 18)

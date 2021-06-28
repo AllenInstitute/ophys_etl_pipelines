@@ -1,9 +1,9 @@
 import pytest
 import numpy as np
-from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
+from ophys_etl.modules.segmentation.merge.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.segmentation.\
-    postprocess_utils.roi_time_correlation import (
+    merge.roi_time_correlation import (
         get_brightest_pixel,
         get_brightest_pixel_parallel,
         sub_video_from_roi,

@@ -7,8 +7,8 @@ import json
 from ophys_etl.modules.segmentation.modules.schemas import \
     RoiMergerSchema
 
-import ophys_etl.modules.segmentation.postprocess_utils.roi_merging as merging
-from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
+import ophys_etl.modules.segmentation.merge.roi_merging as merging
+from ophys_etl.modules.segmentation.merge.roi_types import (
     SegmentationROI)
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 import networkx

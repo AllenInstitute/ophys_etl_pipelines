@@ -291,7 +291,8 @@ def get_brightest_pixel_parallel(
 
 
 def get_brightest_pixel(
-        sub_video: np.ndarray) -> np.ndarray:
+        sub_video: np.ndarray,
+        filter_fraction: float = 0.2) -> np.ndarray:
     """
     Return a single time series that can characterize an
     entire ROI
@@ -302,9 +303,13 @@ def get_brightest_pixel(
         A sub_video characterizing the ROI. It has been flattened
         in space such that the shape is (ntime, npixels)
 
+    filter_fraction: float
+        The fraction of timesteps (chosen to be the brightest) to
+        keep when doing the correlation (default=0.2)
+
     Returns
     -------
-    brightest_pixel: np.ndarray
+    characteristic_pixel: np.ndarray
         Time series of taken from the video at the
         brightest pixel in the ROI
 
@@ -319,7 +324,9 @@ def get_brightest_pixel(
     npix = sub_video.shape[1]
     wgts = np.zeros(npix, dtype=float)
     for ipix in range(npix):
-        wgts[ipix] = _self_correlate(sub_video, ipix)
+        wgts[ipix] = _self_correlate(sub_video,
+                                     ipix,
+                                     filter_fraction=filter_fraction)
 
     return _wgts_to_series(sub_video, wgts)
 

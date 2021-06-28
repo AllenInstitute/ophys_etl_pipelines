@@ -151,15 +151,20 @@ def test_wgts_to_series():
                                rtol=1.0e-10)
 
 
-def test_get_brightest_pixel():
+@pytest.mark.parametrize('filter_fraction',
+                         [0.1, 0.2, 0.3, 0.4])
+def test_get_brightest_pixel(filter_fraction):
     rng = np.random.RandomState(7123412)
     sub_video = rng.random_sample((100, 20))
     wgts = np.zeros(20, dtype=float)
     for ipix in range(20):
-        wgts[ipix] = _self_correlate(sub_video, ipix)
+        wgts[ipix] = _self_correlate(sub_video,
+                                     ipix,
+                                     filter_fraction=filter_fraction)
     assert len(np.unique(wgts)) == len(wgts)
     expected = _wgts_to_series(sub_video, wgts)
-    actual = get_brightest_pixel(sub_video)
+    actual = get_brightest_pixel(sub_video,
+                                 filter_fraction=filter_fraction)
     np.testing.assert_allclose(expected,
                                actual,
                                rtol=1.0e-10,

@@ -1,4 +1,4 @@
-from typing import Union, List
+from typing import Union, List, Tuple
 import numpy as np
 import time
 import multiprocessing
@@ -348,22 +348,30 @@ def get_brightest_pixel(
     return _wgts_to_series(sub_video, wgts)
 
 
-def calculate_merger_metric(distribution_params,
-                            distribution_centroid,
-                            roi1_video,
+def calculate_merger_metric(distribution_params: Tuple[float, float],
+                            distribution_centroid: np.ndarray,
+                            roi1_video: np.ndarray,
                             filter_fraction: float = 0.2) -> float:
     """
-    Calculate the merger metric between two ROIs
+    Calculate the merger metric between two ROIs by correlating
+    the pixels in one ROI to the characteristic timescale of the other
+    ROI and comparing the distribution of values to a fiducial Gaussian
+    pre-computed by correlating the pixels in the reference ROI to
+    its own characteristic time series.
 
     Parameters
     ----------
-    roi0: SegmentationROI
+    distribution_params: Tuple[float, float]
+        (mu, std) -- the mean and standard deviation of the fiducial
+        Gaussian distribution
 
-    roi1: SegmentationROI
+    distribution_centroid: np.ndarray
+        The characteristic timeseries (calculated with get_brightest_pixel)
+        of the ROI used to create the fiducial Gaussian distribution
 
-    video_lookup: dict
-        A dict mapping roi_id to sub-videos like those produced
-        by sub_video_from_roi
+    roi1_video: np.ndarray
+        The sub-video corresponding to the other (non-fiducial) ROI,
+        flattened in space so that its shape is (ntime, npixels)
 
     filter_fraction: float
         The fraction of time steps to keep when doing
@@ -373,12 +381,8 @@ def calculate_merger_metric(distribution_params,
     -------
     metric: float
         The median z-score of the correlation of roi1's
-        pixels to the brightest pixel in roi0 relative
-        to the distribution of roi0's pixels to the same.
-
-    Note
-    ----
-    If there are fewer than 2 pixels in roi0, return -999
+        pixels to distribution_centroid relative to the Gaussian
+        distribution specified by distribution_params.
     """
 
     mu = distribution_params[0]

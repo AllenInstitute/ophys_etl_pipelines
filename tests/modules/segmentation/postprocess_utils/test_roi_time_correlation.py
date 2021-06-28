@@ -239,56 +239,21 @@ def test_correlate_sub_video(filter_fraction):
 
 
 @pytest.mark.parametrize('filter_fraction', [0.1, 0.2, 0.3])
-def test_calculate_merger_metric(example_roi0, example_roi1, filter_fraction):
-    rng = np.random.RandomState(7612)
-    nt = 100
-    nr = 50
-    nc = 50
-    video_data = rng.random_sample((nt, nr, nc))
-    img_data = rng.random_sample((nr, nc))
+def test_calculate_merger_metric(filter_fraction):
+    rng = np.random.RandomState(123412)
+    sub_video = rng.random_sample((100, 20))
+    key_pixel = rng.random_sample(100)
+    distribution_params = (rng.random_sample(), rng.random_sample())
 
-    video_lookup = {}
-    video_lookup[example_roi0.roi_id] = sub_video_from_roi(example_roi0,
-                                                           video_data)
+    actual = calculate_merger_metric(
+                    distribution_params,
+                    key_pixel,
+                    sub_video,
+                    filter_fraction=filter_fraction)
 
-    video_lookup[example_roi1.roi_id] = sub_video_from_roi(example_roi1,
-                                                           video_data)
-
-    # brute force get brightest pixel
-    brightest_pixel = {}
-    for roi in (example_roi0, example_roi1):
-        mask = roi.mask_matrix
-        pixel = None
-        flux = None
-        for ir in range(mask.shape[0]):
-            for ic in range(mask.shape[1]):
-                if not mask[ir, ic]:
-                    continue
-                if flux is None or img_data[roi.y0+ir, roi.x0+ic] > flux:
-                    flux = img_data[roi.y0+ir, roi.x0+ic]
-                    pixel = video_data[:, roi.y0+ir, roi.x0+ic]
-        brightest_pixel[roi.roi_id] = pixel
-
-    for roi_pair in ((example_roi0, example_roi1),
-                     (example_roi1, example_roi0)):
-        roi0 = roi_pair[0]
-        roi1 = roi_pair[1]
-        key_pixel = brightest_pixel[roi0.roi_id]
-        corr0 = correlate_sub_video(video_lookup[roi0.roi_id],
-                                    key_pixel,
-                                    filter_fraction=filter_fraction)
-        corr1 = correlate_sub_video(video_lookup[roi1.roi_id],
-                                    key_pixel,
-                                    filter_fraction=filter_fraction)
-
-        mu = np.mean(corr0)
-        std = np.std(corr0, ddof=1)
-        z_score = ((corr1-mu)/std)
-        expected = np.median(z_score)
-        actual = calculate_merger_metric(roi0,
-                                         roi1,
-                                         video_lookup,
-                                         img_data,
-                                         filter_fraction=filter_fraction)
-        assert np.abs(expected) > 0.0
-        assert np.abs((expected-actual)/expected) < 1.0e-10
+    corr = correlate_sub_video(sub_video,
+                               key_pixel,
+                               filter_fraction=filter_fraction)
+    z_score = (corr-distribution_params[0])/distribution_params[1]
+    expected = np.median(z_score)
+    assert np.abs((actual-expected)/expected) < 1.0e-10

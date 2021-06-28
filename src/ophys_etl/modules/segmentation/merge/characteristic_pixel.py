@@ -24,6 +24,7 @@ logging.basicConfig(level=logging.INFO)
 def _update_key_pixel_lookup_per_pix(
         needed_rois:  Union[List[int], Set[int]],
         sub_video_lookup: dict,
+        filter_fraction:float,
         n_processors: int) -> dict:
     """
     Method to calculate the characteristic time series of
@@ -41,6 +42,10 @@ def _update_key_pixel_lookup_per_pix(
         flattened in space so that their shapes are
         (ntime, npixels)
 
+    filter_fraction: float
+        The fraction of timesteps (chosen to be the brightest) to
+        keep when doing the correlation.
+
     n_processors: int
         Number of processors to invoke with multiprocessing
 
@@ -55,6 +60,7 @@ def _update_key_pixel_lookup_per_pix(
         sub_video = sub_video_lookup[roi_id]
         final_output[roi_id] = get_brightest_pixel_parallel(
                                       sub_video,
+                                      filter_fraction=filter_fraction,
                                       n_processors=n_processors)
 
     return final_output
@@ -63,6 +69,7 @@ def _update_key_pixel_lookup_per_pix(
 def _get_brightest_pixel(
         roi_id_list: List[int],
         sub_video_lookup: dict,
+        filter_fraction: float,
         output_dict: multiprocessing.managers.DictProxy) -> dict:
     """
     Method to calculate the characteristic time series of an ROI
@@ -77,6 +84,10 @@ def _get_brightest_pixel(
         flattened in space so that their shapes are
         (ntime, npixels)
 
+    filter_fraction: float
+        The fraction of timesteps (chosen to be the brightest) to
+        keep when doing the correlation.
+
     output_dict: multiprocessing.managers.DictProxy
 
     Returns
@@ -85,13 +96,15 @@ def _get_brightest_pixel(
         Results are stored in output_dict
     """
     for roi_id in roi_id_list:
-        pixel = get_brightest_pixel(sub_video_lookup[roi_id])
+        pixel = get_brightest_pixel(sub_video_lookup[roi_id],
+                                    filter_fraction=filter_fraction)
         output_dict[roi_id] = pixel
     return None
 
 
 def _update_key_pixel_lookup(needed_rois: Union[List[int], Set[int]],
                              sub_video_lookup: dict,
+                             filter_fraction: float,
                              n_processors: int) -> dict:
     """
     Method to calculate the characteristic time series of
@@ -108,6 +121,10 @@ def _update_key_pixel_lookup(needed_rois: Union[List[int], Set[int]],
         Dict mapping ROI ID to sub-videos which have been
         flattened in space so that their shapes are
         (ntime, npixels)
+
+    filter_fraction: float
+        The fraction of timesteps (chosen to be the brightest) to
+        keep when doing the correlation.
 
     n_processors: int
         Number of processors to invoke with multiprocessing
@@ -130,6 +147,7 @@ def _update_key_pixel_lookup(needed_rois: Union[List[int], Set[int]],
             this_video[roi_id] = sub_video_lookup[roi_id]
         args = (chunk,
                 this_video,
+                filter_fraction,
                 output_dict)
         p = multiprocessing.Process(target=_get_brightest_pixel,
                                     args=args)
@@ -149,6 +167,7 @@ def _update_key_pixel_lookup(needed_rois: Union[List[int], Set[int]],
 def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
                             key_pixel_lookup: dict,
                             sub_video_lookup: dict,
+                            filter_fraction: float,
                             n_processors: int) -> dict:
     """
     Take a list of candidate merger ROI IDs and key_pixel_lookup dict.
@@ -167,6 +186,10 @@ def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
     sub_video_lookup: dict
         A dict mapping ROI IDs to sub-videos which have been
         flattened in space so that their shapes are (ntime, npixels)
+
+    filter_fraction: float
+        The fraction of timesteps (chosen to be the brightest) to
+        keep when doing the correlation.
 
     n_processors: int
         The number of processors to invoke with multiprocessing
@@ -214,6 +237,7 @@ def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
         new_small_pixels = _update_key_pixel_lookup(
                                              needed_small_rois,
                                              sub_video_lookup,
+                                             filter_fraction,
                                              n_processors)
     new_big_pixels = {}
     if len(needed_big_rois) > 0:
@@ -221,6 +245,7 @@ def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
         new_big_pixels = _update_key_pixel_lookup_per_pix(
                              needed_big_rois,
                              sub_video_lookup,
+                             filter_fraction,
                              n_processors)
 
     for n in new_big_pixels:

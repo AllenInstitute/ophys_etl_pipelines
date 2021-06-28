@@ -332,7 +332,8 @@ def do_roi_merger(
                           merger_candidates,
                           pixel_lookup,
                           sub_video_lookup,
-                          n_processors)
+                          filter_fraction=0.2,
+                          n_processors=n_processors)
 
 
         logger.info('updated pixel lookup '

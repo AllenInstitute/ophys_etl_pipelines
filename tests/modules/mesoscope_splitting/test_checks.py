@@ -1,5 +1,7 @@
 import json
 import pytest
+import numpy as np
+from pathlib import Path
 from contextlib import nullcontext
 
 import ophys_etl.modules.mesoscope_splitting.checks as checks
@@ -83,3 +85,20 @@ def test_splitting_consistency_check(mock_tiff_list, roi_indices,
               for tiff, roi_index in zip(mock_tiff_list, roi_indices)]
     with context:
         checks.splitting_consistency_check(mylist)
+
+
+class MockMesoscopeTiff():
+    def __init__(self, path):
+        self._source = path
+        return
+
+    @property
+    def plane_scans(self):
+        return np.array([-25, 15, 80, 90, 15, 120, 130, 180])
+
+
+def test_check_for_repeated_planes(tmpdir):
+    placeholder = Path(tmpdir / "tmp.tiff")
+    with pytest.raises(ValueError,
+                       match=f"{placeholder.name} has a repeated*"):
+        checks.check_for_repeated_planes(MockMesoscopeTiff(placeholder))

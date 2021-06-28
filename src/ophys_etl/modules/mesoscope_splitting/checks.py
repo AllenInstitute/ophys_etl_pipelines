@@ -1,9 +1,11 @@
 import sys
 import numpy as np
+import pandas as pd
 from typing import List
 from pathlib import Path
 
 from ophys_etl.modules.mesoscope_splitting.tiff import tiff_header_data
+from ophys_etl.modules.mesoscope_splitting.tiff import MesoscopeTiff
 
 if sys.version_info >= (3, 8):
     from typing import TypedDict
@@ -73,3 +75,29 @@ def splitting_consistency_check(check_list: List[ConsistencyInput]):
         raise errors[0]
     else:
         raise MultiException(errors)
+
+
+def check_for_repeated_planes(timeseries_tiff: MesoscopeTiff):
+    """checks that the timeseries tiff has unique z values for all
+    recorded z planes.
+
+    Parameters
+    ----------
+    timeseries_tiff: MesoscopeTiff
+        an instance created from a session timeseries tiff - a tiff
+        with the multiplexed experiment frames interleaved.
+
+    Raises
+    ------
+    ValueError
+        if there are repeated z values
+
+    """
+    u_plane_scans, counts = np.unique(timeseries_tiff.plane_scans,
+                                      return_counts=True)
+    if timeseries_tiff.plane_scans.size != u_plane_scans.size:
+        result = [{"z_value": z, "count": c}
+                  for z, c in zip(u_plane_scans, counts)]
+        dframe = pd.DataFrame.from_records(result).set_index("z_value")
+        raise ValueError(f"{timeseries_tiff._source} has a repeated plane z "
+                         f"value:\n {dframe}")

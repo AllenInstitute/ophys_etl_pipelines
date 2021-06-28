@@ -13,8 +13,7 @@ from ophys_etl.modules.mesoscope_splitting.conversion_utils import (
 from ophys_etl.modules.mesoscope_splitting.metadata import SI_stringify_floats
 from ophys_etl.modules.mesoscope_splitting.schemas import (
     InputSchema, OutputSchema)
-from ophys_etl.modules.mesoscope_splitting.checks import (
-        ConsistencyInput, splitting_consistency_check)
+from ophys_etl.modules.mesoscope_splitting import checks
 
 
 def mock_h5(*args, **kwargs):
@@ -269,6 +268,10 @@ def main():
     mod = ArgSchemaParser(schema_type=InputSchema,
                           output_schema_type=OutputSchema)
 
+    # check for repeated z value
+    ts_mesoscope_tiff = MesoscopeTiff(mod.args["timeseries_tif"])
+    checks.check_for_repeated_planes(ts_mesoscope_tiff)
+
     # check consistency between input json and tiff headers
     check_list = []
     for plane_group in mod.args["plane_groups"]:
@@ -276,8 +279,10 @@ def main():
         roi_index = list({i["roi_index"]
                           for i in plane_group["ophys_experiments"]})
         check_list.append(
-            ConsistencyInput(tiff=pg_tiff, roi_index=roi_index))
-    splitting_consistency_check(check_list)
+            checks.ConsistencyInput(tiff=pg_tiff, roi_index=roi_index))
+    checks.splitting_consistency_check(check_list)
+
+    # end checks
 
     if mod.args['test_mode']:
         global volume_to_h5, volume_to_tif
@@ -335,7 +340,6 @@ def main():
                                          experiments,
                                          "depth")
 
-    ts_mesoscope_tiff = MesoscopeTiff(mod.args["timeseries_tif"])
     ts_outs, ts_meta = split_timeseries(ts_mesoscope_tiff,
                                         experiments)
 

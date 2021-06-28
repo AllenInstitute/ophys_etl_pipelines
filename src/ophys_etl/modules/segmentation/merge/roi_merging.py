@@ -20,7 +20,7 @@ from ophys_etl.modules.segmentation.merge.candidates import (
     find_merger_candidates)
 
 from ophys_etl.modules.segmentation.merge.metric import (
-    get_merger_metric)
+    get_merger_metric_from_pairs)
 
 from ophys_etl.modules.segmentation.\
     merge.roi_time_correlation import (
@@ -455,12 +455,13 @@ def do_roi_merger(
         logger.info('updated self_corr lookup '
                     f'in {time.time()-t0_pass:.2f} seconds')
 
-        new_merger_metrics = get_merger_metric(merger_candidates,
-                                               sub_video_lookup,
-                                               pixel_lookup,
-                                               self_corr_lookup,
-                                               filter_fraction,
-                                               n_processors)
+        new_merger_metrics = get_merger_metric_from_pairs(
+                                   merger_candidates,
+                                   sub_video_lookup,
+                                   pixel_lookup,
+                                   self_corr_lookup,
+                                   filter_fraction,
+                                   n_processors)
 
         logger.info(f'calculated metrics after {time.time()-t0_pass:.2f}')
 

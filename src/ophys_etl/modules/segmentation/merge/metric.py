@@ -97,12 +97,13 @@ def _calculate_merger_metric(
     return None
 
 
-def get_merger_metric(potential_mergers: List[Tuple[int, int]],
-                      video_lookup: dict,
-                      key_pixel_lookup: dict,
-                      self_corr_lookup: dict,
-                      filter_fraction: float,
-                      n_processors: int) -> dict:
+def get_merger_metric_from_pairs(
+        potential_mergers: List[Tuple[int, int]],
+        video_lookup: dict,
+        key_pixel_lookup: dict,
+        self_corr_lookup: dict,
+        filter_fraction: float,
+        n_processors: int) -> dict:
     """
     Calculate the merger metric for pairs of ROIs
 

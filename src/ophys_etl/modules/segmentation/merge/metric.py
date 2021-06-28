@@ -15,7 +15,6 @@ from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
 
 def _calculate_merger_metric(
         input_pair_list: List[Tuple[int, int]],
-        roi_lookup: dict,
         video_lookup: dict,
         pixel_lookup: dict,
         self_corr_lookup: dict,
@@ -47,25 +46,28 @@ def _calculate_merger_metric(
     """
     for input_pair in input_pair_list:
 
-        roi0 = roi_lookup[input_pair[0]]
-        roi1 = roi_lookup[input_pair[1]]
+        video0 = video_lookup[input_pair[0]]
+        video1 = video_lookup[input_pair[1]]
 
-        if roi0.area < 2 or roi0.area < 0.5*roi1.area:
+        area0 = video0.shape[1]
+        area1 = video1.shape[1]
+
+        if area0 < 2 or area0 < 0.5*area1:
             metric01 = -999.0
         else:
             metric01 = calculate_merger_metric(
                              self_corr_lookup[input_pair[0]],
                              pixel_lookup[input_pair[0]]['key_pixel'],
-                             video_lookup[input_pair[1]],
+                             video1,
                              filter_fraction=filter_fraction)
 
-        if roi1.area < 2 or roi1.area < 0.5*roi0.area:
+        if area1 < 2 or area1 < 0.5*area0:
             metric10 = -999.0
         else:
             metric10 = calculate_merger_metric(
                              self_corr_lookup[input_pair[1]],
                              pixel_lookup[input_pair[1]]['key_pixel'],
-                             video_lookup[input_pair[0]],
+                             video0,
                              filter_fraction=filter_fraction)
 
         metric = max(metric01, metric10)
@@ -74,7 +76,6 @@ def _calculate_merger_metric(
 
 
 def get_merger_metric(potential_mergers,
-                      roi_lookup,
                       video_lookup,
                       pixel_lookup,
                       self_corr_lookup,
@@ -93,18 +94,15 @@ def get_merger_metric(potential_mergers,
         for pair in chunk:
             this_roi_id.add(pair[0])
             this_roi_id.add(pair[1])
-        this_roi = {}
         this_video = {}
         this_pixel = {}
         this_corr = {}
         for roi_id in this_roi_id:
-            this_roi[roi_id] = roi_lookup[roi_id]
             this_video[roi_id] = video_lookup[roi_id]
             this_pixel[roi_id] = pixel_lookup[roi_id]
             this_corr[roi_id] = self_corr_lookup[roi_id]
 
         args = (chunk,
-                this_roi,
                 this_video,
                 this_pixel,
                 this_corr,

@@ -24,7 +24,6 @@ from ophys_etl.modules.segmentation.merge.metric import (
 
 from ophys_etl.modules.segmentation.\
     merge.roi_time_correlation import (
-        calculate_merger_metric,
         sub_video_from_roi,
         get_brightest_pixel,
         get_brightest_pixel_parallel,
@@ -457,7 +456,6 @@ def do_roi_merger(
                     f'in {time.time()-t0_pass:.2f} seconds')
 
         new_merger_metrics = get_merger_metric(merger_candidates,
-                                               roi_lookup,
                                                sub_video_lookup,
                                                pixel_lookup,
                                                self_corr_lookup,

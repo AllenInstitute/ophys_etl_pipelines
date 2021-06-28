@@ -11,7 +11,8 @@ from ophys_etl.modules.segmentation.\
         calculate_merger_metric,
         _self_correlate,
         _correlate_batch,
-        _wgts_to_series)
+        _wgts_to_series,
+        get_self_correlation)
 
 
 @pytest.fixture
@@ -257,3 +258,29 @@ def test_calculate_merger_metric(filter_fraction):
     z_score = (corr-distribution_params[0])/distribution_params[1]
     expected = np.median(z_score)
     assert np.abs((actual-expected)/expected) < 1.0e-10
+
+
+@pytest.mark.parametrize('filter_fraction', [0.1, 0.2, 0.3])
+def test_get_self_correlation(filter_fraction):
+    rng = np.random.RandomState(521512)
+    sub_video = rng.random_sample((100, 20))
+    key_pixel = rng.random_sample(100)
+
+    corr = correlate_sub_video(sub_video,
+                               key_pixel,
+                               filter_fraction)
+    expected = (np.mean(corr), np.std(corr, ddof=1))
+
+    actual = get_self_correlation(sub_video,
+                                  key_pixel,
+                                  filter_fraction)
+    assert np.abs((actual[0]-expected[0])/expected[0]) < 1.0e-10
+    assert np.abs((actual[1]-expected[1])/expected[1]) < 1.0e-10
+
+    # check that if there is only one pixel, we get back (0.0, 1.0)
+    sub_video = rng.random_sample((100, 1))
+    actual = get_self_correlation(sub_video,
+                                  key_pixel,
+                                  filter_fraction)
+    assert np.abs(actual[0]) < 1.0e-10
+    assert np.abs(actual[1]-1.0) < 1.0e-10

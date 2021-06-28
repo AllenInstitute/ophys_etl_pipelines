@@ -397,12 +397,45 @@ def calculate_merger_metric(distribution_params: Tuple[float, float],
     return metric
 
 
-def get_self_correlation(sub_video, key_pixel, filter_fraction):
+def get_self_correlation(sub_video: np.ndarray,
+                         characteristic_timeseries: np.ndarray,
+                         filter_fraction: float) -> Tuple[float, float]:
+    """
+    Correlate all of the pixels in a sub_video with a specified time series.
+    Return a tuple containing the mean and standard deviation of the
+    resulting correlation values.
+
+    Parameters
+    ----------
+    sub_video: np.ndarray
+        A sub-video flattened in space so that it's shape is
+        (ntime, npixels)
+
+    characteristic_timeseries: np.ndarray
+        The time series against which to correlate all of the pixels
+        in the sub-vdieo
+
+    filter_fraction: float
+        Fraction of timesteps to use when doing time correlation
+
+    Returns
+    -------
+    distribution_parameters: Tuple[float, float]
+        (mu, std) -- the mean and standard deviation of correlation
+        coefficients between pixels in the sub_video and
+        characteristic_timeseries
+
+    Notes
+    -----
+    If there are fewer than two pixels in the sub-video, the
+    Gaussian distribution implied by distribution_parameters will
+    be meaningless. This method returns (0.0, 1.0) in that case.
+    """
     if sub_video.shape[1] < 2:
         return (0.0, 1.0)
 
     corr = correlate_sub_video(sub_video,
-                               key_pixel,
+                               characteristic_timeseries,
                                filter_fraction=filter_fraction)
 
     return (np.mean(corr), np.std(corr, ddof=1))

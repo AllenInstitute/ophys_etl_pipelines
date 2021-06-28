@@ -89,6 +89,7 @@ def test_splitting_consistency_check(mock_tiff_list, roi_indices,
 
 class MockMesoscopeTiff():
     def __init__(self, path):
+        self._source = path
         return
 
     @property
@@ -96,9 +97,8 @@ class MockMesoscopeTiff():
         return np.array([-25, 15, 80, 90, 15, 120, 130, 180])
 
 
-def test_check_for_repeated_planes(monkeypatch, tmpdir):
+def test_check_for_repeated_planes(tmpdir):
     placeholder = Path(tmpdir / "tmp.tiff")
-    monkeypatch.setattr(checks, "MesoscopeTiff", MockMesoscopeTiff)
     with pytest.raises(ValueError,
                        match=f"{placeholder.name} has a repeated*"):
-        checks.check_for_repeated_planes(placeholder)
+        checks.check_for_repeated_planes(MockMesoscopeTiff(placeholder))

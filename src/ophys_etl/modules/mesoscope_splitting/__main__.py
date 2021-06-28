@@ -269,7 +269,8 @@ def main():
                           output_schema_type=OutputSchema)
 
     # check for repeated z value
-    checks.check_for_repeated_planes(Path(mod.args["timeseries_tif"]))
+    ts_mesoscope_tiff = MesoscopeTiff(mod.args["timeseries_tif"])
+    checks.check_for_repeated_planes(ts_mesoscope_tiff)
 
     # check consistency between input json and tiff headers
     check_list = []
@@ -339,7 +340,6 @@ def main():
                                          experiments,
                                          "depth")
 
-    ts_mesoscope_tiff = MesoscopeTiff(mod.args["timeseries_tif"])
     ts_outs, ts_meta = split_timeseries(ts_mesoscope_tiff,
                                         experiments)
 

@@ -77,14 +77,27 @@ def splitting_consistency_check(check_list: List[ConsistencyInput]):
         raise MultiException(errors)
 
 
-def check_for_repeated_planes(timeseries_tiff_path: Path):
+def check_for_repeated_planes(timeseries_tiff: MesoscopeTiff):
+    """checks that the timeseries tiff has unique z values for all
+    recorded z planes.
+
+    Parameters
+    ----------
+    timeseries_tiff: MesoscopeTiff
+        an instance created from a session timeseries tiff - a tiff
+        with the multiplexed experiment frames interleaved.
+
+    Raises
+    ------
+    ValueError
+        if there are repeated z values
+
     """
-    """
-    mt = MesoscopeTiff(timeseries_tiff_path)
-    u_plane_scans, counts = np.unique(mt.plane_scans, return_counts=True)
-    if mt.plane_scans.size != u_plane_scans.size:
+    u_plane_scans, counts = np.unique(timeseries_tiff.plane_scans,
+                                      return_counts=True)
+    if timeseries_tiff.plane_scans.size != u_plane_scans.size:
         result = [{"z_value": z, "count": c}
                   for z, c in zip(u_plane_scans, counts)]
         dframe = pd.DataFrame.from_records(result).set_index("z_value")
-        raise ValueError(f"{timeseries_tiff_path} has a repeated plane z "
+        raise ValueError(f"{timeseries_tiff._source} has a repeated plane z "
                          f"value:\n {dframe}")

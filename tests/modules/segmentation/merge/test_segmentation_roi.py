@@ -128,26 +128,3 @@ def test_merge_segmentation_rois(segmentation_roi_list):
 
     compare_segmentation_rois(new_roi.peak,
                               segmentation_roi_list[8])
-
-
-def test_create_segmentation_roi_lookup(ophys_roi_list):
-    """
-    really just a smoke test
-    """
-    rng = np.random.RandomState(1123)
-    img_data = rng.normal(0.0, 0.1, (100, 100))
-
-    # set pixels in ROI to be equal to roi_id values
-    for roi in ophys_roi_list:
-        x0 = roi.x0
-        x1 = roi.x0+roi.width
-        y0 = roi.y0
-        y1 = roi.y0+roi.height
-        mask = roi.mask_matrix
-        img_data[y0:y1, x0:x1][mask] = float(roi.roi_id)
-
-    lookup = create_segmentation_roi_lookup(ophys_roi_list,
-                                            img_data,
-                                            dx=20)
-    for ii in range(1, 10, 1):
-        assert np.abs(lookup[ii].flux_value-ii*10) < 5.0

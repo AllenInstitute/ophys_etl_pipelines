@@ -33,44 +33,6 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
-
-
-def chunk_size_from_processors(n_elements: int,
-                               n_cores: int,
-                               min_chunk: int,
-                               denom_factor: int = 4) -> int:
-    """
-    Given a number of data elements that need to be
-    processed and a number of available processors,
-    try to find a good chunk size so that the processors
-    are always busy.
-
-    Parameters
-    ----------
-    n_elements: int
-        The number of data elements that you are trying
-        to chunk
-
-    n_cores: int
-        The number of available cores
-
-    min_chunk: int
-        Minimum acceptable chunk_size
-
-    denom_factor: int
-        number of chunks that should ultimately be
-        sent to each core (default=4)
-
-    Returns
-    -------
-    chunk_size: int
-    """
-    chunk_size = n_elements//(denom_factor*n_cores-1)
-    if chunk_size < min_chunk:
-        chunk_size = min_chunk
-    return chunk_size
-
-
 def _find_merger_candidates(
         roi_id_pair_list: List[Tuple[int, int]],
         roi_lookup: dict,

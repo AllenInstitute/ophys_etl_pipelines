@@ -9,8 +9,6 @@ from ophys_etl.modules.segmentation.postprocess_utils.roi_merging import (
     find_merger_candidates,
     extract_roi_to_ophys_roi,
     ophys_roi_to_extract_roi,
-    get_inactive_mask,
-    get_inactive_distribution,
     do_roi_merger)
 
 

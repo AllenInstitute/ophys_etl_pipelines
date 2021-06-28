@@ -321,10 +321,10 @@ def test_do_roi_merger(whole_dataset):
     img_data = np.mean(whole_dataset['video'], axis=0)
     assert img_data.shape == whole_dataset['video'].shape[1:]
     new_roi_list = do_roi_merger(whole_dataset['roi_list'],
-                                 img_data,
                                  whole_dataset['video'],
                                  3,
-                                 2.0)
+                                 2.0,
+                                 filter_fraction=0.2)
 
     # test that some mergers were performed
     assert len(new_roi_list) > 0

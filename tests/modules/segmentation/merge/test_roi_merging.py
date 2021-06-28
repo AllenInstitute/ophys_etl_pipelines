@@ -314,64 +314,6 @@ def test_find_merger_candidates_with_ignore(dpix, example_roi_list):
                 assert m in matches
 
 
-def test_get_inactive_mask(example_roi_list):
-
-    img_shape = (33, 33)
-    inactive_mask = get_inactive_mask(img_shape,
-                                      example_roi_list)
-
-    assert inactive_mask.shape == img_shape
-    assert inactive_mask.sum() > 0
-    assert inactive_mask.sum() < 33**2
-
-    active_mask = np.zeros(img_shape, dtype=bool)
-    for roi in example_roi_list:
-        x0 = roi.x0
-        y0 = roi.y0
-        mask = roi.mask_matrix
-        for ir in range(roi.height):
-            for ic in range(roi.width):
-                if mask[ir, ic]:
-                    assert not inactive_mask[y0+ir, x0+ic]
-                    active_mask[y0+ir, x0+ic] = True
-
-    np.testing.assert_array_equal(np.logical_not(active_mask),
-                                  inactive_mask)
-
-
-@pytest.mark.parametrize("dx", [10, 15, 20])
-def test_get_inactive_distribution(example_roi_list, dx):
-    rng = np.random.RandomState(556123)
-    random_image = rng.random_sample((100, 100))
-
-    random_image[:5, :5] *= 2.0
-    random_image[3:11, 2:14] -= 13.0
-    random_image[4:11, 5:20] += rng.normal(15, 3.0, size=(7, 15))
-
-    inactive_mask = get_inactive_mask(random_image.shape,
-                                      example_roi_list)
-
-    for roi in example_roi_list:
-        (mu_test,
-         std_test) = get_inactive_distribution(random_image,
-                                               roi,
-                                               inactive_mask,
-                                               dx=dx)
-
-        xmin = max(0, roi.x0-dx)
-        xmax = xmin+roi.width+2*dx
-        ymin = max(0, roi.y0-dx)
-        ymax = ymin+roi.height+2*dx
-
-        sub_mask = inactive_mask[ymin:ymax, xmin:xmax]
-        sub_img = random_image[ymin:ymax, xmin:xmax]
-        sub_data = sub_img[sub_mask].flatten()
-        mu = np.mean(sub_data)
-        std = np.std(sub_data, ddof=1)
-        assert np.abs(mu_test-mu) < 1.0e-10
-        assert np.abs(std_test-std) < 1.0e-10
-
-
 def test_do_roi_merger(whole_dataset):
     """
     smoke test for do_roi_merger

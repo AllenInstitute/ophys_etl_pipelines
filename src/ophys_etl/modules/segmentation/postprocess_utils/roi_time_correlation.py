@@ -290,27 +290,33 @@ def get_brightest_pixel_parallel(
 
 
 
-def get_brightest_pixel(roi: SegmentationROI,
-                        sub_video: np.ndarray) -> np.ndarray:
+def get_brightest_pixel(
+        sub_video: np.ndarray) -> np.ndarray:
     """
-    Return the brightest pixel in an ROI (as measured against
-    some image) as a time series.
+    Return a single time series that can characterize an
+    entire ROI
 
     Parameters
     ----------
-    roi: SegmentationROI
-
-    video_data: np.ndarray
-        Shape is (ntime, nrows, ncols)
+    sub_video: np.ndarray
+        A sub_video characterizing the ROI. It has been flattened
+        in space such that the shape is (ntime, npixels)
 
     Returns
     -------
     brightest_pixel: np.ndarray
         Time series of taken from the video at the
         brightest pixel in the ROI
+
+    Notes
+    -----
+    This method returns a weighted average of all of the
+    time series in the ROI. The weights are computed by
+    calling _self_correlate on every pixel in the sub_video
+    and then using these weights to compute a single time
+    series by calling _wgts_to_series.
     """
     npix = sub_video.shape[1]
-    ntime = sub_video.shape[0]
     wgts = np.zeros(npix, dtype=float)
     for ipix in range(npix):
         wgts[ipix] = _self_correlate(sub_video, ipix)

@@ -609,12 +609,10 @@ def get_merger_metric(potential_mergers,
     return final_output
 
 def _get_brightest_pixel(roi_id_list: List[int],
-                         roi_lookup: dict,
                          sub_video_lookup: dict,
                          output_dict: multiprocessing.managers.DictProxy):
     for roi_id in roi_id_list:
-        pixel = get_brightest_pixel(roi_lookup[roi_id],
-                                    sub_video_lookup[roi_id])
+        pixel = get_brightest_pixel(sub_video_lookup[roi_id])
 
         output_dict[roi_id] = pixel
 
@@ -649,13 +647,10 @@ def _update_key_pixel_lookup(needed_pixels,
     needed_pixels = list(needed_pixels)
     for i0 in range(0, len(needed_pixels), chunksize):
         chunk = needed_pixels[i0:i0+chunksize]
-        this_roi = {}
         this_video = {}
         for roi_id in chunk:
-            this_roi[roi_id] = roi_lookup[roi_id]
             this_video[roi_id] = sub_video_lookup[roi_id]
         args = (chunk,
-                this_roi,
                 this_video,
                 output_dict)
         p = multiprocessing.Process(target=_get_brightest_pixel,

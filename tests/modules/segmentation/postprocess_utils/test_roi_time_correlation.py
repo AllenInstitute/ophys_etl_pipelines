@@ -151,34 +151,19 @@ def test_wgts_to_series():
                                rtol=1.0e-10)
 
 
-def test_get_brightest_pixel(example_roi0):
-    ntime = 100
-    nrows = 50
-    ncols = 50
-    rng = np.random.RandomState(771234)
-    img_data = rng.randint(11, 355, (nrows, ncols))
-    video_data = rng.random_sample((ntime, nrows, ncols))
-    sub_video = sub_video_from_roi(example_roi0, video_data)
-    brightest_pixel = get_brightest_pixel(example_roi0,
-                                          img_data,
-                                          sub_video)
-
-    expected = None
-    expected_flux = -1.0
-    mask = example_roi0.mask_matrix
-    for ir in range(example_roi0.height):
-        for ic in range(example_roi0.width):
-            if not mask[ir, ic]:
-                continue
-            flux = img_data[example_roi0.y0+ir,
-                            example_roi0.x0+ic]
-            if flux > expected_flux:
-                expected_flux = flux
-                expected = video_data[:,
-                                      example_roi0.y0+ir,
-                                      example_roi0.x0+ic]
-    np.testing.assert_array_equal(expected, brightest_pixel)
-
+def test_get_brightest_pixel():
+    rng = np.random.RandomState(7123412)
+    sub_video = rng.random_sample((100, 20))
+    wgts = np.zeros(20, dtype=float)
+    for ipix in range(20):
+        wgts[ipix] = _self_correlate(sub_video, ipix)
+    assert len(np.unique(wgts)) == len(wgts)
+    expected = _wgts_to_series(sub_video, wgts)
+    actual = get_brightest_pixel(sub_video)
+    np.testing.assert_allclose(expected,
+                               actual,
+                               rtol=1.0e-10,
+                               atol=1.0e-10)
 
 def test_sub_video_from_roi(example_roi0):
     rng = np.random.RandomState(51433)

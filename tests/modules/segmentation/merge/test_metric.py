@@ -41,6 +41,11 @@ def test_get_merger_metric_from_pairs(
         filter_fraction,
         n_processors):
 
+    # TODO: this is currently just a smoke test.
+    # More care needs to be put into constructing the test data
+    # so that it forces the code to exercise all of the if/else
+    # blocks in get_merger_metric_from_pairs
+
     merger_pairs = list(combinations(range(5), 2))
     actual = get_merger_metric_from_pairs(
                  merger_pairs,

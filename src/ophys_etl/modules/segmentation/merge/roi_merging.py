@@ -330,7 +330,6 @@ def do_roi_merger(
 
         pixel_lookup = update_key_pixel_lookup(
                           merger_candidates,
-                          roi_lookup,
                           pixel_lookup,
                           sub_video_lookup,
                           n_processors)

@@ -40,7 +40,6 @@ def _update_key_pixel_lookup_per_pix(
 
 
 def _update_key_pixel_lookup(needed_pixels,
-                             roi_lookup,
                              sub_video_lookup,
                              n_processors):
     chunksize = len(needed_pixels)//(4*n_processors-1)
@@ -73,7 +72,6 @@ def _update_key_pixel_lookup(needed_pixels,
 
 
 def update_key_pixel_lookup(merger_candidates,
-                            roi_lookup,
                             pixel_lookup,
                             sub_video_lookup,
                             n_processors):
@@ -90,8 +88,8 @@ def update_key_pixel_lookup(merger_candidates,
         needs_update = False
         if roi_id not in pixel_lookup:
             needs_update = True
-            s = roi_lookup[roi_id].area
-            if s >= 500:
+            area = sub_video_lookup[roi_id].shape[1]
+            if area >= 500:
                 needed_big_pixels.add(roi_id)
             else:
                 needed_small_pixels.add(roi_id)
@@ -100,7 +98,6 @@ def update_key_pixel_lookup(merger_candidates,
     if len(needed_small_pixels) > 0:
         new_small_pixels = _update_key_pixel_lookup(
                                              needed_small_pixels,
-                                             roi_lookup,
                                              sub_video_lookup,
                                              n_processors)
     new_big_pixels = {}
@@ -112,10 +109,10 @@ def update_key_pixel_lookup(merger_candidates,
                              n_processors)
 
     for n in new_big_pixels:
-        pixel_lookup[n] = {'area': roi_lookup[n].area,
+        pixel_lookup[n] = {'area': sub_video_lookup[n].shape[1],
                            'key_pixel': new_big_pixels[n]}
     for n in new_small_pixels:
-        pixel_lookup[n] = {'area': roi_lookup[n].area,
+        pixel_lookup[n] = {'area': sub_video_lookup[n].shape[1],
                            'key_pixel': new_small_pixels[n]}
 
     return pixel_lookup

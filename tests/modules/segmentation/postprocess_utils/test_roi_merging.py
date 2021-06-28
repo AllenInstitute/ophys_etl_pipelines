@@ -96,6 +96,7 @@ def test_extract_roi_to_ophys_roi():
            'width': 7,
            'height': 9,
            'id': 991,
+           'valid': True,
            'mask': [list(i) for i in mask]}
 
     ophys_roi = extract_roi_to_ophys_roi(roi)
@@ -104,6 +105,7 @@ def test_extract_roi_to_ophys_roi():
     assert ophys_roi.height == roi['height']
     assert ophys_roi.width == roi['width']
     assert ophys_roi.roi_id == roi['id']
+    assert ophys_roi.valid_roi and roi['valid']
     np.testing.assert_array_equal(ophys_roi.mask_matrix, mask)
 
 

@@ -13,11 +13,37 @@ from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
     get_self_correlation)
 
 
-def _self_correlate_chunk(roi_id_list,
-                          sub_video_lookup,
-                          key_pixel_lookup,
-                          filter_fraction,
-                          output_dict):
+def _self_correlate_chunk(
+        roi_id_list: List[int],
+        sub_video_lookup: dict,
+        key_pixel_lookup: dict,
+        filter_fraction: float,
+        output_dict: multiprocessing.managers.DictProxy) -> None:
+    """
+    Calculate the self correlation distribution parameters for a
+    chunk of ROIs and store them in output_dict
+
+    Parameters
+    ----------
+    roi_id_list: List[int]
+
+    sub_video_lookup: dict
+        Maps ROI ID to sub-videos that have been flattened in space
+        so that their shapes are (ntime, npixels)
+
+    key_pixel_lookup: dict
+        Maps ROI ID to the characteristic timeseries of the ROI
+
+    filter_fraction: float
+        The fraction of timesteps to use when doing time correlations
+
+    output_dict: multiprocesing.managers.DictProxy
+        The dict where results will be stored, keyed on ROI ID
+
+    Returns
+    -------
+    None
+    """
     for roi_id in roi_id_list:
         result = get_self_correlation(sub_video_lookup[roi_id],
                                       key_pixel_lookup[roi_id]['key_pixel'],

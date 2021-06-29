@@ -31,21 +31,6 @@ def example_roi0():
 
 
 @pytest.fixture
-def example_roi1():
-    rng = np.random.RandomState(56423)
-    roi = OphysROI(roi_id=5,
-                   x0=15,
-                   y0=26,
-                   width=13,
-                   height=8,
-                   valid_roi=True,
-                   mask_matrix=rng.randint(0, 2,
-                                           (8, 13)).astype(bool))
-
-    return roi
-
-
-@pytest.fixture
 def example_video():
     rng = np.random.RandomState(1172312)
     data = rng.random_sample((100, 50, 50))
@@ -80,6 +65,7 @@ def test_self_correlate(example_video, i_pixel, filter_fraction):
                                                   i_pixel,
                                                   filter_fraction))
 
+
 @pytest.mark.parametrize('filter_fraction',
                          [0.2, 0.3, 0.4])
 def test_correlate_batch(example_video, filter_fraction):
@@ -104,7 +90,7 @@ def test_wgts_to_series():
     sub_video = rng.random_sample((100, 1))
     wgts = np.array([22.1])
     result = _wgts_to_series(sub_video, wgts)
-    np.testing.assert_array_equal(result, sub_video[:,0])
+    np.testing.assert_array_equal(result, sub_video[:, 0])
 
     sub_video = rng.random_sample((100, 20))
 
@@ -137,7 +123,7 @@ def test_wgts_to_series():
     wgts = rng.random_sample(20)
     med = np.median(wgts)
     norm = np.max(wgts-med)
-    mask = (wgts>med)
+    mask = (wgts > med)
     masked_wgts = (wgts[mask]-med)/norm
     masked_sub_video = sub_video[:, mask]
     expected = np.zeros(sub_video.shape[0], dtype=float)
@@ -169,6 +155,7 @@ def test_get_brightest_pixel(filter_fraction):
                                actual,
                                rtol=1.0e-10,
                                atol=1.0e-10)
+
 
 @pytest.mark.parametrize('filter_fraction, n_processors',
                          [(0.2, 3), (0.2, 5),

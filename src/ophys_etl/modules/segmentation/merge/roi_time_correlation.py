@@ -30,7 +30,7 @@ def _wgts_to_series(sub_video: np.ndarray,
 
     Returns
     -------
-    key_pixel: np.ndarray
+    timeseries: np.ndarray
        A single time series characterizing the whole sub_video
 
     Notes
@@ -68,12 +68,12 @@ def _wgts_to_series(sub_video: np.ndarray,
         # gave an array of zeros
         wgts = np.ones(wgts.shape, dtype=float)
 
-    key_pixel = np.dot(sub_video, wgts)
-    return key_pixel/wgts.sum()
+    timeseries = np.dot(sub_video, wgts)
+    return timeseries/wgts.sum()
 
 
 def correlate_sub_video(sub_video: np.ndarray,
-                        key_pixel: np.ndarray,
+                        timeseries: np.ndarray,
                         filter_fraction: float = 0.2) -> np.ndarray:
     """
     Correlated all of the pixels in a sub_video against
@@ -85,7 +85,7 @@ def correlate_sub_video(sub_video: np.ndarray,
     sub_video: np.ndarray
         Shape is (ntime, npixels)
 
-    key_pixel: np.ndarray
+    timeseries: np.ndarray
         Shape is (ntime,)
         This is the time series against which to correlate
         the pixels in sub_video
@@ -93,31 +93,31 @@ def correlate_sub_video(sub_video: np.ndarray,
     filter_fraction: float
         Keep the brightest filter_fraction timesteps when doing
         the correlation (this is reckoned by the flux values in
-        key_pixel)
+        timeseries)
 
     Returns
     -------
     corr: np.ndarray
         Shape is (npix,)
         These are the correlation values of the pixels in
-        sub_video against key_pixel
+        sub_video against timeseries
     """
     discard = 1.0-filter_fraction
-    th = np.quantile(key_pixel, discard)
-    mask = (key_pixel >= th)
+    th = np.quantile(timeseries, discard)
+    mask = (timeseries >= th)
     sub_video = sub_video[mask, :]
-    key_pixel = key_pixel[mask]
-    ntime = len(key_pixel)
+    timeseries = timeseries[mask]
+    ntime = len(timeseries)
 
-    key_mu = np.mean(key_pixel)
+    t_mu = np.mean(timeseries)
     vid_mu = np.mean(sub_video, axis=0)
-    key_var = np.mean((key_pixel-key_mu)**2)
+    t_var = np.mean((timeseries-t_mu)**2)
     sub_vid_minus_mu = sub_video-vid_mu
     sub_var = np.mean(sub_vid_minus_mu**2, axis=0)
 
-    numerator = np.dot((key_pixel-key_mu), sub_vid_minus_mu)/ntime
+    numerator = np.dot((timeseries-t_mu), sub_vid_minus_mu)/ntime
 
-    corr = numerator/np.sqrt(sub_var*key_var)
+    corr = numerator/np.sqrt(sub_var*t_var)
     return corr
 
 

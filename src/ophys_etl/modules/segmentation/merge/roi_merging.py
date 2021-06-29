@@ -73,12 +73,13 @@ def do_roi_merger(
     2) Loop over all pairs of ROIs. For each pair, assess the validity
     of the merger by
 
-        2a) Correlate all of the pixels in roi0 against the brightest
-        pixel in roi0 using the brightest filter_fraction of time steps.
-        Use these correlations to construct a Gaussian distribution.
+        2a) Correlate all of the pixels in roi0 against a characteristic
+        timeseries that is a weighted average of the pixels in roi0
+        using the brightest filter_fraction of time steps. Use these
+        correlations to construct a Gaussian distribution.
 
-        2b) Correlate all of the pixels in roi1 against the brightest
-        pixel in roi0 using the same timesteps.
+        2b) Correlate all of the pixels in roi1 against the characteristic
+        timeseries for roi0 using the same timesteps.
 
         2c) Calculate the z-score of the correlations from (2b) using
         the Gaussian distribution from (2a).
@@ -105,12 +106,16 @@ def do_roi_merger(
 
     t0 = time.time()
     logger.info('starting merger')
+
     keep_going = True
-    have_been_merged = set()
-    i_pass = -1
     incoming_rois = list(roi_lookup.keys())
+
+    have_been_merged = set()  # keep track of ROIs that were merged
     valid_roi_id = set(roi_lookup.keys())
 
+    # pseudo-randomly order ROIs when calculating
+    # expensive statistics to prevent the most expensive
+    # ROIs from all landing on the same process
     shuffler = np.random.RandomState(11723412)
 
     merger_candidates = find_merger_candidates(list(roi_lookup.values()),
@@ -118,6 +123,9 @@ def do_roi_merger(
                                                rois_to_ignore=None,
                                                n_processors=n_processors)
 
+    # construct a dict mapping an ROI ID to the list of its
+    # neighboring ROI IDs (prevents us from having to call
+    # find_merger_candidates on every iteration)
     neighbor_lookup = {}
     for pair in merger_candidates:
         if pair[0] not in neighbor_lookup:
@@ -136,15 +144,19 @@ def do_roi_merger(
     merger_to_metric = {}
     timeseries_lookup = {}
 
+    # ROIs that are too large to be considered valid
     anomalous_rois = {}
 
     while keep_going:
         logger.info(f'starting iteration; {len(roi_lookup)} valid ROIs; '
                     f'{len(anomalous_rois)} anomalous ROIs')
+
+        # will be set to True if a merger occurs
         keep_going = False
+
+        # statistics on this pass for INFO messages
         t0_pass = time.time()
         n0 = len(roi_lookup)
-        i_pass += 1
 
         # fill in sub-video lookup for ROIs that changed
         # during the last iteration
@@ -209,9 +221,8 @@ def do_roi_merger(
 
         logger.info(f'calculated metrics after {time.time()-t0_pass:.2f}')
 
-        for potential_merger in new_merger_metrics:
-            pair = (potential_merger[0], potential_merger[1])
-            metric = new_merger_metrics[potential_merger]
+        for pair in new_merger_metrics:
+            metric = new_merger_metrics[pair]
             if metric >= -1.0*corr_acceptance:
                 merger_to_metric[pair] = metric
 
@@ -221,6 +232,7 @@ def do_roi_merger(
             potential_mergers.append(pair)
             merger_metrics.append(merger_to_metric[pair])
 
+        # order mergers by metric in descending order
         potential_mergers = np.array(potential_mergers)
         merger_metrics = np.array(merger_metrics)
         sorted_indices = np.argsort(-1*merger_metrics)
@@ -240,11 +252,15 @@ def do_roi_merger(
             roi_id_1 = merger[1]
             go_ahead = True
 
+            # if one of the ROIs no longer exists because
+            # it was absorbed into another, skip
             if roi_id_0 not in valid_roi_id:
                 go_ahead = False
             if roi_id_1 not in valid_roi_id:
                 go_ahead = False
 
+            # if one of the ROIs has grown by 10% or more since
+            # the start of this iteration, skip
             if go_ahead:
                 if roi_id_0 in recently_merged:
                     if roi_lookup[roi_id_0].area > 1.1*area_lookup[roi_id_0]:
@@ -253,17 +269,24 @@ def do_roi_merger(
                     if roi_lookup[roi_id_1].area > 1.1*area_lookup[roi_id_1]:
                         go_ahead = False
 
+            # if one of the ROIs was in a potential pair that was skipped
+            # for one of the reasons above, skip (in case that merger
+            # really was the best merger for it; these mergers will
+            # be reconsidered in the next iteration)
             if go_ahead:
                 if roi_id_0 in wait_for_it:
                     go_ahead = False
                 if roi_id_1 in wait_for_it:
                     go_ahead = False
 
+            # mark these ROIs has having deferred a merger and continue
+            # (if appropriate)
             if not go_ahead:
                 wait_for_it.add(roi_id_0)
                 wait_for_it.add(roi_id_1)
                 continue
 
+            # order by size
             if roi_lookup[roi_id_0].area > roi_lookup[roi_id_1].area:
                 seed_id = roi_id_0
                 child_id = roi_id_1
@@ -275,12 +298,18 @@ def do_roi_merger(
             child_roi = roi_lookup[child_id]
             larger.append(seed_roi.area)
             smaller.append(child_roi.area)
+
             keep_going = True
+
             new_roi = merge_rois(seed_roi,
                                  child_roi,
                                  seed_roi.roi_id)
+
+            # remove the ROI that was absorbed
             roi_lookup.pop(child_roi.roi_id)
             valid_roi_id.remove(child_roi.roi_id)
+
+            # mark these ROIs as ROIs that have been merged
             have_been_merged.add(child_roi.roi_id)
             recently_merged.add(child_roi.roi_id)
             recently_merged.add(new_roi.roi_id)
@@ -321,6 +350,8 @@ def do_roi_merger(
 
         # remove non-existent ROIs and ROIs whose areas
         # have significantly changed from timeseries_lookup
+        # (calculating timeseries_lookup is expensive, so
+        # we allow ROIs to grow a little before recalculating)
         k_list = list(timeseries_lookup.keys())
         for roi_id in k_list:
             pop_it = False
@@ -333,6 +364,8 @@ def do_roi_merger(
             if pop_it:
                 timeseries_lookup.pop(roi_id)
 
+        # remove all recently merged ROIs from the merger metric
+        # lookup table
         merger_keys = list(merger_to_metric.keys())
         for pair in merger_keys:
             if pair[0] in recently_merged or pair[1] in recently_merged:
@@ -343,6 +376,8 @@ def do_roi_merger(
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '
                     f'after {time.time()-t0:.2f} seconds')
 
+        # print some info about the sizes and size ratios of ROIs
+        # that were merged
         if len(larger) > 0:
             larger = np.array(larger)
             smaller = np.array(smaller)

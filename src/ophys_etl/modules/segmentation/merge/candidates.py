@@ -1,14 +1,17 @@
-from typing import List, Optional, Dict, Tuple, Union
-from functools import partial
+"""
+This module contains the code that the ROI merger module uses to
+find all pairs of ROIs that need to be considered for merger.
+"""
+from typing import List, Optional, Tuple
 from itertools import combinations
 import multiprocessing
 import multiprocessing.managers
-import numpy as np
 from ophys_etl.modules.segmentation.merge.utils import (
     _winnow_process_list)
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.merge.roi_utils import (
     do_rois_abut)
+
 
 def _find_merger_candidates(
         roi_id_pair_list: List[Tuple[int, int]],

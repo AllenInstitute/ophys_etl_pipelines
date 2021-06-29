@@ -234,8 +234,6 @@ def do_roi_merger(
 
         recently_merged = set()
         wait_for_it = set()
-        larger = []
-        smaller = []
 
         area_lookup = {}
         for roi_id in roi_lookup:
@@ -290,8 +288,6 @@ def do_roi_merger(
 
             seed_roi = roi_lookup[seed_id]
             child_roi = roi_lookup[child_id]
-            larger.append(seed_roi.area)
-            smaller.append(child_roi.area)
 
             keep_going = True
 
@@ -368,22 +364,6 @@ def do_roi_merger(
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)}; '
                     f'{len(anomalous_rois)} anomalous ROIs; '
                     f'took {time.time()-t0:.2f} seconds')
-
-        # print some info about the sizes and size ratios of ROIs
-        # that were merged
-        if len(larger) > 0:
-            larger = np.array(larger)
-            smaller = np.array(smaller)
-            ratio = smaller/larger
-            quartiles = np.quantile(ratio, [0.25, 0.5, 0.75])
-            logger.info(f'{len(ratio)} mergers; ratios '
-                        f'{quartiles[0]:.2f} {quartiles[1]:.2f} '
-                        f'{quartiles[2]:.2f} {ratio.max() :.2f}')
-
-            quartiles = np.quantile(larger, [0.25, 0.5, 0.75])
-            logger.info('larger '
-                        f'{quartiles[0]:.2f} {quartiles[1]:.2f} '
-                        f'{quartiles[2]:.2f} {larger.max() :.2f}')
 
         # make sure we did not lose track of any ROIs
         for roi_id in incoming_rois:

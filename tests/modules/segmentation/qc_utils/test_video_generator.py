@@ -115,16 +115,18 @@ def test_get_thumbnail_video(tmpdir,
     compare_hashes(expected.video_path, thumbnail.video_path)
 
 
-@pytest.mark.parametrize('roi_color, timesteps',
+@pytest.mark.parametrize('roi_color, timesteps, padding',
                          product((None, (122, 201, 53)),
                                  (None, np.array([1, 4, 5, 17, 19,
-                                                  23, 23, 25, 38]))))
+                                                  23, 23, 25, 38])),
+                                 (0, 5, 10)))
 def test_get_thumbnail_video_from_roi(
                              tmpdir,
                              example_video,
                              example_roi,
                              roi_color,
-                             timesteps):
+                             timesteps,
+                             padding):
     """
     Test that results of VideoGenerator and by-hand invocation of
     video_utils.thumbnail_video_from_ROI are identical
@@ -138,6 +140,7 @@ def test_get_thumbnail_video_from_roi(
 
     thumbnail = generator.get_thumbnail_video_from_roi(
                                   roi=example_roi,
+                                  padding=padding,
                                   roi_color=roi_color,
                                   timesteps=timesteps,
                                   fps=fps,
@@ -148,6 +151,7 @@ def test_get_thumbnail_video_from_roi(
     expected = video_utils.thumbnail_video_from_ROI(
                        pathlib.Path(example_video),
                        example_roi,
+                       padding=padding,
                        roi_color=roi_color,
                        timesteps=timesteps,
                        tmp_dir=video_tmpdir,

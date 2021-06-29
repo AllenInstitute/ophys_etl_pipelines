@@ -1,26 +1,28 @@
 import pytest
 import numpy as np
 from ophys_etl.modules.event_detection import utils
+from ophys_etl.modules.event_detection import validation
 
 
 @pytest.mark.event_detect_only
 @pytest.mark.parametrize(
-        "sum_events_fixture",
+        "nframes, timestamps, magnitudes, decay_time, rate",
         [
-            {
-                "nframes": 1000,
-                "timestamps": [45, 112, 232, 410, 490, 700, 850],
-                "magnitudes": [4.0, 5.0, 6.0, 5.0, 5.5, 5.0, 7.0],
-                "decay_time": 0.4,
-                "rate": 11.0},
-            {
-                "nframes": 1000,
-                "timestamps": [45, 112, 232, 410, 490, 700, 850],
-                "magnitudes": [4.0, 5.0, 6.0, 5.0, 5.5, 5.0, 7.0],
-                "decay_time": 0.4,
-                "rate": 31.0}], indirect=['sum_events_fixture'])
-def test_fast_lzero(sum_events_fixture):
-    data, decay_time, rate = sum_events_fixture
+            (
+                1000,
+                [45, 112, 232, 410, 490, 700, 850],
+                [4.0, 5.0, 6.0, 5.0, 5.5, 5.0, 7.0],
+                0.4,
+                11.0),
+            (
+                1000,
+                [45, 112, 232, 410, 490, 700, 850],
+                [4.0, 5.0, 6.0, 5.0, 5.5, 5.0, 7.0],
+                0.4,
+                31.0)])
+def test_fast_lzero(nframes, timestamps, magnitudes, decay_time, rate):
+    data = validation.sum_events(nframes, timestamps, magnitudes,
+                                 decay_time, rate)
     halflife = utils.calculate_halflife(decay_time)
     gamma = utils.calculate_gamma(halflife, rate)
     f = utils.fast_lzero(1.0, data, gamma, True)

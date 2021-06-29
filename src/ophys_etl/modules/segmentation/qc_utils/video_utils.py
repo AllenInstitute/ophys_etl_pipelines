@@ -504,17 +504,17 @@ def video_bounds_from_ROI(
 
     Notes
     -----
-    Will try to return a square that is an integer
-    power of 2 on a side, minimum 16
+    Will try to return a square that is a multiple of 16
+    on a side (this is what FFMPEG expects)
     """
 
     # make thumbnail a square about the ROI
-    max_dim = max(roi['width'], roi['height'])
+    max_dim = max(roi['width']+2*padding,
+                  roi['height']+2*padding)
 
-    # make dim a power of 2
-    pwr = np.ceil(np.log2(max_dim))
-    max_dim = np.power(2, pwr).astype(int)
-    max_dim = max(max_dim, 16)
+    # make dim multiple of 16
+    div16 = np.ceil(float(max_dim)/16.0).astype(int)
+    max_dim = 16*div16
 
     # center the thumbnail on the ROI
     row_center = int(roi['y'] + roi['height']//2)
@@ -531,22 +531,6 @@ def video_bounds_from_ROI(
     if colmax >= fov_shape[1]:
         colmin = max(0, fov_shape[1]-max_dim)
         colmax = min(fov_shape[1], colmin+max_dim)
-
-    # add padding if necessary/possible
-    if padding > 0:
-        roi_row_min = roi['y']
-        roi_row_max = roi['y'] + roi['height']
-        roi_col_min = roi['x']
-        roi_col_max = roi['x'] + roi['width']
-
-        if rowmin > roi_row_min - padding:
-            rowmin = max(0, roi_row_min-padding)
-        if rowmax < roi_row_max + padding:
-            rowmax = min(fov_shape[0], roi_row_max+padding)
-        if colmin > roi_col_min - padding:
-            colmin = max(0, roi_col_min-padding)
-        if colmax < roi_col_max + padding:
-            colmax = min(fov_shape[1], roi_col_max+padding)
 
     return (rowmin, colmin), (rowmax-rowmin, colmax-colmin)
 

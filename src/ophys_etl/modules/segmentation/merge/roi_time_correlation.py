@@ -5,8 +5,7 @@ import multiprocessing
 import multiprocessing.managers
 from ophys_etl.modules.segmentation.merge.utils import (
     _winnow_process_list)
-from ophys_etl.modules.segmentation.postprocess_utils.roi_types import (
-    SegmentationROI)
+from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 
 def _wgts_to_series(sub_video: np.ndarray,
@@ -69,7 +68,7 @@ def _wgts_to_series(sub_video: np.ndarray,
     key_pixel = np.dot(sub_video, wgts)
     return key_pixel/wgts.sum()
 
-def sub_video_from_roi(roi: SegmentationROI,
+def sub_video_from_roi(roi: OphysROI,
                        video_data: np.ndarray) -> np.ndarray:
     """
     Get a sub-video that is flattened in space corresponding
@@ -77,7 +76,7 @@ def sub_video_from_roi(roi: SegmentationROI,
 
     Parameters
     ----------
-    roi: SegmentationROI
+    roi: OphysROI
 
     video_data: np.ndarray
         Shape is (ntime, nrows, ncols)

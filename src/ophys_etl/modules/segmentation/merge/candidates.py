@@ -6,8 +6,6 @@ import multiprocessing.managers
 import numpy as np
 from ophys_etl.modules.segmentation.merge.utils import (
     _winnow_process_list)
-from ophys_etl.modules.segmentation.merge.roi_types import (
-    SegmentationROI)
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.merge.roi_utils import (
     do_rois_abut)

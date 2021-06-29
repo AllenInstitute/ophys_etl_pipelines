@@ -6,8 +6,6 @@ import multiprocessing.managers
 import numpy as np
 from ophys_etl.modules.segmentation.merge.utils import (
     _winnow_process_list)
-from ophys_etl.modules.segmentation.merge.roi_types import (
-    SegmentationROI)
 
 from ophys_etl.modules.segmentation.\
     merge.roi_utils import (
@@ -43,92 +41,13 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
-def merge_segmentation_rois(uphill_roi: SegmentationROI,
-                            downhill_roi: SegmentationROI,
-                            new_roi_id: int,
-                            new_flux_value: float) -> SegmentationROI:
-    """
-    Merge two SegmentationROIs, making sure that the ROIs actually
-    abut and that the uphill ROI has a larger flux value than the
-    downhill ROI (this is a requirement imposed by the way we are
-    currently using this method to merge ROIs for cell segmentation)
-
-    Parameters
-    ----------
-    uphill_roi: SegmentationROI
-        The ROI with the larger flux_value
-
-    downhill_roi: SegmentationROI
-        The ROI with the smaller flux_value
-
-    new_roi_id: int
-        The roi_id to assign to the new ROI
-
-    new_flux_value: float
-        The flux value to assign to the new ROI
-
-    Return
-    ------
-    SegmentationROI
-
-    Raises
-    ------
-    Runtime error if there is no valid way, always stepping downhill
-    in flux_value, to go from uphill_roi.peak to downhill_roi
-    """
-
-    new_roi = merge_rois(uphill_roi, downhill_roi, new_roi_id=new_roi_id)
-    return SegmentationROI.from_ophys_roi(new_roi,
-                                          ancestors=[uphill_roi, downhill_roi],
-                                          flux_value=new_flux_value)
-
-
-def create_segmentation_roi_lookup(raw_roi_list: List[OphysROI],
-                                   dx: int = 20) -> Dict[int, SegmentationROI]:
-    """
-    Create a lookup table mapping roi_id to SegmentationROI.
-
-    The flux_values assigned to each ROI will be median z score of the
-    pixels in the ROI in img_data relative to the background of
-    non-ROI pixels in a neighborhood centered on the ROI.
-
-    Parameters
-    ----------
-    raw_roi_list: List[OphysROI]
-
-    dx: int
-        The number of pixels above, below, to the left, and to the right of
-        the ROI used when constructing the neighborhood of pixels used to
-        calculate flux_value
-
-    Returns
-    -------
-    lookup: Dict[int, SegmentationROI]
-        A dict allowing you to lookup the SegmentationROI based on its
-        roi_id
-    """
-    lookup = {}
-    for roi in raw_roi_list:
-        new_roi = SegmentationROI.from_ophys_roi(roi,
-                                                 ancestors=None,
-                                                 flux_value=0.0)
-
-        if new_roi.roi_id in lookup:
-            msg = f'{new_roi.roi_id} duplicated in '
-            msg += 'segmentation_roi_lookup'
-            raise RuntimeError(msg)
-
-        lookup[new_roi.roi_id] = new_roi
-
-    return lookup
-
 
 def do_roi_merger(
       raw_roi_list: List[OphysROI],
       video_data: np.ndarray,
       n_processors: int,
       corr_acceptance: float,
-      filter_fraction: float = 0.2) -> List[SegmentationROI]:
+      filter_fraction: float = 0.2) -> List[OphysROI]:
     """
     Merge ROIs based on a static image.
 
@@ -153,9 +72,9 @@ def do_roi_merger(
 
     Returns
     -------
-    List[SegmentationROI]
+    List[OphysROI]
         List of ROIs after merger. ROIs will have been cast
-        to SegmentationROIs, but they have the same spatial
+        to OphysROIs, but they have the same spatial
         information and API as OphysROIs
 
     Notes
@@ -192,11 +111,10 @@ def do_roi_merger(
 
     anomalous_size = 800
 
-    # create a lookup table of SegmentationROIs
-    t0 = time.time()
-    roi_lookup = create_segmentation_roi_lookup(raw_roi_list,
-                                                dx=20)
-    logger.info(f'created roi lookup in {time.time()-t0:.2f} seconds')
+    # create a lookup table of OphysROIs
+    roi_lookup = {}
+    for roi in raw_roi_list:
+        roi_lookup[roi.roi_id] = roi
 
     t0 = time.time()
     logger.info('starting merger')
@@ -372,10 +290,9 @@ def do_roi_merger(
             larger.append(seed_roi.area)
             smaller.append(child_roi.area)
             keep_going = True
-            new_roi = merge_segmentation_rois(seed_roi,
-                                              child_roi,
-                                              seed_roi.roi_id,
-                                              seed_roi.flux_value)
+            new_roi = merge_rois(seed_roi,
+                                 child_roi,
+                                 seed_roi.roi_id)
             roi_lookup.pop(child_roi.roi_id)
             valid_roi_id.remove(child_roi.roi_id)
             have_been_merged.add(child_roi.roi_id)

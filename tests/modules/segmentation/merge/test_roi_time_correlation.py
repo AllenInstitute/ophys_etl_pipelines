@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
-from ophys_etl.modules.segmentation.merge.roi_types import (
-    SegmentationROI)
+from ophys_etl.modules.decrosstalk.ophys_plane import (
+    OphysROI)
 from ophys_etl.modules.segmentation.\
     merge.roi_time_correlation import (
         get_brightest_pixel,
@@ -18,15 +18,14 @@ from ophys_etl.modules.segmentation.\
 @pytest.fixture
 def example_roi0():
     rng = np.random.RandomState(64322)
-    roi = SegmentationROI(roi_id=4,
-                          x0=10,
-                          y0=22,
-                          width=7,
-                          height=11,
-                          valid_roi=True,
-                          flux_value=0.0,
-                          mask_matrix=rng.randint(0, 2,
-                                                  (11, 7)).astype(bool))
+    roi = OphysROI(roi_id=4,
+                   x0=10,
+                   y0=22,
+                   width=7,
+                   height=11,
+                   valid_roi=True,
+                   mask_matrix=rng.randint(0, 2,
+                                           (11, 7)).astype(bool))
 
     return roi
 
@@ -34,15 +33,14 @@ def example_roi0():
 @pytest.fixture
 def example_roi1():
     rng = np.random.RandomState(56423)
-    roi = SegmentationROI(roi_id=5,
-                          x0=15,
-                          y0=26,
-                          width=13,
-                          height=8,
-                          valid_roi=True,
-                          flux_value=0.0,
-                          mask_matrix=rng.randint(0, 2,
-                                                  (8, 13)).astype(bool))
+    roi = OphysROI(roi_id=5,
+                   x0=15,
+                   y0=26,
+                   width=13,
+                   height=8,
+                   valid_roi=True,
+                   mask_matrix=rng.randint(0, 2,
+                                           (8, 13)).astype(bool))
 
     return roi
 

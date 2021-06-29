@@ -6,8 +6,6 @@ import multiprocessing.managers
 import numpy as np
 from ophys_etl.modules.segmentation.merge.utils import (
     _winnow_process_list)
-from ophys_etl.modules.segmentation.merge.roi_types import (
-    SegmentationROI)
 
 from ophys_etl.modules.segmentation.\
     merge.roi_time_correlation import (

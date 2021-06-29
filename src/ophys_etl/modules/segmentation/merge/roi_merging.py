@@ -1,18 +1,9 @@
-from typing import List, Optional, Dict, Tuple, Union
-from functools import partial
-from itertools import combinations
-import multiprocessing
-import multiprocessing.managers
+from typing import List
 import numpy as np
-from ophys_etl.modules.segmentation.merge.utils import (
-    _winnow_process_list)
 
 from ophys_etl.modules.segmentation.\
     merge.roi_utils import (
-        merge_rois,
-        do_rois_abut,
-        extract_roi_to_ophys_roi,
-        ophys_roi_to_extract_roi)
+        merge_rois)
 
 from ophys_etl.modules.segmentation.merge.candidates import (
     find_merger_candidates)
@@ -39,7 +30,6 @@ import time
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
-
 
 
 def do_roi_merger(
@@ -198,7 +188,6 @@ def do_roi_merger(
                           sub_video_lookup,
                           filter_fraction=0.2,
                           n_processors=n_processors)
-
 
         logger.info('updated pixel lookup '
                     f'in {time.time()-t0_pass:.2f} seconds')

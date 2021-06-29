@@ -10,8 +10,8 @@ from ophys_etl.modules.segmentation.merge.utils import (
 
 from ophys_etl.modules.segmentation.\
     merge.roi_time_correlation import (
-        get_brightest_pixel,
-        get_brightest_pixel_parallel)
+        get_characteristic_timeseries,
+        get_characteristic_timeseries_parallel)
 
 import logging
 
@@ -57,7 +57,7 @@ def _update_key_pixel_lookup_per_pix(
     final_output = {}
     for roi_id in needed_rois:
         sub_video = sub_video_lookup[roi_id]
-        final_output[roi_id] = get_brightest_pixel_parallel(
+        final_output[roi_id] = get_characteristic_timeseries_parallel(
                                       sub_video,
                                       filter_fraction=filter_fraction,
                                       n_processors=n_processors)
@@ -65,7 +65,7 @@ def _update_key_pixel_lookup_per_pix(
     return final_output
 
 
-def _get_brightest_pixel(
+def _get_characteristic_timeseries(
         roi_id_list: List[int],
         sub_video_lookup: dict,
         filter_fraction: float,
@@ -95,7 +95,8 @@ def _get_brightest_pixel(
         Results are stored in output_dict
     """
     for roi_id in roi_id_list:
-        pixel = get_brightest_pixel(sub_video_lookup[roi_id],
+        pixel = get_characteristic_timeseries(
+                                    sub_video_lookup[roi_id],
                                     filter_fraction=filter_fraction)
         output_dict[roi_id] = pixel
     return None
@@ -148,7 +149,7 @@ def _update_key_pixel_lookup(needed_rois: Union[List[int], Set[int]],
                 this_video,
                 filter_fraction,
                 output_dict)
-        p = multiprocessing.Process(target=_get_brightest_pixel,
+        p = multiprocessing.Process(target=_get_characteristic_timeseries,
                                     args=args)
         p.start()
         process_list.append(p)

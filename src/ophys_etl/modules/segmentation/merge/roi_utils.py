@@ -222,8 +222,6 @@ def merge_rois(roi0: OphysROI,
     return new_roi
 
 
-
-
 def sub_video_from_roi(roi: OphysROI,
                        video_data: np.ndarray) -> np.ndarray:
     """

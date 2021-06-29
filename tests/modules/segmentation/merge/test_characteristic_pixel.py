@@ -8,7 +8,7 @@ from ophys_etl.modules.segmentation.merge.characteristic_pixel import (
     update_key_pixel_lookup)
 
 from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
-    get_brightest_pixel)
+    get_characteristic_timeseries)
 
 
 @pytest.mark.parametrize('filter_fraction, n_processors',
@@ -27,7 +27,8 @@ def test_update_key_pixel_per_pix(small_rois,
     assert len(result) == len(roi_id_list)
 
     for roi_id in roi_id_list:
-        expected = get_brightest_pixel(small_rois[roi_id],
+        expected = get_characteristic_timeseries(
+                                       small_rois[roi_id],
                                        filter_fraction=filter_fraction)
         np.testing.assert_allclose(expected,
                                    result[roi_id],
@@ -51,7 +52,8 @@ def test_update_key_pixel(small_rois,
     assert len(result) == len(roi_id_list)
 
     for roi_id in roi_id_list:
-        expected = get_brightest_pixel(small_rois[roi_id],
+        expected = get_characteristic_timeseries(
+                                       small_rois[roi_id],
                                        filter_fraction=filter_fraction)
         np.testing.assert_allclose(expected,
                                    result[roi_id],
@@ -82,7 +84,8 @@ def test_full_update_key_pixel(small_rois,
     assert len(result) == (len(small_rois) + len(large_rois))
     for roi_id in small_rois:
         assert result[roi_id]['area'] == small_rois[roi_id].shape[1]
-        expected = get_brightest_pixel(small_rois[roi_id],
+        expected = get_characteristic_timeseries(
+                                       small_rois[roi_id],
                                        filter_fraction=filter_fraction)
         np.testing.assert_allclose(expected,
                                    result[roi_id]['key_pixel'],
@@ -91,7 +94,7 @@ def test_full_update_key_pixel(small_rois,
 
     for roi_id in large_rois:
         assert result[roi_id]['area'] == large_rois[roi_id].shape[1]
-        expected = get_brightest_pixel(
+        expected = get_characteristic_timeseries(
                        large_rois[roi_id],
                        filter_fraction=filter_fraction)
         np.testing.assert_allclose(expected,

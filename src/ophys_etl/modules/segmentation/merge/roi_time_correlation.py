@@ -9,7 +9,6 @@ import multiprocessing
 import multiprocessing.managers
 from ophys_etl.modules.segmentation.merge.utils import (
     _winnow_process_list)
-from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 
 def _wgts_to_series(sub_video: np.ndarray,
@@ -210,12 +209,12 @@ def _correlate_batch(
     return None
 
 
-def get_brightest_pixel_parallel(
+def get_characteristic_timeseries_parallel(
         sub_video: np.ndarray,
         n_processors: int = 8,
         filter_fraction: float = 0.2) -> np.ndarray:
     """
-    A variant of get_brightest_pixel to be called when the
+    A variant of get_characteristic_timeseries to be called when the
     spatial extent of the sub video is so large that it makes
     more sense to parallelize on a per-pixel level than a
     per-ROI level
@@ -276,7 +275,7 @@ def get_brightest_pixel_parallel(
     return _wgts_to_series(sub_video, wgts)
 
 
-def get_brightest_pixel(
+def get_characteristic_timeseries(
         sub_video: np.ndarray,
         filter_fraction: float = 0.2) -> np.ndarray:
     """
@@ -335,8 +334,9 @@ def calculate_merger_metric(distribution_params: Tuple[float, float],
         Gaussian distribution
 
     distribution_centroid: np.ndarray
-        The characteristic timeseries (calculated with get_brightest_pixel)
-        of the ROI used to create the fiducial Gaussian distribution
+        The characteristic timeseries (calculated with
+        get_characteristic_timeseries) of the ROI used to
+        create the fiducial Gaussian distribution
 
     roi1_video: np.ndarray
         The sub-video corresponding to the other (non-fiducial) ROI,

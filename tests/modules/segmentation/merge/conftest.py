@@ -105,7 +105,6 @@ def roi_and_video_dataset():
     return {'video': video, 'roi_list': roi_list}
 
 
-
 @pytest.fixture
 def key_video_corr_dataset():
 

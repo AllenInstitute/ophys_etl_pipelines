@@ -1,11 +1,9 @@
 import pytest
 import numpy as np
-from ophys_etl.modules.decrosstalk.ophys_plane import (
-    OphysROI)
 from ophys_etl.modules.segmentation.\
     merge.roi_time_correlation import (
-        get_brightest_pixel,
-        get_brightest_pixel_parallel,
+        get_characteristic_timeseries,
+        get_characteristic_timeseries_parallel,
         correlate_sub_video,
         calculate_merger_metric,
         _self_correlate,
@@ -116,7 +114,7 @@ def test_wgts_to_series():
 
 @pytest.mark.parametrize('filter_fraction',
                          [0.1, 0.2, 0.3, 0.4])
-def test_get_brightest_pixel(filter_fraction):
+def test_get_characteristic_timeseries(filter_fraction):
     rng = np.random.RandomState(7123412)
     sub_video = rng.random_sample((100, 20))
     wgts = np.zeros(20, dtype=float)
@@ -126,7 +124,8 @@ def test_get_brightest_pixel(filter_fraction):
                                      filter_fraction=filter_fraction)
     assert len(np.unique(wgts)) == len(wgts)
     expected = _wgts_to_series(sub_video, wgts)
-    actual = get_brightest_pixel(sub_video,
+    actual = get_characteristic_timeseries(
+                                 sub_video,
                                  filter_fraction=filter_fraction)
     np.testing.assert_allclose(expected,
                                actual,
@@ -137,14 +136,15 @@ def test_get_brightest_pixel(filter_fraction):
 @pytest.mark.parametrize('filter_fraction, n_processors',
                          [(0.2, 3), (0.2, 5),
                           (0.3, 3), (0.3, 5)])
-def test_get_brightest_pixel_parallel(
+def test_get_characteristic_timeseries_parallel(
         filter_fraction,
         n_processors):
     rng = np.random.RandomState(65423)
     sub_video = rng.random_sample((100, 91))
-    expected = get_brightest_pixel(sub_video,
+    expected = get_characteristic_timeseries(
+                                   sub_video,
                                    filter_fraction=filter_fraction)
-    actual = get_brightest_pixel_parallel(
+    actual = get_characteristic_timeseries_parallel(
                  sub_video,
                  filter_fraction=filter_fraction)
 

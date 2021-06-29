@@ -1,8 +1,4 @@
-import pytest
 import numpy as np
-
-from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
-
 from ophys_etl.modules.segmentation.merge.roi_merging import (
     do_roi_merger)
 

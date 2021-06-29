@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI

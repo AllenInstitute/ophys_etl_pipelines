@@ -327,7 +327,7 @@ def do_roi_merger(
             area0 = timeseries_lookup[roi_id]['area']
             if roi_id not in valid_roi_id:
                 pop_it = True
-            elif roi_lookup[roi_id].area > area0:
+            elif roi_lookup[roi_id].area > 1.05*area0:
                 pop_it = True
 
             if pop_it:

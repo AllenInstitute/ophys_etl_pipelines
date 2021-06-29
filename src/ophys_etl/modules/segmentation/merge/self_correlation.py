@@ -1,9 +1,11 @@
-from typing import List, Optional, Dict, Tuple, Union
-from functools import partial
-from itertools import combinations
+"""
+This module contains the code that roi_merging.py uses to create
+the lookup table of self-correlation distribution parameters for
+each ROI
+"""
+from typing import List, Tuple
 import multiprocessing
 import multiprocessing.managers
-import numpy as np
 from ophys_etl.modules.segmentation.merge.utils import (
     _winnow_process_list)
 
@@ -85,7 +87,7 @@ def update_self_correlation(merger_candidates: List[Tuple[int, int]],
                                     args=args)
         p.start()
         process_list.append(p)
-        while len(process_list)>0 and len(process_list)>=(n_processors-1):
+        while len(process_list) > 0 and len(process_list) >= (n_processors-1):
             process_list = _winnow_process_list(process_list)
     for p in process_list:
         p.join()

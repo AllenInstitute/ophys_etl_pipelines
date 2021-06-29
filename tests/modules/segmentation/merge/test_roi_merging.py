@@ -3,21 +3,8 @@ import numpy as np
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
-from ophys_etl.modules.segmentation.merge.roi_utils import (
-    do_rois_abut)
-
 from ophys_etl.modules.segmentation.merge.roi_merging import (
     do_roi_merger)
-
-
-
-@pytest.fixture
-def example_movie_data():
-    rng = np.random.RandomState(871123)
-    data = np.zeros((100, 60, 60), dtype=float)
-    data[:, 30:, 30:] = rng.normal(15.0, 7.0, size=(100, 30, 30))
-    data[:, :30, :30] = rng.random_sample((100, 30, 30))*17.0
-    return data
 
 
 @pytest.fixture
@@ -65,7 +52,6 @@ def whole_dataset():
                 roi_list.append(roi)
 
     return {'video': video, 'roi_list': roi_list}
-
 
 
 def test_do_roi_merger(whole_dataset):

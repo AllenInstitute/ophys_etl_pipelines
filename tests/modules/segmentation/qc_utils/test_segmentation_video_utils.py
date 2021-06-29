@@ -25,7 +25,7 @@ from ophys_etl.modules.segmentation.qc_utils.video_utils import (
 @pytest.fixture
 def example_video():
     rng = np.random.RandomState(16412)
-    data = rng.randint(0, 100, (100, 30, 40)).astype(np.uint8)
+    data = rng.randint(0, 100, (100, 60, 60)).astype(np.uint8)
     for ii in range(100):
         data[ii, ::, :] = ii
     return data
@@ -34,7 +34,7 @@ def example_video():
 @pytest.fixture
 def example_rgb_video():
     rng = np.random.RandomState(16412)
-    data = rng.randint(0, 100, (100, 30, 40, 3)).astype(np.uint8)
+    data = rng.randint(0, 100, (100, 60, 60, 3)).astype(np.uint8)
     for ii in range(100):
         data[ii, ::, :] = ii
     return data
@@ -43,7 +43,7 @@ def example_rgb_video():
 @pytest.fixture
 def example_unnormalized_rgb_video():
     rng = np.random.RandomState(6125321)
-    data = rng.randint(0, 700, (100, 50, 40, 3))
+    data = rng.randint(0, 700, (100, 60, 60, 3))
     return data
 
 
@@ -253,9 +253,12 @@ def test_thumbnail_from_rgb_array(tmpdir, example_rgb_video, timesteps):
     assert not file_path.exists()
 
 
-@pytest.mark.parametrize("timesteps",
-                         [None, np.arange(22, 56)])
-def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
+@pytest.mark.parametrize("timesteps, padding",
+                         [(None, 10),
+                          (None, 0),
+                          (np.arange(22, 56), 10),
+                          (np.arange(22, 56), 0)])
+def test_thumbnail_from_roi(tmpdir, example_video, timesteps, padding):
 
     if timesteps is None:
         n_t = example_video.shape[0]
@@ -288,9 +291,17 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
     thumbnail = _thumbnail_video_from_ROI_array(
                     example_video,
                     roi,
+                    padding=padding,
                     tmp_dir=pathlib.Path(tmpdir),
                     quality=9,
                     timesteps=timesteps)
+
+    origin, fov = video_bounds_from_ROI(roi,
+                                        example_video.shape[1:3],
+                                        padding)
+
+    assert thumbnail.origin == origin
+    assert thumbnail.frame_shape == fov
 
     rowmin = thumbnail.origin[0]
     rowmax = thumbnail.origin[0]+thumbnail.frame_shape[0]
@@ -307,15 +318,20 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps):
     assert len(read_data) == n_t
 
     # factor of 4 reflects the upscaling of video frame sizes
-    assert read_data[0].shape == (4*thumbnail.frame_shape[0],
-                                  4*thumbnail.frame_shape[1],
-                                  3)
-
+    if thumbnail.frame_shape[0] < 128:
+        assert read_data[0].shape == (4*thumbnail.frame_shape[0],
+                                      4*thumbnail.frame_shape[1],
+                                      3)
+    else:
+        assert read_data[0].shape == (thumbnail.frame_shape[0],
+                                      thumbnail.frame_shape[1],
+                                      3)
     # now with color
     example_video[:, :, :] = 0
     thumbnail = _thumbnail_video_from_ROI_array(
                     example_video,
                     roi,
+                    padding=padding,
                     roi_color=(0, 255, 0),
                     tmp_dir=pathlib.Path(tmpdir),
                     quality=7,
@@ -404,21 +420,37 @@ def test_thumbnail_from_path(tmpdir,
         np.testing.assert_array_equal(control_data[ii], test_data[ii])
 
 
-@pytest.mark.parametrize("quantiles,min_max,roi_color,timesteps",
-                         [((0.1, 0.9), None, None, None),
-                          ((0.1, 0.9), None, None, np.arange(22, 76)),
-                          ((0.1, 0.9), None, (255, 0, 0), None),
-                          ((0.1, 0.9), None, (255, 0, 0), np.arange(22, 76)),
-                          (None, (250, 600), None, None),
-                          (None, (250, 600), None, np.arange(22, 76)),
-                          (None, (250, 600), (255, 0, 0), None),
-                          (None, (250, 600), (255, 0, 0), np.arange(22, 76))])
+@pytest.mark.parametrize("quantiles,min_max,roi_color,timesteps,padding",
+                         [((0.1, 0.9), None, None, None, 0),
+                          ((0.1, 0.9), None, None,
+                           np.arange(22, 76), 0),
+                          ((0.1, 0.9), None, (255, 0, 0), None, 0),
+                          ((0.1, 0.9), None, (255, 0, 0),
+                           np.arange(22, 76), 0),
+                          (None, (250, 600), None, None, 0),
+                          (None, (250, 600), None,
+                           np.arange(22, 76), 0),
+                          (None, (250, 600), (255, 0, 0), None, 0),
+                          (None, (250, 600), (255, 0, 0),
+                           np.arange(22, 76), 0),
+                          ((0.1, 0.9), None, None, None, 10),
+                          ((0.1, 0.9), None, None, np.arange(22, 76), 10),
+                          ((0.1, 0.9), None, (255, 0, 0), None, 10),
+                          ((0.1, 0.9), None, (255, 0, 0),
+                           np.arange(22, 76), 10),
+                          (None, (250, 600), None, None, 10),
+                          (None, (250, 600), None, np.arange(22, 76), 10),
+                          (None, (250, 600), (255, 0, 0), None, 10),
+                          (None, (250, 600), (255, 0, 0),
+                           np.arange(22, 76), 10),
+                          ])
 def test_thumbnail_from_roi_and_path(tmpdir,
                                      example_unnormalized_rgb_video,
                                      quantiles,
                                      min_max,
                                      roi_color,
-                                     timesteps):
+                                     timesteps,
+                                     padding):
     """
     Test _thumbnail_from_ROI_path by comparing output to result
     from _thumbnail_from_ROI_array
@@ -455,6 +487,7 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     control_video = _thumbnail_video_from_ROI_array(
                        normalized_video,
                        roi,
+                       padding=padding,
                        roi_color=roi_color,
                        tmp_dir=pathlib.Path(tmpdir),
                        timesteps=timesteps)
@@ -462,11 +495,18 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     test_video = _thumbnail_video_from_ROI_path(
                      pathlib.Path(h5_fname),
                      roi,
+                     padding=padding,
                      roi_color=roi_color,
                      tmp_dir=pathlib.Path(tmpdir),
                      quantiles=quantiles,
                      min_max=min_max,
                      timesteps=timesteps)
+
+    origin, fov = video_bounds_from_ROI(roi, normalized_video.shape[1:3],
+                                        padding)
+
+    assert test_video.origin == origin
+    assert test_video.frame_shape == fov
 
     control_data = imageio.mimread(control_video.video_path)
     test_data = imageio.mimread(test_video.video_path)
@@ -478,9 +518,15 @@ def test_thumbnail_from_roi_and_path(tmpdir,
         np.testing.assert_array_equal(control_data[ii], test_data[ii])
 
 
-@pytest.mark.parametrize("timesteps",
-                         [None, np.arange(22, 56)])
-def test_generic_generation_from_ROI(tmpdir, example_video, timesteps):
+@pytest.mark.parametrize("timesteps, padding",
+                         [(None, 0),
+                          (None, 10),
+                          (np.arange(22, 56), 0),
+                          (np.arange(22, 56), 10)])
+def test_generic_generation_from_ROI(tmpdir,
+                                     example_video,
+                                     timesteps,
+                                     padding):
     """
     Just smoketest thumbnail_video_from_ROI
     """
@@ -496,14 +542,22 @@ def test_generic_generation_from_ROI(tmpdir, example_video, timesteps):
                      y=18, height=12,
                      mask=[list(i) for i in mask])
 
+    true_origin, true_fov = video_bounds_from_ROI(roi,
+                                                  example_video.shape[1:3],
+                                                  padding)
+
     th = thumbnail_video_from_ROI(example_video.astype(np.uint8),
                                   roi,
+                                  padding=padding,
                                   roi_color=(0, 255, 0),
                                   file_path=None,
                                   tmp_dir=pathlib.Path(tmpdir),
                                   quality=7,
                                   timesteps=timesteps,
                                   quantiles=(0.1, 0.99))
+
+    assert th.origin == true_origin
+    assert th.frame_shape == true_fov
 
     read_data = imageio.mimread(th.video_path)
     assert len(read_data) == n_t
@@ -515,12 +569,16 @@ def test_generic_generation_from_ROI(tmpdir, example_video, timesteps):
 
     th = thumbnail_video_from_ROI(pathlib.Path(base_fname),
                                   roi,
+                                  padding=padding,
                                   roi_color=(0, 255, 0),
                                   file_path=None,
                                   tmp_dir=pathlib.Path(tmpdir),
                                   quality=7,
                                   timesteps=timesteps,
                                   quantiles=(0.01, 0.99))
+
+    assert th.origin == true_origin
+    assert th.frame_shape == true_fov
 
     read_data = imageio.mimread(th.video_path)
     assert len(read_data) == n_t

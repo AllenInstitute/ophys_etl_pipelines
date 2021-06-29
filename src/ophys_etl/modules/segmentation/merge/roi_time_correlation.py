@@ -73,38 +73,6 @@ def _wgts_to_series(sub_video: np.ndarray,
     return key_pixel/wgts.sum()
 
 
-def sub_video_from_roi(roi: OphysROI,
-                       video_data: np.ndarray) -> np.ndarray:
-    """
-    Get a sub-video that is flattened in space corresponding
-    to the video data at the ROI
-
-    Parameters
-    ----------
-    roi: OphysROI
-
-    video_data: np.ndarray
-        Shape is (ntime, nrows, ncols)
-
-    Returns
-    -------
-    sub_video: np.ndarray
-        Shape is (ntime, npix) where npix is the number
-        of pixels marked True in the ROI
-    """
-
-    xmin = roi.x0
-    ymin = roi.y0
-    xmax = roi.x0+roi.width
-    ymax = roi.y0+roi.height
-
-    sub_video = video_data[:, ymin:ymax, xmin:xmax]
-
-    mask = roi.mask_matrix
-    sub_video = sub_video[:, mask].reshape(video_data.shape[0], -1)
-    return sub_video
-
-
 def correlate_sub_video(sub_video: np.ndarray,
                         key_pixel: np.ndarray,
                         filter_fraction: float = 0.2) -> np.ndarray:

@@ -11,26 +11,6 @@ from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
     get_brightest_pixel)
 
 
-@pytest.fixture
-def small_rois():
-    video_lookup = {}
-    rng = np.random.RandomState(881223)
-    for ii in range(5):
-        area = rng.randint(9, 22)
-        video_lookup[ii] = rng.random_sample((100, area))
-    return video_lookup
-
-
-@pytest.fixture
-def large_rois():
-    video_lookup = {}
-    rng = np.random.RandomState(881223)
-    for ii in range(5, 8, 1):
-        area = rng.randint(35, 45)
-        video_lookup[ii] = rng.random_sample((100, area))
-    return video_lookup
-
-
 @pytest.mark.parametrize('filter_fraction, n_processors',
                          [(0.2, 2), (0.2, 3),
                           (0.3, 2), (0.3, 3)])

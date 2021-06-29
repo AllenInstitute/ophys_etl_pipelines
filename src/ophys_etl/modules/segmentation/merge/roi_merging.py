@@ -3,7 +3,8 @@ import numpy as np
 
 from ophys_etl.modules.segmentation.\
     merge.roi_utils import (
-        merge_rois)
+        merge_rois,
+        sub_video_from_roi)
 
 from ophys_etl.modules.segmentation.merge.candidates import (
     find_merger_candidates)
@@ -16,10 +17,6 @@ from ophys_etl.modules.segmentation.merge.characteristic_pixel import (
 
 from ophys_etl.modules.segmentation.merge.self_correlation import (
     create_self_corr_lookup)
-
-from ophys_etl.modules.segmentation.\
-    merge.roi_time_correlation import (
-        sub_video_from_roi)
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 

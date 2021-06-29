@@ -7,7 +7,8 @@ from ophys_etl.modules.segmentation.merge.roi_utils import (
     merge_rois,
     do_rois_abut,
     extract_roi_to_ophys_roi,
-    ophys_roi_to_extract_roi)
+    ophys_roi_to_extract_roi,
+    sub_video_from_roi)
 
 
 def test_extract_roi_to_ophys_roi():
@@ -170,3 +171,24 @@ def test_roi_abut():
                     valid_roi=True)
 
     assert not do_rois_abut(roi0, roi1, dpix=2)
+
+
+def test_sub_video_from_roi(example_roi0):
+    rng = np.random.RandomState(51433)
+    video_data = rng.randint(11, 457, (100, 50, 47))
+
+    sub_video = sub_video_from_roi(example_roi0, video_data)
+
+    npix = example_roi0.mask_matrix.sum()
+    expected = np.zeros((100, npix), dtype=int)
+    mask = example_roi0.mask_matrix
+    i_pix = 0
+    for ir in range(example_roi0.height):
+        for ic in range(example_roi0.width):
+            if not mask[ir, ic]:
+                continue
+            expected[:, i_pix] = video_data[:,
+                                            example_roi0.y0+ir,
+                                            example_roi0.x0+ic]
+            i_pix += 1
+    np.testing.assert_array_equal(expected, sub_video)

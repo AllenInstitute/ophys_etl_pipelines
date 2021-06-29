@@ -6,35 +6,12 @@ from ophys_etl.modules.segmentation.\
     merge.roi_time_correlation import (
         get_brightest_pixel,
         get_brightest_pixel_parallel,
-        sub_video_from_roi,
         correlate_sub_video,
         calculate_merger_metric,
         _self_correlate,
         _correlate_batch,
         _wgts_to_series,
         get_self_correlation)
-
-
-@pytest.fixture
-def example_roi0():
-    rng = np.random.RandomState(64322)
-    roi = OphysROI(roi_id=4,
-                   x0=10,
-                   y0=22,
-                   width=7,
-                   height=11,
-                   valid_roi=True,
-                   mask_matrix=rng.randint(0, 2,
-                                           (11, 7)).astype(bool))
-
-    return roi
-
-
-@pytest.fixture
-def example_video():
-    rng = np.random.RandomState(1172312)
-    data = rng.random_sample((100, 50, 50))
-    return data
 
 
 @pytest.mark.parametrize('i_pixel, filter_fraction',
@@ -175,27 +152,6 @@ def test_get_brightest_pixel_parallel(
                                actual,
                                atol=1.0e-10,
                                rtol=1.0e-10)
-
-
-def test_sub_video_from_roi(example_roi0):
-    rng = np.random.RandomState(51433)
-    video_data = rng.randint(11, 457, (100, 50, 47))
-
-    sub_video = sub_video_from_roi(example_roi0, video_data)
-
-    npix = example_roi0.mask_matrix.sum()
-    expected = np.zeros((100, npix), dtype=int)
-    mask = example_roi0.mask_matrix
-    i_pix = 0
-    for ir in range(example_roi0.height):
-        for ic in range(example_roi0.width):
-            if not mask[ir, ic]:
-                continue
-            expected[:, i_pix] = video_data[:,
-                                            example_roi0.y0+ir,
-                                            example_roi0.x0+ic]
-            i_pix += 1
-    np.testing.assert_array_equal(expected, sub_video)
 
 
 @pytest.mark.parametrize('filter_fraction', [0.1, 0.2, 0.3])

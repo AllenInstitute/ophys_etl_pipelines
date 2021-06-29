@@ -16,7 +16,7 @@ from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
 def _self_correlate_chunk(
         roi_id_list: List[int],
         sub_video_lookup: dict,
-        key_pixel_lookup: dict,
+        timeseries_lookup: dict,
         filter_fraction: float,
         output_dict: multiprocessing.managers.DictProxy) -> None:
     """
@@ -31,7 +31,7 @@ def _self_correlate_chunk(
         Maps ROI ID to sub-videos that have been flattened in space
         so that their shapes are (ntime, npixels)
 
-    key_pixel_lookup: dict
+    timeseries_lookup: dict
         Maps ROI ID to the characteristic timeseries of the ROI
 
     filter_fraction: float
@@ -46,7 +46,7 @@ def _self_correlate_chunk(
     """
     for roi_id in roi_id_list:
         result = get_self_correlation(sub_video_lookup[roi_id],
-                                      key_pixel_lookup[roi_id]['key_pixel'],
+                                      timeseries_lookup[roi_id]['timeseries'],
                                       filter_fraction)
         output_dict[roi_id] = result
     return None
@@ -54,7 +54,7 @@ def _self_correlate_chunk(
 
 def create_self_corr_lookup(merger_candidates: List[Tuple[int, int]],
                             sub_video_lookup: dict,
-                            key_pixel_lookup: dict,
+                            timeseries_lookup: dict,
                             filter_fraction: float,
                             n_processors: int) -> dict:
     """
@@ -71,7 +71,7 @@ def create_self_corr_lookup(merger_candidates: List[Tuple[int, int]],
         Maps ROI ID to sub-videos that have been flattened in space
         so that their shapes are (ntime, npixels)
 
-    key_pixel_lookup: dict
+    timeseries_lookup: dict
         Maps ROI ID to the characteristic timeseries of the ROI
 
     filter_fraction: float
@@ -103,7 +103,7 @@ def create_self_corr_lookup(merger_candidates: List[Tuple[int, int]],
         this_pixel = {}
         for roi_id in chunk:
             this_video[roi_id] = sub_video_lookup[roi_id]
-            this_pixel[roi_id] = key_pixel_lookup[roi_id]
+            this_pixel[roi_id] = timeseries_lookup[roi_id]
         args = (chunk,
                 this_video,
                 this_pixel,

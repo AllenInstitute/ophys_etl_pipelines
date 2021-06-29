@@ -15,7 +15,7 @@ from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
 def _calculate_merger_metric(
         input_pair_list: List[Tuple[int, int]],
         video_lookup: dict,
-        key_pixel_lookup: dict,
+        timeseries_lookup: dict,
         self_corr_lookup: dict,
         filter_fraction: float,
         output_dict: multiprocessing.managers.DictProxy) -> None:
@@ -32,7 +32,7 @@ def _calculate_merger_metric(
         are flattened in space so that their shapes are
         (ntime, npixels))
 
-    key_pixel_lookup: dict
+    timeseries_lookup: dict
         A dict that maps ROI ID to the characteristic pixels
         associated with ROIs (i.e. their characteristic
         timeseries)
@@ -55,12 +55,12 @@ def _calculate_merger_metric(
 
     Notes
     -----
-    key_pixel_lookup actually maps ROI ID to another dict.
+    timeseries_lookup actually maps ROI ID to another dict.
 
-    key_pixel_lookup[roi_id]['key_pixel'] is the time series associated
+    timeseries_lookup[roi_id]['timeseries'] is the time series associated
     with the roi_id
 
-    key_pixel_lookup[roi_id]['key_pixel']['area'] is the area of the
+    timeseries_lookup[roi_id]['timeseries']['area'] is the area of the
     ROI when the key pixel time series was calculated (tracked so that
     we don't spend too much time re-calculating these when the ROIs
     change a very little)
@@ -78,7 +78,7 @@ def _calculate_merger_metric(
         else:
             metric01 = calculate_merger_metric(
                              self_corr_lookup[input_pair[0]],
-                             key_pixel_lookup[input_pair[0]]['key_pixel'],
+                             timeseries_lookup[input_pair[0]]['timeseries'],
                              video1,
                              filter_fraction=filter_fraction)
 
@@ -87,7 +87,7 @@ def _calculate_merger_metric(
         else:
             metric10 = calculate_merger_metric(
                              self_corr_lookup[input_pair[1]],
-                             key_pixel_lookup[input_pair[1]]['key_pixel'],
+                             timeseries_lookup[input_pair[1]]['timeseries'],
                              video0,
                              filter_fraction=filter_fraction)
 
@@ -99,7 +99,7 @@ def _calculate_merger_metric(
 def get_merger_metric_from_pairs(
         potential_mergers: List[Tuple[int, int]],
         video_lookup: dict,
-        key_pixel_lookup: dict,
+        timeseries_lookup: dict,
         self_corr_lookup: dict,
         filter_fraction: float,
         n_processors: int) -> dict:
@@ -116,10 +116,9 @@ def get_merger_metric_from_pairs(
         are flattened in space so that their shapes are
         (ntime, npixels))
 
-    key_pixel_lookup: dict
-        A dict that maps ROI ID to the characteristic pixels
-        associated with ROIs (i.e. their characteristic
-        timeseries)
+    timeseries_lookup: dict
+        A dict that maps ROI ID to the characteristic timeseries
+        associated with ROIs
 
     self_corr_lookup: dict
         A dict that maps ROI ID to the (mu, std) tuples characterizing
@@ -140,12 +139,12 @@ def get_merger_metric_from_pairs(
 
     Notes
     -----
-    key_pixel_lookup actually maps ROI ID to another dict.
+    timeseries_lookup actually maps ROI ID to another dict.
 
-    key_pixel_lookup[roi_id]['key_pixel'] is the time series associated
+    timeseries_lookup[roi_id]['timeseries'] is the time series associated
     with the roi_id
 
-    key_pixel_lookup[roi_id]['key_pixel']['area'] is the area of the
+    timeseries_lookup[roi_id]['timeseries']['area'] is the area of the
     ROI when the key pixel time series was calculated (tracked so that
     we don't spend too much time re-calculating these when the ROIs
     change a very little)
@@ -168,7 +167,7 @@ def get_merger_metric_from_pairs(
         this_corr = {}
         for roi_id in this_roi_id:
             this_video[roi_id] = video_lookup[roi_id]
-            this_pixel[roi_id] = key_pixel_lookup[roi_id]
+            this_pixel[roi_id] = timeseries_lookup[roi_id]
             this_corr[roi_id] = self_corr_lookup[roi_id]
 
         args = (chunk,

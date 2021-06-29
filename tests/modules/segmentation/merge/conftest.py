@@ -46,16 +46,16 @@ def example_video():
 
 
 @pytest.fixture
-def key_and_video_dataset():
+def timeseries_and_video_dataset():
     rng = np.random.RandomState(11818)
     video = {}
-    key_pixel = {}
+    timeseries = {}
     for ii in range(10):
         area = rng.randint(10, 20)
         video[ii] = rng.random_sample((100, area))
-        key_pixel[ii] = {'key_pixel': rng.random_sample(100)}
+        timeseries[ii] = {'timeseries': rng.random_sample(100)}
     return {'video': video,
-            'key_pixel': key_pixel}
+            'timeseries': timeseries}
 
 
 @pytest.fixture
@@ -106,13 +106,13 @@ def roi_and_video_dataset():
 
 
 @pytest.fixture
-def key_video_corr_dataset():
+def timeseries_video_corr_dataset():
 
     ntime = 50
 
     rng = np.random.RandomState(712553)
     video_lookup = {}
-    key_pixel_lookup = {}
+    timeseries_lookup = {}
     self_corr_lookup = {}
 
     area = [1, 10, 2, 6, 5]
@@ -120,12 +120,12 @@ def key_video_corr_dataset():
     for roi_id, area in enumerate(area):
         area = rng.randint(1, 20)
         video_lookup[roi_id] = rng.random_sample((ntime, area))
-        key_pixel_lookup[roi_id] = {'key_pixel': rng.random_sample(ntime)}
+        timeseries_lookup[roi_id] = {'timeseries': rng.random_sample(ntime)}
         self_corr_lookup[roi_id] = (rng.random_sample(),
                                     rng.random_sample())
 
     return {'video': video_lookup,
-            'key_pixel': key_pixel_lookup,
+            'timeseries': timeseries_lookup,
             'self_corr': self_corr_lookup}
 
 

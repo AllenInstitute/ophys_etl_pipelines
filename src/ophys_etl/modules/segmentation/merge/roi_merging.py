@@ -12,8 +12,8 @@ from ophys_etl.modules.segmentation.merge.candidates import (
 from ophys_etl.modules.segmentation.merge.metric import (
     get_merger_metric_from_pairs)
 
-from ophys_etl.modules.segmentation.merge.characteristic_pixel import (
-    update_key_pixel_lookup)
+from ophys_etl.modules.segmentation.merge.characteristic_timeseries import (
+    update_timeseries_lookup)
 
 from ophys_etl.modules.segmentation.merge.self_correlation import (
     create_self_corr_lookup)
@@ -134,7 +134,7 @@ def do_roi_merger(
     # between potential merger pairs and merger metrics
     sub_video_lookup = {}
     merger_to_metric = {}
-    pixel_lookup = {}
+    timeseries_lookup = {}
 
     anomalous_rois = {}
 
@@ -179,20 +179,20 @@ def do_roi_merger(
         logger.info(f'found {len(merger_candidates)} merger candidates '
                     f'in {time.time()-t0_pass:.2f} seconds')
 
-        pixel_lookup = update_key_pixel_lookup(
-                          merger_candidates,
-                          pixel_lookup,
-                          sub_video_lookup,
-                          filter_fraction=0.2,
-                          n_processors=n_processors)
+        timeseries_lookup = update_timeseries_lookup(
+                              merger_candidates,
+                              timeseries_lookup,
+                              sub_video_lookup,
+                              filter_fraction=0.2,
+                              n_processors=n_processors)
 
-        logger.info('updated pixel lookup '
+        logger.info('updated timeseries lookup '
                     f'in {time.time()-t0_pass:.2f} seconds')
 
         self_corr_lookup = create_self_corr_lookup(
                                merger_candidates,
                                sub_video_lookup,
-                               pixel_lookup,
+                               timeseries_lookup,
                                filter_fraction,
                                n_processors)
 
@@ -202,7 +202,7 @@ def do_roi_merger(
         new_merger_metrics = get_merger_metric_from_pairs(
                                    merger_candidates,
                                    sub_video_lookup,
-                                   pixel_lookup,
+                                   timeseries_lookup,
                                    self_corr_lookup,
                                    filter_fraction,
                                    n_processors)
@@ -306,7 +306,7 @@ def do_roi_merger(
                 valid_roi_id.remove(roi_id)
                 neighbor_lookup.pop(roi_id)
                 sub_video_lookup.pop(roi_id)
-                pixel_lookup.pop(roi_id)
+                timeseries_lookup.pop(roi_id)
 
         # remove an obsolete ROI IDs from neighbor lookup
         for roi_id in neighbor_lookup:
@@ -320,17 +320,18 @@ def do_roi_merger(
                 sub_video_lookup.pop(roi_id)
 
         # remove non-existent ROIs and ROIs whose areas
-        # have significantly changed from pixel_lookup
-        k_list = list(pixel_lookup.keys())
+        # have significantly changed from timeseries_lookup
+        k_list = list(timeseries_lookup.keys())
         for roi_id in k_list:
             pop_it = False
+            area0 = timeseries_lookup[roi_id]['area']
             if roi_id not in valid_roi_id:
                 pop_it = True
-            elif roi_lookup[roi_id].area > 1.05*pixel_lookup[roi_id]['area']:
+            elif roi_lookup[roi_id].area > area0:
                 pop_it = True
 
             if pop_it:
-                pixel_lookup.pop(roi_id)
+                timeseries_lookup.pop(roi_id)
 
         merger_keys = list(merger_to_metric.keys())
         for pair in merger_keys:

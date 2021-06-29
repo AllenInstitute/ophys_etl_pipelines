@@ -13,7 +13,7 @@ from ophys_etl.modules.segmentation.merge.metric import (
                          [(0.2, 3), (0.2, 2),
                           (0.3, 3), (0.3, 2)])
 def test_get_merger_metric_from_pairs(
-        key_video_corr_dataset,
+        timeseries_video_corr_dataset,
         filter_fraction,
         n_processors):
 
@@ -25,28 +25,30 @@ def test_get_merger_metric_from_pairs(
     merger_pairs = list(combinations(range(5), 2))
     actual = get_merger_metric_from_pairs(
                  merger_pairs,
-                 key_video_corr_dataset['video'],
-                 key_video_corr_dataset['key_pixel'],
-                 key_video_corr_dataset['self_corr'],
+                 timeseries_video_corr_dataset['video'],
+                 timeseries_video_corr_dataset['timeseries'],
+                 timeseries_video_corr_dataset['self_corr'],
                  filter_fraction,
                  n_processors)
 
     for pair in merger_pairs:
-        video0 = key_video_corr_dataset['video'][pair[0]]
-        pix0 = key_video_corr_dataset['key_pixel'][pair[0]]['key_pixel']
-        corr0 = key_video_corr_dataset['self_corr'][pair[0]]
+        video0 = timeseries_video_corr_dataset['video'][pair[0]]
+        true_timeseries = timeseries_video_corr_dataset['timeseries'][pair[0]]
+        ts0 = true_timeseries['timeseries']
+        corr0 = timeseries_video_corr_dataset['self_corr'][pair[0]]
 
-        video1 = key_video_corr_dataset['video'][pair[1]]
-        pix1 = key_video_corr_dataset['key_pixel'][pair[1]]['key_pixel']
-        corr1 = key_video_corr_dataset['self_corr'][pair[1]]
+        true_timeseries = timeseries_video_corr_dataset['timeseries'][pair[1]]
+        video1 = timeseries_video_corr_dataset['video'][pair[1]]
+        ts1 = true_timeseries['timeseries']
+        corr1 = timeseries_video_corr_dataset['self_corr'][pair[1]]
 
         metric01 = calculate_merger_metric(corr0,
-                                           pix0,
+                                           ts0,
                                            video1,
                                            filter_fraction=filter_fraction)
 
         metric10 = calculate_merger_metric(corr1,
-                                           pix1,
+                                           ts1,
                                            video0,
                                            filter_fraction=filter_fraction)
 

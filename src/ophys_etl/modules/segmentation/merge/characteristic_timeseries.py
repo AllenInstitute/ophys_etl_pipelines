@@ -20,7 +20,7 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
-def _update_key_pixel_lookup_per_pix(
+def _update_timeseries_lookup_per_pix(
         needed_rois:  Union[List[int], Set[int]],
         sub_video_lookup: dict,
         filter_fraction: float,
@@ -102,10 +102,10 @@ def _get_characteristic_timeseries(
     return None
 
 
-def _update_key_pixel_lookup(needed_rois: Union[List[int], Set[int]],
-                             sub_video_lookup: dict,
-                             filter_fraction: float,
-                             n_processors: int) -> dict:
+def _update_timeseries_lookup(needed_rois: Union[List[int], Set[int]],
+                              sub_video_lookup: dict,
+                              filter_fraction: float,
+                              n_processors: int) -> dict:
     """
     Method to calculate the characteristic time series of
     ROIs, using multiprocessing to process multiple ROIs
@@ -164,12 +164,12 @@ def _update_key_pixel_lookup(needed_rois: Union[List[int], Set[int]],
     return final_output
 
 
-def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
-                            key_pixel_lookup: dict,
-                            sub_video_lookup: dict,
-                            filter_fraction: float,
-                            n_processors: int,
-                            size_threshold: int = 500) -> dict:
+def update_timeseries_lookup(merger_candidates: List[Tuple[int, int]],
+                             key_pixel_lookup: dict,
+                             sub_video_lookup: dict,
+                             filter_fraction: float,
+                             n_processors: int,
+                             size_threshold: int = 500) -> dict:
     """
     Take a list of candidate merger ROI IDs and key_pixel_lookup dict.
     Update key_pixel_lookup dict with the key pixel time series for
@@ -237,7 +237,7 @@ def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
 
     new_small_pixels = {}
     if len(needed_small_rois) > 0:
-        new_small_pixels = _update_key_pixel_lookup(
+        new_small_pixels = _update_timeseries_lookup(
                                              needed_small_rois,
                                              sub_video_lookup,
                                              filter_fraction,
@@ -246,7 +246,7 @@ def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
     if len(needed_big_rois) > 0:
         logger.info('CALLING PIXEL-PARALLELIZED CORRELATION on '
                     f'{len(needed_big_rois)} ROIs')
-        new_big_pixels = _update_key_pixel_lookup_per_pix(
+        new_big_pixels = _update_timeseries_lookup_per_pix(
                              needed_big_rois,
                              sub_video_lookup,
                              filter_fraction,
@@ -254,9 +254,9 @@ def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
 
     for n in new_big_pixels:
         key_pixel_lookup[n] = {'area': sub_video_lookup[n].shape[1],
-                               'key_pixel': new_big_pixels[n]}
+                               'timeseries': new_big_pixels[n]}
     for n in new_small_pixels:
         key_pixel_lookup[n] = {'area': sub_video_lookup[n].shape[1],
-                               'key_pixel': new_small_pixels[n]}
+                               'timeseries': new_small_pixels[n]}
 
     return key_pixel_lookup

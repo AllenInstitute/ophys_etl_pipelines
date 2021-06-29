@@ -160,23 +160,23 @@ def test_correlate_sub_video(filter_fraction):
     npixels = 45
     rng = np.random.RandomState(8234)
     video_data = rng.random_sample((ntime, npixels))
-    key_pixel = rng.random_sample(ntime)
+    timeseries = rng.random_sample(ntime)
 
     corr = correlate_sub_video(video_data,
-                               key_pixel,
+                               timeseries,
                                filter_fraction=filter_fraction)
 
-    th = np.quantile(key_pixel, 1.0-filter_fraction)
-    mask = (key_pixel >= th)
-    key_pixel = key_pixel[mask]
-    mu = np.mean(key_pixel)
-    var = np.var(key_pixel)
+    th = np.quantile(timeseries, 1.0-filter_fraction)
+    mask = (timeseries >= th)
+    timeseries = timeseries[mask]
+    mu = np.mean(timeseries)
+    var = np.var(timeseries)
     for i_pix in range(npixels):
         pixel = video_data[:, i_pix]
         pixel = pixel[mask]
         mu_p = np.mean(pixel)
         var_p = np.var(pixel)
-        expected = np.mean((key_pixel-mu)*(pixel-mu_p))/np.sqrt(var*var_p)
+        expected = np.mean((timeseries-mu)*(pixel-mu_p))/np.sqrt(var*var_p)
         assert np.abs((expected-corr[i_pix])/expected) < 1.0e-6
 
 
@@ -184,17 +184,17 @@ def test_correlate_sub_video(filter_fraction):
 def test_calculate_merger_metric(filter_fraction):
     rng = np.random.RandomState(123412)
     sub_video = rng.random_sample((100, 20))
-    key_pixel = rng.random_sample(100)
+    timeseries = rng.random_sample(100)
     distribution_params = (rng.random_sample(), rng.random_sample())
 
     actual = calculate_merger_metric(
                     distribution_params,
-                    key_pixel,
+                    timeseries,
                     sub_video,
                     filter_fraction=filter_fraction)
 
     corr = correlate_sub_video(sub_video,
-                               key_pixel,
+                               timeseries,
                                filter_fraction=filter_fraction)
     z_score = (corr-distribution_params[0])/distribution_params[1]
     expected = np.median(z_score)
@@ -205,15 +205,15 @@ def test_calculate_merger_metric(filter_fraction):
 def test_get_self_correlation(filter_fraction):
     rng = np.random.RandomState(521512)
     sub_video = rng.random_sample((100, 20))
-    key_pixel = rng.random_sample(100)
+    timeseries = rng.random_sample(100)
 
     corr = correlate_sub_video(sub_video,
-                               key_pixel,
+                               timeseries,
                                filter_fraction)
     expected = (np.mean(corr), np.std(corr, ddof=1))
 
     actual = get_self_correlation(sub_video,
-                                  key_pixel,
+                                  timeseries,
                                   filter_fraction)
     assert np.abs((actual[0]-expected[0])/expected[0]) < 1.0e-10
     assert np.abs((actual[1]-expected[1])/expected[1]) < 1.0e-10
@@ -221,7 +221,7 @@ def test_get_self_correlation(filter_fraction):
     # check that if there is only one pixel, we get back (0.0, 1.0)
     sub_video = rng.random_sample((100, 1))
     actual = get_self_correlation(sub_video,
-                                  key_pixel,
+                                  timeseries,
                                   filter_fraction)
     assert np.abs(actual[0]) < 1.0e-10
     assert np.abs(actual[1]-1.0) < 1.0e-10

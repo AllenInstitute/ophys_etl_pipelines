@@ -8,10 +8,9 @@ from ophys_etl.modules.segmentation.modules.schemas import \
     RoiMergerSchema
 
 import ophys_etl.modules.segmentation.merge.roi_merging as merging
-from ophys_etl.modules.segmentation.merge.roi_types import (
-    SegmentationROI)
+import ophys_etl.modules.segmentation.merge.roi_utils as roi_utils
+
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
-import networkx
 
 import logging
 import time
@@ -22,14 +21,14 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
-def write_out_rois(roi_list: Union[List[SegmentationROI], List[OphysROI]],
+def write_out_rois(roi_list: List[OphysROI],
                    out_name: Union[str, pathlib.Path]) -> None:
     """
     Write a list of ROIs into the LIMS-friendly JSONized format
 
     Parameters
     ----------
-    roi_list: Union[List[SegmentationROI], List[OphysROI]]
+    roi_list: Union[List[OphysROI], List[OphysROI]]
 
     out_name: Union[str, pathlib.Path]
         Path to file to be written
@@ -40,7 +39,7 @@ def write_out_rois(roi_list: Union[List[SegmentationROI], List[OphysROI]],
     """
     output_list = []
     for roi in roi_list:
-        new_roi = merging.ophys_roi_to_extract_roi(roi)
+        new_roi = roi_utils.ophys_roi_to_extract_roi(roi)
         output_list.append(new_roi)
 
     with open(out_name, 'w') as out_file:
@@ -66,7 +65,7 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
         roi_id_set = set()
         for roi in raw_roi_list:
             roi['valid'] = True
-            ophys_roi = merging.extract_roi_to_ophys_roi(roi)
+            ophys_roi = roi_utils.extract_roi_to_ophys_roi(roi)
             if ophys_roi.roi_id in roi_id_set:
                 raise RuntimeError(f'roi id {ophys_roi.roi_id} duplicated '
                                    'in initial input')

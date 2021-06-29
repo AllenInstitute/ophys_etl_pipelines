@@ -134,7 +134,7 @@ def _update_timeseries_lookup(needed_rois: Union[List[int], Set[int]],
     output: dict
         Maps ROI ID to the characteristic timeseries for that ROI
     """
-    chunksize = len(needed_rois)//(4*n_processors-1)
+    chunksize = len(needed_rois)//(n_processors-1)
     chunksize = max(chunksize, 1)
     mgr = multiprocessing.Manager()
     output_dict = mgr.dict()
@@ -165,14 +165,14 @@ def _update_timeseries_lookup(needed_rois: Union[List[int], Set[int]],
 
 
 def update_timeseries_lookup(merger_candidates: List[Tuple[int, int]],
-                             key_pixel_lookup: dict,
+                             timeseries_lookup: dict,
                              sub_video_lookup: dict,
                              filter_fraction: float,
                              n_processors: int,
                              size_threshold: int = 500) -> dict:
     """
-    Take a list of candidate merger ROI IDs and key_pixel_lookup dict.
-    Update key_pixel_lookup dict with the key pixel time series for
+    Take a list of candidate merger ROI IDs and timeseries_lookup dict.
+    Update timeseries_lookup dict with the key pixel time series for
     any pixels that are missing from the lookup table.
 
     Parameters
@@ -180,7 +180,7 @@ def update_timeseries_lookup(merger_candidates: List[Tuple[int, int]],
     merger_candidates: List[Tuple[int, int]]
         A list of tuples representing potential ROI mergers
 
-    key_pixel_lookup: dict
+    timeseries_lookup: dict
         A dict mapping ROI IDs to the characteristic timeseries
         (the "key pixels") associated with those ROIs
 
@@ -201,17 +201,17 @@ def update_timeseries_lookup(merger_candidates: List[Tuple[int, int]],
 
     Returns
     -------
-    key_pixel_lookup: dict
+    timeseries_lookup: dict
         Updated with any key pixels that need to be added.
 
     Notes
     -----
-    key_pixel_lookup actually maps ROI IDs to another dict
+    timeseries_lookup actually maps ROI IDs to another dict
 
-    key_pixel_lookup[roi_id]['key_pixel'] is the characteristic
+    timeseries_lookup[roi_id]['timeseries'] is the characteristic
     time series of the ROI
 
-    key_pixel_lookup[roi_id]['area'] is the area of the ROI
+    timeseries_lookup[roi_id]['area'] is the area of the ROI
     at the time when the characteristic time series was calculated
     """
 
@@ -228,7 +228,7 @@ def update_timeseries_lookup(merger_candidates: List[Tuple[int, int]],
         roi_to_consider.add(pair[1])
 
     for roi_id in roi_to_consider:
-        if roi_id not in key_pixel_lookup:
+        if roi_id not in timeseries_lookup:
             area = sub_video_lookup[roi_id].shape[1]
             if area >= size_threshold:
                 needed_big_rois.add(roi_id)
@@ -253,10 +253,10 @@ def update_timeseries_lookup(merger_candidates: List[Tuple[int, int]],
                              n_processors)
 
     for n in new_big_pixels:
-        key_pixel_lookup[n] = {'area': sub_video_lookup[n].shape[1],
-                               'timeseries': new_big_pixels[n]}
+        timeseries_lookup[n] = {'area': sub_video_lookup[n].shape[1],
+                                'timeseries': new_big_pixels[n]}
     for n in new_small_pixels:
-        key_pixel_lookup[n] = {'area': sub_video_lookup[n].shape[1],
-                               'timeseries': new_small_pixels[n]}
+        timeseries_lookup[n] = {'area': sub_video_lookup[n].shape[1],
+                                'timeseries': new_small_pixels[n]}
 
-    return key_pixel_lookup
+    return timeseries_lookup

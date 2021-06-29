@@ -1,9 +1,10 @@
-from typing import List, Optional, Dict, Tuple, Union, Set
-from functools import partial
-from itertools import combinations
+"""
+This module contains the code that the ROI merging module uses to find
+the single timeseries characterizing each ROI
+"""
+from typing import List, Tuple, Union, Set
 import multiprocessing
 import multiprocessing.managers
-import numpy as np
 from ophys_etl.modules.segmentation.merge.utils import (
     _winnow_process_list)
 
@@ -22,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 def _update_key_pixel_lookup_per_pix(
         needed_rois:  Union[List[int], Set[int]],
         sub_video_lookup: dict,
-        filter_fraction:float,
+        filter_fraction: float,
         n_processors: int) -> dict:
     """
     Method to calculate the characteristic time series of
@@ -151,7 +152,7 @@ def _update_key_pixel_lookup(needed_rois: Union[List[int], Set[int]],
                                     args=args)
         p.start()
         process_list.append(p)
-        while len(process_list)>0 and len(process_list)>=(n_processors-1):
+        while len(process_list) > 0 and len(process_list) >= (n_processors-1):
             process_list = _winnow_process_list(process_list)
     for p in process_list:
         p.join()
@@ -226,9 +227,7 @@ def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
         roi_to_consider.add(pair[1])
 
     for roi_id in roi_to_consider:
-        needs_update = False
         if roi_id not in key_pixel_lookup:
-            needs_update = True
             area = sub_video_lookup[roi_id].shape[1]
             if area >= size_threshold:
                 needed_big_rois.add(roi_id)
@@ -244,7 +243,8 @@ def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
                                              n_processors)
     new_big_pixels = {}
     if len(needed_big_rois) > 0:
-        logger.info(f'CALLING BIG PIXEL CORRELATION on {len(needed_big_rois)} ROIs')
+        logger.info('CALLING PIXEL-PARALLELIZED CORRELATION on '
+                    f'{len(needed_big_rois)} ROIs')
         new_big_pixels = _update_key_pixel_lookup_per_pix(
                              needed_big_rois,
                              sub_video_lookup,
@@ -256,6 +256,6 @@ def update_key_pixel_lookup(merger_candidates: List[Tuple[int, int]],
                                'key_pixel': new_big_pixels[n]}
     for n in new_small_pixels:
         key_pixel_lookup[n] = {'area': sub_video_lookup[n].shape[1],
-                              'key_pixel': new_small_pixels[n]}
+                               'key_pixel': new_small_pixels[n]}
 
     return key_pixel_lookup

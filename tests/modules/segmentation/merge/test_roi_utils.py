@@ -190,5 +190,3 @@ def test_roi_abut():
                     valid_roi=True)
 
     assert not do_rois_abut(roi0, roi1, dpix=2)
-
-

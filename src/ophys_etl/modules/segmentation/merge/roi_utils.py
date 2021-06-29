@@ -110,8 +110,8 @@ def _get_pixel_array(roi: OphysROI) -> np.ndarray:
     np.ndarray
     """
     mask = roi.mask_matrix
-    n_bdry = mask.sum()
-    roi_array = -1*np.ones((n_bdry, 2), dtype=int)
+    npix = mask.sum()
+    roi_array = -1*np.ones((npix, 2), dtype=int)
     i_pix = 0
     for ir in range(roi.height):
         row = ir+roi.y0
@@ -125,7 +125,7 @@ def _get_pixel_array(roi: OphysROI) -> np.ndarray:
             i_pix += 1
 
     if roi_array.min() < 0:
-        raise RuntimeError("did not assign all boundary pixels")
+        raise RuntimeError("did not assign all pixels")
 
     return roi_array
 

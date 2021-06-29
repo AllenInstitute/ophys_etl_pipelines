@@ -363,7 +363,7 @@ def do_roi_merger(
 
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)}; '
                     f'{len(anomalous_rois)} anomalous ROIs; '
-                    f'took {time.time()-t0:.2f} seconds')
+                    f'after {time.time()-t0:.2f} seconds')
 
         # make sure we did not lose track of any ROIs
         for roi_id in incoming_rois:
@@ -374,7 +374,5 @@ def do_roi_merger(
 
     logger.info(f'{len(anomalous_rois)} anomalously large ROIs found '
                 f' (size >= {anomalous_size})')
-    # loop over the original list of roi_ids, copying
-    # any ROIs that were not merged into the output list
     new_roi_list = list(roi_lookup.values()) + list(anomalous_rois.values())
     return new_roi_list

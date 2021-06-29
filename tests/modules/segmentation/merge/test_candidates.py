@@ -69,4 +69,3 @@ def test_find_merger_candidates_with_ignore(dpix, example_roi_list):
                 assert m not in matches
             else:
                 assert m in matches
-

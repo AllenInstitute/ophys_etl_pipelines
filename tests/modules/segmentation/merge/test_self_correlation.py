@@ -15,12 +15,11 @@ def dataset():
     video = {}
     key_pixel = {}
     for ii in range(10):
-        area = rng.randint(10,20)
+        area = rng.randint(10, 20)
         video[ii] = rng.random_sample((100, area))
         key_pixel[ii] = {'key_pixel': rng.random_sample(100)}
     return {'video': video,
             'key_pixel': key_pixel}
-
 
 
 @pytest.mark.parametrize('filter_fraction, n_processors',

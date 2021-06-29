@@ -22,7 +22,7 @@ def example_data():
     area = [1, 10, 2, 6, 5]
 
     for roi_id, area in enumerate(area):
-        area = rng.randint(1,20)
+        area = rng.randint(1, 20)
         video_lookup[roi_id] = rng.random_sample((ntime, area))
         key_pixel_lookup[roi_id] = {'key_pixel': rng.random_sample(ntime)}
         self_corr_lookup[roi_id] = (rng.random_sample(),

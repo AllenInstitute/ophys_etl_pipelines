@@ -147,15 +147,13 @@ def do_roi_merger(
     # ROIs that are too large to be considered valid
     anomalous_rois = {}
 
+    logger.info(f'initially {len(roi_lookup)} ROIs')
     while keep_going:
-        logger.info(f'starting iteration; {len(roi_lookup)} valid ROIs; '
-                    f'{len(anomalous_rois)} anomalous ROIs')
 
         # will be set to True if a merger occurs
         keep_going = False
 
         # statistics on this pass for INFO messages
-        t0_pass = time.time()
         n0 = len(roi_lookup)
 
         # fill in sub-video lookup for ROIs that changed
@@ -166,7 +164,6 @@ def do_roi_merger(
             roi = roi_lookup[roi_id]
             sub_video_lookup[roi_id] = sub_video_from_roi(roi,
                                                           video_data)
-        logger.info(f'got sub video lookup in {time.time()-t0_pass:.2f}')
 
         # find all pairs of ROIs that abut
         raw_merger_candidates = set()
@@ -188,9 +185,7 @@ def do_roi_merger(
 
         shuffler.shuffle(merger_candidates)
 
-        logger.info(f'found {len(merger_candidates)} merger candidates '
-                    f'in {time.time()-t0_pass:.2f} seconds')
-
+        local_t0 = time.time()
         timeseries_lookup = update_timeseries_lookup(
                               merger_candidates,
                               timeseries_lookup,
@@ -199,17 +194,15 @@ def do_roi_merger(
                               n_processors=n_processors)
 
         logger.info('updated timeseries lookup '
-                    f'in {time.time()-t0_pass:.2f} seconds')
+                    f'in {time.time()-local_t0:.2f} seconds')
 
+        local_t0 = time.time()
         self_corr_lookup = create_self_corr_lookup(
                                merger_candidates,
                                sub_video_lookup,
                                timeseries_lookup,
                                filter_fraction,
                                n_processors)
-
-        logger.info('updated self_corr lookup '
-                    f'in {time.time()-t0_pass:.2f} seconds')
 
         new_merger_metrics = get_merger_metric_from_pairs(
                                    merger_candidates,
@@ -219,7 +212,8 @@ def do_roi_merger(
                                    filter_fraction,
                                    n_processors)
 
-        logger.info(f'calculated metrics after {time.time()-t0_pass:.2f}')
+        logger.info('updated self_corr and calculated metrics in '
+                    f'{time.time()-local_t0:.2f} seconds')
 
         for pair in new_merger_metrics:
             metric = new_merger_metrics[pair]
@@ -371,10 +365,9 @@ def do_roi_merger(
             if pair[0] in recently_merged or pair[1] in recently_merged:
                 merger_to_metric.pop(pair)
 
-        logger.info(f'done processing after {time.time()-t0_pass:.2f}')
-
-        logger.info(f'merged {n0} ROIs to {len(roi_lookup)} '
-                    f'after {time.time()-t0:.2f} seconds')
+        logger.info(f'merged {n0} ROIs to {len(roi_lookup)}; '
+                    f'{len(anomalous_rois)} anomalous ROIs; '
+                    f'took {time.time()-t0:.2f} seconds')
 
         # print some info about the sizes and size ratios of ROIs
         # that were merged

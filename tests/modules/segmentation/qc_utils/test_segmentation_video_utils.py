@@ -177,7 +177,7 @@ def test_video_bounds_from_ROI():
                      y=19,
                      height=13)
 
-    origin, fov = video_bounds_from_ROI(roi, (128, 128))
+    origin, fov = video_bounds_from_ROI(roi, (128, 128), 0)
     assert fov == (32, 32)
     assert origin[0] <= 19
     assert origin[1] <= 15
@@ -194,7 +194,7 @@ def test_video_bounds_from_ROI():
                      y=3,
                      height=6)
 
-    origin, fov = video_bounds_from_ROI(roi, (10, 10))
+    origin, fov = video_bounds_from_ROI(roi, (10, 10), 0)
     assert origin[0] <= 3
     assert origin[1] <= 2
     assert origin[0]+fov[0] >= 9
@@ -210,7 +210,7 @@ def test_video_bounds_from_ROI():
                      y=121,
                      height=6)
 
-    origin, fov = video_bounds_from_ROI(roi, (128, 128))
+    origin, fov = video_bounds_from_ROI(roi, (128, 128), 0)
     assert fov == (16, 16)
     assert origin[0] <= 121
     assert origin[1] <= 120
@@ -220,6 +220,73 @@ def test_video_bounds_from_ROI():
     assert origin[1] >= 0
     assert origin[0]+fov[0] <= 128
     assert origin[1]+fov[1] <= 128
+
+
+def test_video_bounds_from_ROI_with_padding():
+
+    roi = ExtractROI(x=25,
+                     width=10,
+                     y=30,
+                     height=12)
+
+    # without padding
+    origin, fov = video_bounds_from_ROI(roi, (128, 128), 0)
+    assert fov[0] == 16
+    assert fov[1] == 16
+    assert origin[0] == 28
+    assert origin[1] == 22
+
+    # with padding
+    origin, fov = video_bounds_from_ROI(roi, (128, 128), 9)
+    assert fov[0] == 30
+    assert fov[1] == 28
+    assert origin[0] == 21
+    assert origin[1] == 16
+
+    # padding in constrained circumstances
+
+    # constrained from above in both dimensions
+    origin, fov = video_bounds_from_ROI(roi, (43, 37), 9)
+    assert fov[0] == 22
+    assert fov[1] == 21
+    assert origin[0] == 21
+    assert origin[1] == 16
+
+    # constrained from below in both dimensions
+    roi = ExtractROI(x=2,
+                     width=11,
+                     y=3,
+                     height=12)
+
+    origin, fov = video_bounds_from_ROI(roi, (43, 37), 9)
+    assert fov[0] == 24
+    assert fov[1] == 22
+    assert origin[0] == 0
+    assert origin[1] == 0
+
+    # constrained from above in x and below in y
+    roi = ExtractROI(x=15,
+                     width=11,
+                     y=3,
+                     height=12)
+
+    origin, fov = video_bounds_from_ROI(roi, (43, 33), 9)
+    assert origin[0] == 0
+    assert origin[1] == 6
+    assert fov[0] == 24
+    assert fov[1] == 27
+
+    # constrained from below in x and above in y
+    roi = ExtractROI(x=5,
+                     width=11,
+                     y=13,
+                     height=12)
+
+    origin, fov = video_bounds_from_ROI(roi, (29, 33), 9)
+    assert origin[0] == 4
+    assert origin[1] == 0
+    assert fov[0] == 25
+    assert fov[1] == 25
 
 
 @pytest.mark.parametrize("timesteps",
@@ -527,6 +594,75 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     assert len(test_data) == n_t
     for ii in range(len(control_data)):
         np.testing.assert_array_equal(control_data[ii], test_data[ii])
+
+
+@pytest.mark.parametrize('padding', [5, 8, 9])
+def test_padded_thumbnail_from_roi_and_path(tmpdir,
+                                            example_unnormalized_rgb_video,
+                                            padding):
+
+    # write video to a tempfile
+    h5_fname = tempfile.mkstemp(dir=tmpdir, prefix='input_video_',
+                                suffix='.h5')[1]
+    with h5py.File(h5_fname, 'w') as out_file:
+        out_file.create_dataset('data', data=example_unnormalized_rgb_video)
+
+    mask = np.zeros((13, 14), dtype=bool)
+    mask[2:10, 3:13] = True
+
+    roi = ExtractROI(x=20, width=14,
+                     y=25, height=13,
+                     mask=[list(i) for i in mask])
+
+    test_video = _thumbnail_video_from_ROI_path(
+                     pathlib.Path(h5_fname),
+                     roi,
+                     padding=padding,
+                     roi_color=(255, 0, 0),
+                     tmp_dir=pathlib.Path(tmpdir),
+                     quantiles=(0.1, 0.999),
+                     min_max=None,
+                     timesteps=None)
+
+    assert test_video.video_path.is_file()
+    assert test_video.origin[0] <= roi['y']-padding
+    assert test_video.origin[1] <= roi['x']-padding
+    assert test_video.frame_shape[0] >= roi['height'] + padding
+    assert test_video.frame_shape[1] >= roi['width'] + padding
+
+
+@pytest.mark.parametrize('padding', [5, 8, 9])
+def test_padded_thumbnail_from_roi_array(tmpdir,
+                                         example_unnormalized_rgb_video,
+                                         padding):
+
+    mask = np.zeros((13, 14), dtype=bool)
+    mask[2:10, 3:13] = True
+
+    roi = ExtractROI(x=20, width=14,
+                     y=25, height=13,
+                     mask=[list(i) for i in mask])
+
+    local_min_max = np.quantile(example_unnormalized_rgb_video,
+                                (0.1, 0.999))
+
+    normalized_video = scale_video_to_uint8(example_unnormalized_rgb_video,
+                                            local_min_max[0],
+                                            local_min_max[1])
+
+    test_video = _thumbnail_video_from_ROI_array(
+                     normalized_video,
+                     roi,
+                     padding=padding,
+                     roi_color=(255, 0, 0),
+                     tmp_dir=pathlib.Path(tmpdir),
+                     timesteps=None)
+
+    assert test_video.video_path.is_file()
+    assert test_video.origin[0] <= roi['y']-padding
+    assert test_video.origin[1] <= roi['x']-padding
+    assert test_video.frame_shape[0] >= roi['height'] + padding
+    assert test_video.frame_shape[1] >= roi['width'] + padding
 
 
 @pytest.mark.parametrize("timesteps",

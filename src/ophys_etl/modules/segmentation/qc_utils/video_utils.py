@@ -477,7 +477,8 @@ def thumbnail_video_from_path(
 
 def video_bounds_from_ROI(
         roi: ExtractROI,
-        fov_shape: Tuple[int, int]):
+        fov_shape: Tuple[int, int],
+        padding: int):
     """
     Get the field of view bounds from an ROI
 
@@ -487,6 +488,10 @@ def video_bounds_from_ROI(
 
     fov_shape: Tuple[int, int]
         The 2-D shape of the full field of view
+
+    padding: int
+        The number of pixels to be added to the FOV beyond
+        the ROI bounds (if possible)
 
     Returns
     -------
@@ -526,6 +531,22 @@ def video_bounds_from_ROI(
     if colmax >= fov_shape[1]:
         colmin = max(0, fov_shape[1]-max_dim)
         colmax = min(fov_shape[1], colmin+max_dim)
+
+    # add padding if necessary/possible
+    if padding > 0:
+        roi_row_min = roi['y']
+        roi_row_max = roi['y'] + roi['height']
+        roi_col_min = roi['x']
+        roi_col_max = roi['x'] + roi['width']
+
+        if rowmin > roi_row_min - padding:
+            rowmin = max(0, roi_row_min-padding)
+        if rowmax < roi_row_max + padding:
+            rowmax = min(fov_shape[0], roi_row_max+padding)
+        if colmin > roi_col_min - padding:
+            colmin = max(0, roi_col_min-padding)
+        if colmax < roi_col_max + padding:
+            colmax = min(fov_shape[1], roi_col_max+padding)
 
     return (rowmin, colmin), (rowmax-rowmin, colmax-colmin)
 
@@ -640,6 +661,7 @@ def get_rgb_sub_video(full_video: np.ndarray,
 def _thumbnail_video_from_ROI_array(
         full_video: np.ndarray,
         roi: ExtractROI,
+        padding: int = 0,
         roi_color: Optional[Tuple[int, int, int]] = None,
         timesteps: Optional[np.ndarray] = None,
         file_path: Optional[pathlib.Path] = None,
@@ -655,6 +677,11 @@ def _thumbnail_video_from_ROI_array(
         shape is (n_times, nrows, ncols)
 
     roi: ExtractROI
+
+    padding: int
+        The number of pixels to be added to the FOV beyond
+        the ROI bounds (if possible)
+        (default = 0)
 
     roi_color: Tuple[int, int, int]
         RGB color in which to draw the ROI in the video
@@ -693,7 +720,8 @@ def _thumbnail_video_from_ROI_array(
     # find bounds of thumbnail
     (origin,
      fov_shape) = video_bounds_from_ROI(roi,
-                                        full_video.shape[1:3])
+                                        full_video.shape[1:3],
+                                        padding)
 
     sub_video = get_rgb_sub_video(full_video,
                                   origin,
@@ -725,6 +753,7 @@ def _thumbnail_video_from_ROI_array(
 def _thumbnail_video_from_ROI_path(
         video_path: pathlib.Path,
         roi: ExtractROI,
+        padding: int = 0,
         roi_color: Optional[Tuple[int, int, int]] = None,
         timesteps: Optional[np.ndarray] = None,
         file_path: Optional[pathlib.Path] = None,
@@ -744,6 +773,11 @@ def _thumbnail_video_from_ROI_path(
         Shape of data is (n_times, nrows, ncols)
 
     roi: ExtractROI
+
+    padding: int
+        The number of pixels to be added to the FOV beyond
+        the ROI bounds (if possible)
+        (default = 0)
 
     roi_color: Tuple[int, int, int]
         RGB color in which to draw the ROI in the video
@@ -812,7 +846,8 @@ def _thumbnail_video_from_ROI_path(
     # find bounds of thumbnail
     (origin,
      fov_shape) = video_bounds_from_ROI(roi,
-                                        img_shape[1:3])
+                                        img_shape[1:3],
+                                        padding)
 
     with h5py.File(video_path, 'r') as in_file:
         if quantiles is not None:
@@ -865,6 +900,7 @@ def _thumbnail_video_from_ROI_path(
 def thumbnail_video_from_ROI(
         video: Union[np.ndarray, pathlib.Path],
         roi: ExtractROI,
+        padding: int = 0,
         roi_color: Optional[Tuple[int, int, int]] = None,
         timesteps: Optional[np.ndarray] = None,
         file_path: Optional[pathlib.Path] = None,
@@ -885,6 +921,11 @@ def thumbnail_video_from_ROI(
         data is assumed to be shaped like (n_times, nrows, ncols)
 
     roi: ExtractROI
+
+    padding: int
+        The number of pixels to be added to the FOV beyond
+        the ROI bounds (if possible)
+        (default = 0)
 
     roi_color: Tuple[int, int, int]
         RGB color in which to draw the ROI in the video
@@ -936,6 +977,7 @@ def thumbnail_video_from_ROI(
         thumbnail = _thumbnail_video_from_ROI_array(
                            video,
                            roi,
+                           padding=padding,
                            roi_color=roi_color,
                            timesteps=timesteps,
                            file_path=file_path,
@@ -946,6 +988,7 @@ def thumbnail_video_from_ROI(
         thumbnail = _thumbnail_video_from_ROI_path(
                            video,
                            roi,
+                           padding=padding,
                            roi_color=roi_color,
                            timesteps=timesteps,
                            file_path=file_path,

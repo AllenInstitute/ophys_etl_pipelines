@@ -428,6 +428,6 @@ class RoiMergerSchema(argschema.ArgSchema):
 
     corr_acceptance = argschema.fields.Float(
         required=False,
-        default=1.0,
+        default=2.0,
         decription=("level of time series correlation needed "
                     "to accept a merger (in units of z-score)"))

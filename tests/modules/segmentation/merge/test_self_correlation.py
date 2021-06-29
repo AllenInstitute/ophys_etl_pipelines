@@ -3,7 +3,7 @@ from itertools import combinations
 import numpy as np
 
 from ophys_etl.modules.segmentation.merge.self_correlation import (
-    update_self_correlation)
+    create_self_corr_lookup)
 
 from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
     get_self_correlation)
@@ -25,9 +25,9 @@ def dataset():
 @pytest.mark.parametrize('filter_fraction, n_processors',
                          [(0.2, 2), (0.2, 3),
                           (0.3, 2), (0.3, 3)])
-def test_update_self_correlation(dataset, filter_fraction, n_processors):
+def test_create_self_corr_lookup(dataset, filter_fraction, n_processors):
     merger_candidates = list(combinations(range(10), 2))
-    result = update_self_correlation(merger_candidates,
+    result = create_self_corr_lookup(merger_candidates,
                                      dataset['video'],
                                      dataset['key_pixel'],
                                      filter_fraction,

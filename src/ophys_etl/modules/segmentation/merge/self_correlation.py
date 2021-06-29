@@ -26,7 +26,7 @@ def _self_correlate_chunk(roi_id_list,
     return None
 
 
-def update_self_correlation(merger_candidates: List[Tuple[int, int]],
+def create_self_corr_lookup(merger_candidates: List[Tuple[int, int]],
                             sub_video_lookup: dict,
                             key_pixel_lookup: dict,
                             filter_fraction: float,

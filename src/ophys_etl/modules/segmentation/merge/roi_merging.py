@@ -15,7 +15,7 @@ from ophys_etl.modules.segmentation.merge.characteristic_pixel import (
     update_key_pixel_lookup)
 
 from ophys_etl.modules.segmentation.merge.self_correlation import (
-    update_self_correlation)
+    create_self_corr_lookup)
 
 from ophys_etl.modules.segmentation.\
     merge.roi_time_correlation import (
@@ -192,7 +192,7 @@ def do_roi_merger(
         logger.info('updated pixel lookup '
                     f'in {time.time()-t0_pass:.2f} seconds')
 
-        self_corr_lookup = update_self_correlation(
+        self_corr_lookup = create_self_corr_lookup(
                                merger_candidates,
                                sub_video_lookup,
                                pixel_lookup,

@@ -171,57 +171,6 @@ def test_scale_video():
         _ = scale_video_to_uint8(data, 1.0, 0.0)
 
 
-def test_video_bounds_from_ROI():
-    roi = ExtractROI(x=15,
-                     width=22,
-                     y=19,
-                     height=13)
-
-    origin, fov = video_bounds_from_ROI(roi, (128, 128), 0)
-    assert fov == (32, 32)
-    assert origin[0] <= 19
-    assert origin[1] <= 15
-    assert origin[0]+fov[0] >= 32
-    assert origin[1]+fov[1] >= 37
-    assert origin[0] >= 0
-    assert origin[1] >= 0
-    assert origin[0]+fov[0] <= 128
-    assert origin[1]+fov[1] <= 128
-
-    # constrained dimensions
-    roi = ExtractROI(x=2,
-                     width=4,
-                     y=3,
-                     height=6)
-
-    origin, fov = video_bounds_from_ROI(roi, (10, 10), 0)
-    assert origin[0] <= 3
-    assert origin[1] <= 2
-    assert origin[0]+fov[0] >= 9
-    assert origin[1]+fov[1] >= 6
-    assert origin[0] >= 0
-    assert origin[1] >= 0
-    assert origin[0]+fov[0] <= 10
-    assert origin[1]+fov[1] <= 10
-
-    # constrained dimensions
-    roi = ExtractROI(x=120,
-                     width=4,
-                     y=121,
-                     height=6)
-
-    origin, fov = video_bounds_from_ROI(roi, (128, 128), 0)
-    assert fov == (16, 16)
-    assert origin[0] <= 121
-    assert origin[1] <= 120
-    assert origin[0]+fov[0] >= 127
-    assert origin[1]+fov[1] >= 124
-    assert origin[0] >= 0
-    assert origin[1] >= 0
-    assert origin[0]+fov[0] <= 128
-    assert origin[1]+fov[1] <= 128
-
-
 @pytest.mark.parametrize("timesteps",
                          [None, np.arange(22, 56)])
 def test_thumbnail_from_array(tmpdir, example_video, timesteps):
@@ -609,3 +558,37 @@ def test_upscale_video_frame(factor):
                     for jj1 in range(factor*jj, factor*(jj+1)):
                         actual = new_data[:, ii1, jj1, color]
                         np.testing.assert_array_equal(expected, actual)
+
+
+@pytest.mark.parametrize('padding, y0, x0, height, width',
+                         [(5, 3, 2, 10, 12),
+                          (10, 3, 2, 10, 12),
+                          (5, 50, 50, 11, 23),
+                          (10, 50, 50, 11, 23),
+                          (5, 118, 50, 10, 12),
+                          (10, 118, 50, 10, 12),
+                          (5, 50, 118, 12, 10),
+                          (10, 50, 118, 12, 10),
+                          (5, 3, 50, 12, 13),
+                          (10, 50, 3, 12, 13),
+                          (5, 118, 118, 10, 10),
+                          (10, 118, 118, 10, 10)])
+def test_video_bounds_from_ROI(padding, x0, y0, height, width):
+
+    roi = ExtractROI(x=x0, y=y0, height=height, width=width)
+    x1 = x0 + width
+    y1 = y0 + height
+
+    origin, fov = video_bounds_from_ROI(roi, (128, 128), padding)
+    assert fov[0] % 16 == 0
+    assert fov[1] % 16 == 0
+    assert fov[0] == fov[1]  # only considering cases that can give squares
+    assert fov[0] >= max(height+2*padding, width+2*padding)
+    assert origin[0] <= y0
+    assert origin[1] <= x0
+    assert origin[0]+fov[0] >= y1
+    assert origin[1]+fov[1] >= x1
+    assert origin[0] >= 0
+    assert origin[1] >= 0
+    assert origin[0]+fov[0] <= 128
+    assert origin[1]+fov[1] <= 128

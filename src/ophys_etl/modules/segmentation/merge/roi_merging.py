@@ -195,7 +195,7 @@ def do_roi_merger(
                               merger_candidates,
                               timeseries_lookup,
                               sub_video_lookup,
-                              filter_fraction=0.2,
+                              filter_fraction=filter_fraction,
                               n_processors=n_processors)
 
         logger.info('updated timeseries lookup '

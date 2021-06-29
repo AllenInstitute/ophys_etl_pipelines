@@ -1,3 +1,7 @@
+"""
+This module contains utility functions that roi_merging.py uses
+to calculate correlations between pixels in ROIs
+"""
 from typing import Union, List, Tuple
 import numpy as np
 import time
@@ -11,7 +15,7 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 def _wgts_to_series(sub_video: np.ndarray,
                     wgts: np.ndarray) -> np.ndarray:
     """
-    Given a sub_video and an array of wgts,
+    Given a sub_video and an array of weights,
     compute teh weighted sum of pixel time series to get
     a time series characterizing the sub_video.
 
@@ -41,17 +45,17 @@ def _wgts_to_series(sub_video: np.ndarray,
     of ones so that all pixels are weighted equally.
     """
     if len(wgts) == 1:
-        return sub_video[:,0]
+        return sub_video[:, 0]
 
     # only accept pixels brigter than the median
     th = np.median(wgts)
     wgts -= th
-    mask = (wgts<0)
+    mask = (wgts < 0)
     wgts[mask] = 0.0
 
     wgts -= wgts.min()
     norm = wgts.max()
-    if norm<1.0e-10:
+    if norm < 1.0e-10:
         wgts = np.ones(wgts.shape, dtype=float)
         # re-apply mask on wgts that were
         # originally negative
@@ -67,6 +71,7 @@ def _wgts_to_series(sub_video: np.ndarray,
 
     key_pixel = np.dot(sub_video, wgts)
     return key_pixel/wgts.sum()
+
 
 def sub_video_from_roi(roi: OphysROI,
                        video_data: np.ndarray) -> np.ndarray:
@@ -178,16 +183,14 @@ def _self_correlate(sub_video: np.ndarray,
         timesteps for the other pixel
     """
     discard = 1.0-filter_fraction
-    npix = sub_video.shape[1]
-    ntime = sub_video.shape[0]
-    th = np.quantile(sub_video[:,i_pixel], discard)
-    this_mask = (sub_video[:,i_pixel]>=th)
+    th = np.quantile(sub_video[:, i_pixel], discard)
+    this_mask = (sub_video[:, i_pixel] >= th)
     this_pixel = sub_video[:, i_pixel]
     corr = np.zeros(sub_video.shape[1], dtype=float)
     for j_pixel in range(len(corr)):
         other = sub_video[:, j_pixel]
         th = np.quantile(other, discard)
-        other_mask = (other>=th)
+        other_mask = (other >= th)
         mask = np.logical_or(other_mask, this_mask)
         masked_this = this_pixel[mask]
         masked_other = other[mask]
@@ -291,7 +294,7 @@ def get_brightest_pixel_parallel(
                                     kwargs=kwargs)
         p.start()
         process_list.append(p)
-        while len(process_list)>0 and len(process_list)>=(n_processors-1):
+        while len(process_list) > 0 and len(process_list) >= (n_processors-1):
             process_list = _winnow_process_list(process_list)
     for p in process_list:
         p.join()
@@ -303,7 +306,6 @@ def get_brightest_pixel_parallel(
     print(f'one ROI (parallelized) in {time.time()-t0:.2f} -- {npix}')
 
     return _wgts_to_series(sub_video, wgts)
-
 
 
 def get_brightest_pixel(

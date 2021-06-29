@@ -105,6 +105,7 @@ class VideoGenerator(object):
     def get_thumbnail_video_from_roi(
                  self,
                  roi: ExtractROI,
+                 padding: int = 0,
                  roi_color: Optional[Tuple[int, int, int]] = None,
                  timesteps: Optional[np.ndarray] = None,
                  quality: int = 5,
@@ -115,6 +116,10 @@ class VideoGenerator(object):
         Parameters
         ----------
         roi: ExtractROI
+
+        padding: int
+            The number of pixels to either side of the ROI to
+            include in the field of view (if possible; default=0)
 
         roi_color: Optional[Tuple[int, int, int]]
             If not None, the RGB color in which to plot the ROI's
@@ -139,6 +144,7 @@ class VideoGenerator(object):
         thumbnail = video_utils.thumbnail_video_from_ROI(
                         self.video_path,
                         roi,
+                        padding=padding,
                         roi_color=roi_color,
                         timesteps=timesteps,
                         tmp_dir=self.tmp_dir,

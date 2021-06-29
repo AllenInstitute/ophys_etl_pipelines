@@ -30,7 +30,7 @@ def update_self_correlation(merger_candidates: List[Tuple[int, int]],
                             sub_video_lookup: dict,
                             key_pixel_lookup: dict,
                             filter_fraction: float,
-                            n_processors: int):
+                            n_processors: int) -> dict:
     """
     Create the lookup table mapping ROI ID to the parameters describing
     the self correlation distribution of the ROI's pixels (i.e. the mean

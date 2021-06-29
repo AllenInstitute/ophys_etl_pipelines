@@ -1,9 +1,10 @@
-from typing import List, Optional, Dict, Tuple, Union
-from functools import partial
-from itertools import combinations
+"""
+This module contains the code that roi_merging.py uses to calculate the
+merger metric for each candidate merger
+"""
+from typing import List, Tuple
 import multiprocessing
 import multiprocessing.managers
-import numpy as np
 from ophys_etl.modules.segmentation.merge.utils import (
     _winnow_process_list)
 

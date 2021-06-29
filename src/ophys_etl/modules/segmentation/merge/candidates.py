@@ -1,5 +1,5 @@
 """
-This module contains the code that the ROI merger module uses to
+This module contains the code that roi_merging.py uses to
 find all pairs of ROIs that need to be considered for merger.
 """
 from typing import List, Optional, Tuple

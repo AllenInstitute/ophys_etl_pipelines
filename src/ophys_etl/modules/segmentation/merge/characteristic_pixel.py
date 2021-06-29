@@ -1,5 +1,5 @@
 """
-This module contains the code that the ROI merging module uses to find
+This module contains the code that roi_merging.py uses to find
 the single timeseries characterizing each ROI
 """
 from typing import List, Tuple, Union, Set

@@ -39,15 +39,15 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
         self.logger.info("movie data read in from "
                          f"{self.args['video_input']}")
 
-        candidates = []
+        n_candidates = 0
         segmentations = []
         rois = []
         # the segmentation loop
         for seed in seeder:
             candidate = ExplicitHNCcorrCandidate(seed, hnc_objects)
-            candidates.append(candidate)
+            n_candidates += 1
             self.logger.info(f"Cells identified: {len(segmentations)}, "
-                             f"Next candidate: {len(candidates)}")
+                             f"Next candidate: {n_candidates}")
             best_segmentation = candidate.segment(movie)
             if best_segmentation is not None:
                 segmentations.append(best_segmentation)

@@ -59,7 +59,7 @@ def chunked_video_path(tmpdir):
     rng = np.random.RandomState(22312)
     with h5py.File(fname, 'w') as out_file:
         dataset = out_file.create_dataset('data',
-                                          (1014, 115, 127),
+                                          (214, 115, 127),
                                           chunks=(100, 30, 30),
                                           dtype=np.uint16)
         for chunk in dataset.iter_chunks():
@@ -79,7 +79,7 @@ def unchunked_video_path(tmpdir):
                              suffix='.h5')[1]
     rng = np.random.RandomState(714432)
     with h5py.File(fname, 'w') as out_file:
-        data = rng.randint(0, 65536, size=(1014, 115, 127)).astype(np.uint16)
+        data = rng.randint(0, 65536, size=(214, 115, 127)).astype(np.uint16)
         out_file.create_dataset('data',
                                 data=data,
                                 chunks=None,

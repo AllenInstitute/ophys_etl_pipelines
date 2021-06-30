@@ -12,6 +12,12 @@ from ophys_etl.modules.decrosstalk.ophys_plane import (
     find_overlapping_roi_pairs)
 from ophys_etl.types import ExtractROI
 
+import sys
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
+
 
 def convert_keys(roi_list: List[Dict]) -> List[Dict]:
     """conflicting key names
@@ -705,3 +711,25 @@ def create_roi_plot(plot_path: pathlib.Path,
     fig.tight_layout()
     fig.savefig(plot_path)
     return None
+
+
+class HNC_ROI(TypedDict):
+    coordinates: List[Tuple[int, int]]
+
+
+def hnc_roi_to_extract_roi(hnc_roi: HNC_ROI, id: int) -> ExtractROI:
+    coords = np.array(hnc_roi["coordinates"])
+    y0, x0 = coords.min(axis=0)
+    height, width = coords.ptp(axis=0) + 1
+    mask = np.zeros(shape=(height, width), dtype=bool)
+    for y, x in coords:
+        mask[y - y0, x - x0] = True
+    roi = ExtractROI(
+            id=id,
+            x=int(x0),
+            y=int(y0),
+            width=int(width),
+            height=int(height),
+            valid=True,
+            mask=[i.tolist() for i in mask])
+    return roi

@@ -7,7 +7,7 @@ from marshmallow.fields import Int
 from marshmallow.validate import OneOf
 
 from ophys_etl.modules.segmentation.seed.schemas import \
-    BatchImageMetricSeederSchema
+    ImageMetricSeederSchema, BatchImageMetricSeederSchema
 
 
 class CreateGraphInputSchema(argschema.ArgSchema):
@@ -296,6 +296,97 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
         default="PearsonFeatureROI",
         validate=OneOf(["PearsonFeatureROI", "PCAFeatureROI"]),
         description="which class to use.")
+
+    @post_load
+    def plot_outputs(self, data, **kwargs):
+        if data['seed_plot_output'] is None:
+            if data['plot_output'] is not None:
+                plot_path = Path(data['plot_output'])
+            data['seed_plot_output'] = str(
+                    plot_path.parent / f"{plot_path.stem}_seeds.png")
+        return data
+
+
+class HNC_args(argschema.schemas.DefaultSchema):
+    """
+    see
+    https://github.com/hochbaumGroup/HNCcorr/blob/764e45ae3976fbc2519c75cd13b7f7b22c6a38dc/src/hnccorr/base.py#L347-L362  # noqa: E501
+    and
+    https://hnccorr.readthedocs.io/en/latest/quickstart.html#configuration  # noqa: E501
+    """
+    postprocessor_min_cell_size = argschema.fields.Int(
+        default=40,
+        description="Lower bound on pixel count of a cell.")
+    postprocessor_preferred_cell_size = argschema.fields.Int(
+        default=80,
+        description="Pixel count of a typical cell.")
+    postprocessor_max_cell_size = argschema.fields.Int(
+        default=200,
+        description="Upper bound on pixel count of a cell.")
+    patch_size = argschema.fields.Int(
+        default=31,
+        description="Size in pixel of each dimension of the patch.")
+    positive_seed_radius = argschema.fields.Int(
+        default=0,
+        description="Radius of the positive seed square / superpixel.")
+    negative_seed_circle_radius = argschema.fields.Int(
+        default=10,
+        description="Radius in pixels of the circle with negative seeds.")
+    negative_seed_circle_count = argschema.fields.Int(
+        default=10,
+        description="Number of negative seeds.")
+    gaussian_similarity_alpha = argschema.fields.Float(
+        default=1,
+        description="Decay factor in gaussian similarity function.")
+    sparse_computation_grid_distance = argschema.fields.Float(
+        default=1 / 35.0,
+        description=("1 / grid_resolution. Width of each block in "
+                     "sparse computation."))
+    sparse_computation_dimension = argschema.fields.Int(
+        default=3,
+        description=("Dimension of the low-dimensional space in sparse "
+                     "computation."))
+
+
+class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
+    log_level = argschema.fields.LogLevel(default="INFO")
+    video_input = argschema.fields.InputFile(
+        required=False,
+        description=("path to hdf5 video with movie stored "
+                     "in dataset 'data' nframes x nrow x ncol"))
+    graph_input = argschema.fields.InputFile(
+        required=True,
+        description=("path to graph used to seed ROIS"))
+    attribute_name = argschema.fields.Str(
+        required=False,
+        default='filtered_hnc_Gaussian',
+        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
+                        "filtered_hnc_Gaussian"]),
+        description="which graph edge attribute to use to create image.")
+    experiment_name = argschema.fields.Str(
+        required=False,
+        default="movie_name",
+        description="passed to HNCcorr.Movie as 'name'")
+    seeder_args = argschema.fields.Nested(
+        ImageMetricSeederSchema,
+        default={})
+    hnc_args = argschema.fields.Nested(HNC_args, default={})
+    roi_output = argschema.fields.OutputFile(
+        required=True,
+        description="path to json file where ROIs will be saved")
+    seed_output = argschema.fields.OutputFile(
+        required=True,
+        description="path to json file where seeds will be saved")
+    plot_output = argschema.fields.OutputFile(
+        required=False,
+        default=None,
+        allow_none=True,
+        description="path to summary plot of segmentation")
+    seed_plot_output = argschema.fields.OutputFile(
+        required=False,
+        default=None,
+        allow_none=True,
+        description=("path to plot of seeding summary."))
 
     @post_load
     def plot_outputs(self, data, **kwargs):

@@ -200,6 +200,143 @@ def scale_video_to_uint8(video: np.ndarray,
     return np.round(255*video.astype(float)/delta).astype(np.uint8)
 
 
+def _read_and_scale_all_at_once(
+        full_video_path: pathlib.Path,
+        origin: Tuple[int, int],
+        frame_shape: Tuple[int, int],
+        quantiles: Optional[Tuple[int, int]] = None,
+        min_max: Optional[Tuple[int, int]] = None) -> np.ndarray:
+
+    with h5py.File(full_video_path, 'r') as in_file:
+        if quantiles is not None:
+            read_data = in_file['data'][()]
+            min_max = np.quantile(read_data, quantiles)
+            data = read_data[:,
+                             origin[0]:origin[0]+frame_shape[0],
+                             origin[1]:origin[1]+frame_shape[1]]
+            del read_data
+        else:
+            data = in_file['data'][:,
+                                   origin[0]:origin[0]+frame_shape[0],
+                                   origin[1]:origin[1]+frame_shape[1]]
+
+    if min_max[0] > min_max[1]:
+        raise RuntimeError(f"min_max {min_max} in "
+                           "_read_and_scale_all_at_once; "
+                           "order seems to be reversed")
+
+    data = scale_video_to_uint8(data, min_max[0], min_max[1])
+    return data
+
+
+def _read_and_scale_by_chunks(
+        full_video_path: pathlib.Path,
+        origin: Tuple[int, int],
+        frame_shape: Tuple[int, int],
+        quantiles: Optional[Tuple[int, int]] = None,
+        min_max: Optional[Tuple[int, int]] = None) -> np.ndarray:
+
+    rowmin = origin[0]
+    rowmax = origin[0]+frame_shape[0]
+    colmin = origin[1]
+    colmax = origin[1]+frame_shape[1]
+
+    with h5py.File(full_video_path, 'r') as in_file:
+        dataset = in_file['data']
+        if quantiles is not None:
+            min_max = np.quantile(dataset[()], quantiles)
+
+        if min_max[0] > min_max[1]:
+            raise RuntimeError(f"min_max {min_max} in "
+                               "_read_and_scale_by_chunks; "
+                               "order seems to be reversed")
+
+        nt = dataset.shape[0]
+        final_output = np.zeros((nt, frame_shape[0], frame_shape[1]),
+                                dtype=np.uint8)
+        for chunk in dataset.iter_chunks():
+            t0 = chunk[0].start
+            t1 = chunk[0].stop
+            r0 = chunk[1].start
+            r1 = chunk[1].stop
+            c0 = chunk[2].start
+            c1 = chunk[2].stop
+            row_valid = False
+            if r0 >= rowmin and r0 < rowmax:
+                row_valid = True
+            elif r1 >= rowmin and r1 < rowmax:
+                row_valid = True
+            elif r0 < rowmin and r1 >= rowmax:
+                row_valid = True
+            if not row_valid:
+                continue
+
+            col_valid = False
+            if c0 >= colmin and c0 < colmax:
+                col_valid = True
+            elif c1 >= colmin and c1 < colmax:
+                col_valid = True
+            elif c0 < colmin and c1 >= colmax:
+                col_valid = True
+
+            if not col_valid:
+                continue
+
+            data_chunk = dataset[chunk]
+            if r0 < rowmin:
+                data_chunk = data_chunk[:, rowmin-r0:, :]
+                r0 = rowmin
+            if c0 < colmin:
+                data_chunk = data_chunk[:, :, colmin-c0:]
+                c0 = colmin
+            if r1 > rowmax:
+                data_chunk = data_chunk[:, :(rowmax-r0), :]
+                r1 = rowmax
+            if c1 > colmax:
+                data_chunk = data_chunk[:, :, :(colmax-c0)]
+                c1 = colmax
+
+            data_chunk = scale_video_to_uint8(data_chunk,
+                                              min_max[0],
+                                              min_max[1])
+            final_output[t0:t1,
+                         r0-origin[0]:r1-origin[0],
+                         c0-origin[1]:c1-origin[1]] = data_chunk
+
+    return final_output
+
+
+def read_and_scale(
+        video_path: pathlib.Path,
+        origin: Tuple[int, int],
+        frame_shape: Tuple[int, int],
+        quantiles: Optional[Tuple[float, float]] = None,
+        min_max: Optional[Tuple[float, float]] = None) -> np.ndarray:
+
+    if quantiles is None and min_max is None:
+        raise RuntimeError("must specify either quantiles or min_max "
+                           "in read_and_scale; both are None")
+    if quantiles is not None and min_max is not None:
+        raise RuntimeError("cannot specify both quantiles and min_max "
+                           "in read_and_scale")
+
+    area = frame_shape[0]*frame_shape[1]
+    if area < 2500:
+        return _read_and_scale_all_at_once(
+                       video_path,
+                       origin,
+                       frame_shape,
+                       quantiles=quantiles,
+                       min_max=min_max)
+
+    return _read_and_scale_by_chunks(
+                   video_path,
+                   origin,
+                   frame_shape,
+                   quantiles=quantiles,
+                   min_max=min_max)
+
+
 def trim_video(
         full_video: np.ndarray,
         origin: Tuple[int, int],
@@ -440,24 +577,11 @@ def thumbnail_video_from_path(
                            "in thumbnail_video_from_path; can only specify "
                            "one")
 
-    with h5py.File(full_video_path, 'r') as in_file:
-        if quantiles is not None:
-            read_data = in_file['data'][()]
-            min_max = np.quantile(read_data, quantiles)
-            data = read_data[:,
-                             origin[0]:origin[0]+frame_shape[0],
-                             origin[1]:origin[1]+frame_shape[1]]
-            del read_data
-        else:
-            data = in_file['data'][:,
-                                   origin[0]:origin[0]+frame_shape[0],
-                                   origin[1]:origin[1]+frame_shape[1]]
-
-    if min_max[0] > min_max[1]:
-        raise RuntimeError(f"min_max {min_max} in thumbnail_video_from_path; "
-                           "order seems to be reversed")
-
-    data = scale_video_to_uint8(data, min_max[0], min_max[1])
+    data = read_and_scale(full_video_path,
+                          origin,
+                          frame_shape,
+                          quantiles=quantiles,
+                          min_max=min_max)
 
     # origin is set to (0,0) because, when we read in the
     # HDF5 file, we only read in the pixels we actually
@@ -833,26 +957,11 @@ def _thumbnail_video_from_ROI_path(
                                         img_shape[1:3],
                                         padding)
 
-    with h5py.File(video_path, 'r') as in_file:
-        if quantiles is not None:
-            read_in_data = in_file['data'][()]
-            min_max = np.quantile(read_in_data, quantiles)
-            full_video = read_in_data[:,
-                                      origin[0]:origin[0]+fov_shape[0],
-                                      origin[1]:origin[1]+fov_shape[1]]
-            del read_in_data
-        else:
-            full_video = in_file['data'][:,
-                                         origin[0]:origin[0]+fov_shape[0],
-                                         origin[1]:origin[1]+fov_shape[1]]
-
-    if min_max[0] > min_max[1]:
-        raise RuntimeError(f"min_max {min_max} in thumbnail_video_from_path; "
-                           "order seems to be reversed")
-
-    full_video = scale_video_to_uint8(full_video,
-                                      min_max[0],
-                                      min_max[1])
+    full_video = read_and_scale(video_path,
+                                origin,
+                                fov_shape,
+                                quantiles=quantiles,
+                                min_max=min_max)
 
     sub_video = get_rgb_sub_video(full_video,
                                   (0, 0),

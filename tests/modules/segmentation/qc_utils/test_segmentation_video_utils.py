@@ -6,6 +6,7 @@ import h5py
 import pathlib
 import tempfile
 import gc
+from itertools import product
 
 from ophys_etl.types import ExtractROI
 
@@ -19,7 +20,10 @@ from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     thumbnail_video_from_ROI,
     scale_video_to_uint8,
     video_bounds_from_ROI,
-    ThumbnailVideo)
+    ThumbnailVideo,
+    _read_and_scale_all_at_once,
+    _read_and_scale_by_chunks,
+    read_and_scale)
 
 
 @pytest.fixture
@@ -45,6 +49,27 @@ def example_unnormalized_rgb_video():
     rng = np.random.RandomState(6125321)
     data = rng.randint(0, 700, (100, 60, 60, 3))
     return data
+
+
+@pytest.fixture
+def chunked_video_path(tmpdir):
+    fname = tempfile.mkstemp(dir=tmpdir,
+                             prefix='example_large_video_',
+                             suffix='.h5')[1]
+    rng = np.random.RandomState(22312)
+    with h5py.File(fname, 'w') as out_file:
+        dataset = out_file.create_dataset('data',
+                                          (1014, 115, 127),
+                                          chunks=(100, 30, 30),
+                                          dtype=np.uint16)
+        for chunk in dataset.iter_chunks():
+            arr = rng.randint(0, 65536,
+                              (chunk[0].stop-chunk[0].start,
+                               chunk[1].stop-chunk[1].start,
+                               chunk[2].stop-chunk[2].start))
+            dataset[chunk] = arr
+
+    yield pathlib.Path(fname)
 
 
 @pytest.mark.parametrize("data_fixture", ["example_video",
@@ -650,3 +675,99 @@ def test_video_bounds_from_ROI(padding, x0, y0, height, width):
     assert origin[1] >= 0
     assert origin[0]+fov[0] <= 128
     assert origin[1]+fov[1] <= 128
+
+
+@pytest.mark.parametrize(
+         'normalization, geometry',
+         product(({'quantiles': None, 'min_max': (10, 5000)},
+                  {'quantiles': (0.1, 0.9), 'min_max': None}),
+                 ({'origin': (0, 0), 'frame_shape': (115, 127)},
+                  {'origin': (50, 50), 'frame_shape': (30, 42)})))
+def test_read_and_scale_all_at_once(chunked_video_path,
+                                    normalization,
+                                    geometry):
+    with h5py.File(chunked_video_path, 'r') as in_file:
+        full_data = in_file['data'][()]
+        if normalization['quantiles'] is not None:
+            min_max = np.quantile(full_data, normalization['quantiles'])
+        else:
+            min_max = normalization['min_max']
+    r0 = geometry['origin'][0]
+    r1 = r0+geometry['frame_shape'][0]
+    c0 = geometry['origin'][1]
+    c1 = c0+geometry['frame_shape'][1]
+    full_data = full_data[:, r0:r1, c0:c1]
+    expected = scale_video_to_uint8(full_data, min_max[0], min_max[1])
+
+    actual = _read_and_scale_all_at_once(
+                    chunked_video_path,
+                    geometry['origin'],
+                    geometry['frame_shape'],
+                    quantiles=normalization['quantiles'],
+                    min_max=normalization['min_max'])
+
+    np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.parametrize(
+         'normalization, geometry',
+         product(({'quantiles': None, 'min_max': (10, 5000)},
+                  {'quantiles': (0.1, 0.9), 'min_max': None}),
+                 ({'origin': (0, 0), 'frame_shape': (115, 127)},
+                  {'origin': (50, 50), 'frame_shape': (30, 42)})))
+def test_read_and_scale_by_chunks(chunked_video_path,
+                                  normalization,
+                                  geometry):
+    with h5py.File(chunked_video_path, 'r') as in_file:
+        full_data = in_file['data'][()]
+        if normalization['quantiles'] is not None:
+            min_max = np.quantile(full_data, normalization['quantiles'])
+        else:
+            min_max = normalization['min_max']
+    r0 = geometry['origin'][0]
+    r1 = r0+geometry['frame_shape'][0]
+    c0 = geometry['origin'][1]
+    c1 = c0+geometry['frame_shape'][1]
+    full_data = full_data[:, r0:r1, c0:c1]
+    expected = scale_video_to_uint8(full_data, min_max[0], min_max[1])
+
+    actual = _read_and_scale_by_chunks(
+                    chunked_video_path,
+                    geometry['origin'],
+                    geometry['frame_shape'],
+                    quantiles=normalization['quantiles'],
+                    min_max=normalization['min_max'])
+
+    np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.parametrize(
+         'normalization, geometry',
+         product(({'quantiles': None, 'min_max': (10, 5000)},
+                  {'quantiles': (0.1, 0.9), 'min_max': None}),
+                 ({'origin': (0, 0), 'frame_shape': (115, 127)},
+                  {'origin': (50, 50), 'frame_shape': (30, 42)})))
+def test_read_and_scale(chunked_video_path,
+                        normalization,
+                        geometry):
+    with h5py.File(chunked_video_path, 'r') as in_file:
+        full_data = in_file['data'][()]
+        if normalization['quantiles'] is not None:
+            min_max = np.quantile(full_data, normalization['quantiles'])
+        else:
+            min_max = normalization['min_max']
+    r0 = geometry['origin'][0]
+    r1 = r0+geometry['frame_shape'][0]
+    c0 = geometry['origin'][1]
+    c1 = c0+geometry['frame_shape'][1]
+    full_data = full_data[:, r0:r1, c0:c1]
+    expected = scale_video_to_uint8(full_data, min_max[0], min_max[1])
+
+    actual = read_and_scale(
+                    chunked_video_path,
+                    geometry['origin'],
+                    geometry['frame_shape'],
+                    quantiles=normalization['quantiles'],
+                    min_max=normalization['min_max'])
+
+    np.testing.assert_array_equal(actual, expected)

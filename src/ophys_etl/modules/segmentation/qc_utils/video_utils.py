@@ -320,13 +320,13 @@ def _read_and_scale_by_chunks(
         raise RuntimeError("cannot specify both quantiles and min_max "
                            "in _read_and_scale_by_chunks")
 
-    rowmin = origin[0]
-    rowmax = origin[0]+frame_shape[0]
-    colmin = origin[1]
-    colmax = origin[1]+frame_shape[1]
-
     with h5py.File(full_video_path, 'r') as in_file:
         dataset = in_file['data']
+        rowmin = origin[0]
+        rowmax = min(dataset.shape[1], origin[0]+frame_shape[0])
+        colmin = origin[1]
+        colmax = min(dataset.shape[2], origin[1]+frame_shape[1])
+
         if quantiles is not None:
             min_max = np.quantile(dataset[()], quantiles)
 
@@ -336,56 +336,17 @@ def _read_and_scale_by_chunks(
                                "order seems to be reversed")
 
         nt = dataset.shape[0]
-        final_output = np.zeros((nt, frame_shape[0], frame_shape[1]),
+        final_output = np.zeros((nt, rowmax-rowmin, colmax-colmin),
                                 dtype=np.uint8)
-        for chunk in dataset.iter_chunks():
-            t0 = chunk[0].start
-            t1 = chunk[0].stop
-            r0 = chunk[1].start
-            r1 = chunk[1].stop
-            c0 = chunk[2].start
-            c1 = chunk[2].stop
-            row_valid = False
-            if r0 >= rowmin and r0 < rowmax:
-                row_valid = True
-            elif r1 >= rowmin and r1 < rowmax:
-                row_valid = True
-            elif r0 < rowmin and r1 >= rowmax:
-                row_valid = True
-            if not row_valid:
-                continue
 
-            col_valid = False
-            if c0 >= colmin and c0 < colmax:
-                col_valid = True
-            elif c1 >= colmin and c1 < colmax:
-                col_valid = True
-            elif c0 < colmin and c1 >= colmax:
-                col_valid = True
-
-            if not col_valid:
-                continue
-
-            data_chunk = dataset[chunk]
-            if r0 < rowmin:
-                data_chunk = data_chunk[:, rowmin-r0:, :]
-                r0 = rowmin
-            if c0 < colmin:
-                data_chunk = data_chunk[:, :, colmin-c0:]
-                c0 = colmin
-            if r1 > rowmax:
-                data_chunk = data_chunk[:, :(rowmax-r0), :]
-                r1 = rowmax
-            if c1 > colmax:
-                data_chunk = data_chunk[:, :, :(colmax-c0)]
-                c1 = colmax
-
-            data_chunk = scale_video_to_uint8(data_chunk,
+        for tt in range(nt):
+            data_chunk = scale_video_to_uint8(dataset[tt,
+                                                      rowmin:rowmax,
+                                                      colmin:colmax],
                                               min_max[0],
                                               min_max[1])
-            final_output[t0:t1,
-                         r0-origin[0]:r1-origin[0],
-                         c0-origin[1]:c1-origin[1]] = data_chunk
+
+            final_output[tt, :, :] = data_chunk
 
     return final_output
 

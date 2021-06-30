@@ -54,7 +54,7 @@ def example_unnormalized_rgb_video():
 @pytest.fixture
 def chunked_video_path(tmpdir):
     fname = tempfile.mkstemp(dir=tmpdir,
-                             prefix='example_large_video_',
+                             prefix='example_large_video_chunked_',
                              suffix='.h5')[1]
     rng = np.random.RandomState(22312)
     with h5py.File(fname, 'w') as out_file:
@@ -70,6 +70,23 @@ def chunked_video_path(tmpdir):
             dataset[chunk] = arr
 
     yield pathlib.Path(fname)
+
+
+@pytest.fixture
+def unchunked_video_path(tmpdir):
+    fname = tempfile.mkstemp(dir=tmpdir,
+                             prefix='example_large_video_unchunked_',
+                             suffix='.h5')[1]
+    rng = np.random.RandomState(714432)
+    with h5py.File(fname, 'w') as out_file:
+        data = rng.randint(0, 65536, size=(1014, 115, 127)).astype(np.uint16)
+        dataset = out_file.create_dataset('data',
+                                          data=data,
+                                          chunks=None,
+                                          dtype=np.uint16)
+
+    yield pathlib.Path(fname)
+
 
 
 @pytest.mark.parametrize("data_fixture", ["example_video",

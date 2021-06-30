@@ -275,12 +275,12 @@ def _read_and_scale_by_chunks(
         origin: Tuple[int, int],
         frame_shape: Tuple[int, int],
         quantiles: Optional[Tuple[int, int]] = None,
-        min_max: Optional[Tuple[int, int]] = None) -> np.ndarray:
+        min_max: Optional[Tuple[int, int]] = None,
+        time_chunk_size: int = 100) -> np.ndarray:
 
     """
     Read in a video from an HDF5 file and scale it to np.uint8
-    one chunk at a time (chunks determined by how the data is
-    stored in the HDF5 file)
+    one chunk at a time
 
     Parameters
     ----------
@@ -300,6 +300,10 @@ def _read_and_scale_by_chunks(
     min_max: Optional[Tuple[float, float][
         Minimum and maximum values used for scale normalization
         (default: None)
+
+    time_chunk_size: int
+        Number of time steps to process at once.
+        (default: 100)
 
     Returns
     -------
@@ -339,14 +343,15 @@ def _read_and_scale_by_chunks(
         final_output = np.zeros((nt, rowmax-rowmin, colmax-colmin),
                                 dtype=np.uint8)
 
-        for tt in range(nt):
-            data_chunk = scale_video_to_uint8(dataset[tt,
+        for t0 in range(0, nt, time_chunk_size):
+            t1 = min(t0+time_chunk_size, nt)
+            data_chunk = scale_video_to_uint8(dataset[t0:t1,
                                                       rowmin:rowmax,
                                                       colmin:colmax],
                                               min_max[0],
                                               min_max[1])
 
-            final_output[tt, :, :] = data_chunk
+            final_output[t0:t1, :, :] = data_chunk
 
     return final_output
 
@@ -359,8 +364,6 @@ def read_and_scale(
         min_max: Optional[Tuple[float, float]] = None) -> np.ndarray:
     """
     Read in a video from an HDF5 file and scale it to np.uint8
-    one chunk at a time (chunks determined by how the data is
-    stored in the HDF5 file)
 
     Parameters
     ----------
@@ -394,8 +397,7 @@ def read_and_scale(
 
     If the area of the requested field of view is < 2500, the
     movie will be read in and scaled all at once. Otherwise, it
-    will be scaled one chunk at a time (chunksize determined by
-    how the data is stored in the HDF5 file)
+    will be scaled one chunk at a time.
     """
 
     if quantiles is None and min_max is None:

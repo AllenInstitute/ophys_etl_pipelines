@@ -200,6 +200,230 @@ def scale_video_to_uint8(video: np.ndarray,
     return np.round(255*video.astype(float)/delta).astype(np.uint8)
 
 
+def _read_and_scale_all_at_once(
+        full_video_path: pathlib.Path,
+        origin: Tuple[int, int],
+        frame_shape: Tuple[int, int],
+        quantiles: Optional[Tuple[float, float]] = None,
+        min_max: Optional[Tuple[float, float]] = None) -> np.ndarray:
+    """
+    Read in a video from an HDF5 file and scale it to np.uint8
+    without chunking
+
+    Parameters
+    ----------
+    full_video_path: pathlib.Path
+        Path to the HDF5 file
+
+    origin: Tuple[int, int]
+        Origin of the desired field of view
+
+    frame_shape: Tuple[int, int]
+        Shape of the desired field of view
+
+    quantiles: Optional[Tuple[float, float]]
+        Quantiles of full video used for scale normalization
+        (default: None)
+
+    min_max: Optional[Tuple[float, float][
+        Minimum and maximum values used for scale normalization
+        (default: None)
+
+    Returns
+    -------
+    data: np.ndarray
+        Video, cropped to the specified field of view and scaled
+        to np.uint8 (i.e. dynamic range is [0, 255])
+
+    Notes
+    -----
+    One and only one of quantiles, min_max must be specified. If
+    both or neither are specified, a RuntimeError will be raised.
+    """
+
+    if quantiles is None and min_max is None:
+        raise RuntimeError("must specify either quantiles or min_max "
+                           "in _read_and_scale_all_at_once; both are None")
+    if quantiles is not None and min_max is not None:
+        raise RuntimeError("cannot specify both quantiles and min_max "
+                           "in _read_and_scale_all_at_once")
+
+    with h5py.File(full_video_path, 'r') as in_file:
+        if quantiles is not None:
+            read_data = in_file['data'][()]
+            min_max = np.quantile(read_data, quantiles)
+            data = read_data[:,
+                             origin[0]:origin[0]+frame_shape[0],
+                             origin[1]:origin[1]+frame_shape[1]]
+            del read_data
+        else:
+            data = in_file['data'][:,
+                                   origin[0]:origin[0]+frame_shape[0],
+                                   origin[1]:origin[1]+frame_shape[1]]
+
+    if min_max[0] > min_max[1]:
+        raise RuntimeError(f"min_max {min_max} in "
+                           "_read_and_scale_all_at_once; "
+                           "order seems to be reversed")
+
+    data = scale_video_to_uint8(data, min_max[0], min_max[1])
+    return data
+
+
+def _read_and_scale_by_chunks(
+        full_video_path: pathlib.Path,
+        origin: Tuple[int, int],
+        frame_shape: Tuple[int, int],
+        quantiles: Optional[Tuple[int, int]] = None,
+        min_max: Optional[Tuple[int, int]] = None,
+        time_chunk_size: int = 100) -> np.ndarray:
+
+    """
+    Read in a video from an HDF5 file and scale it to np.uint8
+    one chunk at a time
+
+    Parameters
+    ----------
+    full_video_path: pathlib.Path
+        Path to the HDF5 file
+
+    origin: Tuple[int, int]
+        Origin of the desired field of view
+
+    frame_shape: Tuple[int, int]
+        Shape of the desired field of view
+
+    quantiles: Optional[Tuple[float, float]]
+        Quantiles of full video used for scale normalization
+        (default: None)
+
+    min_max: Optional[Tuple[float, float][
+        Minimum and maximum values used for scale normalization
+        (default: None)
+
+    time_chunk_size: int
+        Number of time steps to process at once.
+        (default: 100)
+
+    Returns
+    -------
+    data: np.ndarray
+        Video, cropped to the specified field of view and scaled
+        to np.uint8 (i.e. dynamic range is [0, 255])
+
+    Notes
+    -----
+    One and only one of quantiles, min_max must be specified. If
+    both or neither are specified, a RuntimeError will be raised.
+    """
+
+    if quantiles is None and min_max is None:
+        raise RuntimeError("must specify either quantiles or min_max "
+                           "in _read_and_scale_by_chunk; both are None")
+    if quantiles is not None and min_max is not None:
+        raise RuntimeError("cannot specify both quantiles and min_max "
+                           "in _read_and_scale_by_chunks")
+
+    with h5py.File(full_video_path, 'r') as in_file:
+        dataset = in_file['data']
+        rowmin = origin[0]
+        rowmax = min(dataset.shape[1], origin[0]+frame_shape[0])
+        colmin = origin[1]
+        colmax = min(dataset.shape[2], origin[1]+frame_shape[1])
+
+        if quantiles is not None:
+            min_max = np.quantile(dataset[()], quantiles)
+
+        if min_max[0] > min_max[1]:
+            raise RuntimeError(f"min_max {min_max} in "
+                               "_read_and_scale_by_chunks; "
+                               "order seems to be reversed")
+
+        nt = dataset.shape[0]
+        final_output = np.zeros((nt, rowmax-rowmin, colmax-colmin),
+                                dtype=np.uint8)
+
+        for t0 in range(0, nt, time_chunk_size):
+            t1 = min(t0+time_chunk_size, nt)
+            data_chunk = scale_video_to_uint8(dataset[t0:t1,
+                                                      rowmin:rowmax,
+                                                      colmin:colmax],
+                                              min_max[0],
+                                              min_max[1])
+
+            final_output[t0:t1, :, :] = data_chunk
+
+    return final_output
+
+
+def read_and_scale(
+        video_path: pathlib.Path,
+        origin: Tuple[int, int],
+        frame_shape: Tuple[int, int],
+        quantiles: Optional[Tuple[float, float]] = None,
+        min_max: Optional[Tuple[float, float]] = None) -> np.ndarray:
+    """
+    Read in a video from an HDF5 file and scale it to np.uint8
+
+    Parameters
+    ----------
+    video_path: pathlib.Path
+        Path to the HDF5 file
+
+    origin: Tuple[int, int]
+        Origin of the desired field of view
+
+    frame_shape: Tuple[int, int]
+        Shape of the desired field of view
+
+    quantiles: Optional[Tuple[float, float]]
+        Quantiles of full video used for scale normalization
+        (default: None)
+
+    min_max: Optional[Tuple[float, float][
+        Minimum and maximum values used for scale normalization
+        (default: None)
+
+    Returns
+    -------
+    data: np.ndarray
+        Video, cropped to the specified field of view and scaled
+        to np.uint8 (i.e. dynamic range is [0, 255])
+
+    Notes
+    -----
+    One and only one of quantiles, min_max must be specified. If
+    both or neither are specified, a RuntimeError will be raised.
+
+    If the area of the requested field of view is < 2500, the
+    movie will be read in and scaled all at once. Otherwise, it
+    will be scaled one chunk at a time.
+    """
+
+    if quantiles is None and min_max is None:
+        raise RuntimeError("must specify either quantiles or min_max "
+                           "in read_and_scale; both are None")
+    if quantiles is not None and min_max is not None:
+        raise RuntimeError("cannot specify both quantiles and min_max "
+                           "in read_and_scale")
+
+    area = frame_shape[0]*frame_shape[1]
+    if area < 2500:
+        return _read_and_scale_all_at_once(
+                       video_path,
+                       origin,
+                       frame_shape,
+                       quantiles=quantiles,
+                       min_max=min_max)
+
+    return _read_and_scale_by_chunks(
+                   video_path,
+                   origin,
+                   frame_shape,
+                   quantiles=quantiles,
+                   min_max=min_max)
+
+
 def trim_video(
         full_video: np.ndarray,
         origin: Tuple[int, int],
@@ -440,24 +664,11 @@ def thumbnail_video_from_path(
                            "in thumbnail_video_from_path; can only specify "
                            "one")
 
-    with h5py.File(full_video_path, 'r') as in_file:
-        if quantiles is not None:
-            read_data = in_file['data'][()]
-            min_max = np.quantile(read_data, quantiles)
-            data = read_data[:,
-                             origin[0]:origin[0]+frame_shape[0],
-                             origin[1]:origin[1]+frame_shape[1]]
-            del read_data
-        else:
-            data = in_file['data'][:,
-                                   origin[0]:origin[0]+frame_shape[0],
-                                   origin[1]:origin[1]+frame_shape[1]]
-
-    if min_max[0] > min_max[1]:
-        raise RuntimeError(f"min_max {min_max} in thumbnail_video_from_path; "
-                           "order seems to be reversed")
-
-    data = scale_video_to_uint8(data, min_max[0], min_max[1])
+    data = read_and_scale(full_video_path,
+                          origin,
+                          frame_shape,
+                          quantiles=quantiles,
+                          min_max=min_max)
 
     # origin is set to (0,0) because, when we read in the
     # HDF5 file, we only read in the pixels we actually
@@ -833,26 +1044,11 @@ def _thumbnail_video_from_ROI_path(
                                         img_shape[1:3],
                                         padding)
 
-    with h5py.File(video_path, 'r') as in_file:
-        if quantiles is not None:
-            read_in_data = in_file['data'][()]
-            min_max = np.quantile(read_in_data, quantiles)
-            full_video = read_in_data[:,
-                                      origin[0]:origin[0]+fov_shape[0],
-                                      origin[1]:origin[1]+fov_shape[1]]
-            del read_in_data
-        else:
-            full_video = in_file['data'][:,
-                                         origin[0]:origin[0]+fov_shape[0],
-                                         origin[1]:origin[1]+fov_shape[1]]
-
-    if min_max[0] > min_max[1]:
-        raise RuntimeError(f"min_max {min_max} in thumbnail_video_from_path; "
-                           "order seems to be reversed")
-
-    full_video = scale_video_to_uint8(full_video,
-                                      min_max[0],
-                                      min_max[1])
+    full_video = read_and_scale(video_path,
+                                origin,
+                                fov_shape,
+                                quantiles=quantiles,
+                                min_max=min_max)
 
     sub_video = get_rgb_sub_video(full_video,
                                   (0, 0),

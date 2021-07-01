@@ -361,7 +361,8 @@ def do_roi_merger(
       video_data: np.ndarray,
       n_processors: int,
       corr_acceptance: float,
-      filter_fraction: float = 0.2) -> List[OphysROI]:
+      filter_fraction: float = 0.2,
+      anomalous_size: int = 800) -> List[OphysROI]:
     """
     Merge ROIs based on a static image.
 
@@ -382,6 +383,10 @@ def do_roi_merger(
     filter_fraction: float
         Fraction of timesteps to keep when correlating pixels
         in sub_videos (default=0.2)
+
+    anomalous_size: int
+        Size (in pixels) at which an ROI is declared "anomalous"
+        and marked invalid.
 
     Returns
     -------
@@ -423,8 +428,6 @@ def do_roi_merger(
 
     4) Repeat steps (1-3) until no more mergers occur.
     """
-
-    anomalous_size = 800
 
     # create a lookup table of OphysROIs
     roi_lookup = {roi.roi_id: roi for roi in raw_roi_list}

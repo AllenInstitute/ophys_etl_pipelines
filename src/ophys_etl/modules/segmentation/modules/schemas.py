@@ -431,3 +431,15 @@ class RoiMergerSchema(argschema.ArgSchema):
         default=2.0,
         decription=("level of time series correlation needed "
                     "to accept a merger (in units of z-score)"))
+
+    anomalous_size = argschema.fields.Int(
+        required=False,
+        default=800,
+        description=("If an ROI reaches this size, it is considered "
+                     "invalid and removed from the merging process"))
+
+    filter_fraction = argschema.fields.Float(
+        required=False,
+        default=0.2,
+        description=("fraction of timesteps to keep when doing time "
+                     "correlations"))

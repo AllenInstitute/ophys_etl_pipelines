@@ -77,7 +77,9 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
                                 roi_list,
                                 video_data,
                                 self.args['n_parallel_workers'],
-                                self.args['corr_acceptance'])
+                                self.args['corr_acceptance'],
+                                filter_fraction=self.args['filter_fraction'],
+                                anomalous_size=self.args['anomalous_size'])
 
         write_out_rois(roi_list, self.args['roi_output'])
 

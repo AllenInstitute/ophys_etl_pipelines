@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Set
 import numpy as np
 
 from ophys_etl.modules.segmentation.\
@@ -71,6 +71,146 @@ def get_new_merger_candidates(
         if pair not in merger_to_metric:
             merger_candidates.append(pair)
     return merger_candidates
+
+
+def _do_mergers(
+        merger_to_metric: Dict[Tuple[int, int], float],
+        roi_lookup: Dict[int, OphysROI],
+        neighbor_lookup: Dict[int, List[int]],
+        have_been_absorbed: Set[int]) -> Tuple[Set[int],
+                                               Dict[int, OphysROI],
+                                               Dict[int, List[int]],
+                                               Set[int]]:
+    """
+    Actually perform ROI mergers
+
+    Parameters
+    ----------
+    merger_to_metric: Dict[Tuple[int, int], float]
+        Maps pair of ROI IDs to the merger metric value.
+        **Should only contain mergers with a metric value
+        that passes acceptance criterion***
+
+    roi_lookup: Dict[int, OphysROI]
+
+    neighbor_lookup: Dict[int, List[int]]
+        Maps ROI ID to the list of neighboring ROI IDs
+
+    have_been_absorbed: Set[int]
+        Set for keeping track of ROIs that were absorbed into
+        other ROIs
+
+    Returns
+    -------
+    recently_merged: Set[int]
+        ROI IDs of ROIs that participated in mergers
+
+    roi_lookup: Dict[int, OphysROI]
+        Updated to reflect mergers
+
+    neighbor_lookup: Dict[int, Tuple[int, int]]
+       Updated to reflect mergers
+
+    have_been_absorbed: Set[int]
+        Updated to reflect mergers
+    """
+    valid_roi_id = set(roi_lookup.keys())
+    potential_mergers = []
+    merger_metrics = []
+    for pair in merger_to_metric:
+        potential_mergers.append(pair)
+        merger_metrics.append(merger_to_metric[pair])
+
+    # order mergers by metric in descending order
+    potential_mergers = np.array(potential_mergers)
+    merger_metrics = np.array(merger_metrics)
+    sorted_indices = np.argsort(-1*merger_metrics)
+    potential_mergers = potential_mergers[sorted_indices]
+
+    recently_merged = set()
+    wait_for_it = set()
+
+    area_lookup = {}
+    for roi_id in roi_lookup:
+        area_lookup[roi_id] = roi_lookup[roi_id].area
+
+    for merger in potential_mergers:
+        roi_id_0 = merger[0]
+        roi_id_1 = merger[1]
+        go_ahead = True
+
+        # if one of the ROIs no longer exists because
+        # it was absorbed into another, skip
+        if roi_id_0 not in valid_roi_id:
+            go_ahead = False
+        if roi_id_1 not in valid_roi_id:
+            go_ahead = False
+
+        # if one of the ROIs has grown by 10% or more since
+        # the start of this iteration, skip
+        if go_ahead:
+            if roi_id_0 in recently_merged:
+                if roi_lookup[roi_id_0].area > 1.1*area_lookup[roi_id_0]:
+                    go_ahead = False
+            if roi_id_1 in recently_merged:
+                if roi_lookup[roi_id_1].area > 1.1*area_lookup[roi_id_1]:
+                    go_ahead = False
+
+        # if one of the ROIs was in a potential pair that was skipped
+        # for one of the reasons above, skip (in case that merger
+        # really was the best merger for it; these mergers will
+        # be reconsidered in the next iteration)
+        if go_ahead:
+            if roi_id_0 in wait_for_it:
+                go_ahead = False
+            if roi_id_1 in wait_for_it:
+                go_ahead = False
+
+        # mark these ROIs has having deferred a merger and continue
+        # (if appropriate)
+        if not go_ahead:
+            wait_for_it.add(roi_id_0)
+            wait_for_it.add(roi_id_1)
+            continue
+
+        # order by size
+        if roi_lookup[roi_id_0].area > roi_lookup[roi_id_1].area:
+            seed_id = roi_id_0
+            child_id = roi_id_1
+        else:
+            seed_id = roi_id_1
+            child_id = roi_id_0
+
+        seed_roi = roi_lookup[seed_id]
+        child_roi = roi_lookup[child_id]
+
+        new_roi = merge_rois(seed_roi,
+                             child_roi,
+                             seed_roi.roi_id)
+
+        # remove the ROI that was absorbed
+        roi_lookup.pop(child_roi.roi_id)
+        valid_roi_id.remove(child_roi.roi_id)
+
+        # mark these ROIs as ROIs that have been merged
+        have_been_absorbed.add(child_roi.roi_id)
+        recently_merged.add(child_roi.roi_id)
+        recently_merged.add(new_roi.roi_id)
+        roi_lookup[seed_roi.roi_id] = new_roi
+
+        # all ROIs that neighbored child_roi now neighbor new_roi
+        severed_neighbors = neighbor_lookup.pop(child_roi.roi_id)
+        severed_neighbors = severed_neighbors.intersection(valid_roi_id)
+        for roi_id in severed_neighbors:
+            if roi_id == new_roi.roi_id:
+                continue
+            neighbor_lookup[new_roi.roi_id].add(roi_id)
+            neighbor_lookup[roi_id].add(new_roi.roi_id)
+
+    return (recently_merged,
+            roi_lookup,
+            neighbor_lookup,
+            have_been_absorbed)
 
 
 def do_roi_merger(
@@ -151,11 +291,9 @@ def do_roi_merger(
     t0 = time.time()
     logger.info('starting merger')
 
-    keep_going = True
     incoming_rois = list(roi_lookup.keys())
 
-    have_been_merged = set()  # keep track of ROIs that were merged
-    valid_roi_id = set(roi_lookup.keys())
+    have_been_absorbed = set()  # keep track of ROIs that were merged
 
     neighbor_lookup = create_neighbor_lookup(
                           roi_lookup,
@@ -180,10 +318,8 @@ def do_roi_merger(
     # ROIs from all landing on the same process
     shuffler = np.random.RandomState(11723412)
 
+    keep_going = True
     while keep_going:
-
-        # will be set to True if a merger occurs
-        keep_going = False
 
         # statistics on this pass for INFO messages
         n0 = len(roi_lookup)
@@ -238,99 +374,16 @@ def do_roi_merger(
             if metric >= -1.0*corr_acceptance:
                 merger_to_metric[pair] = metric
 
-        potential_mergers = []
-        merger_metrics = []
-        for pair in merger_to_metric:
-            potential_mergers.append(pair)
-            merger_metrics.append(merger_to_metric[pair])
-
-        # order mergers by metric in descending order
-        potential_mergers = np.array(potential_mergers)
-        merger_metrics = np.array(merger_metrics)
-        sorted_indices = np.argsort(-1*merger_metrics)
-        potential_mergers = potential_mergers[sorted_indices]
-
-        recently_merged = set()
-        wait_for_it = set()
-
-        area_lookup = {}
-        for roi_id in roi_lookup:
-            area_lookup[roi_id] = roi_lookup[roi_id].area
-
-        for merger in potential_mergers:
-            roi_id_0 = merger[0]
-            roi_id_1 = merger[1]
-            go_ahead = True
-
-            # if one of the ROIs no longer exists because
-            # it was absorbed into another, skip
-            if roi_id_0 not in valid_roi_id:
-                go_ahead = False
-            if roi_id_1 not in valid_roi_id:
-                go_ahead = False
-
-            # if one of the ROIs has grown by 10% or more since
-            # the start of this iteration, skip
-            if go_ahead:
-                if roi_id_0 in recently_merged:
-                    if roi_lookup[roi_id_0].area > 1.1*area_lookup[roi_id_0]:
-                        go_ahead = False
-                if roi_id_1 in recently_merged:
-                    if roi_lookup[roi_id_1].area > 1.1*area_lookup[roi_id_1]:
-                        go_ahead = False
-
-            # if one of the ROIs was in a potential pair that was skipped
-            # for one of the reasons above, skip (in case that merger
-            # really was the best merger for it; these mergers will
-            # be reconsidered in the next iteration)
-            if go_ahead:
-                if roi_id_0 in wait_for_it:
-                    go_ahead = False
-                if roi_id_1 in wait_for_it:
-                    go_ahead = False
-
-            # mark these ROIs has having deferred a merger and continue
-            # (if appropriate)
-            if not go_ahead:
-                wait_for_it.add(roi_id_0)
-                wait_for_it.add(roi_id_1)
-                continue
-
-            # order by size
-            if roi_lookup[roi_id_0].area > roi_lookup[roi_id_1].area:
-                seed_id = roi_id_0
-                child_id = roi_id_1
-            else:
-                seed_id = roi_id_1
-                child_id = roi_id_0
-
-            seed_roi = roi_lookup[seed_id]
-            child_roi = roi_lookup[child_id]
-
+        keep_going = False
+        (recently_merged,
+         roi_lookup,
+         neighbor_lookup,
+         have_been_absorbed) = _do_mergers(merger_to_metric,
+                                           roi_lookup,
+                                           neighbor_lookup,
+                                           have_been_absorbed)
+        if len(recently_merged) > 0:
             keep_going = True
-
-            new_roi = merge_rois(seed_roi,
-                                 child_roi,
-                                 seed_roi.roi_id)
-
-            # remove the ROI that was absorbed
-            roi_lookup.pop(child_roi.roi_id)
-            valid_roi_id.remove(child_roi.roi_id)
-
-            # mark these ROIs as ROIs that have been merged
-            have_been_merged.add(child_roi.roi_id)
-            recently_merged.add(child_roi.roi_id)
-            recently_merged.add(new_roi.roi_id)
-            roi_lookup[seed_roi.roi_id] = new_roi
-
-            # all ROIs that neighbored child_roi now neighbor new_roi
-            severed_neighbors = neighbor_lookup.pop(child_roi.roi_id)
-            severed_neighbors = severed_neighbors.intersection(valid_roi_id)
-            for roi_id in severed_neighbors:
-                if roi_id == new_roi.roi_id:
-                    continue
-                neighbor_lookup[new_roi.roi_id].add(roi_id)
-                neighbor_lookup[roi_id].add(new_roi.roi_id)
 
         # break out any ROIs that are too large
         k_list = list(roi_lookup.keys())
@@ -339,12 +392,11 @@ def do_roi_merger(
                 roi = roi_lookup.pop(roi_id)
                 roi.valid_roi = False
                 anomalous_rois[roi_id] = roi
-
-                valid_roi_id.remove(roi_id)
                 neighbor_lookup.pop(roi_id)
                 sub_video_lookup.pop(roi_id)
                 timeseries_lookup.pop(roi_id)
 
+        valid_roi_id = set(roi_lookup.keys())
         # remove an obsolete ROI IDs from neighbor lookup
         for roi_id in neighbor_lookup:
             new_set = neighbor_lookup[roi_id].intersection(valid_roi_id)
@@ -385,7 +437,7 @@ def do_roi_merger(
 
         # make sure we did not lose track of any ROIs
         for roi_id in incoming_rois:
-            if roi_id not in have_been_merged:
+            if roi_id not in have_been_absorbed:
                 if roi_id not in roi_lookup:
                     if roi_id not in anomalous_rois:
                         raise RuntimeError(f"lost track of {roi_id}")

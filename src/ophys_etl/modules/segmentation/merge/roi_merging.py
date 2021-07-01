@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict, Tuple
 import numpy as np
 
 from ophys_etl.modules.segmentation.\
@@ -27,6 +27,50 @@ import time
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
+
+
+def get_new_merger_candidates(
+     neighbor_lookup: Dict[int, List[int]],
+     merger_to_metric: Dict[Tuple[int, int], float]) -> List[Tuple[int, int]]:
+    """
+    Find all of the candidate mergers for which we do not already have
+    a merger metric calculated
+
+    Parameters
+    ----------
+    neighbor_lookup: Dict[int, List[int]]
+        Dict mapping ROI ID to the list of ROI IDs of neighbors
+
+    merger_to_metric: Dict[Tuple[int, int], float]
+        Dict mapping a pair of ROI IDs to the merger metric value
+        associated with that merger. This is meant to track the mergers
+        we already have metric values for (i.e. that we do not need to
+        recalculate)
+
+    Returns
+    -------
+    merger_candidate: List[Tuple[int, int]]
+        List of pairs of ROI IDs representing mergers we need to calculate
+        the metric for
+    """
+    # find all pairs of ROIs that abut
+    raw_merger_candidates = set()
+    for roi_id_0 in neighbor_lookup:
+        for roi_id_1 in neighbor_lookup[roi_id_0]:
+            if roi_id_0 > roi_id_1:
+                pair = (roi_id_0, roi_id_1)
+            else:
+                pair = (roi_id_1, roi_id_0)
+            raw_merger_candidates.add(pair)
+
+    # only need to calculate metrics for those that have
+    # changed since the last iteration, though
+    raw_merger_candidates = list(raw_merger_candidates)
+    merger_candidates = []
+    for pair in raw_merger_candidates:
+        if pair not in merger_to_metric:
+            merger_candidates.append(pair)
+    return merger_candidates
 
 
 def do_roi_merger(
@@ -113,11 +157,6 @@ def do_roi_merger(
     have_been_merged = set()  # keep track of ROIs that were merged
     valid_roi_id = set(roi_lookup.keys())
 
-    # pseudo-randomly order ROIs when calculating
-    # expensive statistics to prevent the most expensive
-    # ROIs from all landing on the same process
-    shuffler = np.random.RandomState(11723412)
-
     neighbor_lookup = create_neighbor_lookup(
                           roi_lookup,
                           n_processors)
@@ -135,6 +174,12 @@ def do_roi_merger(
     anomalous_rois = {}
 
     logger.info(f'initially {len(roi_lookup)} ROIs')
+
+    # pseudo-randomly order ROIs when calculating
+    # expensive statistics to prevent the most expensive
+    # ROIs from all landing on the same process
+    shuffler = np.random.RandomState(11723412)
+
     while keep_going:
 
         # will be set to True if a merger occurs
@@ -152,29 +197,15 @@ def do_roi_merger(
             sub_video_lookup[roi_id] = sub_video_from_roi(roi,
                                                           video_data)
 
-        # find all pairs of ROIs that abut
-        raw_merger_candidates = set()
-        for roi_id_0 in neighbor_lookup:
-            for roi_id_1 in neighbor_lookup[roi_id_0]:
-                if roi_id_0 > roi_id_1:
-                    pair = (roi_id_0, roi_id_1)
-                else:
-                    pair = (roi_id_1, roi_id_0)
-                raw_merger_candidates.add(pair)
+        new_merger_candidates = get_new_merger_candidates(
+                                    neighbor_lookup,
+                                    merger_to_metric)
 
-        # only need to calculate metrics for those that have
-        # changed since the last iteration, though
-        raw_merger_candidates = list(raw_merger_candidates)
-        merger_candidates = []
-        for pair in raw_merger_candidates:
-            if pair not in merger_to_metric:
-                merger_candidates.append(pair)
-
-        shuffler.shuffle(merger_candidates)
+        shuffler.shuffle(new_merger_candidates)
 
         local_t0 = time.time()
         timeseries_lookup = update_timeseries_lookup(
-                              merger_candidates,
+                              new_merger_candidates,
                               timeseries_lookup,
                               sub_video_lookup,
                               filter_fraction=filter_fraction,
@@ -185,14 +216,14 @@ def do_roi_merger(
 
         local_t0 = time.time()
         self_corr_lookup = create_self_corr_lookup(
-                               merger_candidates,
+                               new_merger_candidates,
                                sub_video_lookup,
                                timeseries_lookup,
                                filter_fraction,
                                n_processors)
 
         new_merger_metrics = get_merger_metric_from_pairs(
-                                   merger_candidates,
+                                   new_merger_candidates,
                                    sub_video_lookup,
                                    timeseries_lookup,
                                    self_corr_lookup,

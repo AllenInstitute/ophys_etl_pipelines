@@ -5,6 +5,9 @@ from itertools import combinations
 from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
         calculate_merger_metric)
 
+from ophys_etl.modules.segmentation.merge.self_correlation import (
+    create_self_corr_lookup)
+
 from ophys_etl.modules.segmentation.merge.metric import (
     get_merger_metric_from_pairs)
 
@@ -23,24 +26,31 @@ def test_get_merger_metric_from_pairs(
     # blocks in get_merger_metric_from_pairs
 
     merger_pairs = list(combinations(range(5), 2))
+
     actual = get_merger_metric_from_pairs(
                  merger_pairs,
                  timeseries_video_corr_dataset['video'],
                  timeseries_video_corr_dataset['timeseries'],
-                 timeseries_video_corr_dataset['self_corr'],
                  filter_fraction,
                  n_processors)
+
+    self_corr_lookup = create_self_corr_lookup(
+                          merger_pairs,
+                          timeseries_video_corr_dataset['video'],
+                          timeseries_video_corr_dataset['timeseries'],
+                          filter_fraction,
+                          n_processors)
 
     for pair in merger_pairs:
         video0 = timeseries_video_corr_dataset['video'][pair[0]]
         true_timeseries = timeseries_video_corr_dataset['timeseries'][pair[0]]
         ts0 = true_timeseries['timeseries']
-        corr0 = timeseries_video_corr_dataset['self_corr'][pair[0]]
+        corr0 = self_corr_lookup[pair[0]]
 
         true_timeseries = timeseries_video_corr_dataset['timeseries'][pair[1]]
         video1 = timeseries_video_corr_dataset['video'][pair[1]]
         ts1 = true_timeseries['timeseries']
-        corr1 = timeseries_video_corr_dataset['self_corr'][pair[1]]
+        corr1 = self_corr_lookup[pair[1]]
 
         metric01 = calculate_merger_metric(corr0,
                                            ts0,

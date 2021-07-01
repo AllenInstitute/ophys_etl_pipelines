@@ -16,9 +16,6 @@ from ophys_etl.modules.segmentation.merge.characteristic_timeseries import (
     update_timeseries_lookup,
     CharacteristicTimeseries)
 
-from ophys_etl.modules.segmentation.merge.self_correlation import (
-    create_self_corr_lookup)
-
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 import logging
@@ -491,18 +488,11 @@ def do_roi_merger(
                     f'in {time.time()-local_t0:.2f} seconds')
 
         local_t0 = time.time()
-        self_corr_lookup = create_self_corr_lookup(
-                               new_merger_candidates,
-                               sub_video_lookup,
-                               timeseries_lookup,
-                               filter_fraction,
-                               n_processors)
 
         new_merger_metrics = get_merger_metric_from_pairs(
                                    new_merger_candidates,
                                    sub_video_lookup,
                                    timeseries_lookup,
-                                   self_corr_lookup,
                                    filter_fraction,
                                    n_processors)
 

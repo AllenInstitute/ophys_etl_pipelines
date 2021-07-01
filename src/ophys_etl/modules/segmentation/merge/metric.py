@@ -9,6 +9,9 @@ import multiprocessing.managers
 from ophys_etl.modules.segmentation.merge.utils import (
     _winnow_process_list)
 
+from ophys_etl.modules.segmentation.merge.self_correlation import (
+    create_self_corr_lookup)
+
 from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
         calculate_merger_metric)
 
@@ -104,7 +107,6 @@ def get_merger_metric_from_pairs(
         potential_mergers: List[Tuple[int, int]],
         video_lookup: Dict[int, np.ndarray],
         timeseries_lookup: Dict[int, CharacteristicTimeseries],
-        self_corr_lookup: Dict[int, Tuple[float, float]],
         filter_fraction: float,
         n_processors: int) -> dict:
     """
@@ -112,7 +114,7 @@ def get_merger_metric_from_pairs(
 
     Parameters
     ----------
-    input_pair_list: List[Tuple[int, int]]
+    potential_mergers: List[Tuple[int, int]]
         List of ROI ID pairs that are being considered for merger
 
     video_lookup: Dict[int, np.ndarray]
@@ -123,11 +125,6 @@ def get_merger_metric_from_pairs(
     timeseries_lookup: Dict[int, CharacteristicTimeseries]
         A dict that maps ROI ID to the characteristic timeseries
         associated with ROIs (see Notes for more details)
-
-    self_corr_lookup: Dict[int, Tuple[float, float]]
-        A dict that maps ROI ID to the (mu, std) tuples characterizing
-        the Gaussian distributions of ROI pixels with their own
-        characteristic time series
 
     filter_fraction: float
         The fraction of brightest timesteps to keep when correlating pixels
@@ -153,6 +150,12 @@ def get_merger_metric_from_pairs(
     we don't spend too much time re-calculating these when the ROIs
     change a very little)
     """
+    self_corr_lookup = create_self_corr_lookup(
+                               potential_mergers,
+                               video_lookup,
+                               timeseries_lookup,
+                               filter_fraction,
+                               n_processors)
 
     mgr = multiprocessing.Manager()
     output_dict = mgr.dict()

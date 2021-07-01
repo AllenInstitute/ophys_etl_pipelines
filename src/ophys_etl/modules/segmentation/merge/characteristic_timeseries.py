@@ -237,10 +237,9 @@ def update_timeseries_lookup(
     needed_big_rois = set()
     needed_small_rois = set()
 
-    roi_to_consider = set()
-    for pair in merger_candidates:
-        roi_to_consider.add(pair[0])
-        roi_to_consider.add(pair[1])
+    roi_to_consider = {roi_id
+                       for pair in merger_candidates
+                       for roi_id in pair}
 
     for roi_id in roi_to_consider:
         if roi_id not in timeseries_lookup:

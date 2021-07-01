@@ -427,9 +427,7 @@ def do_roi_merger(
     anomalous_size = 800
 
     # create a lookup table of OphysROIs
-    roi_lookup = dict()
-    for roi in raw_roi_list:
-        roi_lookup[roi.roi_id] = roi
+    roi_lookup = {roi.roi_id: roi for roi in raw_roi_list}
 
     t0 = time.time()
     logger.info('starting merger')

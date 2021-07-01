@@ -62,14 +62,15 @@ def ophys_roi_to_extract_roi(roi: OphysROI) -> ExtractROI:
 
 def _do_rois_abut(array_0: np.ndarray,
                   array_1: np.ndarray,
-                  dpix: float = np.sqrt(2)) -> bool:
+                  pixel_distance: float = np.sqrt(2)) -> bool:
     """
     Method that does the work behind user-facing do_rois_abut.
 
     This method takes in two arrays of pixel coordinates
     calculates the distance between every pair of pixels
     across the two arrays. If the minimum distance is less
-    than or equal dpix, it returns True. If not, it return False.
+    than or equal pixel_distance, it returns True. If not,
+    it returns False.
 
     Parameters
     ----------
@@ -81,7 +82,7 @@ def _do_rois_abut(array_0: np.ndarray,
     array_1: np.ndarray
         Same as array_0 for the second array of pixels
 
-    dpix: float
+    pixel_distance: float
         Maximum distance two arrays can be from each other
         at their closest point and still be considered
         to abut (default: sqrt(2)).
@@ -91,7 +92,7 @@ def _do_rois_abut(array_0: np.ndarray,
     boolean
     """
     distances = cdist(array_0, array_1, metric='euclidean')
-    if distances.min() <= dpix:
+    if distances.min() <= pixel_distance:
         return True
     return False
 
@@ -132,9 +133,9 @@ def _get_pixel_array(roi: OphysROI) -> np.ndarray:
 
 def do_rois_abut(roi0: OphysROI,
                  roi1: OphysROI,
-                 dpix: float = np.sqrt(2)) -> bool:
+                 pixel_distance: float = np.sqrt(2)) -> bool:
     """
-    Returns True if ROIs are within dpix of each other at any point.
+    Returns True if ROIs are within pixel_distance of each other at any point.
 
     Parameters
     ----------
@@ -142,7 +143,7 @@ def do_rois_abut(roi0: OphysROI,
 
     roi1: OphysROI
 
-    dpix: float
+    pixel_distance: float
         The maximum distance from each other the ROIs can be at
         their closest point and still be considered to abut.
         (Default: np.sqrt(2))
@@ -153,16 +154,16 @@ def do_rois_abut(roi0: OphysROI,
 
     Notes
     -----
-    dpix is such that if two boundaries are next to each other,
-    that corresponds to dpix=1; dpix=2 corresponds to 1 blank pixel
-    between ROIs
+    pixel_distance is such that if two boundaries are next to each other,
+    that corresponds to pixel_distance=1; pixel_distance=2 corresponds
+    to 1 blank pixel between ROIs
     """
     array_0 = _get_pixel_array(roi0)
     array_1 = _get_pixel_array(roi1)
 
     return _do_rois_abut(array_0,
                          array_1,
-                         dpix=dpix)
+                         pixel_distance=pixel_distance)
 
 
 def merge_rois(roi0: OphysROI,

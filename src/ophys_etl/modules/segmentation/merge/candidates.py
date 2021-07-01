@@ -16,7 +16,7 @@ from ophys_etl.modules.segmentation.merge.roi_utils import (
 def _find_merger_candidates(
         roi_id_pair_list: List[Tuple[int, int]],
         roi_lookup: Dict[int, OphysROI],
-        dpix: float,
+        pixel_distance: float,
         rois_to_ignore: Optional[Set[int]],
         output_list: multiprocessing.managers.ListProxy) -> None:
     """
@@ -30,7 +30,7 @@ def _find_merger_candidates(
     roi_lookup: Dict[int, OphysROI]
         Maps roi_id to OphysROI
 
-    dpix: float
+    pixel_distance: float
        The maximum distance from each other two ROIs can be at
        their nearest point and still be considered to abut
 
@@ -59,14 +59,14 @@ def _find_merger_candidates(
 
         roi0 = roi_lookup[roi_id_pair[0]]
         roi1 = roi_lookup[roi_id_pair[1]]
-        if do_rois_abut(roi0, roi1, dpix=dpix):
+        if do_rois_abut(roi0, roi1, pixel_distance=pixel_distance):
             output_list.append(roi_id_pair)
     return None
 
 
 def find_merger_candidates(
         roi_list: List[OphysROI],
-        dpix: float,
+        pixel_distance: float,
         rois_to_ignore: Optional[Set[int]] = None,
         n_processors: int = 8) -> List[Tuple[int, int]]:
     """
@@ -78,7 +78,7 @@ def find_merger_candidates(
     ----------
     roi_list: List[OphysROI]
 
-    dpix: float
+    pixel_distance: float
        The maximum distance from each other two ROIs can be at
        their nearest point and still be considered to abut
 
@@ -117,7 +117,7 @@ def find_merger_candidates(
         if len(pair_list) >= chunk_size:
             args = (pair_list,
                     lookup,
-                    dpix,
+                    pixel_distance,
                     rois_to_ignore,
                     output_list)
 
@@ -133,7 +133,7 @@ def find_merger_candidates(
 
         args = (pair_list,
                 lookup,
-                dpix,
+                pixel_distance,
                 rois_to_ignore,
                 output_list)
 

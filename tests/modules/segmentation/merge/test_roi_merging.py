@@ -1,6 +1,31 @@
 import numpy as np
 from ophys_etl.modules.segmentation.merge.roi_merging import (
-    do_roi_merger)
+    do_roi_merger,
+    get_new_merger_candidates)
+
+
+def test_get_new_merger_candidates():
+
+    merger_to_metric = {(11, 9): 4.2,
+                        (13, 7): 3.1}
+
+    neighbor_lookup = dict()
+    neighbor_lookup[11] = [9, 4, 5, 15]
+    neighbor_lookup[7] = [13, 4, 6]
+
+    expected = {(11, 4), (11, 5), (15, 11),
+                (7, 4), (7, 6)}
+
+    k_list = list(neighbor_lookup.keys())
+    for k in k_list:
+        for n in neighbor_lookup[k]:
+            if n not in neighbor_lookup:
+                neighbor_lookup[n] = []
+            neighbor_lookup[n].append(k)
+
+    new_candidates = set(get_new_merger_candidates(neighbor_lookup,
+                                                   merger_to_metric))
+    assert new_candidates == expected
 
 
 def test_do_roi_merger(roi_and_video_dataset):

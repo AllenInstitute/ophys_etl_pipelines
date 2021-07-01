@@ -191,7 +191,7 @@ def update_lookup_tables(
         if roi_id in sub_video_lookup:
             sub_video_lookup.pop(roi_id)
 
-    # remove non-existent ROIs and ROIs whose areas
+    # remove ROIs whose areas
     # have significantly changed from timeseries_lookup
     # (calculating timeseries_lookup is expensive, so
     # we allow ROIs to grow a little before recalculating)

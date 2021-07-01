@@ -1,7 +1,27 @@
+import pytest
 import numpy as np
 from ophys_etl.modules.segmentation.merge.roi_merging import (
     do_roi_merger,
-    get_new_merger_candidates)
+    get_new_merger_candidates,
+    break_out_anomalous_rois)
+
+
+@pytest.mark.parametrize('anomalous_size', [5, 7, 12])
+def test_break_out_anomalous_rois(example_roi_list, anomalous_size):
+    roi_lookup = {roi.roi_id: roi for roi in example_roi_list}
+    anomalous_rois = dict()
+    (roi_lookup,
+     anomalous_rois) = break_out_anomalous_rois(roi_lookup,
+                                                anomalous_rois,
+                                                anomalous_size)
+
+    assert len(roi_lookup) > 0
+    assert len(anomalous_rois) > 0
+    for roi in example_roi_list:
+        if roi.area >= anomalous_size:
+            assert roi.roi_id in anomalous_rois
+        else:
+            assert roi.roi_id in roi_lookup
 
 
 def test_get_new_merger_candidates():

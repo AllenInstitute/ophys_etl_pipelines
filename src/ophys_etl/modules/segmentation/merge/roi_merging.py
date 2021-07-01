@@ -47,7 +47,6 @@ def do_roi_merger(
 
     n_processors: int
         The number of processors to invoke with multiprocessing
-        (only used when comparing all pairs of ROIs to find neighbors)
 
     corr_acceptance: float
         The pixel time correlation threshold for accepting a
@@ -75,8 +74,9 @@ def do_roi_merger(
 
         2a) Correlate all of the pixels in roi0 against a characteristic
         timeseries that is a weighted average of the pixels in roi0
-        using the brightest filter_fraction of time steps. Use these
-        correlations to construct a Gaussian distribution.
+        using the brightest filter_fraction of time steps in the
+        characteristic timeseries. Use these correlations to construct
+        a Gaussian distribution.
 
         2b) Correlate all of the pixels in roi1 against the characteristic
         timeseries for roi0 using the same timesteps.

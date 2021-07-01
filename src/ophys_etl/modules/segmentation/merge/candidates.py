@@ -2,7 +2,7 @@
 This module contains the code that roi_merging.py uses to
 find all pairs of ROIs that need to be considered for merger.
 """
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Set, Dict
 from itertools import combinations
 import multiprocessing
 import multiprocessing.managers
@@ -15,35 +15,38 @@ from ophys_etl.modules.segmentation.merge.roi_utils import (
 
 def _find_merger_candidates(
         roi_id_pair_list: List[Tuple[int, int]],
-        roi_lookup: dict,
+        roi_lookup: Dict[int, OphysROI],
         dpix: float,
-        rois_to_ignore: Optional[set],
+        rois_to_ignore: Optional[Set[int]],
         output_list: multiprocessing.managers.ListProxy) -> None:
     """
     Find all of the abutting ROIs in a list of OphysROIs
 
     Parameters
     ----------
-    roi_id_pair: Tuple[int, int]
+    roi_id_pair_list: List[Tuple[int, int]]
         Pair of roi_ids to consider for merging
 
-    roi_lookup: dict
+    roi_lookup: Dict[int, OphysROI]
         Maps roi_id to OphysROI
 
     dpix: float
        The maximum distance from each other two ROIs can be at
        their nearest point and still be considered to abut
 
-    rois_to_ignore: Optional[set]
+    rois_to_ignore: Optional[Set[int]]
        Optional set of ints specifying roi_id of ROIs not to consider
        when looking for pairs. Note: a pair will only be ignored
        if *both* ROIs are in rois_to_ignore. If one of them is not,
        the pair is valid (default: None)
 
+    output_list: multiprocessing.managers.ListProxy
+        List where valid merger candidates are stored
+
     Returns
     -------
-    output: Union[None, Tuple[int, int]]
-        None if the ROIs do not abut; the tuple of roi_ids if they do
+    None
+        valid merger candidates are stored in output_list
     """
     for roi_id_pair in roi_id_pair_list:
         if roi_id_pair[0] == roi_id_pair[1]:
@@ -61,10 +64,11 @@ def _find_merger_candidates(
     return None
 
 
-def find_merger_candidates(roi_list: List[OphysROI],
-                           dpix: float,
-                           rois_to_ignore: Optional[set] = None,
-                           n_processors: int = 8) -> List[Tuple[int, int]]:
+def find_merger_candidates(
+        roi_list: List[OphysROI],
+        dpix: float,
+        rois_to_ignore: Optional[Set[int]] = None,
+        n_processors: int = 8) -> List[Tuple[int, int]]:
     """
     Find all the pairs of abutting ROIs in a list of OphysROIs.
     Return a list of tuples like (roi_id_0, roi_id_1) specifying
@@ -78,7 +82,7 @@ def find_merger_candidates(roi_list: List[OphysROI],
        The maximum distance from each other two ROIs can be at
        their nearest point and still be considered to abut
 
-    rois_to_ignore: Optional[set]
+    rois_to_ignore: Optional[Set[int]]
        Optional set of ints specifying roi_id of ROIs not to consider
        when looking for pairs. Note: a pair will only be ignored
        if *both* ROIs are in rois_to_ignore. If one of them is not,

@@ -3,7 +3,8 @@ This module contains the code that roi_merging.py uses to create
 the lookup table of self-correlation distribution parameters for
 each ROI
 """
-from typing import List, Tuple
+from typing import List, Tuple, Dict
+import numpy as np
 import multiprocessing
 import multiprocessing.managers
 from ophys_etl.modules.segmentation.merge.utils import (
@@ -15,8 +16,8 @@ from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
 
 def _self_correlate_chunk(
         roi_id_list: List[int],
-        sub_video_lookup: dict,
-        timeseries_lookup: dict,
+        sub_video_lookup: Dict[int, np.ndarray],
+        timeseries_lookup: Dict[int, np.ndarray],
         filter_fraction: float,
         output_dict: multiprocessing.managers.DictProxy) -> None:
     """
@@ -27,11 +28,11 @@ def _self_correlate_chunk(
     ----------
     roi_id_list: List[int]
 
-    sub_video_lookup: dict
+    sub_video_lookup: Dict[int, np.ndarray]
         Maps ROI ID to sub-videos that have been flattened in space
         so that their shapes are (ntime, npixels)
 
-    timeseries_lookup: dict
+    timeseries_lookup: Dict[int, np.ndarray]
         Maps ROI ID to the characteristic timeseries of the ROI
 
     filter_fraction: float
@@ -53,8 +54,8 @@ def _self_correlate_chunk(
 
 
 def create_self_corr_lookup(merger_candidates: List[Tuple[int, int]],
-                            sub_video_lookup: dict,
-                            timeseries_lookup: dict,
+                            sub_video_lookup: Dict[int, np.ndarray],
+                            timeseries_lookup: Dict[int, np.ndarray],
                             filter_fraction: float,
                             n_processors: int) -> dict:
     """
@@ -67,11 +68,11 @@ def create_self_corr_lookup(merger_candidates: List[Tuple[int, int]],
     merger_candidates: List[Tuple[int, int]]
         List of ROI ID pairs being considered for merger
 
-    sub_video_lookup: dict
+    sub_video_lookup: Dict[int, np.ndarray]
         Maps ROI ID to sub-videos that have been flattened in space
         so that their shapes are (ntime, npixels)
 
-    timeseries_lookup: dict
+    timeseries_lookup: Dict[int, np.ndarray]
         Maps ROI ID to the characteristic timeseries of the ROI
 
     filter_fraction: float

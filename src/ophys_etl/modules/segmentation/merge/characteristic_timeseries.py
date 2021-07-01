@@ -2,7 +2,8 @@
 This module contains the code that roi_merging.py uses to find
 the single timeseries characterizing each ROI
 """
-from typing import List, Tuple, Union, Set
+from typing import List, Tuple, Union, Set, Dict
+import numpy as np
 import multiprocessing
 import multiprocessing.managers
 from ophys_etl.modules.segmentation.merge.utils import (
@@ -22,7 +23,7 @@ logging.basicConfig(level=logging.INFO)
 
 def _update_timeseries_lookup_per_pix(
         needed_rois:  Union[List[int], Set[int]],
-        sub_video_lookup: dict,
+        sub_video_lookup: Dict[int, np.ndarray],
         filter_fraction: float,
         n_processors: int) -> dict:
     """
@@ -36,7 +37,7 @@ def _update_timeseries_lookup_per_pix(
         List or set containing the ROI IDs of the ROIs whose
         characteristic timeseries are being calculated
 
-    sub_video_lookup: dict
+    sub_video_lookup: Dict[int, np.ndarray]
         Dict mapping ROI ID to sub-videos which have been
         flattened in space so that their shapes are
         (ntime, npixels)
@@ -50,7 +51,7 @@ def _update_timeseries_lookup_per_pix(
 
     Returns
     -------
-    output: dict
+    output: Dict[int, np.ndarray]
         Maps ROI ID to the characteristic timeseries for that ROI
     """
 
@@ -67,7 +68,7 @@ def _update_timeseries_lookup_per_pix(
 
 def _get_characteristic_timeseries(
         roi_id_list: List[int],
-        sub_video_lookup: dict,
+        sub_video_lookup: Dict[int, np.ndarray],
         filter_fraction: float,
         output_dict: multiprocessing.managers.DictProxy) -> dict:
     """
@@ -78,7 +79,7 @@ def _get_characteristic_timeseries(
     ----------
     roi_id_list: List[int]
 
-    sub_video_lookup: dict
+    sub_video_lookup: Dict[int, np.ndarray]
         Dict mapping ROI ID to sub-videos which have been
         flattened in space so that their shapes are
         (ntime, npixels)
@@ -103,9 +104,9 @@ def _get_characteristic_timeseries(
 
 
 def _update_timeseries_lookup(needed_rois: Union[List[int], Set[int]],
-                              sub_video_lookup: dict,
+                              sub_video_lookup: Dict[int, np.ndarray],
                               filter_fraction: float,
-                              n_processors: int) -> dict:
+                              n_processors: int) -> Dict[int, np.ndarray]:
     """
     Method to calculate the characteristic time series of
     ROIs, using multiprocessing to process multiple ROIs
@@ -117,7 +118,7 @@ def _update_timeseries_lookup(needed_rois: Union[List[int], Set[int]],
         List or set containing the ROI IDs of the ROIs whose
         characteristic timeseries are being calculated
 
-    sub_video_lookup: dict
+    sub_video_lookup: Dict[int, np.ndarray]
         Dict mapping ROI ID to sub-videos which have been
         flattened in space so that their shapes are
         (ntime, npixels)
@@ -131,7 +132,7 @@ def _update_timeseries_lookup(needed_rois: Union[List[int], Set[int]],
 
     Returns
     -------
-    output: dict
+    output: Dict[int, np.ndarray]
         Maps ROI ID to the characteristic timeseries for that ROI
     """
     chunksize = len(needed_rois)//(n_processors-1)
@@ -165,11 +166,11 @@ def _update_timeseries_lookup(needed_rois: Union[List[int], Set[int]],
 
 
 def update_timeseries_lookup(merger_candidates: List[Tuple[int, int]],
-                             timeseries_lookup: dict,
-                             sub_video_lookup: dict,
+                             timeseries_lookup: Dict[int, dict],
+                             sub_video_lookup: Dict[int, np.ndarray],
                              filter_fraction: float,
                              n_processors: int,
-                             size_threshold: int = 500) -> dict:
+                             size_threshold: int = 500) -> Dict[int, dict]:
     """
     Take a list of candidate merger ROI IDs and timeseries_lookup dict.
     Update timeseries_lookup dict with the key pixel time series for
@@ -180,11 +181,11 @@ def update_timeseries_lookup(merger_candidates: List[Tuple[int, int]],
     merger_candidates: List[Tuple[int, int]]
         A list of tuples representing potential ROI mergers
 
-    timeseries_lookup: dict
+    timeseries_lookup: Dict[int, dict]
         A dict mapping ROI IDs to the characteristic timeseries
-        (the "key pixels") associated with those ROIs
+        associated with those ROIs (see Notes for more details)
 
-    sub_video_lookup: dict
+    sub_video_lookup: Dict[int, np.ndarray]
         A dict mapping ROI IDs to sub-videos which have been
         flattened in space so that their shapes are (ntime, npixels)
 

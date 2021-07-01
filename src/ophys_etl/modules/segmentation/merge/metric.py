@@ -2,7 +2,8 @@
 This module contains the code that roi_merging.py uses to calculate the
 merger metric for each candidate merger
 """
-from typing import List, Tuple
+from typing import List, Tuple, Dict
+import numpy as np
 import multiprocessing
 import multiprocessing.managers
 from ophys_etl.modules.segmentation.merge.utils import (
@@ -14,9 +15,9 @@ from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
 
 def _calculate_merger_metric(
         input_pair_list: List[Tuple[int, int]],
-        video_lookup: dict,
-        timeseries_lookup: dict,
-        self_corr_lookup: dict,
+        video_lookup: Dict[int, np.ndarray],
+        timeseries_lookup: Dict[int, dict],
+        self_corr_lookup: Dict[int, Tuple[float, float]],
         filter_fraction: float,
         output_dict: multiprocessing.managers.DictProxy) -> None:
     """
@@ -27,17 +28,17 @@ def _calculate_merger_metric(
     input_pair_list: List[Tuple[int, int]]
         List of ROI ID pairs that are being considered for merger
 
-    video_lookup: dict
+    video_lookup: Dict[int, np.ndarray]
         A dict that maps ROI ID to sub_videos (where sub_videos
         are flattened in space so that their shapes are
         (ntime, npixels))
 
-    timeseries_lookup: dict
-        A dict that maps ROI ID to the characteristic pixels
-        associated with ROIs (i.e. their characteristic
-        timeseries)
+    timeseries_lookup: Dict[int, dict]
+        A dict that maps ROI ID to the characteristic
+        timeseries associated with ROIs (see Notes for
+        more details)
 
-    self_corr_lookup: dict
+    self_corr_lookup: Dict[int, Tuple[float, float]]
         A dict that maps ROI ID to the (mu, std) tuples characterizing
         the Gaussian distributions of ROI pixels with their own
         characteristic time series
@@ -98,9 +99,9 @@ def _calculate_merger_metric(
 
 def get_merger_metric_from_pairs(
         potential_mergers: List[Tuple[int, int]],
-        video_lookup: dict,
-        timeseries_lookup: dict,
-        self_corr_lookup: dict,
+        video_lookup: Dict[int, np.ndarray],
+        timeseries_lookup: Dict[int, dict],
+        self_corr_lookup: Dict[int, Tuple[float, float]],
         filter_fraction: float,
         n_processors: int) -> dict:
     """
@@ -111,16 +112,16 @@ def get_merger_metric_from_pairs(
     input_pair_list: List[Tuple[int, int]]
         List of ROI ID pairs that are being considered for merger
 
-    video_lookup: dict
+    video_lookup: Dict[int, np.ndarray]
         A dict that maps ROI ID to sub_videos (where sub_videos
         are flattened in space so that their shapes are
         (ntime, npixels))
 
-    timeseries_lookup: dict
+    timeseries_lookup: Dict[int, dict]
         A dict that maps ROI ID to the characteristic timeseries
-        associated with ROIs
+        associated with ROIs (see Notes for more details)
 
-    self_corr_lookup: dict
+    self_corr_lookup: Dict[int, Tuple[float, float]]
         A dict that maps ROI ID to the (mu, std) tuples characterizing
         the Gaussian distributions of ROI pixels with their own
         characteristic time series

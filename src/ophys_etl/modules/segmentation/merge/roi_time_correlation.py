@@ -4,7 +4,6 @@ to calculate correlations between pixels in ROIs
 """
 from typing import Union, List, Tuple
 import numpy as np
-import time
 import multiprocessing
 import multiprocessing.managers
 from ophys_etl.modules.segmentation.merge.utils import (
@@ -15,7 +14,7 @@ def _wgts_to_series(sub_video: np.ndarray,
                     wgts: np.ndarray) -> np.ndarray:
     """
     Given a sub_video and an array of weights,
-    compute teh weighted sum of pixel time series to get
+    compute the weighted sum of pixel time series to get
     a time series characterizing the sub_video.
 
     Parameters
@@ -24,9 +23,9 @@ def _wgts_to_series(sub_video: np.ndarray,
         Flattened in space so that the shape is (ntime, npixels)
 
     wgts: np.ndarray
-        An array of the npixels weights that will be used to
+        An array of weights that will be used to
         sum the time series from sub_video to create the
-        characteristic timeseries
+        characteristic timeseries. Shape is (npixels, )
 
     Returns
     -------
@@ -37,11 +36,12 @@ def _wgts_to_series(sub_video: np.ndarray,
     -----
     This algorithm will renormalize wgts by subtracting off
     the median, setting any weights that are < 0 to 0 (thus
-    discarding anything below the median) and dividing by the
-    resulting maximum. If, for some reason, this results in
-    an array of zeros (because, for instance, all weights
-    were the same), the algorithm will reset wgts to an array
-    of ones so that all pixels are weighted equally.
+    discarding anything below the median), subtracting the
+    resulting minimum, and dividing by the resulting maximum.
+    If, for some reason, this results in an array of zeros
+    (because, for instance, all weights were the same), the
+    algorithm will reset wgts to an array of ones so that all
+    pixels are weighted equally.
     """
     if len(wgts) == 1:
         return sub_video[:, 0]
@@ -234,7 +234,7 @@ def get_characteristic_timeseries_parallel(
 
     Returns
     -------
-    characteristic_pixel: np.ndarray
+    characteristic_timeseries: np.ndarray
         Time series characterizing the full sub_video
 
     Notes
@@ -245,7 +245,6 @@ def get_characteristic_timeseries_parallel(
     and then using these weights to compute a single time
     series by calling _wgts_to_series.
     """
-    t0 = time.time()
     npix = sub_video.shape[1]
     chunksize = max(1, npix//(n_processors-1))
     mgr = multiprocessing.Manager()
@@ -269,8 +268,6 @@ def get_characteristic_timeseries_parallel(
     wgts = np.zeros(npix, dtype=float)
     for ipix in range(npix):
         wgts[ipix] = output_dict[ipix]
-
-    print(f'one ROI (parallelized) in {time.time()-t0:.2f} -- {npix}')
 
     return _wgts_to_series(sub_video, wgts)
 
@@ -318,7 +315,7 @@ def get_characteristic_timeseries(
 
 def calculate_merger_metric(distribution_params: Tuple[float, float],
                             distribution_centroid: np.ndarray,
-                            roi1_video: np.ndarray,
+                            roi_video: np.ndarray,
                             filter_fraction: float = 0.2) -> float:
     """
     Calculate the merger metric between two ROIs by correlating
@@ -338,7 +335,7 @@ def calculate_merger_metric(distribution_params: Tuple[float, float],
         get_characteristic_timeseries) of the ROI used to
         create the fiducial Gaussian distribution
 
-    roi1_video: np.ndarray
+    roi_video: np.ndarray
         The sub-video corresponding to the other (non-fiducial) ROI,
         flattened in space so that its shape is (ntime, npixels)
 
@@ -349,15 +346,15 @@ def calculate_merger_metric(distribution_params: Tuple[float, float],
     Returns
     -------
     metric: float
-        The median z-score of the correlation of roi1's
-        pixels to distribution_centroid relative to the Gaussian
+        The median z-score of the correlation of the non-fiducial
+        ROI's pixels to distribution_centroid relative to the Gaussian
         distribution specified by distribution_params.
     """
 
     mu = distribution_params[0]
     std = distribution_params[1]
 
-    roi1_to_roi0 = correlate_sub_video(roi1_video,
+    roi1_to_roi0 = correlate_sub_video(roi_video,
                                        distribution_centroid,
                                        filter_fraction=filter_fraction)
 
@@ -382,7 +379,7 @@ def get_self_correlation(sub_video: np.ndarray,
 
     characteristic_timeseries: np.ndarray
         The time series against which to correlate all of the pixels
-        in the sub-vdieo
+        in the sub-video
 
     filter_fraction: float
         Fraction of timesteps to use when doing time correlation

@@ -7,7 +7,7 @@ from ophys_etl.modules.segmentation.\
         sub_video_from_roi)
 
 from ophys_etl.modules.segmentation.merge.candidates import (
-    find_merger_candidates)
+    create_neighbor_lookup)
 
 from ophys_etl.modules.segmentation.merge.metric import (
     get_merger_metric_from_pairs)
@@ -118,22 +118,9 @@ def do_roi_merger(
     # ROIs from all landing on the same process
     shuffler = np.random.RandomState(11723412)
 
-    merger_candidates = find_merger_candidates(list(roi_lookup.values()),
-                                               np.sqrt(2.0),
-                                               rois_to_ignore=None,
-                                               n_processors=n_processors)
-
-    # construct a dict mapping an ROI ID to the list of its
-    # neighboring ROI IDs (prevents us from having to call
-    # find_merger_candidates on every iteration)
-    neighbor_lookup = {}
-    for pair in merger_candidates:
-        if pair[0] not in neighbor_lookup:
-            neighbor_lookup[pair[0]] = set()
-        if pair[1] not in neighbor_lookup:
-            neighbor_lookup[pair[1]] = set()
-        neighbor_lookup[pair[1]].add(pair[0])
-        neighbor_lookup[pair[0]].add(pair[1])
+    neighbor_lookup = create_neighbor_lookup(
+                          roi_lookup,
+                          n_processors)
 
     logger.info('found global merger candidates in '
                 f'{time.time()-t0:.2f} seconds')

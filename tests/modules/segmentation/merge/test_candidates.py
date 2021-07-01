@@ -1,7 +1,8 @@
 import pytest
 import numpy as np
 from ophys_etl.modules.segmentation.merge.candidates import (
-    find_merger_candidates)
+    find_merger_candidates,
+    create_neighbor_lookup)
 
 from ophys_etl.modules.segmentation.merge.roi_utils import (
     do_rois_abut)
@@ -69,3 +70,23 @@ def test_find_merger_candidates_with_ignore(pixel_distance, example_roi_list):
                 assert m not in matches
             else:
                 assert m in matches
+
+
+@pytest.mark.parametrize('n_processors', [2, 3, 5])
+def test_create_neighbor_lookup(example_roi_list, n_processors):
+    true_matches = find_merger_candidates(example_roi_list,
+                                          np.sqrt(2),
+                                          rois_to_ignore=None,
+                                          n_processors=n_processors)
+
+    neighbor_lookup = create_neighbor_lookup(
+                        {roi.roi_id: roi for roi in example_roi_list},
+                        n_processors)
+
+    for match in true_matches:
+        assert match[0] in neighbor_lookup[match[1]]
+        assert match[1] in neighbor_lookup[match[0]]
+
+    for id0 in neighbor_lookup:
+        for id1 in neighbor_lookup[id0]:
+            assert (id0, id1) in true_matches or (id1, id0) in true_matches

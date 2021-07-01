@@ -4,6 +4,7 @@ find all pairs of ROIs that need to be considered for merger.
 """
 from typing import List, Optional, Tuple, Set, Dict
 from itertools import combinations
+import numpy as np
 import multiprocessing
 import multiprocessing.managers
 from ophys_etl.modules.segmentation.merge.utils import (
@@ -147,3 +148,43 @@ def find_merger_candidates(
 
     pair_list = [p for p in output_list]
     return pair_list
+
+
+def create_neighbor_lookup(roi_lookup: Dict[int, OphysROI],
+                           n_processors: int) -> Dict[int, List[int]]:
+    """
+    Create the initial dict mapping ROI ID to a list of all neighboring
+    ROI IDs
+
+    Parameters
+    ----------
+    roi_lookup: Dict[int, OphysROI]
+
+    n_processors: int
+        Number of processors to invoke with multiprocessing
+
+    Returns
+    -------
+    neighbor_lookup: Dict[int, List[int]]
+        Maps ROI ID to a list of the ROI IDs of all neighboring
+        ROIs
+    """
+
+    merger_candidates = find_merger_candidates(list(roi_lookup.values()),
+                                               np.sqrt(2.0),
+                                               rois_to_ignore=None,
+                                               n_processors=n_processors)
+
+    # construct a dict mapping an ROI ID to the list of its
+    # neighboring ROI IDs (prevents us from having to call
+    # find_merger_candidates on every iteration)
+    neighbor_lookup = {}
+    for pair in merger_candidates:
+        if pair[0] not in neighbor_lookup:
+            neighbor_lookup[pair[0]] = set()
+        if pair[1] not in neighbor_lookup:
+            neighbor_lookup[pair[1]] = set()
+        neighbor_lookup[pair[1]].add(pair[0])
+        neighbor_lookup[pair[0]].add(pair[1])
+
+    return neighbor_lookup

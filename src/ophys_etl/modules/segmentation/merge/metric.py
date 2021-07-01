@@ -12,11 +12,14 @@ from ophys_etl.modules.segmentation.merge.utils import (
 from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
         calculate_merger_metric)
 
+from ophys_etl.modules.segmentation.merge.characteristic_timeseries import (
+    CharacteristicTimeseries)
+
 
 def _calculate_merger_metric(
         input_pair_list: List[Tuple[int, int]],
         video_lookup: Dict[int, np.ndarray],
-        timeseries_lookup: Dict[int, dict],
+        timeseries_lookup: Dict[int, CharacteristicTimeseries],
         self_corr_lookup: Dict[int, Tuple[float, float]],
         filter_fraction: float,
         output_dict: multiprocessing.managers.DictProxy) -> None:
@@ -33,7 +36,7 @@ def _calculate_merger_metric(
         are flattened in space so that their shapes are
         (ntime, npixels))
 
-    timeseries_lookup: Dict[int, dict]
+    timeseries_lookup: Dict[int, CharacteristicTimeseries]
         A dict that maps ROI ID to the characteristic
         timeseries associated with ROIs (see Notes for
         more details)
@@ -100,7 +103,7 @@ def _calculate_merger_metric(
 def get_merger_metric_from_pairs(
         potential_mergers: List[Tuple[int, int]],
         video_lookup: Dict[int, np.ndarray],
-        timeseries_lookup: Dict[int, dict],
+        timeseries_lookup: Dict[int, CharacteristicTimeseries],
         self_corr_lookup: Dict[int, Tuple[float, float]],
         filter_fraction: float,
         n_processors: int) -> dict:
@@ -117,7 +120,7 @@ def get_merger_metric_from_pairs(
         are flattened in space so that their shapes are
         (ntime, npixels))
 
-    timeseries_lookup: Dict[int, dict]
+    timeseries_lookup: Dict[int, CharacteristicTimeseries]
         A dict that maps ROI ID to the characteristic timeseries
         associated with ROIs (see Notes for more details)
 

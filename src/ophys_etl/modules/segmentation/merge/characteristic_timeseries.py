@@ -3,6 +3,13 @@ This module contains the code that roi_merging.py uses to find
 the single timeseries characterizing each ROI
 """
 from typing import List, Tuple, Union, Set, Dict
+import sys
+
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
+
 import numpy as np
 import multiprocessing
 import multiprocessing.managers
@@ -19,6 +26,11 @@ import logging
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
+
+
+class CharacteristicTimeseries(TypedDict):
+    area: float  # tracked so we don't needlessly update after small mergers
+    timeseries: np.ndarray
 
 
 def _update_timeseries_lookup_per_pix(
@@ -165,12 +177,13 @@ def _update_timeseries_lookup(needed_rois: Union[List[int], Set[int]],
     return final_output
 
 
-def update_timeseries_lookup(merger_candidates: List[Tuple[int, int]],
-                             timeseries_lookup: Dict[int, dict],
-                             sub_video_lookup: Dict[int, np.ndarray],
-                             filter_fraction: float,
-                             n_processors: int,
-                             size_threshold: int = 500) -> Dict[int, dict]:
+def update_timeseries_lookup(
+        merger_candidates: List[Tuple[int, int]],
+        timeseries_lookup: Dict[int, CharacteristicTimeseries],
+        sub_video_lookup: Dict[int, np.ndarray],
+        filter_fraction: float,
+        n_processors: int,
+        size_threshold: int = 500) -> Dict[int, CharacteristicTimeseries]:
     """
     Take a list of candidate merger ROI IDs and timeseries_lookup dict.
     Update timeseries_lookup dict with the key pixel time series for
@@ -254,10 +267,12 @@ def update_timeseries_lookup(merger_candidates: List[Tuple[int, int]],
                              n_processors)
 
     for n in new_big_pixels:
-        timeseries_lookup[n] = {'area': sub_video_lookup[n].shape[1],
-                                'timeseries': new_big_pixels[n]}
+        timeseries_lookup[n] = CharacteristicTimeseries(
+                                       area=sub_video_lookup[n].shape[1],
+                                       timeseries=new_big_pixels[n])
     for n in new_small_pixels:
-        timeseries_lookup[n] = {'area': sub_video_lookup[n].shape[1],
-                                'timeseries': new_small_pixels[n]}
+        timeseries_lookup[n] = CharacteristicTimeseries(
+                                     area=sub_video_lookup[n].shape[1],
+                                     timeseries=new_small_pixels[n])
 
     return timeseries_lookup

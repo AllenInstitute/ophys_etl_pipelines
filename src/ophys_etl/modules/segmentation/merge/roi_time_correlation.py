@@ -10,8 +10,8 @@ from ophys_etl.modules.segmentation.merge.utils import (
     _winnow_process_list)
 
 
-def _wgts_to_series(sub_video: np.ndarray,
-                    wgts: np.ndarray) -> np.ndarray:
+def _weights_to_series(sub_video: np.ndarray,
+                       weights: np.ndarray) -> np.ndarray:
     """
     Given a sub_video and an array of weights,
     compute the weighted sum of pixel time series to get
@@ -22,7 +22,7 @@ def _wgts_to_series(sub_video: np.ndarray,
     sub_video: np.ndarray
         Flattened in space so that the shape is (ntime, npixels)
 
-    wgts: np.ndarray
+    weights: np.ndarray
         An array of weights that will be used to
         sum the time series from sub_video to create the
         characteristic timeseries. Shape is (npixels, )
@@ -34,42 +34,42 @@ def _wgts_to_series(sub_video: np.ndarray,
 
     Notes
     -----
-    This algorithm will renormalize wgts by subtracting off
+    This algorithm will renormalize weights by subtracting off
     the median, setting any weights that are < 0 to 0 (thus
     discarding anything below the median), subtracting the
     resulting minimum, and dividing by the resulting maximum.
     If, for some reason, this results in an array of zeros
     (because, for instance, all weights were the same), the
-    algorithm will reset wgts to an array of ones so that all
+    algorithm will reset weights to an array of ones so that all
     pixels are weighted equally.
     """
-    if len(wgts) == 1:
+    if len(weights) == 1:
         return sub_video[:, 0]
 
     # only accept pixels brigter than the median
-    th = np.median(wgts)
-    wgts -= th
-    mask = (wgts < 0)
-    wgts[mask] = 0.0
+    th = np.median(weights)
+    weights -= th
+    mask = (weights < 0)
+    weights[mask] = 0.0
 
-    wgts -= wgts.min()
-    norm = wgts.max()
+    weights -= weights.min()
+    norm = weights.max()
     if norm < 1.0e-10:
-        wgts = np.ones(wgts.shape, dtype=float)
-        # re-apply mask on wgts that were
+        weights = np.ones(weights.shape, dtype=float)
+        # re-apply mask on weights that were
         # originally negative
-        wgts[mask] = 0.0
+        weights[mask] = 0.0
     else:
-        wgts = wgts/norm
+        weights = weights/norm
 
-    if wgts.sum() < 1.0e-10:
+    if weights.sum() < 1.0e-10:
         # probably because all weights had
         # the same value, so filtering on the median
         # gave an array of zeros
-        wgts = np.ones(wgts.shape, dtype=float)
+        weights = np.ones(weights.shape, dtype=float)
 
-    timeseries = np.dot(sub_video, wgts)
-    return timeseries/wgts.sum()
+    timeseries = np.dot(sub_video, weights)
+    return timeseries/weights.sum()
 
 
 def correlate_sub_video(sub_video: np.ndarray,
@@ -243,7 +243,7 @@ def get_characteristic_timeseries_parallel(
     time series in the ROI. The weights are computed by
     calling _self_correlate on every pixel in the sub_video
     and then using these weights to compute a single time
-    series by calling _wgts_to_series.
+    series by calling _weights_to_series.
     """
     npix = sub_video.shape[1]
     chunksize = max(1, npix//(n_processors-1))
@@ -265,11 +265,11 @@ def get_characteristic_timeseries_parallel(
     for p in process_list:
         p.join()
 
-    wgts = np.zeros(npix, dtype=float)
+    weights = np.zeros(npix, dtype=float)
     for ipix in range(npix):
-        wgts[ipix] = output_dict[ipix]
+        weights[ipix] = output_dict[ipix]
 
-    return _wgts_to_series(sub_video, wgts)
+    return _weights_to_series(sub_video, weights)
 
 
 def get_characteristic_timeseries(
@@ -301,16 +301,17 @@ def get_characteristic_timeseries(
     time series in the ROI. The weights are computed by
     calling _self_correlate on every pixel in the sub_video
     and then using these weights to compute a single time
-    series by calling _wgts_to_series.
+    series by calling _weights_to_series.
     """
     npix = sub_video.shape[1]
-    wgts = np.zeros(npix, dtype=float)
+    weights = np.zeros(npix, dtype=float)
     for ipix in range(npix):
-        wgts[ipix] = _self_correlate(sub_video,
+        weights[ipix] = _self_correlate(
+                                     sub_video,
                                      ipix,
                                      filter_fraction=filter_fraction)
 
-    return _wgts_to_series(sub_video, wgts)
+    return _weights_to_series(sub_video, weights)
 
 
 def calculate_merger_metric(distribution_params: Tuple[float, float],

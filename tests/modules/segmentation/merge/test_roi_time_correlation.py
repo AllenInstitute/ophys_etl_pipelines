@@ -8,7 +8,7 @@ from ophys_etl.modules.segmentation.\
         calculate_merger_metric,
         _self_correlate,
         _correlate_batch,
-        _wgts_to_series,
+        _weights_to_series,
         get_self_correlation)
 
 
@@ -58,20 +58,20 @@ def test_correlate_batch(example_video, filter_fraction):
         assert np.abs(expected-output_dict[ipix]) < 1.0e-6
 
 
-def test_wgts_to_series():
+def test_weights_to_series():
     rng = np.random.RandomState(182312)
 
     # test case with only one pixel
     sub_video = rng.random_sample((100, 1))
-    wgts = np.array([22.1])
-    result = _wgts_to_series(sub_video, wgts)
+    weights = np.array([22.1])
+    result = _weights_to_series(sub_video, weights)
     np.testing.assert_array_equal(result, sub_video[:, 0])
 
     sub_video = rng.random_sample((100, 20))
 
     # test case where all weights are the same
-    wgts = 22.1*np.ones(20, dtype=float)
-    result = _wgts_to_series(sub_video, wgts)
+    weights = 22.1*np.ones(20, dtype=float)
+    result = _weights_to_series(sub_video, weights)
     np.testing.assert_allclose(result,
                                np.mean(sub_video, axis=1),
                                atol=1.0e-10,
@@ -80,11 +80,11 @@ def test_wgts_to_series():
     # test case where weights above the median are uniform
     # (i.e. test that weights below the median still get
     # masked out, even after weights are converged to ones)
-    wgts = 22.1*np.ones(20)
-    wgts[5] = 3.0
-    wgts[11] = 3.0
-    wgts[13] = 3.0
-    result = _wgts_to_series(sub_video, wgts)
+    weights = 22.1*np.ones(20)
+    weights[5] = 3.0
+    weights[11] = 3.0
+    weights[13] = 3.0
+    result = _weights_to_series(sub_video, weights)
     mask = np.ones(20, dtype=bool)
     mask[5] = False
     mask[11] = False
@@ -95,17 +95,17 @@ def test_wgts_to_series():
                                rtol=1.0e-10)
 
     # test non-uniform weights
-    wgts = rng.random_sample(20)
-    med = np.median(wgts)
-    norm = np.max(wgts-med)
-    mask = (wgts > med)
-    masked_wgts = (wgts[mask]-med)/norm
+    weights = rng.random_sample(20)
+    med = np.median(weights)
+    norm = np.max(weights-med)
+    mask = (weights > med)
+    masked_weights = (weights[mask]-med)/norm
     masked_sub_video = sub_video[:, mask]
     expected = np.zeros(sub_video.shape[0], dtype=float)
-    for ii in range(len(masked_wgts)):
-        expected += masked_sub_video[:, ii]*masked_wgts[ii]
-    expected = expected/(masked_wgts.sum())
-    actual = _wgts_to_series(sub_video, wgts)
+    for ii in range(len(masked_weights)):
+        expected += masked_sub_video[:, ii]*masked_weights[ii]
+    expected = expected/(masked_weights.sum())
+    actual = _weights_to_series(sub_video, weights)
     np.testing.assert_allclose(expected,
                                actual,
                                atol=1.0e-10,
@@ -117,13 +117,13 @@ def test_wgts_to_series():
 def test_get_characteristic_timeseries(filter_fraction):
     rng = np.random.RandomState(7123412)
     sub_video = rng.random_sample((100, 20))
-    wgts = np.zeros(20, dtype=float)
+    weights = np.zeros(20, dtype=float)
     for ipix in range(20):
-        wgts[ipix] = _self_correlate(sub_video,
-                                     ipix,
-                                     filter_fraction=filter_fraction)
-    assert len(np.unique(wgts)) == len(wgts)
-    expected = _wgts_to_series(sub_video, wgts)
+        weights[ipix] = _self_correlate(sub_video,
+                                        ipix,
+                                        filter_fraction=filter_fraction)
+    assert len(np.unique(weights)) == len(weights)
+    expected = _weights_to_series(sub_video, weights)
     actual = get_characteristic_timeseries(
                                  sub_video,
                                  filter_fraction=filter_fraction)

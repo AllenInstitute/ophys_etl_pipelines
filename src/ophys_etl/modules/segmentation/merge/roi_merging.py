@@ -13,7 +13,8 @@ from ophys_etl.modules.segmentation.merge.metric import (
     get_merger_metric_from_pairs)
 
 from ophys_etl.modules.segmentation.merge.characteristic_timeseries import (
-    update_timeseries_lookup)
+    update_timeseries_lookup,
+    CharacteristicTimeseries)
 
 from ophys_etl.modules.segmentation.merge.self_correlation import (
     create_self_corr_lookup)
@@ -71,6 +72,145 @@ def get_new_merger_candidates(
         if pair not in merger_to_metric:
             merger_candidates.append(pair)
     return merger_candidates
+
+
+def break_out_anomalous_rois(
+        roi_lookup: Dict[int, OphysROI],
+        anomalous_rois: Dict[int, OphysROI],
+        anomalous_size: int) -> Tuple[Dict[int, OphysROI],
+                                      Dict[int, OphysROI]]:
+    """
+    Move any ROIs whose areas exceed anomalous_size from
+    roi_lookup to anomalous_rois
+
+    Parameters
+    ----------
+    roi_lookup: Dict[int, OphysROI]
+
+    anomalous_rois: Dict[int, OphysROI]
+
+    anomalous_size: int
+
+    Returns
+    -------
+    roi_lookup: Dict[int, OphysROI]
+        Updated
+
+    anomalous_rois: Dict[int, OphysROI]
+        Updated
+    """
+    # break out any ROIs that are too large
+    k_list = list(roi_lookup.keys())
+    for roi_id in k_list:
+        if roi_lookup[roi_id].area >= anomalous_size:
+            roi = roi_lookup.pop(roi_id)
+            roi.valid_roi = False
+            anomalous_rois[roi_id] = roi
+
+    return roi_lookup, anomalous_rois
+
+
+def update_lookup_tables(
+     roi_lookup: Dict[int, OphysROI],
+     recently_merged: Set[int],
+     neighbor_lookup: Dict[int, List[int]],
+     sub_video_lookup: Dict[int, np.ndarray],
+     timeseries_lookup: Dict[int, CharacteristicTimeseries],
+     merger_to_metric: Dict[Tuple[int, int], float]) -> Tuple[
+                                          Dict[int, List[int]],
+                                          Dict[int, np.ndarray],
+                                          Dict[int, CharacteristicTimeseries],
+                                          Dict[Tuple[int, int], float]]:
+    """
+    Update lookup tables to reflect mergers, removing entries
+    that are not longer valid or need to be recalculated
+
+    Parameters
+    ----------
+    roi_lookup: Dict[int, OphysROI]
+
+    recently_merged: Set[int]
+        ROI IDs of ROIs that recently participated in mergers
+
+    neighbor_lookup: Dict[int, List[int]]
+        Maps ROI ID to list of neighboring ROI IDs
+
+    sub_video_lookup: Dict[int, np.ndarray]
+
+    timeseries_lookup: Dict[int, CharacteristicTimeseries]
+
+    merger_to_metric: Dict[Tuple[int, int], float]
+        Maps a potential merger pair to the merger's associated
+        metric value
+
+    Returns
+    -------
+    neighbor_lookup: Dict[int, List[int]]
+
+    sub_video_lookup: Dict[int, np.ndarray]
+
+    timeseries_lookup: Dict[int, CharacteristicTimeseries]
+
+    merger_to_metric: Dict[Tuple[int, int], float]
+
+    Notes
+    -----
+    ROIs that do not appear in roi_lookup are removed
+    from lookup tables. ROIs whose area has changed by
+    more than 5% since the timeseries was calculated
+    are removed from timeseries_lookup (prompting them
+    to be recalculated on the next iteration). ROIs that
+    have been recently merged are removed from
+    sub_video_lookup and merger_to_metric.
+    """
+
+    valid_roi_id = set(roi_lookup.keys())
+    for table in (timeseries_lookup,
+                  neighbor_lookup,
+                  sub_video_lookup):
+        k_list = list(table.keys())
+        for k in k_list:
+            if k not in valid_roi_id:
+                table.pop(k)
+
+    # remove an obsolete ROI IDs from neighbor lookup
+    for roi_id in neighbor_lookup:
+        new_set = neighbor_lookup[roi_id].intersection(valid_roi_id)
+        neighbor_lookup[roi_id] = new_set
+
+    # remove ROIs that have changed from sub_video and
+    # merger metric lookup tables
+    for roi_id in recently_merged:
+        if roi_id in sub_video_lookup:
+            sub_video_lookup.pop(roi_id)
+
+    # remove non-existent ROIs and ROIs whose areas
+    # have significantly changed from timeseries_lookup
+    # (calculating timeseries_lookup is expensive, so
+    # we allow ROIs to grow a little before recalculating)
+    k_list = list(timeseries_lookup.keys())
+    for roi_id in k_list:
+        pop_it = False
+        area0 = timeseries_lookup[roi_id]['area']
+        if roi_id not in valid_roi_id:
+            pop_it = True
+        elif roi_lookup[roi_id].area > 1.05*area0:
+            pop_it = True
+
+        if pop_it:
+            timeseries_lookup.pop(roi_id)
+
+    # remove all recently merged ROIs from the merger metric
+    # lookup table
+    merger_keys = list(merger_to_metric.keys())
+    for pair in merger_keys:
+        if pair[0] in recently_merged or pair[1] in recently_merged:
+            merger_to_metric.pop(pair)
+
+    return (neighbor_lookup,
+            sub_video_lookup,
+            timeseries_lookup,
+            merger_to_metric)
 
 
 def _do_mergers(
@@ -385,51 +525,21 @@ def do_roi_merger(
         if len(recently_merged) > 0:
             keep_going = True
 
-        # break out any ROIs that are too large
-        k_list = list(roi_lookup.keys())
-        for roi_id in k_list:
-            if roi_lookup[roi_id].area >= anomalous_size:
-                roi = roi_lookup.pop(roi_id)
-                roi.valid_roi = False
-                anomalous_rois[roi_id] = roi
-                neighbor_lookup.pop(roi_id)
-                sub_video_lookup.pop(roi_id)
-                timeseries_lookup.pop(roi_id)
+        (roi_lookup,
+         anomalous_rois) = break_out_anomalous_rois(roi_lookup,
+                                                    anomalous_rois,
+                                                    anomalous_size)
 
-        valid_roi_id = set(roi_lookup.keys())
-        # remove an obsolete ROI IDs from neighbor lookup
-        for roi_id in neighbor_lookup:
-            new_set = neighbor_lookup[roi_id].intersection(valid_roi_id)
-            neighbor_lookup[roi_id] = new_set
-
-        # remove ROIs that have changed from sub_video and
-        # merger metric lookup tables
-        for roi_id in recently_merged:
-            if roi_id in sub_video_lookup:
-                sub_video_lookup.pop(roi_id)
-
-        # remove non-existent ROIs and ROIs whose areas
-        # have significantly changed from timeseries_lookup
-        # (calculating timeseries_lookup is expensive, so
-        # we allow ROIs to grow a little before recalculating)
-        k_list = list(timeseries_lookup.keys())
-        for roi_id in k_list:
-            pop_it = False
-            area0 = timeseries_lookup[roi_id]['area']
-            if roi_id not in valid_roi_id:
-                pop_it = True
-            elif roi_lookup[roi_id].area > 1.05*area0:
-                pop_it = True
-
-            if pop_it:
-                timeseries_lookup.pop(roi_id)
-
-        # remove all recently merged ROIs from the merger metric
-        # lookup table
-        merger_keys = list(merger_to_metric.keys())
-        for pair in merger_keys:
-            if pair[0] in recently_merged or pair[1] in recently_merged:
-                merger_to_metric.pop(pair)
+        (neighbor_lookup,
+         sub_video_lookup,
+         timeseries_lookup,
+         merger_to_metric) = update_lookup_tables(
+                                    roi_lookup,
+                                    recently_merged,
+                                    neighbor_lookup,
+                                    sub_video_lookup,
+                                    timeseries_lookup,
+                                    merger_to_metric)
 
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)}; '
                     f'{len(anomalous_rois)} anomalous ROIs; '

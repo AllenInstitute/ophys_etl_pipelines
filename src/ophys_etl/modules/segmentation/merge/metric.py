@@ -2,7 +2,7 @@
 This module contains the code that roi_merging.py uses to calculate the
 merger metric for each candidate merger
 """
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Union
 import numpy as np
 import multiprocessing
 import multiprocessing.managers
@@ -25,7 +25,8 @@ def _calculate_merger_metric(
         timeseries_lookup: Dict[int, CharacteristicTimeseries],
         self_corr_lookup: Dict[int, Tuple[float, float]],
         filter_fraction: float,
-        output_dict: multiprocessing.managers.DictProxy) -> None:
+        output_dict: Union[dict,
+                           multiprocessing.managers.DictProxy]) -> None:
     """
     Calculate the merger metric for pairs of ROIs
 
@@ -52,7 +53,7 @@ def _calculate_merger_metric(
     filter_fraction: float
         The fraction of brightest timesteps to keep when correlating pixels
 
-    output_dict: multiprocessing.managers.DictProxy
+    output_dict: Union[dict, multiprocessing.managers.DictProxy]
         The dict where results will be stored. Keys are the ROI ID
         pair tuples. Values are the merger metric for that pair.
 

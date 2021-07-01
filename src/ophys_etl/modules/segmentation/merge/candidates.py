@@ -2,7 +2,7 @@
 This module contains the code that roi_merging.py uses to
 find all pairs of ROIs that need to be considered for merger.
 """
-from typing import List, Optional, Tuple, Set, Dict
+from typing import List, Optional, Tuple, Set, Dict, Union
 from itertools import combinations
 import numpy as np
 import multiprocessing
@@ -19,7 +19,8 @@ def _find_merger_candidates(
         roi_lookup: Dict[int, OphysROI],
         pixel_distance: float,
         rois_to_ignore: Optional[Set[int]],
-        output_list: multiprocessing.managers.ListProxy) -> None:
+        output_list: Union[list,
+                           multiprocessing.managers.ListProxy]) -> None:
     """
     Find all of the abutting ROIs in a list of OphysROIs
 
@@ -41,7 +42,7 @@ def _find_merger_candidates(
        if *both* ROIs are in rois_to_ignore. If one of them is not,
        the pair is valid (default: None)
 
-    output_list: multiprocessing.managers.ListProxy
+    output_list: Union[list, multiprocessing.managers.ListProxy]
         List where valid merger candidates are stored
 
     Returns

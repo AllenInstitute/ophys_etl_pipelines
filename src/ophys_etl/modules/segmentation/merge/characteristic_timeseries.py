@@ -82,7 +82,8 @@ def _get_characteristic_timeseries(
         roi_id_list: List[int],
         sub_video_lookup: Dict[int, np.ndarray],
         filter_fraction: float,
-        output_dict: multiprocessing.managers.DictProxy) -> dict:
+        output_dict: Union[dict,
+                           multiprocessing.managers.DictProxy]) -> None:
     """
     Method to calculate the characteristic time series of an ROI
     and store it in a multiprocessing DictProxy
@@ -100,7 +101,7 @@ def _get_characteristic_timeseries(
         The fraction of timesteps (chosen to be the brightest) to
         keep when doing the correlation.
 
-    output_dict: multiprocessing.managers.DictProxy
+    output_dict: Union[dict, multiprocessing.managers.DictProxy]
 
     Returns
     -------

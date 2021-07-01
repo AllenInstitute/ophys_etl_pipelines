@@ -3,7 +3,7 @@ This module contains the code that roi_merging.py uses to create
 the lookup table of self-correlation distribution parameters for
 each ROI
 """
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Union
 import numpy as np
 import multiprocessing
 import multiprocessing.managers
@@ -19,7 +19,8 @@ def _self_correlate_chunk(
         sub_video_lookup: Dict[int, np.ndarray],
         timeseries_lookup: Dict[int, np.ndarray],
         filter_fraction: float,
-        output_dict: multiprocessing.managers.DictProxy) -> None:
+        output_dict: Union[dict,
+                           multiprocessing.managers.DictProxy]) -> None:
     """
     Calculate the self correlation distribution parameters for a
     chunk of ROIs and store them in output_dict
@@ -38,7 +39,7 @@ def _self_correlate_chunk(
     filter_fraction: float
         The fraction of timesteps to use when doing time correlations
 
-    output_dict: multiprocesing.managers.DictProxy
+    output_dict: Union[dict, multiprocesing.managers.DictProxy]
         The dict where results will be stored, keyed on ROI ID
 
     Returns

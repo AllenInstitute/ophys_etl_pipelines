@@ -166,9 +166,9 @@ def do_roi_merger(
 
     # global lookup tables for per-ROI sub-videos and mappings
     # between potential merger pairs and merger metrics
-    sub_video_lookup = {}
-    merger_to_metric = {}
-    timeseries_lookup = {}
+    sub_video_lookup = dict()
+    merger_to_metric = dict()
+    timeseries_lookup = dict()
 
     # ROIs that are too large to be considered valid
     anomalous_rois = {}

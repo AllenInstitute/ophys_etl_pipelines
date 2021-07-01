@@ -1,7 +1,6 @@
 import pytest
 import numpy as np
 import copy
-from itertools import combinations
 from ophys_etl.modules.segmentation.merge.roi_merging import (
     do_roi_merger,
     get_new_merger_candidates,
@@ -22,9 +21,9 @@ def lookup_tables(example_roi_list):
         i1 = i0+10
         for ii in range(i0, i1, 1):
             neighbor_lookup[ii] = set([jj for jj in range(i0, i1, 1)
-                                       if jj!=ii])
+                                       if jj != ii])
 
-    sub_video_lookup = {roi.roi_id: rng.random_sample((22,22))
+    sub_video_lookup = {roi.roi_id: rng.random_sample((22, 22))
                         for roi in example_roi_list}
 
     pairs = [(ii, ii+1) for ii in range(0, len(example_roi_list), 2)]
@@ -56,6 +55,8 @@ def test_update_lookup_tables(lookup_tables):
                                         timeseries_lookup,
                                         merger_to_metric)
 
+    assert 18 in new_timeseries
+    assert 18 in new_neighbors
     assert 18 in sub_video_lookup
     assert 18 not in new_video
     is_there = False
@@ -90,9 +91,35 @@ def test_update_lookup_tables(lookup_tables):
     for pair in merger_to_metric:
         if 22 in pair:
             is_there = True
+            break
     assert is_there
     for pair in new_merger:
         assert 22 not in pair
+    for n0 in new_neighbors:
+        assert 22 not in new_neighbors[n0]
+
+    # test case where an ROI's area changed significantly
+    altered_timeseries = copy.deepcopy(timeseries_lookup)
+    altered_timeseries[17]['area'] = 0
+    (new_neighbors,
+     new_video,
+     new_timeseries,
+     new_merger) = update_lookup_tables(roi_lookup,
+                                        set(),
+                                        neighbor_lookup,
+                                        sub_video_lookup,
+                                        altered_timeseries,
+                                        merger_to_metric)
+    assert 17 in new_neighbors
+    assert 17 in new_video
+    is_there = False
+    for pair in new_merger:
+        if 17 in pair:
+            is_there = True
+            break
+    assert is_there
+    assert 17 in altered_timeseries
+    assert 17 not in new_timeseries
 
 
 @pytest.mark.parametrize('anomalous_size', [5, 7, 12])

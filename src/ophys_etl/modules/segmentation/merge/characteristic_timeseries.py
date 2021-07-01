@@ -66,8 +66,10 @@ def _update_timeseries_lookup_per_pix(
     output: Dict[int, np.ndarray]
         Maps ROI ID to the characteristic timeseries for that ROI
     """
+    if len(needed_rois) == 0:
+        return dict()
 
-    final_output = {}
+    final_output = dict()
     for roi_id in needed_rois:
         sub_video = sub_video_lookup[roi_id]
         final_output[roi_id] = get_characteristic_timeseries_parallel(
@@ -148,6 +150,9 @@ def _update_timeseries_lookup(needed_rois: Union[List[int], Set[int]],
     output: Dict[int, np.ndarray]
         Maps ROI ID to the characteristic timeseries for that ROI
     """
+    if len(needed_rois) == 0:
+        return dict()
+
     chunksize = len(needed_rois)//(n_processors-1)
     chunksize = max(chunksize, 1)
     mgr = multiprocessing.Manager()
@@ -249,18 +254,13 @@ def update_timeseries_lookup(
             else:
                 needed_small_rois.add(roi_id)
 
-    new_small_pixels = {}
-    if len(needed_small_rois) > 0:
-        new_small_pixels = _update_timeseries_lookup(
-                                             needed_small_rois,
-                                             sub_video_lookup,
-                                             filter_fraction,
-                                             n_processors)
-    new_big_pixels = {}
-    if len(needed_big_rois) > 0:
-        logger.info('CALLING PIXEL-PARALLELIZED CORRELATION on '
-                    f'{len(needed_big_rois)} ROIs')
-        new_big_pixels = _update_timeseries_lookup_per_pix(
+    new_small_pixels = _update_timeseries_lookup(
+                                     needed_small_rois,
+                                     sub_video_lookup,
+                                     filter_fraction,
+                                     n_processors)
+
+    new_big_pixels = _update_timeseries_lookup_per_pix(
                              needed_big_rois,
                              sub_video_lookup,
                              filter_fraction,

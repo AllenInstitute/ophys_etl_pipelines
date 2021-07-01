@@ -17,6 +17,14 @@ from ophys_etl.modules.segmentation.merge.roi_time_correlation import (
 def test_update_timeseries_per_pix(small_rois,
                                    filter_fraction,
                                    n_processors):
+    result = _update_timeseries_lookup_per_pix(
+                     [],
+                     small_rois,
+                     filter_fraction,
+                     n_processors)
+    assert len(result) == 0
+    assert isinstance(result, dict)
+
     roi_id_list = list(small_rois.keys())
     result = _update_timeseries_lookup_per_pix(
                      roi_id_list,
@@ -42,6 +50,14 @@ def test_update_timeseries_per_pix(small_rois,
 def test_update_timeseries(small_rois,
                            filter_fraction,
                            n_processors):
+    result = _update_timeseries_lookup(
+                     [],
+                     small_rois,
+                     filter_fraction,
+                     n_processors)
+    assert len(result) == 0
+    assert isinstance(result, dict)
+
     roi_id_list = list(small_rois.keys())
     result = _update_timeseries_lookup(
                      roi_id_list,

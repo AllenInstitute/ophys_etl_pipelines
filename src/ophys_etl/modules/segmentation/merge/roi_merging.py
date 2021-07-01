@@ -424,7 +424,7 @@ def do_roi_merger(
     anomalous_size = 800
 
     # create a lookup table of OphysROIs
-    roi_lookup = {}
+    roi_lookup = dict()
     for roi in raw_roi_list:
         roi_lookup[roi.roi_id] = roi
 
@@ -449,7 +449,7 @@ def do_roi_merger(
     timeseries_lookup = dict()
 
     # ROIs that are too large to be considered valid
-    anomalous_rois = {}
+    anomalous_rois = dict()
 
     logger.info(f'initially {len(roi_lookup)} ROIs')
 

@@ -19,7 +19,7 @@ from ophys_etl.modules.segmentation.merge.characteristic_timeseries import (
     CharacteristicTimeseries)
 
 
-def _calculate_merger_metric(
+def _get_merger_metric_from_pairs_worker(
         input_pair_list: List[Tuple[int, int]],
         video_lookup: Dict[int, np.ndarray],
         timeseries_lookup: Dict[int, CharacteristicTimeseries],
@@ -185,8 +185,9 @@ def get_merger_metric_from_pairs(
                 filter_fraction,
                 output_dict)
 
-        p = multiprocessing.Process(target=_calculate_merger_metric,
-                                    args=args)
+        p = multiprocessing.Process(
+                              target=_get_merger_metric_from_pairs_worker,
+                              args=args)
         p.start()
         process_list.append(p)
         while len(process_list) > 0 and len(process_list) >= (n_processors-1):

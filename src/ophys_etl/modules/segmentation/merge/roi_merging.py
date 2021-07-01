@@ -173,7 +173,8 @@ def update_lookup_tables(
     valid_roi_id = set(roi_lookup.keys())
     for table in (timeseries_lookup,
                   neighbor_lookup,
-                  sub_video_lookup):
+                  sub_video_lookup,
+                  neighbor_lookup):
         k_list = list(table.keys())
         for k in k_list:
             if k not in valid_roi_id:
@@ -196,18 +197,12 @@ def update_lookup_tables(
     # we allow ROIs to grow a little before recalculating)
     k_list = list(timeseries_lookup.keys())
     for roi_id in k_list:
-        pop_it = False
         area0 = timeseries_lookup[roi_id]['area']
-        if roi_id not in valid_roi_id:
-            pop_it = True
-        elif roi_lookup[roi_id].area > 1.05*area0:
-            pop_it = True
-
-        if pop_it:
+        if roi_lookup[roi_id].area > 1.05*area0:
             timeseries_lookup.pop(roi_id)
 
     # remove all recently merged ROIs from the merger metric
-    # lookup table
+    # lookup table (also all invalid ROIs)
     merger_keys = list(merger_to_metric.keys())
     for pair in merger_keys:
         if pair[0] in recently_merged or pair[1] in recently_merged:

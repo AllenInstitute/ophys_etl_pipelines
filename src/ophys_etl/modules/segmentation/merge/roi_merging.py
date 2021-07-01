@@ -1,5 +1,6 @@
 from typing import List, Dict, Tuple, Set
 import numpy as np
+import copy
 
 from ophys_etl.modules.segmentation.\
     merge.roi_utils import (
@@ -28,7 +29,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 def get_new_merger_candidates(
-     neighbor_lookup: Dict[int, List[int]],
+     neighbor_lookup: Dict[int, Set[int]],
      merger_to_metric: Dict[Tuple[int, int], float]) -> List[Tuple[int, int]]:
     """
     Find all of the candidate mergers for which we do not already have
@@ -36,7 +37,7 @@ def get_new_merger_candidates(
 
     Parameters
     ----------
-    neighbor_lookup: Dict[int, List[int]]
+    neighbor_lookup: Dict[int, Set[int]]
         Dict mapping ROI ID to the list of ROI IDs of neighbors
 
     merger_to_metric: Dict[Tuple[int, int], float]
@@ -110,11 +111,11 @@ def break_out_anomalous_rois(
 def update_lookup_tables(
      roi_lookup: Dict[int, OphysROI],
      recently_merged: Set[int],
-     neighbor_lookup: Dict[int, List[int]],
+     neighbor_lookup: Dict[int, Set[int]],
      sub_video_lookup: Dict[int, np.ndarray],
      timeseries_lookup: Dict[int, CharacteristicTimeseries],
      merger_to_metric: Dict[Tuple[int, int], float]) -> Tuple[
-                                          Dict[int, List[int]],
+                                          Dict[int, Set[int]],
                                           Dict[int, np.ndarray],
                                           Dict[int, CharacteristicTimeseries],
                                           Dict[Tuple[int, int], float]]:
@@ -129,7 +130,7 @@ def update_lookup_tables(
     recently_merged: Set[int]
         ROI IDs of ROIs that recently participated in mergers
 
-    neighbor_lookup: Dict[int, List[int]]
+    neighbor_lookup: Dict[int, Set[int]]
         Maps ROI ID to list of neighboring ROI IDs
 
     sub_video_lookup: Dict[int, np.ndarray]
@@ -142,7 +143,7 @@ def update_lookup_tables(
 
     Returns
     -------
-    neighbor_lookup: Dict[int, List[int]]
+    neighbor_lookup: Dict[int, Set[int]]
 
     sub_video_lookup: Dict[int, np.ndarray]
 
@@ -160,6 +161,14 @@ def update_lookup_tables(
     have been recently merged are removed from
     sub_video_lookup and merger_to_metric.
     """
+
+    # work on copies; editing in place seems dangerous,
+    # and this will likely not be the slowest part of the
+    # code
+    neighbor_lookup = copy.deepcopy(neighbor_lookup)
+    sub_video_lookup = copy.deepcopy(sub_video_lookup)
+    timeseries_lookup = copy.deepcopy(timeseries_lookup)
+    merger_to_metric = copy.deepcopy(merger_to_metric)
 
     valid_roi_id = set(roi_lookup.keys())
     for table in (timeseries_lookup,
@@ -203,6 +212,8 @@ def update_lookup_tables(
     for pair in merger_keys:
         if pair[0] in recently_merged or pair[1] in recently_merged:
             merger_to_metric.pop(pair)
+        elif pair[0] not in valid_roi_id or pair[1] not in valid_roi_id:
+            merger_to_metric.pop(pair)
 
     return (neighbor_lookup,
             sub_video_lookup,
@@ -213,10 +224,10 @@ def update_lookup_tables(
 def _do_mergers(
         merger_to_metric: Dict[Tuple[int, int], float],
         roi_lookup: Dict[int, OphysROI],
-        neighbor_lookup: Dict[int, List[int]],
+        neighbor_lookup: Dict[int, Set[int]],
         have_been_absorbed: Set[int]) -> Tuple[Set[int],
                                                Dict[int, OphysROI],
-                                               Dict[int, List[int]],
+                                               Dict[int, Set[int]],
                                                Set[int]]:
     """
     Actually perform ROI mergers
@@ -230,7 +241,7 @@ def _do_mergers(
 
     roi_lookup: Dict[int, OphysROI]
 
-    neighbor_lookup: Dict[int, List[int]]
+    neighbor_lookup: Dict[int, Set[int]]
         Maps ROI ID to the list of neighboring ROI IDs
 
     have_been_absorbed: Set[int]
@@ -245,7 +256,7 @@ def _do_mergers(
     roi_lookup: Dict[int, OphysROI]
         Updated to reflect mergers
 
-    neighbor_lookup: Dict[int, Tuple[int, int]]
+    neighbor_lookup: Dict[int, Set[int]]
        Updated to reflect mergers
 
     have_been_absorbed: Set[int]

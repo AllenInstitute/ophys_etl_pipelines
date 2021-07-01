@@ -1,9 +1,98 @@
 import pytest
 import numpy as np
+import copy
+from itertools import combinations
 from ophys_etl.modules.segmentation.merge.roi_merging import (
     do_roi_merger,
     get_new_merger_candidates,
-    break_out_anomalous_rois)
+    break_out_anomalous_rois,
+    update_lookup_tables)
+
+
+@pytest.fixture
+def lookup_tables(example_roi_list):
+    rng = np.random.RandomState(99)
+    roi_lookup = {roi.roi_id: roi for roi in example_roi_list}
+    timeseries_lookup = {roi.roi_id: {'area': roi.area,
+                                      'timeseries': rng.random_sample(22)}
+                         for roi in example_roi_list}
+
+    neighbor_lookup = dict()
+    for i0 in range(0, 30, 10):
+        i1 = i0+10
+        for ii in range(i0, i1, 1):
+            neighbor_lookup[ii] = set([jj for jj in range(i0, i1, 1)
+                                       if jj!=ii])
+
+    sub_video_lookup = {roi.roi_id: rng.random_sample((22,22))
+                        for roi in example_roi_list}
+
+    pairs = [(ii, ii+1) for ii in range(0, len(example_roi_list), 2)]
+    merger_to_metric = {p: rng.random_sample() for p in pairs}
+
+    return(roi_lookup,
+           neighbor_lookup,
+           timeseries_lookup,
+           sub_video_lookup,
+           merger_to_metric)
+
+
+def test_update_lookup_tables(lookup_tables):
+    roi_lookup = copy.deepcopy(lookup_tables[0])
+    neighbor_lookup = copy.deepcopy(lookup_tables[1])
+    timeseries_lookup = copy.deepcopy(lookup_tables[2])
+    sub_video_lookup = copy.deepcopy(lookup_tables[3])
+    merger_to_metric = copy.deepcopy(lookup_tables[4])
+
+    # test case where an ROI is recently merged
+    recently_merged = set([18])
+    (new_neighbors,
+     new_video,
+     new_timeseries,
+     new_merger) = update_lookup_tables(roi_lookup,
+                                        recently_merged,
+                                        neighbor_lookup,
+                                        sub_video_lookup,
+                                        timeseries_lookup,
+                                        merger_to_metric)
+
+    assert 18 in sub_video_lookup
+    assert 18 not in new_video
+    is_there = False
+    for pair in merger_to_metric:
+        if 18 in pair:
+            is_there = True
+            break
+    assert is_there
+    for pair in new_merger:
+        assert 18 not in pair
+
+    # test case where an ROI is missing from roi_lookup
+    altered_roi_lookup = copy.deepcopy(roi_lookup)
+    altered_roi_lookup.pop(22)
+    (new_neighbors,
+     new_video,
+     new_timeseries,
+     new_merger) = update_lookup_tables(altered_roi_lookup,
+                                        set(),
+                                        neighbor_lookup,
+                                        sub_video_lookup,
+                                        timeseries_lookup,
+                                        merger_to_metric)
+
+    assert 22 in neighbor_lookup
+    assert 22 not in new_neighbors
+    assert 22 in sub_video_lookup
+    assert 22 not in new_video
+    assert 22 in timeseries_lookup
+    assert 22 not in new_timeseries
+    is_there = False
+    for pair in merger_to_metric:
+        if 22 in pair:
+            is_there = True
+    assert is_there
+    for pair in new_merger:
+        assert 22 not in pair
 
 
 @pytest.mark.parametrize('anomalous_size', [5, 7, 12])

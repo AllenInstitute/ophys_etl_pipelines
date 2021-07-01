@@ -151,7 +151,7 @@ def find_merger_candidates(
 
 
 def create_neighbor_lookup(roi_lookup: Dict[int, OphysROI],
-                           n_processors: int) -> Dict[int, List[int]]:
+                           n_processors: int) -> Dict[int, Set[int]]:
     """
     Create the initial dict mapping ROI ID to a list of all neighboring
     ROI IDs
@@ -165,7 +165,7 @@ def create_neighbor_lookup(roi_lookup: Dict[int, OphysROI],
 
     Returns
     -------
-    neighbor_lookup: Dict[int, List[int]]
+    neighbor_lookup: Dict[int, Set[int]]
         Maps ROI ID to a list of the ROI IDs of all neighboring
         ROIs
     """

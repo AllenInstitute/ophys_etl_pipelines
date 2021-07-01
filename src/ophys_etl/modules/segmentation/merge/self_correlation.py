@@ -101,8 +101,8 @@ def create_self_corr_lookup(merger_candidates: List[Tuple[int, int]],
     chunksize = max(1, len(roi_id_list)//(n_processors-1))
     for i0 in range(0, len(roi_id_list), chunksize):
         chunk = roi_id_list[i0:i0+chunksize]
-        this_video = {}
-        this_pixel = {}
+        this_video = dict()
+        this_pixel = dict()
         for roi_id in chunk:
             this_video[roi_id] = sub_video_lookup[roi_id]
             this_pixel[roi_id] = timeseries_lookup[roi_id]
@@ -120,7 +120,7 @@ def create_self_corr_lookup(merger_candidates: List[Tuple[int, int]],
     for p in process_list:
         p.join()
 
-    self_corr_lookup = {}
+    self_corr_lookup = dict()
     k_list = list(output_dict.keys())
     for k in k_list:
         self_corr_lookup[k] = output_dict.pop(k)

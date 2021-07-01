@@ -273,7 +273,7 @@ def _do_mergers(
     recently_merged = set()
     wait_for_it = set()
 
-    area_lookup = {}
+    area_lookup = dict()
     for roi_id in roi_lookup:
         area_lookup[roi_id] = roi_lookup[roi_id].area
 

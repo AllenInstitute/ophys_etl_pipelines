@@ -161,7 +161,7 @@ def _update_timeseries_lookup(needed_rois: Union[List[int], Set[int]],
     needed_rois = list(needed_rois)
     for i0 in range(0, len(needed_rois), chunksize):
         chunk = needed_rois[i0:i0+chunksize]
-        this_video = {}
+        this_video = dict()
         for roi_id in chunk:
             this_video[roi_id] = sub_video_lookup[roi_id]
         args = (chunk,
@@ -176,7 +176,7 @@ def _update_timeseries_lookup(needed_rois: Union[List[int], Set[int]],
             process_list = _winnow_process_list(process_list)
     for p in process_list:
         p.join()
-    final_output = {}
+    final_output = dict()
     k_list = list(output_dict.keys())
     for k in k_list:
         final_output[k] = output_dict.pop(k)

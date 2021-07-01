@@ -170,9 +170,9 @@ def get_merger_metric_from_pairs(
         for pair in chunk:
             this_roi_id.add(pair[0])
             this_roi_id.add(pair[1])
-        this_video = {}
-        this_pixel = {}
-        this_corr = {}
+        this_video = dict()
+        this_pixel = dict()
+        this_corr = dict()
         for roi_id in this_roi_id:
             this_video[roi_id] = video_lookup[roi_id]
             this_pixel[roi_id] = timeseries_lookup[roi_id]
@@ -194,7 +194,7 @@ def get_merger_metric_from_pairs(
     for p in process_list:
         p.join()
 
-    final_output = {}
+    final_output = dict()
     k_list = list(output_dict.keys())
     for k in k_list:
         final_output[k] = output_dict.pop(k)

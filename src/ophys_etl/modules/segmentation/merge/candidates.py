@@ -100,7 +100,7 @@ def find_merger_candidates(
    output: List[Tuple[int, int]]
        List of tuples of roi_ids specifying pairs of abutting ROIs
     """
-    lookup = {}
+    lookup = dict()
     roi_id_list = []
     for roi in roi_list:
         lookup[roi.roi_id] = roi
@@ -179,7 +179,7 @@ def create_neighbor_lookup(roi_lookup: Dict[int, OphysROI],
     # construct a dict mapping an ROI ID to the list of its
     # neighboring ROI IDs (prevents us from having to call
     # find_merger_candidates on every iteration)
-    neighbor_lookup = {}
+    neighbor_lookup = dict()
     for pair in merger_candidates:
         if pair[0] not in neighbor_lookup:
             neighbor_lookup[pair[0]] = set()

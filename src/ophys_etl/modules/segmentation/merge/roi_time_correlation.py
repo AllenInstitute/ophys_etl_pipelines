@@ -239,7 +239,7 @@ def get_characteristic_timeseries_parallel(
 
     Notes
     -----
-    This method returns a weighted average of all of the
+    This function returns a weighted average of all of the
     time series in the ROI. The weights are computed by
     calling _self_correlate on every pixel in the sub_video
     and then using these weights to compute a single time
@@ -297,7 +297,7 @@ def get_characteristic_timeseries(
 
     Notes
     -----
-    This method returns a weighted average of all of the
+    This function returns a weighted average of all of the
     time series in the ROI. The weights are computed by
     calling _self_correlate on every pixel in the sub_video
     and then using these weights to compute a single time
@@ -396,7 +396,7 @@ def get_self_correlation(sub_video: np.ndarray,
     -----
     If there are fewer than two pixels in the sub-video, the
     Gaussian distribution implied by distribution_parameters will
-    be meaningless. This method returns (0.0, 1.0) in that case.
+    be meaningless. This function returns (0.0, 1.0) in that case.
     """
     if sub_video.shape[1] < 2:
         return (0.0, 1.0)

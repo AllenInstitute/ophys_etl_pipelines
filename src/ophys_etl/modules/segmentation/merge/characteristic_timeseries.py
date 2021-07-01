@@ -39,7 +39,7 @@ def _update_timeseries_lookup_per_pix(
         filter_fraction: float,
         n_processors: int) -> dict:
     """
-    Method to calculate the characteristic time series of
+    Function to calculate the characteristic time series of
     ROIs, using multiprocessing to parallelize each ROI
     on the pixel level.
 
@@ -87,7 +87,7 @@ def _get_characteristic_timeseries(
         output_dict: Union[dict,
                            multiprocessing.managers.DictProxy]) -> None:
     """
-    Method to calculate the characteristic time series of an ROI
+    Function to calculate the characteristic time series of an ROI
     and store it in a multiprocessing DictProxy
 
     Parameters
@@ -123,7 +123,7 @@ def _update_timeseries_lookup(needed_rois: Union[List[int], Set[int]],
                               filter_fraction: float,
                               n_processors: int) -> Dict[int, np.ndarray]:
     """
-    Method to calculate the characteristic time series of
+    Function to calculate the characteristic time series of
     ROIs, using multiprocessing to process multiple ROIs
     in parallel
 
@@ -237,7 +237,7 @@ def update_timeseries_lookup(
 
     # if the ROIs are larger than 500 pixels in area,
     # their characteristic time series will be calculated
-    # by a method that is parallelized at the pixel, rather
+    # by a function that is parallelized at the pixel, rather
     # than the ROI level
     needed_big_rois = set()
     needed_small_rois = set()

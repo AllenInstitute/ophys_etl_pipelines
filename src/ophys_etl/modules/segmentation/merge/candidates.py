@@ -91,7 +91,7 @@ def find_merger_candidates(
        the pair is valid (default: None)
 
     n_processors: int
-       Number of cores to use (this method uses multiprocessing since, for
+       Number of cores to use (this function uses multiprocessing since, for
        full fields of view, there can be tens of millions of pairs of
        ROIs to consider)
 

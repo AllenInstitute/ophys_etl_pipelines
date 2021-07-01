@@ -64,9 +64,9 @@ def _do_rois_abut(array_0: np.ndarray,
                   array_1: np.ndarray,
                   pixel_distance: float = np.sqrt(2)) -> bool:
     """
-    Method that does the work behind user-facing do_rois_abut.
+    Function that does the work behind user-facing do_rois_abut.
 
-    This method takes in two arrays of pixel coordinates
+    This function takes in two arrays of pixel coordinates
     calculates the distance between every pair of pixels
     across the two arrays. If the minimum distance is less
     than or equal pixel_distance, it returns True. If not,

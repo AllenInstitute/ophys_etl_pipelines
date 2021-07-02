@@ -423,17 +423,23 @@ class FeatureVectorSegmenter(object):
                 break
 
             duration = time.time()-t0
+            n_valid_pix = 0
+            for roi in self.roi_list:
+                m = np.array(roi['mask'])
+                n_valid_pix += m.sum()
 
             msg = f'Completed iteration with {len(roi_seeds)} ROIs '
             msg += f'after {duration:.2f} seconds; '
             msg += f'{self.roi_pixels.sum()} total ROI pixels; '
-            msg += f'{len(self.roi_list)} valid ROIs'
+            msg += f'{len(self.roi_list)} valid ROIs ({n_valid_pix}) pixels'
             logger.info(msg)
 
             if seed_output is not None:
                 seed_record[i_iteration] = roi_seeds
 
             i_iteration += 1
+            #if i_iteration > 7:
+            #    break
 
         logger.info('finished iterating on ROIs')
 

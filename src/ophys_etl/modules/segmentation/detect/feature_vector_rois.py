@@ -550,9 +550,14 @@ class PotentialROI(object):
         # take the median of the n_roi nearest background distances;
         # hopefully this will limit the effect of outliers
         d_bckgd = np.sort(self.feature_distances[:, background_mask], axis=1)
-        d_bckgd = np.median(d_bckgd[:, :n_roi], axis=1)
+        if n_roi > 20:
+            d_bckgd = d_bckgd[:, :n_roi]
 
-        valid = d_bckgd > 2*d_roi
+        mu_d_bckgd = np.mean(d_bckgd, axis=1)
+        std_d_bckgd = np.std(d_bckgd, axis=1, ddof=1)
+        z_score = (d_roi-mu_d_bckgd)/std_d_bckgd
+
+        valid = z_score <= -2.0
         if valid.sum() > 0:
             self.roi_mask[valid] = True
 

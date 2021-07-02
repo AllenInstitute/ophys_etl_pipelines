@@ -297,6 +297,11 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
         validate=OneOf(["PearsonFeatureROI", "PCAFeatureROI"]),
         description="which class to use.")
 
+    filter_fraction = argschema.fields.Float(
+        required=False,
+        default=0.2,
+        description="fraction of timesteps to use in time correlation")
+
     @post_load
     def plot_outputs(self, data, **kwargs):
         if data['seed_plot_output'] is None:

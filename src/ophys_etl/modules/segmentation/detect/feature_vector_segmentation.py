@@ -322,7 +322,8 @@ class FeatureVectorSegmenter(object):
             roi = convert_to_lims_roi(origin,
                                       mask,
                                       roi_id=roi_id)
-            self.roi_list.append(roi)
+            if mask.sum() > 1:
+                self.roi_list.append(roi)
             for ir in range(mask.shape[0]):
                 rr = origin[0]+ir
                 for ic in range(mask.shape[1]):
@@ -425,7 +426,8 @@ class FeatureVectorSegmenter(object):
 
             msg = f'Completed iteration with {len(roi_seeds)} ROIs '
             msg += f'after {duration:.2f} seconds; '
-            msg += f'{self.roi_pixels.sum()} total ROI pixels'
+            msg += f'{self.roi_pixels.sum()} total ROI pixels; '
+            msg += f'{len(self.roi_list)} valid ROIs'
             logger.info(msg)
 
             if seed_output is not None:

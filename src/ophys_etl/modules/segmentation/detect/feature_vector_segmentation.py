@@ -438,8 +438,6 @@ class FeatureVectorSegmenter(object):
                 seed_record[i_iteration] = roi_seeds
 
             i_iteration += 1
-            #if i_iteration > 7:
-            #    break
 
         logger.info('finished iterating on ROIs')
 

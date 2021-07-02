@@ -396,3 +396,50 @@ class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
             data['seed_plot_output'] = str(
                     plot_path.parent / f"{plot_path.stem}_seeds.png")
         return data
+
+
+class RoiMergerSchema(argschema.ArgSchema):
+    log_level = argschema.fields.LogLevel(default="INFO")
+
+    roi_input = argschema.fields.InputFile(
+        required=True,
+        description=("path to JSON file with ROIs to merge"))
+
+    roi_output = argschema.fields.OutputFile(
+        required=True,
+        description=("path to JSON file where we will write merged ROIs"))
+
+    n_parallel_workers = argschema.fields.Int(
+            required=False,
+            default=8,
+            description=("number of parallel processes to use"))
+
+    attribute = argschema.fields.Str(
+        required=False,
+        default="filtered_hnc_Gaussian",
+        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
+                        "filtered_hnc_Gaussian"]),
+        description="which attribute to use in image")
+
+    video_input = argschema.fields.InputFile(
+        required=True,
+        description=("path to hdf5 video with movie stored "
+                     "in dataset 'data' nframes x nrow x ncol"))
+
+    corr_acceptance = argschema.fields.Float(
+        required=False,
+        default=2.0,
+        decription=("level of time series correlation needed "
+                    "to accept a merger (in units of z-score)"))
+
+    anomalous_size = argschema.fields.Int(
+        required=False,
+        default=800,
+        description=("If an ROI reaches this size, it is considered "
+                     "invalid and removed from the merging process"))
+
+    filter_fraction = argschema.fields.Float(
+        required=False,
+        default=0.2,
+        description=("fraction of timesteps to keep when doing time "
+                     "correlations"))

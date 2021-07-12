@@ -322,6 +322,7 @@ class FeatureVectorSegmenter(object):
                 seed_list = []
 
         default_slop = 20
+        max_slop = 50
 
         # lookup from ROI ID to seed and size of ROI
         # thumbnail
@@ -395,7 +396,7 @@ class FeatureVectorSegmenter(object):
             at_edge = _is_roi_at_edge(origin,
                                       video_data.shape[1:],
                                       mask)
-            if at_edge:
+            if at_edge and roi_inputs[roi_id]['slop'] < max_slop:
                 self.roi_to_retry.append(roi_inputs[roi_id])
                 continue
 

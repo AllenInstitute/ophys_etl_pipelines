@@ -322,7 +322,7 @@ class FeatureVectorSegmenter(object):
                 seed_list = []
 
         default_slop = 20
-        max_slop = 50
+        max_slop = 40
 
         # lookup from ROI ID to seed and size of ROI
         # thumbnail

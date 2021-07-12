@@ -11,14 +11,13 @@ from ophys_etl.modules.event_detection.utils import trace_noise_estimate
 
 def create_roi_ellipse(center: Tuple[int, int], r_radius: float,
                        c_radius: float, rotation: float,
-                       shape: Tuple[int, int],
-                       id: int = 0) -> ExtractROI:
+                       shape: Tuple[int, int], id: int = 0) -> ExtractROI:
     """create an elliptical ROI
 
     Parameters
     ----------
     center: Tuple[int, int]
-        the global FOV (row, col)coordinates of the center pixel
+        the global FOV (row, col) coordinates of the center pixel
     r_radius: float
         the radius of the ellipse across rows
     c_radius: float
@@ -207,7 +206,40 @@ def movie_with_fake_rois(spacing: int,
                          rate: float = 11.0,
                          decay_time: float = 0.4) -> np.ndarray:
     """
+    create a movie (3D numpy array) with faked signals and correlations.
+    ROI copies will be created on a grid, with a progressively changing amount
+    of correlation (i.e. chaning signal-to-noise ratio).
+
+    Parameters
+    ----------
+    spacing: int
+        the row and column spacing between ROI centers (in pixels)
+    shape: Tuple[int, int, int]
+        the nframes x nrows x ncols shape of the desired output movie
+    correlation_low: float
+        the correlation for the lowest SNR ROI
+    correlation_high: float
+        the correlation for the highest SNR ROI
+    r_radius: float
+        the radius of the ROIs across rows, before rotation
+    c_radius: float
+        the radius of the ROIs across columns, before rotation
+    rotation: float
+        the rotation of the radii axes [-pi, pi]
+    n_events: the number of events to simulate for the common-mode
+        trace of each ROI.
+    rate: float
+        the sampling rate of the data [Hz], i.e. 11.0 for mesoscope-like
+    decay_time: float
+        the fluorescence decay time [seconds]
+
+    Returns
+    -------
+    traces: np.ndarray
+        with shape determined by parameter 'shape'
+
     """
+    # create a grid of ROIs of the same shape
     nrow = int(np.floor(shape[1] / spacing))
     ncol = int(np.floor(shape[2] / spacing))
     rois = []
@@ -227,29 +259,35 @@ def movie_with_fake_rois(spacing: int,
                     "center": (r, c)}
             roi_id += 1
 
+    # determine a weight factor for each ROI
     weights = polynomial_weight_mask(rois[0], 2)
     wfactors = np.linspace(correlation_high,
                            correlation_low,
                            len(rois))
 
+    # simulate traces for each pixel in each ROI
     traces = np.zeros(shape=shape, dtype="uint16")
     rng = np.random.default_rng(seed=123)
     t = np.arange(shape[0])
     for wfactor, roi in zip(wfactors, rois):
         rng.shuffle(t)
         magnitudes = rng.random(size=n_events)
+        # for this ROI, simulate a common-mode trace
         trace = validation.sum_events(n_samples=shape[0],
                                       timestamps=t[0:n_events],
                                       magnitudes=magnitudes,
                                       decay_time=decay_time,
                                       rate=rate)
 
+        # for every pixel in this ROI, create a trace with a specified
+        # correlation to the common-mode
         roi_traces = correlated_traces_from_weights(
                 common_trace=trace,
                 weights=(weights * wfactor))
 
+        # for any non-zero trace in this ROI, estimate the noise
+        # and get the minimum value
         not_empty_indices = np.argwhere(weights != 0)
-
         noises = []
         tmins = []
         for indices in not_empty_indices:
@@ -260,6 +298,7 @@ def movie_with_fake_rois(spacing: int,
         noise = np.mean(noises)
         tmin = np.mean(tmins)
 
+        # convert to uint16 with max value 2**12 and offset 500
         tmin = roi_traces.min()
         tptp = roi_traces.ptp()
         toff = 500
@@ -271,11 +310,13 @@ def movie_with_fake_rois(spacing: int,
                     "tmin": tmin,
                     "tptp": tptp,
                     "toff": toff})
+
+        # place the traces for this ROI in the global movie
         for indices in not_empty_indices:
             traces[:, roi["y"] + indices[0], roi["x"] + indices[1]] = \
                     roi_traces[:, indices[0], indices[1]]
 
-    # interpolate some ROI values
+    # for all the ROIs, determine the average offsets, noise etc
     r = []
     c = []
     mins = []
@@ -294,6 +335,7 @@ def movie_with_fake_rois(spacing: int,
     toff = np.mean(offs)
     noise = np.mean(noises)
 
+    # fill in the non-ROI pixels with some noise, to be a little realistic
     empty_indices = np.argwhere(traces.ptp(axis=0) == 0.0)
     for r, c in empty_indices:
         tmp = np.random.randn(shape[0]) * noise

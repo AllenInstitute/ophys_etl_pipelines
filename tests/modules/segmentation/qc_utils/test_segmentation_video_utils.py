@@ -37,7 +37,7 @@ def example_video():
 
 @pytest.fixture(scope='session')
 def example_video_path(example_video):
-    tmpdir = tempfile.mkdtemp()
+    tmpdir = pathlib.Path(tempfile.mkdtemp())
     base_fname = tempfile.mkstemp(dir=tmpdir,
                                   prefix='example_video_',
                                   suffix='.h5')[1]
@@ -49,6 +49,7 @@ def example_video_path(example_video):
         yield base_fname
     finally:
         base_fname.unlink()
+        tmpdir.rmdir()
 
 
 @pytest.fixture
@@ -70,7 +71,7 @@ def example_unnormalized_rgb_video():
 @pytest.fixture(scope='session')
 def example_unnormalized_rgb_video_path(
         example_unnormalized_rgb_video):
-    tmpdir = tempfile.mkdtemp()
+    tmpdir = pathlib.Path(tempfile.mkdtemp())
     # write video to a tempfile
     h5_fname = tempfile.mkstemp(dir=tmpdir,
                                 prefix='example_unnormalized_rgb_video_',
@@ -83,11 +84,12 @@ def example_unnormalized_rgb_video_path(
         yield h5_fname
     finally:
         h5_fname.unlink()
+        tmpdir.rmdir()
 
 
 @pytest.fixture(scope='session')
 def chunked_video_path():
-    tmpdir = tempfile.mkdtemp()
+    tmpdir = pathlib.Path(tempfile.mkdtemp())
     fname = tempfile.mkstemp(dir=tmpdir,
                              prefix='example_large_video_chunked_',
                              suffix='.h5')[1]
@@ -109,11 +111,12 @@ def chunked_video_path():
         yield fname
     finally:
         fname.unlink()
+        tmpdir.rmdir()
 
 
 @pytest.fixture(scope='session')
 def unchunked_video_path():
-    tmpdir = tempfile.mkdtemp()
+    tmpdir = pathlib.Path(tempfile.mkdtemp())
     fname = tempfile.mkstemp(dir=tmpdir,
                              prefix='example_large_video_unchunked_',
                              suffix='.h5')[1]
@@ -130,6 +133,7 @@ def unchunked_video_path():
         yield fname
     finally:
         fname.unlink()
+        tmpdir.rmdir()
 
 
 @pytest.mark.parametrize("data_fixture", ["example_video",

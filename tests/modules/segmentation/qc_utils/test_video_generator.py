@@ -16,7 +16,7 @@ from ophys_etl.modules.segmentation.qc_utils.video_display_generator import (
 
 @pytest.fixture(scope='session')
 def example_video():
-    tmpdir = tempfile.mkdtemp()
+    tmpdir = pathlib.Path(tempfile.mkdtemp())
     rng = np.random.RandomState(121311)
     nt = 100
     nrows = 50
@@ -32,6 +32,7 @@ def example_video():
         yield fname
     finally:
         fname.unlink()
+        tmpdir.rmdir()
 
 
 @pytest.fixture

@@ -92,5 +92,4 @@ workflows:
             branches:
               only:
                 - main
-                - fake_segmentation_data
                 - /.*dev.*/

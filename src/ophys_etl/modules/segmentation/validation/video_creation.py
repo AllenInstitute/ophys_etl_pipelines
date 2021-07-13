@@ -24,7 +24,7 @@ def create_roi_ellipse(center: Tuple[int, int], r_radius: float,
         the radius of the ellipse across columns
     rotation: float
         the rotation of the radii axes [-pi, pi]
-    shape: Tupl[int, int]
+    shape: Tuple[int, int]
         the FOV shape
     id: int
         the id for the resulting ROI

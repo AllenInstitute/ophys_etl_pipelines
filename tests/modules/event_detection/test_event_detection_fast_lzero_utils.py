@@ -1,6 +1,6 @@
 import pytest
 
-from ophys_etl.modules.event_detection import fast_lzero_utils
+from ophys_etl.modules.event_detection import fast_lzero_utils, utils
 from ophys_etl.modules.event_detection import validation
 
 
@@ -23,7 +23,7 @@ from ophys_etl.modules.event_detection import validation
 def test_fast_lzero(nframes, timestamps, magnitudes, decay_time, rate):
     data = validation.sum_events(nframes, timestamps, magnitudes,
                                  decay_time, rate)
-    halflife = fast_lzero_utils.calculate_halflife(decay_time)
-    gamma = fast_lzero_utils.calculate_gamma(halflife, rate)
+    halflife = utils.calculate_halflife(decay_time)
+    gamma = utils.calculate_gamma(halflife, rate)
     f = fast_lzero_utils.fast_lzero(1.0, data, gamma, True)
     assert f.shape == data.shape

@@ -371,7 +371,7 @@ def movie_with_fake_rois(spacing: int,
     # fill in the non-ROI pixels with some noise, to be a little realistic
     empty_indices = np.argwhere(traces.ptp(axis=0) == 0.0)
     for r, c in empty_indices:
-        tmp = np.random.randn(shape[0]) * noise
+        tmp = rng.standard_normal(shape[0]) * noise
         traces[:, r, c] = ((tmp - tmin) * np.power(2, 12) / tptp) + toff
 
     return traces

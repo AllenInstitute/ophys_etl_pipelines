@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 from ophys_etl.modules.event_detection.schemas import EventDetectionInputSchema
-from ophys_etl.modules.event_detection import utils
+from ophys_etl.modules.event_detection import utils, fast_lzero_utils
 
 
 class EventDetection(argschema.ArgSchemaParser):
@@ -48,7 +48,7 @@ class EventDetection(argschema.ArgSchemaParser):
                     trace_filter_size=trace_filter_samples)
             gamma = utils.calculate_gamma(self.args['halflife'],
                                           self.args['movie_frame_rate_hz'])
-            events, lambdas = utils.get_events(
+            events, lambdas = fast_lzero_utils.get_events(
                     traces=dff,
                     noise_estimates=noise_stds * self.args['noise_multiplier'],
                     gamma=gamma,

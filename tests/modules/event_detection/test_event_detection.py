@@ -2,6 +2,9 @@ import pytest
 import h5py
 import numpy as np
 from collections import namedtuple
+
+from ophys_etl.modules.event_detection import validation
+
 try:
     import ophys_etl.modules.event_detection.__main__ as emod
 except ModuleNotFoundError:
@@ -16,7 +19,7 @@ Events = namedtuple('Events', ['id', 'timestamps', 'magnitudes'])
 
 
 @pytest.fixture(scope="function")
-def dff_hdf5(tmp_path, request, sum_events_function):
+def dff_hdf5(tmp_path, request):
     sigma = request.param.get("sigma")
     offset = request.param.get("offset")
     decay_time = request.param.get("decay_time")
@@ -28,9 +31,9 @@ def dff_hdf5(tmp_path, request, sum_events_function):
     rng = np.random.default_rng(42)
     data = rng.normal(loc=offset, scale=sigma, size=(len(events), nframes))
     for i, event in enumerate(events):
-        data[i] += sum_events_function(nframes, event.timestamps,
-                                       event.magnitudes,
-                                       decay_time, rate)
+        data[i] += validation.sum_events(nframes, event.timestamps,
+                                         event.magnitudes,
+                                         decay_time, rate)
 
     names = [i.id for i in events]
 

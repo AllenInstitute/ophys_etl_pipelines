@@ -315,15 +315,11 @@ def movie_with_fake_rois(spacing: int,
                     roi_traces[:, indices[0], indices[1]]
 
     # for all the ROIs, determine the average offsets, noise etc
-    r = []
-    c = []
     mins = []
     ptps = []
     offs = []
     noises = []
     for roi_s in roi_summary.values():
-        r.append(roi_s["center"][0])
-        c.append(roi_s["center"][1])
         mins.append(roi_s["tmin"])
         ptps.append(roi_s["tptp"])
         offs.append(roi_s["toff"])

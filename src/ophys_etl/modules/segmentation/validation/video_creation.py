@@ -1,5 +1,5 @@
 import numpy as np
-from typing import Tuple
+from typing import Tuple, Optional, Union
 from skimage.draw import ellipse
 from scipy.optimize import bisect
 from scipy.stats import pearsonr
@@ -9,9 +9,12 @@ from ophys_etl.modules.event_detection import validation
 from ophys_etl.modules.event_detection.utils import trace_noise_estimate
 
 
-def create_roi_ellipse(center: Tuple[int, int], r_radius: float,
-                       c_radius: float, rotation: float,
-                       shape: Tuple[int, int], id: int = 0) -> ExtractROI:
+def create_roi_ellipse(center: Tuple[int, int],
+                       r_radius: float,
+                       c_radius: float,
+                       rotation: float,
+                       shape: Tuple[int, int],
+                       id: int = 0) -> ExtractROI:
     """create an elliptical ROI
 
     Parameters
@@ -63,8 +66,11 @@ def create_roi_ellipse(center: Tuple[int, int], r_radius: float,
     return roi
 
 
-def polynomial_weight_mask(roi: ExtractROI,
-                           order: int) -> np.ndarray:
+def polynomial_weight_mask(
+        roi: ExtractROI,
+        order: int,
+        seed: Optional[Union[int, np.random.Generator]] = None
+        ) -> np.ndarray:
     """for a given ROI, calculate intensities, with maximum value 1.0
     that have polynomial variations up to an including the specified
     order.
@@ -75,6 +81,8 @@ def polynomial_weight_mask(roi: ExtractROI,
         an roi instance
     order: int
         the polynomial order for the weight surface
+    seed: int or None or np.random.Generator
+        passed as seed to np.random.default_rng
 
     Returns
     -------
@@ -83,12 +91,15 @@ def polynomial_weight_mask(roi: ExtractROI,
     """
     coeffs = []
     order_indices = np.arange(order + 1)
+
+    rng = np.random.default_rng(seed=seed)
+
     for order_index in order_indices:
         if order_index == 0:
             coeffs.append([1.0])
         else:
             discount = np.power(10.0, -(order_index + 0.5))
-            coeffs.append(np.random.randn(order_index + 1) * discount)
+            coeffs.append(rng.standard_normal(order_index + 1) * discount)
     cmat = np.zeros((order + 1, order + 1))
     for c in coeffs:
         ir = len(c) - 1
@@ -112,7 +123,9 @@ def polynomial_weight_mask(roi: ExtractROI,
 
 
 def correlated_trace(common_trace: np.ndarray,
-                     correlation_target: float) -> np.ndarray:
+                     correlation_target: float,
+                     seed: Optional[Union[int, np.random.Generator]] = None
+                     ) -> np.ndarray:
     """adds noise to a trace to acheive the specified correlation
 
     Parameters
@@ -122,6 +135,9 @@ def correlated_trace(common_trace: np.ndarray,
         by weights will be generated.
     correlation_target: float
         a Pearson correlation coefficient in (0.0, 1.0)
+    seed: int or None or np.random.Generator
+        passed as seed to np.random.default_rng
+
 
     Returns
     -------
@@ -133,7 +149,8 @@ def correlated_trace(common_trace: np.ndarray,
         raise ValueError("correlation must be in range (0.0, 1.0) "
                          f"{correlation_target} was provided.")
 
-    noise_base = np.random.randn(common_trace.size)
+    rng = np.random.default_rng(seed=seed)
+    noise_base = rng.standard_normal(common_trace.size)
 
     def noisy_trace(trace, factor):
         new_trace = trace + noise_base * factor
@@ -165,8 +182,11 @@ def correlated_trace(common_trace: np.ndarray,
     return new_trace
 
 
-def correlated_traces_from_weights(common_trace: np.ndarray,
-                                   weights: np.ndarray) -> np.ndarray:
+def correlated_traces_from_weights(
+        common_trace: np.ndarray,
+        weights: np.ndarray,
+        seed: Optional[Union[int, np.random.Generator]] = None
+        ) -> np.ndarray:
     """generates correlated traces with correlations given by weights
 
     Parameters
@@ -178,6 +198,8 @@ def correlated_traces_from_weights(common_trace: np.ndarray,
         (nrows x ncols) array where the intensities represent the
         desire Pearson correlation coefficient relative to an
         imaginary common-mode trace.
+    seed: int or None or np.random.Generator
+        passed as seed to np.random.default_rng
 
     Returns
     -------
@@ -192,11 +214,13 @@ def correlated_traces_from_weights(common_trace: np.ndarray,
     """
     traces = np.empty(shape=(common_trace.shape[0], *weights.shape),
                       dtype=common_trace.dtype)
+    rng = np.random.default_rng(seed=seed)
     for i in range(weights.shape[0]):
         for j in range(weights.shape[1]):
             if weights[i, j] != 0.0:
                 traces[:, i, j] = correlated_trace(common_trace,
-                                                   weights[i, j])
+                                                   weights[i, j],
+                                                   seed=rng)
             else:
                 traces[:, i, j] = 0.0
     return traces
@@ -211,7 +235,9 @@ def movie_with_fake_rois(spacing: int,
                          rotation: float,
                          n_events: int,
                          rate: float = 11.0,
-                         decay_time: float = 0.4) -> np.ndarray:
+                         decay_time: float = 0.4,
+                         seed: Optional[Union[int, np.random.Generator]] = None
+                         ) -> np.ndarray:
     """
     create a movie (3D numpy array) with faked signals and correlations.
     ROI copies will be created on a grid, with a progressively changing amount
@@ -239,6 +265,8 @@ def movie_with_fake_rois(spacing: int,
         the sampling rate of the data [Hz], i.e. 11.0 for mesoscope-like
     decay_time: float
         the fluorescence decay time [seconds]
+    seed: int or None or np.random.Generator
+        passed as seed to np.random.default_rng
 
     Returns
     -------
@@ -246,6 +274,8 @@ def movie_with_fake_rois(spacing: int,
         with shape determined by parameter 'shape'
 
     """
+    rng = np.random.default_rng(seed=seed)
+
     # create a grid of ROIs of the same shape
     nrow = int(np.floor(shape[1] / spacing))
     ncol = int(np.floor(shape[2] / spacing))
@@ -267,18 +297,17 @@ def movie_with_fake_rois(spacing: int,
             roi_id += 1
 
     # determine a weight factor for each ROI
-    weights = polynomial_weight_mask(rois[0], 2)
+    weights = polynomial_weight_mask(rois[0], 2, seed=rng)
     wfactors = np.linspace(correlation_high,
                            correlation_low,
                            len(rois))
 
     # simulate traces for each pixel in each ROI
     traces = np.zeros(shape=shape, dtype="uint16")
-    rng = np.random.default_rng(seed=123)
     t = np.arange(shape[0])
     for wfactor, roi in zip(wfactors, rois):
         rng.shuffle(t)
-        magnitudes = rng.random(size=n_events)
+        magnitudes = rng.standard_normal(size=n_events)
         # for this ROI, simulate a common-mode trace
         trace = validation.sum_events(n_samples=shape[0],
                                       timestamps=t[0:n_events],
@@ -290,7 +319,8 @@ def movie_with_fake_rois(spacing: int,
         # correlation to the common-mode
         roi_traces = correlated_traces_from_weights(
                 common_trace=trace,
-                weights=(weights * wfactor))
+                weights=(weights * wfactor),
+                seed=rng)
 
         # for any non-zero trace in this ROI, estimate the noise
         # and get the minimum value

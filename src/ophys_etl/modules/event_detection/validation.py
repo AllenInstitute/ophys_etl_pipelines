@@ -4,14 +4,14 @@ from typing import Union, List
 
 def make_event(n_samples: int, index: int, magnitude: float,
                decay_time: float, rate: float) -> np.ndarray:
-    """create a time series of an event (spike)
+    """create a time series trace with a single event (spike)
 
     Parameters
     ----------
     n_samples: int
-        the number of samples
+        the number of samples in the entire trace
     index: int
-        the index marking the start of the event
+        the sample index marking the start of the event
     magnitude: float
         the peak magnitude of the spike
     decay_time: float
@@ -35,15 +35,14 @@ def make_event(n_samples: int, index: int, magnitude: float,
 def sum_events(n_samples: int, timestamps: Union[List[int], np.ndarray],
                magnitudes: Union[List[float], np.ndarray], decay_time: float,
                rate: float) -> np.ndarray:
-    """given a list of timestamps and magnitudes, create and sum events into
-    a single timeseries
+    """create a time series trace that is the sum of multiple events (spikes)
 
     Parameters
     ----------
     n_samples: int
-        the number of samples in the timeseries
+        the number of samples in the entire trace
     timestamps: List[int], or np.ndarray
-        the indices marking the start of the event
+        the sample indices marking the start of the event
     magnitudes: List[float], or np.ndarray
         the peak magnitudes of the events, same length as timestamps
     decay_time: float

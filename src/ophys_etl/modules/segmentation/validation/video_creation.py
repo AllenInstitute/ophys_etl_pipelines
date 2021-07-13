@@ -121,7 +121,7 @@ def correlated_trace(common_trace: np.ndarray,
         a 1D array against which traces with correlations specified
         by weights will be generated.
     correlation_target: float
-        a Pearson correlation coefficient in [0.0, 1.0]
+        a Pearson correlation coefficient in (0.0, 1.0)
 
     Returns
     -------
@@ -129,12 +129,9 @@ def correlated_trace(common_trace: np.ndarray,
         the correlated trace
 
     """
-    if (correlation_target < 0.0) | (correlation_target >= 1.0):
-        raise ValueError("correlation must be in range [0.0, 1.0] "
+    if (correlation_target <= 0.0) | (correlation_target >= 1.0):
+        raise ValueError("correlation must be in range (0.0, 1.0) "
                          f"{correlation_target} was provided.")
-
-    if correlation_target == 0.0:
-        return np.zeros_like(common_trace)
 
     noise_base = np.random.randn(common_trace.size)
 
@@ -151,16 +148,19 @@ def correlated_trace(common_trace: np.ndarray,
         return pearson - correlation_target
 
     # solve by bisection
-    s0 = 1.0 - correlation_target
-    power = 0
-    s1 = correlation_callable(np.power(10, power))
-    while np.sign(s0) == np.sign(s1):
-        power += 1
-        s1 = correlation_callable(np.power(10, power))
+    lower_factor_limit = 1.0
+    upper_factor_limit = 1.0
+    lower_val = 1.0
+    upper_val = 1.0
+    while np.sign(lower_val) == np.sign(upper_val):
+        lower_factor_limit /= 10.0
+        upper_factor_limit *= 10.0
+        lower_val = correlation_callable(lower_factor_limit)
+        upper_val = correlation_callable(upper_factor_limit)
 
     result = bisect(f=correlation_callable,
-                    a=0.0,
-                    b=np.power(10.0, power))
+                    a=lower_factor_limit,
+                    b=upper_factor_limit)
     new_trace = noisy_trace(common_trace, result)
     return new_trace
 
@@ -184,12 +184,21 @@ def correlated_traces_from_weights(common_trace: np.ndarray,
     traces:  np.ndarray
         (nframes x nrows x ncols), uint16 traces
 
+    Notes
+    -----
+    for any (i, j) where weights[i, j] is zero, the corresponding
+    traces[:, i, j] will be all zeros.
+
     """
     traces = np.empty(shape=(common_trace.shape[0], *weights.shape),
                       dtype=common_trace.dtype)
     for i in range(weights.shape[0]):
         for j in range(weights.shape[1]):
-            traces[:, i, j] = correlated_trace(common_trace, weights[i, j])
+            if weights[i, j] != 0.0:
+                traces[:, i, j] = correlated_trace(common_trace,
+                                                   weights[i, j])
+            else:
+                traces[:, i, j] = 0.0
     return traces
 
 

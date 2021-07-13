@@ -81,16 +81,12 @@ def test_polynomial_weight_mask(example_roi, order):
             (np.random.randn(1000) + 23.0, 0.95),
             (np.random.randn(1000) + 23.0, 0.45),
             (np.random.randn(1000) + 23.0, 0.15),
-            (np.random.randn(1000) + 23.0, 0.0),
             ])
 def test_correlated_trace(trace, target):
     new_trace = video_creation.correlated_trace(common_trace=trace,
                                                 correlation_target=target)
-    if target == 0.0:
-        np.testing.assert_allclose(new_trace, np.zeros_like(trace))
-    else:
-        np.testing.assert_allclose(target,
-                                   pearsonr(trace, new_trace)[0])
+    np.testing.assert_allclose(target,
+                               pearsonr(trace, new_trace)[0])
 
 
 @pytest.mark.parametrize(

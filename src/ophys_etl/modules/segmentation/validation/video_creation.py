@@ -90,15 +90,12 @@ def polynomial_weight_mask(roi: ExtractROI,
             coeffs.append(np.random.randn(order_index + 1) * discount)
     cmat = np.zeros((order + 1, order + 1))
     for c in coeffs:
-        if len(c) == 0:
-            cmat[0, 0] = c[0]
-        else:
-            ir = len(c) - 1
-            ic = 0
-            for citem in c:
-                cmat[ir, ic] = citem
-                ir -= 1
-                ic += 1
+        ir = len(c) - 1
+        ic = 0
+        for citem in c:
+            cmat[ir, ic] = citem
+            ir -= 1
+            ic += 1
 
     coords = np.argwhere(roi["mask"])
     center = coords.mean(axis=0).astype(int)

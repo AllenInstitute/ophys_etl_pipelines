@@ -66,7 +66,8 @@ def create_roi_ellipse(center: Tuple[int, int], r_radius: float,
 def polynomial_weight_mask(roi: ExtractROI,
                            order: int) -> np.ndarray:
     """for a given ROI, calculate intensities, with maximum value 1.0
-    that have polynomial variations of the magnitudes specified
+    that have polynomial variations up to an including the specified
+    order.
 
     Parameters
     ----------

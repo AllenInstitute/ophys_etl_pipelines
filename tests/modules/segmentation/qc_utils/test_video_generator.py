@@ -14,17 +14,23 @@ from ophys_etl.modules.segmentation.qc_utils.video_display_generator import (
     VideoDisplayGenerator)
 
 
-@pytest.fixture
-def example_video(tmpdir):
+@pytest.fixture(scope='session')
+def example_video(tmpdir_factory):
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('eg_video'))
     rng = np.random.RandomState(121311)
     nt = 100
     nrows = 50
     ncols = 50
     data = rng.randint(0, 1000, (nt, nrows, ncols))
-    fname = tempfile.mkstemp(dir=tmpdir, suffix='.h5')[1]
+    fname = tempfile.mkstemp(dir=tmpdir,
+                             prefix='video_generator_example_video_',
+                             suffix='.h5')[1]
     with h5py.File(fname, 'w') as out_file:
         out_file.create_dataset('data', data=data)
+    fname = pathlib.Path(fname)
     yield fname
+    fname.unlink()
+    tmpdir.rmdir()
 
 
 @pytest.fixture
@@ -114,6 +120,10 @@ def test_get_thumbnail_video(tmpdir,
     assert not expected.video_path == thumbnail.video_path
     compare_hashes(expected.video_path, thumbnail.video_path)
 
+    del thumbnail
+    del expected
+    del generator
+
 
 @pytest.mark.parametrize('roi_color, timesteps, padding',
                          product((None, (122, 201, 53)),
@@ -163,6 +173,10 @@ def test_get_thumbnail_video_from_roi(
     assert not expected.video_path == thumbnail.video_path
     compare_hashes(expected.video_path, thumbnail.video_path)
 
+    del thumbnail
+    del expected
+    del generator
+
 
 def test_video_display_generator(tmpdir, example_video, example_roi):
     """
@@ -199,3 +213,6 @@ def test_video_display_generator(tmpdir, example_video, example_roi):
     assert sym_path.resolve() == thumbnail.video_path.resolve()
     assert sym_path.is_symlink()
     assert sym_path.absolute() != thumbnail.video_path.absolute()
+
+    del thumbnail
+    del generator

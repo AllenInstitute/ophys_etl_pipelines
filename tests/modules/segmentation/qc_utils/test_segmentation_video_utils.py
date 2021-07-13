@@ -26,13 +26,28 @@ from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     read_and_scale)
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def example_video():
     rng = np.random.RandomState(16412)
     data = rng.randint(0, 100, (100, 60, 60)).astype(np.uint8)
     for ii in range(100):
         data[ii, ::, :] = ii
     return data
+
+
+@pytest.fixture(scope='session')
+def example_video_path(tmpdir_factory, example_video):
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('example_video'))
+    base_fname = tempfile.mkstemp(dir=tmpdir,
+                                  prefix='example_video_',
+                                  suffix='.h5')[1]
+    with h5py.File(base_fname, 'w') as out_file:
+        out_file.create_dataset('data',
+                                data=example_video)
+    base_fname = pathlib.Path(base_fname)
+    yield base_fname
+    base_fname.unlink()
+    tmpdir.rmdir()
 
 
 @pytest.fixture
@@ -44,15 +59,34 @@ def example_rgb_video():
     return data
 
 
-@pytest.fixture
+@pytest.fixture(scope='session')
 def example_unnormalized_rgb_video():
     rng = np.random.RandomState(6125321)
     data = rng.randint(0, 700, (100, 60, 60, 3))
     return data
 
 
-@pytest.fixture
-def chunked_video_path(tmpdir):
+@pytest.fixture(scope='session')
+def example_unnormalized_rgb_video_path(
+        tmpdir_factory,
+        example_unnormalized_rgb_video):
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('eg_unnorm_rgb_video'))
+    # write video to a tempfile
+    h5_fname = tempfile.mkstemp(dir=tmpdir,
+                                prefix='example_unnormalized_rgb_video_',
+                                suffix='.h5')[1]
+    with h5py.File(h5_fname, 'w') as out_file:
+        out_file.create_dataset('data', data=example_unnormalized_rgb_video)
+
+    h5_fname = pathlib.Path(h5_fname)
+    yield h5_fname
+    h5_fname.unlink()
+    tmpdir.rmdir()
+
+
+@pytest.fixture(scope='session')
+def chunked_video_path(tmpdir_factory):
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('chunked_video'))
     fname = tempfile.mkstemp(dir=tmpdir,
                              prefix='example_large_video_chunked_',
                              suffix='.h5')[1]
@@ -69,11 +103,15 @@ def chunked_video_path(tmpdir):
                                chunk[2].stop-chunk[2].start))
             dataset[chunk] = arr
 
-    yield pathlib.Path(fname)
+    fname = pathlib.Path(fname)
+    yield fname
+    fname.unlink()
+    tmpdir.rmdir()
 
 
-@pytest.fixture
-def unchunked_video_path(tmpdir):
+@pytest.fixture(scope='session')
+def unchunked_video_path(tmpdir_factory):
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('unchunked_video'))
     fname = tempfile.mkstemp(dir=tmpdir,
                              prefix='example_large_video_unchunked_',
                              suffix='.h5')[1]
@@ -85,7 +123,10 @@ def unchunked_video_path(tmpdir):
                                 chunks=None,
                                 dtype=np.uint16)
 
-    yield pathlib.Path(fname)
+    fname = pathlib.Path(fname)
+    yield fname
+    fname.unlink()
+    tmpdir.rmdir()
 
 
 @pytest.mark.parametrize("data_fixture", ["example_video",
@@ -405,6 +446,7 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps, padding):
                           ])
 def test_thumbnail_from_path(tmpdir,
                              example_unnormalized_rgb_video,
+                             example_unnormalized_rgb_video_path,
                              min_max,
                              quantiles,
                              timesteps):
@@ -412,18 +454,13 @@ def test_thumbnail_from_path(tmpdir,
     Test thumbnail_from_path by comparing output to result
     from thumbnail_from_array
     """
+
     if timesteps is None:
         n_t = example_unnormalized_rgb_video.shape[0]
     else:
         n_t = len(timesteps)
 
-    # write video to a tempfile
-    h5_fname = tempfile.mkstemp(dir=tmpdir, prefix='input_video_',
-                                suffix='.h5')[1]
-    with h5py.File(h5_fname, 'w') as out_file:
-        out_file.create_dataset('data', data=example_unnormalized_rgb_video)
-
-    sub_video = example_unnormalized_rgb_video[:, 18:30, 14:29, :]
+    sub_video = np.copy(example_unnormalized_rgb_video[:, 18:30, 14:29, :])
 
     if quantiles is not None:
         local_min_max = np.quantile(example_unnormalized_rgb_video,
@@ -443,7 +480,7 @@ def test_thumbnail_from_path(tmpdir,
                        timesteps=timesteps)
 
     test_video = thumbnail_video_from_path(
-                     pathlib.Path(h5_fname),
+                     example_unnormalized_rgb_video_path,
                      (18, 14),
                      (12, 15),
                      tmp_dir=pathlib.Path(tmpdir),
@@ -487,6 +524,7 @@ def test_thumbnail_from_path(tmpdir,
                           ])
 def test_thumbnail_from_roi_and_path(tmpdir,
                                      example_unnormalized_rgb_video,
+                                     example_unnormalized_rgb_video_path,
                                      quantiles,
                                      min_max,
                                      roi_color,
@@ -509,11 +547,7 @@ def test_thumbnail_from_roi_and_path(tmpdir,
                      y=18, height=12,
                      mask=[list(i) for i in mask])
 
-    # write video to a tempfile
-    h5_fname = tempfile.mkstemp(dir=tmpdir, prefix='input_video_',
-                                suffix='.h5')[1]
-    with h5py.File(h5_fname, 'w') as out_file:
-        out_file.create_dataset('data', data=example_unnormalized_rgb_video)
+    h5_fname = example_unnormalized_rgb_video_path
 
     if quantiles is not None:
         local_min_max = np.quantile(example_unnormalized_rgb_video,
@@ -521,9 +555,10 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     else:
         local_min_max = min_max
 
-    normalized_video = scale_video_to_uint8(example_unnormalized_rgb_video,
-                                            local_min_max[0],
-                                            local_min_max[1])
+    normalized_video = scale_video_to_uint8(
+                            np.copy(example_unnormalized_rgb_video),
+                            local_min_max[0],
+                            local_min_max[1])
 
     control_video = _thumbnail_video_from_ROI_array(
                        normalized_video,
@@ -534,7 +569,7 @@ def test_thumbnail_from_roi_and_path(tmpdir,
                        timesteps=timesteps)
 
     test_video = _thumbnail_video_from_ROI_path(
-                     pathlib.Path(h5_fname),
+                     h5_fname,
                      roi,
                      padding=padding,
                      roi_color=roi_color,
@@ -566,6 +601,7 @@ def test_thumbnail_from_roi_and_path(tmpdir,
                           (np.arange(22, 56), 10)])
 def test_generic_generation_from_ROI(tmpdir,
                                      example_video,
+                                     example_video_path,
                                      timesteps,
                                      padding):
     """
@@ -603,10 +639,7 @@ def test_generic_generation_from_ROI(tmpdir,
     read_data = imageio.mimread(th.video_path)
     assert len(read_data) == n_t
 
-    base_fname = tempfile.mkstemp(dir=tmpdir, suffix='.h5')[1]
-    with h5py.File(base_fname, 'w') as out_file:
-        out_file.create_dataset('data',
-                                data=example_video)
+    base_fname = example_video_path
 
     th = thumbnail_video_from_ROI(pathlib.Path(base_fname),
                                   roi,

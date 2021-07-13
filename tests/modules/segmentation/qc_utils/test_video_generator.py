@@ -28,11 +28,9 @@ def example_video(tmpdir_factory):
     with h5py.File(fname, 'w') as out_file:
         out_file.create_dataset('data', data=data)
     fname = pathlib.Path(fname)
-    try:
-        yield fname
-    finally:
-        fname.unlink()
-        tmpdir.rmdir()
+    yield fname
+    fname.unlink()
+    tmpdir.rmdir()
 
 
 @pytest.fixture

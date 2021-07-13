@@ -45,11 +45,9 @@ def example_video_path(tmpdir_factory, example_video):
         out_file.create_dataset('data',
                                 data=example_video)
     base_fname = pathlib.Path(base_fname)
-    try:
-        yield base_fname
-    finally:
-        base_fname.unlink()
-        tmpdir.rmdir()
+    yield base_fname
+    base_fname.unlink()
+    tmpdir.rmdir()
 
 
 @pytest.fixture
@@ -81,11 +79,9 @@ def example_unnormalized_rgb_video_path(
         out_file.create_dataset('data', data=example_unnormalized_rgb_video)
 
     h5_fname = pathlib.Path(h5_fname)
-    try:
-        yield h5_fname
-    finally:
-        h5_fname.unlink()
-        tmpdir.rmdir()
+    yield h5_fname
+    h5_fname.unlink()
+    tmpdir.rmdir()
 
 
 @pytest.fixture(scope='session')
@@ -108,11 +104,9 @@ def chunked_video_path(tmpdir_factory):
             dataset[chunk] = arr
 
     fname = pathlib.Path(fname)
-    try:
-        yield fname
-    finally:
-        fname.unlink()
-        tmpdir.rmdir()
+    yield fname
+    fname.unlink()
+    tmpdir.rmdir()
 
 
 @pytest.fixture(scope='session')
@@ -130,11 +124,9 @@ def unchunked_video_path(tmpdir_factory):
                                 dtype=np.uint16)
 
     fname = pathlib.Path(fname)
-    try:
-        yield fname
-    finally:
-        fname.unlink()
-        tmpdir.rmdir()
+    yield fname
+    fname.unlink()
+    tmpdir.rmdir()
 
 
 @pytest.mark.parametrize("data_fixture", ["example_video",

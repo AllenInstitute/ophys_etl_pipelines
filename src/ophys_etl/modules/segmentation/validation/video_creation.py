@@ -174,6 +174,11 @@ def correlated_trace(common_trace: np.ndarray,
         upper_factor_limit *= 10.0
         lower_val = correlation_callable(lower_factor_limit)
         upper_val = correlation_callable(upper_factor_limit)
+        if (lower_factor_limit < 1e-10) | (upper_factor_limit > 1e10):
+            raise RuntimeError("failed to find bracketing values for "
+                               "bisection search for specified correlation. "
+                               "Try increasing the number of samples in "
+                               "the traces, for example > 5000 samples.")
 
     result = bisect(f=correlation_callable,
                     a=lower_factor_limit,

@@ -115,8 +115,17 @@ def test_movie_with_fake_rois():
     """a smoke test.
     the function being tested is a way to make fake movies that has been
     a little useful for debugging and sanity checks.
+
+    Notes
+    -----
+    the search for a specified pearson correlation can fail at low numbers
+    of samples. For a random seed, 500 samples fails ~10% of the time. It
+    works consistently for seed=42. For a small test, 500 samples is fast.
+    For real data, 5000 or more samples is a safer bet.
+
     """
-    shape = (500, 30, 30)
+    n_samples = 500
+    shape = (n_samples, 30, 30)
     movie = video_creation.movie_with_fake_rois(
             spacing=7,
             shape=shape,
@@ -127,5 +136,6 @@ def test_movie_with_fake_rois():
             rotation=0.0,
             n_events=6,
             rate=11.0,
-            decay_time=0.4)
+            decay_time=0.4,
+            seed=42)
     assert movie.shape == shape

@@ -118,10 +118,12 @@ def test_movie_with_fake_rois():
 
     Notes
     -----
-    the search for a specified pearson correlation can fail at low numbers
+    - the search for a specified pearson correlation can fail at low numbers
     of samples. For a random seed, 500 samples fails ~10% of the time. It
     works consistently for seed=42. For a small test, 500 samples is fast.
     For real data, 5000 or more samples is a safer bet.
+    - the function being tested performs noise estimation, which does not
+    work in python 3.7, so we skip it during
 
     """
     n_samples = 500

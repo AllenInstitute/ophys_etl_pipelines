@@ -34,7 +34,9 @@ RUN apt-get -y update \
     && rm -rf /var/lib/apt/* \
     && git clone -b ${SUITE2P_TAG} https://github.com/MouseLand/suite2p ./suite2p \
     && conda env update --prefix ${SUITE2P_ENV} --file ./suite2p/environment.yml \
-    && conda run --prefix ${SUITE2P_ENV} pip install pyqt5 \
+    && conda run --prefix ${SUITE2P_ENV} pip install pyqt5==5.15.1 \
+    pyqt5-sip==12.8.1 \
+    pyqtgraph==0.11.0 \
     && conda run --prefix ${SUITE2P_ENV} pip install --no-cache ./suite2p \
     && git clone -b ${OPHYS_ETL_TAG} https://github.com/AllenInstitute/ophys_etl_pipelines ./ophys_etl \
     && conda run --prefix ${SUITE2P_ENV} pip install --no-cache ./ophys_etl \

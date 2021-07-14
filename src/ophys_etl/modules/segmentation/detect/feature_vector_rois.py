@@ -5,6 +5,7 @@ from sklearn.preprocessing import StandardScaler
 
 from ophys_etl.utils.array_utils import pairwise_distances
 
+
 def choose_timesteps(
             sub_video: np.ndarray,
             i_seed: int,

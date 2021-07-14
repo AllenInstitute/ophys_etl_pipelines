@@ -291,7 +291,7 @@ class FeatureVectorSegmenter(object):
 
         # in case we end up retrying ROIs, make sure we can
         # grow their available thumbnails
-        seed_to_slop = {}
+        seed_to_slop = dict()
 
         # NOTE: we should rewrite run() and _run() so that they can
         # use the parallel seed iterator like
@@ -323,7 +323,7 @@ class FeatureVectorSegmenter(object):
 
         # lookup from ROI ID to seed and size of ROI
         # thumbnail
-        roi_inputs = {}
+        roi_inputs = dict()
 
         logger.info(f'got {len(seed_list)} seeds')
 
@@ -334,11 +334,7 @@ class FeatureVectorSegmenter(object):
         mgr_dict = mgr.dict()
         for i_seed, seed in enumerate(seed_list):
             self.roi_id += 1
-
-            if seed in seed_to_slop:
-                slop = seed_to_slop[seed]
-            else:
-                slop = default_slop
+            slop = seed_to_slop.get(seed, default_slop)
 
             roi_inputs[self.roi_id] = {'seed': seed,
                                        'slop': slop}

@@ -11,7 +11,8 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
 
 from ophys_etl.modules.segmentation.detect.feature_vector_segmentation import (
         convert_to_lims_roi,
-        FeatureVectorSegmenter)
+        FeatureVectorSegmenter,
+        _is_roi_at_edge)
 
 
 @pytest.fixture
@@ -147,3 +148,69 @@ def test_segmenter_blank(tmpdir, blank_graph, blank_video, seeder_args):
     dir_path = pathlib.Path(tmpdir)
     roi_path = dir_path / 'roi.json'
     segmenter.run(roi_output=roi_path)
+
+
+def test_is_roi_at_edge():
+
+    # in the middle of fov
+    mask = np.zeros((9, 9), dtype=bool)
+    mask[2, 2] = True
+    assert not _is_roi_at_edge((10, 10),
+                               (20, 20),
+                               mask)
+
+    # at upper edge
+    mask = np.zeros((9, 9), dtype=bool)
+    mask[0, 3:5] = True
+    assert _is_roi_at_edge((10, 10),
+                           (20, 20),
+                           mask)
+
+    # at left edge
+    mask = np.zeros((9, 9), dtype=bool)
+    mask[3:5, 0] = True
+    assert _is_roi_at_edge((10, 10),
+                           (20, 20),
+                           mask)
+
+    # at right edge
+    mask = np.zeros((9, 9), dtype=bool)
+    mask[3:5, 8] = True
+    assert _is_roi_at_edge((10, 10),
+                           (20, 20),
+                           mask)
+
+    # at bottom edge
+    mask = np.zeros((9, 9), dtype=bool)
+    mask[8, 3:5] = True
+    assert _is_roi_at_edge((10, 10),
+                           (20, 20),
+                           mask)
+
+    # at upper edge with no room to grow
+    mask = np.zeros((9, 9), dtype=bool)
+    mask[0, 3:5] = True
+    assert not _is_roi_at_edge((0, 10),
+                               (20, 20),
+                               mask)
+
+    # at left edge with no room to grow
+    mask = np.zeros((9, 9), dtype=bool)
+    mask[3:5, 0] = True
+    assert not _is_roi_at_edge((10, 0),
+                               (20, 20),
+                               mask)
+
+    # at right edge with no room to grow
+    mask = np.zeros((9, 9), dtype=bool)
+    mask[3:5, 8] = True
+    assert not _is_roi_at_edge((10, 10),
+                               (20, 19),
+                               mask)
+
+    # at bottom edge with no room to grow
+    mask = np.zeros((9, 9), dtype=bool)
+    mask[8, 3:5] = True
+    assert not _is_roi_at_edge((10, 10),
+                               (19, 20),
+                               mask)

@@ -531,11 +531,11 @@ class PotentialROI(object):
 
         3) For every candidate pixel, find the n_roi background pixels that
         are closest to it in feature space (n_roi is the number of pixels
-        currently in the ROI). The median of these distances is the
-        candidate pixel's distance from the background.
+        currently in the ROI).
 
-        4) Any pixel whose background distance is more than twice its
-        ROI distance is added to the ROI
+        4) Any pixel whose distance to the ROI (from step (2)) has a z-score
+        of less than -2 relative to the distribution of its distances from
+        background pixels (from step (3)) is added to the ROI.
         """
         chose_one = False
 

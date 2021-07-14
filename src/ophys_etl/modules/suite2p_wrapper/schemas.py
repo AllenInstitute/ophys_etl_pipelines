@@ -44,6 +44,18 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             default=0.2,
             description=("max allowed registration shift, as a fraction of "
                          "frame max(width and height)"))
+    nimg_init = argschema.fields.Int(
+        default=200,
+        description=("")
+    )
+    smooth_sigma = argschema.fields.Float(
+        default=1.15,
+        description=("")
+    )
+    smooth_sigma_time = argschema.fields.Float(
+        default=0,
+        description=("")
+    )
     # s2p cell detection settings
     roidetect = argschema.fields.Bool(
             default=True,

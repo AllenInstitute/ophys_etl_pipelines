@@ -1,9 +1,9 @@
 from typing import Optional, Tuple
-from scipy.spatial.distance import cdist
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
+from ophys_etl.utils.array_utils import pairwise_distances
 
 def choose_timesteps(
             sub_video: np.ndarray,
@@ -505,9 +505,7 @@ class PotentialROI(object):
                                      pixel_ignore=pixel_ignore,
                                      rng=rng)
 
-        self.feature_distances = cdist(features,
-                                       features,
-                                       metric='euclidean')
+        self.feature_distances = pairwise_distances(features)
 
     def select_pixels(self) -> bool:
         """

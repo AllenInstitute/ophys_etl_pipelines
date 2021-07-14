@@ -310,9 +310,6 @@ class FeatureVectorSegmenter(object):
                 seed_list.append(roi['seed'])
                 seed_to_slop[roi['seed']] = 3*roi['slop']//2
 
-            logger.info(f'retrying rois {self.roi_to_retry}')
-            logger.info(f'retrying rois {seed_to_slop}')
-
             self.roi_to_retry = []
         else:
             # run with new seeds from the seeder

@@ -102,8 +102,48 @@ def _get_roi(seed_obj: ROISeed,
                     pixel_ignore=pixel_ignore)
 
     final_mask = roi.get_mask()
+
     output_dict[roi_id] = (origin, final_mask)
     return None
+
+
+def _is_roi_at_edge(origin: Tuple[int, int],
+                    fov_shape: Tuple[int, int],
+                    mask: np.ndarray) -> bool:
+    """
+    Check if an ROI grew to the edge of its thumbnail (in which
+    case the ROI should be attempted again with a larger thumbnail)
+
+    Parameters
+    ----------
+    origin: Tuple[int, int]
+        (row, col) coordinates of the ROI thumbnail's origin
+
+    fov_shape: Tuple[int, int]
+        (nrows, ncols) of the full video field of view
+
+    mask: np.ndarray
+        2D array of booleans encoding the ROI's mask
+
+    Returns
+    -------
+    at_edge: boolean
+       True if there are any pixels marked 'True' in the extremal
+       edge of the thumbnail *and* there is room for the thumbnail
+       to grow beyond that extremal edge (i.e. if the origin is at
+       (0, 0) and there are True pixels in the first column, there
+       are no columns available to the left of the origin, so
+       return False). Return False otherwise.
+    """
+
+    shape = mask.shape
+
+    first_row = (origin[0] > 0) & mask[0, :].any()
+    last_row = (origin[0]+shape[0] < fov_shape[0]) & mask[-1, :].any()
+    first_col = (origin[1] > 0) & mask[:, 0].any()
+    last_col = (origin[1]+shape[1] < fov_shape[1]) & mask[:, -1].any()
+
+    return first_row | last_row | first_col | last_col
 
 
 def convert_to_lims_roi(origin: Tuple[int, int],
@@ -249,6 +289,10 @@ class FeatureVectorSegmenter(object):
         appended to self.roi_list.
         """
 
+        # in case we end up retrying ROIs, make sure we can
+        # grow their available thumbnails
+        seed_to_slop = dict()
+
         # NOTE: we should rewrite run() and _run() so that they can
         # use the parallel seed iterator like
         # ```
@@ -256,12 +300,30 @@ class FeatureVectorSegmenter(object):
         #     <farm out processes>
         # ```
         # for now:
-        try:
-            seed_list = next(self.seeder)
-        except StopIteration:
-            seed_list = []
 
-        slop = 20
+        if len(self.roi_to_retry) > 0:
+            # if there are ROIs from a previous iteration that filled
+            # their thumbnail, try those again first with a larger
+            # thumbnail
+            seed_list = []
+            for roi in self.roi_to_retry:
+                seed_list.append(roi['seed'])
+                seed_to_slop[roi['seed']] = 3*roi['slop']//2
+
+            self.roi_to_retry = []
+        else:
+            # run with new seeds from the seeder
+            try:
+                seed_list = next(self.seeder)
+            except StopIteration:
+                seed_list = []
+
+        default_slop = 20
+        max_slop = 40
+
+        # lookup from ROI ID to seed and size of ROI
+        # thumbnail
+        roi_inputs = dict()
 
         logger.info(f'got {len(seed_list)} seeds')
 
@@ -272,6 +334,11 @@ class FeatureVectorSegmenter(object):
         mgr_dict = mgr.dict()
         for i_seed, seed in enumerate(seed_list):
             self.roi_id += 1
+            slop = seed_to_slop.get(seed, default_slop)
+
+            roi_inputs[self.roi_id] = {'seed': seed,
+                                       'slop': slop}
+
             r0 = int(max(0, seed[0] - slop))
             r1 = int(min(self.movie_shape[0], seed[0] + slop))
             c0 = int(max(0, seed[1] - slop))
@@ -319,10 +386,18 @@ class FeatureVectorSegmenter(object):
         for roi_id in mgr_dict:
             origin = mgr_dict[roi_id][0]
             mask = mgr_dict[roi_id][1]
+            at_edge = _is_roi_at_edge(origin,
+                                      video_data.shape[1:],
+                                      mask)
+            if at_edge and roi_inputs[roi_id]['slop'] < max_slop:
+                self.roi_to_retry.append(roi_inputs[roi_id])
+                continue
+
             roi = convert_to_lims_roi(origin,
                                       mask,
                                       roi_id=roi_id)
-            self.roi_list.append(roi)
+            if mask.sum() > 1:
+                self.roi_list.append(roi)
             for ir in range(mask.shape[0]):
                 rr = origin[0]+ir
                 for ic in range(mask.shape[1]):
@@ -383,6 +458,9 @@ class FeatureVectorSegmenter(object):
         and continue.
         """
 
+        # list to keep track of ROIs that fill their thumbnail
+        self.roi_to_retry = []
+
         t0 = time.time()
 
         img_data = graph_to_img(self._graph_input,
@@ -422,10 +500,15 @@ class FeatureVectorSegmenter(object):
                 break
 
             duration = time.time()-t0
+            n_valid_pix = 0
+            for roi in self.roi_list:
+                m = np.array(roi['mask'])
+                n_valid_pix += m.sum()
 
             msg = f'Completed iteration with {len(roi_seeds)} ROIs '
             msg += f'after {duration:.2f} seconds; '
-            msg += f'{self.roi_pixels.sum()} total ROI pixels'
+            msg += f'{self.roi_pixels.sum()} total ROI pixels; '
+            msg += f'{len(self.roi_list)} valid ROIs ({n_valid_pix}) pixels'
             logger.info(msg)
 
             if seed_output is not None:

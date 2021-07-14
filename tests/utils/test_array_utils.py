@@ -117,3 +117,16 @@ def test_downsample_exceptions(array, input_fps, output_fps, random_seed,
 def test_normalize_array(array, lower_cutoff, upper_cutoff, expected):
     normalized = au.normalize_array(array, lower_cutoff, upper_cutoff)
     np.testing.assert_array_equal(normalized, expected)
+
+
+def test_pairwise_distance():
+    rng = np.random.default_rng(77123)
+    data = rng.random((20, 72))
+    distances = au.pairwise_distances(data)
+    assert distances.shape == (20, 20)
+    eps = 1.0e-20
+    for ii in range(20):
+        for jj in range(ii, 20, 1):
+            expected = np.sqrt(np.sum((data[ii, :] - data[jj, :])**2))
+            assert np.abs((expected-distances[ii, jj])/(eps+expected)) < 1.0e-6
+            assert np.abs((expected-distances[jj, ii])/(eps+expected)) < 1.0e-6

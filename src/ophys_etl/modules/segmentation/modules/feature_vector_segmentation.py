@@ -30,6 +30,7 @@ class FeatureVectorSegmentationRunner(argschema.ArgSchemaParser):
                 attribute=attr,
                 n_processors=n_processors,
                 roi_class=roi_class,
+                filter_fraction=self.args['filter_fraction'],
                 seeder_args=self.args['seeder_args'])
 
         if self.args['plot_output'] is not None:

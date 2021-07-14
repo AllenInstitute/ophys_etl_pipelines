@@ -1,8 +1,9 @@
 from typing import Optional, Tuple
-from scipy.spatial.distance import cdist
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
+
+from ophys_etl.utils.array_utils import pairwise_distances
 
 
 def choose_timesteps(
@@ -505,9 +506,7 @@ class PotentialROI(object):
                                      pixel_ignore=pixel_ignore,
                                      rng=rng)
 
-        self.feature_distances = cdist(features,
-                                       features,
-                                       metric='euclidean')
+        self.feature_distances = pairwise_distances(features)
 
     def select_pixels(self) -> bool:
         """
@@ -532,11 +531,11 @@ class PotentialROI(object):
 
         3) For every candidate pixel, find the n_roi background pixels that
         are closest to it in feature space (n_roi is the number of pixels
-        currently in the ROI). The median of these distances is the
-        candidate pixel's distance from the background.
+        currently in the ROI).
 
-        4) Any pixel whose background distance is more than twice its
-        ROI distance is added to the ROI
+        4) Any pixel whose distance to the ROI (from step (2)) has a z-score
+        of less than -2 relative to the distribution of its distances from
+        background pixels (from step (3)) is added to the ROI.
         """
         chose_one = False
 
@@ -552,9 +551,14 @@ class PotentialROI(object):
         # take the median of the n_roi nearest background distances;
         # hopefully this will limit the effect of outliers
         d_bckgd = np.sort(self.feature_distances[:, background_mask], axis=1)
-        d_bckgd = np.median(d_bckgd[:, :n_roi], axis=1)
+        if n_roi > 20:
+            d_bckgd = d_bckgd[:, :n_roi]
 
-        valid = d_bckgd > 2*d_roi
+        mu_d_bckgd = np.mean(d_bckgd, axis=1)
+        std_d_bckgd = np.std(d_bckgd, axis=1, ddof=1)
+        z_score = (d_roi-mu_d_bckgd)/std_d_bckgd
+
+        valid = z_score <= -2.0
         if valid.sum() > 0:
             self.roi_mask[valid] = True
 

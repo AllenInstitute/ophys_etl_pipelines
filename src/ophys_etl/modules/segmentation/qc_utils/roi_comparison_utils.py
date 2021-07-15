@@ -41,7 +41,6 @@ def find_iou_roi_matches(baseline_roi_list: List[OphysROI],
         'matched_baseline'
         'matched_test'
     """
-    print('finding matches')
 
     baseline = copy.deepcopy(baseline_roi_list)
     test = copy.deepcopy(test_roi_list)
@@ -65,7 +64,6 @@ def find_iou_roi_matches(baseline_roi_list: List[OphysROI],
         else:
             unmatched_baseline.append(baseline_roi)
 
-    print('done')
     return {'matched_test': matched_test,
             'matched_baseline': matched_baseline,
             'unmatched_test': test,

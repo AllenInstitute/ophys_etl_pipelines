@@ -93,3 +93,4 @@ workflows:
               only:
                 - main
                 - /.*dev.*/
+                - GH-268

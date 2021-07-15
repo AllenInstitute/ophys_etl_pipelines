@@ -251,8 +251,8 @@ def create_roi_v_background_grid(
     fontsize = 30
     figure = mplt_fig.Figure(figsize=(10*n_roi, 10*n_bckgd))
 
-    axes = [figure.add_subplot(n_bckgd, n_roi, ii)
-            for ii in range(1, 1+n_bckgd*n_roi, 1)]
+    axes = [figure.add_subplot(n_bckgd, n_roi+1, ii)
+            for ii in range(1, 1+n_bckgd*(n_roi+1), 1)]
 
     roi_lists = []
     for this_roi_path in roi_path:
@@ -282,11 +282,19 @@ def create_roi_v_background_grid(
         background_array = background_rgb
         del background_rgb
 
+        axis = axes[i_bckgd*(n_roi+1)]
+        img = background_array
+        axis.imshow(img)
+        for ii in range(0, img.shape[0], img.shape[0]//4):
+            axis.axhline(ii, color='w', alpha=0.25)
+        for ii in range(0, img.shape[1], img.shape[1]//4):
+            axis.axvline(ii, color='w', alpha=0.25)
+
         for i_roi in range(n_roi):
             i_color = i_roi%len(color_list)
             this_color = color_list[i_color]
             this_roi = roi_lists[i_roi]
-            axis = axes[i_bckgd*n_roi+i_roi]
+            axis = axes[i_bckgd*(n_roi+1)+i_roi+1]
             if i_bckgd == 0:
                 axis.set_title(roi_names[i_roi], fontsize=fontsize)
             img = add_roi_boundaries_to_img(background_array,

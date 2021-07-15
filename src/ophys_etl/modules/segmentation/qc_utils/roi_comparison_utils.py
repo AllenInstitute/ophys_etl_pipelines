@@ -192,10 +192,12 @@ def create_roi_summary_fig(
                                            fontsize=fontsize)
         axes[2*n_columns+i_column].imshow(matches_img)
         axes[2*n_columns+i_column].set_title(
-                 f'matches at iou={iou_threshold:.2f}', fontsize=fontsize)
+                 f'{roi_name} matches at iou={iou_threshold:.2f}',
+                 fontsize=fontsize)
         axes[3*n_columns+i_column].imshow(misses_img)
         axes[3*n_columns+i_column].set_title(
-                f'misses at iou={iou_threshold:.2f}', fontsize=fontsize)
+                f'{roi_name} misses at iou={iou_threshold:.2f}',
+                fontsize=fontsize)
 
     for ii in range(0,
                     background_array.shape[0],

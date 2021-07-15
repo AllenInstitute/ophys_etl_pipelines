@@ -249,7 +249,7 @@ def create_roi_v_background_grid(
     n_bckgd = len(background_path)  # rows
     n_roi = len(roi_path)    # columns
     fontsize = 30
-    figure = mplt_fig.Figure(figsize=(10*n_roi, 10*n_bckgd))
+    figure = mplt_fig.Figure(figsize=(10*(n_roi+1), 10*n_bckgd))
 
     axes = [figure.add_subplot(n_bckgd, n_roi+1, ii)
             for ii in range(1, 1+n_bckgd*(n_roi+1), 1)]

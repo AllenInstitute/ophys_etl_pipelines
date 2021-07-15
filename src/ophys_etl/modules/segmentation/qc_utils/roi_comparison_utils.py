@@ -215,6 +215,7 @@ def create_roi_summary_fig(
 
 def create_roi_v_background_grid(
         background_path: Union[pathlib.Path, List[pathlib.Path]],
+        background_names: Union[str, List[str]],
         roi_path: Union[pathlib.Path, List[pathlib.Path]],
         roi_names: Union[str, List[str]],
         attribute_name: str = 'filtered_hnc_Gaussian') -> mplt_fig.Figure:
@@ -245,6 +246,7 @@ def create_roi_v_background_grid(
 
     if isinstance(background_path, pathlib.Path):
         background_path = [background_path]
+        background_names = [background_names]
 
     n_bckgd = len(background_path)  # rows
     n_roi = len(roi_path)    # columns
@@ -285,6 +287,7 @@ def create_roi_v_background_grid(
         axis = axes[i_bckgd*(n_roi+1)]
         img = background_array
         axis.imshow(img)
+        axis.set_title(background_names[i_bckgd], fontsize=fontsize)
         for ii in range(0, img.shape[0], img.shape[0]//4):
             axis.axhline(ii, color='w', alpha=0.25)
         for ii in range(0, img.shape[1], img.shape[1]//4):

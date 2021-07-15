@@ -272,9 +272,15 @@ def create_roi_v_background_grid(
             raise RuntimeError('Do not know how to parse background image file '
                                f'{this_bckgd}; must be either .png or .pkl')
 
+        if this_bckgd.suffix == '.png':
+            qtiles = np.quantile(background_array, (0.1, 0.999))
+        else:
+            qtiles = (0, background_array.max())
         background_array = scale_video_to_uint8(background_array,
-                                                0,
-                                                background_array.max())
+                                                qtiles[0],
+                                                qtiles[1])
+                                                #0,
+                                                #background_array.max())
 
         background_rgb = np.zeros((background_array.shape[0],
                                    background_array.shape[1],

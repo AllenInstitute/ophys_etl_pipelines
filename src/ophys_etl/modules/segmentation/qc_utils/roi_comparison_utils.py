@@ -159,10 +159,6 @@ def create_roi_summary_fig(
                                                    these_roi,
                                                    color=this_color,
                                                    alpha=1.0)
-        both_img = add_roi_boundaries_to_img(baseline_img,
-                                             these_roi,
-                                             color=this_color,
-                                             alpha=1.0)
 
         matches_img = add_roi_boundaries_to_img(
                           background_array,
@@ -191,8 +187,8 @@ def create_roi_summary_fig(
         axes[i_column].imshow(just_these_img)
         axes[i_column].set_title(roi_name,
                                  fontsize=fontsize)
-        axes[n_columns+i_column].imshow(both_img)
-        axes[n_columns+i_column].set_title('plotted over baseline',
+        axes[n_columns+i_column].imshow(baseline_img)
+        axes[n_columns+i_column].set_title('baseline',
                                            fontsize=fontsize)
         axes[2*n_columns+i_column].imshow(matches_img)
         axes[2*n_columns+i_column].set_title(

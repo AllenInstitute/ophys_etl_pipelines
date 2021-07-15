@@ -90,6 +90,24 @@ def create_roi_summary_fig(
         attribute_name: str = 'filtered_hnc_Gaussian') -> mplt_fig.Figure:
 
 
+    if isinstance(test_roi_path, pathlib.Path):
+        test_roi_path = [test_roi_path]
+        if not isinstance(test_roi_names, str):
+            raise RuntimeError('test_roi_path was a single path; '
+                               'test_roi_names must be a single str; '
+                               f'got {test_roi_names} instead')
+        test_roi_names = [test_roi_names]
+    elif not isinstance(test_roi_names, list):
+        raise RuntimeError('You passed in a list of ROI paths, but '
+                           f'test_roi_names is {test_roi_names} '
+                           f'of type {type(test_roi_names)}. '
+                           'This must also be a list.')
+
+    if len(test_roi_names) != len(test_roi_path):
+        raise RuntimeError(f'{len(test_roi_path)} roi paths, but '
+                           f'{len(test_roi_names)} roi names. '
+                           'These numbers must be equal.')
+
     if background_path.suffix == '.png':
         background_array = np.array(PIL.Image.open(background_path, 'r'))
     elif background_path.suffix == '.pkl':
@@ -110,10 +128,6 @@ def create_roi_summary_fig(
         background_rgb[:, :, ic] = background_array
     background_array = background_rgb
     del background_rgb
-
-    if isinstance(test_roi_path, pathlib.Path):
-        test_roi_path = [test_roi_path]
-        test_roi_names = [test_roi_names]
 
     n_columns = len(test_roi_path)
     n_rows = 4

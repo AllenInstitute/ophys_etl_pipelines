@@ -115,7 +115,7 @@ def create_roi_summary_fig(
                                         attribute_name=attribute_name)
     else:
         raise RuntimeError('Do not know how to parse background image file '
-                           f'{background}; must be either .png or .pkl')
+                           f'{background_path}; must be either .png or .pkl')
 
     background_array = scale_video_to_uint8(background_array,
                                             0,
@@ -209,5 +209,96 @@ def create_roi_summary_fig(
                     background_array.shape[1]//4):
         for ax in axes:
             ax.axvline(ii, color='w', alpha=0.25)
+    figure.tight_layout()
+    return figure
+
+
+def create_roi_v_background_grid(
+        background_path: Union[pathlib.Path, List[pathlib.Path]],
+        roi_path: Union[pathlib.Path, List[pathlib.Path]],
+        roi_names: Union[str, List[str]],
+        attribute_name: str = 'filtered_hnc_Gaussian') -> mplt_fig.Figure:
+
+    color_list = ((255, 0, 0),
+                  (0, 255, 0),
+                  (255, 128, 0),
+                  (51, 255, 255),
+                  (255, 51, 255))
+
+    if isinstance(roi_path, pathlib.Path):
+        roi_path = [roi_path]
+        if not isinstance(roi_names, str):
+            raise RuntimeError('roi_path was a single path; '
+                               'roi_names must be a single str; '
+                               f'got {roi_names} instead')
+        roi_names = [roi_names]
+    elif not isinstance(roi_names, list):
+        raise RuntimeError('You passed in a list of ROI paths, but '
+                           f'roi_names is {roi_names} '
+                           f'of type {type(roi_names)}. '
+                           'This must also be a list.')
+
+    if len(roi_names) != len(roi_path):
+        raise RuntimeError(f'{len(roi_path)} roi paths, but '
+                           f'{len(roi_names)} roi names. '
+                           'These numbers must be equal.')
+
+    if isinstance(background_path, pathlib.Path):
+        background_path = [background_path]
+
+    n_bckgd = len(background_path)  # rows
+    n_roi = len(roi_path)    # columns
+    fontsize = 30
+    figure = mplt_fig.Figure(figsize=(10*n_roi, 10*n_bckgd))
+
+    axes = [figure.add_subplot(n_bckgd, n_roi, ii)
+            for ii in range(1, 1+n_bckgd*n_roi, 1)]
+
+    roi_lists = []
+    for this_roi_path in roi_path:
+        roi = read_roi_list(this_roi_path)
+        roi_lists.append(roi)
+
+    for i_bckgd in range(n_bckgd):
+        this_bckgd = background_path[i_bckgd]
+        if this_bckgd.suffix == '.png':
+            background_array = np.array(PIL.Image.open(this_bckgd, 'r'))
+        elif this_bckgd.suffix == '.pkl':
+            background_array = graph_to_img(this_bckgd,
+                                            attribute_name=attribute_name)
+        else:
+            raise RuntimeError('Do not know how to parse background image file '
+                               f'{this_bckgd}; must be either .png or .pkl')
+
+        background_array = scale_video_to_uint8(background_array,
+                                                0,
+                                                background_array.max())
+
+        background_rgb = np.zeros((background_array.shape[0],
+                                   background_array.shape[1],
+                                   3), dtype=np.uint8)
+        for ic in range(3):
+            background_rgb[:, :, ic] = background_array
+        background_array = background_rgb
+        del background_rgb
+
+        for i_roi in range(n_roi):
+            i_color = i_roi%len(color_list)
+            this_color = color_list[i_color]
+            this_roi = roi_lists[i_roi]
+            axis = axes[i_bckgd*n_roi+i_roi]
+            if i_bckgd == 0:
+                axis.set_title(roi_names[i_roi], fontsize=fontsize)
+            img = add_roi_boundaries_to_img(background_array,
+                                            this_roi,
+                                            color=this_color,
+                                            alpha=1.0)
+
+            axis.imshow(img)
+            for ii in range(0, img.shape[0], img.shape[0]//4):
+                axis.axhline(ii, color='w', alpha=0.25)
+            for ii in range(0, img.shape[1], img.shape[1]//4):
+                axis.axvline(ii, color='w', alpha=0.25)
+
     figure.tight_layout()
     return figure

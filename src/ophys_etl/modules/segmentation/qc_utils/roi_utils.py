@@ -59,12 +59,15 @@ def add_roi_boundaries_to_img(img: np.ndarray,
         New image with ROI borders superimposed
     """
 
+    new_img = np.copy(img)
+    if len(roi_list) == 0:
+        return new_img
+
     if not isinstance(roi_list[0], OphysROI):
         roi_list = convert_keys(roi_list)
         roi_list = [OphysROI.from_schema_dict(roi)
                     for roi in roi_list]
 
-    new_img = np.copy(img)
     for roi in roi_list:
         bdry = roi.boundary_mask
         for icol in range(roi.width):

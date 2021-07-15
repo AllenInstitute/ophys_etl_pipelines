@@ -87,6 +87,7 @@ def create_roi_summary_fig(
         background_path: pathlib.Path,
         baseline_roi_path: pathlib.Path,
         test_roi_path: Union[pathlib.Path, List[pathlib.Path]],
+        test_roi_names: Union[str, List[str]],
         iou_threshold: float,
         attribute_name: str = 'filtered_hnc_Gaussian') -> mplt_fig.Figure:
 
@@ -114,11 +115,12 @@ def create_roi_summary_fig(
 
     if isinstance(test_roi_path, pathlib.Path):
         test_roi_path = [test_roi_path]
+        test_roi_names = [test_roi_names]
 
     n_columns = len(test_roi_path)
     n_rows = 4
 
-    fontsize = 20
+    fontsize = 30
     figure = mplt_fig.Figure(figsize=(10*n_columns, 10*n_rows))
     axes = [figure.add_subplot(n_rows, n_columns, ii)
             for ii in range(1, 1+n_rows*n_columns, 1)]
@@ -133,7 +135,8 @@ def create_roi_summary_fig(
                                              color=baseline_color,
                                              alpha=1.0)
 
-    for i_column, roi_path in enumerate(test_roi_path):
+    for i_column, (roi_path, roi_name) in enumerate(zip(test_roi_path,
+                                                        test_roi_names)):
         these_roi = read_roi_list(roi_path)
 
         comparison = find_iou_roi_matches(baseline_roi,
@@ -174,7 +177,11 @@ def create_roi_summary_fig(
                          alpha=1.0)
 
         axes[i_column].imshow(just_these_img)
+        axes[i_column].set_title(roi_name,
+                                 fontsize=fontsize)
         axes[n_columns+i_column].imshow(both_img)
+        axes[n_columns+i_column].set_title('plotted over baseline',
+                                           fontsize=fontsize)
         axes[2*n_columns+i_column].imshow(matches_img)
         axes[2*n_columns+i_column].set_title(
                  f'matches at iou={iou_threshold:.2f}', fontsize=fontsize)

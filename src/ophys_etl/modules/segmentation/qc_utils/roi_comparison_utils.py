@@ -220,8 +220,7 @@ def create_roi_v_background_grid(
         roi_names: Union[str, List[str]],
         attribute_name: str = 'filtered_hnc_Gaussian') -> mplt_fig.Figure:
 
-    color_list = ((255, 0, 0),
-                  (0, 255, 0),
+    color_list = ((0, 255, 0),
                   (255, 128, 0),
                   (51, 255, 255),
                   (255, 51, 255))

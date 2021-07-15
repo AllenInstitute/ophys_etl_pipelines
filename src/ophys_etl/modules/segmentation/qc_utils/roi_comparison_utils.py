@@ -189,7 +189,6 @@ def create_roi_summary_fig(
         axes[3*n_columns+i_column].set_title(
                 f'misses at iou={iou_threshold:.2f}', fontsize=fontsize)
 
-
     for ii in range(0,
                     background_array.shape[0],
                     background_array.shape[0]//4):

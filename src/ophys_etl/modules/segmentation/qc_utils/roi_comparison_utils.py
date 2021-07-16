@@ -20,7 +20,7 @@ from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     scale_video_to_uint8)
 
 
-def read_roi_list(file_path: pathlib.Path) -> List[OphysROI]:
+def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
     output_list = []
     with open(file_path, 'rb') as in_file:
         roi_data_list = json.load(in_file)
@@ -75,7 +75,7 @@ def create_roi_v_background_grid(
 
     roi_lists = []
     for this_roi_path in roi_path:
-        roi = read_roi_list(this_roi_path)
+        roi = roi_list_from_file(this_roi_path)
         roi_lists.append(roi)
 
     for i_bckgd in range(n_bckgd):

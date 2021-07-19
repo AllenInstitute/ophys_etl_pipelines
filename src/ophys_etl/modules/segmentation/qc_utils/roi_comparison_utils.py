@@ -20,6 +20,23 @@ from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     scale_video_to_uint8)
 
 
+def _validate_paths_v_names(
+        paths: Union[pathlib.Path, List[pathlib.Path]],
+        names: Union[str, List[str]]) -> Tuple[List[pathlib.Path],
+                                               List[str]]:
+
+    if isinstance(paths, pathlib.Path):
+        paths = [paths]
+    if isinstance(names, str):
+        names = [str]
+
+    if len(paths) != len(names):
+        msg = f'paths: {paths}\n'
+        msg += f'names: {names}\n'
+        msg += 'These must be the same shape'
+        raise RuntimeError(msg)
+    return paths, names
+
 def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
     output_list = []
     with open(file_path, 'rb') as in_file:
@@ -39,27 +56,13 @@ def create_roi_v_background_grid(
         color_list: List[Tuple[int, int, int]],
         attribute_name: str = 'filtered_hnc_Gaussian') -> mplt_fig.Figure:
 
-    if isinstance(roi_paths, pathlib.Path):
-        roi_paths = [roi_paths]
-        if not isinstance(roi_names, str):
-            raise RuntimeError('roi_paths was a single path; '
-                               'roi_names must be a single str; '
-                               f'got {roi_names} instead')
-        roi_names = [roi_names]
-    elif not isinstance(roi_names, list):
-        raise RuntimeError('You passed in a list of ROI paths, but '
-                           f'roi_names is {roi_names} '
-                           f'of type {type(roi_names)}. '
-                           'This must also be a list.')
+    (roi_paths,
+     roi_names) = _validate_paths_v_names(roi_paths,
+                                          roi_names)
 
-    if len(roi_names) != len(roi_paths):
-        raise RuntimeError(f'{len(roi_paths)} roi paths, but '
-                           f'{len(roi_names)} roi names. '
-                           'These numbers must be equal.')
-
-    if isinstance(background_paths, pathlib.Path):
-        background_paths = [background_paths]
-        background_names = [background_names]
+    (background_paths,
+     background_names) = _validate_paths_v_names(background_paths,
+                                                 background_names)
 
     n_bckgd = len(background_paths)  # rows
     n_roi = len(roi_paths)    # columns

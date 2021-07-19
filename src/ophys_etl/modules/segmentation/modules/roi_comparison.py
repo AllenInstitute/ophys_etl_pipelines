@@ -63,7 +63,6 @@ class ROIComparisonEngine(argschema.ArgSchemaParser):
 
         roi_paths = [pathlib.Path(p)
                      for p in self.args['roi_paths']]
-               
 
         fig = create_roi_v_background_grid(
                     bckgd_paths,

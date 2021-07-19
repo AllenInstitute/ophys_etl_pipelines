@@ -27,7 +27,7 @@ class ROIBaseFilter(ABC):
                               y0=roi.y0,
                               height=roi.height,
                               width=roi.width,
-                              mask=roi.mask_matrix,
+                              mask_matrix=roi.mask_matrix,
                               roi_id=roi.roi_id,
                               valid_roi=False)
                 invalid_roi.append(new_roi)
@@ -47,8 +47,8 @@ class ROIBaseFilter(ABC):
 class ROIAreaFilter(ROIBaseFilter):
 
     def __init__(self,
-                 max_area: Optional[int] = None,
-                 min_area: Optional[int] = None):
+                 min_area: Optional[int] = None,
+                 max_area: Optional[int] = None):
 
         self._reason = 'area'.encode('utf-8')
 

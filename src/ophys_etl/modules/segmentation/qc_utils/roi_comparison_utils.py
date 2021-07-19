@@ -24,6 +24,31 @@ def _validate_paths_v_names(
         paths: Union[pathlib.Path, List[pathlib.Path]],
         names: Union[str, List[str]]) -> Tuple[List[pathlib.Path],
                                                List[str]]:
+    """
+    Validate that you have passed in the same number of file paths
+    and plot names, casting them into lists if they are not already.
+
+    Parameters
+    ----------
+    paths: Union[pathlib.Path, List[pathlib.Path]]
+
+    names: Union[str, List[str]]
+
+    Returns
+    -------
+    path_list: List[pathlib.Path]
+
+    name_list: List[str]
+
+    Notes
+    -----
+    The outputs will be single element lists if the inputs
+    are singletons
+
+    Raises
+    ------
+    RuntimeError if the number of paths and names are mismatched
+    """
 
     if isinstance(paths, pathlib.Path):
         paths = [paths]
@@ -39,6 +64,18 @@ def _validate_paths_v_names(
 
 
 def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
+    """
+    Read in a JSONized file of ExtractROIs; return a list of
+    OphysROIs
+
+    Parameters
+    ----------
+    file_path: pathlib.Path
+
+    Returns
+    -------
+    List[OphysROI]
+    """
     output_list = []
     with open(file_path, 'rb') as in_file:
         roi_data_list = json.load(in_file)
@@ -56,6 +93,52 @@ def create_roi_v_background_grid(
         roi_names: Union[str, List[str]],
         color_list: List[Tuple[int, int, int]],
         attribute_name: str = 'filtered_hnc_Gaussian') -> mplt_fig.Figure:
+    """
+    Create a plot showing a set of ROIs overlaid over a set of
+    different background images. In the final plot, each distinct
+    background image will be a different row of subplots and each
+    distinct set of ROIs will be a diferent column of subplots.
+
+    Parameters
+    ----------
+    background_paths: Union[pathlib.Path, List[pathlib.Path]]
+        Path(s) to file(s) containing background images. May be either
+        PNG images or pkl files containing networkx graphs
+
+    background_names: Union[str, List[str]]
+       The names of the backgrounds as they will appear in the plot
+       (there must be an equal number of background_names as
+       background_paths)
+
+    roi_paths: Union[pathlib.Path, List[pathlib.Path]]
+        Path(s) to file(s) containing JSONized ROIs
+
+    roi_names: Union[str, List[str]]
+        The names of the ROI sets as they will appear in te plot
+        (there must be an equal number of roi_names as roi_paths)
+
+    color_list: List[Tuple[int, int, in]]
+        List of RGB color tuples to cycle through when plotting
+        ROIs. The number of colors does not have to match the
+        number of ROI sets; the code will just cycle through
+        the list of provided colors.
+
+    attribute_name: str
+        The name of the attribute to use in constructing the background
+        image from a networkx graph, if applicable.
+        Default: 'filtered_hnc_Gaussian'
+
+    Returns
+    -------
+    matplotlib.figure.Figure
+
+    Raises
+    ------
+    RuntimeError if number of paths and names mismatch, either for ROIs
+    or backgrounds.
+
+    RuntimeError if a background_path does not end in '.png' or '.pkl'
+    """
 
     (roi_paths,
      roi_names) = _validate_paths_v_names(roi_paths,

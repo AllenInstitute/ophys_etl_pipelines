@@ -182,7 +182,7 @@ def convert_to_lims_roi(origin: Tuple[int, int],
                      y=int(origin[0]+row0),
                      width=int(col1-col0),
                      height=int(row1-row0),
-                     valid=False,
+                     valid=True,
                      mask=[i.tolist() for i in new_mask])
     return roi
 

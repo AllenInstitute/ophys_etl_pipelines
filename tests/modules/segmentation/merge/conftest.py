@@ -102,6 +102,20 @@ def roi_and_video_dataset():
                                valid_roi=True)
                 roi_list.append(roi)
 
+    # add invalid ROIs to make sure they are ignored by merger
+    for roi_id in range(-1, -10, -1):
+        x0 = rng.randint(0, 25)
+        y0 = rng.randint(0, 25)
+        height = rng.randint(3, 7)
+        width = rng.randint(3, 7)
+        mask = rng.randint(0, 2, (height, width)).astype(bool)
+        roi = OphysROI(x0=x0, y0=y0,
+                       height=height, width=width,
+                       mask_matrix=mask,
+                       roi_id=roi_id,
+                       valid_roi=False)
+        roi_list.append(roi)
+
     return {'video': video, 'roi_list': roi_list}
 
 

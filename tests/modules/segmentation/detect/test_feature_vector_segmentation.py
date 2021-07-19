@@ -41,7 +41,7 @@ def seeder_args():
           width=2,
           height=2,
           mask=[[True, False], [False, True]],
-          valid=False)
+          valid=True)
       )
     ])
 def test_roi_converter(origin, mask, expected):
@@ -110,10 +110,12 @@ def test_segmenter(tmpdir, example_graph, example_video, seeder_args):
     assert qc_path.is_file()
     assert plot_path.is_file()
 
-    # check that some ROIs got written
+    # check that all ROIs are marked as valid
     with open(roi_path, 'rb') as in_file:
         roi_data = json.load(in_file)
     assert len(roi_data) > 0
+    for roi in roi_data:
+        assert roi['valid']
 
     # test that it can handle not receiving a
     # qc_path or plot_path
@@ -132,6 +134,14 @@ def test_segmenter(tmpdir, example_graph, example_video, seeder_args):
     assert roi_path.is_file()
     assert qc_path.exists()
     assert not plot_path.exists()
+
+    # Not going to re-do the check on the contents
+    # of roi_path, since the file is likely to be
+    # empty. The segmenter carries a state that helps
+    # it avoid doubling back and discovering ROIs that
+    # it has already discovered. Since we have not
+    # reset that state since the last run, no ROIs
+    # will be found.
 
 
 def test_segmenter_blank(tmpdir, blank_graph, blank_video, seeder_args):

@@ -37,6 +37,7 @@ def _validate_paths_v_names(
         raise RuntimeError(msg)
     return paths, names
 
+
 def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
     output_list = []
     with open(file_path, 'rb') as in_file:

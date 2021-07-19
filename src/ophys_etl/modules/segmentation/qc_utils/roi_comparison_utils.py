@@ -32,9 +32,9 @@ def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
 
 
 def create_roi_v_background_grid(
-        background_path: Union[pathlib.Path, List[pathlib.Path]],
+        background_paths: Union[pathlib.Path, List[pathlib.Path]],
         background_names: Union[str, List[str]],
-        roi_path: Union[pathlib.Path, List[pathlib.Path]],
+        roi_paths: Union[pathlib.Path, List[pathlib.Path]],
         roi_names: Union[str, List[str]],
         attribute_name: str = 'filtered_hnc_Gaussian') -> mplt_fig.Figure:
 
@@ -43,10 +43,10 @@ def create_roi_v_background_grid(
                   (51, 255, 255),
                   (255, 51, 255))
 
-    if isinstance(roi_path, pathlib.Path):
-        roi_path = [roi_path]
+    if isinstance(roi_paths, pathlib.Path):
+        roi_paths = [roi_paths]
         if not isinstance(roi_names, str):
-            raise RuntimeError('roi_path was a single path; '
+            raise RuntimeError('roi_paths was a single path; '
                                'roi_names must be a single str; '
                                f'got {roi_names} instead')
         roi_names = [roi_names]
@@ -56,17 +56,17 @@ def create_roi_v_background_grid(
                            f'of type {type(roi_names)}. '
                            'This must also be a list.')
 
-    if len(roi_names) != len(roi_path):
-        raise RuntimeError(f'{len(roi_path)} roi paths, but '
+    if len(roi_names) != len(roi_paths):
+        raise RuntimeError(f'{len(roi_paths)} roi paths, but '
                            f'{len(roi_names)} roi names. '
                            'These numbers must be equal.')
 
-    if isinstance(background_path, pathlib.Path):
-        background_path = [background_path]
+    if isinstance(background_paths, pathlib.Path):
+        background_paths = [background_paths]
         background_names = [background_names]
 
-    n_bckgd = len(background_path)  # rows
-    n_roi = len(roi_path)    # columns
+    n_bckgd = len(background_paths)  # rows
+    n_roi = len(roi_paths)    # columns
     fontsize = 30
     figure = mplt_fig.Figure(figsize=(10*(n_roi+1), 10*n_bckgd))
 
@@ -74,12 +74,12 @@ def create_roi_v_background_grid(
             for ii in range(1, 1+n_bckgd*(n_roi+1), 1)]
 
     roi_lists = []
-    for this_roi_path in roi_path:
-        roi = roi_list_from_file(this_roi_path)
+    for this_roi_paths in roi_paths:
+        roi = roi_list_from_file(this_roi_paths)
         roi_lists.append(roi)
 
     for i_bckgd in range(n_bckgd):
-        this_bckgd = background_path[i_bckgd]
+        this_bckgd = background_paths[i_bckgd]
         if this_bckgd.suffix == '.png':
             background_array = np.array(PIL.Image.open(this_bckgd, 'r'))
         elif this_bckgd.suffix == '.pkl':

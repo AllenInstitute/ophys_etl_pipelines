@@ -230,6 +230,16 @@ def test_create_roi_v_background(tmpdir, background_png, background_pkl, roi_fil
             [(255, 0, 0), (0, 255, 0)],
             attribute_name='dummy_value')
 
+    # test that error is raised when an unknown background file type
+    # is passed in
+    with pytest.raises(RuntimeError, match='must be either .png or .pkl'):
+        create_roi_v_background_grid(
+                [background_png, pathlib.Path('dummy.jpg')],
+                ['png', 'junk'],
+                [roi_file],
+                ['a'],
+                [(255, 0, 0), (0, 255, 0)],
+                attribute_name='dummy_value')
 
     # test that errors are raised when paths and shapes are of
     # mismatched sizes

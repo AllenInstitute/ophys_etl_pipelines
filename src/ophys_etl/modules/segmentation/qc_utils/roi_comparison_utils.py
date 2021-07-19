@@ -1,4 +1,4 @@
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Tuple
 import matplotlib.figure as mplt_fig
 import pathlib
 import numpy as np
@@ -36,12 +36,8 @@ def create_roi_v_background_grid(
         background_names: Union[str, List[str]],
         roi_paths: Union[pathlib.Path, List[pathlib.Path]],
         roi_names: Union[str, List[str]],
+        color_list: List[Tuple[int, int, int]],
         attribute_name: str = 'filtered_hnc_Gaussian') -> mplt_fig.Figure:
-
-    color_list = ((0, 255, 0),
-                  (255, 128, 0),
-                  (51, 255, 255),
-                  (255, 51, 255))
 
     if isinstance(roi_paths, pathlib.Path):
         roi_paths = [roi_paths]

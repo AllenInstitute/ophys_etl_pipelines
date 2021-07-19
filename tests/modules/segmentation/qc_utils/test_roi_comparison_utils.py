@@ -12,7 +12,8 @@ from ophys_etl.modules.segmentation.merge.roi_utils import (
     ophys_roi_to_extract_roi)
 
 from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import (
-    roi_list_from_file)
+    roi_list_from_file,
+    _validate_paths_v_names)
 
 
 @pytest.fixture(scope='session')
@@ -63,3 +64,55 @@ def test_roi_list_from_file(roi_file, list_of_roi):
     actual = [ophys_roi_to_extract_roi(roi)
               for roi in raw_actual]
     assert actual == list_of_roi
+
+
+
+@pytest.mark.parametrize(
+        'path_input, name_input, path_expected, name_expected, is_valid',
+        [# mismatch
+         (pathlib.Path('a/path.txt'), ['a', 'b'], None, None, False),
+
+         # mismatch
+         ([pathlib.Path('a/path.txt'), pathlib.Path('b/path.txt')],
+          'a', None, None, False),
+
+         # two singletons
+         (pathlib.Path('a/path.txt'), 'a', [pathlib.Path('a/path.txt')], ['a'], True),
+
+         # two lists
+         ([pathlib.Path('a/path.txt'), pathlib.Path('b/path.txt')],
+          ['a', 'b'],
+          [pathlib.Path('a/path.txt'), pathlib.Path('b/path.txt')],
+          ['a', 'b'],
+          True),
+
+         # singleton and list
+         ([pathlib.Path('a/path.txt')],
+          'a',
+          [pathlib.Path('a/path.txt')],
+          ['a'],
+          True),
+
+         # reverse singleton and list
+         (pathlib.Path('a/path.txt'),
+          ['a'],
+          [pathlib.Path('a/path.txt')],
+          ['a'],
+          True),
+        ])
+def test_validate_paths_v_names(path_input, name_input,
+                                path_expected, name_expected,
+                                is_valid):
+
+    if not is_valid:
+        with pytest.raises(RuntimeError, match='These must be the same shape'):
+            _validate_paths_v_names(path_input,
+                                    name_input)
+
+    else:
+        (path_output,
+         name_output) = _validate_paths_v_names(path_input,
+                                                name_input)
+
+        assert path_expected == path_output
+        assert name_expected == name_output

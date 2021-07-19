@@ -28,7 +28,7 @@ def _validate_paths_v_names(
     if isinstance(paths, pathlib.Path):
         paths = [paths]
     if isinstance(names, str):
-        names = [str]
+        names = [names]
 
     if len(paths) != len(names):
         msg = f'paths: {paths}\n'

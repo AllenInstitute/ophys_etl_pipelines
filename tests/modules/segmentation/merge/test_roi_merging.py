@@ -168,6 +168,7 @@ def test_do_roi_merger(roi_and_video_dataset):
     """
     smoke test for do_roi_merger
     """
+
     img_data = np.mean(roi_and_video_dataset['video'], axis=0)
     assert img_data.shape == roi_and_video_dataset['video'].shape[1:]
     new_roi_list = do_roi_merger(roi_and_video_dataset['roi_list'],
@@ -179,6 +180,26 @@ def test_do_roi_merger(roi_and_video_dataset):
     # test that some mergers were performed
     assert len(new_roi_list) > 0
     assert len(new_roi_list) < len(roi_and_video_dataset['roi_list'])
+
+    # check that invalid ROIs were untouched
+    new_roi_lookup = {roi.roi_id: roi for roi in new_roi_list}
+    old_roi_lookup = {roi.roi_id: roi
+                      for roi in roi_and_video_dataset['roi_list']}
+    ct_invalid = 0
+    for roi_id in old_roi_lookup:
+        expected = old_roi_lookup[roi_id]
+        if expected.valid_roi:
+            continue
+        ct_invalid += 1
+        actual = new_roi_lookup[roi_id]
+        assert expected.x0 == actual.x0
+        assert expected.y0 == actual.y0
+        assert expected.width == actual.width
+        assert expected.height == actual.height
+        np.testing.assert_array_equal(expected.mask_matrix,
+                                      actual.mask_matrix)
+
+    assert ct_invalid > 0
 
     # check that pixels were conserved
     input_pixels = set()

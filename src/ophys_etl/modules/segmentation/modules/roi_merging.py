@@ -66,7 +66,6 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
         roi_list = []
         roi_id_set = set()
         for roi in raw_roi_list:
-            roi['valid'] = True
             ophys_roi = roi_utils.extract_roi_to_ophys_roi(roi)
             if ophys_roi.roi_id in roi_id_set:
                 raise RuntimeError(f'roi id {ophys_roi.roi_id} duplicated '

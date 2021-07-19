@@ -8,9 +8,6 @@ from itertools import combinations, product
 
 from ophys_etl.types import ExtractROI
 
-from ophys_etl.modules.decrosstalk.ophys_plane import (
-    OphysROI)
-
 from ophys_etl.modules.segmentation.merge.roi_utils import (
     ophys_roi_to_extract_roi)
 
@@ -64,7 +61,7 @@ def list_of_roi():
         y0 = int(rng.integers(0, 30))
         width = int(rng.integers(4, 10))
         height = int(rng.integers(4, 10))
-        mask = rng.integers(0, 2, size=(height,width)).astype(bool)
+        mask = rng.integers(0, 2, size=(height, width)).astype(bool)
 
         # because np.ints are not JSON serializable
         real_mask = []
@@ -102,10 +99,9 @@ def test_roi_list_from_file(roi_file, list_of_roi):
     assert actual == list_of_roi
 
 
-
 @pytest.mark.parametrize(
         'path_input, name_input, path_expected, name_expected, is_valid',
-        [# mismatch
+        [  # mismatch
          (pathlib.Path('a/path.txt'), ['a', 'b'], None, None, False),
 
          # mismatch
@@ -113,7 +109,11 @@ def test_roi_list_from_file(roi_file, list_of_roi):
           'a', None, None, False),
 
          # two singletons
-         (pathlib.Path('a/path.txt'), 'a', [pathlib.Path('a/path.txt')], ['a'], True),
+         (pathlib.Path('a/path.txt'),
+          'a',
+          [pathlib.Path('a/path.txt')],
+          ['a'],
+          True),
 
          # two lists
          ([pathlib.Path('a/path.txt'), pathlib.Path('b/path.txt')],
@@ -154,8 +154,8 @@ def test_validate_paths_v_names(path_input, name_input,
         assert name_expected == name_output
 
 
-
-def test_create_roi_v_background(tmpdir, background_png, background_pkl, roi_file):
+def test_create_roi_v_background(tmpdir, background_png,
+                                 background_pkl, roi_file):
     """
     This is just going to be a smoke test
     """
@@ -186,7 +186,6 @@ def test_create_roi_v_background(tmpdir, background_png, background_pkl, roi_fil
             'a',
             [(255, 0, 0), (0, 255, 0)],
             attribute_name='dummy_value')
-
 
     # many backgrounds; one ROIs
     create_roi_v_background_grid(

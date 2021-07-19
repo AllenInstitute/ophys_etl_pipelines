@@ -1,10 +1,9 @@
-from typing import List, Dict, Union, Tuple
+from typing import List, Union, Tuple
 import matplotlib.figure as mplt_fig
 import pathlib
 import numpy as np
 import PIL.Image
 import json
-import copy
 
 from ophys_etl.modules.decrosstalk.ophys_plane import (
     OphysROI)
@@ -132,6 +131,11 @@ def create_roi_v_background_grid(
     -------
     matplotlib.figure.Figure
 
+    Notes
+    -----
+    PNG background images will be clipped at the 0.1 and 0.999
+    brightness quantiles.
+
     Raises
     ------
     RuntimeError if number of paths and names mismatch, either for ROIs
@@ -169,8 +173,10 @@ def create_roi_v_background_grid(
             background_array = graph_to_img(this_bckgd,
                                             attribute_name=attribute_name)
         else:
-            raise RuntimeError('Do not know how to parse background image file '
-                               f'{this_bckgd}; must be either .png or .pkl')
+            raise RuntimeError('Do not know how to parse '
+                               'background image file '
+                               f'{this_bckgd}; must be '
+                               'either .png or .pkl')
 
         if this_bckgd.suffix == '.png':
             qtiles = np.quantile(background_array, (0.1, 0.999))
@@ -179,8 +185,6 @@ def create_roi_v_background_grid(
         background_array = scale_video_to_uint8(background_array,
                                                 qtiles[0],
                                                 qtiles[1])
-                                                #0,
-                                                #background_array.max())
 
         background_rgb = np.zeros((background_array.shape[0],
                                    background_array.shape[1],
@@ -200,7 +204,7 @@ def create_roi_v_background_grid(
             axis.axvline(ii, color='w', alpha=0.25)
 
         for i_roi in range(n_roi):
-            i_color = i_roi%len(color_list)
+            i_color = i_roi % len(color_list)
             this_color = color_list[i_color]
             this_roi = roi_lists[i_roi]
             axis = axes[i_bckgd*(n_roi+1)+i_roi+1]

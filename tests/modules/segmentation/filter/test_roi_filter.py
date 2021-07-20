@@ -124,7 +124,7 @@ def test_log_invalid_rois(tmpdir, roi_dict):
     with h5py.File(log_path, 'w') as out_file:
         out_file.create_dataset('unrelated_data', data=np.arange(20, 30, 1))
         g = out_file.create_group('filter_log')
-        g.create_dataset('roi_id', data=np.arange(-5, -1, 1))
+        g.create_dataset('invalid_roi_id', data=np.arange(-5, -1, 1))
         g.create_dataset('reason',
                          data=np.array(['prefill'.encode('utf-8')]*4))
 
@@ -139,7 +139,7 @@ def test_log_invalid_rois(tmpdir, roi_dict):
     assert len(expected_reasons) == len(expected_roi_id)
 
     with h5py.File(log_path, 'r') as in_file:
-        actual_roi_id = in_file['filter_log/roi_id'][()]
+        actual_roi_id = in_file['filter_log/invalid_roi_id'][()]
         actual_reasons = in_file['filter_log/reason'][()]
         np.testing.assert_array_equal(in_file['unrelated_data'][()],
                                       np.arange(20, 30, 1))
@@ -152,7 +152,7 @@ def test_log_invalid_rois(tmpdir, roi_dict):
     log_invalid_rois(roi_list, 'area pre-merge', log_path)
 
     with h5py.File(log_path, 'r') as in_file:
-        actual_roi_id = in_file['filter_log/roi_id'][()]
+        actual_roi_id = in_file['filter_log/invalid_roi_id'][()]
         actual_reasons = in_file['filter_log/reason'][()]
 
     np.testing.assert_array_equal(actual_roi_id,

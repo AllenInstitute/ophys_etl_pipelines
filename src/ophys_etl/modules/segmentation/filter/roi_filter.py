@@ -98,13 +98,14 @@ def log_invalid_rois(roi_list: List[OphysROI],
     old_reasons = []
     with h5py.File(log_path, 'a') as log_file:
         if f'{group_name}/reason' in log_file.keys():
-            old_roi_id = list(log_file[f'{group_name}/roi_id'][()])
+            old_roi_id = list(log_file[f'{group_name}/invalid_roi_id'][()])
             old_reasons = list(log_file[f'{group_name}/reason'][()])
-            del log_file[f'{group_name}/roi_id']
+            del log_file[f'{group_name}/invalid_roi_id']
             del log_file[f'{group_name}/reason']
         roi_id = old_roi_id + [roi.roi_id for roi in roi_list]
         reasons = old_reasons + [reason.encode('utf-8')]*len(roi_list)
-        log_file.create_dataset(f'{group_name}/roi_id', data=np.array(roi_id))
+        log_file.create_dataset(f'{group_name}/invalid_roi_id',
+                                data=np.array(roi_id))
         log_file.create_dataset(f'{group_name}/reason', data=np.array(reasons))
     return None
 

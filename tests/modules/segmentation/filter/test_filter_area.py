@@ -49,7 +49,7 @@ def test_area_filter_runner(tmpdir,
         assert compare_rois(actual_lookup[roi_id], roi_dict[roi_id])
 
     with h5py.File(roi_log, 'r') as in_file:
-        actual_invalid_roi = in_file['filter_log/roi_id'][()]
+        actual_invalid_roi = in_file['filter_log/invalid_roi_id'][()]
         actual_reason = in_file['filter_log/reason'][()]
 
     invalid_roi = set(roi_dict.keys()) - valid_roi
@@ -98,7 +98,7 @@ def test_successive_area_filters(tmpdir,
     assert roi_id_set == set(roi_dict.keys())
 
     with h5py.File(roi_log, 'r') as in_file:
-        actual_invalid_roi = in_file['filter_log/roi_id'][()]
+        actual_invalid_roi = in_file['filter_log/invalid_roi_id'][()]
         actual_reason = in_file['filter_log/reason'][()]
     assert len(actual_invalid_roi) == 2
     assert 1 in actual_invalid_roi
@@ -135,7 +135,7 @@ def test_successive_area_filters(tmpdir,
     assert roi_id_set == set(roi_dict.keys())
 
     with h5py.File(roi_log, 'r') as in_file:
-        actual_invalid_roi = in_file['filter_log/roi_id'][()]
+        actual_invalid_roi = in_file['filter_log/invalid_roi_id'][()]
         actual_reason = in_file['filter_log/reason'][()]
     assert set(actual_invalid_roi) == invalid_roi
     assert len(actual_invalid_roi) == len(invalid_roi)

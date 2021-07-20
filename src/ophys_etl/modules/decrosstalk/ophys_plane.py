@@ -1,4 +1,4 @@
-from typing import List, Dict, Union, Tuple
+from typing import List, Dict, Union, Tuple, Set
 import itertools
 import h5py
 import copy
@@ -84,6 +84,7 @@ class OphysROI(object):
         self._mask_matrix = np.array(mask_matrix, dtype=bool)
         self._boundary_mask = None
         self._area = None
+        self._global_pixel_set = None
 
         height_match = (self._mask_matrix.shape[0] == self._height)
         width_match = (self._mask_matrix.shape[1] == self._width)
@@ -131,6 +132,25 @@ class OphysROI(object):
                    height=schema_dict['height'],
                    valid_roi=schema_dict['valid_roi'],
                    mask_matrix=schema_dict['mask_matrix'])
+
+    def _create_global_pixel_set(self):
+        """
+        Create the set of (row, col) tuples in
+        global coordinates that make up this ROI
+        """
+        self._global_pixel_set = set([(r+self._y0, c+self._x0)
+                                      for r, c
+                                      in np.argwhere(self._mask_matrix)])
+
+    @property
+    def global_pixel_set(self) -> Set[Tuple[int, int]]:
+        """
+        Set of pixels in global (row, col) coordinates
+        that are set to True for this ROI
+        """
+        if self._global_pixel_set is None:
+            self._create_global_pixel_set()
+        return self._global_pixel_set
 
     @property
     def area(self) -> int:
@@ -218,6 +238,29 @@ class OphysROI(object):
         if self._boundary_mask is None:
             self._construct_boundary_mask()
         return np.copy(self._boundary_mask)
+
+
+def intersection_over_union(roi0: OphysROI,
+                            roi1: OphysROI) -> float:
+    """
+    Return the intersection over union of two ROIs relative
+    to each other
+
+    Parameters
+    ----------
+    roi0: OphysROI
+
+    roi1: OphysROI
+
+    Returns
+    -------
+    iou: float
+        """
+    pix0 = roi0.global_pixel_set
+    pix1 = roi1.global_pixel_set
+    ii = len(pix0.intersection(pix1))
+    uu = len(pix0.union(pix1))
+    return float(ii)/float(uu)
 
 
 class OphysMovie(object):

@@ -17,9 +17,12 @@ class ROIComparisonSchema(argschema.ArgSchema):
     background_names = argschema.fields.List(
             argschema.fields.String,
             cli_as_single_argument=True,
-            required=True,
+            required=False,
+            default=None,
+            allow_none=True,
             description=("names of background images as they are to appear "
-                         "in plot"))
+                         "in plot (if None, will use the basenames "
+                         "from the roi_paths)"))
 
     roi_paths = argschema.fields.List(
             argschema.fields.InputFile,
@@ -30,9 +33,12 @@ class ROIComparisonSchema(argschema.ArgSchema):
     roi_names = argschema.fields.List(
             argschema.fields.String,
             cli_as_single_argument=True,
-            required=True,
+            required=False,
+            default=None,
+            allow_none=True,
             description=("names of ROI sets as they are to appear "
-                         "in plot"))
+                         "in plot (if None, will use the basenames "
+                         "from the roi_paths)"))
 
     plot_output = argschema.fields.OutputFile(
             required=True,
@@ -47,6 +53,14 @@ class ROIComparisonSchema(argschema.ArgSchema):
 
     @post_load
     def verify_names_and_paths(self, data, **kwargs):
+
+        if data['roi_names'] is None:
+            data['roi_names'] = [str(pathlib.Path(pth).name)
+                                 for pth in data['roi_paths']]
+
+        if data['background_names'] is None:
+            data['background_names'] = [str(pathlib.Path(pth).name)
+                                        for pth in data['background_paths']]
         msg = ''
         is_valid = True
         if len(data['roi_names']) != len(data['roi_paths']):

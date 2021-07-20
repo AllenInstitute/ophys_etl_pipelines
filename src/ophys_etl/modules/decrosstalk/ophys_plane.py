@@ -143,7 +143,7 @@ class OphysROI(object):
                                       in np.argwhere(self._mask_matrix)])
 
     @property
-    def pixel_set(self) -> Set[Tuple[int, int]]:
+    def global_pixel_set(self) -> Set[Tuple[int, int]]:
         """
         Set of pixels in global (row, col) coordinates
         that are set to True for this ROI
@@ -256,8 +256,8 @@ def intersection_over_union(roi0: OphysROI,
     -------
     iou: float
         """
-    pix0 = roi0.pixel_set
-    pix1 = roi1.pixel_set
+    pix0 = roi0.global_pixel_set
+    pix1 = roi1.global_pixel_set
     ii = len(pix0.intersection(pix1))
     uu = len(pix0.union(pix1))
     return float(ii)/float(uu)

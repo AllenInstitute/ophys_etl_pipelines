@@ -57,7 +57,7 @@ def test_setting_qc_path():
     assert plane.qc_file_path == 'path/to/a/file'
 
 
-def test_roi_pixel_set():
+def test_roi_global_pixel_set():
     width = 7
     height = 5
     mask = np.zeros((height, width), dtype=bool)
@@ -70,7 +70,7 @@ def test_roi_pixel_set():
                    height=height,
                    valid_roi=True,
                    mask_matrix=mask)
-    assert roi.pixel_set == set([(202, 104), (203, 106)])
+    assert roi.global_pixel_set == set([(202, 104), (203, 106)])
 
 
 def test_intersection_over_union():

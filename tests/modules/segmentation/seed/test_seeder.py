@@ -138,8 +138,8 @@ def test_ImageMetricSeeder_log(tmpdir):
         sb.log_to_h5_group(f)
 
     with h5py.File(h5path, "r") as f:
-        assert "seeding" in f
-        group = f["seeding"]
+        assert "seed" in f
+        group = f["seed"]
         for k in ["provided_seeds", "excluded_seeds",
                   "exclusion_reason", "seed_image"]:
             assert k in group

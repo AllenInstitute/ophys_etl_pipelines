@@ -96,18 +96,18 @@ def test_segmenter(tmpdir, example_graph, example_video, seeder_args):
 
     dir_path = pathlib.Path(tmpdir)
     roi_path = dir_path / 'roi.json'
-    seed_path = dir_path / 'seed.json'
+    qc_path = dir_path / 'qc.h5'
     plot_path = dir_path / 'plot.png'
     assert not roi_path.exists()
-    assert not seed_path.exists()
+    assert not qc_path.exists()
     assert not plot_path.exists()
 
     segmenter.run(roi_output=roi_path,
-                  seed_output=seed_path,
+                  qc_output=qc_path,
                   plot_output=plot_path)
 
     assert roi_path.is_file()
-    assert seed_path.is_file()
+    assert qc_path.is_file()
     assert plot_path.is_file()
 
     # check that some ROIs got written
@@ -116,21 +116,21 @@ def test_segmenter(tmpdir, example_graph, example_video, seeder_args):
     assert len(roi_data) > 0
 
     # test that it can handle not receiving a
-    # seed_path or plot_path
+    # qc_path or plot_path
     roi_path.unlink()
-    seed_path.unlink()
+    qc_path.unlink()
     plot_path.unlink()
 
     assert not roi_path.exists()
-    assert not seed_path.exists()
+    assert not qc_path.exists()
     assert not plot_path.exists()
 
     segmenter.run(roi_output=roi_path,
-                  seed_output=None,
+                  qc_output=qc_path,
                   plot_output=None)
 
     assert roi_path.is_file()
-    assert not seed_path.exists()
+    assert qc_path.exists()
     assert not plot_path.exists()
 
 
@@ -147,7 +147,9 @@ def test_segmenter_blank(tmpdir, blank_graph, blank_video, seeder_args):
                                        seeder_args=seeder_args)
     dir_path = pathlib.Path(tmpdir)
     roi_path = dir_path / 'roi.json'
-    segmenter.run(roi_output=roi_path)
+    qc_path = tmpdir / "qc.h5"
+    segmenter.run(roi_output=roi_path,
+                  qc_output=qc_path)
 
 
 def test_is_roi_at_edge():

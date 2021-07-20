@@ -702,6 +702,7 @@ def create_roi_plot(plot_path: pathlib.Path,
     Returns
     -------
     None
+
     """
     fig = figure.Figure(figsize=(40, 20))
     axes = [fig.add_subplot(1, 2, i) for i in [1, 2]]
@@ -711,6 +712,35 @@ def create_roi_plot(plot_path: pathlib.Path,
     fig.tight_layout()
     fig.savefig(plot_path)
     return None
+
+
+def roi_average_metric(roi_list: List[ExtractROI],
+                       metric_image: np.ndarray) -> Dict[int, float]:
+    """calculate the average metric for a list of ROIs
+    given an image representation of the metric
+
+    Parameters
+    ----------
+    roi_list: List[ExtractROI]
+        the list of ROIs
+    metric_image: np.ndarray
+        a 2D array of values from which to calculate the average
+        metric, from each ROI mask
+
+    Returns
+    -------
+    average_metric: Dict[int, float]
+        keys: roi[i]["id"]
+        values: average metric within roi[i]["mask"]
+
+    """
+    average_metric: Dict[int, float] = dict()
+    for roi in roi_list:
+        sub_image = metric_image[roi["y"]: (roi["y"] + roi["height"]),
+                                 roi["x"]: (roi["x"] + roi["width"])]
+        average_metric[roi["id"]] = sub_image[np.array(roi["mask"])].mean()
+
+    return average_metric
 
 
 class HNC_ROI(TypedDict):

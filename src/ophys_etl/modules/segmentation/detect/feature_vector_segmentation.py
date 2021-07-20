@@ -6,16 +6,16 @@ import h5py
 import pathlib
 import time
 import json
-from matplotlib.figure import Figure
+import matplotlib
 
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
     PearsonFeatureROI)
-from ophys_etl.modules.segmentation.qc_utils.roi_utils import create_roi_plot
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
 from ophys_etl.modules.segmentation.seed.seeder import \
         BatchImageMetricSeeder
 from ophys_etl.modules.segmentation.qc.seed import add_seeds_to_axes
+from ophys_etl.modules.segmentation.qc.detect import roi_metric_qc_plot
 
 import logging
 
@@ -261,17 +261,12 @@ class FeatureVectorSegmenter(object):
         self.movie_shape = movie_shape
 
     def _run(self,
-             img_data: np.ndarray,
              video_data: np.ndarray) -> List[dict]:
         """
         Run one iteration of ROI detection
 
         Parameters
         ----------
-        img_data: np.ndarray
-            A (n_rows, n_cols) array representing an image in which
-            to detect peaks around which to grow ROIs
-
         video_data: np.ndarray
             A (n_time, n_rows, n_cols) array containing the video data
             used to detect ROIs
@@ -333,6 +328,9 @@ class FeatureVectorSegmenter(object):
         mgr = multiprocessing.Manager()
         mgr_dict = mgr.dict()
         for i_seed, seed in enumerate(seed_list):
+            if self.roi_pixels[seed[0], seed[1]]:
+                continue
+
             self.roi_id += 1
             slop = seed_to_slop.get(seed, default_slop)
 
@@ -412,7 +410,7 @@ class FeatureVectorSegmenter(object):
 
     def run(self,
             roi_output: pathlib.Path,
-            seed_output: Optional[pathlib.Path] = None,
+            qc_output: Optional[pathlib.Path] = None,
             plot_output: Optional[pathlib.Path] = None,
             seed_plot_output: Optional[pathlib.Path] = None,
             ) -> None:
@@ -424,9 +422,8 @@ class FeatureVectorSegmenter(object):
         roi_output: pathlib.Path
             Path to the JSON file where discovered ROIs will be recorded
 
-        seed_output: Optional[pathlib.Path]
-            If not None, the path where the seeds for ROI discovery at
-            each iteration will be written out in a JSONized dict.
+        qc_output: Optional[pathlib.Path]
+            If not None, the path where the qc results will be written
             (default: None)
 
         plot_output: Optional[pathlib.Path]
@@ -463,16 +460,13 @@ class FeatureVectorSegmenter(object):
 
         t0 = time.time()
 
-        img_data = graph_to_img(self._graph_input,
-                                attribute_name=self._attribute)
-
         logger.info(f'read in image data from {str(self._graph_input)}')
 
         with h5py.File(self._video_input, 'r') as in_file:
             video_data = in_file['data'][()]
         logger.info(f'read in video data from {str(self._video_input)}')
 
-        if seed_output is not None:
+        if qc_output is not None:
             seed_record = {}
 
         # list of discovered ROIs
@@ -483,14 +477,14 @@ class FeatureVectorSegmenter(object):
 
         # all pixels that have been flagged as belonging
         # to an ROI
-        self.roi_pixels = np.zeros(img_data.shape, dtype=bool)
+        self.roi_pixels = np.zeros(self._graph_img.shape, dtype=bool)
 
         keep_going = True
         i_iteration = 0
 
         while keep_going:
 
-            roi_seeds = self._run(img_data, video_data)
+            roi_seeds = self._run(video_data)
 
             # NOTE: this change lets the seeder/iterator control
             # the stopping condition of segmentation. I.e. when seeds
@@ -511,33 +505,51 @@ class FeatureVectorSegmenter(object):
             msg += f'{len(self.roi_list)} valid ROIs ({n_valid_pix}) pixels'
             logger.info(msg)
 
-            if seed_output is not None:
+            if qc_output is not None:
                 seed_record[i_iteration] = roi_seeds
 
             i_iteration += 1
 
         logger.info('finished iterating on ROIs')
 
-        if seed_output is not None:
-            with h5py.File(seed_output, "w") as f:
-                self.seeder.log_to_h5_group(f)
-            logger.info(f'wrote {str(seed_output)}')
+        # log seeder to hdf5 QC output
+        with h5py.File(qc_output, "a") as f:
+            self.seeder.log_to_h5_group(f)
+        logger.info(f'wrote seeding QC to {str(qc_output)}')
 
-            if seed_plot_output is not None:
-                fig = Figure(figsize=(8, 8))
-                axes = fig.add_subplot(111)
-                with h5py.File(seed_output, "r") as f:
-                    add_seeds_to_axes(fig, axes, seed_h5_group=f["seeding"])
-                fig.savefig(seed_plot_output)
-                logger.info(f'wrote {seed_plot_output}')
+        # log detection to hdf5 QC ouput
+        with h5py.File(qc_output, "a") as h5file:
+            group = h5file.create_group("detect")
+            group.create_dataset("metric_image", data=self._graph_img)
+            group.create_dataset("attribute",
+                                 data=self._attribute.encode("utf-8"))
+
+        # create a plot from the seeder QC output
+        if seed_plot_output is not None:
+            fig = matplotlib.figure.Figure(figsize=(8, 8))
+            axes = fig.add_subplot(111)
+            with h5py.File(qc_output, "r") as f:
+                add_seeds_to_axes(fig, axes, seed_h5_group=f["seeding"])
+            fig.savefig(seed_plot_output)
+            logger.info(f'wrote {seed_plot_output}')
 
         logger.info(f'writing {str(roi_output)}')
         with open(roi_output, 'w') as out_file:
             out_file.write(json.dumps(self.roi_list, indent=2))
 
         if plot_output is not None:
-            logger.info(f'writing {str(plot_output)}')
-            create_roi_plot(plot_output, img_data, self.roi_list)
+            # TODO: store ROIs in QC output hdf5
+            figure = matplotlib.figure.Figure(figsize=(10, 10))
+            with h5py.File(qc_output, "r") as f:
+                group = f["detect"]
+                roi_metric_qc_plot(
+                        figure=figure,
+                        metric_image=group["metric_image"][()],
+                        attribute=group["attribute"][()].decode("utf-8"),
+                        roi_list=self.roi_list)
+            figure.tight_layout()
+            figure.savefig(plot_output)
+            logger.info(f'wrote {plot_output}')
 
         duration = time.time()-t0
         logger.info(f'Completed segmentation in {duration:.2f} seconds')

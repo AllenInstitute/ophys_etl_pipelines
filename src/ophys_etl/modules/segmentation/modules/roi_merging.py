@@ -3,12 +3,14 @@ import argschema
 import pathlib
 import h5py
 import json
+import matplotlib
 
 from ophys_etl.modules.segmentation.modules.schemas import \
     RoiMergerSchema
 
 import ophys_etl.modules.segmentation.merge.roi_merging as merging
 import ophys_etl.modules.segmentation.merge.roi_utils as roi_utils
+from ophys_etl.modules.segmentation.qc.detect import roi_metric_qc_plot
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
@@ -81,7 +83,30 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
                                 filter_fraction=self.args['filter_fraction'],
                                 anomalous_size=self.args['anomalous_size'])
 
+        # log merging to hdf5 QC output
+        with h5py.File(self.args['qc_output'], "a") as h5file:
+            # TODO: merging should output something to QC
+            group = h5file.create_group("merge")
+            group.create_dataset("placeholder", data=[])
+
         write_out_rois(roi_list, self.args['roi_output'])
+
+        if self.args['plot_output'] is not None:
+            # TODO: store ROIs in QC output hdf5
+            # NOTE: this QC plot is exactly like the one output from detection
+            # it should be named something different in the workflow to
+            # keep the QC evaluation of detection and merging separate.
+            figure = matplotlib.figure.Figure(figsize=(10, 10))
+            with h5py.File(self.args['qc_output'], "r") as f:
+                group = f["detect"]
+                roi_metric_qc_plot(
+                        figure=figure,
+                        metric_image=group["metric_image"][()],
+                        attribute=group["attribute"][()].decode("utf-8"),
+                        roi_list=roi_list)
+            figure.tight_layout()
+            figure.savefig(self.args['plot_output'])
+            logger.info(f'wrote {self.args["plot_output"]}')
 
         duration = time.time()-t0
         self.logger.info(f'Finished in {duration:.2f} seconds')

@@ -274,11 +274,10 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
         allow_none=True,
         description="path to summary plot of segmentation")
 
-    seed_output = argschema.fields.OutputFile(
-        required=False,
+    qc_output = argschema.fields.OutputFile(
+        required=True,
         default=None,
-        description=("path to json file where seed points "
-                     "will be saved"))
+        description=("path to hdf5 QC output"))
 
     seed_plot_output = argschema.fields.OutputFile(
         required=False,
@@ -409,6 +408,17 @@ class RoiMergerSchema(argschema.ArgSchema):
     roi_input = argschema.fields.InputFile(
         required=True,
         description=("path to JSON file with ROIs to merge"))
+
+    qc_output = argschema.fields.OutputFile(
+        required=True,
+        default=None,
+        description=("path to hdf5 QC output"))
+
+    plot_output = argschema.fields.OutputFile(
+        required=False,
+        default=None,
+        allow_none=True,
+        description="path to summary plot of segmentation")
 
     roi_output = argschema.fields.OutputFile(
         required=True,

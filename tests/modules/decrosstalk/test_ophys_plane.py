@@ -108,5 +108,5 @@ def test_intersection_over_union():
     actual = intersection_over_union(roi0, roi1)
     actual1 = intersection_over_union(roi1, roi0)
     eps = 1.0e-20
-    assert np.abs(actual-actual1) < eps
-    assert np.abs(actual-expected) < eps
+    np.testing.assert_allclose(actual, actual1, rtol=0.0, atol=eps)
+    np.testing.assert_allclose(actual, expected, rtol=0.0, atol=eps)

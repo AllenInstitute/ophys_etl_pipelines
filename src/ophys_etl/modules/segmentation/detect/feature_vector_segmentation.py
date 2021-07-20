@@ -333,6 +333,9 @@ class FeatureVectorSegmenter(object):
         mgr = multiprocessing.Manager()
         mgr_dict = mgr.dict()
         for i_seed, seed in enumerate(seed_list):
+            if self.roi_pixels[seed[0], seed[1]]:
+                continue
+
             self.roi_id += 1
             slop = seed_to_slop.get(seed, default_slop)
 

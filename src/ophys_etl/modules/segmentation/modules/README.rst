@@ -1,6 +1,7 @@
 Segmentation Steps
 ==================
 - Detect (feature_vector_segmentation.py)
+- Pre-merge filter (TBD)
 - Merge (roi_merging.py)
 - Filter (TBD)
 
@@ -9,7 +10,7 @@ Segmentation QC hdf5 output description
 
 group: "seed"
 *************
-the seeder works in conjunction with the detection algorithm. This groups logs what seeds were provided, which were excluded, and the reasons for exclusion.
+the seeder works in conjunction with the detection algorithm. This group logs what seeds were provided, which were excluded, and the reasons for exclusion.
 
 - provided_seeds: (row, col) coordinates of seeds served to the segmentation algorithm
 - excluded_seeds: (row, col) coordinates of seeds not served to the segmentation algorithm

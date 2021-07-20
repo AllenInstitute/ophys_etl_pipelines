@@ -91,6 +91,8 @@ class ROIComparisonEngine(argschema.ArgSchemaParser):
                       (51, 255, 255),
                       (255, 51, 255)]
 
+        invalid_color = (235, 52, 52)
+
         bckgd_paths = [pathlib.Path(p)
                        for p in self.args['background_paths']]
 
@@ -103,6 +105,7 @@ class ROIComparisonEngine(argschema.ArgSchemaParser):
                     roi_paths,
                     self.args['roi_names'],
                     color_list,
+                    invalid_color=invalid_color,
                     attribute_name=self.args['attribute_name'])
 
         fig.savefig(self.args['plot_output'])

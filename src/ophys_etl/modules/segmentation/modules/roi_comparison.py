@@ -87,9 +87,8 @@ class ROIComparisonEngine(argschema.ArgSchemaParser):
         # colors that showup reasonably well against our
         # grayscale background images
         color_list = [(0, 255, 0),
-                      (255, 128, 0),
-                      (51, 255, 255),
-                      (255, 51, 255)]
+                      (51, 153, 55),
+                      (51, 255, 255)]
 
         invalid_color = (235, 52, 52)
 

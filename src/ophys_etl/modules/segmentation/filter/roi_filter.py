@@ -92,6 +92,29 @@ class ROIAreaFilter(ROIBaseFilter):
 def log_invalid_rois(roi_list: List[OphysROI],
                      reason: str,
                      log_path: pathlib.Path) -> None:
+    """
+    Write the ROI IDs of invalid ROIs to the HDF5 log,
+    along with a brief summary of why they are invalid.
+
+    This method will record the ROI IDs in
+    filter_log/invalid_roi_id
+    and the reasons in
+    filter_log/reason
+
+    If there is already a log of invalid ROIs in the
+    HDF5 file, these ROIs will be appended to it.
+
+    Parameters
+    ----------
+    roi_list: List[OphysROI]
+        List of the invalid ROIs
+
+    reason: str
+        Brief summary of why these ROIs are invalid
+
+    log_path: pathlib.Path
+        Path to the HDF5 file being logged
+    """
 
     group_name = 'filter_log'
     old_roi_id = []

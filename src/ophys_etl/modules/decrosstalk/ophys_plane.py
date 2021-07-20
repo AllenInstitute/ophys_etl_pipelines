@@ -244,7 +244,7 @@ def intersection_over_union(roi0: OphysROI,
                             roi1: OphysROI) -> float:
     """
     Return the intersection over union of two ROIs relative
-    to each oterh
+    to each other
 
     Parameters
     ----------

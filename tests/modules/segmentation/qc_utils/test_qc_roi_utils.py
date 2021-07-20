@@ -9,18 +9,18 @@ from ophys_etl.types import ExtractROI
 @pytest.fixture
 def roi_list(request):
     rois: List[ExtractROI] = list()
-    for id, full_mask in zip(request.param["full_roi_masks"],
-                               request.param["ids"]):
+    for full_mask, roi_id in zip(request.param["full_roi_masks"],
+                                 request.param["ids"]):
         coords = np.argwhere(full_mask)
         rowmin, colmin = coords.min(axis=0)
         height, width = np.apply_along_axis(func1d=lambda x: x + 1,
                                             axis=0,
                                             arr=coords.ptp(axis=0))
-        mask = [[entry == True for entry in row[colmin: (colmin + width)]]
+        mask = [[bool(entry) for entry in row[colmin: (colmin + width)]]
                 for row in full_mask[rowmin: (rowmin + height)]]
         rois.append(
                 ExtractROI(
-                    id=id,
+                    id=roi_id,
                     x=colmin,
                     y=rowmin,
                     width=width,

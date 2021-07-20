@@ -1,10 +1,18 @@
 from typing import List, Dict, Optional
 from abc import ABC, abstractmethod
+import argschema
+import json
 import h5py
 import pathlib
 import numpy as np
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+
+from ophys_etl.modules.segmentation.merge.roi_utils import (
+    ophys_roi_to_extract_roi)
+
+from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import (
+    roi_list_from_file)
 
 
 class ROIBaseFilter(ABC):
@@ -99,3 +107,41 @@ def log_invalid_rois(roi_list: List[OphysROI],
         log_file.create_dataset(f'{group_name}/roi_id', data=np.array(roi_id))
         log_file.create_dataset(f'{group_name}/reason', data=np.array(reasons))
     return None
+
+
+class FilterRunnerBase(argschema.ArgSchemaParser):
+    """
+    Arbitrary ROI filter runners are implemented by sub-classing
+    this class and
+
+    1) defining the default_schema
+    2) implementing self.get_filter() which returns the appropriately
+    instantiated sub-class of ROIBaseFilter
+    """
+    default_schema = None
+
+    def get_filter(self):
+        msg = "Need to implement get_filter() for "
+        msg += f"{type(self)}"
+        raise NotImplementedError(msg)
+
+    def run(self):
+        roi_list = roi_list_from_file(pathlib.Path(self.args['roi_input']))
+
+        this_filter = self.get_filter()
+
+        results = this_filter.do_filtering(roi_list)
+
+        reason = ' -- '.join((this_filter.reason,
+                              self.args['pipeline_stage']))
+        log_invalid_rois(results['invalid_roi'],
+                         pathlib.Path(self.args['roi_log_path']),
+                         reason)
+
+        new_roi_list = [ophys_roi_to_extract_roi(roi)
+                        for roi in results['valid_roi']]
+        new_roi_list += [ophys_roi_to_extract_roi(roi)
+                         for roi in results['invalid_roi']]
+
+        with open(self.args['roi_output'], 'wb'):
+            json.dump(new_roi_list, indent=2)

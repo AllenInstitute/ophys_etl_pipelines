@@ -113,7 +113,8 @@ class ROIComparisonEngine(argschema.ArgSchemaParser):
                     self.args['roi_names'],
                     color_list,
                     invalid_color=invalid_color,
-                    attribute_name=self.args['attribute_name'])
+                    attribute_name=self.args['attribute_name'],
+                    figsize_per=self.args['figsize_per'])
 
         fig.savefig(self.args['plot_output'])
 

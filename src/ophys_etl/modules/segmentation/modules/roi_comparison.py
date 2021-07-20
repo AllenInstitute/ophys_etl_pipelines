@@ -1,5 +1,6 @@
 import pathlib
 import argschema
+from marshmallow import post_load
 
 from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import (
     create_roi_v_background_grid)
@@ -43,6 +44,24 @@ class ROIComparisonSchema(argschema.ArgSchema):
             required=False,
             default='filtered_hnc_Gaussian',
             description=("name of attribute to plot in a background image"))
+
+    @post_load
+    def verify_names_and_paths(self, data, **kwargs):
+        msg = ''
+        is_valid = True
+        if len(data['roi_names']) != len(data['roi_paths']):
+            is_valid = False
+            msg += f"{len(data['roi_names'])} roi_names, but "
+            msg += f"{len(data['roi_paths'])} roi_paths; "
+            msg += "should be the same length\n"
+        if len(data['background_names']) != len(data['background_paths']):
+            is_valid = False
+            msg += f"{len(data['background_names'])} background_names, but "
+            msg += f"{len(data['background_paths'])} background_paths; "
+            msg += "should be the same length\n"
+        if not is_valid:
+            raise RuntimeError(msg)
+        return data
 
 
 class ROIComparisonEngine(argschema.ArgSchemaParser):

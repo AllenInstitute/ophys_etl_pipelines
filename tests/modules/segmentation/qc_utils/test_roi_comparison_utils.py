@@ -74,9 +74,13 @@ def list_of_roi():
                     this_row.append(False)
             real_mask.append(this_row)
 
+        if ii % 2 == 0:
+            valid_roi = True
+        else:
+            valid_roi = False
         roi = ExtractROI(x=x0, width=width,
                          y=y0, height=height,
-                         valid_roi=True,
+                         valid_roi=valid_roi,
                          mask=real_mask,
                          id=ii)
         output.append(roi)

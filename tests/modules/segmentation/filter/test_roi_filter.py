@@ -65,7 +65,7 @@ def test_area_roi_filter(roi_dict, min_area, max_area, expected_valid):
     area_filter = ROIAreaFilter(min_area=min_area,
                                 max_area=max_area)
 
-    assert area_filter.reason == 'area'.encode('utf-8')
+    assert area_filter.reason == 'area'
 
     results = area_filter.do_filtering(list(roi_dict.values()))
 

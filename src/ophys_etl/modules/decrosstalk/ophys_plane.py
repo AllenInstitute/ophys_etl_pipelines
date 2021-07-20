@@ -263,6 +263,39 @@ def intersection_over_union(roi0: OphysROI,
     return float(ii)/float(uu)
 
 
+def compare_rois(roi0: OphysROI,
+                 roi1: OphysROI) -> bool:
+    """
+    Compare two OphysROIs (ignoring valid_roi).
+    Return True if they are identical. Return False
+    otherwise.
+
+    Parameters
+    ----------
+    roi0: OphysROI
+
+    roi1: OphysROI
+
+    Returns
+    -------
+    bool
+    """
+    if roi0.x0 != roi1.x0:
+        return False
+    if roi0.y0 != roi1.y0:
+        return False
+    if roi0.width != roi1.width:
+        return False
+    if roi0.height != roi1.height:
+        return False
+    if roi0.roi_id != roi1.roi_id:
+        return False
+    if not np.array_equal(roi0.mask_matrix, roi1.mask_matrix):
+        return False
+
+    return True
+
+
 class OphysMovie(object):
 
     def __init__(self, movie_path: str, motion_border: Dict[str, float]):

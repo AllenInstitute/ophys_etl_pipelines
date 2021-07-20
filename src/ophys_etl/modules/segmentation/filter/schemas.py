@@ -2,7 +2,7 @@ import argschema
 from marshmallow import post_load
 
 
-class FilterBaseSchema(argschema.schemas.DefaultSchema):
+class FilterBaseSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
 
     roi_input = argschema.fields.InputFile(

@@ -1,5 +1,8 @@
 from typing import List, Dict, Optional
 from abc import ABC, abstractmethod
+import h5py
+import pathlib
+import numpy as np
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
@@ -76,3 +79,23 @@ class ROIAreaFilter(ROIBaseFilter):
             if roi.area < self.min_area:
                 return False
         return True
+
+
+def log_invalid_rois(roi_list: List[OphysROI],
+                     reason: str,
+                     log_path: pathlib.Path) -> None:
+
+    group_name = 'filter_log'
+    old_roi_id = []
+    old_reasons = []
+    with h5py.File(log_path, 'a') as log_file:
+        if f'{group_name}/reason' in log_file.keys():
+            old_roi_id = list(log_file[f'{group_name}/roi_id'][()])
+            old_reasons = list(log_file[f'{group_name}/reason'][()])
+            del log_file[f'{group_name}/roi_id']
+            del log_file[f'{group_name}/reason']
+        roi_id = old_roi_id + [roi.roi_id for roi in roi_list]
+        reasons = old_reasons + [reason.encode('utf-8')]*len(roi_list)
+        log_file.create_dataset(f'{group_name}/roi_id', data=np.array(roi_id))
+        log_file.create_dataset(f'{group_name}/reason', data=np.array(reasons))
+    return None

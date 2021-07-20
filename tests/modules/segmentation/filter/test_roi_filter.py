@@ -1,3 +1,4 @@
+import h5py
 import pytest
 import numpy as np
 import pathlib
@@ -7,7 +8,8 @@ from ophys_etl.modules.decrosstalk.ophys_plane import (
 
 from ophys_etl.modules.segmentation.filter.roi_filter import (
     ROIBaseFilter,
-    ROIAreaFilter)
+    ROIAreaFilter,
+    log_invalid_rois)
 
 from ophys_etl.modules.segmentation.filter.schemas import (
     AreaFilterSchema)
@@ -129,3 +131,48 @@ def test_area_filter_schema(tmpdir):
                           'min_area': None}
 
         area_schema.load(invalid_schema)
+
+
+def test_log_invalid_rois(tmpdir, roi_dict):
+
+    # test case of non-empty log file
+    log_path = pathlib.Path(tmpdir)/'dummy_invalid_log.h5'
+    with h5py.File(log_path, 'w') as out_file:
+        out_file.create_dataset('unrelated_data', data=np.arange(20, 30, 1))
+        g = out_file.create_group('filter_log')
+        g.create_dataset('roi_id', data=np.arange(-5, -1, 1))
+        g.create_dataset('reason',
+                         data=np.array(['prefill'.encode('utf-8')]*4))
+
+    roi_list = list(roi_dict.values())
+    log_invalid_rois(roi_list, 'area post-merge', log_path)
+
+    expected_roi_id = [-5, -4, -3, -2] + list([roi.roi_id for roi in roi_list])
+    expected_roi_id = np.array(expected_roi_id)
+    expected_reasons = ['prefill'.encode('utf-8')]*4
+    expected_reasons += ['area post-merge'.encode('utf-8')]*6
+    expected_reasons = np.array(expected_reasons)
+    assert len(expected_reasons) == len(expected_roi_id)
+
+    with h5py.File(log_path, 'r') as in_file:
+        actual_roi_id = in_file['filter_log/roi_id'][()]
+        actual_reasons = in_file['filter_log/reason'][()]
+        np.testing.assert_array_equal(in_file['unrelated_data'][()],
+                                      np.arange(20, 30, 1))
+    np.testing.assert_array_equal(actual_roi_id, expected_roi_id)
+    np.testing.assert_array_equal(actual_reasons, expected_reasons)
+
+    # test case of empty log file
+    log_path = pathlib.Path(tmpdir)/'dummy_invalid_log2.h5'
+    roi_list = list(roi_dict.values())
+    log_invalid_rois(roi_list, 'area pre-merge', log_path)
+
+    with h5py.File(log_path, 'r') as in_file:
+        actual_roi_id = in_file['filter_log/roi_id'][()]
+        actual_reasons = in_file['filter_log/reason'][()]
+
+    np.testing.assert_array_equal(actual_roi_id,
+                                  np.array([roi.roi_id for roi in roi_list]))
+    np.testing.assert_array_equal(
+            actual_reasons,
+            np.array(['area pre-merge'.encode('utf-8')]*len(roi_list)))

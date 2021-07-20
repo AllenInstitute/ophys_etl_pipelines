@@ -3,8 +3,9 @@ from marshmallow import post_load
 
 
 class FilterBaseSchema(argschema.schemas.DefaultSchema):
+    log_level = argschema.fields.LogLevel(default="INFO")
 
-    log_path = argschema.fields.OutputFile(
+    roi_log_path = argschema.fields.OutputFile(
             required=True,
             default=None,
             allow_none=False,

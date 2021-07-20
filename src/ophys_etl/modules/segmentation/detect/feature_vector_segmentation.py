@@ -410,7 +410,7 @@ class FeatureVectorSegmenter(object):
 
     def run(self,
             roi_output: pathlib.Path,
-            qc_output: Optional[pathlib.Path] = None,
+            qc_output: pathlib.Path,
             plot_output: Optional[pathlib.Path] = None,
             seed_plot_output: Optional[pathlib.Path] = None,
             ) -> None:
@@ -422,9 +422,8 @@ class FeatureVectorSegmenter(object):
         roi_output: pathlib.Path
             Path to the JSON file where discovered ROIs will be recorded
 
-        qc_output: Optional[pathlib.Path]
-            If not None, the path where the qc results will be written
-            (default: None)
+        qc_output: pathlib.Path
+            the path where the qc results will be written
 
         plot_output: Optional[pathlib.Path]
             If not None, the path where a plot comparing the seed image
@@ -466,8 +465,7 @@ class FeatureVectorSegmenter(object):
             video_data = in_file['data'][()]
         logger.info(f'read in video data from {str(self._video_input)}')
 
-        if qc_output is not None:
-            seed_record = {}
+        seed_record = {}
 
         # list of discovered ROIs
         self.roi_list = []
@@ -505,8 +503,7 @@ class FeatureVectorSegmenter(object):
             msg += f'{len(self.roi_list)} valid ROIs ({n_valid_pix}) pixels'
             logger.info(msg)
 
-            if qc_output is not None:
-                seed_record[i_iteration] = roi_seeds
+            seed_record[i_iteration] = roi_seeds
 
             i_iteration += 1
 

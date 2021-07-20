@@ -5,6 +5,20 @@ from marshmallow import post_load
 class FilterBaseSchema(argschema.schemas.DefaultSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
 
+    roi_input = argschema.fields.InputFile(
+            required=True,
+            default=None,
+            allow_none=False,
+            description=("Path to the JSON file containing the ROIs "
+                         "to be filtered"))
+
+    roi_output = argschema.fields.OutputFile(
+            required=True,
+            default=None,
+            allow_none=False,
+            description=("Path to the JSON file where the filtered ROIs "
+                         "will be written"))
+
     roi_log_path = argschema.fields.OutputFile(
             required=True,
             default=None,

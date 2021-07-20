@@ -135,13 +135,13 @@ class FilterRunnerBase(argschema.ArgSchemaParser):
         reason = ' -- '.join((this_filter.reason,
                               self.args['pipeline_stage']))
         log_invalid_rois(results['invalid_roi'],
-                         pathlib.Path(self.args['roi_log_path']),
-                         reason)
+                         reason,
+                         pathlib.Path(self.args['roi_log_path']))
 
         new_roi_list = [ophys_roi_to_extract_roi(roi)
                         for roi in results['valid_roi']]
         new_roi_list += [ophys_roi_to_extract_roi(roi)
                          for roi in results['invalid_roi']]
 
-        with open(self.args['roi_output'], 'wb'):
-            json.dump(new_roi_list, indent=2)
+        with open(self.args['roi_output'], 'w') as out_file:
+            json.dump(new_roi_list, out_file, indent=2)

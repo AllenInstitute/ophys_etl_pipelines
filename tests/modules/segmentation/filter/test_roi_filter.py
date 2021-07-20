@@ -103,21 +103,21 @@ def test_area_filter_schema(tmpdir):
     area_schema = AreaFilterSchema()
     log_file_path = pathlib.Path(tmpdir)/'dummy_log.h5'
 
-    valid_schema = {'log_path': str(log_file_path.absolute()),
+    valid_schema = {'roi_log_path': str(log_file_path.absolute()),
                     'pipeline_stage': 'something',
                     'max_area': 5,
                     'min_area': 3}
 
     area_schema.load(valid_schema)
 
-    valid_schema = {'log_path': str(log_file_path.absolute()),
+    valid_schema = {'roi_log_path': str(log_file_path.absolute()),
                     'pipeline_stage': 'something',
                     'max_area': 5,
                     'min_area': None}
 
     area_schema.load(valid_schema)
 
-    valid_schema = {'log_path': str(log_file_path.absolute()),
+    valid_schema = {'roi_log_path': str(log_file_path.absolute()),
                     'pipeline_stage': 'something',
                     'max_area': None,
                     'min_area': 2}
@@ -125,7 +125,7 @@ def test_area_filter_schema(tmpdir):
     area_schema.load(valid_schema)
 
     with pytest.raises(RuntimeError, match='are both None'):
-        invalid_schema = {'log_path': str(log_file_path.absolute()),
+        invalid_schema = {'roi_log_path': str(log_file_path.absolute()),
                           'pipeline_stage': 'something',
                           'max_area': None,
                           'min_area': None}

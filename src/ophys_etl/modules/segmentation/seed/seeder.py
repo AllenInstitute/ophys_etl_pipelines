@@ -218,7 +218,7 @@ class ImageMetricSeeder(SeederBase):
 
     def log_to_h5_group(self,
                         h5file: h5py.File,
-                        group_name: str = "seeding"):
+                        group_name: str = "seed"):
         """records some attributes of this seeder to an hdf5 group for
         inspection purposes.
 

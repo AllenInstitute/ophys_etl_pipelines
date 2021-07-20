@@ -38,7 +38,7 @@ class FeatureVectorSegmentationRunner(argschema.ArgSchemaParser):
         else:
             plot_output = None
         segmenter.run(roi_output=self.args['roi_output'],
-                      seed_output=pathlib.Path(self.args['seed_output']),
+                      qc_output=pathlib.Path(self.args['qc_output']),
                       plot_output=plot_output,
                       seed_plot_output=self.args['seed_plot_output'])
 

@@ -25,7 +25,7 @@ def seed_h5_group(tmp_path):
         sb.log_to_h5_group(f)
 
     with h5py.File(h5path, "r") as f:
-        yield f["seeding"]
+        yield f["seed"]
 
 
 @pytest.mark.parametrize(

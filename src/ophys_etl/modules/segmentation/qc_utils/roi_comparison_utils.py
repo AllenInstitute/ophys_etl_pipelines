@@ -167,7 +167,7 @@ def create_roi_v_background_grid(
 
     n_bckgd = len(background_paths)  # rows
     n_roi = len(roi_paths)    # columns
-    fontsize = 30
+    fontsize = int(np.round(30.0*0.1*figsize_per))
     figure = mplt_fig.Figure(figsize=(figsize_per*(n_roi+1),
                                       figsize_per*n_bckgd))
 

@@ -50,7 +50,7 @@ class ROIAreaFilter(ROIBaseFilter):
                  min_area: Optional[int] = None,
                  max_area: Optional[int] = None):
 
-        self._reason = 'area'.encode('utf-8')
+        self._reason = 'area'
 
         if max_area is None and min_area is None:
             msg = "Both max_area and min_area are None; "

@@ -92,7 +92,8 @@ def create_roi_v_background_grid(
         roi_names: Union[str, List[str]],
         color_list: List[Tuple[int, int, int]],
         invalid_color: Tuple[int, int, int] = (255, 0, 0),
-        attribute_name: str = 'filtered_hnc_Gaussian') -> mplt_fig.Figure:
+        attribute_name: str = 'filtered_hnc_Gaussian',
+        figsize_per: int = 10) -> mplt_fig.Figure:
     """
     Create a plot showing a set of ROIs overlaid over a set of
     different background images. In the final plot, each distinct
@@ -132,6 +133,13 @@ def create_roi_v_background_grid(
         image from a networkx graph, if applicable.
         Default: 'filtered_hnc_Gaussian'
 
+    figsize_per: int
+        When setting figsize for the output figure, each dimension of
+        each subplot will be given this many inches (i.e.
+        matplotlib.figure.Figure will be instantiated with
+        figsize=(figsize_per*n_columns, figsize_per*n_rows)
+        (default=10)
+
     Returns
     -------
     matplotlib.figure.Figure
@@ -160,7 +168,8 @@ def create_roi_v_background_grid(
     n_bckgd = len(background_paths)  # rows
     n_roi = len(roi_paths)    # columns
     fontsize = 30
-    figure = mplt_fig.Figure(figsize=(10*(n_roi+1), 10*n_bckgd))
+    figure = mplt_fig.Figure(figsize=(figsize_per*(n_roi+1),
+                                      figsize_per*n_bckgd))
 
     axes = [figure.add_subplot(n_bckgd, n_roi+1, ii)
             for ii in range(1, 1+n_bckgd*(n_roi+1), 1)]

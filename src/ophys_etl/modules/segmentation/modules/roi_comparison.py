@@ -51,6 +51,14 @@ class ROIComparisonSchema(argschema.ArgSchema):
             default='filtered_hnc_Gaussian',
             description=("name of attribute to plot in a background image"))
 
+    figsize_per = argschema.fields.Int(
+            required=False,
+            default=10,
+            description=("Inches per side of subplot in grid "
+                         "(matplotlib.figure.Figure will be "
+                         "instantiated with "
+                         "figsize=(ncol*figsize_per, nrow*figsize_per))"))
+
     @post_load
     def verify_names_and_paths(self, data, **kwargs):
 

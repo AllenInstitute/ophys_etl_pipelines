@@ -54,7 +54,7 @@ class ROIBaseFilter(ABC):
             self,
             roi_list: List[OphysROI]) -> Dict[str, List[OphysROI]]:
         """
-        Loop over a list of ROIs, testing each agains the filter's
+        Loop over a list of ROIs, testing each against the filter's
         criterion. Returns a dict in which 'valid_roi' points to
         a list of ROIs that passed the cut and 'invalid_roi' points
         to a list of ROIs that did not. Invalid ROIs will be

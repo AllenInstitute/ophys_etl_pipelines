@@ -1,4 +1,4 @@
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 from abc import ABC, abstractmethod
 import argschema
 import json
@@ -16,17 +16,57 @@ from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import (
 
 
 class ROIBaseFilter(ABC):
+    """
+    Abstract base class for ROI filtering mechanisms.
+
+    Sub-classes of this calss need to implement
+    self.is_roi_valid which accepts an OphysROI and returns
+    a boolean indicating whether or not that ROI is accepted
+    as valid according to the filter's criterion.
+
+    The __init__ for the sub-class also needs to define
+    self._reason, a string summarizing what the filter does
+    so that users can know why their ROIs were flagged as
+    invalid.
+    """
 
     _reason = None  # reason ROI is marked as invalid
 
     @abstractmethod
     def is_roi_valid(self, roi: OphysROI) -> bool:
+        """
+        Determines if an ROI passes the filter
+
+        Parameters
+        ----------
+        roi: OphysROI
+
+        Returns
+        -------
+        bool
+            True if the ROI is determined as valid;
+            False otherwise
+        """
         raise NotImplementedError()
 
     def do_filtering(
             self,
             roi_list: List[OphysROI]) -> Dict[str, List[OphysROI]]:
+        """
+        Loop over a list of ROIs, testing each agains the filter's
+        criterion. Returns a dict in which 'valid_roi' points to
+        a list of ROIs that passed the cut and 'invalid_roi' points
+        to a list of ROIs that did not. Invalid ROIs will be
+        re-instantiated with valid_roi=False
 
+        Parameters
+        ----------
+        roi_list: List[OphysROI]
+
+        Returns
+        -------
+        Dict[str, List[OphysROI]]
+        """
         valid_roi = []
         invalid_roi = []
         for roi in roi_list:
@@ -47,7 +87,11 @@ class ROIBaseFilter(ABC):
                 'invalid_roi': invalid_roi}
 
     @property
-    def reason(self):
+    def reason(self) -> str:
+        """
+        Return a string encapsulating the reason an ROI
+        would be flagged invalid by this filter.
+        """
         if self._reason is None:
             msg = "self._reason not defined for class "
             msg += f"{type(self)}"
@@ -56,6 +100,23 @@ class ROIBaseFilter(ABC):
 
 
 class ROIAreaFilter(ROIBaseFilter):
+    """
+    A sub-class of ROIBaseFilter that accepts ROIs if their
+    areas are min_area <= area <= max_area
+
+    Parameters
+    ----------
+    min_area: Optional[int]
+        Default None
+
+    max_area: Optional[int]
+         Default None
+
+    Note
+    ----
+    Any limit that is None is ignored. If both limits are
+    None, an error is raised.
+    """
 
     def __init__(self,
                  min_area: Optional[int] = None,
@@ -72,14 +133,35 @@ class ROIAreaFilter(ROIBaseFilter):
         self._min_area = min_area
 
     @property
-    def max_area(self):
+    def max_area(self) -> Union[int, None]:
+        """
+        Maximum allowable area for a valid ROI
+        """
         return self._max_area
 
     @property
-    def min_area(self):
+    def min_area(self) -> Union[int, None]:
+        """
+        Minimum allowable area for a valid ROI
+        """
         return self._min_area
 
     def is_roi_valid(self, roi: OphysROI) -> bool:
+        """
+        Determines if an ROI satisifies
+        min_area <= roi.area <= max_area
+
+        Parameters
+        ----------
+        roi: OphysROI
+
+        Returns
+        -------
+        bool
+            True if the ROI is determined as valid;
+            False otherwise
+        """
+
         if self.max_area is not None:
             if roi.area > self.max_area:
                 return False

@@ -526,7 +526,7 @@ class FeatureVectorSegmenter(object):
             fig = matplotlib.figure.Figure(figsize=(8, 8))
             axes = fig.add_subplot(111)
             with h5py.File(qc_output, "r") as f:
-                add_seeds_to_axes(fig, axes, seed_h5_group=f["seeding"])
+                add_seeds_to_axes(fig, axes, seed_h5_group=f["seed"])
             fig.savefig(seed_plot_output)
             logger.info(f'wrote {seed_plot_output}')
 

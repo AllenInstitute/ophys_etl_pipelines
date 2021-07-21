@@ -301,6 +301,18 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
         default=0.2,
         description="fraction of timesteps to use in time correlation")
 
+    min_window_size = argschema.fields.Int(
+        required=False,
+        default=20,
+        description=("minimum size of window an ROI will be given to "
+                     "grow in"))
+
+    max_window_size = argschema.fields.Int(
+        required=False,
+        default=40,
+        description=("maximum size of window an ROI will be given to "
+                     "grow in"))
+
     @post_load
     def plot_outputs(self, data, **kwargs):
         if data['seed_plot_output'] is None:

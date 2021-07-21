@@ -31,7 +31,9 @@ class FeatureVectorSegmentationRunner(argschema.ArgSchemaParser):
                 n_processors=n_processors,
                 roi_class=roi_class,
                 filter_fraction=self.args['filter_fraction'],
-                seeder_args=self.args['seeder_args'])
+                seeder_args=self.args['seeder_args'],
+                min_window_size=self.args['min_window_size'],
+                max_window_size=self.args['max_window_size'])
 
         if self.args['plot_output'] is not None:
             plot_output = pathlib.Path(self.args['plot_output'])

@@ -222,6 +222,14 @@ class FeatureVectorSegmenter(object):
     seeder_args: dict
         passed to BatchImageMetricSeeder.__init__()
 
+    min_window_size:
+        Original size of the window a potential ROI will be given
+        to grow in (default 20)
+
+    max_window_size:
+        Maximum size of the window a potential ROI will be given
+        to grow in (default 40)
+
     Notes
     -----
     After calling the run() method in this class, ROIs will be written to
@@ -237,9 +245,13 @@ class FeatureVectorSegmenter(object):
                  attribute: str = 'filtered_hnc_Gaussian',
                  filter_fraction: float = 0.2,
                  n_processors=8,
-                 roi_class=PearsonFeatureROI):
+                 roi_class=PearsonFeatureROI,
+                 min_window_size=20,
+                 max_window_size=40):
 
         self.roi_class = roi_class
+        self.min_window_size = min_window_size
+        self.max_window_size = max_window_size
         self.n_processors = n_processors
         self._attribute = attribute
         self._graph_input = graph_input
@@ -286,7 +298,7 @@ class FeatureVectorSegmenter(object):
 
         # in case we end up retrying ROIs, make sure we can
         # grow their available thumbnails
-        seed_to_slop = dict()
+        seed_to_window = dict()
 
         # NOTE: we should rewrite run() and _run() so that they can
         # use the parallel seed iterator like
@@ -303,7 +315,7 @@ class FeatureVectorSegmenter(object):
             seed_list = []
             for roi in self.roi_to_retry:
                 seed_list.append(roi['seed'])
-                seed_to_slop[roi['seed']] = 3*roi['slop']//2
+                seed_to_window[roi['seed']] = 3*roi['window_size']//2
 
             self.roi_to_retry = []
         else:
@@ -312,9 +324,6 @@ class FeatureVectorSegmenter(object):
                 seed_list = next(self.seeder)
             except StopIteration:
                 seed_list = []
-
-        default_slop = 20
-        max_slop = 40
 
         # lookup from ROI ID to seed and size of ROI
         # thumbnail
@@ -332,15 +341,16 @@ class FeatureVectorSegmenter(object):
                 continue
 
             self.roi_id += 1
-            slop = seed_to_slop.get(seed, default_slop)
+            window_size = seed_to_window.get(seed,
+                                             self.min_window_size)
 
             roi_inputs[self.roi_id] = {'seed': seed,
-                                       'slop': slop}
+                                       'window_size': window_size}
 
-            r0 = int(max(0, seed[0] - slop))
-            r1 = int(min(self.movie_shape[0], seed[0] + slop))
-            c0 = int(max(0, seed[1] - slop))
-            c1 = int(min(self.movie_shape[1], seed[1] + slop))
+            r0 = int(max(0, seed[0] - window_size))
+            r1 = int(min(self.movie_shape[0], seed[0] + window_size))
+            c0 = int(max(0, seed[1] - window_size))
+            c1 = int(min(self.movie_shape[1], seed[1] + window_size))
 
             mask = self.roi_pixels[r0:r1, c0:c1]
 
@@ -387,9 +397,10 @@ class FeatureVectorSegmenter(object):
             at_edge = _is_roi_at_edge(origin,
                                       video_data.shape[1:],
                                       mask)
-            if at_edge and roi_inputs[roi_id]['slop'] < max_slop:
-                self.roi_to_retry.append(roi_inputs[roi_id])
-                continue
+            if at_edge:
+                if roi_inputs[roi_id]['window_size'] < self.max_window_size:
+                    self.roi_to_retry.append(roi_inputs[roi_id])
+                    continue
 
             roi = convert_to_lims_roi(origin,
                                       mask,

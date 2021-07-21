@@ -4,6 +4,7 @@ import argschema
 import json
 import h5py
 import pathlib
+import copy
 import numpy as np
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
@@ -71,7 +72,7 @@ class ROIBaseFilter(ABC):
         invalid_roi = []
         for roi in roi_list:
             if self.is_roi_valid(roi):
-                valid_roi.append(roi)
+                valid_roi.append(copy.deepcopy(roi))
             else:
                 new_roi = OphysROI(
                               x0=roi.x0,

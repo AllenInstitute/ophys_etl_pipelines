@@ -91,12 +91,18 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             # keep the QC evaluation of detection and merging separate.
             figure = matplotlib.figure.Figure(figsize=(10, 10))
             with h5py.File(self.args['qc_output'], "r") as f:
-                group = f["detect"]
-                roi_metric_qc_plot(
-                        figure=figure,
-                        metric_image=group["metric_image"][()],
-                        attribute=group["attribute"][()].decode("utf-8"),
-                        roi_list=roi_list)
+                if 'detect' not in f:
+                    logger.warn("Unable to create merging plot; "
+                                "'detect' group does not exist in "
+                                f"{self.args['qc_output']}")
+                else:
+                    group = f["detect"]
+                    roi_metric_qc_plot(
+                            figure=figure,
+                            metric_image=group["metric_image"][()],
+                            attribute=group["attribute"][()].decode("utf-8"),
+                            roi_list=[roi_utils.ophys_roi_to_extract_roi(roi)
+                                      for roi in roi_list])
             figure.tight_layout()
             figure.savefig(self.args['plot_output'])
             logger.info(f'wrote {self.args["plot_output"]}')

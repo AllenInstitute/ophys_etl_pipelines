@@ -13,8 +13,8 @@ def choose_timesteps(
             rng: Optional[np.random.RandomState] = None,
             pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
     """
-    Calculate the Pearson correlation-based feature vectors relating
-    a grid of pixels in a video to each other
+    Choose the timesteps to use for a given seed when calculating Pearson
+    correlation coefficients.
 
     Parameters
     ----------

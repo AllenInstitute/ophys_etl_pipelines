@@ -8,8 +8,9 @@ import json
 from ophys_etl.modules.segmentation.modules.calculate_edges import (
     CalculateEdges)
 
-from ophys_etl.modules.segmentation.modules.feature_vector_segmentation import (
-    FeatureVectorSegmentationRunner)
+from ophys_etl.modules.segmentation.modules.\
+    feature_vector_segmentation import (
+        FeatureVectorSegmentationRunner)
 
 from ophys_etl.modules.segmentation.modules.roi_merging import (
     RoiMergerEngine)
@@ -44,7 +45,7 @@ def synthetic_video_path(tmpdir_factory):
             flux /= sigma*np.sqrt(2.0*np.pi)
             for r in range(height):
                 for c in range(width):
-                    valid = rng.integers(0,2)
+                    valid = rng.integers(0, 2)
                     if valid == 0:
                         continue
                     noise = rng.normal(1.0, 0.3, size=nt)

@@ -93,8 +93,7 @@ def choose_timesteps(
 
 def calculate_masked_correlations(
             sub_video: np.ndarray,
-            global_mask: np.ndarray,
-            pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
+            global_mask: np.ndarray) -> np.ndarray:
     """
     Calculate and return the Pearson correlation coefficient between
     pixels in a video, using only specific timesteps

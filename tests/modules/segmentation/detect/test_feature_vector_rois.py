@@ -12,10 +12,11 @@ def test_calculate_pearson_feature_vectors():
     run smoke test on calculate_pearson_feature_vectors
     """
     rng = np.random.RandomState(491852)
-    data = rng.random_sample((100, 20, 20))
+    data = rng.random_sample((100, 400))
     seed_pt = (15, 3)
     features = calculate_pearson_feature_vectors(
                                 data,
+                                (20, 20),
                                 seed_pt,
                                 0.2)
 
@@ -27,6 +28,7 @@ def test_calculate_pearson_feature_vectors():
     mask[4:7, 11:] = True
     features = calculate_pearson_feature_vectors(
                                 data,
+                                (20, 20),
                                 seed_pt,
                                 0.2,
                                 pixel_ignore=mask)
@@ -42,6 +44,7 @@ def test_roi_growth(example_video):
     with h5py.File(example_video, 'r') as in_file:
         video_data = in_file['data'][()]
 
+    video_data = video_data.reshape(video_data.shape[0], -1)
     seed_pt = (12, 16)
     origin = (0, 0)
     mask = np.zeros((40, 40), dtype=bool)
@@ -50,14 +53,14 @@ def test_roi_growth(example_video):
     mask[:, :] = True
     mask[12, 16] = False
     mask[1:4, 2] = False
-    roi = PearsonFeatureROI(seed_pt, origin, video_data,
+    roi = PearsonFeatureROI(seed_pt, origin, (40, 40), video_data,
                             0.2, pixel_ignore=mask)
     roi.get_mask()
 
     # only seed is valid
     mask[:, :] = True
     mask[12, 16] = False
-    roi = PearsonFeatureROI(seed_pt, origin, video_data,
+    roi = PearsonFeatureROI(seed_pt, origin, (40, 40), video_data,
                             0.2, pixel_ignore=mask)
     roi.get_mask()
 
@@ -65,5 +68,5 @@ def test_roi_growth(example_video):
     mask[:, :] = True
     msg = "Tried to create ROI with no valid pixels"
     with pytest.raises(RuntimeError, match=msg):
-        _ = PearsonFeatureROI(seed_pt, origin, video_data,
+        _ = PearsonFeatureROI(seed_pt, origin, (40, 40), video_data,
                               0.2, pixel_ignore=mask)

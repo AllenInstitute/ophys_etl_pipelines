@@ -1,5 +1,6 @@
 from typing import Optional, Tuple
 import numpy as np
+from itertools import product
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
@@ -8,7 +9,7 @@ from ophys_etl.utils.array_utils import pairwise_distances
 
 def choose_timesteps(
             sub_video: np.ndarray,
-            i_seed: int,
+            seed_pt: Tuple[int, int],
             filter_fraction: float,
             rng: Optional[np.random.RandomState] = None,
             pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
@@ -20,7 +21,7 @@ def choose_timesteps(
     ----------
     sub_video: np.ndarray
         A subset of a video to be correlated.
-        Shape is (n_time, n_pixels)
+        Shape is (n_time, n_row, n_cols)
 
     i_seed: int
         The index of the point being considered as the seed
@@ -50,7 +51,7 @@ def choose_timesteps(
     discard = 1.0-filter_fraction
 
     # start assembling mask in timesteps
-    trace = sub_video[:, i_seed]
+    trace = sub_video[:, seed_pt[0], seed_pt[1]]
     thresh = np.quantile(trace, discard)
     global_mask = []
     mask = np.where(trace >= thresh)[0]
@@ -58,30 +59,32 @@ def choose_timesteps(
 
     # choose n_seeds other points to populate global_mask
     possible_seeds = []
-    for ii in range(sub_video.shape[1]):
-        if ii == i_seed:
+    for rr, cc in product(range(sub_video.shape[1]),
+                          range(sub_video.shape[2])):
+        pt = (rr, cc)
+        if pt == seed_pt:
             continue
+        if pixel_ignore is None or not pixel_ignore[rr, cc]:
+            possible_seeds.append(pt)
 
-        if pixel_ignore is None or not pixel_ignore[i_seed]:
-            possible_seeds.append(ii)
-
+    possible_seed_indexes = np.arange(len(possible_seeds))
     n_seeds = 10
     if rng is None:
         rng = np.random.RandomState(87123)
     chosen = set()
-    chosen.add(i_seed)
+    chosen.add(seed_pt)
 
     if len(possible_seeds) > n_seeds:
-        chosen_seeds = rng.choice(possible_seeds,
+        chosen_seeds = rng.choice(possible_seed_indexes,
                                   size=n_seeds, replace=False)
         for ii in chosen_seeds:
-            chosen.add(ii)
+            chosen.add(possible_seeds[ii])
     else:
-        for ii in possible_seeds:
-            chosen.add(ii)
+        for ii in possible_seed_indexes:
+            chosen.add(possible_seeds[ii])
 
     for chosen_pixel in chosen:
-        trace = sub_video[:, chosen_pixel]
+        trace = sub_video[:, chosen_pixel[0], chosen_pixel[1]]
         thresh = np.quantile(trace, discard)
         mask = np.where(trace >= thresh)[0]
         global_mask.append(mask)
@@ -90,8 +93,7 @@ def choose_timesteps(
 
 
 def calculate_masked_correlations(
-            sub_video: np.ndarray,
-            global_mask: np.ndarray) -> np.ndarray:
+            traces: np.ndarray) -> np.ndarray:
     """
     Calculate and return the Pearson correlation coefficient between
     pixels in a video, using only specific timesteps
@@ -102,10 +104,6 @@ def calculate_masked_correlations(
         A subset of a video to be correlated.
         Shape is (n_time, n_pixels)
 
-    global_mask: np.ndarray
-        The array of timesteps to be used when calculating the
-        Pearson correlation coefficient
-
     Returns
     -------
     pearson: np.ndarray
@@ -113,20 +111,18 @@ def calculate_masked_correlations(
         between pixels in the movie.
     """
 
-    # apply timestep mask
-    traces = sub_video[global_mask, :].astype(float)
-
     # calculate the Pearson correlation coefficient between pixels
     mu = np.mean(traces, axis=0)
     traces -= mu
     var = np.mean(traces**2, axis=0)
 
     n_pixels = traces.shape[1]
+    ntime = traces.shape[0]
     pearson = np.ones((n_pixels,
                        n_pixels),
                       dtype=float)
 
-    numerators = np.tensordot(traces, traces, axes=(0, 0))/sub_video.shape[0]
+    numerators = np.tensordot(traces, traces, axes=(0, 0))/ntime
 
     for ii in range(n_pixels):
         local_numerators = numerators[ii, ii+1:]
@@ -185,6 +181,7 @@ def normalize_features(input_features: np.ndarray) -> np.ndarray:
 
 def calculate_pearson_feature_vectors(
             sub_video: np.ndarray,
+            img_shape: Tuple[int, int],
             seed_pt: Tuple[int, int],
             filter_fraction: float,
             rng: Optional[np.random.RandomState] = None,
@@ -252,11 +249,11 @@ def calculate_pearson_feature_vectors(
     if pixel_ignore is not None:
         flat_mask = pixel_ignore.flatten()
     else:
-        flat_mask = np.zeros(sub_video.shape[1]*sub_video.shape[2],
+        flat_mask = np.zeros(sub_video.shape[1],
                              dtype=bool)
 
     # map unmasked i_seed to masked i_seed
-    i_seed_0 = np.ravel_multi_index(seed_pt, sub_video.shape[1:])
+    i_seed_0 = np.ravel_multi_index(seed_pt, img_shape)
     i_seed = 0
     for ii in range(len(flat_mask)):
         if ii == i_seed_0:
@@ -264,17 +261,9 @@ def calculate_pearson_feature_vectors(
         if not flat_mask[ii]:
             i_seed += 1
 
-    sub_video = sub_video.reshape(sub_video.shape[0], -1)
     sub_video = sub_video[:, np.logical_not(flat_mask)]
 
-    global_mask = choose_timesteps(sub_video,
-                                   i_seed,
-                                   filter_fraction,
-                                   rng=rng,
-                                   pixel_ignore=flat_mask)
-
-    pearson = calculate_masked_correlations(sub_video,
-                                            global_mask)
+    pearson = calculate_masked_correlations(sub_video)
 
     features = normalize_features(pearson)
 
@@ -383,6 +372,7 @@ class PotentialROI(object):
     def __init__(self,
                  seed_pt: Tuple[int, int],
                  origin: Tuple[int, int],
+                 img_shape: Tuple[int, int],
                  sub_video: np.ndarray,
                  filter_fraction: float,
                  pixel_ignore: Optional[np.ndarray] = None,
@@ -390,7 +380,7 @@ class PotentialROI(object):
         self.origin = origin
         self.seed_pt = (seed_pt[0]-origin[0], seed_pt[1]-origin[1])
         self.filter_fraction = filter_fraction
-        self.img_shape = sub_video.shape[1:]
+        self.img_shape = img_shape
 
         self.index_to_pixel = []
         self.pixel_to_index = {}
@@ -645,6 +635,7 @@ class PearsonFeatureROI(PotentialROI):
         """
         features = calculate_pearson_feature_vectors(
                                     sub_video,
+                                    self.img_shape,
                                     self.seed_pt,
                                     filter_fraction,
                                     pixel_ignore=pixel_ignore,

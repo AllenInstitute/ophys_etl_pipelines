@@ -10,7 +10,8 @@ import matplotlib
 
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
-    PearsonFeatureROI)
+    PearsonFeatureROI,
+    choose_timesteps)
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
 from ophys_etl.modules.segmentation.seed.seeder import \
         BatchImageMetricSeeder
@@ -38,6 +39,7 @@ class ROISeed(TypedDict):
 
 
 def _get_roi(seed_obj: ROISeed,
+             img_shape: Tuple[int, int],
              video_data: np.ndarray,
              filter_fraction: float,
              pixel_ignore: np.ndarray,
@@ -97,6 +99,7 @@ def _get_roi(seed_obj: ROISeed,
 
     roi = roi_class(seed_pt,
                     origin,
+                    img_shape,
                     video_data,
                     filter_fraction,
                     pixel_ignore=pixel_ignore)
@@ -355,6 +358,15 @@ class FeatureVectorSegmenter(object):
             mask = self.roi_pixels[r0:r1, c0:c1]
 
             video_data_subset = video_data[:, r0:r1, c0:c1]
+            timesteps = choose_timesteps(video_data_subset,
+                                         (seed[0]-r0, seed[1]-c0),
+                                         self._filter_fraction,
+                                         self.rng,
+                                         mask)
+
+            video_data_subset = video_data_subset[timesteps, :, :]
+            _t = video_data_subset.shape[0]
+            video_data_subset = video_data_subset.reshape(_t, -1).astype(float)
 
             # NOTE: eventually, get rid of ROISeed
             # rationale: seeding produces seeds (coordinates), this object
@@ -366,6 +378,7 @@ class FeatureVectorSegmenter(object):
 
             p = multiprocessing.Process(target=_get_roi,
                                         args=(this_seed,
+                                              (r1-r0, c1-c0),
                                               video_data_subset,
                                               self._filter_fraction,
                                               mask,

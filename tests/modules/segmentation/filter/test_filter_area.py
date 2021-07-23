@@ -3,13 +3,46 @@ import h5py
 import numpy as np
 import pathlib
 
+from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+
 from ophys_etl.modules.segmentation.modules.filter_area import (
     AreaFilterRunner)
 
 from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import (
     roi_list_from_file)
 
-from ophys_etl.modules.decrosstalk.ophys_plane import compare_rois
+
+def compare_rois(roi0: OphysROI,
+                 roi1: OphysROI) -> bool:
+    """
+    Compare two OphysROIs (ignoring valid_roi).
+    Return True if they are identical. Return False
+    otherwise.
+
+    Parameters
+    ----------
+    roi0: OphysROI
+
+    roi1: OphysROI
+
+    Returns
+    -------
+    bool
+    """
+    if roi0.x0 != roi1.x0:
+        return False
+    if roi0.y0 != roi1.y0:
+        return False
+    if roi0.width != roi1.width:
+        return False
+    if roi0.height != roi1.height:
+        return False
+    if roi0.roi_id != roi1.roi_id:
+        return False
+    if not np.array_equal(roi0.mask_matrix, roi1.mask_matrix):
+        return False
+
+    return True
 
 
 @pytest.mark.parametrize(

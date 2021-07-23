@@ -1,11 +1,9 @@
-import pytest
 import os
 import json
 import numpy as np
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 from ophys_etl.modules.decrosstalk.ophys_plane import intersection_over_union
-from ophys_etl.modules.decrosstalk.ophys_plane import compare_rois
 
 from .utils import get_data_dir
 
@@ -112,83 +110,3 @@ def test_intersection_over_union():
     eps = 1.0e-20
     np.testing.assert_allclose(actual, actual1, rtol=0.0, atol=eps)
     np.testing.assert_allclose(actual, expected, rtol=0.0, atol=eps)
-
-
-@pytest.fixture
-def roi_pair_list():
-    """
-    A list of Tuples of the form (roi0, roi1, expected)
-    where expected is a boolean denoting the expected
-    result of compare_rois(roi0, roi1)
-    """
-    result = []
-    rng = np.random.default_rng(17231)
-    mask0 = rng.integers(0, 2, (7, 8)).astype(bool)
-
-    roi0 = OphysROI(x0=6, width=8,
-                    y0=12, height=7,
-                    roi_id=55,
-                    valid_roi=True,
-                    mask_matrix=mask0)
-    result.append((roi0, roi0, True))
-
-    roi1 = OphysROI(x0=6, width=8,
-                    y0=12, height=7,
-                    roi_id=55,
-                    valid_roi=False,
-                    mask_matrix=mask0)
-    result.append((roi0, roi1, True))
-
-    roi1 = OphysROI(x0=5, width=8,
-                    y0=12, height=7,
-                    roi_id=55,
-                    valid_roi=True,
-                    mask_matrix=mask0)
-    result.append((roi0, roi1, False))
-
-    roi1 = OphysROI(x0=6, width=8,
-                    y0=2, height=7,
-                    roi_id=55,
-                    valid_roi=False,
-                    mask_matrix=mask0)
-    result.append((roi0, roi1, False))
-
-    roi1 = OphysROI(x0=6, width=8,
-                    y0=12, height=7,
-                    roi_id=54,
-                    valid_roi=False,
-                    mask_matrix=mask0)
-    result.append((roi0, roi1, False))
-
-    roi1 = OphysROI(x0=6, width=8,
-                    y0=12, height=7,
-                    roi_id=55,
-                    valid_roi=False,
-                    mask_matrix=np.ones((7, 8)).astype(bool))
-    result.append((roi0, roi1, False))
-
-    roi1 = OphysROI(x0=6, width=9,
-                    y0=12, height=7,
-                    roi_id=55,
-                    valid_roi=False,
-                    mask_matrix=np.ones((7, 9)).astype(bool))
-    result.append((roi0, roi1, False))
-
-    roi1 = OphysROI(x0=6, width=8,
-                    y0=12, height=4,
-                    roi_id=55,
-                    valid_roi=False,
-                    mask_matrix=np.ones((4, 8)).astype(bool))
-    result.append((roi0, roi1, False))
-
-    return result
-
-
-def test_compare_rois(roi_pair_list):
-    for roi_pair in roi_pair_list:
-        if roi_pair[2]:
-            assert compare_rois(roi_pair[0],
-                                roi_pair[1])
-        else:
-            assert not compare_rois(roi_pair[0],
-                                    roi_pair[1])

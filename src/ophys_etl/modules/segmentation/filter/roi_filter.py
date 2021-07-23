@@ -69,17 +69,11 @@ class ROIBaseFilter(ABC):
         valid_roi = []
         invalid_roi = []
         for roi in roi_list:
+            new_roi = copy.deepcopy(roi)
             if self.is_roi_valid(roi):
-                valid_roi.append(copy.deepcopy(roi))
+                valid_roi.append(new_roi)
             else:
-                new_roi = OphysROI(
-                              x0=roi.x0,
-                              y0=roi.y0,
-                              height=roi.height,
-                              width=roi.width,
-                              mask_matrix=roi.mask_matrix,
-                              roi_id=roi.roi_id,
-                              valid_roi=False)
+                new_roi.valid_roi = False
                 invalid_roi.append(new_roi)
 
         return {'valid_roi': valid_roi,

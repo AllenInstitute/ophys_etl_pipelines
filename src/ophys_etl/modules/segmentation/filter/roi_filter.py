@@ -31,8 +31,6 @@ class ROIBaseFilter(ABC):
     invalid.
     """
 
-    _reason = None  # reason ROI is marked as invalid
-
     @abstractmethod
     def is_roi_valid(self, roi: OphysROI) -> bool:
         """
@@ -93,9 +91,10 @@ class ROIBaseFilter(ABC):
         Return a string encapsulating the reason an ROI
         would be flagged invalid by this filter.
         """
-        if self._reason is None:
+        if not hasattr(self, '_reason'):
             msg = "self._reason not defined for class "
-            msg += f"{type(self)}"
+            msg += f"{type(self)}\n"
+            msg += "must set it in __init__"
             raise NotImplementedError(msg)
         return self._reason
 

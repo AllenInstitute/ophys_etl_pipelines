@@ -376,9 +376,10 @@ class FeatureVectorSegmenter(object):
                                 rows=[r0, r1],
                                 cols=[c0, c1])
 
+            assert mask.shape[0]*mask.shape[1] == video_data_subset.shape[1]
             p = multiprocessing.Process(target=_get_roi,
                                         args=(this_seed,
-                                              (r1-r0, c1-c0),
+                                              mask.shape,
                                               video_data_subset,
                                               self._filter_fraction,
                                               mask,

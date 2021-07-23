@@ -91,7 +91,9 @@ def create_roi_v_background_grid(
         roi_paths: Union[pathlib.Path, List[pathlib.Path]],
         roi_names: Union[str, List[str]],
         color_list: List[Tuple[int, int, int]],
-        attribute_name: str = 'filtered_hnc_Gaussian') -> mplt_fig.Figure:
+        invalid_color: Tuple[int, int, int] = (255, 0, 0),
+        attribute_name: str = 'filtered_hnc_Gaussian',
+        figsize_per: int = 10) -> mplt_fig.Figure:
     """
     Create a plot showing a set of ROIs overlaid over a set of
     different background images. In the final plot, each distinct
@@ -122,10 +124,21 @@ def create_roi_v_background_grid(
         number of ROI sets; the code will just cycle through
         the list of provided colors.
 
+    invalid_color: Tuple[int, int, int]
+        RGB color to use for invalid ROIs.
+        (default = (255, 0, 0))
+
     attribute_name: str
         The name of the attribute to use in constructing the background
         image from a networkx graph, if applicable.
         Default: 'filtered_hnc_Gaussian'
+
+    figsize_per: int
+        When setting figsize for the output figure, each dimension of
+        each subplot will be given this many inches (i.e.
+        matplotlib.figure.Figure will be instantiated with
+        figsize=(figsize_per*n_columns, figsize_per*n_rows)
+        (default=10)
 
     Returns
     -------
@@ -154,8 +167,9 @@ def create_roi_v_background_grid(
 
     n_bckgd = len(background_paths)  # rows
     n_roi = len(roi_paths)    # columns
-    fontsize = 30
-    figure = mplt_fig.Figure(figsize=(10*(n_roi+1), 10*n_bckgd))
+    fontsize = int(np.round(30.0*0.1*figsize_per))
+    figure = mplt_fig.Figure(figsize=(figsize_per*(n_roi+1),
+                                      figsize_per*n_bckgd))
 
     axes = [figure.add_subplot(n_bckgd, n_roi+1, ii)
             for ii in range(1, 1+n_bckgd*(n_roi+1), 1)]
@@ -207,11 +221,21 @@ def create_roi_v_background_grid(
             i_color = i_roi % len(color_list)
             this_color = color_list[i_color]
             this_roi = roi_lists[i_roi]
+
+            valid_roi_list = [roi for roi in this_roi if roi.valid_roi]
+            invalid_roi_list = [roi for roi in this_roi if not roi.valid_roi]
+
             axis = axes[i_bckgd*(n_roi+1)+i_roi+1]
             if i_bckgd == 0:
                 axis.set_title(roi_names[i_roi], fontsize=fontsize)
+
             img = add_roi_boundaries_to_img(background_array,
-                                            this_roi,
+                                            invalid_roi_list,
+                                            color=invalid_color,
+                                            alpha=1.0)
+
+            img = add_roi_boundaries_to_img(img,
+                                            valid_roi_list,
                                             color=this_color,
                                             alpha=1.0)
 

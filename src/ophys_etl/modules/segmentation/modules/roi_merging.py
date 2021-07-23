@@ -11,6 +11,8 @@ from ophys_etl.modules.segmentation.modules.schemas import \
 import ophys_etl.modules.segmentation.merge.roi_merging as merging
 import ophys_etl.modules.segmentation.merge.roi_utils as roi_utils
 from ophys_etl.modules.segmentation.qc.detect import roi_metric_qc_plot
+from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import (
+    roi_list_from_file)
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
@@ -60,20 +62,11 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             video_data = in_file['data'][()]
 
         t0 = time.time()
-        with open(self.args['roi_input'], 'rb') as in_file:
-            raw_roi_list = json.load(in_file)
-
-        roi_list = []
-        roi_id_set = set()
-        for roi in raw_roi_list:
-            roi['valid'] = True
-            ophys_roi = roi_utils.extract_roi_to_ophys_roi(roi)
-            if ophys_roi.roi_id in roi_id_set:
-                raise RuntimeError(f'roi id {ophys_roi.roi_id} duplicated '
-                                   'in initial input')
-            roi_list.append(ophys_roi)
-            roi_id_set.add(ophys_roi.roi_id)
-        del raw_roi_list
+        roi_list = roi_list_from_file(pathlib.Path(self.args['roi_input']))
+        roi_id_set = set([roi.roi_id for roi in roi_list])
+        if len(roi_id_set) != len(roi_list):
+            raise RuntimeError("There were ROI ID values duplicated in "
+                               f"{self.args['roi_input']}")
 
         roi_list = merging.do_roi_merger(
                                 roi_list,

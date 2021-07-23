@@ -428,6 +428,20 @@ def do_roi_merger(
 
     4) Repeat steps (1-3) until no more mergers occur.
     """
+    raw_roi_list = copy.deepcopy(raw_roi_list)
+
+    # ROIs that are too large to be considered valid
+    anomalous_rois = dict()
+
+    # first pass through, removing any ROIs that have been
+    # marked 'invalid' for other reasons
+    invalid_roi_indexes = []
+    for ii in range(len(raw_roi_list)-1, -1, -1):
+        if not raw_roi_list[ii].valid_roi:
+            invalid_roi_indexes.append(ii)
+    for ii in invalid_roi_indexes:
+        roi = raw_roi_list.pop(ii)
+        anomalous_rois[ii] = roi
 
     # create a lookup table of OphysROIs
     roi_lookup = {roi.roi_id: roi for roi in raw_roi_list}
@@ -451,9 +465,6 @@ def do_roi_merger(
     sub_video_lookup = dict()
     merger_to_metric = dict()
     timeseries_lookup = dict()
-
-    # ROIs that are too large to be considered valid
-    anomalous_rois = dict()
 
     logger.info(f'initially {len(roi_lookup)} ROIs')
 

@@ -51,6 +51,14 @@ class ROIComparisonSchema(argschema.ArgSchema):
             default='filtered_hnc_Gaussian',
             description=("name of attribute to plot in a background image"))
 
+    figsize_per = argschema.fields.Int(
+            required=False,
+            default=10,
+            description=("Inches per side of subplot in grid "
+                         "(matplotlib.figure.Figure will be "
+                         "instantiated with "
+                         "figsize=(ncol*figsize_per, nrow*figsize_per))"))
+
     @post_load
     def verify_names_and_paths(self, data, **kwargs):
 
@@ -87,9 +95,10 @@ class ROIComparisonEngine(argschema.ArgSchemaParser):
         # colors that showup reasonably well against our
         # grayscale background images
         color_list = [(0, 255, 0),
-                      (255, 128, 0),
-                      (51, 255, 255),
-                      (255, 51, 255)]
+                      (51, 153, 55),
+                      (51, 255, 255)]
+
+        invalid_color = (235, 52, 52)
 
         bckgd_paths = [pathlib.Path(p)
                        for p in self.args['background_paths']]
@@ -103,7 +112,9 @@ class ROIComparisonEngine(argschema.ArgSchemaParser):
                     roi_paths,
                     self.args['roi_names'],
                     color_list,
-                    attribute_name=self.args['attribute_name'])
+                    invalid_color=invalid_color,
+                    attribute_name=self.args['attribute_name'],
+                    figsize_per=self.args['figsize_per'])
 
         fig.savefig(self.args['plot_output'])
 

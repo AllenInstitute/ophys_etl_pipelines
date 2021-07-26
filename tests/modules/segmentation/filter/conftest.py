@@ -3,10 +3,9 @@ import numpy as np
 import pathlib
 import json
 
-from ophys_etl.modules.decrosstalk.ophys_plane import (
-    OphysROI)
+from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
-from ophys_etl.modules.segmentation.merge.roi_utils import (
+from ophys_etl.modules.segmentation.utils.roi_utils import (
     ophys_roi_to_extract_roi)
 
 

@@ -1,4 +1,7 @@
+from typing import List, Dict, Tuple
 import numpy as np
+import pathlib
+import json
 from scipy.spatial.distance import cdist
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
@@ -58,6 +61,47 @@ def ophys_roi_to_extract_roi(roi: OphysROI) -> ExtractROI:
                          valid_roi=roi.valid_roi,
                          id=roi.roi_id)
     return new_roi
+
+
+def convert_to_lims_roi(origin: Tuple[int, int],
+                        mask: np.ndarray,
+                        roi_id: int = 0) -> ExtractROI:
+    """
+    Convert an origin and a pixel mask into a LIMS-friendly
+    JSONized ROI
+
+    Parameters
+    ----------
+    origin: Tuple[int, int]
+        The global coordinates of the upper right corner of the pixel mask
+
+    mask: np.ndarray
+        A 2D array of booleans marked as True at the ROI's pixels
+
+    roi_id: int
+        default: 0
+
+    Returns
+    --------
+    roi: dict
+        an ExtractROI matching the input data
+    """
+    # trim mask
+    valid = np.argwhere(mask)
+    row0 = valid[:, 0].min()
+    row1 = valid[:, 0].max() + 1
+    col0 = valid[:, 1].min()
+    col1 = valid[:, 1].max() + 1
+
+    new_mask = mask[row0:row1, col0:col1]
+    roi = ExtractROI(id=roi_id,
+                     x=int(origin[1]+col0),
+                     y=int(origin[0]+row0),
+                     width=int(col1-col0),
+                     height=int(row1-row0),
+                     valid=True,
+                     mask=[i.tolist() for i in new_mask])
+    return roi
 
 
 def _do_rois_abut(array_0: np.ndarray,
@@ -253,3 +297,63 @@ def sub_video_from_roi(roi: OphysROI,
     mask = roi.mask_matrix
     sub_video = sub_video[:, mask].reshape(video_data.shape[0], -1)
     return sub_video
+
+
+def intersection_over_union(roi0: OphysROI,
+                            roi1: OphysROI) -> float:
+    """
+    Return the intersection over union of two ROIs relative
+    to each other
+
+    Parameters
+    ----------
+    roi0: OphysROI
+
+    roi1: OphysROI
+
+    Returns
+    -------
+    iou: float
+        """
+    pix0 = roi0.global_pixel_set
+    pix1 = roi1.global_pixel_set
+    ii = len(pix0.intersection(pix1))
+    uu = len(pix0.union(pix1))
+    return float(ii)/float(uu)
+
+
+def convert_roi_keys(roi_list: List[Dict]) -> List[Dict]:
+    """convert from key names expected by ExtractROI to
+    key names expected by OphysROI
+    """
+    new_list = []
+    for roi in roi_list:
+        if "valid" in roi:
+            roi["valid_roi"] = roi.pop("valid")
+        if "mask" in roi:
+            roi["mask_matrix"] = roi.pop("mask")
+        new_list.append(roi)
+    return new_list
+
+
+def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
+    """
+    Read in a JSONized file of ExtractROIs; return a list of
+    OphysROIs
+
+    Parameters
+    ----------
+    file_path: pathlib.Path
+
+    Returns
+    -------
+    List[OphysROI]
+    """
+    output_list = []
+    with open(file_path, 'rb') as in_file:
+        roi_data_list = json.load(in_file)
+        roi_data_list = convert_roi_keys(roi_data_list)
+        for roi_data in roi_data_list:
+            roi = OphysROI.from_schema_dict(roi_data)
+            output_list.append(roi)
+    return output_list

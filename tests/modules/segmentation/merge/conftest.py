@@ -24,21 +24,6 @@ def example_roi_list():
 
 
 @pytest.fixture
-def example_roi0():
-    rng = np.random.RandomState(64322)
-    roi = OphysROI(roi_id=4,
-                   x0=10,
-                   y0=22,
-                   width=7,
-                   height=11,
-                   valid_roi=True,
-                   mask_matrix=rng.randint(0, 2,
-                                           (11, 7)).astype(bool))
-
-    return roi
-
-
-@pytest.fixture
 def example_video():
     rng = np.random.RandomState(1172312)
     data = rng.random_sample((100, 50, 50))

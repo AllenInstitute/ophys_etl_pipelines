@@ -9,8 +9,8 @@ import numpy as np
 import PIL
 
 from ophys_etl.modules.decrosstalk.ophys_plane import (
-    OphysROI,
     DecrosstalkingOphysPlane,
+    OphysROI,
     find_overlapping_roi_pairs,
     get_roi_pixels)
 

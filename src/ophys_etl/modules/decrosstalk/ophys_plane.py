@@ -240,29 +240,6 @@ class OphysROI(object):
         return np.copy(self._boundary_mask)
 
 
-def intersection_over_union(roi0: OphysROI,
-                            roi1: OphysROI) -> float:
-    """
-    Return the intersection over union of two ROIs relative
-    to each other
-
-    Parameters
-    ----------
-    roi0: OphysROI
-
-    roi1: OphysROI
-
-    Returns
-    -------
-    iou: float
-        """
-    pix0 = roi0.global_pixel_set
-    pix1 = roi1.global_pixel_set
-    ii = len(pix0.intersection(pix1))
-    uu = len(pix0.union(pix1))
-    return float(ii)/float(uu)
-
-
 class OphysMovie(object):
 
     def __init__(self, movie_path: str, motion_border: Dict[str, float]):

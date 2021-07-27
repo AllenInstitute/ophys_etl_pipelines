@@ -69,7 +69,7 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
                 axes = fig.add_subplot(111)
                 with h5py.File(self.args['seed_output'], "r") as f:
                     add_seeds_to_axes(fig, axes, seed_h5_group=f["seed"])
-                fig.savefig(self.args['seed_plot_output'])
+                fig.savefig(self.args['seed_plot_output'], dpi=300)
                 self.logger.info(f"wrote {self.args['seed_plot_output']}")
 
         self.logger.info(f"writing {self.args['roi_output']}")

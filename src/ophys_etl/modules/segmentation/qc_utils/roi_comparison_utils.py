@@ -3,17 +3,15 @@ import matplotlib.figure as mplt_fig
 import pathlib
 import numpy as np
 import PIL.Image
-import json
 
-from ophys_etl.modules.decrosstalk.ophys_plane import (
-    OphysROI)
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    roi_list_from_file)
 
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
-    add_roi_boundaries_to_img,
-    convert_keys)
+    add_roi_boundaries_to_img)
 
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     scale_video_to_uint8)
@@ -60,29 +58,6 @@ def _validate_paths_v_names(
         msg += 'These must be the same shape'
         raise RuntimeError(msg)
     return paths, names
-
-
-def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
-    """
-    Read in a JSONized file of ExtractROIs; return a list of
-    OphysROIs
-
-    Parameters
-    ----------
-    file_path: pathlib.Path
-
-    Returns
-    -------
-    List[OphysROI]
-    """
-    output_list = []
-    with open(file_path, 'rb') as in_file:
-        roi_data_list = json.load(in_file)
-        roi_data_list = convert_keys(roi_data_list)
-        for roi_data in roi_data_list:
-            roi = OphysROI.from_schema_dict(roi_data)
-            output_list.append(roi)
-    return output_list
 
 
 def create_roi_v_background_grid(

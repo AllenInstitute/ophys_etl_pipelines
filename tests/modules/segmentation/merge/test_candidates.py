@@ -4,7 +4,7 @@ from ophys_etl.modules.segmentation.merge.candidates import (
     find_merger_candidates,
     create_neighbor_lookup)
 
-from ophys_etl.modules.segmentation.merge.roi_utils import (
+from ophys_etl.modules.segmentation.utils.roi_utils import (
     do_rois_abut)
 
 

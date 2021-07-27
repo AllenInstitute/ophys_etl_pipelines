@@ -9,10 +9,8 @@ import numpy as np
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
-from ophys_etl.modules.segmentation.merge.roi_utils import (
-    ophys_roi_to_extract_roi)
-
-from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import (
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    ophys_roi_to_extract_roi,
     roi_list_from_file)
 
 

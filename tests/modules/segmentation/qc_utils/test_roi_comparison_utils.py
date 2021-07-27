@@ -8,45 +8,9 @@ from itertools import combinations, product
 
 from ophys_etl.types import ExtractROI
 
-from ophys_etl.modules.segmentation.merge.roi_utils import (
-    ophys_roi_to_extract_roi)
-
 from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import (
-    roi_list_from_file,
     _validate_paths_v_names,
     create_roi_v_background_grid)
-
-
-@pytest.fixture(scope='session')
-def background_png(tmpdir_factory):
-    tmpdir = pathlib.Path(tmpdir_factory.mktemp('background_png'))
-    rng = np.random.default_rng(887123)
-    image_array = rng.integers(0, 255, size=(50, 50)).astype(np.uint8)
-    image = PIL.Image.fromarray(image_array)
-    file_path = tmpdir/'background.png'
-    image.save(file_path)
-    yield file_path
-
-
-@pytest.fixture(scope='session')
-def background_pkl(tmpdir_factory):
-    tmpdir = pathlib.Path(tmpdir_factory.mktemp('background_pkl'))
-    graph = nx.Graph()
-    rng = np.random.default_rng(543221)
-    coords = np.arange(0, 50)
-    for xx, yy in combinations(coords, 2):
-        minx = max(0, xx-1)
-        miny = max(0, yy-1)
-        maxx = min(xx+2, 50)
-        maxy = min(yy+2, 50)
-        xx_other = np.arange(minx, maxx)
-        yy_other = np.arange(miny, maxy)
-        for x1, y1 in product(xx_other, yy_other):
-            graph.add_edge((xx, yy), (x1, y1), dummy_value=rng.random())
-
-    file_path = tmpdir/'background_graph.pkl'
-    nx.write_gpickle(graph, file_path)
-    yield file_path
 
 
 @pytest.fixture(scope='session')
@@ -96,11 +60,36 @@ def roi_file(tmpdir_factory, list_of_roi):
     yield file_path
 
 
-def test_roi_list_from_file(roi_file, list_of_roi):
-    raw_actual = roi_list_from_file(roi_file)
-    actual = [ophys_roi_to_extract_roi(roi)
-              for roi in raw_actual]
-    assert actual == list_of_roi
+@pytest.fixture(scope='session')
+def background_png(tmpdir_factory):
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('background_png'))
+    rng = np.random.default_rng(887123)
+    image_array = rng.integers(0, 255, size=(50, 50)).astype(np.uint8)
+    image = PIL.Image.fromarray(image_array)
+    file_path = tmpdir/'background.png'
+    image.save(file_path)
+    yield file_path
+
+
+@pytest.fixture(scope='session')
+def background_pkl(tmpdir_factory):
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('background_pkl'))
+    graph = nx.Graph()
+    rng = np.random.default_rng(543221)
+    coords = np.arange(0, 50)
+    for xx, yy in combinations(coords, 2):
+        minx = max(0, xx-1)
+        miny = max(0, yy-1)
+        maxx = min(xx+2, 50)
+        maxy = min(yy+2, 50)
+        xx_other = np.arange(minx, maxx)
+        yy_other = np.arange(miny, maxy)
+        for x1, y1 in product(xx_other, yy_other):
+            graph.add_edge((xx, yy), (x1, y1), dummy_value=rng.random())
+
+    file_path = tmpdir/'background_graph.pkl'
+    nx.write_gpickle(graph, file_path)
+    yield file_path
 
 
 @pytest.mark.parametrize(

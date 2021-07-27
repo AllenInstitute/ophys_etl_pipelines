@@ -3,7 +3,7 @@ import numpy as np
 import copy
 
 from ophys_etl.modules.segmentation.\
-    merge.roi_utils import (
+    utils.roi_utils import (
         merge_rois,
         sub_video_from_roi)
 

@@ -4,13 +4,10 @@ import pathlib
 import numpy as np
 import json
 
-from ophys_etl.types import ExtractROI
-
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
 from ophys_etl.modules.segmentation.detect.feature_vector_segmentation import (
-        convert_to_lims_roi,
         FeatureVectorSegmenter,
         _is_roi_at_edge)
 
@@ -24,32 +21,6 @@ def seeder_args():
             'minimum_distance': 3.0,
             'seeder_grid_size': None}
     return args
-
-
-@pytest.mark.parametrize(
-    "origin,mask,expected",
-    [
-     ((14, 22), np.array([[False, False, False, False, False],
-                          [False, True, False, False, False],
-                          [False, False, True, False, False],
-                          [False, False, False, False, False],
-                          [False, False, False, False, False]]),
-      ExtractROI(
-          id=0,
-          x=23,
-          y=15,
-          width=2,
-          height=2,
-          mask=[[True, False], [False, True]],
-          valid=True)
-      )
-    ])
-def test_roi_converter(origin, mask, expected):
-    """
-    Test method that converts ROIs to LIMS-like ROIs
-    """
-    actual = convert_to_lims_roi(origin, mask)
-    assert actual == expected
 
 
 def test_graph_to_img(example_graph):

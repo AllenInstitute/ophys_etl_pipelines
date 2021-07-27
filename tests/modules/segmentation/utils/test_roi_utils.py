@@ -1,13 +1,44 @@
+import pytest
 import numpy as np
 
+from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
-from ophys_etl.modules.segmentation.merge.roi_utils import (
+from ophys_etl.modules.segmentation.utils.roi_utils import (
     merge_rois,
     do_rois_abut,
     extract_roi_to_ophys_roi,
     ophys_roi_to_extract_roi,
-    sub_video_from_roi)
+    sub_video_from_roi,
+    intersection_over_union,
+    convert_to_lims_roi,
+    roi_list_from_file)
+
+
+@pytest.mark.parametrize(
+    "origin,mask,expected",
+    [
+     ((14, 22), np.array([[False, False, False, False, False],
+                          [False, True, False, False, False],
+                          [False, False, True, False, False],
+                          [False, False, False, False, False],
+                          [False, False, False, False, False]]),
+      ExtractROI(
+          id=0,
+          x=23,
+          y=15,
+          width=2,
+          height=2,
+          mask=[[True, False], [False, True]],
+          valid=True)
+      )
+    ])
+def test_roi_converter(origin, mask, expected):
+    """
+    Test method that converts ROIs to LIMS-like ROIs
+    """
+    actual = convert_to_lims_roi(origin, mask)
+    assert actual == expected
 
 
 def test_extract_roi_to_ophys_roi():
@@ -191,3 +222,49 @@ def test_sub_video_from_roi(example_roi0):
                                             example_roi0.x0+ic]
             i_pix += 1
     np.testing.assert_array_equal(expected, sub_video)
+
+
+def test_intersection_over_union():
+
+    width = 7
+    height = 5
+    mask = np.ones((height, width), dtype=bool)
+    mask[:, 4:] = False
+    roi0 = OphysROI(roi_id=0,
+                    x0=100,
+                    y0=200,
+                    width=width,
+                    height=height,
+                    valid_roi=True,
+                    mask_matrix=mask)
+
+    width = 4
+    height = 9
+    mask = np.ones((height, width), dtype=bool)
+    mask[:, 0] = False
+    mask[2:, :] = False
+    roi1 = OphysROI(roi_id=0,
+                    x0=101,
+                    y0=201,
+                    width=width,
+                    height=height,
+                    valid_roi=True,
+                    mask_matrix=mask)
+
+    # expected_intersection = 4
+    # expected_union = 22
+
+    expected = 4.0/22.0
+
+    actual = intersection_over_union(roi0, roi1)
+    actual1 = intersection_over_union(roi1, roi0)
+    eps = 1.0e-20
+    np.testing.assert_allclose(actual, actual1, rtol=0.0, atol=eps)
+    np.testing.assert_allclose(actual, expected, rtol=0.0, atol=eps)
+
+
+def test_roi_list_from_file(roi_file, list_of_roi):
+    raw_actual = roi_list_from_file(roi_file)
+    actual = [ophys_roi_to_extract_roi(roi)
+              for roi in raw_actual]
+    assert actual == list_of_roi

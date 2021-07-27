@@ -6,30 +6,22 @@ from typing import List, Tuple, Callable, Optional, Union, Dict
 import numpy as np
 import pathlib
 
+from ophys_etl.types import ExtractROI
+
+from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    convert_roi_keys)
+
 from ophys_etl.modules.decrosstalk.ophys_plane import (
-    OphysROI,
     OphysMovie,
     find_overlapping_roi_pairs)
-from ophys_etl.types import ExtractROI
 
 import sys
 if sys.version_info >= (3, 8):
     from typing import TypedDict
 else:
     from typing_extensions import TypedDict
-
-
-def convert_keys(roi_list: List[Dict]) -> List[Dict]:
-    """conflicting key names
-    """
-    new_list = []
-    for roi in roi_list:
-        if "valid" in roi:
-            roi["valid_roi"] = roi.pop("valid")
-        if "mask" in roi:
-            roi["mask_matrix"] = roi.pop("mask")
-        new_list.append(roi)
-    return new_list
 
 
 def add_roi_boundaries_to_img(img: np.ndarray,
@@ -64,7 +56,7 @@ def add_roi_boundaries_to_img(img: np.ndarray,
         return new_img
 
     if not isinstance(roi_list[0], OphysROI):
-        roi_list = convert_keys(roi_list)
+        roi_list = convert_roi_keys(roi_list)
         roi_list = [OphysROI.from_schema_dict(roi)
                     for roi in roi_list]
 
@@ -112,7 +104,7 @@ def add_labels_to_axes(axis: matplotlib.axes.Axes,
         colors = [colors] * n_roi
 
     if not isinstance(roi_list[0], OphysROI):
-        roi_list = convert_keys(roi_list)
+        roi_list = convert_roi_keys(roi_list)
         roi_list = [OphysROI.from_schema_dict(roi) for roi in roi_list]
 
     nx = -999.0*np.ones(n_roi, dtype=float)

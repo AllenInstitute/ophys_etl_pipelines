@@ -8,7 +8,8 @@ import time
 import json
 import matplotlib
 
-from ophys_etl.types import ExtractROI
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    convert_to_lims_roi)
 from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
     PearsonFeatureROI)
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
@@ -144,47 +145,6 @@ def _is_roi_at_edge(origin: Tuple[int, int],
     last_col = (origin[1]+shape[1] < fov_shape[1]) & mask[:, -1].any()
 
     return first_row | last_row | first_col | last_col
-
-
-def convert_to_lims_roi(origin: Tuple[int, int],
-                        mask: np.ndarray,
-                        roi_id: int = 0) -> ExtractROI:
-    """
-    Convert an origin and a pixel mask into a LIMS-friendly
-    JSONized ROI
-
-    Parameters
-    ----------
-    origin: Tuple[int, int]
-        The global coordinates of the upper right corner of the pixel mask
-
-    mask: np.ndarray
-        A 2D array of booleans marked as True at the ROI's pixels
-
-    roi_id: int
-        default: 0
-
-    Returns
-    --------
-    roi: dict
-        an ExtractROI matching the input data
-    """
-    # trim mask
-    valid = np.argwhere(mask)
-    row0 = valid[:, 0].min()
-    row1 = valid[:, 0].max() + 1
-    col0 = valid[:, 1].min()
-    col1 = valid[:, 1].max() + 1
-
-    new_mask = mask[row0:row1, col0:col1]
-    roi = ExtractROI(id=roi_id,
-                     x=int(origin[1]+col0),
-                     y=int(origin[0]+row0),
-                     width=int(col1-col0),
-                     height=int(row1-row0),
-                     valid=True,
-                     mask=[i.tolist() for i in new_mask])
-    return roi
 
 
 class FeatureVectorSegmenter(object):

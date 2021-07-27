@@ -9,10 +9,8 @@ from ophys_etl.modules.segmentation.modules.schemas import \
     RoiMergerSchema
 
 import ophys_etl.modules.segmentation.merge.roi_merging as merging
-import ophys_etl.modules.segmentation.merge.roi_utils as roi_utils
+import ophys_etl.modules.segmentation.utils.roi_utils as roi_utils
 from ophys_etl.modules.segmentation.qc.detect import roi_metric_qc_plot
-from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import (
-    roi_list_from_file)
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
@@ -62,7 +60,8 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             video_data = in_file['data'][()]
 
         t0 = time.time()
-        roi_list = roi_list_from_file(pathlib.Path(self.args['roi_input']))
+        roi_list = roi_utils.roi_list_from_file(
+                        pathlib.Path(self.args['roi_input']))
         roi_id_set = set([roi.roi_id for roi in roi_list])
         if len(roi_id_set) != len(roi_list):
             raise RuntimeError("There were ROI ID values duplicated in "
@@ -91,12 +90,18 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             # keep the QC evaluation of detection and merging separate.
             figure = matplotlib.figure.Figure(figsize=(10, 10))
             with h5py.File(self.args['qc_output'], "r") as f:
-                group = f["detect"]
-                roi_metric_qc_plot(
-                        figure=figure,
-                        metric_image=group["metric_image"][()],
-                        attribute=group["attribute"][()].decode("utf-8"),
-                        roi_list=roi_list)
+                if 'detect' not in f:
+                    logger.warn("Unable to create merging plot; "
+                                "'detect' group does not exist in "
+                                f"{self.args['qc_output']}")
+                else:
+                    group = f["detect"]
+                    roi_metric_qc_plot(
+                            figure=figure,
+                            metric_image=group["metric_image"][()],
+                            attribute=group["attribute"][()].decode("utf-8"),
+                            roi_list=[roi_utils.ophys_roi_to_extract_roi(roi)
+                                      for roi in roi_list])
             figure.tight_layout()
             figure.savefig(self.args['plot_output'])
             logger.info(f'wrote {self.args["plot_output"]}')

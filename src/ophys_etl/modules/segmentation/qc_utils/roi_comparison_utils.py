@@ -16,7 +16,8 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
-    add_list_of_roi_boundaries_to_img)
+    add_list_of_roi_boundaries_to_img,
+    add_roi_mask_to_img)
 
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     scale_video_to_uint8)
@@ -132,7 +133,6 @@ def create_roi_v_background_grid(
         background_names: Union[str, List[str]],
         roi_paths: Union[pathlib.Path, List[pathlib.Path]],
         roi_names: Union[str, List[str]],
-        color_list: List[Tuple[int, int, int]],
         invalid_color: Tuple[int, int, int] = (255, 0, 0),
         attribute_name: str = 'filtered_hnc_Gaussian',
         figsize_per: int = 10) -> mplt_fig.Figure:
@@ -159,12 +159,6 @@ def create_roi_v_background_grid(
     roi_names: Union[str, List[str]]
         The names of the ROI sets as they will appear in te plot
         (there must be an equal number of roi_names as roi_paths)
-
-    color_list: List[Tuple[int, int, in]]
-        List of RGB color tuples to cycle through when plotting
-        ROIs. The number of colors does not have to match the
-        number of ROI sets; the code will just cycle through
-        the list of provided colors.
 
     invalid_color: Tuple[int, int, int]
         RGB color to use for invalid ROIs.
@@ -217,8 +211,11 @@ def create_roi_v_background_grid(
             for ii in range(1, 1+n_bckgd*(n_roi+1), 1)]
 
     roi_lists = []
+    roi_color_maps = []
     for this_roi_paths in roi_paths:
         roi = roi_list_from_file(this_roi_paths)
+        color_map = get_roi_color_map(roi)
+        roi_color_maps.append(color_map)
         roi_lists.append(roi)
 
     for i_bckgd in range(n_bckgd):
@@ -260,27 +257,31 @@ def create_roi_v_background_grid(
             axis.axvline(ii, color='w', alpha=0.25)
 
         for i_roi in range(n_roi):
-            i_color = i_roi % len(color_list)
-            this_color = color_list[i_color]
-            this_roi = roi_lists[i_roi]
+            this_roi_list = roi_lists[i_roi]
+            this_color_map = roi_color_maps[i_roi]
 
-            valid_roi_list = [roi for roi in this_roi if roi.valid_roi]
-            invalid_roi_list = [roi for roi in this_roi if not roi.valid_roi]
+            valid_roi_list = [roi for roi in this_roi_list
+                              if roi.valid_roi]
+
+            invalid_roi_list = [roi for roi in this_roi_list
+                                if not roi.valid_roi]
 
             axis = axes[i_bckgd*(n_roi+1)+i_roi+1]
             if i_bckgd == 0:
                 axis.set_title(roi_names[i_roi], fontsize=fontsize)
 
-            img = add_list_of_roi_boundaries_to_img(
-                                            background_array,
-                                            invalid_roi_list,
-                                            color=invalid_color,
-                                            alpha=1.0)
+            img = np.copy(background_array)
+            for roi in valid_roi_list:
+                img = add_roi_mask_to_img(
+                            img,
+                            roi,
+                            this_color_map[roi.roi_id],
+                            0.75)
 
             img = add_list_of_roi_boundaries_to_img(
                                             img,
-                                            valid_roi_list,
-                                            color=this_color,
+                                            invalid_roi_list,
+                                            color=invalid_color,
                                             alpha=1.0)
 
             axis.imshow(img)

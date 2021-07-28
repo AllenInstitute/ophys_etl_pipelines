@@ -159,7 +159,6 @@ def test_create_roi_v_background(tmpdir, background_png,
             ['png', 'pkl'],
             [roi_file, roi_file, roi_file],
             ['a', 'b', 'c'],
-            [(255, 0, 0), (0, 255, 0)],
             attribute_name='dummy_value')
 
     # one background; many ROIs
@@ -168,7 +167,6 @@ def test_create_roi_v_background(tmpdir, background_png,
             'png',
             [roi_file, roi_file, roi_file],
             ['a', 'b', 'c'],
-            [(255, 0, 0), (0, 255, 0)],
             attribute_name='dummy_value')
 
     # one background; one ROI
@@ -177,7 +175,6 @@ def test_create_roi_v_background(tmpdir, background_png,
             'png',
             roi_file,
             'a',
-            [(255, 0, 0), (0, 255, 0)],
             attribute_name='dummy_value')
 
     # many backgrounds; one ROIs
@@ -186,7 +183,6 @@ def test_create_roi_v_background(tmpdir, background_png,
             ['png', 'pkl'],
             roi_file,
             'a',
-            [(255, 0, 0), (0, 255, 0)],
             attribute_name='dummy_value')
 
     # different combinations of singleton/1-element list inputs
@@ -195,7 +191,6 @@ def test_create_roi_v_background(tmpdir, background_png,
             ['png'],
             [roi_file, roi_file, roi_file],
             ['a', 'b', 'c'],
-            [(255, 0, 0), (0, 255, 0)],
             attribute_name='dummy_value')
 
     create_roi_v_background_grid(
@@ -203,7 +198,6 @@ def test_create_roi_v_background(tmpdir, background_png,
             ['png', 'pkl'],
             roi_file,
             ['a'],
-            [(255, 0, 0), (0, 255, 0)],
             attribute_name='dummy_value')
 
     create_roi_v_background_grid(
@@ -211,7 +205,6 @@ def test_create_roi_v_background(tmpdir, background_png,
             'png',
             [roi_file, roi_file, roi_file],
             ['a', 'b', 'c'],
-            [(255, 0, 0), (0, 255, 0)],
             attribute_name='dummy_value')
 
     create_roi_v_background_grid(
@@ -219,7 +212,6 @@ def test_create_roi_v_background(tmpdir, background_png,
             ['png', 'pkl'],
             [roi_file],
             'a',
-            [(255, 0, 0), (0, 255, 0)],
             attribute_name='dummy_value')
 
     # test that error is raised when an unknown background file type
@@ -230,7 +222,6 @@ def test_create_roi_v_background(tmpdir, background_png,
                 ['png', 'junk'],
                 [roi_file],
                 ['a'],
-                [(255, 0, 0), (0, 255, 0)],
                 attribute_name='dummy_value')
 
     # test that errors are raised when paths and shapes are of
@@ -241,7 +232,6 @@ def test_create_roi_v_background(tmpdir, background_png,
                 ['png'],
                 [roi_file, roi_file, roi_file],
                 ['a', 'b', 'c'],
-                [(255, 0, 0), (0, 255, 0)],
                 attribute_name='dummy_value')
 
     with pytest.raises(RuntimeError, match='These must be the same shape'):
@@ -250,7 +240,6 @@ def test_create_roi_v_background(tmpdir, background_png,
                 'png',
                 [roi_file, roi_file, roi_file],
                 ['a', 'b', 'c'],
-                [(255, 0, 0), (0, 255, 0)],
                 attribute_name='dummy_value')
 
     with pytest.raises(RuntimeError, match='These must be the same shape'):
@@ -259,7 +248,6 @@ def test_create_roi_v_background(tmpdir, background_png,
                 ['png', 'pkl'],
                 [roi_file, roi_file, roi_file],
                 ['a', 'b', 'c'],
-                [(255, 0, 0), (0, 255, 0)],
                 attribute_name='dummy_value')
 
     with pytest.raises(RuntimeError, match='These must be the same shape'):
@@ -268,7 +256,6 @@ def test_create_roi_v_background(tmpdir, background_png,
                 ['png', 'pkl'],
                 [roi_file, roi_file, roi_file],
                 ['a', 'b'],
-                [(255, 0, 0), (0, 255, 0)],
                 attribute_name='dummy_value')
 
     with pytest.raises(RuntimeError, match='These must be the same shape'):
@@ -277,7 +264,6 @@ def test_create_roi_v_background(tmpdir, background_png,
                 ['png', 'pkl'],
                 [roi_file, roi_file],
                 ['a', 'b', 'c'],
-                [(255, 0, 0), (0, 255, 0)],
                 attribute_name='dummy_value')
 
     with pytest.raises(RuntimeError, match='These must be the same shape'):
@@ -286,5 +272,4 @@ def test_create_roi_v_background(tmpdir, background_png,
                 ['png', 'pkl'],
                 roi_file,
                 ['a', 'b', 'c'],
-                [(255, 0, 0), (0, 255, 0)],
                 attribute_name='dummy_value')

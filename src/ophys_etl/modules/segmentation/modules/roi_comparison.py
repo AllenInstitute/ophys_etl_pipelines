@@ -92,12 +92,6 @@ class ROIComparisonEngine(argschema.ArgSchemaParser):
 
     def run(self):
 
-        # colors that showup reasonably well against our
-        # grayscale background images
-        color_list = [(0, 255, 0),
-                      (51, 153, 55),
-                      (51, 255, 255)]
-
         invalid_color = (235, 52, 52)
 
         bckgd_paths = [pathlib.Path(p)
@@ -111,7 +105,6 @@ class ROIComparisonEngine(argschema.ArgSchemaParser):
                     self.args['background_names'],
                     roi_paths,
                     self.args['roi_names'],
-                    color_list,
                     invalid_color=invalid_color,
                     attribute_name=self.args['attribute_name'],
                     figsize_per=self.args['figsize_per'])

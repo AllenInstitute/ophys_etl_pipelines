@@ -24,6 +24,45 @@ else:
     from typing_extensions import TypedDict
 
 
+def add_roi_mask_to_img(
+        img: np.ndarray,
+        roi: OphysROI,
+        color: Tuple[int],
+        alpha: float) -> np.ndarray:
+    """
+    Add colored ROI mask to an image
+
+    Parameters
+    ----------
+    img: np.ndarray
+        RGB representation of image
+
+    roi: OphysROI
+
+    color: Tuple[int]
+        RGB color of ROI
+
+    alpha: float
+
+    Returns
+    -------
+    img: np.ndarray
+
+    Note
+    ----
+    While this function does return an image, it also operates
+    on img in place
+    """
+    rows = roi.global_pixel_array[:, 0]
+    cols = roi.global_pixel_array[:, 1]
+    for ic in range(3):
+        old_vals = img[rows, cols, ic]
+        new_vals = np.round(alpha*color[ic]+(1.0-alpha)*old_vals).astype(int)
+        img[rows, cols, ic] = new_vals
+    img = np.where(img >= 255, 255, img)
+    return img
+
+
 def add_list_of_roi_boundaries_to_img(
         img: np.ndarray,
         roi_list: Union[List[OphysROI], List[Dict]],

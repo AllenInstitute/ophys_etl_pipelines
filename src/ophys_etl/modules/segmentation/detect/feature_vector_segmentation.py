@@ -496,7 +496,7 @@ class FeatureVectorSegmenter(object):
 
         if plot_output is not None:
             # TODO: store ROIs in QC output hdf5
-            figure = matplotlib.figure.Figure(figsize=(10, 10))
+            figure = matplotlib.figure.Figure(figsize=(15, 15))
             with h5py.File(qc_output, "r") as f:
                 group = f["detect"]
                 roi_metric_qc_plot(

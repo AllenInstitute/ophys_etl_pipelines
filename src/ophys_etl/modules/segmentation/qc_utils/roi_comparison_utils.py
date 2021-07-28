@@ -16,8 +16,7 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
-    add_list_of_roi_boundaries_to_img,
-    add_roi_mask_to_img)
+    add_roi_boundary_to_img)
 
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     scale_video_to_uint8)
@@ -204,11 +203,11 @@ def create_roi_v_background_grid(
     n_bckgd = len(background_paths)  # rows
     n_roi = len(roi_paths)    # columns
     fontsize = int(np.round(30.0*0.1*figsize_per))
-    figure = mplt_fig.Figure(figsize=(figsize_per*(n_roi+1),
+    figure = mplt_fig.Figure(figsize=(figsize_per*(2*n_roi+1),
                                       figsize_per*n_bckgd))
 
-    axes = [figure.add_subplot(n_bckgd, n_roi+1, ii)
-            for ii in range(1, 1+n_bckgd*(n_roi+1), 1)]
+    axes = [figure.add_subplot(n_bckgd, 2*n_roi+1, ii)
+            for ii in range(1, 1+n_bckgd*(2*n_roi+1), 1)]
 
     roi_lists = []
     roi_color_maps = []
@@ -247,7 +246,7 @@ def create_roi_v_background_grid(
         background_array = background_rgb
         del background_rgb
 
-        axis = axes[i_bckgd*(n_roi+1)]
+        axis = axes[i_bckgd*(2*n_roi+1)]
         img = background_array
         axis.imshow(img)
         axis.set_title(background_names[i_bckgd], fontsize=fontsize)
@@ -266,29 +265,38 @@ def create_roi_v_background_grid(
             invalid_roi_list = [roi for roi in this_roi_list
                                 if not roi.valid_roi]
 
-            axis = axes[i_bckgd*(n_roi+1)+i_roi+1]
+            valid_axis = axes[i_bckgd*(2*n_roi+1)+2*i_roi+1]
+            invalid_axis = axes[i_bckgd*(2*n_roi+1)+2*i_roi+2]
             if i_bckgd == 0:
-                axis.set_title(roi_names[i_roi], fontsize=fontsize)
+                valid_axis.set_title(f'{roi_names[i_roi]} (valid)',
+                                     fontsize=fontsize)
+                invalid_axis.set_title(f'{roi_names[i_roi]} (invalid)',
+                                       fontsize=fontsize)
 
-            img = np.copy(background_array)
+            valid_img = np.copy(background_array)
             for roi in valid_roi_list:
-                img = add_roi_mask_to_img(
-                            img,
-                            roi,
-                            this_color_map[roi.roi_id],
-                            0.75)
+                valid_img = add_roi_boundary_to_img(
+                                valid_img,
+                                roi,
+                                this_color_map[roi.roi_id],
+                                1.0)
+            invalid_img = np.copy(background_array)
 
-            img = add_list_of_roi_boundaries_to_img(
-                                            img,
-                                            invalid_roi_list,
-                                            color=invalid_color,
-                                            alpha=1.0)
+            for roi in invalid_roi_list:
+                invalid_img = add_roi_boundary_to_img(
+                                 invalid_img,
+                                 roi,
+                                 invalid_color,
+                                 1.0)
 
-            axis.imshow(img)
-            for ii in range(0, img.shape[0], img.shape[0]//4):
-                axis.axhline(ii, color='w', alpha=0.25)
-            for ii in range(0, img.shape[1], img.shape[1]//4):
-                axis.axvline(ii, color='w', alpha=0.25)
+            valid_axis.imshow(valid_img)
+            invalid_axis.imshow(invalid_img)
+            for axis, img in zip([invalid_axis, valid_axis],
+                                 [valid_img, invalid_img]):
+                for ii in range(0, img.shape[0], img.shape[0]//4):
+                    axis.axhline(ii, color='w', alpha=0.25)
+                for ii in range(0, img.shape[1], img.shape[1]//4):
+                    axis.axvline(ii, color='w', alpha=0.25)
 
     figure.tight_layout()
     return figure

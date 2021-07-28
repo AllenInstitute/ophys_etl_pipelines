@@ -2,7 +2,8 @@ import pytest
 import pathlib
 
 from ophys_etl.modules.segmentation.modules.roi_comparison import (
-    ROIComparisonSchema)
+    ROIComparisonSchema,
+    ROIComparisonEngine)
 
 
 def test_roi_comparison_schema(tmpdir):
@@ -69,3 +70,26 @@ def test_roi_comparison_schema(tmpdir):
                 'plot_output': str(tmpdir_path/'junk.png')}
 
         roi_schema.load(data)
+
+
+@pytest.mark.parametrize('roi_names, background_names',
+                         [(None, None), (['ROIs'], ['pkl', 'png'])])
+def test_roi_comparison_engine(tmpdir,
+                               roi_file,
+                               background_pkl,
+                               background_png,
+                               roi_names,
+                               background_names):
+
+    plot_path = pathlib.Path(tmpdir)/'output_plot.png'
+    data = {'roi_paths': [str(roi_file)],
+            'roi_names': roi_names,
+            'background_paths': [str(background_pkl), str(background_png)],
+            'background_names': background_names,
+            'attribute_name': 'dummy_value',
+            'figsize_per': 3,
+            'plot_output': str(plot_path)}
+
+    engine = ROIComparisonEngine(input_data=data, args=[])
+    engine.run()
+    assert plot_path.is_file()

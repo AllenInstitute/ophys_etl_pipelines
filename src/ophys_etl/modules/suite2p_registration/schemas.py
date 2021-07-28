@@ -87,13 +87,6 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         data['suite2p_args']['reg_tif'] = True
         data['suite2p_args']['retain_files'] = ["*.tif", "ops.npy"]
 
-        if "nimg_init" not in data["suite2p_args"]:
-            data['suite2p_args']['nimg_init'] = 200
-        if "smooth_sigma" not in data["suite2p_args"]:
-            data['suite2p_args']['smooth_sigma'] = 1.15
-        if "smooth_sigma_time" not in data["suite2p_args"]:
-            data['suite2p_args']['smooth_sigma_time'] = 0.
-
         if "output_dir" not in data["suite2p_args"]:
             # send suite2p results to a temporary directory
             # the results of this pipeline will be formatted versions anyway

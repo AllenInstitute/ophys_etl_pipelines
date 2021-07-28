@@ -4,6 +4,7 @@ import pathlib
 import h5py
 import json
 import matplotlib
+import datetime
 
 from ophys_etl.modules.segmentation.modules.schemas import \
     RoiMergerSchema
@@ -78,7 +79,12 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
         # log merging to hdf5 QC output
         with h5py.File(self.args['qc_output'], "a") as h5file:
             # TODO: merging should output something to QC
+            if "merge" in list(h5file.keys()):
+                del h5file["merge"]
             group = h5file.create_group("merge")
+            group.create_dataset(
+                    "group_creation_time",
+                    data=str(datetime.datetime.now()).encode("utf-8"))
             group.create_dataset("placeholder", data=[])
 
         write_out_rois(roi_list, self.args['roi_output'])

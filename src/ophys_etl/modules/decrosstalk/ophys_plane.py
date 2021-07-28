@@ -85,6 +85,7 @@ class OphysROI(object):
         self._boundary_mask = None
         self._area = None
         self._global_pixel_set = None
+        self._global_pixel_array = None
 
         height_match = (self._mask_matrix.shape[0] == self._height)
         width_match = (self._mask_matrix.shape[1] == self._width)
@@ -138,9 +139,12 @@ class OphysROI(object):
         Create the set of (row, col) tuples in
         global coordinates that make up this ROI
         """
+        valid = np.argwhere(self._mask_matrix)
         self._global_pixel_set = set([(r+self._y0, c+self._x0)
-                                      for r, c
-                                      in np.argwhere(self._mask_matrix)])
+                                      for r, c in valid])
+
+        self._global_pixel_array = np.array([[r+self._y0, c+self._x0]
+                                             for r, c in valid])
 
     @property
     def global_pixel_set(self) -> Set[Tuple[int, int]]:
@@ -151,6 +155,16 @@ class OphysROI(object):
         if self._global_pixel_set is None:
             self._create_global_pixel_set()
         return self._global_pixel_set
+
+    @property
+    def global_pixel_array(self) -> np.ndarray:
+        """
+        np.ndarray of pixels in global (row, col) coordinates
+        that are set to True for this ROI
+        """
+        if self._global_pixel_array is None:
+            self._create_global_pixel_set()
+        return self._global_pixel_array
 
     @property
     def area(self) -> int:

@@ -144,7 +144,7 @@ class OphysROI(object):
                                       for r, c in valid])
 
         self._global_pixel_array = np.array([[r+self._y0, c+self._x0]
-                                              for r, c in valid])
+                                             for r, c in valid])
 
     @property
     def global_pixel_set(self) -> Set[Tuple[int, int]]:

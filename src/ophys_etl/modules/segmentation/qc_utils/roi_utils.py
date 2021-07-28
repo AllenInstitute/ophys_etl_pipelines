@@ -24,10 +24,11 @@ else:
     from typing_extensions import TypedDict
 
 
-def add_roi_boundaries_to_img(img: np.ndarray,
-                              roi_list: Union[List[OphysROI], List[Dict]],
-                              color: Tuple[int] = (255, 0, 0),
-                              alpha: float = 0.25) -> np.ndarray:
+def add_list_of_roi_boundaries_to_img(
+        img: np.ndarray,
+        roi_list: Union[List[OphysROI], List[Dict]],
+        color: Tuple[int] = (255, 0, 0),
+        alpha: float = 0.25) -> np.ndarray:
     """
     Add colored ROI boundaries to an image
 
@@ -236,7 +237,8 @@ def roi_thumbnail(movie: OphysMovie,
                        valid_roi=True,
                        roi_id=-999)
 
-    thumbnail = add_roi_boundaries_to_img(thumbnail,
+    thumbnail = add_list_of_roi_boundaries_to_img(
+                                          thumbnail,
                                           roi_list=[new_roi],
                                           color=roi_color,
                                           alpha=alpha)
@@ -354,7 +356,8 @@ class ROIExaminer(object):
         """
         output_img = self.ophys_movie.get_max_rgb()
         for obj in rois_and_colors:
-            output_img = add_roi_boundaries_to_img(output_img,
+            output_img = add_list_of_roi_boundaries_to_img(
+                                                   output_img,
                                                    roi_list=obj['rois'],
                                                    alpha=alpha,
                                                    color=obj['color'])

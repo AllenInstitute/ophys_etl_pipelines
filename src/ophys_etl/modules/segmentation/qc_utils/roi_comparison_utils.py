@@ -11,7 +11,7 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
-    add_roi_boundaries_to_img)
+    add_list_of_roi_boundaries_to_img)
 
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     scale_video_to_uint8)
@@ -204,12 +204,14 @@ def create_roi_v_background_grid(
             if i_bckgd == 0:
                 axis.set_title(roi_names[i_roi], fontsize=fontsize)
 
-            img = add_roi_boundaries_to_img(background_array,
+            img = add_list_of_roi_boundaries_to_img(
+                                            background_array,
                                             invalid_roi_list,
                                             color=invalid_color,
                                             alpha=1.0)
 
-            img = add_roi_boundaries_to_img(img,
+            img = add_list_of_roi_boundaries_to_img(
+                                            img,
                                             valid_roi_list,
                                             color=this_color,
                                             alpha=1.0)

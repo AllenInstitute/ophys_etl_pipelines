@@ -141,40 +141,6 @@ def _do_rois_abut(array_0: np.ndarray,
     return False
 
 
-def _get_pixel_array(roi: OphysROI) -> np.ndarray:
-    """
-    get Nx2 array of pixels (in global coordinates)
-    that are in the ROI
-
-    Parameters
-    ----------
-    OphysROI
-
-    Returns
-    -------
-    np.ndarray
-    """
-    mask = roi.mask_matrix
-    npix = mask.sum()
-    roi_array = -1*np.ones((npix, 2), dtype=int)
-    i_pix = 0
-    for ir in range(roi.height):
-        row = ir+roi.y0
-        for ic in range(roi.width):
-            col = ic+roi.x0
-            if not mask[ir, ic]:
-                continue
-
-            roi_array[i_pix, 0] = row
-            roi_array[i_pix, 1] = col
-            i_pix += 1
-
-    if roi_array.min() < 0:
-        raise RuntimeError("did not assign all pixels")
-
-    return roi_array
-
-
 def do_rois_abut(roi0: OphysROI,
                  roi1: OphysROI,
                  pixel_distance: float = np.sqrt(2)) -> bool:
@@ -202,11 +168,9 @@ def do_rois_abut(roi0: OphysROI,
     that corresponds to pixel_distance=1; pixel_distance=2 corresponds
     to 1 blank pixel between ROIs
     """
-    array_0 = _get_pixel_array(roi0)
-    array_1 = _get_pixel_array(roi1)
 
-    return _do_rois_abut(array_0,
-                         array_1,
+    return _do_rois_abut(roi0.global_pixel_array,
+                         roi1.global_pixel_array,
                          pixel_distance=pixel_distance)
 
 

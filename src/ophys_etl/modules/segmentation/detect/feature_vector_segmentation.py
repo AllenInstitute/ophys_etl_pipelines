@@ -487,7 +487,7 @@ class FeatureVectorSegmenter(object):
             axes = fig.add_subplot(111)
             with h5py.File(qc_output, "r") as f:
                 add_seeds_to_axes(fig, axes, seed_h5_group=f["seed"])
-            fig.savefig(seed_plot_output)
+            fig.savefig(seed_plot_output, dpi=300)
             logger.info(f'wrote {seed_plot_output}')
 
         logger.info(f'writing {str(roi_output)}')
@@ -505,7 +505,7 @@ class FeatureVectorSegmenter(object):
                         attribute=group["attribute"][()].decode("utf-8"),
                         roi_list=self.roi_list)
             figure.tight_layout()
-            figure.savefig(plot_output)
+            figure.savefig(plot_output, dpi=300)
             logger.info(f'wrote {plot_output}')
 
         duration = time.time()-t0

@@ -705,7 +705,7 @@ def create_roi_plot(plot_path: pathlib.Path,
     axes[1].imshow(img_data)
     add_rois_to_axes(axes[1], roi_list, img_data.shape)
     fig.tight_layout()
-    fig.savefig(plot_path)
+    fig.savefig(plot_path, dpi=300)
     return None
 
 

@@ -116,7 +116,7 @@ class ROIComparisonEngine(argschema.ArgSchemaParser):
                     attribute_name=self.args['attribute_name'],
                     figsize_per=self.args['figsize_per'])
 
-        fig.savefig(self.args['plot_output'])
+        fig.savefig(self.args['plot_output'], dpi=300)
 
 
 if __name__ == "__main__":

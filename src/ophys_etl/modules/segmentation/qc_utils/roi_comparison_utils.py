@@ -132,7 +132,6 @@ def create_roi_v_background_grid(
         background_names: Union[str, List[str]],
         roi_paths: Union[pathlib.Path, List[pathlib.Path]],
         roi_names: Union[str, List[str]],
-        invalid_color: Tuple[int, int, int] = (255, 0, 0),
         attribute_name: str = 'filtered_hnc_Gaussian',
         figsize_per: int = 10) -> mplt_fig.Figure:
     """
@@ -158,10 +157,6 @@ def create_roi_v_background_grid(
     roi_names: Union[str, List[str]]
         The names of the ROI sets as they will appear in te plot
         (there must be an equal number of roi_names as roi_paths)
-
-    invalid_color: Tuple[int, int, int]
-        RGB color to use for invalid ROIs.
-        (default = (255, 0, 0))
 
     attribute_name: str
         The name of the attribute to use in constructing the background
@@ -286,7 +281,7 @@ def create_roi_v_background_grid(
                 invalid_img = add_roi_boundary_to_img(
                                  invalid_img,
                                  roi,
-                                 invalid_color,
+                                 this_color_map[roi.roi_id],
                                  1.0)
 
             valid_axis.imshow(valid_img)

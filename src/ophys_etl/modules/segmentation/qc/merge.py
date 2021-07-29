@@ -1,4 +1,3 @@
-import copy
 import numpy as np
 import networkx as nx
 from matplotlib import cm
@@ -6,7 +5,6 @@ from matplotlib.figure import Figure
 from typing import List
 
 from ophys_etl.modules.segmentation.qc_utils import roi_utils
-from ophys_etl.modules.segmentation.utils.roi_utils import convert_roi_keys
 from ophys_etl.types import ExtractROI
 
 
@@ -84,7 +82,7 @@ def roi_ancestor_gallery(figure: Figure,
 
     figure.tight_layout()
 
-    
+
 def roi_merge_plot(figure: Figure,
                    metric_image: np.ndarray,
                    attribute: str,
@@ -119,7 +117,10 @@ def roi_merge_plot(figure: Figure,
 
     # define colors for the different mergers
     cmap = cm.plasma
-    color_indices = np.linspace(start=0, stop=cmap.N, num=len(subgraphs), dtype=int)
+    color_indices = np.linspace(start=0,
+                                stop=cmap.N,
+                                num=len(subgraphs),
+                                dtype=int)
     rng = np.random.default_rng(seed)
     rng.shuffle(color_indices)
 

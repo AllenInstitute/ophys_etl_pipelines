@@ -7,7 +7,6 @@ from typing import List
 
 from ophys_etl.modules.segmentation.qc_utils import roi_utils
 from ophys_etl.modules.segmentation.utils.roi_utils import convert_roi_keys
-from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.types import ExtractROI
 
 
@@ -28,9 +27,9 @@ def roi_ancestor_gallery(figure: Figure,
         the metric to plot and use for calculating average metric
     attribute: str
         the name of the metric, displayed in a plot title
-    original_roi_list: List[OphysROI]
+    original_roi_list: List[ExtractROI]
         the unmerged ROI list
-    merged_roi_list: List[OphysROI]
+    merged_roi_list: List[ExtractROI]
         the merged ROI list
     merger_ids: np.ndarray
         n_merge x 2 array, each row listing the IDs of a single merge.

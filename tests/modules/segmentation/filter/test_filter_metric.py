@@ -72,3 +72,11 @@ def test_filter_on_stat(img_fixture, roi_list_fixture,
     assert len(valid_set.intersection(invalid_set)) == 0
     assert len(valid_set) + len(invalid_set) == len(roi_list_fixture)
     assert valid_set == expected_valid
+
+
+def test_errors(img_fixture):
+    with pytest.raises(ValueError, match='only knows how to'):
+        ROIMetricStatFilter(img_fixture, 'nonsense')
+
+    with pytest.raises(RuntimeError, match='specify at least one'):
+        ROIMetricStatFilter(img_fixture, 'mean')

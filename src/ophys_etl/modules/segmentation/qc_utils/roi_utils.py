@@ -726,11 +726,12 @@ class ROIExaminer(object):
         return None
 
 
-def add_rois_to_axes(axes: matplotlib.axes.Axes,
-                     roi_list: List[ExtractROI],
-                     shape: Tuple[int, int],
-                     rgb: Tuple[int, int, int] = (255, 0, 0),
-                     alpha: float = 1.0) -> None:
+def add_rois_to_axes(
+        axes: matplotlib.axes.Axes,
+        roi_list: List[ExtractROI],
+        shape: Tuple[int, int],
+        rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 1.0)
+        ) -> None:
     """
 
     Parameters
@@ -741,14 +742,11 @@ def add_rois_to_axes(axes: matplotlib.axes.Axes,
         the ROIs to add
     shape: Tuple[int, int]
         shape of the FOV
-    rgb: Tuple[int, int, int]
-        0-255 RGB values for the outlines
-    alpha: float
-        transparencey value 0.0-1.0
+    rgba: Tuple[float, float, float, float]
+        0.0 - 1.0  RGBA values for the outlines
 
     """
-    bdry_pixels = np.zeros((*shape, 4), dtype=int)
-    rgba = list(rgb) + [int(alpha * 255)]
+    bdry_pixels = np.zeros((*shape, 4), dtype=float)
     for roi in roi_list:
         ophys_roi = OphysROI(
                         roi_id=0,

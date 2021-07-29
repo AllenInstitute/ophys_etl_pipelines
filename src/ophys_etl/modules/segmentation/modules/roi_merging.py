@@ -5,6 +5,8 @@ import h5py
 import json
 import matplotlib
 import datetime
+import copy
+import numpy as np
 
 from ophys_etl.modules.segmentation.modules.schemas import \
     RoiMergerSchema
@@ -12,6 +14,7 @@ from ophys_etl.modules.segmentation.modules.schemas import \
 import ophys_etl.modules.segmentation.merge.roi_merging as merging
 import ophys_etl.modules.segmentation.utils.roi_utils as roi_utils
 from ophys_etl.modules.segmentation.qc.detect import roi_metric_qc_plot
+from ophys_etl.modules.segmentation.qc.merge import roi_merge_plot
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
@@ -68,13 +71,15 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             raise RuntimeError("There were ROI ID values duplicated in "
                                f"{self.args['roi_input']}")
 
-        roi_list = merging.do_roi_merger(
-                                roi_list,
-                                video_data,
-                                self.args['n_parallel_workers'],
-                                self.args['corr_acceptance'],
-                                filter_fraction=self.args['filter_fraction'],
-                                anomalous_size=self.args['anomalous_size'])
+        original_roi_list = copy.deepcopy(roi_list)
+
+        roi_list, merger_ids = merging.do_roi_merger(
+                roi_list,
+                video_data,
+                self.args['n_parallel_workers'],
+                self.args['corr_acceptance'],
+                filter_fraction=self.args['filter_fraction'],
+                anomalous_size=self.args['anomalous_size'])
 
         # log merging to hdf5 QC output
         with h5py.File(self.args['qc_output'], "a") as h5file:
@@ -85,32 +90,59 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             group.create_dataset(
                     "group_creation_time",
                     data=str(datetime.datetime.now()).encode("utf-8"))
-            group.create_dataset("placeholder", data=[])
+            group.create_dataset("merger_ids",
+                                 data=np.array(merger_ids))
+        self.logger.info(f'added group "merge" to {self.args["qc_output"]}')
 
         write_out_rois(roi_list, self.args['roi_output'])
+        self.logger.info(f'wrote {self.args["roi_output"]}')
 
         if self.args['plot_output'] is not None:
+            merged_roi_list = [roi_utils.ophys_roi_to_extract_roi(roi)
+                               for roi in roi_list]
+            unmerged_roi_list = [roi_utils.ophys_roi_to_extract_roi(roi)
+                                 for roi in original_roi_list]
             # TODO: store ROIs in QC output hdf5
             # NOTE: this QC plot is exactly like the one output from detection
             # it should be named something different in the workflow to
             # keep the QC evaluation of detection and merging separate.
             figure = matplotlib.figure.Figure(figsize=(10, 10))
             with h5py.File(self.args['qc_output'], "r") as f:
+                merger_ids = f["merge"]["merger_ids"][()]
                 if 'detect' not in f:
+                    # in production, we will pass the same QC file
+                    # between the detect and merge steps, but,
+                    # maybe someone will not
                     logger.warn("Unable to create merging plot; "
                                 "'detect' group does not exist in "
                                 f"{self.args['qc_output']}")
+                    metric_image = np.zeros(video_data.shape[1:],
+                                            dtype="uint8")
+                    attribute = "None"
                 else:
-                    group = f["detect"]
-                    roi_metric_qc_plot(
-                            figure=figure,
-                            metric_image=group["metric_image"][()],
-                            attribute=group["attribute"][()].decode("utf-8"),
-                            roi_list=[roi_utils.ophys_roi_to_extract_roi(roi)
-                                      for roi in roi_list])
+                    metric_image = f["detect"]["metric_image"][()]
+                    attribute = f["detect"]["attribute"][()].decode("utf-8")
+
+            roi_metric_qc_plot(
+                    figure=figure,
+                    metric_image=metric_image,
+                    attribute=attribute,
+                    roi_list=merged_roi_list)
             figure.tight_layout()
             figure.savefig(self.args['plot_output'], dpi=300)
             logger.info(f'wrote {self.args["plot_output"]}')
+
+            # plot the merge
+            figure = matplotlib.figure.Figure(figsize=(20, 20))
+            roi_merge_plot(figure=figure,
+                           metric_image=metric_image,
+                           attribute=attribute,
+                           original_roi_list=unmerged_roi_list,
+                           merged_roi_list=merged_roi_list,
+                           merger_ids=merger_ids)
+            figure.tight_layout()
+            figure.savefig(self.args['merge_plot_output'], dpi=300)
+            logger.info(f'wrote {self.args["merge_plot_output"]}')
 
         duration = time.time()-t0
         self.logger.info(f'Finished in {duration:.2f} seconds')

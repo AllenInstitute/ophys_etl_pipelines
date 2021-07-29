@@ -726,8 +726,16 @@ class ROIExaminer(object):
         return None
 
 
-def add_rois_to_axes(axes, roi_list, shape):
-    bdry_pixels = np.zeros(shape, dtype=int)
+def add_rois_to_axes(axes, roi_list, shape, rgba=(1.0, 0.0, 0.0, 1.0)):
+    """
+
+    Parameters
+    ----------
+    color: Tuple
+        RGBA float values for outline. color[3] = 1.0 is opaque
+
+    """
+    bdry_pixels = np.zeros((*shape, 4), dtype=float)
     for roi in roi_list:
         ophys_roi = OphysROI(
                         roi_id=0,
@@ -743,11 +751,8 @@ def add_rois_to_axes(axes, roi_list, shape):
             for ic in range(ophys_roi.width):
                 if bdry[ir, ic]:
                     bdry_pixels[ir+ophys_roi.y0,
-                                ic+ophys_roi.x0] = 1
-
-    bdry_pixels = np.ma.masked_where(bdry_pixels == 0,
-                                     bdry_pixels)
-    axes.imshow(bdry_pixels, cmap='autumn', alpha=1.0)
+                                ic+ophys_roi.x0] = rgba
+    axes.imshow(bdry_pixels)
 
 
 def create_roi_plot(plot_path: pathlib.Path,

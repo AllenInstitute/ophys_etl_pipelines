@@ -13,6 +13,10 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
 from ophys_etl.modules.segmentation.processing_log import \
     SegmentationProcessingLog
 
+from ophys_etl.modules.segmentation.filter.filter_utils import (
+    mean_metric_from_roi,
+    median_metric_from_roi)
+
 
 class ROIBaseFilter(ABC):
     """
@@ -159,6 +163,85 @@ class ROIAreaFilter(ROIBaseFilter):
                 return False
         if self.min_area is not None:
             if roi.area < self.min_area:
+                return False
+        return True
+
+
+class ROIMetricStatFilter(ROIBaseFilter):
+    """
+    A sub-class of ROIBaseFilter that filters ROIs on some statistic
+    computed from a metric image.
+
+    Parameters
+    ----------
+    metric_img: np.ndarray
+        The metric image from which to compute the summary statistic
+
+    metric_data: str
+        The name of the metric stat to be used.
+        Currently accepted values are 'mean' and 'median'.
+
+    min_metric: Optional[float]
+        The minimum allowed value of the summary statistic in
+        a valid ROI (default: None)
+
+    max_metric: Optional[float]
+        The maximum allowed value of the summary statistic in
+        a valid ROI (default: None)
+
+    Note
+    ----
+    Any limit that is None is ignored. If both limits are
+    None, an error is raised.
+    """
+
+    def __init__(self,
+                 metric_img: np.ndarray,
+                 metric_stat: str,
+                 min_metric: Optional[float] = None,
+                 max_metric: Optional[float] = None):
+
+        if metric_stat == 'mean':
+            self._stat_method = mean_metric_from_roi
+        elif metric_stat == 'median':
+            self._stat_method = median_metric_from_roi
+        else:
+            msg = "ROIMetricStatFilter only knows how to compute "
+            msg += "'mean' and 'median'; you gave "
+            msg += f"metric_stat='f{metric_stat}'"
+            raise ValueError(msg)
+
+        if max_metric is None and min_metric is None:
+            msg = "Both max_metric and min_metric are None; "
+            msg += "you must specify at least one"
+            raise RuntimeError(msg)
+
+        self._max_metric = max_metric
+        self._min_metric = min_metric
+
+        self.img = np.copy(metric_img)
+        self._reason = f'{metric_stat} ('
+        if min_metric is not None:
+            self._reason += f' min: {min_metric: .2e};'
+        if max_metric is not None:
+            self._reason += f' max: {max_metric: .2e}'
+        self._reason += ' )'
+
+    @property
+    def max_metric(self) -> Union[float, None]:
+        return self._max_metric
+
+    @property
+    def min_metric(self) -> Union[float, None]:
+        return self._min_metric
+
+    def is_roi_valid(self, roi: OphysROI) -> bool:
+        metric_value = self._stat_method(roi, self.img)
+        if self.max_metric is not None:
+            if metric_value > self.max_metric:
+                return False
+        if self.min_metric is not None:
+            if metric_value < self.min_metric:
                 return False
         return True
 

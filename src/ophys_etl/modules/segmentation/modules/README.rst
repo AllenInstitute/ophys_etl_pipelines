@@ -33,7 +33,8 @@ group: "merge"
 potential merging of adjacent ROIs
 
 - group_creation_time: (str) a timestamp for when this group was created.
-- rois: (TBD) how to implement list of ROIs in hdf5
+- merger_ids: N x 2 array of (int) ROI IDs where each row is (dst, src) where
+  src was merged into dst. the src_ID disappears from the rois and dst_ID is retained.
 
 group: "filter"
 ***************

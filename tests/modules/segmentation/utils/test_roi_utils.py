@@ -12,7 +12,8 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     sub_video_from_roi,
     intersection_over_union,
     convert_to_lims_roi,
-    roi_list_from_file)
+    roi_list_from_file,
+    select_contiguous_region)
 
 
 @pytest.mark.parametrize(
@@ -268,3 +269,33 @@ def test_roi_list_from_file(roi_file, list_of_roi):
     actual = [ophys_roi_to_extract_roi(roi)
               for roi in raw_actual]
     assert actual == list_of_roi
+
+
+def test_select_contiguous_region():
+
+    mask = np.zeros((10, 10), dtype=bool)
+    mask[2:5, 2:5] = True
+    mask[3:10, 7:10] = True
+
+    output = select_contiguous_region((3, 3), mask)
+    expected = np.zeros((10, 10), dtype=bool)
+    expected[2:5, 2:5] = True
+    np.testing.assert_array_equal(output, expected)
+
+    output = select_contiguous_region((4, 9), mask)
+    expected = np.zeros((10, 10), dtype=bool)
+    expected[3:10, 7:10] = True
+    np.testing.assert_array_equal(output, expected)
+
+    # try when seed_pt is not True
+    output = select_contiguous_region((2, 9), mask)
+    expected = np.zeros((10, 10), dtype=bool)
+    np.testing.assert_array_equal(output, expected)
+
+    # try with diagonally connected blocks
+    mask[1, 1] = True
+    output = select_contiguous_region((3, 3), mask)
+    expected = np.zeros((10, 10), dtype=bool)
+    expected[2:5, 2:5] = True
+    expected[1, 1] = True
+    np.testing.assert_array_equal(output, expected)

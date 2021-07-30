@@ -420,6 +420,12 @@ class RoiMergerSchema(argschema.ArgSchema):
         allow_none=True,
         description="path to summary plot of segmentation")
 
+    merge_plot_output = argschema.fields.OutputFile(
+        required=False,
+        default=None,
+        allow_none=True,
+        description="path to plot showing before/after merging")
+
     roi_output = argschema.fields.OutputFile(
         required=True,
         description=("path to JSON file where we will write merged ROIs"))
@@ -458,3 +464,13 @@ class RoiMergerSchema(argschema.ArgSchema):
         default=0.2,
         description=("fraction of timesteps to keep when doing time "
                      "correlations"))
+
+    @post_load
+    def set_merge_plot_path(self, data, **kwargs):
+        if ((data["plot_output"] is not None)
+                & (data["merge_plot_output"] is None)):
+            template = Path(data["plot_output"])
+            merge_plot_path = (template.parent /
+                               f"{template.stem}_merge{template.suffix}")
+            data["merge_plot_output"] = str(merge_plot_path)
+        return data

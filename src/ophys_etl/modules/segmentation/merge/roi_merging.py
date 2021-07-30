@@ -256,6 +256,10 @@ def _do_mergers(
 
     have_been_absorbed: Set[int]
         Updated to reflect mergers
+
+    parents_children: List[Tuple[int, int]]
+        A list of parent/children roi IDs from mergers.
+
     """
     valid_roi_id = set(roi_lookup.keys())
     potential_mergers = []
@@ -272,6 +276,7 @@ def _do_mergers(
 
     recently_merged = set()
     wait_for_it = set()
+    parents_children = list()
 
     area_lookup = dict()
     for roi_id in roi_lookup:
@@ -330,6 +335,7 @@ def _do_mergers(
         new_roi = merge_rois(seed_roi,
                              child_roi,
                              seed_roi.roi_id)
+        parents_children.append((seed_roi.roi_id, child_roi.roi_id))
 
         # remove the ROI that was absorbed
         roi_lookup.pop(child_roi.roi_id)
@@ -353,7 +359,8 @@ def _do_mergers(
     return (recently_merged,
             roi_lookup,
             neighbor_lookup,
-            have_been_absorbed)
+            have_been_absorbed,
+            parents_children)
 
 
 def do_roi_merger(
@@ -362,7 +369,8 @@ def do_roi_merger(
       n_processors: int,
       corr_acceptance: float,
       filter_fraction: float = 0.2,
-      anomalous_size: int = 800) -> List[OphysROI]:
+      anomalous_size: int = 800
+      ) -> Tuple[List[OphysROI], List[Tuple[int, int]]]:
     """
     Merge ROIs based on a static image.
 
@@ -390,10 +398,12 @@ def do_roi_merger(
 
     Returns
     -------
-    List[OphysROI]
+    new_roi_list: List[OphysROI]
         List of ROIs after merger. ROIs will have been cast
         to OphysROIs, but they have the same spatial
         information and API as OphysROIs
+    merger_ids: List[Tuple[int, int]]
+        a list of (dst, src) ROI ids for mergers
 
     Notes
     -----
@@ -474,6 +484,7 @@ def do_roi_merger(
     shuffler = np.random.RandomState(11723412)
 
     keep_going = True
+    merger_ids = list()
     while keep_going:
 
         # statistics on this pass for INFO messages
@@ -502,20 +513,12 @@ def do_roi_merger(
                               filter_fraction=filter_fraction,
                               n_processors=n_processors)
 
-        logger.info('updated timeseries lookup '
-                    f'in {time.time()-local_t0:.2f} seconds')
-
-        local_t0 = time.time()
-
         new_merger_metrics = get_merger_metric_from_pairs(
                                    new_merger_candidates,
                                    sub_video_lookup,
                                    timeseries_lookup,
                                    filter_fraction,
                                    n_processors)
-
-        logger.info('updated self_corr and calculated metrics in '
-                    f'{time.time()-local_t0:.2f} seconds')
 
         for pair in new_merger_metrics:
             metric = new_merger_metrics[pair]
@@ -526,10 +529,12 @@ def do_roi_merger(
         (recently_merged,
          roi_lookup,
          neighbor_lookup,
-         have_been_absorbed) = _do_mergers(merger_to_metric,
-                                           roi_lookup,
-                                           neighbor_lookup,
-                                           have_been_absorbed)
+         have_been_absorbed,
+         parents_children) = _do_mergers(merger_to_metric,
+                                         roi_lookup,
+                                         neighbor_lookup,
+                                         have_been_absorbed)
+        merger_ids.extend(parents_children)
         if len(recently_merged) > 0:
             keep_going = True
 
@@ -549,9 +554,10 @@ def do_roi_merger(
                                     timeseries_lookup,
                                     merger_to_metric)
 
+        t1 = time.time()
         logger.info(f'merged {n0} ROIs to {len(roi_lookup)}; '
                     f'{len(anomalous_rois)} anomalous ROIs; '
-                    f'after {time.time()-t0:.2f} seconds')
+                    f'in {t1 - local_t0:.2f} ({t1 - t0:.2f} total) seconds')
 
         # make sure we did not lose track of any ROIs
         for roi_id in incoming_rois:
@@ -563,4 +569,4 @@ def do_roi_merger(
     logger.info(f'{len(anomalous_rois)} anomalously large ROIs found '
                 f' (size >= {anomalous_size})')
     new_roi_list = list(roi_lookup.values()) + list(anomalous_rois.values())
-    return new_roi_list
+    return new_roi_list, merger_ids

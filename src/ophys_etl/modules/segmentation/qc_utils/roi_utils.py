@@ -726,8 +726,27 @@ class ROIExaminer(object):
         return None
 
 
-def add_rois_to_axes(axes, roi_list, shape):
-    bdry_pixels = np.zeros(shape, dtype=int)
+def add_rois_to_axes(
+        axes: matplotlib.axes.Axes,
+        roi_list: List[ExtractROI],
+        shape: Tuple[int, int],
+        rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 1.0)
+        ) -> None:
+    """
+
+    Parameters
+    ----------
+    axes: matplotlib.axes.Axes
+        the axes to add to
+    roi_list: List[ExtractROI]
+        the ROIs to add
+    shape: Tuple[int, int]
+        shape of the FOV
+    rgba: Tuple[float, float, float, float]
+        0.0 - 1.0  RGBA values for the outlines
+
+    """
+    bdry_pixels = np.zeros((*shape, 4), dtype=float)
     for roi in roi_list:
         ophys_roi = OphysROI(
                         roi_id=0,
@@ -743,11 +762,8 @@ def add_rois_to_axes(axes, roi_list, shape):
             for ic in range(ophys_roi.width):
                 if bdry[ir, ic]:
                     bdry_pixels[ir+ophys_roi.y0,
-                                ic+ophys_roi.x0] = 1
-
-    bdry_pixels = np.ma.masked_where(bdry_pixels == 0,
-                                     bdry_pixels)
-    axes.imshow(bdry_pixels, cmap='autumn', alpha=1.0)
+                                ic+ophys_roi.x0] = rgba
+    axes.imshow(bdry_pixels)
 
 
 def create_roi_plot(plot_path: pathlib.Path,

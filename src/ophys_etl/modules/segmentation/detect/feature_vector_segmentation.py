@@ -7,6 +7,7 @@ import pathlib
 import time
 import json
 import matplotlib
+import datetime
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     convert_to_lims_roi)
@@ -476,7 +477,12 @@ class FeatureVectorSegmenter(object):
 
         # log detection to hdf5 QC ouput
         with h5py.File(qc_output, "a") as h5file:
+            if "detect" in list(h5file.keys()):
+                del h5file["detect"]
             group = h5file.create_group("detect")
+            group.create_dataset(
+                    "group_creation_time",
+                    data=str(datetime.datetime.now()).encode("utf-8"))
             group.create_dataset("metric_image", data=self._graph_img)
             group.create_dataset("attribute",
                                  data=self._attribute.encode("utf-8"))

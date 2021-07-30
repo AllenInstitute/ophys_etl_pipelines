@@ -1,4 +1,5 @@
 import h5py
+import datetime
 import numpy as np
 from typing import Tuple, Optional, List, Set
 from collections.abc import Iterator
@@ -237,7 +238,13 @@ class ImageMetricSeeder(SeederBase):
             seed["exclusion_reason"] = "never considered"
             self._excluded_seeds.append(seed)
 
+        if group_name in list(h5file.keys()):
+            del h5file[group_name]
+
         group = h5file.create_group(group_name)
+        group.create_dataset(
+                "group_creation_time",
+                data=str(datetime.datetime.now()).encode("utf-8"))
         group.create_dataset(
                 "provided_seeds",
                 data=np.array([i['coordinates']

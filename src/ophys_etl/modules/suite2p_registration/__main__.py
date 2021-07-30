@@ -1,12 +1,15 @@
+from functools import partial
 import json
+import math
+from multiprocessing import Pool
 import os
 from pathlib import Path
+import time
 
 import argschema
 import h5py
 import numpy as np
 import pandas as pd
-import tifffile
 from PIL import Image
 
 from ophys_etl.qc.registration_qc import RegistrationQC
@@ -14,7 +17,6 @@ from ophys_etl.modules.suite2p_wrapper.__main__ import Suite2PWrapper
 from ophys_etl.modules.suite2p_registration import utils
 from ophys_etl.modules.suite2p_registration.schemas import (
         Suite2PRegistrationInputSchema, Suite2PRegistrationOutputSchema)
-from suite2p.registration.rigid import shift_frame
 
 
 class Suite2PRegistration(argschema.ArgSchemaParser):
@@ -41,7 +43,7 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         # get paths to Suite2P outputs
         with open(suite2p_args["output_json"], "r") as f:
             outj = json.load(f)
-        tif_paths = [Path(i) for i in outj['output_files']["*.tif"]]
+        # tif_paths = [Path(i) for i in outj['output_files']["*.tif"]]
         ops_path = Path(outj['output_files']['ops.npy'][0])
 
         # Suite2P ops file contains at least the following keys:
@@ -67,30 +69,35 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         self.logger.info(f"{len(clipped_indices)} frames will be adjusted "
                          "for clipping")
 
-        # accumulate data from Suite2P's tiffs
-        data = []
-        for fname in tif_paths:
-            with tifffile.TiffFile(fname) as f:
-                nframes = len(f.pages)
-                for i, page in enumerate(f.pages):
-                    arr = page.asarray()
-                    if i == 0:
-                        data.append(
-                                np.zeros((nframes, *arr.shape), dtype='int16'))
-                    data[-1][i] = arr
+        # Manually shift all frames
+        start_time = time.time()
+
+        shift_func = partial(
+            utils.shift_movie_chunk,
+            xoffs=ops.item()['xoff'],
+            yoffs=ops.item()['yoff'],
+            clipped_xoffs=delta_x,
+            clipped_yoffs=delta_y,
+            clipped_indices=clipped_indices,
+            movie_path=suite2p_args['h5py'])
+
+        with Pool(self.args["n_parallel_workers"]) as pool, \
+                h5py.File(suite2p_args['h5py'], "r") as f:
+            movie_length = f['data'].shape[0]
+
+            movie_chunks = np.array_split(
+                list(range(movie_length)),
+                math.ceil(movie_length / self.args["chunk_size"])
+            )
+
+            # Use multiprocessing and shift the movie in chunks
+            data = pool.map(shift_func, movie_chunks)
         data = np.concatenate(data, axis=0)
         data[data < 0] = 0
         data = np.uint16(data)
 
-        # anywhere we've clipped the offset, translate the frame
-        # using Suite2P's shift_frame by the difference resulting
-        # from clipping, for example, if Suite2P moved a frame
-        # by 100 pixels, and we have clipped that to 30, this will
-        # move it -70 pixels
-        for frame_index in clipped_indices:
-            dx = delta_x[frame_index] - ops.item()['xoff'][frame_index]
-            dy = delta_y[frame_index] - ops.item()['yoff'][frame_index]
-            data[frame_index] = shift_frame(data[frame_index], dy, dx)
+        end_time = time.time()
+        self.logger.info(f"Elapsed time (s): {end_time - start_time}")
 
         # write the hdf5
         with h5py.File(self.args['motion_corrected_output'], "w") as f:

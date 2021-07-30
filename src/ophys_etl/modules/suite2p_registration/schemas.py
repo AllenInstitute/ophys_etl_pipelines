@@ -74,6 +74,15 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
                      "allows for low-frequency drift. Default value of 0.05 "
                      "is typically clipping outliers to 512 * 0.05 = 25 "
                      "pixels above or below the median trend."))
+    n_parallel_workers = argschema.fields.Int(
+        required=False,
+        default=4,
+        description="how many multiprocessing workers")
+    chunk_size = argschema.fields.Int(
+        required=False,
+        default=1000,
+        description=("size of chunks, in frames, for breaking up processing "
+                     "into smaller jobs"))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

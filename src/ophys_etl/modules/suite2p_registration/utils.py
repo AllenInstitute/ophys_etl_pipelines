@@ -2,6 +2,37 @@ import numpy as np
 from typing import Tuple, List
 from scipy.ndimage.filters import median_filter
 
+import h5py
+from suite2p.registration.rigid import shift_frame
+
+
+def shift_movie_chunk(frames: List[int],
+                      xoffs: int,
+                      yoffs: int,
+                      clipped_xoffs: int,
+                      clipped_yoffs: int,
+                      clipped_indices: List[int],
+                      movie_path: str) -> np.ndarray:
+    """
+    """
+    with h5py.File(movie_path, "r") as f:
+        movie = f['data'][frames, :, :]
+        data = []
+
+        for frame in frames:
+            if frame not in clipped_indices:
+                data.append(shift_frame(
+                    movie[frame - frames[0], :, :],
+                    xoffs[frame],
+                    yoffs[frame]))
+            else:
+                data.append(shift_frame(
+                    movie[frame - frames[0], :, :],
+                    clipped_xoffs[frame],
+                    clipped_yoffs[frame]))
+
+    return np.stack(data, axis=0)
+
 
 def projection_process(data: np.ndarray,
                        projection: str = "max") -> np.ndarray:

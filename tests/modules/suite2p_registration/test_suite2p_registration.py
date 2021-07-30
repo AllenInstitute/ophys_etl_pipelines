@@ -8,7 +8,6 @@ import h5py
 import numpy as np
 import pandas as pd
 import pytest
-import tifffile
 
 sys.modules['suite2p'] = Mock()
 sys.modules['suite2p.registration.rigid'] = Mock()
@@ -17,19 +16,18 @@ from ophys_etl.modules.suite2p_wrapper.schemas import \
 import ophys_etl.modules.suite2p_registration.__main__ as s2preg  # noqa
 
 
+def mock_shift_frame(frame: np.ndarray, dy: int, dx: int) -> np.ndarray:
+    """
+    """
+    return np.roll(frame, (-dy, -dx), axis=(0, 1))
+
+
 class MockSuite2PWrapper(argschema.ArgSchemaParser):
     default_schema = Suite2PWrapperSchema
     default_output_schema = Suite2PWrapperOutputSchema
     mock_ops_data = None
 
     def run(self):
-        fname_base = Path(self.args['output_dir'])
-        fnames = []
-        for i in range(10):
-            data = np.ones((100, 32, 32), 'int16') * i
-            fnames.append(fname_base / f"my_tiff_{i}.tif")
-            tifffile.imwrite(fnames[-1], data)
-
         ops_path = Path(self.args['output_dir']) / "ops.npy"
         ops_keys = ["Lx", "Ly", "nframes", "xrange", "yrange", "xoff", "yoff",
                     "corrXY", "meanImg"]
@@ -43,8 +41,7 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
         np.save(ops_path, ops_dict)
         outj = {
                 'output_files': {
-                    'ops.npy': [str(ops_path)],
-                    '*.tif': [str(i) for i in fnames]
+                    'ops.npy': [str(ops_path)]
                     }
                 }
         self.output(outj)
@@ -59,13 +56,21 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
 def test_suite2p_registration(tmp_path, mock_ops_data):
     h5path = tmp_path / "mc_video.h5"
     with h5py.File(str(h5path), "w") as f:
-        f.create_dataset("data", data=np.zeros((1000, 32, 32)))
+        uncorrected_data = np.zeros((5, 32, 32))
+
+        # Fill first row and column with 1's to verify shifting worked later
+        uncorrected_data[:, 0, :] = 1
+        uncorrected_data[:, :, 0] = 1
+
+        f.create_dataset("data", data=uncorrected_data)
 
     outj_path = tmp_path / "output.json"
     args = {"suite2p_args": {
                 "h5py": str(h5path),
             },
-            'movie_frame_rate_hz': 11.0,
+            'movie_frame_rate_hz': 1.0,
+            'preview_frame_bin_seconds': 1.0,
+            'chunk_size': 2,
             'registration_summary_output': str(tmp_path / "summary.png"),
             'motion_correction_preview_output': str(tmp_path / "preview.webm"),
             "motion_corrected_output": str(tmp_path / "motion_output.h5"),
@@ -78,8 +83,11 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
         with patch(
             'ophys_etl.modules.suite2p_registration.__main__.Suite2PWrapper',
                 MockSuite2PWrapper):
-            reg = s2preg.Suite2PRegistration(input_data=args, args=[])
-            reg.run()
+            with patch(
+                'ophys_etl.modules.suite2p_registration.utils.shift_frame',
+                    mock_shift_frame):
+                reg = s2preg.Suite2PRegistration(input_data=args, args=[])
+                reg.run()
 
     # Test that output files exist
     for k in ['registration_summary_output',
@@ -99,9 +107,18 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
     assert 'motion_corrected_output' in outj
     with h5py.File(outj['motion_corrected_output'], "r") as f:
         data = f['data'][()]
-    assert data.shape == (1000, 32, 32)
-    assert data.max() == 9
+    assert data.shape == (5, 32, 32)
+    assert data.max() == 1
     assert data.min() == 0
+
+    # Check that the rows and columns were properly shifted
+    for i in range(data.shape[0]):
+        assert np.all(
+            data[i, data.shape[1] - mock_ops_data['xoff'][i], :] == 1
+        )
+        assert np.all(
+            data[i, :, -1 * mock_ops_data['yoff'][i]] == 1
+        )
 
     # Test that motion_diagnostics_output field exists and that csv
     # file contains correct data

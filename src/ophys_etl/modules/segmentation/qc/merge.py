@@ -14,7 +14,9 @@ def roi_ancestor_gallery(figure: Figure,
                          original_roi_list: List[ExtractROI],
                          merged_roi_list: List[ExtractROI],
                          merger_ids: np.ndarray,
-                         merged_id: int) -> None:
+                         merged_id: int,
+                         full_fov: bool = False,
+                         plot_buffer: int = 5) -> None:
     """creates a figure that shows an ROI and all its pre-merge ancestors
 
     Parameters
@@ -33,6 +35,12 @@ def roi_ancestor_gallery(figure: Figure,
         n_merge x 2 array, each row listing the IDs of a single merge.
     merged_id: int
         the ID in the merged list for which to show ancestors
+    full_fov: bool
+        whether to display the ROIs and ancestors in the full FOV (true)
+        or to zoom to a bounding box around the merged ROI
+    plot_buffer: int
+        if full_fov is False, adds a buffer to the zoomed plot around
+        the merged ROI bounding box
 
     """
 
@@ -79,6 +87,16 @@ def roi_ancestor_gallery(figure: Figure,
                                    roi,
                                    metric_image.shape)
         axes[-1].set_title(f"ancestor ROI {ancestor}")
+
+    if not full_fov:
+        xlim = (max(0, merged[0]["x"] - plot_buffer),
+                min(merged[0]["x"] + merged[0]["width"] + plot_buffer,
+                    metric_image.shape[1]))
+        ylim = (max(0, merged[0]["y"] - plot_buffer),
+                min(merged[0]["y"] + merged[0]["height"] + plot_buffer,
+                    metric_image.shape[0]))
+        a0.set_xlim(xlim)
+        a0.set_ylim(ylim[::-1])
 
     figure.tight_layout()
 

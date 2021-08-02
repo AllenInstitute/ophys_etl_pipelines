@@ -2,6 +2,7 @@ from typing import List, Dict, Tuple
 import numpy as np
 import pathlib
 import json
+from skimage.measure import label as skimage_label
 from scipy.spatial.distance import cdist
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
@@ -321,3 +322,38 @@ def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
             roi = OphysROI.from_schema_dict(roi_data)
             output_list.append(roi)
     return output_list
+
+
+def select_contiguous_region(
+        seed_pt: Tuple[int, int],
+        input_mask: np.ndarray) -> np.ndarray:
+    """
+    Select only the contiguous region of an ROI mask that contains
+    a specified seed_pt
+
+    Parameters
+    ----------
+    seed_pt: Tuple[int]
+        The (row, col) coordinate of the seed point that
+        must be contained in the returned mask
+
+    input_mask: np.ndarray
+        A mask of booleans
+
+    Returns
+    -------
+    contiguous_mask: np.ndarray
+        A mask of booleans corresponding to the contiguous
+        block of True pixels in input_mask that contains seed_pt
+    """
+    if seed_pt[0] >= input_mask.shape[0] or seed_pt[1] >= input_mask.shape[1]:
+        msg = f"seed_pt: {seed_pt}\n"
+        msg += f"does not exist in mask with shape {input_mask.shape}"
+        raise IndexError(msg)
+
+    if not input_mask[seed_pt[0], seed_pt[1]]:
+        return np.zeros(input_mask.shape, dtype=bool)
+
+    labeled_img = skimage_label(input_mask, connectivity=2)
+    seed_label = labeled_img[seed_pt[0], seed_pt[1]]
+    return (labeled_img == seed_label)

@@ -33,14 +33,14 @@ def synthetic_video_path(tmpdir_factory):
     ny = 32
 
     rng = np.random.default_rng(553311)
-    data = rng.normal(10.0, 5.0, size=(nt, nx, ny))
+    data = np.abs(rng.normal(1.0, 0.02, size=(nt, nx, ny)))
     t_array = np.arange(nt)
 
     for ii in range(10):
-        r0 = rng.integers(0, 20)
-        c0 = rng.integers(0, 20)
-        n_peaks = rng.integers(3, 6)
-        t_peak = rng.integers(5, 20, size=n_peaks)
+        r0 = rng.integers(0, 30)
+        c0 = rng.integers(0, 30)
+        n_peaks = rng.integers(10, 30)
+        t_peak = rng.integers(5, 90, size=n_peaks)
         width = min(rng.integers(3, 5), nx-c0)
         height = min(rng.integers(3, 5), ny-r0)
 
@@ -48,14 +48,10 @@ def synthetic_video_path(tmpdir_factory):
             amp = 5.0+10.0*rng.random()
             sigma = 1.0+2.0*rng.random()
             flux = amp*np.exp(-0.5*((t_array-peak)/sigma)**2)
-            flux /= sigma*np.sqrt(2.0*np.pi)
             for r in range(height):
                 for c in range(width):
-                    valid = rng.integers(0, 2)
-                    if valid == 0:
-                        continue
-                    noise = rng.normal(1.0, 0.3, size=nt)
-                    data[:, r0+r, c0+c] += flux+noise
+                    random_factor = rng.normal(1.0, 0.01)
+                    data[:, r0+r, c0+c] += flux*random_factor
     data -= data.min()
     data = np.round((2**16-1)*data/data.max()).astype(np.uint16)
     assert data.min() >= 0
@@ -118,7 +114,7 @@ def test_edge_fvs_filter_merge(tmpdir, synthetic_video_path, roi_class):
             'filter_fraction': 0.2,
             'n_parallel_workers': 2,
             'roi_class': roi_class,
-            'seeder_args': {'keep_fraction': 0.005,
+            'seeder_args': {'keep_fraction': 0.1,
                             'minimum_distance': 20,
                             'n_samples': 6}}
 
@@ -262,9 +258,10 @@ def test_edge_hnc_filter_merge(tmpdir, synthetic_video_path):
 
     # choose filter areas so that we don't lose
     # all ROIs
-    areas = np.array([np.array(roi['mask']).sum()
-                      for roi in raw_rois])
-    min_area, max_area = np.quantile(areas, (0.2, 0.8))
+    areas = np.unique(np.array([np.array(roi['mask']).sum()
+                                for roi in raw_rois]))
+    min_area = areas[1]
+    max_area = areas[-2]
 
     # filter on area
 

@@ -4,6 +4,8 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
 from ophys_etl.utils.array_utils import pairwise_distances
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    select_contiguous_region)
 
 
 def choose_timesteps(
@@ -591,6 +593,10 @@ class PotentialROI(object):
                 continue
             p = self.index_to_pixel[i_pixel]
             output_img[p[0], p[1]] = True
+
+        output_img = select_contiguous_region(
+                            self.seed_pt,
+                            output_img)
 
         return output_img
 

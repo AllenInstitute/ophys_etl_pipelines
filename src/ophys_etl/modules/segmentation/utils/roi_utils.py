@@ -325,7 +325,7 @@ def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
 
 
 def select_contiguous_region(
-        seed_pt: Tuple[int],
+        seed_pt: Tuple[int, int],
         input_mask: np.ndarray) -> np.ndarray:
     """
     Select only the contiguous region of an ROI mask that contains

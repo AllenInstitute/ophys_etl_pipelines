@@ -9,13 +9,15 @@ import numpy as np
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     ophys_roi_to_extract_roi,
-    ophys_roi_list_from_deserialized)
+    ophys_roi_list_from_deserialized,
+    background_mask_from_roi_list)
 from ophys_etl.modules.segmentation.processing_log import \
     SegmentationProcessingLog
 
 from ophys_etl.modules.segmentation.filter.filter_utils import (
     mean_metric_from_roi,
-    median_metric_from_roi)
+    median_metric_from_roi,
+    z_vs_background_from_roi)
 
 
 class ROIBaseFilter(ABC):
@@ -50,6 +52,26 @@ class ROIBaseFilter(ABC):
         """
         raise NotImplementedError()
 
+    def _pre_processing(self,
+                        roi_list: List[OphysROI]) -> List[OphysROI]:
+        """
+        Method that can be overloaded to do any pre-processing
+        of roi_list as a whole before each ROI is passed to
+        self.is_roi_valid
+
+        Parameters
+        ----------
+        roi_list: List[OphysROI]
+
+        Returns
+        -------
+        roi_list: List[OphysROI]
+            The list of ROIs after preprocessing has been
+            applied (default for base class performs no
+            actual operation)
+        """
+        return roi_list
+
     def do_filtering(
             self,
             roi_list: List[OphysROI]) -> Dict[str, List[OphysROI]]:
@@ -68,6 +90,8 @@ class ROIBaseFilter(ABC):
         -------
         Dict[str, List[OphysROI]]
         """
+        roi_list = self._pre_processing(roi_list)
+
         valid_roi = []
         invalid_roi = []
         for roi in roi_list:
@@ -243,6 +267,90 @@ class ROIMetricStatFilter(ROIBaseFilter):
         if self.min_metric is not None:
             if metric_value < self.min_metric:
                 return False
+        return True
+
+
+class ZvsBackgroundFilter(ROIBaseFilter):
+    """
+    A sub-class of ROIBaseFilter that filters ROIs based on the
+    z-score of their mean pixel value relative to the local
+    background
+
+    Parameters
+    ----------
+    metric_img: np.ndarray
+        The metric image from which to compute the summary statistic
+
+    min_z: float
+        The minimum z-score allowed for a valid ROI
+
+    n_background: int
+        The number of background pixels to compare each ROI to
+    """
+
+    def __init__(self,
+                 metric_img: np.ndarray,
+                 min_z: float,
+                 n_background: int):
+        self._img = np.copy(metric_img)
+        self._min_z = min_z
+        self._n_background = n_background
+        self._background_mask = None
+        self._reason = "z-score vs background pixels"
+
+    @property
+    def img(self) -> np.ndarray:
+        return self._img
+
+    @property
+    def min_z(self) -> float:
+        return self._min_z
+
+    @property
+    def n_background(self) -> int:
+        return self._n_background
+
+    @property
+    def background_mask(self) -> np.ndarray:
+        if self._background_mask is None:
+            msg = "self._background_mask is None; "
+            msg += "cannot filter ROIs based on z-score "
+            msg += "versus background"
+            raise RuntimeError(msg)
+        return self._background_mask
+
+    def _pre_processing(self, roi_list: List[OphysROI]) -> List[OphysROI]:
+        """
+        Use the full list of ROI to construct a mask indicating which
+        pixels are not a part of any ROIs
+
+        Parameters
+        ----------
+        roi_list: List[OphysROI]
+
+        Returns
+        -------
+        roi_list: List[OphysROI]
+
+        Notes
+        -----
+        This method does not alter roi_list. It does create
+        self._background_mask, an np.ndarray marked as True
+        for all background pixels
+        """
+        self._background_mask = background_mask_from_roi_list(
+                                    roi_list,
+                                    self.img.shape)
+        return roi_list
+
+    def is_roi_valid(self, roi: OphysROI) -> bool:
+        z_score = z_vs_background_from_roi(
+                        roi,
+                        self.img,
+                        self.background_mask,
+                        n_desired_background=self.n_background)
+        if z_score < self.min_z:
+            return False
         return True
 
 

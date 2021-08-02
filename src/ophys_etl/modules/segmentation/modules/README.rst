@@ -26,7 +26,7 @@ the detection by correlation and clustering stage.
 - group_creation_time: (str) a timestamp for when this group was created.
 - metric_image: (always same as seeder seed_image?)
 - attribute: (str) the name of the attribute shown in the metric_image
-- rois: (TBD) how to implement list of ROIs in hdf5
+- rois: (str) utf-8 encoded serialized list of ExtractROI entries
 
 group: "merge"
 **************
@@ -35,10 +35,11 @@ potential merging of adjacent ROIs
 - group_creation_time: (str) a timestamp for when this group was created.
 - merger_ids: N x 2 array of (int) ROI IDs where each row is (dst, src) where
   src was merged into dst. the src_ID disappears from the rois and dst_ID is retained.
+- rois: (str) utf-8 encoded serialized list of ExtractROI entries
 
 group: "filter"
 ***************
 post-process filters like size and ...
 
 - group_creation_time: (str) a timestamp for when this group was created.
-- rois: (TBD) how to implement list of ROIs in hdf5
+- rois: (str) utf-8 encoded serialized list of ExtractROI entries

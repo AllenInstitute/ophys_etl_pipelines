@@ -265,8 +265,12 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
         description="which attribute to use in image")
 
     roi_output = argschema.fields.OutputFile(
-        required=True,
-        description="path to json file where ROIs will be saved")
+        required=False,
+        default=None,
+        allow_none=True,
+        description=("path to json file where ROIs will be saved as json. "
+                     "These ROIs are also stored in qc_output. We maintain "
+                     "this option if useful for a LIMS strategy later."))
 
     plot_output = argschema.fields.OutputFile(
         required=False,
@@ -406,7 +410,9 @@ class RoiMergerSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
 
     roi_input = argschema.fields.InputFile(
-        required=True,
+        required=False,
+        default=None,
+        allow_none=True,
         description=("path to JSON file with ROIs to merge"))
 
     qc_output = argschema.fields.OutputFile(
@@ -427,8 +433,12 @@ class RoiMergerSchema(argschema.ArgSchema):
         description="path to plot showing before/after merging")
 
     roi_output = argschema.fields.OutputFile(
-        required=True,
-        description=("path to JSON file where we will write merged ROIs"))
+        required=False,
+        default=None,
+        allow_none=True,
+        description=("path to json file where ROIs will be saved as json. "
+                     "These ROIs are also stored in qc_output. We maintain "
+                     "this option if useful for a LIMS strategy later."))
 
     n_parallel_workers = argschema.fields.Int(
             required=False,
@@ -464,6 +474,29 @@ class RoiMergerSchema(argschema.ArgSchema):
         default=0.2,
         description=("fraction of timesteps to keep when doing time "
                      "correlations"))
+
+    @post_load
+    def check_for_rois(self, data, **kwargs):
+        """rois can be passed in as a path to json in 'roi_input'
+        or can be read from within the in-progress 'qc_output'
+        """
+        if data["roi_input"] is None:
+            if data["qc_output"] is None:
+                raise ValidationError(
+                        "either 'roi_input' (json) must be specified "
+                        "or 'qc_output' (hdf5) with group 'detect' with "
+                        "dataset 'rois' must be specified.")
+                with h5py.File(data["qc_output"], "r") as f:
+                    if "detect" not in list(f.keys()):
+                        raise ValidationError(
+                                f"{data['qc_output']} must contain the group "
+                                "'detect' if 'roi_input' is not specified")
+                    if 'rois' not in list(f["detect"].keys()):
+                        raise ValidationError(
+                                f"{data['qc_output']} must contain the dataset"
+                                " 'rois' in group 'detect' if 'roi_input' is "
+                                "not specified")
+        return data
 
     @post_load
     def set_merge_plot_path(self, data, **kwargs):

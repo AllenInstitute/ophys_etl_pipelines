@@ -9,6 +9,43 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
 
 
+def serialize_extract_roi_list(rois: List[ExtractROI]) -> bytes:
+    """converts a list of ROIs to bytes that can be stored
+    in an hdf5 dataset.
+
+    Parameters
+    ----------
+    rois: List[ExtractROI]
+        the list of ROI dictionaries
+
+    Returns
+    -------
+    serialized: bytes
+        the serialized representation
+
+    """
+    serialized = json.dumps(rois).encode("utf-8")
+    return serialized
+
+
+def deserialize_extract_roi_list(serialized: bytes) -> List[ExtractROI]:
+    """deserializes bytest into a list of ROIs
+
+    Parameters
+    ----------
+    serialized: bytes
+        the serialized representation
+
+    Returns
+    -------
+    rois: List[ExtractROI]
+        the list of ROI dictionaries
+
+    """
+    rois = json.loads(serialized.decode("utf-8"))
+    return rois
+
+
 def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:
     """
     Convert an ExtractROI to an equivalent OphysROI
@@ -301,6 +338,15 @@ def convert_roi_keys(roi_list: List[Dict]) -> List[Dict]:
     return new_list
 
 
+def roi_list_from_deserialized(rois: List[dict]) -> List[OphysROI]:
+    roi_data_list = convert_roi_keys(rois)
+    output_list = []
+    for roi_data in roi_data_list:
+        roi = OphysROI.from_schema_dict(roi_data)
+        output_list.append(roi)
+    return output_list
+
+
 def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
     """
     Read in a JSONized file of ExtractROIs; return a list of
@@ -313,14 +359,11 @@ def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
     Returns
     -------
     List[OphysROI]
+
     """
-    output_list = []
     with open(file_path, 'rb') as in_file:
         roi_data_list = json.load(in_file)
-        roi_data_list = convert_roi_keys(roi_data_list)
-        for roi_data in roi_data_list:
-            roi = OphysROI.from_schema_dict(roi_data)
-            output_list.append(roi)
+    output_list = roi_list_from_deserialized(roi_data_list)
     return output_list
 
 

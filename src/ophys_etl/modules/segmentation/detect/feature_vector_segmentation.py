@@ -10,7 +10,9 @@ import matplotlib
 import datetime
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
-    convert_to_lims_roi)
+    convert_to_lims_roi,
+    serialize_extract_roi_list,
+    deserialize_extract_roi_list)
 from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
     PearsonFeatureROI)
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
@@ -486,6 +488,16 @@ class FeatureVectorSegmenter(object):
             group.create_dataset("metric_image", data=self._graph_img)
             group.create_dataset("attribute",
                                  data=self._attribute.encode("utf-8"))
+            group.create_dataset(
+                    "rois", data=serialize_extract_roi_list(self.roi_list))
+
+        if roi_output is not None:
+            # round trip from qc output to make sure these are consistent
+            with h5py.File(qc_output, "r") as f:
+                rois = deserialize_extract_roi_list(f["detect"]["rois"][()])
+            with open(roi_output, 'w') as out_file:
+                out_file.write(json.dumps(rois, indent=2))
+            logger.info(f'wrote {str(roi_output)}')
 
         # create a plot from the seeder QC output
         if seed_plot_output is not None:
@@ -496,12 +508,7 @@ class FeatureVectorSegmenter(object):
             fig.savefig(seed_plot_output, dpi=300)
             logger.info(f'wrote {seed_plot_output}')
 
-        logger.info(f'writing {str(roi_output)}')
-        with open(roi_output, 'w') as out_file:
-            out_file.write(json.dumps(self.roi_list, indent=2))
-
         if plot_output is not None:
-            # TODO: store ROIs in QC output hdf5
             figure = matplotlib.figure.Figure(figsize=(15, 15))
             with h5py.File(qc_output, "r") as f:
                 group = f["detect"]
@@ -509,7 +516,8 @@ class FeatureVectorSegmenter(object):
                         figure=figure,
                         metric_image=group["metric_image"][()],
                         attribute=group["attribute"][()].decode("utf-8"),
-                        roi_list=self.roi_list)
+                        roi_list=deserialize_extract_roi_list(
+                            group["rois"][()]))
             figure.tight_layout()
             figure.savefig(plot_output, dpi=300)
             logger.info(f'wrote {plot_output}')

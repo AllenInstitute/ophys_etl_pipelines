@@ -18,7 +18,9 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     select_contiguous_region,
     serialize_extract_roi_list,
     deserialize_extract_roi_list,
-    check_matching_extract_roi_lists)
+    check_matching_extract_roi_lists,
+    select_contiguous_region,
+    background_mask_from_roi_list)
 
 
 @pytest.fixture
@@ -391,3 +393,46 @@ def test_select_contiguous_region():
     expected[2:5, 2:5] = True
     expected[1, 1] = True
     np.testing.assert_array_equal(output, expected)
+
+
+def test_background_mask_from_roi_list():
+    roi_list = []
+    mask = [[True, True, False], [False, False, True]]
+    roi = OphysROI(x0=2, width=3,
+                   y0=1, height=2,
+                   roi_id=0, valid_roi=True,
+                   mask_matrix=mask)
+    roi_list.append(roi)
+
+    mask = [[True, False], [False, False], [True, True]]
+    roi = OphysROI(x0=3, width=2,
+                   y0=0, height=3,
+                   roi_id=1, valid_roi=True,
+                   mask_matrix=mask)
+
+    roi_list.append(roi)
+
+    mask = [[True, False], [False, False], [True, True]]
+    roi = OphysROI(x0=0, width=2,
+                   y0=1, height=3,
+                   roi_id=2, valid_roi=True,
+                   mask_matrix=mask)
+
+    roi_list.append(roi)
+
+    img_shape = (4, 6)
+
+    expected = [[True, True, True, False, True, True],
+                [False, True, False, False, True, True],
+                [True, True, True, False, False, True],
+                [False, False, True, True, True, True]]
+    expected = np.array(expected)
+    actual = background_mask_from_roi_list(roi_list, img_shape)
+    np.testing.assert_array_equal(actual, expected)
+
+    # assert an error gets raised if img_shape is too small
+    # (this actually relies on native numpy IndexErrors being
+    # raised; I just want to be aware if numpy changes its
+    # default behavior out from under us)
+    with pytest.raises(Exception):
+        background_mask_from_roi_list(roi_list, (4, 3))

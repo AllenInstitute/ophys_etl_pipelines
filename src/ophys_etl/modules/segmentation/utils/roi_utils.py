@@ -448,3 +448,30 @@ def select_contiguous_region(
     labeled_img = skimage_label(input_mask, connectivity=2)
     seed_label = labeled_img[seed_pt[0], seed_pt[1]]
     return (labeled_img == seed_label)
+
+
+def background_mask_from_roi_list(
+        roi_list: List[OphysROI],
+        img_shape: Tuple[int]) -> np.ndarray:
+    """
+    Take a list of ROIs. Return an np.ndarray of booleans marked
+    as False on any pixel that is included in the ROIs.
+
+    Parameters
+    ----------
+    roi_list: List[OphysROI]
+
+    img_shape: Tuple[int]
+        The shape of the output mask array
+
+    Returns
+    -------
+    background_mask: np.ndarray
+    """
+
+    background_mask = np.ones(img_shape, dtype=bool)
+    for roi in roi_list:
+        rows = roi.global_pixel_array[:, 0]
+        cols = roi.global_pixel_array[:, 1]
+        background_mask[rows, cols] = False
+    return background_mask

@@ -66,12 +66,12 @@ def ground_truth_fixture(roi_list_fixture,
                       roi,
                       img_fixture,
                       bckgd_mask,
-                      n_desired_background=100)
+                      n_desired_background=max(15, 2*roi.area))
         z_score_lookup[roi.roi_id] = z_score
     return z_score_lookup
 
 
-@pytest.mark.parametrize('cutoff', [0.0, 9.0, 19.0])
+@pytest.mark.parametrize('cutoff', [0.0, 9.0, 18.5, 19.0])
 def test_z_vs_background_filter(
         roi_list_fixture,
         img_fixture,
@@ -89,7 +89,8 @@ def test_z_vs_background_filter(
     this_filter = ZvsBackgroundFilter(
                      img_fixture,
                      cutoff,
-                     100)
+                     2,
+                     15)
     results = this_filter.do_filtering(roi_list_fixture)
 
     actual_valid = set([r.roi_id for r in results['valid_roi']])

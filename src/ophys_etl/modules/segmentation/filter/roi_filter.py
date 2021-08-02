@@ -284,17 +284,24 @@ class ZvsBackgroundFilter(ROIBaseFilter):
     min_z: float
         The minimum z-score allowed for a valid ROI
 
-    n_background: int
-        The number of background pixels to compare each ROI to
+    n_background_factor: int
+        The the factor to multiply roi.area by when requesting
+        background pixels
+
+    n_background_min: int
+        The minimum number of background pixels to use
+        (in case roi.area is very small)
     """
 
     def __init__(self,
                  metric_img: np.ndarray,
                  min_z: float,
-                 n_background: int):
+                 n_background_factor: int,
+                 n_background_min: int):
         self._img = np.copy(metric_img)
         self._min_z = min_z
-        self._n_background = n_background
+        self._n_background_factor = n_background_factor
+        self._n_background_min = n_background_min
         self._background_mask = None
         self._reason = "z-score vs background pixels"
 
@@ -307,8 +314,12 @@ class ZvsBackgroundFilter(ROIBaseFilter):
         return self._min_z
 
     @property
-    def n_background(self) -> int:
-        return self._n_background
+    def n_background_factor(self) -> int:
+        return self._n_background_factor
+
+    @property
+    def n_background_min(self) -> int:
+        return self._n_background_min
 
     @property
     def background_mask(self) -> np.ndarray:
@@ -344,11 +355,13 @@ class ZvsBackgroundFilter(ROIBaseFilter):
         return roi_list
 
     def is_roi_valid(self, roi: OphysROI) -> bool:
+        n_bckgd = max(self.n_background_min,
+                      self.n_background_factor*roi.area)
         z_score = z_vs_background_from_roi(
                         roi,
                         self.img,
                         self.background_mask,
-                        n_desired_background=self.n_background)
+                        n_desired_background=n_bckgd)
         if z_score < self.min_z:
             return False
         return True

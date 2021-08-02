@@ -1,7 +1,17 @@
 import pytest
 import numpy as np
+from itertools import product
+import pathlib
+import json
+import networkx
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    ophys_roi_to_extract_roi)
+
+from ophys_etl.modules.segmentation.graph_utils.conversion import (
+    graph_to_img)
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     background_mask_from_roi_list)
@@ -11,6 +21,9 @@ from ophys_etl.modules.segmentation.filter.filter_utils import (
 
 from ophys_etl.modules.segmentation.filter.roi_filter import (
     ZvsBackgroundFilter)
+
+from ophys_etl.modules.segmentation.modules.filter_z_score import (
+    ZvsBackgroundFilterRunner)
 
 
 @pytest.fixture(scope='session')
@@ -39,17 +52,58 @@ def roi_list_fixture(img_shape_fixture):
 
 
 @pytest.fixture(scope='session')
-def img_fixture(roi_list_fixture, img_shape_fixture):
+def roi_list_path_fixture(tmpdir_factory, roi_list_fixture):
+    tmpdir_path = pathlib.Path(tmpdir_factory.mktemp('z_score_roi'))
+    roi_path = tmpdir_path / 'input_rois.json'
+    extract_roi_list = [ophys_roi_to_extract_roi(roi)
+                        for roi in roi_list_fixture]
+    with open(roi_path, 'w') as out_file:
+        out_file.write(json.dumps(extract_roi_list, indent=2))
+    yield roi_path
+
+
+@pytest.fixture(scope='session')
+def graph_fixture(tmpdir_factory, roi_list_fixture, img_shape_fixture):
 
     rng = np.random.default_rng(542392)
-    img = rng.normal(2.0, 0.2, img_shape_fixture)
+    graph = networkx.Graph()
+    for r, c in product(range(img_shape_fixture[0]),
+                        range(img_shape_fixture[1])):
+        graph.add_node((r, c))
+    for r, c in product(range(img_shape_fixture[0]),
+                        range(img_shape_fixture[1])):
+        r0 = max(0, r-1)
+        r1 = min(r+2, img_shape_fixture[0])
+        c0 = max(0, c-1)
+        c1 = min(c+2, img_shape_fixture[1])
+        for dr, dc in product(range(r0, r1), range(c0, c1)):
+            if dr == 0 and dc == 0:
+                continue
+            graph.add_edge((r, c), (dr, dc),
+                           dummy=rng.normal(0.22, 0.01))
+
     for roi in roi_list_fixture:
-        value = rng.random()*4.0+2.0
-        rows = roi.global_pixel_array[:, 0]
-        cols = roi.global_pixel_array[:, 1]
-        roi_values = rng.normal(value, 0.1, len(rows))
-        img[rows, cols] = roi_values
-    return img
+        mu = rng.random()*4.0 + roi.roi_id
+        for i0 in range(roi.global_pixel_array.shape[0]):
+            pt0 = (roi.global_pixel_array[i0, 0],
+                   roi.global_pixel_array[i0, 1])
+            for i1 in range(i0+1, roi.global_pixel_array.shape[1]):
+                pt1 = (roi.global_pixel_array[i1, 0],
+                       roi.global_pixel_array[i0, 1])
+                edge = (pt0, pt1)
+                graph.add_edge(edge[0], edge[1], dummy=rng.normal(mu, 0.1))
+                graph.add_edge(edge[1], edge[0], dummy=rng.normal(mu, 0.1))
+
+    graph_path = pathlib.Path(tmpdir_factory.mktemp('z_score_graph'))
+    graph_path = graph_path / 'graph.pkl'
+    networkx.write_gpickle(graph, graph_path)
+    yield graph_path
+
+
+@pytest.fixture(scope='session')
+def img_fixture(graph_fixture):
+    return graph_to_img(graph_fixture,
+                        attribute_name='dummy')
 
 
 @pytest.fixture(scope='session')
@@ -71,7 +125,7 @@ def ground_truth_fixture(roi_list_fixture,
     return z_score_lookup
 
 
-@pytest.mark.parametrize('cutoff', [0.0, 9.0, 18.5, 19.0])
+@pytest.mark.parametrize('cutoff', [0.0, 9.0, 24.0, 25.0])
 def test_z_vs_background_filter(
         roi_list_fixture,
         img_fixture,
@@ -95,5 +149,52 @@ def test_z_vs_background_filter(
 
     actual_valid = set([r.roi_id for r in results['valid_roi']])
     actual_invalid = set([r.roi_id for r in results['invalid_roi']])
+    assert actual_valid == valid_roi_id
+    assert actual_invalid == invalid_roi_id
+
+
+@pytest.mark.parametrize('cutoff', [0.0, 9.0, 24.0, 25.0])
+def test_z_vs_background_module(
+        tmpdir,
+        roi_list_path_fixture,
+        roi_list_fixture,
+        graph_fixture,
+        ground_truth_fixture,
+        cutoff):
+
+    tmpdir_path = pathlib.Path(tmpdir)
+    valid_roi_id = set()
+    invalid_roi_id = set()
+    for roi in roi_list_fixture:
+        if ground_truth_fixture[roi.roi_id] < cutoff:
+            invalid_roi_id.add(roi.roi_id)
+        else:
+            valid_roi_id.add(roi.roi_id)
+
+    output_path = tmpdir_path/'output_rois.json'
+    log_path = tmpdir_path/'test_log.h5'
+    data = {'roi_input': str(roi_list_path_fixture),
+            'roi_output': str(output_path),
+            'pipeline_stage': 'test filter',
+            'graph_input': str(graph_fixture),
+            'attribute_name': 'dummy',
+            'min_z': cutoff,
+            'roi_log_path': str(log_path),
+            'n_background_factor': 2,
+            'n_background_minimum': 15}
+
+    runner = ZvsBackgroundFilterRunner(
+                   input_data=data,
+                   args=[])
+    runner.run()
+    assert output_path.is_file()
+    assert log_path.is_file()
+    with open(output_path, 'rb') as in_file:
+        results = json.load(in_file)
+    actual_valid = set([roi['id'] for roi in results
+                        if roi['valid_roi']])
+    actual_invalid = set([roi['id'] for roi in results
+                          if not roi['valid_roi']])
+
     assert actual_valid == valid_roi_id
     assert actual_invalid == invalid_roi_id

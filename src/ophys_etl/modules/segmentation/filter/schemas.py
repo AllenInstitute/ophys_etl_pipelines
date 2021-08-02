@@ -47,6 +47,31 @@ class FilterBaseSchema(argschema.ArgSchema):
         return data
 
 
+class MetricBaseSchema(FilterBaseSchema):
+
+    graph_input = argschema.fields.InputFile(
+            default=None,
+            required=True,
+            allow_none=False,
+            description=('path to pkl file containing the graph '
+                         'that will be used to generate the metric image'))
+
+    attribute_name = argschema.fields.String(
+            default='filtered_hnc_Gaussian',
+            required=True,
+            allow_none=False,
+            description=('attribute of graph that will be used to '
+                         'generate the metric image'))
+
+    @post_load
+    def check_graph_name(self, data, **kwargs):
+        if not str(data['graph_input']).endswith('pkl'):
+            msg = f"\n{data['graph_input']} does not appear "
+            msg += "to be a pkl file\n"
+            raise RuntimeError(msg)
+        return data
+
+
 class AreaFilterSchema(FilterBaseSchema):
 
     max_area = argschema.fields.Int(
@@ -70,7 +95,7 @@ class AreaFilterSchema(FilterBaseSchema):
         return data
 
 
-class StatFilterSchema(FilterBaseSchema):
+class StatFilterSchema(MetricBaseSchema):
 
     stat_name = argschema.fields.String(
             default=None,
@@ -78,20 +103,6 @@ class StatFilterSchema(FilterBaseSchema):
             allow_none=False,
             validation=OneOf(['mean', 'median']),
             description=('metric statistic on which to filter'))
-
-    graph_input = argschema.fields.InputFile(
-            default=None,
-            required=True,
-            allow_none=False,
-            description=('path to pkl file containing the graph '
-                         'that will be used to generate the metric image'))
-
-    attribute_name = argschema.fields.String(
-            default='filtered_hnc_Gaussian',
-            required=True,
-            allow_none=False,
-            description=('attribute of graph that will be used to '
-                         'generate the metric image'))
 
     min_value = argschema.fields.Float(
             default=None,
@@ -119,12 +130,33 @@ class StatFilterSchema(FilterBaseSchema):
                 msg += "\nmin_value > max_value\n"
                 is_valid = False
 
-        if not str(data['graph_input']).endswith('pkl'):
-            msg += f"\n{data['graph_input']} does not appear "
-            msg += "to be a pkl file\n"
-            is_valid = False
-
         if not is_valid:
             raise RuntimeError(msg)
 
         return data
+
+
+class ZvsBackgroundSchema(MetricBaseSchema):
+
+    min_z = argschema.fields.Float(
+            default=None,
+            required=True,
+            allow_none=False,
+            description=("minimum z-value above background of valid ROI"))
+
+    n_background_factor = argschema.fields.Int(
+            default=2,
+            required=False,
+            allow_none=False,
+            description=("select N_BACKGROUND_FACTOR*ROI.AREA pixels "
+                         "when constructing population of background "
+                         "pixels to use in calculating z-score"))
+
+    n_background_minimum = argschema.fields.Int(
+            default=100,
+            required=False,
+            allow_none=False,
+            description=("minimum number of background pixels to use "
+                         "when selecting population of background "
+                         "pixels to use in calculating z-score "
+                         "(in case ROI.AREA is small)"))

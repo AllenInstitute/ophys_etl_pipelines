@@ -346,6 +346,11 @@ def select_contiguous_region(
         A mask of booleans corresponding to the contiguous
         block of True pixels in input_mask that contains seed_pt
     """
+    if seed_pt[0] >= input_mask.shape[0] or seed_pt[1] >= input_mask.shape[1]:
+        msg = f"seed_pt: {seed_pt}\n"
+        msg += f"does not exist in mask with shape {input_mask.shape}"
+        raise IndexError(msg)
+
     if not input_mask[seed_pt[0], seed_pt[1]]:
         return np.zeros(input_mask.shape, dtype=bool)
 

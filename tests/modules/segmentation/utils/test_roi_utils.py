@@ -277,6 +277,23 @@ def test_select_contiguous_region():
     mask[2:5, 2:5] = True
     mask[3:10, 7:10] = True
 
+    # check that correct error is raised when you
+    # pass in invalid seed_pt
+    with pytest.raises(
+            IndexError,
+            match='does not exist in mask with shape \\(10, 10\\)'):
+        select_contiguous_region((100, 100), mask)
+
+    with pytest.raises(
+            IndexError,
+            match='does not exist in mask with shape \\(10, 10\\)'):
+        select_contiguous_region((100, 3), mask)
+
+    with pytest.raises(
+            IndexError,
+            match='does not exist in mask with shape \\(10, 10\\)'):
+        select_contiguous_region((3, 100), mask)
+
     output = select_contiguous_region((3, 3), mask)
     expected = np.zeros((10, 10), dtype=bool)
     expected[2:5, 2:5] = True

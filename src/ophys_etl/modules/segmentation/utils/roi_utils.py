@@ -340,11 +340,11 @@ def select_contiguous_region(
     input_mask: np.ndarray
         A mask of booleans
 
-   Returns
-   -------
-   contiguous_mask: np.ndarray
-       A mask of booleans corresponding to the contiguous
-       block of True pixels in input_mask that contains seed_pt
+    Returns
+    -------
+    contiguous_mask: np.ndarray
+        A mask of booleans corresponding to the contiguous
+        block of True pixels in input_mask that contains seed_pt
     """
     if not input_mask[seed_pt[0], seed_pt[1]]:
         return np.zeros(input_mask.shape, dtype=bool)

@@ -1,9 +1,8 @@
 from typing import List, Dict, Tuple
-from itertools import product
 import numpy as np
 import pathlib
 import json
-import networkx
+from skimage.measure import label as skimage_label
 from scipy.spatial.distance import cdist
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
@@ -350,30 +349,6 @@ def select_contiguous_region(
     if not input_mask[seed_pt[0], seed_pt[1]]:
         return np.zeros(input_mask.shape, dtype=bool)
 
-    pixel_graph = networkx.Graph()
-    valid_pixels = np.argwhere(input_mask)
-    for pixel in valid_pixels:
-        pixel_graph.add_node((pixel[0], pixel[1]))
-
-    for pixel in valid_pixels:
-        r0 = max(0, pixel[0]-1)
-        r1 = min(input_mask.shape[0], pixel[0]+2)
-        c0 = max(0, pixel[1]-1)
-        c1 = min(input_mask.shape[1], pixel[1]+2)
-        for r, c in product(range(r0, r1), range(c0, c1)):
-            if r == pixel[0] and c == pixel[1]:
-                continue
-            if not input_mask[r, c]:
-                continue
-            pixel_graph.add_edge((pixel[0], pixel[1]), (r, c))
-
-    this_subgraph = None
-    for subgraph in networkx.connected_components(pixel_graph):
-        if seed_pt in subgraph:
-            this_subgraph = subgraph
-            break
-
-    contiguous_mask = np.zeros(input_mask.shape, dtype=bool)
-    for node in this_subgraph:
-        contiguous_mask[node[0], node[1]] = True
-    return contiguous_mask
+    labeled_img = skimage_label(input_mask, connectivity=2)
+    seed_label = labeled_img[seed_pt[0], seed_pt[1]]
+    return (labeled_img == seed_label)

@@ -45,7 +45,7 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             self.logger.info(
                     f"read segmented ROIs from {self.args['roi_input']}")
 
-        roi_list = roi_utils.roi_list_from_deserialized(
+        roi_list = roi_utils.ophys_roi_list_from_deserialized(
                 original_roi_list)
 
         roi_id_set = set([roi.roi_id for roi in roi_list])

@@ -9,7 +9,7 @@ from ophys_etl.modules.segmentation.modules.filter_area import (
     AreaFilterRunner)
 
 from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import (
-    roi_list_from_file)
+    ophys_roi_list_from_file)
 
 
 def compare_rois(roi0: OphysROI,
@@ -72,7 +72,7 @@ def test_area_filter_runner(tmpdir,
                               args=[])
     runner.run()
 
-    actual_rois = roi_list_from_file(roi_output)
+    actual_rois = ophys_roi_list_from_file(roi_output)
     actual_lookup = {roi.roi_id: roi for roi in actual_rois}
     for roi_id in roi_dict:
         if roi_id in valid_roi:
@@ -116,7 +116,7 @@ def test_successive_area_filters(tmpdir,
                               args=[])
     runner.run()
 
-    min_cut_list = roi_list_from_file(roi_min_cut_path)
+    min_cut_list = ophys_roi_list_from_file(roi_min_cut_path)
     invalid_roi = set([1, 2])
     assert len(min_cut_list) == len(roi_dict)
     for roi in min_cut_list:
@@ -154,7 +154,7 @@ def test_successive_area_filters(tmpdir,
                               args=[])
     runner.run()
     invalid_roi = set([1, 2, 5, 6])
-    max_cut_list = roi_list_from_file(roi_max_cut_path)
+    max_cut_list = ophys_roi_list_from_file(roi_max_cut_path)
     assert len(max_cut_list) == len(roi_dict)
     for roi in max_cut_list:
         expected = roi_dict[roi.roi_id]

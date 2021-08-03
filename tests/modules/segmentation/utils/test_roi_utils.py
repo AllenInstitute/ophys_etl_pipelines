@@ -13,7 +13,7 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     sub_video_from_roi,
     intersection_over_union,
     convert_to_lims_roi,
-    roi_list_from_file,
+    ophys_roi_list_from_file,
     select_contiguous_region,
     serialize_extract_roi_list,
     deserialize_extract_roi_list)
@@ -315,8 +315,8 @@ def test_intersection_over_union():
     np.testing.assert_allclose(actual, expected, rtol=0.0, atol=eps)
 
 
-def test_roi_list_from_file(roi_file, list_of_roi):
-    raw_actual = roi_list_from_file(roi_file)
+def test_ophys_roi_list_from_file(roi_file, list_of_roi):
+    raw_actual = ophys_roi_list_from_file(roi_file)
     actual = [ophys_roi_to_extract_roi(roi)
               for roi in raw_actual]
     assert actual == list_of_roi

@@ -340,7 +340,22 @@ def convert_roi_keys(roi_list: List[Dict]) -> List[Dict]:
     return new_list
 
 
-def roi_list_from_deserialized(rois: List[dict]) -> List[OphysROI]:
+def ophys_roi_list_from_deserialized(
+        rois: List[ExtractROI]) -> List[OphysROI]:
+    """Convert a deserialized ExtractROI list to a list
+    of OphysROI objects.
+
+    Parameters
+    ----------
+    rois: List[ExtractROI]
+        list of ExtractROI
+
+    Returns
+    -------
+    output_list: List[OphysROI]
+        converted list of OphysROI
+
+    """
     roi_data_list = convert_roi_keys(rois)
     output_list = []
     for roi_data in roi_data_list:
@@ -349,7 +364,7 @@ def roi_list_from_deserialized(rois: List[dict]) -> List[OphysROI]:
     return output_list
 
 
-def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
+def ophys_roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
     """
     Read in a JSONized file of ExtractROIs; return a list of
     OphysROIs
@@ -365,7 +380,7 @@ def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
     """
     with open(file_path, 'rb') as in_file:
         roi_data_list = json.load(in_file)
-    output_list = roi_list_from_deserialized(roi_data_list)
+    output_list = ophys_roi_list_from_deserialized(roi_data_list)
     return output_list
 
 

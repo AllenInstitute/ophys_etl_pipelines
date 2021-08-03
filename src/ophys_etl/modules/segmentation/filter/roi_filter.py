@@ -11,7 +11,7 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     ophys_roi_to_extract_roi,
-    roi_list_from_file)
+    ophys_roi_list_from_file)
 
 
 class ROIBaseFilter(ABC):
@@ -224,7 +224,8 @@ class FilterRunnerBase(argschema.ArgSchemaParser):
         raise NotImplementedError(msg)
 
     def run(self):
-        roi_list = roi_list_from_file(pathlib.Path(self.args['roi_input']))
+        roi_list = ophys_roi_list_from_file(
+                pathlib.Path(self.args['roi_input']))
 
         this_filter = self.get_filter()
 

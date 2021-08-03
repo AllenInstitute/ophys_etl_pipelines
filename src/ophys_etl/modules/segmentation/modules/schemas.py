@@ -324,6 +324,20 @@ class FeatureVectorSegmentationInputSchema(SharedSegmentationInputSchema):
         description=("fraction of timesteps to use in time correlation "
                      "Note: will also affect PCA-based segmentation"))
 
+    window_min = argschema.fields.Int(
+        required=False,
+        default=20,
+        allow_none=False,
+        description=("minimum half side length of window in which "
+                     "ROI is allowed to grow in units of pixels"))
+
+    window_max = argschema.fields.Int(
+        required=False,
+        default=40,
+        allow_none=False,
+        description=("maximum half side length of window in which "
+                     "ROI is allowed to grow in units of pixels"))
+
 
 class HNC_args(argschema.schemas.DefaultSchema):
     """

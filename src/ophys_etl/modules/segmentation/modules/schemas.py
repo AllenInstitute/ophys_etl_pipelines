@@ -481,21 +481,16 @@ class RoiMergerSchema(argschema.ArgSchema):
         or can be read from within the in-progress 'qc_output'
         """
         if data["roi_input"] is None:
-            if data["qc_output"] is None:
-                raise ValidationError(
-                        "either 'roi_input' (json) must be specified "
-                        "or 'qc_output' (hdf5) with group 'detect' with "
-                        "dataset 'rois' must be specified.")
-                with h5py.File(data["qc_output"], "r") as f:
-                    if "detect" not in list(f.keys()):
-                        raise ValidationError(
-                                f"{data['qc_output']} must contain the group "
-                                "'detect' if 'roi_input' is not specified")
-                    if 'rois' not in list(f["detect"].keys()):
-                        raise ValidationError(
-                                f"{data['qc_output']} must contain the dataset"
-                                " 'rois' in group 'detect' if 'roi_input' is "
-                                "not specified")
+            with h5py.File(data["qc_output"], "r") as f:
+                if "detect" not in list(f.keys()):
+                    raise ValidationError(
+                            f"{data['qc_output']} must contain the group "
+                            "'detect' if 'roi_input' is not specified")
+                if 'rois' not in list(f["detect"].keys()):
+                    raise ValidationError(
+                            f"{data['qc_output']} must contain the dataset"
+                            " 'rois' in group 'detect' if 'roi_input' is "
+                            "not specified")
         return data
 
     @post_load

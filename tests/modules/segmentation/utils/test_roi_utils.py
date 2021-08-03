@@ -1,4 +1,5 @@
 import pytest
+import h5py
 import numpy as np
 
 from ophys_etl.types import ExtractROI
@@ -13,7 +14,57 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     intersection_over_union,
     convert_to_lims_roi,
     roi_list_from_file,
-    select_contiguous_region)
+    select_contiguous_region,
+    serialize_extract_roi_list,
+    deserialize_extract_roi_list)
+
+
+@pytest.fixture
+def extract_roi_list():
+    nroi = 20
+    xs = np.linspace(start=10, stop=490, num=nroi, dtype=int)
+    ys = np.linspace(start=20, stop=470, num=nroi, dtype=int)
+    widths = ([10] * (nroi - 10) + [12] * 10)
+    heights = ([8] * (nroi - 7) + [11] * 7)
+    valids = ([True] * (nroi - 4) + [False] * 4)
+
+    rng = np.random.default_rng(3342)
+    roi_list = []
+    for i in range(nroi):
+        mask = [row.tolist()
+                for row in rng.integers(low=0,
+                                        high=2,
+                                        size=(heights[i], widths[i])
+                                        ).astype(bool)]
+        roi_list.append(
+                ExtractROI(
+                    id=int((i + 1)),
+                    x=int(xs[i]),
+                    y=int(ys[i]),
+                    width=int(widths[i]),
+                    height=int(heights[i]),
+                    mask=mask,
+                    valid=valids[i]))
+    return roi_list
+
+
+@pytest.mark.parametrize("to_hdf5", [True, False])
+def test_serialization(extract_roi_list, to_hdf5, tmpdir):
+    serialized = serialize_extract_roi_list(extract_roi_list)
+
+    if to_hdf5:
+        # check round trip to hdf5 dataset
+        h5path = tmpdir / "test.h5"
+        with h5py.File(h5path, "w") as f:
+            f.create_dataset("test_rois", data=serialized)
+        with h5py.File(h5path, "r") as f:
+            deserialized = deserialize_extract_roi_list(
+                    f["test_rois"][()])
+    else:
+        # check independently of hdf5
+        deserialized = deserialize_extract_roi_list(serialized)
+    for round_tripped, original in zip(deserialized, extract_roi_list):
+        assert round_tripped == original
 
 
 @pytest.mark.parametrize(

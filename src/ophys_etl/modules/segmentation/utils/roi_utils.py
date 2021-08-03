@@ -10,6 +10,37 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
 
 
+def check_matching_extract_roi_lists(listA: List[ExtractROI],
+                                     listB: List[ExtractROI]) -> None:
+    """check that 2 lists of ROIs are the same, order independent
+
+    Parameters
+    ----------
+    listA: List[ExtractROI]
+        first list of ROIs
+    listB: List[ExtractROI]
+        second list of ROIs
+
+    Raises
+    ------
+    AssertionError if the lists do not match
+
+    """
+    # list of IDs match
+    idsA = {i["id"] for i in listA}
+    idsB = {i["id"] for i in listB}
+    assert idsA == idsB, ("ids in ROI lists do not match. "
+                          f"{idsA - idsB} in first list but not second list. "
+                          f"{idsB - idsA} in second list but not first list. ")
+
+    # ROIs match
+    lookupA = {i["id"]: i for i in listA}
+    lookupB = {i["id"]: i for i in listB}
+    for idkey, roi in lookupA.items():
+        assert roi == lookupB[idkey], (f"roi with ID {idkey} does not match "
+                                       "between the 2 lists.")
+
+
 def serialize_extract_roi_list(rois: List[ExtractROI]) -> bytes:
     """converts a list of ROIs to bytes that can be stored
     in an hdf5 dataset.

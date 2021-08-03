@@ -1,5 +1,6 @@
 import pytest
 import h5py
+import copy
 import numpy as np
 
 from ophys_etl.types import ExtractROI
@@ -16,7 +17,8 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     ophys_roi_list_from_file,
     select_contiguous_region,
     serialize_extract_roi_list,
-    deserialize_extract_roi_list)
+    deserialize_extract_roi_list,
+    check_matching_extract_roi_lists)
 
 
 @pytest.fixture
@@ -65,6 +67,28 @@ def test_serialization(extract_roi_list, to_hdf5, tmpdir):
         deserialized = deserialize_extract_roi_list(serialized)
     for round_tripped, original in zip(deserialized, extract_roi_list):
         assert round_tripped == original
+
+
+def test_check_matching_extract_roi_lists(extract_roi_list):
+    # straight copy, should match
+    listB = copy.deepcopy(extract_roi_list)
+    check_matching_extract_roi_lists(extract_roi_list, listB)
+
+    # different order, should match
+    check_matching_extract_roi_lists(extract_roi_list, listB[::-1])
+
+    # missing ROI, should not match
+    listB.pop()
+    with pytest.raises(AssertionError,
+                       match=r"ids in ROI lists do not match"):
+        check_matching_extract_roi_lists(extract_roi_list, listB[::-1])
+
+    # differing ROIs, should not match
+    listB = copy.deepcopy(extract_roi_list)
+    listB[0]["x"] += 2
+    with pytest.raises(AssertionError,
+                       match=f"roi with ID {listB[0]['id']} does not match"):
+        check_matching_extract_roi_lists(extract_roi_list, listB[::-1])
 
 
 @pytest.mark.parametrize(

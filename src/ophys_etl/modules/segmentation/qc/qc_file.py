@@ -40,7 +40,6 @@ class SegmentationQCFile:
     def log_detection(self,
                       attribute: str,
                       rois: List[ExtractROI],
-                      seeder: ImageMetricSeeder,
                       group_name: str = "detect") -> None:
         """log the detection phase of segmentation to a file
 
@@ -54,8 +53,6 @@ class SegmentationQCFile:
         group_name: str
             the name of the hdf5 group for logging this step
             (default = 'detect')
-        seeder: ImageMetricSeeder
-            the seeder used by the detection step
 
         """
         with h5py.File(self.path, "a") as h5file:
@@ -69,12 +66,11 @@ class SegmentationQCFile:
             group.create_dataset("rois",
                                  data=roi_utils.serialize_extract_roi_list(
                                      rois))
-            self.log_seeder(seeder, parent_group=group)
             timestamp_group(group)
 
     def log_seeder(self,
                    seeder: ImageMetricSeeder,
-                   parent_group: h5py.Group,
+                   parent_group: str = "detect",
                    group_name: str = "seed") -> None:
         """log seeder information to a new subgroup, usually a subgroup
         of 'detect' group
@@ -89,22 +85,22 @@ class SegmentationQCFile:
             name of the new subgroup
 
         """
-
-        if group_name in parent_group:
-            raise ValueError(f"group {parent_group} in {self.path} "
-                             f"already has a group named {group_name}")
-
         (provided_seeds,
          excluded_seeds,
          exclusion_reason,
          seed_image) = seeder.get_logged_values()
 
-        group = parent_group.create_group(group_name)
-        group.create_dataset("provided_seeds", data=provided_seeds)
-        group.create_dataset("excluded_seeds", data=excluded_seeds)
-        group.create_dataset("exclusion_reason", data=exclusion_reason)
-        group.create_dataset("seed_image", data=seed_image)
-        timestamp_group(group)
+        with h5py.File(self.path, "a") as f:
+            parent_group = f[parent_group]
+            if group_name in parent_group:
+                raise ValueError(f"group {parent_group} in {self.path} "
+                                 f"already has a group named {group_name}")
+            group = parent_group.create_group(group_name)
+            group.create_dataset("provided_seeds", data=provided_seeds)
+            group.create_dataset("excluded_seeds", data=excluded_seeds)
+            group.create_dataset("exclusion_reason", data=exclusion_reason)
+            group.create_dataset("seed_image", data=seed_image)
+            timestamp_group(group)
 
     def create_seeder_figure(self,
                              group_keys: List[str] = ["detect", "seed"]

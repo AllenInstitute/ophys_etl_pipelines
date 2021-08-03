@@ -5,7 +5,6 @@ import multiprocessing.managers
 import h5py
 import pathlib
 import time
-import json
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     convert_to_lims_roi)
@@ -367,7 +366,6 @@ class FeatureVectorSegmenter(object):
         return seed_list
 
     def run(self,
-            roi_output: pathlib.Path,
             qc_output: pathlib.Path,
             plot_output: Optional[pathlib.Path] = None,
             seed_plot_output: Optional[pathlib.Path] = None,
@@ -377,9 +375,6 @@ class FeatureVectorSegmenter(object):
 
         Parameters
         ----------
-        roi_output: pathlib.Path
-            Path to the JSON file where discovered ROIs will be recorded
-
         qc_output: pathlib.Path
             the path where the qc results will be written
 
@@ -469,21 +464,15 @@ class FeatureVectorSegmenter(object):
 
         # log detection to hdf5 QC ouput
         qcfile = SegmentationQCFile(path=qc_output)
-        qcfile.log_detection(
-                attribute=self._attribute.encode("utf-8"),
-                rois=self.roi_list,
-                group_name="detect",
-                seeder=self.seeder)
+        qcfile.log_detection(attribute=self._attribute.encode("utf-8"),
+                             rois=self.roi_list,
+                             group_name="detect")
+        qcfile.log_seeder(seeder=self.seeder,
+                          parent_group="detect",
+                          group_name="seed")
         logger.info(f'wrote detection QC to {str(qc_output)}')
 
-        if roi_output is not None:
-            # round trip from qc output to make sure these are consistent
-            rois = qcfile.get_rois_from_group(group_name="detect")
-            with open(roi_output, 'w') as out_file:
-                out_file.write(json.dumps(rois, indent=2))
-            logger.info(f'wrote {str(roi_output)}')
-
-        # create a plot from the seeder QC output
+        # create plots of this detection step
         if seed_plot_output is not None:
             fig = qcfile.create_seeder_figure(group_keys=["detect", "seed"])
             fig.savefig(seed_plot_output, dpi=300)

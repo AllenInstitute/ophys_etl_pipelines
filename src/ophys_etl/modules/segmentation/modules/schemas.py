@@ -1,4 +1,5 @@
 import h5py
+import json
 import argschema
 import numpy as np
 from pathlib import Path
@@ -8,6 +9,7 @@ from marshmallow.validate import OneOf
 
 from ophys_etl.modules.segmentation.seed.schemas import \
     ImageMetricSeederSchema, BatchImageMetricSeederSchema
+from ophys_etl.modules.segmentation.utils import roi_utils
 
 
 class CreateGraphInputSchema(argschema.ArgSchema):
@@ -264,14 +266,6 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
                         "filtered_hnc_Gaussian"]),
         description="which attribute to use in image")
 
-    roi_output = argschema.fields.OutputFile(
-        required=False,
-        default=None,
-        allow_none=True,
-        description=("path to json file where ROIs will be saved as json. "
-                     "These ROIs are also stored in qc_output. We maintain "
-                     "this option if useful for a LIMS strategy later."))
-
     plot_output = argschema.fields.OutputFile(
         required=False,
         default=None,
@@ -480,9 +474,11 @@ class RoiMergerSchema(argschema.ArgSchema):
         """rois can be passed in as a path to json in 'roi_input'
         or can be read from within the in-progress 'qc_output'
         """
+        # check that the hdf5 file has the group 'detect' and
+        # dataset 'rois'
         if data["roi_input"] is None:
             with h5py.File(data["qc_output"], "r") as f:
-                if "detect" not in list(f.keys()):
+                if "detect" not in f:
                     raise ValidationError(
                             f"{data['qc_output']} must contain the group "
                             "'detect' if 'roi_input' is not specified")
@@ -491,6 +487,21 @@ class RoiMergerSchema(argschema.ArgSchema):
                             f"{data['qc_output']} must contain the dataset"
                             " 'rois' in group 'detect' if 'roi_input' is "
                             "not specified")
+        # if both ROI sources are provided, complain if they do not match
+        else:
+            skip = False
+            with h5py.File(data["qc_output"], "r") as f:
+                if 'detect' not in f:
+                    skip = True
+                elif 'rois' not in f['detect']:
+                    skip = True
+            if not skip:
+                with open(data['roi_input'], "r") as f:
+                    jrois = json.load(f)
+                with h5py.File(data['qc_output'], "r") as f:
+                    hrois = roi_utils.deserialize_extract_roi_list(
+                            f['detect']['rois'][()])
+                roi_utils.check_matching_extract_roi_lists(jrois, hrois)
         return data
 
     @post_load

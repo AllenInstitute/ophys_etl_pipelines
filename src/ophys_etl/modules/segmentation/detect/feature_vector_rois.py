@@ -224,10 +224,10 @@ def get_background_mask(
     if n_complement < 10:
         background_mask[complement] = True
     else:
-        # select the 90% most distant pixels to be
+        # select the 80% most distant pixels to be
         # designated background pixels
-        t10 = np.quantile(complement_distances, 0.1)
-        valid = complement_distances > t10
+        t20 = np.quantile(complement_distances, 0.2)
+        valid = complement_distances > t20
         valid_dexes = complement_dexes[valid]
         background_mask[valid_dexes] = True
 

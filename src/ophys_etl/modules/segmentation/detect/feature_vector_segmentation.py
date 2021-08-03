@@ -20,6 +20,8 @@ from ophys_etl.modules.segmentation.seed.seeder import \
         BatchImageMetricSeeder
 from ophys_etl.modules.segmentation.qc.seed import add_seeds_to_axes
 from ophys_etl.modules.segmentation.qc.detect import roi_metric_qc_plot
+from ophys_etl.modules.segmentation.detect.feature_vector_utils import (
+    choose_timesteps)
 
 import logging
 
@@ -43,7 +45,6 @@ class ROISeed(TypedDict):
 
 def _get_roi(seed_obj: ROISeed,
              video_data: np.ndarray,
-             filter_fraction: float,
              pixel_ignore: np.ndarray,
              output_dict: multiprocessing.managers.DictProxy,
              roi_id: int,
@@ -65,9 +66,8 @@ def _get_roi(seed_obj: ROISeed,
         and seed_boj['cols'][1]-seed_obj['cols'][0] (i.e. the
         field of view has already been clipped)
 
-    filter_fraction: float
-        The fraction of brightest timesteps to use in feature
-        calculation
+        Note: in the case of filter_fraction<1.0, this video
+        will also already have been down-selected in time
 
     pixel_ignore: np.ndarray
         A (n_rows, n_cols) array of booleans marked True at
@@ -102,7 +102,6 @@ def _get_roi(seed_obj: ROISeed,
     roi = roi_class(seed_pt,
                     origin,
                     video_data,
-                    filter_fraction,
                     pixel_ignore=pixel_ignore)
 
     final_mask = roi.get_mask()
@@ -309,6 +308,16 @@ class FeatureVectorSegmenter(object):
 
             video_data_subset = video_data[:, r0:r1, c0:c1]
 
+            if self._filter_fraction < 1.0:
+                timesteps = choose_timesteps(
+                                video_data_subset,
+                                (seed[0]-r0, seed[1]-c0),
+                                self._filter_fraction,
+                                rng=self.rng,
+                                pixel_ignore=mask)
+                video_data_subset = video_data_subset[timesteps, :, :]
+            video_data_subset = video_data_subset.astype(float)
+
             # NOTE: eventually, get rid of ROISeed
             # rationale: seeding produces seeds (coordinates), this object
             # specifies a growth region, which should be a "segment",
@@ -320,7 +329,6 @@ class FeatureVectorSegmenter(object):
             p = multiprocessing.Process(target=_get_roi,
                                         args=(this_seed,
                                               video_data_subset,
-                                              self._filter_fraction,
                                               mask,
                                               mgr_dict,
                                               self.roi_id,

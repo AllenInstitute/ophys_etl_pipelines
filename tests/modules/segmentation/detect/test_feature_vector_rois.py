@@ -16,8 +16,7 @@ def test_calculate_pearson_feature_vectors():
     seed_pt = (15, 3)
     features = calculate_pearson_feature_vectors(
                                 data,
-                                seed_pt,
-                                0.2)
+                                seed_pt)
 
     assert features.shape == (400, 400)
 
@@ -28,7 +27,6 @@ def test_calculate_pearson_feature_vectors():
     features = calculate_pearson_feature_vectors(
                                 data,
                                 seed_pt,
-                                0.2,
                                 pixel_ignore=mask)
     assert features.shape == (373, 373)
 
@@ -51,14 +49,14 @@ def test_roi_growth(example_video):
     mask[12, 16] = False
     mask[1:4, 2] = False
     roi = PearsonFeatureROI(seed_pt, origin, video_data,
-                            0.2, pixel_ignore=mask)
+                            pixel_ignore=mask)
     roi.get_mask()
 
     # only seed is valid
     mask[:, :] = True
     mask[12, 16] = False
     roi = PearsonFeatureROI(seed_pt, origin, video_data,
-                            0.2, pixel_ignore=mask)
+                            pixel_ignore=mask)
     roi.get_mask()
 
     # nothing is valid
@@ -66,4 +64,4 @@ def test_roi_growth(example_video):
     msg = "Tried to create ROI with no valid pixels"
     with pytest.raises(RuntimeError, match=msg):
         _ = PearsonFeatureROI(seed_pt, origin, video_data,
-                              0.2, pixel_ignore=mask)
+                              pixel_ignore=mask)

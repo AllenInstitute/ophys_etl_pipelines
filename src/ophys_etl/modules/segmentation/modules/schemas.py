@@ -91,7 +91,7 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
     filter_fraction = argschema.fields.Float(
         required=False,
         default=0.2,
-        description="Fraction of timesteps to kee if "
+        description="Fraction of timesteps to keep if "
                     "calculating the filtered Pearson coefficient")
     neighborhood_radius = argschema.fields.Int(
         required=False,
@@ -303,7 +303,8 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
     filter_fraction = argschema.fields.Float(
         required=False,
         default=0.2,
-        description="fraction of timesteps to use in time correlation")
+        description=("fraction of timesteps to use in time correlation "
+                     "Note: will also affect PCA-based segmentation"))
 
     @post_load
     def plot_outputs(self, data, **kwargs):

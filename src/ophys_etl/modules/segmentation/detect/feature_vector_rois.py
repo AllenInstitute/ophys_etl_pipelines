@@ -6,89 +6,8 @@ from sklearn.preprocessing import StandardScaler
 from ophys_etl.utils.array_utils import pairwise_distances
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     select_contiguous_region)
-
-
-def choose_timesteps(
-            sub_video: np.ndarray,
-            i_seed: int,
-            filter_fraction: float,
-            rng: Optional[np.random.RandomState] = None,
-            pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
-    """
-    Choose the timesteps to use for a given seed when calculating Pearson
-    correlation coefficients.
-
-    Parameters
-    ----------
-    sub_video: np.ndarray
-        A subset of a video to be correlated.
-        Shape is (n_time, n_pixels)
-
-    i_seed: int
-        The index of the point being considered as the seed
-        for the ROI.
-
-    filter_fraction: float
-        The fraction of brightest timesteps to be used in calculating
-        the Pearson correlation between pixels
-
-    rng: Optional[np.random.RandomState]
-        A random number generator used to choose pixels which will be
-        used to select the brightest filter_fraction of pixels. If None,
-        an np.random.RandomState will be instantiated with a hard-coded
-        seed (default: None)
-
-    pixel_ignore: Optional[np.ndarray]:
-        An 1-D array of booleans marked True at any pixels
-        that should be ignored, presumably because they have already been
-        selected as ROI pixels. (default: None)
-
-    Returns
-    -------
-    global_mask: np.ndarray
-        Array of timesteps (ints) to be used for calculating correlations
-    """
-    # fraction of timesteps to discard
-    discard = 1.0-filter_fraction
-
-    # start assembling mask in timesteps
-    trace = sub_video[:, i_seed]
-    thresh = np.quantile(trace, discard)
-    global_mask = []
-    mask = np.where(trace >= thresh)[0]
-    global_mask.append(mask)
-
-    # choose n_seeds other points to populate global_mask
-    possible_seeds = []
-    for ii in range(sub_video.shape[1]):
-        if ii == i_seed:
-            continue
-
-        if pixel_ignore is None or not pixel_ignore[i_seed]:
-            possible_seeds.append(ii)
-
-    n_seeds = 10
-    if rng is None:
-        rng = np.random.RandomState(87123)
-    chosen = set()
-    chosen.add(i_seed)
-
-    if len(possible_seeds) > n_seeds:
-        chosen_seeds = rng.choice(possible_seeds,
-                                  size=n_seeds, replace=False)
-        for ii in chosen_seeds:
-            chosen.add(ii)
-    else:
-        for ii in possible_seeds:
-            chosen.add(ii)
-
-    for chosen_pixel in chosen:
-        trace = sub_video[:, chosen_pixel]
-        thresh = np.quantile(trace, discard)
-        mask = np.where(trace >= thresh)[0]
-        global_mask.append(mask)
-    global_mask = np.unique(np.concatenate(global_mask))
-    return global_mask
+from ophys_etl.modules.segmentation.detect.feature_vector_utils import (
+    choose_timesteps)
 
 
 def calculate_masked_correlations(
@@ -188,7 +107,7 @@ def normalize_features(input_features: np.ndarray) -> np.ndarray:
 def calculate_pearson_feature_vectors(
             sub_video: np.ndarray,
             seed_pt: Tuple[int, int],
-            filter_fraction: float,
+            timesteps: np.ndarray,
             rng: Optional[np.random.RandomState] = None,
             pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
     """
@@ -207,9 +126,9 @@ def calculate_pearson_feature_vectors(
         sub-video represented by sub_video (i.e. seed_pt=(0,0) will be the
         upper left corner of whatever frame is represented by sub_video)
 
-    filter_fraction: float
-        The fraction of brightest timesteps to be used in calculating
-        the Pearson correlation between pixels
+    timesteps: np.ndarray
+        An array of integers denoting the timesteps to use in correlating
+        pixels.
 
     rng: Optional[np.random.RandomState]
         A random number generator used to choose pixels which will be
@@ -269,14 +188,8 @@ def calculate_pearson_feature_vectors(
     sub_video = sub_video.reshape(sub_video.shape[0], -1)
     sub_video = sub_video[:, np.logical_not(flat_mask)]
 
-    global_mask = choose_timesteps(sub_video,
-                                   i_seed,
-                                   filter_fraction,
-                                   rng=rng,
-                                   pixel_ignore=flat_mask)
-
     pearson = calculate_masked_correlations(sub_video,
-                                            global_mask)
+                                            timesteps)
 
     features = normalize_features(pearson)
 
@@ -649,10 +562,17 @@ class PearsonFeatureROI(PotentialROI):
         features[ii, :] can be mapped into a pixel in sub_video using
         self.index_to_pixel[ii]
         """
+
+        timesteps = choose_timesteps(sub_video,
+                                     self.seed_pt,
+                                     filter_fraction,
+                                     rng=rng,
+                                     pixel_ignore=pixel_ignore)
+
         features = calculate_pearson_feature_vectors(
                                     sub_video,
                                     self.seed_pt,
-                                    filter_fraction,
+                                    timesteps,
                                     pixel_ignore=pixel_ignore,
                                     rng=rng)
         return features

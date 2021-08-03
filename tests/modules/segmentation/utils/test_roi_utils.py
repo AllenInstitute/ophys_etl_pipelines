@@ -20,7 +20,8 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     deserialize_extract_roi_list,
     check_matching_extract_roi_lists,
     select_contiguous_region,
-    background_mask_from_roi_list)
+    background_mask_from_roi_list,
+    select_window_from_background)
 
 
 @pytest.fixture
@@ -436,3 +437,89 @@ def test_background_mask_from_roi_list():
     # default behavior out from under us)
     with pytest.raises(Exception):
         background_mask_from_roi_list(roi_list, (4, 3))
+
+
+def test_select_window_from_background():
+
+    # 9 x 8
+    background = [[0, 0, 1, 1, 1, 1, 1, 1],
+                  [0, 0, 1, 1, 1, 1, 1, 1],
+                  [1, 1, 0, 0, 0, 1, 1, 1],
+                  [1, 1, 0, 0, 0, 1, 1, 1],
+                  [1, 1, 0, 0, 0, 1, 1, 1],
+                  [1, 1, 1, 1, 1, 1, 1, 1],
+                  [1, 1, 1, 1, 1, 1, 1, 1],
+                  [1, 1, 1, 1, 1, 1, 1, 1],
+                  [1, 1, 1, 1, 1, 1, 1, 1]]
+    background = np.array(background)
+
+    roi = OphysROI(x0=2, width=3,
+                   y0=2, height=3,
+                   valid_roi=True, roi_id=0,
+                   mask_matrix=[[True, True, True],
+                                [True, True, True],
+                                [True, True, True]])
+
+    # check when you ask for too much
+    ((rowmin, rowmax),
+     (colmin, colmax)) = select_window_from_background(
+                             roi,
+                             background,
+                             60)
+    assert rowmin == 0
+    assert rowmax == 9
+    assert colmin == 0
+    assert colmax == 8
+
+    # should just get one pixel outside of roi
+    ((rowmin, rowmax),
+     (colmin, colmax)) = select_window_from_background(
+                             roi,
+                             background,
+                             15)
+    assert rowmin == 1
+    assert rowmax == 6
+    assert colmin == 1
+    assert colmax == 6
+
+    # should get two pixels outside of roi
+    ((rowmin, rowmax),
+     (colmin, colmax)) = select_window_from_background(
+                             roi,
+                             background,
+                             16)
+
+    assert rowmin == 0
+    assert rowmax == 7
+    assert colmin == 0
+    assert colmax == 7
+
+    # should get three pixels outside of roi
+    ((rowmin, rowmax),
+     (colmin, colmax)) = select_window_from_background(
+                             roi,
+                             background,
+                             37)
+
+    assert rowmin == 0
+    assert rowmax == 8
+    assert colmin == 0
+    assert colmax == 8
+
+    # move to the corner ROI
+    roi = OphysROI(x0=0, width=2,
+                   y0=0, height=2,
+                   valid_roi=True, roi_id=0,
+                   mask_matrix=[[True, True],
+                                [True, True]])
+
+    ((rowmin, rowmax),
+     (colmin, colmax)) = select_window_from_background(
+                             roi,
+                             background,
+                             5)
+
+    assert rowmin == 0
+    assert rowmax == 4
+    assert colmin == 0
+    assert colmax == 4

@@ -145,7 +145,7 @@ class ZvsBackgroundSchema(MetricBaseSchema):
             description=("minimum z-value above background of valid ROI"))
 
     n_background_factor = argschema.fields.Int(
-            default=2,
+            default=5,
             required=False,
             allow_none=False,
             description=("select N_BACKGROUND_FACTOR*ROI.AREA pixels "
@@ -153,7 +153,7 @@ class ZvsBackgroundSchema(MetricBaseSchema):
                          "pixels to use in calculating z-score"))
 
     n_background_minimum = argschema.fields.Int(
-            default=100,
+            default=1000,
             required=False,
             allow_none=False,
             description=("minimum number of background pixels to use "

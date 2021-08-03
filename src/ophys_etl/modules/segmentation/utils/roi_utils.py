@@ -475,3 +475,62 @@ def background_mask_from_roi_list(
         cols = roi.global_pixel_array[:, 1]
         background_mask[rows, cols] = False
     return background_mask
+
+
+def select_window_from_background(
+        roi: OphysROI,
+        background_mask: np.ndarray,
+        n_desired_background: int) -> Tuple[Tuple[int, int], Tuple[int, int]]:
+    """
+    Get the (rowmin, rowmax), (colmin, colmax) bounds of a window
+    centered on an ROI that contains at least a specified number
+    of background pixels
+
+    Parameters
+    ----------
+    roi: OphysROI
+
+    background_mask: np.ndarray
+        A mask covering the full field of view that is marked True
+        for every pixel that is a background pixel.
+
+    n_desired_background: int
+        Minimum number of background pixels to be returned in the
+        window
+
+    Returns
+    -------
+    bounds: Tuple[Tuple[int, int], Tuple[int, int]]
+        Of the form ((rowmin, rowmax), (colmin, colmax))
+
+    Notes
+    -----
+    If it is not possible to find a window with n_desired_background
+    pixels, bounds will just encompass the full field of view
+    """
+    if n_desired_background >= background_mask.sum():
+        return ((0, background_mask.shape[0]),
+                (0, background_mask.shape[1]))
+
+    centroid_row = np.round(roi.centroid_y).astype(int)
+    centroid_col = np.round(roi.centroid_x).astype(int)
+
+    area_estimate = roi.area + n_desired_background
+    pixel_radius = max(np.round(np.sqrt(area_estimate)).astype(int)//2,
+                       1)
+    n_background = 0
+    while n_background < n_desired_background:
+        rowmin = max(0, centroid_row-pixel_radius)
+        rowmax = min(background_mask.shape[0],
+                     centroid_row+pixel_radius+1)
+        colmin = max(0, centroid_col-pixel_radius)
+        colmax = min(background_mask.shape[1],
+                     centroid_col+pixel_radius+1)
+        local_mask = background_mask[rowmin:rowmax, colmin:colmax]
+        n_background = local_mask.sum()
+        pixel_radius += 1
+        if local_mask.sum() == background_mask.sum():
+            # we are now using all of the background pixels
+            break
+
+    return ((rowmin, rowmax), (colmin, colmax))

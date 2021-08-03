@@ -2,6 +2,8 @@ from typing import Optional
 import numpy as np
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    select_window_from_background)
 
 
 def mean_metric_from_roi(
@@ -107,25 +109,13 @@ def z_vs_background_from_roi(
     # find a square window centered on the ROI that contains
     # the desired number of background pixels
 
-    centroid_row = np.round(roi.centroid_y).astype(int)
-    centroid_col = np.round(roi.centroid_x).astype(int)
+    ((rowmin, rowmax),
+     (colmin, colmax)) = select_window_from_background(
+                             roi,
+                             background_mask,
+                             n_desired_background)
 
-    area_estimate = roi.area + n_desired_background
-    pixel_radius = max(np.round(np.sqrt(area_estimate)).astype(int)//2,
-                       1)
-    n_background = 0
-    while n_background < n_desired_background:
-        rowmin = max(0, centroid_row-pixel_radius)
-        rowmax = min(img.shape[0], centroid_row+pixel_radius+1)
-        colmin = max(0, centroid_col-pixel_radius)
-        colmax = min(img.shape[1], centroid_col+pixel_radius+1)
-        local_mask = background_mask[rowmin:rowmax, colmin:colmax]
-        n_background = local_mask.sum()
-        pixel_radius += 1
-        if local_mask.sum() == background_mask.sum():
-            # we are now using all of the background pixels
-            break
-
+    local_mask = background_mask[rowmin:rowmax, colmin:colmax]
     local_img = img[rowmin:rowmax, colmin:colmax]
     background_pixels = local_img[local_mask].flatten()
 

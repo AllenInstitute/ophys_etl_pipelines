@@ -2,6 +2,7 @@ from typing import List, Dict, Tuple
 import numpy as np
 import pathlib
 import json
+import copy
 from skimage.measure import label as skimage_label
 from scipy.spatial.distance import cdist
 from ophys_etl.types import ExtractROI
@@ -329,7 +330,8 @@ def convert_roi_keys(roi_list: List[Dict]) -> List[Dict]:
     key names expected by OphysROI
     """
     new_list = []
-    for roi in roi_list:
+    for old_roi in roi_list:
+        roi = copy.deepcopy(old_roi)
         if "valid" in roi:
             roi["valid_roi"] = roi.pop("valid")
         if "mask" in roi:

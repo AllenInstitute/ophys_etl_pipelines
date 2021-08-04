@@ -2,6 +2,7 @@ import h5py
 import logging
 import datetime
 import matplotlib
+import numpy as np
 from pathlib import Path
 from typing import List
 
@@ -10,6 +11,7 @@ from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation.seed.seeder import ImageMetricSeeder
 from ophys_etl.modules.segmentation.qc.seed import add_seeds_to_axes
 from ophys_etl.modules.segmentation.qc.detect import roi_metric_qc_plot
+from ophys_etl.modules.segmentation.qc.merge import roi_merge_plot
 
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
@@ -36,6 +38,41 @@ class SegmentationQCFile:
 
     def __init__(self, path: Path):
         self.path = path
+        self.steps_dataset_name = "processing_steps"
+
+    def append_processing_step(self,
+                               group_name: str,
+                               overwrite: bool = False) -> str:
+        with h5py.File(self.path, "a") as f:
+            steps = []
+            if self.steps_dataset_name in f:
+                if overwrite:
+                    logger.warn(
+                            f"overwriting dataset {self.steps_dataset_name}")
+                else:
+                    steps = [i.decode("utf-8")
+                             for i in f[self.steps_dataset_name][()]]
+                del f[self.steps_dataset_name]
+            # get unique group name, if necessary. e.g. multiple
+            # steps called 'filter'
+            increment = 0
+            for step in steps:
+                if step.startswith(group_name):
+                    increment += 1
+            if increment != 0:
+                logger.warning(f"{group_name} already exists in log")
+                group_name = f"{group_name}_{increment}"
+                logger.warning(f"created new group {group_name}")
+            steps.append(group_name)
+            f.create_dataset(self.steps_dataset_name,
+                             data=[i.encode("utf-8") for i in steps])
+        return group_name
+
+    def get_last_group(self) -> str:
+        with h5py.File(self.path, "r") as f:
+            steps = [i.decode("utf-8")
+                     for i in f[self.steps_dataset_name][()]]
+        return steps[-1]
 
     def log_detection(self,
                       attribute: str,
@@ -55,17 +92,45 @@ class SegmentationQCFile:
             (default = 'detect')
 
         """
+        group_name = self.append_processing_step(group_name, overwrite=True)
         with h5py.File(self.path, "a") as h5file:
-            if "detect" in list(h5file.keys()):
+            if group_name in h5file:
                 # only one detect step per QC file
-                del h5file["detect"]
-                logging.warn("overwriting existing 'detect' group in "
+                del h5file[group_name]
+                logging.warn(f"overwriting existing {group_name} group in "
                              f"{self.path}")
-            group = h5file.create_group("detect")
+            group = h5file.create_group(group_name)
             group.create_dataset("attribute", data=attribute)
             group.create_dataset("rois",
                                  data=roi_utils.serialize_extract_roi_list(
                                      rois))
+            timestamp_group(group)
+
+    def log_merge(self,
+                  rois: List[ExtractROI],
+                  merger_ids: np.ndarray,
+                  group_name: str = "merge") -> None:
+        """log the merge phase of segmentation to a file
+
+        Parameters
+        ----------
+        rois: List[ExtractROI]
+            the list of ROIs resulting from detection
+        group_name: str
+            the name of the hdf5 group for logging this step
+            (default = 'detect')
+        merger_ids: np.ndarray
+            an n_merge x 2 shape array, each row indicating (dst, src)
+            ROI IDs from a merge
+
+        """
+        group_name = self.append_processing_step(group_name, overwrite=False)
+        with h5py.File(self.path, "a") as h5file:
+            group = h5file.create_group(group_name)
+            group.create_dataset("rois",
+                                 data=roi_utils.serialize_extract_roi_list(
+                                     rois))
+            group.create_dataset("merger_ids", data=merger_ids)
             timestamp_group(group)
 
     def log_seeder(self,
@@ -167,6 +232,35 @@ class SegmentationQCFile:
                            metric_image=metric_image,
                            attribute=attribute,
                            roi_list=rois)
+        figure.tight_layout()
+        return figure
+
+    def create_roi_merge_figure(
+            self,
+            original_rois_group: str = "detect",
+            merged_rois_group: str = "merge",
+            attribute_group: str = "detect",
+            metric_image_group: List[str] = ["detect", "seed"]
+            ) -> matplotlib.figure.Figure:
+        original_rois = self.get_rois_from_group(
+                group_name=original_rois_group)
+        merged_rois = self.get_rois_from_group(
+                group_name=merged_rois_group)
+        with h5py.File(self.path, "r") as group:
+            merger_ids = group[merged_rois_group]["merger_ids"][()]
+            attribute = \
+                group[attribute_group]["attribute"][()].decode("utf-8")
+            for k in metric_image_group:
+                group = group[k]
+            metric_image = group["seed_image"][()]
+
+        figure = matplotlib.figure.Figure(figsize=(20, 20))
+        roi_merge_plot(figure=figure,
+                       metric_image=metric_image,
+                       attribute=attribute,
+                       original_roi_list=original_rois,
+                       merged_roi_list=merged_rois,
+                       merger_ids=merger_ids)
         figure.tight_layout()
         return figure
 

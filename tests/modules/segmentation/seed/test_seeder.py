@@ -124,7 +124,7 @@ def test_ImageMetricSeeder_select(image, sigma, percentage, expected):
     assert found_seeds == expected
 
 
-def test_ImageMetricSeeder_log(tmpdir):
+def test_ImageMetricSeeder_get_logged_values(tmpdir):
     image = np.array([[0.0, 0.0, 0.4, 0.0],
                       [0.5, 0.0, 0.3, 0.0],
                       [0.0, 0.5, 0.0, 0.0],
@@ -133,16 +133,21 @@ def test_ImageMetricSeeder_log(tmpdir):
                                   seeder_grid_size=1)
     sb.select_seeds(image, sigma=None)
 
-    h5path = tmpdir / "seed_qc.h5"
-    with h5py.File(h5path, "w") as f:
-        sb.log_to_h5_group(f)
+    n_serve = 2
+    provided = []
+    for i in range(n_serve):
+        provided.append(next(sb))
 
-    with h5py.File(h5path, "r") as f:
-        assert "seed" in f
-        group = f["seed"]
-        for k in ["provided_seeds", "excluded_seeds",
-                  "exclusion_reason", "seed_image"]:
-            assert k in group
+    (provided_seeds,
+     excluded_seeds,
+     exclusion_reason,
+     seed_image) = sb.get_logged_values()
+
+    # the seeds provided by next() match the internal list
+    np.testing.assert_array_equal(np.array(provided), provided_seeds)
+    assert excluded_seeds.shape == (16 - n_serve, 2)
+    assert exclusion_reason.size == excluded_seeds.shape[0]
+    np.testing.assert_array_equal(seed_image, image)
 
 
 @pytest.mark.parametrize(

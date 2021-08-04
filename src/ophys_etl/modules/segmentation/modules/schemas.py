@@ -10,6 +10,8 @@ from marshmallow.validate import OneOf
 from ophys_etl.modules.segmentation.seed.schemas import \
     ImageMetricSeederSchema, BatchImageMetricSeederSchema
 from ophys_etl.modules.segmentation.utils import roi_utils
+from ophys_etl.modules.segmentation.qc.qc_file import SegmentationQCFile
+from ophys_etl.schemas.fields import InputOutputFile
 
 
 class CreateGraphInputSchema(argschema.ArgSchema):
@@ -403,16 +405,17 @@ class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
 class RoiMergerSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
 
-    roi_input = argschema.fields.InputFile(
+    qc_output = InputOutputFile(
+        required=True,
+        description=("path to hdf5 QC output. ROIs will be read "
+                     "from this file, specified by parameter 'rois_group'"))
+
+    rois_group = argschema.fields.String(
         required=False,
         default=None,
         allow_none=True,
-        description=("path to JSON file with ROIs to merge"))
-
-    qc_output = argschema.fields.OutputFile(
-        required=True,
-        default=None,
-        description=("path to hdf5 QC output"))
+        description=("name of hdf5 group from which to take the ROIs to "
+                     "merge. If not provided, will take the last group."))
 
     plot_output = argschema.fields.OutputFile(
         required=False,
@@ -425,14 +428,6 @@ class RoiMergerSchema(argschema.ArgSchema):
         default=None,
         allow_none=True,
         description="path to plot showing before/after merging")
-
-    roi_output = argschema.fields.OutputFile(
-        required=False,
-        default=None,
-        allow_none=True,
-        description=("path to json file where ROIs will be saved as json. "
-                     "These ROIs are also stored in qc_output. We maintain "
-                     "this option if useful for a LIMS strategy later."))
 
     n_parallel_workers = argschema.fields.Int(
             required=False,
@@ -471,37 +466,14 @@ class RoiMergerSchema(argschema.ArgSchema):
 
     @post_load
     def check_for_rois(self, data, **kwargs):
-        """rois can be passed in as a path to json in 'roi_input'
-        or can be read from within the in-progress 'qc_output'
-        """
-        # check that the hdf5 file has the group 'detect' and
-        # dataset 'rois'
-        if data["roi_input"] is None:
-            with h5py.File(data["qc_output"], "r") as f:
-                if "detect" not in f:
-                    raise ValidationError(
-                            f"{data['qc_output']} must contain the group "
-                            "'detect' if 'roi_input' is not specified")
-                if 'rois' not in list(f["detect"].keys()):
-                    raise ValidationError(
-                            f"{data['qc_output']} must contain the dataset"
-                            " 'rois' in group 'detect' if 'roi_input' is "
-                            "not specified")
-        # if both ROI sources are provided, complain if they do not match
-        else:
-            skip = False
-            with h5py.File(data["qc_output"], "r") as f:
-                if 'detect' not in f:
-                    skip = True
-                elif 'rois' not in f['detect']:
-                    skip = True
-            if not skip:
-                with open(data['roi_input'], "r") as f:
-                    jrois = json.load(f)
-                with h5py.File(data['qc_output'], "r") as f:
-                    hrois = roi_utils.deserialize_extract_roi_list(
-                            f['detect']['rois'][()])
-                roi_utils.check_matching_extract_roi_lists(jrois, hrois)
+        qcfile = SegmentationQCFile(data["qc_output"])
+        if data["rois_group"] is None:
+            data["rois_group"] = qcfile.get_last_group()
+        with h5py.File(qcfile.path, "r") as f:
+            if "rois" not in f[data["rois_group"]]:
+                raise ValidationError(f"group {data['rois_group']} does not "
+                                      "have dataset 'rois' in file "
+                                      f"{data['qc_output']}")
         return data
 
     @post_load

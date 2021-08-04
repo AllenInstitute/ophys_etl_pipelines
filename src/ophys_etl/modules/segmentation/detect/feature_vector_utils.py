@@ -7,7 +7,7 @@ def choose_timesteps(
             sub_video: np.ndarray,
             seed_pt: Tuple[int, int],
             filter_fraction: float,
-            img_data: np.ndarray,
+            image_data: np.ndarray,
             pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
     """
     Choose the timesteps to use for a given seed when calculating Pearson
@@ -26,7 +26,7 @@ def choose_timesteps(
         The fraction of brightest timesteps to be used in calculating
         the Pearson correlation between pixels
 
-    img_data: np.ndarray
+    image_data: np.ndarray
         The metric image being used for seeding
 
     pixel_ignore: Optional[np.ndarray]:
@@ -39,6 +39,13 @@ def choose_timesteps(
     global_mask: np.ndarray
         Array of timesteps (ints) to be used for calculating correlations
     """
+    if pixel_ignore is not None:
+        if pixel_ignore.shape != image_data.shape:
+            msg = f"pixel_ignore.shape {pixel_ignore.shape}\n"
+            msg += f"image_data.shape {image_data.shape}\n"
+            msg += "These should be the same"
+            raise RuntimeError(msg)
+
     # fraction of timesteps to discard
     discard = 1.0-filter_fraction
 
@@ -49,16 +56,20 @@ def choose_timesteps(
     mask = np.where(trace >= thresh)[0]
     global_mask.append(mask)
 
-    image_flat = img_data.flatten()
+    # now select the pixels that are closest to
+    # image_data.max() - sigma and
+    # image_data.max() - 2*sigma
+
+    image_flat = image_data.flatten()
     if pixel_ignore is not None:
         pixel_ignore_flat = pixel_ignore.flatten()
     else:
         pixel_ignore_flat = np.zeros(len(image_flat), dtype=bool)
 
-    pixel_indexes = np.arange(len(image_flat), dtype=int)
+    pixel_indices = np.arange(len(image_flat), dtype=int)
     valid_pixels = np.logical_not(pixel_ignore_flat)
     image_flat = image_flat[valid_pixels]
-    pixel_indexes = pixel_indexes[valid_pixels]
+    pixel_indices = pixel_indices[valid_pixels]
 
     image_max = image_flat.max()
     t25, t75 = np.quantile(image_flat, (0.25, 0.75))
@@ -66,7 +77,7 @@ def choose_timesteps(
 
     for ds in (-1, -2):
         val = image_max + ds*std
-        ii = pixel_indexes[np.argmin(np.abs(val-image_flat))]
+        ii = pixel_indices[np.argmin(np.abs(val-image_flat))]
         pt = np.unravel_index(ii, sub_video.shape[1:])
         trace = sub_video[:, pt[0], pt[1]]
         thresh = np.quantile(trace, discard)

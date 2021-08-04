@@ -7,7 +7,7 @@ def choose_timesteps(
             sub_video: np.ndarray,
             seed_pt: Tuple[int, int],
             filter_fraction: float,
-            rng: Optional[np.random.RandomState] = None,
+            img_data: np.ndarray,
             pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
     """
     Choose the timesteps to use for a given seed when calculating Pearson
@@ -26,11 +26,8 @@ def choose_timesteps(
         The fraction of brightest timesteps to be used in calculating
         the Pearson correlation between pixels
 
-    rng: Optional[np.random.RandomState]
-        A random number generator used to choose pixels which will be
-        used to select the brightest filter_fraction of pixels. If None,
-        an np.random.RandomState will be instantiated with a hard-coded
-        seed (default: None)
+    img_data: np.ndarray
+        The metric image being used for seeding
 
     pixel_ignore: Optional[np.ndarray]:
         An 1-D array of booleans marked True at any pixels
@@ -51,12 +48,31 @@ def choose_timesteps(
     global_mask = []
     mask = np.where(trace >= thresh)[0]
     global_mask.append(mask)
-    for r, c in product((0, sub_video.shape[1]-1),
-                        (0, sub_video.shape[2]-1)):
-        trace = sub_video[:, r, c]
+
+    image_flat = img_data.flatten()
+    if pixel_ignore is not None:
+        pixel_ignore_flat = pixel_ignore.flatten()
+    else:
+        pixel_ignore_flat = np.zeros(len(image_flat), dtype=bool)
+
+    pixel_indexes = np.arange(len(image_flat), dtype=int)
+    valid_pixels = np.logical_not(pixel_ignore_flat)
+    image_flat = image_flat[valid_pixels]
+    pixel_indexes = pixel_indexes[valid_pixels]
+
+    image_max = image_flat.max()
+    t25, t75 = np.quantile(image_flat, (0.25, 0.75))
+    std = (t75-t25)/1.34896
+
+    for ds in (-1, -2):
+        val = image_max + ds*std
+        ii = pixel_indexes[np.argmin(np.abs(val-image_flat))]
+        pt = np.unravel_index(ii, sub_video.shape[1:])
+        trace = sub_video[:, pt[0], pt[1]]
         thresh = np.quantile(trace, discard)
         mask = np.where(trace >= thresh)[0]
         global_mask.append(mask)
+
     return np.unique(np.concatenate(global_mask))
 
 

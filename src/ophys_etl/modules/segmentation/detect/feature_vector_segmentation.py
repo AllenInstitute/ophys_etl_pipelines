@@ -334,7 +334,7 @@ class FeatureVectorSegmenter(object):
                                 video_data_subset,
                                 (seed[0]-r0, seed[1]-c0),
                                 self._filter_fraction,
-                                rng=self.rng,
+                                self._graph_img[r0:r1, c0:c1],
                                 pixel_ignore=mask)
                 video_data_subset = video_data_subset[timesteps, :, :]
             video_data_subset = video_data_subset.astype(float)

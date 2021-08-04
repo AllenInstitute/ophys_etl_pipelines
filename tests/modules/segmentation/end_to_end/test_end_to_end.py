@@ -80,6 +80,13 @@ def test_edge_fvs_filter_merge(tmpdir, synthetic_video_path, roi_class):
     test FVS segmentation pipeline
     """
 
+    if roi_class == 'PearsonFeatureROI':
+        filter_fraction = 0.2
+    elif roi_class == 'PCAFeatureROI':
+        filter_fraction = 1.0
+    else:
+        raise RuntimeError("no filter fraction in test")
+
     tmpdir_path = pathlib.Path(tmpdir)
     graph_path = tmpdir_path/'edge_graph.pkl'
     graph_plot_path = tmpdir_path/'edge_graph.png'
@@ -111,7 +118,7 @@ def test_edge_fvs_filter_merge(tmpdir, synthetic_video_path, roi_class):
             'qc_output': str(qc_path),
             'plot_output': str(roi_plot_path),
             'attribute': 'filtered_hnc_Gaussian',
-            'filter_fraction': 0.2,
+            'filter_fraction': filter_fraction,
             'n_parallel_workers': 2,
             'roi_class': roi_class,
             'seeder_args': {'keep_fraction': 0.1,

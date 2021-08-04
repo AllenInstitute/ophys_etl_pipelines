@@ -1,5 +1,4 @@
 from typing import Tuple, Optional
-from itertools import product
 import numpy as np
 
 
@@ -90,10 +89,10 @@ def choose_timesteps(
 def select_window_size(
         seed_pt: Tuple[int, int],
         image_data: np.ndarray,
-        target_z_score: float=2.0,
-        window_min: int=20,
-        window_max: int=300,
-        pixel_ignore: Optional[np.ndarray]=None) -> int:
+        target_z_score: float = 2.0,
+        window_min: int = 20,
+        window_max: int = 300,
+        pixel_ignore: Optional[np.ndarray] = None) -> int:
     """
     For an image, find the window half side length
     centered on a pixel such that the specified pixel
@@ -112,12 +111,13 @@ def select_window_size(
         (default=2.0)
 
     window_min: int
-        Minimum window size to return
+        Minimum window size to return (default=20)
 
     window_max: int
         Maximum window size to return. If the window size
         exceeds this limit without matching or exceeding
         target_z_score, return the last window size tested.
+        (default=300)
 
     pixel_ignore: Optional[np.ndarray]
         A mask marked as True for pixels that are to be
@@ -170,7 +170,7 @@ def select_window_size(
         z_score = (seed_flux-mu)/std
         if window >= window_max:
             break
-        if r0==0 and r1==image_data.shape[0]:
-            if c0==0 and c1==image_data.shape[1]:
+        if r0 == 0 and r1 == image_data.shape[0]:
+            if c0 == 0 and c1 == image_data.shape[1]:
                 break
     return window

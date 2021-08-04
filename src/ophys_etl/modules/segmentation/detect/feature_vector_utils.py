@@ -50,7 +50,14 @@ def choose_timesteps(
     thresh = np.quantile(trace, discard)
     global_mask = []
     mask = np.where(trace >= thresh)[0]
-    return mask
+    global_mask.append(mask)
+    for r, c in product((0, sub_video.shape[1]-1),
+                        (0, sub_video.shape[2]-1)):
+        trace = sub_video[:, r, c]
+        thresh = np.quantile(trace, discard)
+        mask = np.where(trace >= thresh)[0]
+        global_mask.append(mask)
+    return np.unique(np.concatenate(global_mask))
 
 
 def select_window_size(

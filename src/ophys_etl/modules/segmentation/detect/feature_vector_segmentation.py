@@ -275,6 +275,9 @@ class FeatureVectorSegmenter(object):
             # if there are ROIs from a previous iteration that filled
             # their thumbnail, try those again first with a larger
             # thumbnail
+
+            print(f'retrying {self.roi_to_retry}')
+
             seed_list = []
             for roi in self.roi_to_retry:
                 seed_list.append(roi['seed'])

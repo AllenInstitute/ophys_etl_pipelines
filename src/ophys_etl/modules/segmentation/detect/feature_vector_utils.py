@@ -121,6 +121,5 @@ def select_window_size(
         z_score = (seed_flux-mu)/std
         if window >= window_max:
             break
-    print(r0,r1,c0,c1)
-    print(f'z {z_score:.2e} -- {seed_flux:.2e} {mu:.2e} {std:.2e}')
+    print(f'seed {seed_pt} window {window} -- z {z_score:.2e} -- {seed_flux:.2e} {mu:.2e} {std:.2e}')
     return window

@@ -18,7 +18,8 @@ from ophys_etl.modules.segmentation.processing_log import \
 from ophys_etl.modules.segmentation.qc.seed import add_seeds_to_axes
 from ophys_etl.modules.segmentation.qc.detect import roi_metric_qc_plot
 from ophys_etl.modules.segmentation.detect.feature_vector_utils import (
-    choose_timesteps)
+    choose_timesteps,
+    select_window_size)
 
 import logging
 
@@ -300,7 +301,15 @@ class FeatureVectorSegmenter(object):
                 continue
 
             self.roi_id += 1
-            window = seed_to_window.get(seed, self.window_min)
+            window = seed_to_window.get(seed, None)
+            if window is None:
+                window = select_window_size(
+                               seed,
+                               self._graph_img,
+                               target_z_score=2.0,
+                               window_min=self.window_min,
+                               window_max=self.window_max,
+                               pixel_ignore=self.roi_pixels)
 
             roi_inputs[self.roi_id] = {'seed': seed,
                                        'window': window}

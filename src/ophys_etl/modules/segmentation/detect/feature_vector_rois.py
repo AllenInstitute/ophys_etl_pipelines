@@ -1,5 +1,6 @@
 from typing import Optional, Tuple
 import numpy as np
+from itertools import product
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
@@ -303,6 +304,13 @@ class PotentialROI(object):
 
         self.roi_mask = np.zeros(self.n_pixels, dtype=bool)
         self.roi_mask[self.pixel_to_index[self.seed_pt]] = True
+        ct_other = 0
+        for dr, dc in product(range(-1,2), range(-1, 2)):
+            other_pt = (self.seed_pt[0]+dr, self.seed_pt[1]+dc)
+            if other_pt in self.pixel_to_index:
+                self.roi_mask[self.pixel_to_index[other_pt]] = True
+                ct_other += 1
+        print(f'ct other {ct_other}')
 
     def get_features(
             self,

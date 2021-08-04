@@ -309,9 +309,9 @@ class FeatureVectorSegmenter(object):
                                        'window': window}
 
             r0 = int(max(0, seed[0] - window))
-            r1 = int(min(self.movie_shape[0], seed[0] + window))
+            r1 = int(min(self.movie_shape[1], seed[0] + window))
             c0 = int(max(0, seed[1] - window))
-            c1 = int(min(self.movie_shape[1], seed[1] + window))
+            c1 = int(min(self.movie_shape[2], seed[1] + window))
 
             mask = self.roi_pixels[r0:r1, c0:c1]
 

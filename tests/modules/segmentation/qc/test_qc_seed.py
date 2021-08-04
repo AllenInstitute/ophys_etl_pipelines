@@ -5,6 +5,8 @@ from matplotlib.figure import Figure
 
 from ophys_etl.modules.segmentation.qc import seed as qcseed
 from ophys_etl.modules.segmentation.seed import seeder
+from ophys_etl.modules.segmentation.processing_log import \
+    SegmentationProcessingLog
 
 
 @pytest.fixture
@@ -22,10 +24,14 @@ def seed_h5_group(tmp_path):
         next(sb)
     h5path = tmp_path / "seed_results.h5"
     with h5py.File(h5path, "w") as f:
-        sb.log_to_h5_group(f)
+        f.create_group("detect")
+    processing_log = SegmentationProcessingLog(h5path)
+    processing_log.log_seeder(seeder=sb,
+                              parent_group="detect",
+                              group_name="seed")
 
     with h5py.File(h5path, "r") as f:
-        yield f["seed"]
+        yield f["detect"]["seed"]
 
 
 @pytest.mark.parametrize(

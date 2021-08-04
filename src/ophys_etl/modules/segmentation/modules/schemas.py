@@ -1,5 +1,4 @@
 import h5py
-import json
 import argschema
 import numpy as np
 from pathlib import Path
@@ -9,8 +8,8 @@ from marshmallow.validate import OneOf
 
 from ophys_etl.modules.segmentation.seed.schemas import \
     ImageMetricSeederSchema, BatchImageMetricSeederSchema
-from ophys_etl.modules.segmentation.utils import roi_utils
-from ophys_etl.modules.segmentation.qc.qc_file import SegmentationQCFile
+from ophys_etl.modules.segmentation.processing_log import \
+    SegmentationProcessingLog
 from ophys_etl.schemas.fields import InputOutputFile
 
 
@@ -274,10 +273,10 @@ class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
         allow_none=True,
         description="path to summary plot of segmentation")
 
-    qc_output = argschema.fields.OutputFile(
+    log_path = argschema.fields.OutputFile(
         required=True,
         default=None,
-        description=("path to hdf5 QC output"))
+        description=("path to hdf5 log output"))
 
     seed_plot_output = argschema.fields.OutputFile(
         required=False,
@@ -405,9 +404,9 @@ class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
 class RoiMergerSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
 
-    qc_output = InputOutputFile(
+    log_path = InputOutputFile(
         required=True,
-        description=("path to hdf5 QC output. ROIs will be read "
+        description=("path to hdf5 log input/output. ROIs will be read "
                      "from this file, specified by parameter 'rois_group'"))
 
     rois_group = argschema.fields.String(
@@ -466,14 +465,14 @@ class RoiMergerSchema(argschema.ArgSchema):
 
     @post_load
     def check_for_rois(self, data, **kwargs):
-        qcfile = SegmentationQCFile(data["qc_output"])
+        qcfile = SegmentationProcessingLog(data["log_path"])
         if data["rois_group"] is None:
             data["rois_group"] = qcfile.get_last_group()
         with h5py.File(qcfile.path, "r") as f:
             if "rois" not in f[data["rois_group"]]:
                 raise ValidationError(f"group {data['rois_group']} does not "
                                       "have dataset 'rois' in file "
-                                      f"{data['qc_output']}")
+                                      f"{data['log_path']}")
         return data
 
     @post_load

@@ -12,8 +12,9 @@ from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
     PearsonFeatureROI)
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
 from ophys_etl.modules.segmentation.seed.seeder import \
-        BatchImageMetricSeeder
-from ophys_etl.modules.segmentation.qc.qc_file import SegmentationQCFile
+    BatchImageMetricSeeder
+from ophys_etl.modules.segmentation.processing_log import \
+    SegmentationProcessingLog
 
 import logging
 
@@ -366,7 +367,7 @@ class FeatureVectorSegmenter(object):
         return seed_list
 
     def run(self,
-            qc_output: pathlib.Path,
+            log_path: pathlib.Path,
             plot_output: Optional[pathlib.Path] = None,
             seed_plot_output: Optional[pathlib.Path] = None,
             ) -> None:
@@ -375,8 +376,8 @@ class FeatureVectorSegmenter(object):
 
         Parameters
         ----------
-        qc_output: pathlib.Path
-            the path where the qc results will be written
+        log_path: pathlib.Path
+            the path where the processing results will be written
 
         plot_output: Optional[pathlib.Path]
             If not None, the path where a plot comparing the seed image
@@ -462,24 +463,26 @@ class FeatureVectorSegmenter(object):
 
         logger.info('finished iterating on ROIs')
 
-        # log detection to hdf5 QC ouput
-        qcfile = SegmentationQCFile(path=qc_output)
-        qcfile.log_detection(attribute=self._attribute.encode("utf-8"),
-                             rois=self.roi_list,
-                             group_name="detect")
-        qcfile.log_seeder(seeder=self.seeder,
-                          parent_group="detect",
-                          group_name="seed")
-        logger.info(f'wrote detection QC to {str(qc_output)}')
+        # log detection to hdf5 processing log
+        processing_log = SegmentationProcessingLog(path=log_path)
+        processing_log.log_detection(
+                attribute=self._attribute.encode("utf-8"),
+                rois=self.roi_list,
+                group_name="detect")
+        processing_log.log_seeder(seeder=self.seeder,
+                                  parent_group="detect",
+                                  group_name="seed")
+        logger.info(f'logged detection step to {str(log_path)}')
 
         # create plots of this detection step
         if seed_plot_output is not None:
-            fig = qcfile.create_seeder_figure(group_keys=["detect", "seed"])
+            fig = processing_log.create_seeder_figure(
+                    group_keys=["detect", "seed"])
             fig.savefig(seed_plot_output, dpi=300)
             logger.info(f'wrote {seed_plot_output}')
 
         if plot_output is not None:
-            figure = qcfile.create_roi_metric_figure(
+            figure = processing_log.create_roi_metric_figure(
                     rois_group="detect",
                     attribute_group="detect",
                     metric_image_group=["detect", "seed"])

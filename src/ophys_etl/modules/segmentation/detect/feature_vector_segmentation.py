@@ -299,9 +299,9 @@ class FeatureVectorSegmenter(object):
                                        'slop': slop}
 
             r0 = int(max(0, seed[0] - slop))
-            r1 = int(min(self.movie_shape[0], seed[0] + slop))
+            r1 = int(min(self.movie_shape[1], seed[0] + slop))
             c0 = int(max(0, seed[1] - slop))
-            c1 = int(min(self.movie_shape[1], seed[1] + slop))
+            c1 = int(min(self.movie_shape[2], seed[1] + slop))
 
             mask = self.roi_pixels[r0:r1, c0:c1]
 

@@ -150,11 +150,11 @@ def choose_timesteps(
     pixel_indices = pixel_indices[valid_pixels]
 
     image_max = image_flat.max()
+    image_min = image_flat.min()
     t25, t75 = np.quantile(image_flat, (0.25, 0.75))
     std = (t75-t25)/1.34896
 
-    for ds in (-1, -2):
-        val = image_max + ds*std
+    for val in (image_max-std, image_min+std):
         ii = pixel_indices[np.argmin(np.abs(val-image_flat))]
         pt = np.unravel_index(ii, sub_video.shape[1:])
         trace = sub_video[:, pt[0], pt[1]]

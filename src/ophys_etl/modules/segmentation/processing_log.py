@@ -124,15 +124,44 @@ class SegmentationProcessingLog:
             ROI IDs from a merge
 
         """
-        print(group_name)
         group_name = self.append_processing_step(group_name, overwrite=False)
-        print(group_name)
         with h5py.File(self.path, "a") as h5file:
             group = h5file.create_group(group_name)
             group.create_dataset("rois",
                                  data=roi_utils.serialize_extract_roi_list(
                                      rois))
             group.create_dataset("merger_ids", data=merger_ids)
+            timestamp_group(group)
+
+    def log_filter(self,
+                   rois: List[ExtractROI],
+                   filter_ids: np.ndarray,
+                   filter_reason: str,
+                   group_name: str = "filter") -> None:
+        """log a filter phase of segmentation to a file
+
+        Parameters
+        ----------
+        rois: List[ExtractROI]
+            the list of ROIs resulting from detection
+        group_name: str
+            the name of the hdf5 group for logging this step
+            (default = 'detect')
+        filter_ids: np.ndarray
+            the list of ROI IDs filtered by this step
+        filter_reason: str
+            a description of this filter
+
+        """
+        group_name = self.append_processing_step(group_name, overwrite=False)
+        with h5py.File(self.path, "a") as h5file:
+            group = h5file.create_group(group_name)
+            group.create_dataset("rois",
+                                 data=roi_utils.serialize_extract_roi_list(
+                                     rois))
+            group.create_dataset("filter_ids", data=filter_ids)
+            group.create_dataset("filter_reason",
+                                 data=filter_reason.encode("utf-8"))
             timestamp_group(group)
 
     def log_seeder(self,

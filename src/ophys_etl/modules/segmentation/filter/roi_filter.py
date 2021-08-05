@@ -1,17 +1,17 @@
 from typing import List, Dict, Optional, Union
 from abc import ABC, abstractmethod
 import argschema
-import json
 import h5py
 import pathlib
 import copy
 import numpy as np
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
-
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     ophys_roi_to_extract_roi,
-    ophys_roi_list_from_file)
+    ophys_roi_list_from_deserialized)
+from ophys_etl.modules.segmentation.processing_log import \
+    SegmentationProcessingLog
 
 
 class ROIBaseFilter(ABC):
@@ -224,23 +224,31 @@ class FilterRunnerBase(argschema.ArgSchemaParser):
         raise NotImplementedError(msg)
 
     def run(self):
-        roi_list = ophys_roi_list_from_file(
-                pathlib.Path(self.args['roi_input']))
+        # get the ROIs to filter
+        processing_log = SegmentationProcessingLog(self.args["log_path"])
+        original_roi_list = processing_log.get_rois_from_group(
+                group_name=self.args["rois_group"])
+        ophys_roi_list = ophys_roi_list_from_deserialized(original_roi_list)
 
+        # perform filter
         this_filter = self.get_filter()
+        results = this_filter.do_filtering(ophys_roi_list)
 
-        results = this_filter.do_filtering(roi_list)
+        # munge
+        invalid_rois = [ophys_roi_to_extract_roi(i)
+                        for i in results["invalid_roi"]]
+        invalid_ids = [i["id"] for i in invalid_rois]
+        rois = [ophys_roi_to_extract_roi(i)
+                for i in results["valid_roi"]]
+        rois.extend(invalid_rois)
 
         reason = ' -- '.join((this_filter.reason,
                               self.args['pipeline_stage']))
-        log_invalid_rois(results['invalid_roi'],
-                         reason,
-                         pathlib.Path(self.args['roi_log_path']))
 
-        new_roi_list = [ophys_roi_to_extract_roi(roi)
-                        for roi in results['valid_roi']]
-        new_roi_list += [ophys_roi_to_extract_roi(roi)
-                         for roi in results['invalid_roi']]
-
-        with open(self.args['roi_output'], 'w') as out_file:
-            json.dump(new_roi_list, out_file, indent=2)
+        # log
+        processing_log.log_filter(rois=rois,
+                                  filter_ids=invalid_ids,
+                                  filter_reason=reason,
+                                  group_name="filter")
+        self.logger.info(f'added group {processing_log.get_last_group()} '
+                         f'to {processing_log.path}')

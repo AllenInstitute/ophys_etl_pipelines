@@ -9,7 +9,8 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
 
 
 def calculate_correlations(
-            sub_video: np.ndarray) -> np.ndarray:
+            sub_video: np.ndarray,
+            video_mu: np.ndarray) -> np.ndarray:
     """
     Calculate and return the Pearson correlation coefficient between
     pixels in a video, using only specific timesteps
@@ -20,6 +21,10 @@ def calculate_correlations(
         A subset of a video to be correlated.
         Shape is (n_time, n_pixels)
 
+    video_mu: np.ndarray
+        An array of the values that are to be used as the means
+        for each pixel in the movie
+
     Returns
     -------
     pearson: np.ndarray
@@ -28,8 +33,7 @@ def calculate_correlations(
     """
 
     # calculate the Pearson correlation coefficient between pixels
-    mu = np.mean(sub_video, axis=0)
-    sub_video = sub_video - mu
+    sub_video = sub_video - video_mu
     var = np.mean(sub_video**2, axis=0)
 
     n_pixels = sub_video.shape[1]
@@ -97,6 +101,7 @@ def normalize_features(input_features: np.ndarray) -> np.ndarray:
 
 def calculate_pearson_feature_vectors(
             sub_video: np.ndarray,
+            video_mu: np.ndarray,
             seed_pt: Tuple[int, int],
             pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
     """
@@ -111,6 +116,10 @@ def calculate_pearson_feature_vectors(
 
         Note: any filtering on time that should be done on
         sub_video must already have been done.
+
+    video_mu: np.ndarray
+        An array of the values that are to be used as the means
+        for each pixel in the movie
 
     seed_pt: Tuple[int, int]
         The coordinates of the point being considered as the seed
@@ -164,9 +173,12 @@ def calculate_pearson_feature_vectors(
         if not flat_mask[ii]:
             i_seed += 1
 
+    accept = np.logical_not(flat_mask)
     local_video = sub_video.reshape(sub_video.shape[0], -1)
-    local_video = local_video[:, np.logical_not(flat_mask)]
-    pearson = calculate_correlations(local_video)
+    local_video = local_video[:, accept]
+    local_mu = video_mu.reshape(-1)
+    local_mu = local_mu[accept]
+    pearson = calculate_correlations(local_video, local_mu)
     features = normalize_features(pearson)
 
     return features
@@ -262,6 +274,10 @@ class PotentialROI(object):
         Note: any filtering on time that needs to be done to sub_video
         must already have been done.
 
+    video_mu: np.ndarray
+        An array of the values that are to be used as the means
+        for each pixel in the movie
+
     pixel_ignore: Optional[np.ndarray]
         A (n_rows, n_cols) array of booleans marked True for any
         pixels that should be ignored, presumably because they
@@ -273,6 +289,7 @@ class PotentialROI(object):
                  seed_pt: Tuple[int, int],
                  origin: Tuple[int, int],
                  sub_video: np.ndarray,
+                 video_mu: np.ndarray,
                  pixel_ignore: Optional[np.ndarray] = None):
         self.origin = origin
         self.seed_pt = (seed_pt[0]-origin[0], seed_pt[1]-origin[1])
@@ -299,6 +316,7 @@ class PotentialROI(object):
             raise RuntimeError("Tried to create ROI with no valid pixels")
 
         self.calculate_feature_distances(sub_video,
+                                         video_mu,
                                          pixel_ignore=pixel_ignore)
 
         self.roi_mask = np.zeros(self.n_pixels, dtype=bool)
@@ -307,6 +325,7 @@ class PotentialROI(object):
     def get_features(
             self,
             sub_video: np.ndarray,
+            video_mu: np.ndarray,
             pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
         """
         Return the (n_pixels, n_pixels) array of feature vectors
@@ -316,6 +335,10 @@ class PotentialROI(object):
         sub_video: np.ndarray
             The subset of video data being scanned for an ROI.
             Shape is (n_time, n_rows, n_cols)
+
+        video_mu: np.ndarray
+            An array of the values that are to be used as the means
+            for each pixel in the movie
 
         pixel_ignore: Optional[np.ndarray]
             A (n_rows, n_cols) array of booleans that is True
@@ -340,6 +363,7 @@ class PotentialROI(object):
     def calculate_feature_distances(
             self,
             sub_video: np.ndarray,
+            video_mu: np.ndarray,
             pixel_ignore: Optional[np.ndarray] = None):
         """
         Set self.feature_distances, an (n_pixel, n_pixel) array
@@ -350,6 +374,10 @@ class PotentialROI(object):
         sub_video: np.ndarray
             The subset of video data being scanned for an ROI.
             Shape is (n_time, n_rows, n_cols)
+
+        video_mu: np.ndarray
+            An array of the values that are to be used as the means
+            for each pixel in the movie
 
         pixel_ignore: Optional[np.ndarray]
             A (n_rows, n_cols) array of booleans that is True
@@ -363,6 +391,7 @@ class PotentialROI(object):
         """
 
         features = self.get_features(sub_video,
+                                     video_mu=video_mu,
                                      pixel_ignore=pixel_ignore)
 
         self.feature_distances = pairwise_distances(features)
@@ -470,6 +499,7 @@ class PearsonFeatureROI(PotentialROI):
     def get_features(
             self,
             sub_video: np.ndarray,
+            video_mu: np.ndarray,
             pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
         """
         Return the (n_pixels, n_pixels) array of feature vectors
@@ -479,6 +509,10 @@ class PearsonFeatureROI(PotentialROI):
         sub_video: np.ndarray
             The subset of video data being scanned for an ROI.
             Shape is (n_time, n_rows, n_cols)
+
+        video_mu: np.ndarray
+            An array of the values that are to be used as the means
+            for each pixel in the movie
 
         pixel_ignore: Optional[np.ndarray]
             A (n_rows, n_cols) array of booleans that is True
@@ -499,6 +533,7 @@ class PearsonFeatureROI(PotentialROI):
 
         features = calculate_pearson_feature_vectors(
                                     sub_video,
+                                    video_mu,
                                     self.seed_pt,
                                     pixel_ignore=pixel_ignore)
         return features
@@ -564,6 +599,7 @@ class PCAFeatureROI(PotentialROI):
     def get_features(
             self,
             sub_video: np.ndarray,
+            video_mu: np.ndarray,
             pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
         """
         Return the (n_pixels, n_pixels) array of feature vectors
@@ -573,6 +609,10 @@ class PCAFeatureROI(PotentialROI):
         sub_video: np.ndarray
             The subset of video data being scanned for an ROI.
             Shape is (n_time, n_rows, n_cols)
+
+        video_mu: np.ndarray
+            An array of the values that are to be used as the means
+            for each pixel in the movie
 
         pixel_ignore: Optional[np.ndarray]
             A (n_rows, n_cols) array of booleans that is True

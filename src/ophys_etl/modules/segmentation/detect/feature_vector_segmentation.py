@@ -46,6 +46,7 @@ class ROISeed(TypedDict):
 
 def _get_roi(seed_obj: ROISeed,
              video_data: np.ndarray,
+             video_mu: np.ndarray,
              pixel_ignore: np.ndarray,
              output_dict: multiprocessing.managers.DictProxy,
              roi_id: int,
@@ -69,6 +70,10 @@ def _get_roi(seed_obj: ROISeed,
 
         Note: in the case of filter_fraction<1.0, this video
         will also already have been down-selected in time
+
+    video_mu: np.ndarray
+        An array of the values that are to be used as the means
+        for each pixel in the movie
 
     pixel_ignore: np.ndarray
         A (n_rows, n_cols) array of booleans marked True at
@@ -103,6 +108,7 @@ def _get_roi(seed_obj: ROISeed,
     roi = roi_class(seed_pt,
                     origin,
                     video_data,
+                    video_mu,
                     pixel_ignore=pixel_ignore)
 
     final_mask = roi.get_mask()
@@ -236,7 +242,8 @@ class FeatureVectorSegmenter(object):
         self.movie_shape = movie_shape
 
     def _run(self,
-             video_data: np.ndarray) -> List[dict]:
+             video_data: np.ndarray,
+             video_mu_image: np.ndarray) -> List[dict]:
         """
         Run one iteration of ROI detection
 
@@ -245,6 +252,11 @@ class FeatureVectorSegmenter(object):
         video_data: np.ndarray
             A (n_time, n_rows, n_cols) array containing the video data
             used to detect ROIs
+
+        video_mu_image: np.ndarray
+            A (n_rows, n_cols) array containing the value of mu (mean, median
+            etc.) to be used when calculating Pearson coefficients per pixel in
+            the video.
 
         Returns
         -------
@@ -326,6 +338,7 @@ class FeatureVectorSegmenter(object):
             mask = self.roi_pixels[r0:r1, c0:c1]
 
             video_data_subset = video_data[:, r0:r1, c0:c1]
+            video_mu = video_mu_image[r0:r1, c0:c1]
 
             if self._filter_fraction < 1.0:
                 timesteps = choose_timesteps(
@@ -335,6 +348,7 @@ class FeatureVectorSegmenter(object):
                                 self._graph_img[r0:r1, c0:c1],
                                 pixel_ignore=mask)
                 video_data_subset = video_data_subset[timesteps, :, :]
+
             video_data_subset = video_data_subset.astype(float)
 
             # NOTE: eventually, get rid of ROISeed
@@ -348,6 +362,7 @@ class FeatureVectorSegmenter(object):
             p = multiprocessing.Process(target=_get_roi,
                                         args=(this_seed,
                                               video_data_subset,
+                                              video_mu,
                                               mask,
                                               mgr_dict,
                                               self.roi_id,
@@ -470,9 +485,18 @@ class FeatureVectorSegmenter(object):
         keep_going = True
         i_iteration = 0
 
+        if self._filter_fraction < 1.0:
+            video_mu_image = np.quantile(video_data,
+                                         1.0-self._filter_fraction,
+                                         axis=0).astype(float)
+        else:
+            video_mu_image = np.mean(video_data,
+                                     axis=0).astype(float)
+
         while keep_going:
 
-            roi_seeds = self._run(video_data)
+            roi_seeds = self._run(video_data,
+                                  video_mu_image)
 
             # NOTE: this change lets the seeder/iterator control
             # the stopping condition of segmentation. I.e. when seeds

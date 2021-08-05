@@ -1,5 +1,4 @@
 import pytest
-import h5py
 import numpy as np
 
 from ophys_etl.modules.segmentation.seed.utils import Seed

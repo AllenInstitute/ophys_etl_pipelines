@@ -5,11 +5,25 @@ Segmentation Steps
 - Merge (roi_merging.py)
 - Filter (TBD)
 
-Segmentation QC hdf5 output description
+Segmentation log hdf5 output description
 =======================================
 
-group: "seed"
-*************
+dataset: "processing_steps"
+***************************
+A list of 'utf-8' encoded strings that tracks the order of the steps (hdf5 groups) added to the processing log
+
+
+group: "detect"
+***************
+the detection by correlation and clustering stage.
+
+- group_creation_time: (str) a timestamp for when this group was created.
+- attribute: (str) the name of the attribute shown in the metric_image
+- rois: (str) utf-8 encoded serialized list of ExtractROI entries
+- seed: (h5py.Group) see below
+
+group: "seed" (subgroup of "detect")
+************************************
 the seeder works in conjunction with the detection algorithm. This group logs what seeds were provided, which were excluded, and the reasons for exclusion.
 
 - group_creation_time: (str) a timestamp for when this group was created.
@@ -17,16 +31,6 @@ the seeder works in conjunction with the detection algorithm. This group logs wh
 - excluded_seeds: (row, col) coordinates of seeds not served to the segmentation algorithm
 - exclusion_reason: (row, col) (str) reason the seed was not served.
 - seed_image: (2D array) the image used for generating the seeds.
-- attribute: (str) TBD - does not actually exist yet.
-
-group: "detect"
-***************
-the detection by correlation and clustering stage.
-
-- group_creation_time: (str) a timestamp for when this group was created.
-- metric_image: (always same as seeder seed_image?)
-- attribute: (str) the name of the attribute shown in the metric_image
-- rois: (str) utf-8 encoded serialized list of ExtractROI entries
 
 group: "merge"
 **************
@@ -42,4 +46,6 @@ group: "filter"
 post-process filters like size and ...
 
 - group_creation_time: (str) a timestamp for when this group was created.
+- filter_ids: (List[int]) IDs of ROIs marked "invalid" by this filter step
+- filter_reason: (str) utf-8 encoded string describing this filter
 - rois: (str) utf-8 encoded serialized list of ExtractROI entries

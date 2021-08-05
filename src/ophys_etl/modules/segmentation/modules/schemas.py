@@ -353,6 +353,10 @@ class HNC_args(argschema.schemas.DefaultSchema):
 
 class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
+    log_path = argschema.fields.OutputFile(
+        required=True,
+        description=("path to hdf5 log input/output. ROIs will be read "
+                     "from this file, specified by parameter 'rois_group'"))
     video_input = argschema.fields.InputFile(
         required=False,
         description=("path to hdf5 video with movie stored "
@@ -374,12 +378,6 @@ class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
         ImageMetricSeederSchema,
         default={})
     hnc_args = argschema.fields.Nested(HNC_args, default={})
-    roi_output = argschema.fields.OutputFile(
-        required=True,
-        description="path to json file where ROIs will be saved")
-    seed_output = argschema.fields.OutputFile(
-        required=True,
-        description="path to json file where seeds will be saved")
     plot_output = argschema.fields.OutputFile(
         required=False,
         default=None,
@@ -390,15 +388,6 @@ class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
         default=None,
         allow_none=True,
         description=("path to plot of seeding summary."))
-
-    @post_load
-    def plot_outputs(self, data, **kwargs):
-        if data['seed_plot_output'] is None:
-            if data['plot_output'] is not None:
-                plot_path = Path(data['plot_output'])
-            data['seed_plot_output'] = str(
-                    plot_path.parent / f"{plot_path.stem}_seeds.png")
-        return data
 
 
 class RoiMergerSchema(argschema.ArgSchema):

@@ -3,23 +3,19 @@ from typing import List, Set, Tuple
 import pathlib
 import h5py
 import numpy as np
-import json
 
 from ophys_etl.modules.segmentation.modules.calculate_edges import (
     CalculateEdges)
-
-from ophys_etl.modules.segmentation.modules.\
-    feature_vector_segmentation import (
-        FeatureVectorSegmentationRunner)
-
+from ophys_etl.modules.segmentation.modules.feature_vector_segmentation \
+        import FeatureVectorSegmentationRunner
 from ophys_etl.modules.segmentation.modules.roi_merging import (
     RoiMergerEngine)
-
 from ophys_etl.modules.segmentation.modules.filter_area import (
     AreaFilterRunner)
-
 from ophys_etl.modules.segmentation.modules.hnc_segmentation_wrapper import (
     HNCSegmentationWrapper)
+from ophys_etl.modules.segmentation.processing_log import \
+    SegmentationProcessingLog
 
 
 @pytest.fixture(scope='session')
@@ -85,7 +81,6 @@ def test_edge_fvs_filter_merge(tmpdir, synthetic_video_path, roi_class):
     graph_plot_path = tmpdir_path/'edge_graph.png'
 
     # calculate edges
-
     data = {'video_path': str(synthetic_video_path),
             'graph_output': str(graph_path),
             'plot_output': str(graph_plot_path),
@@ -100,15 +95,12 @@ def test_edge_fvs_filter_merge(tmpdir, synthetic_video_path, roi_class):
     assert graph_plot_path.is_file()
 
     # find ROIs
-
-    roi_raw_path = tmpdir_path/'fvs_rois.json'
-    qc_path = tmpdir_path/'fvs_qc.h5'
+    log_path = tmpdir_path/'fvs_qc.h5'
     roi_plot_path = tmpdir_path/'fvs_plot.png'
 
     data = {'video_input': str(synthetic_video_path),
             'graph_input': str(graph_path),
-            'roi_output': str(roi_raw_path),
-            'qc_output': str(qc_path),
+            'log_path': str(log_path),
             'plot_output': str(roi_plot_path),
             'attribute': 'filtered_hnc_Gaussian',
             'filter_fraction': 0.2,
@@ -121,20 +113,20 @@ def test_edge_fvs_filter_merge(tmpdir, synthetic_video_path, roi_class):
     fvs_runner = FeatureVectorSegmentationRunner(
                      input_data=data, args=[])
     fvs_runner.run()
-    assert roi_raw_path.is_file()
-    assert qc_path.is_file()
+    assert log_path.is_file()
     assert roi_plot_path.is_file()
 
-    with open(roi_raw_path, 'rb') as in_file:
-        raw_rois = json.load(in_file)
+    qcfile = SegmentationProcessingLog(log_path)
+    raw_rois = qcfile.get_rois_from_group(qcfile.get_last_group())
     n_raw_roi = len(raw_rois)
     assert n_raw_roi > 0
 
     raw_roi_pixels = pixel_set_from_roi_list(raw_rois)
 
-    with h5py.File(qc_path, 'r') as in_file:
+    with h5py.File(log_path, 'r') as in_file:
         assert 'detect' in in_file
-        assert 'seed' in in_file
+        group = in_file["detect"]
+        assert 'seed' in group
 
     # Select an area filter that won't exclude all ROIs
     areas = np.array([np.array(roi['mask']).sum()
@@ -142,23 +134,16 @@ def test_edge_fvs_filter_merge(tmpdir, synthetic_video_path, roi_class):
     min_area, max_area = np.quantile(areas, (0.2, 0.8))
 
     # filter on area
-
-    roi_filtered_path = tmpdir_path/'filtered_rois.json'
-    data = {'roi_input': str(roi_raw_path),
-            'roi_output': str(roi_filtered_path),
-            'pipeline_stage': 'area filter',
-            'roi_log_path': str(qc_path),
+    data = {'pipeline_stage': 'area filter',
+            'log_path': str(log_path),
             'max_area': max_area,
             'min_area': min_area}
 
     filter_runner = AreaFilterRunner(input_data=data, args=[])
     filter_runner.run()
 
-    assert roi_filtered_path.is_file()
-    with open(roi_filtered_path, 'rb') as in_file:
-        filtered_rois = json.load(in_file)
-
     # verify pixels were conserved in filtering
+    filtered_rois = qcfile.get_rois_from_group(qcfile.get_last_group())
     filtered_pixels = pixel_set_from_roi_list(filtered_rois)
     assert filtered_pixels == raw_roi_pixels
 
@@ -171,23 +156,18 @@ def test_edge_fvs_filter_merge(tmpdir, synthetic_video_path, roi_class):
     assert len(filtered_rois) == n_raw_roi
 
     # merge ROIs
-
-    roi_merged_path = tmpdir_path/'fvs_merged_rois.json'
     merged_plot_path = tmpdir_path/'fvs_merged_plot.png'
     data = {'video_input': str(synthetic_video_path),
-            'roi_input': str(roi_filtered_path),
-            'roi_output': str(roi_merged_path),
             'plot_output': str(merged_plot_path),
-            'qc_output': str(qc_path),
+            'log_path': str(log_path),
             'n_parallel_workers': 2,
             'attribute': 'filtered_hnc_Gaussian'}
 
     merge_runner = RoiMergerEngine(input_data=data, args=[])
     merge_runner.run()
-    assert roi_merged_path.is_file()
     assert merged_plot_path.is_file()
-    with open(roi_merged_path, 'rb') as in_file:
-        merged_rois = json.load(in_file)
+
+    merged_rois = qcfile.get_rois_from_group(qcfile.get_last_group())
     n_merged_roi = len(merged_rois)
     assert n_merged_roi > 0
     assert n_merged_roi <= n_raw_roi
@@ -203,8 +183,8 @@ def test_edge_hnc_filter_merge(tmpdir, synthetic_video_path):
     """
 
     tmpdir_path = pathlib.Path(tmpdir)
-    graph_path = tmpdir_path/'edge_graph.pkl'
-    graph_plot_path = tmpdir_path/'edge_graph.png'
+    graph_path = tmpdir_path / 'edge_graph.pkl'
+    graph_plot_path = tmpdir_path / 'edge_graph.png'
 
     # calculate edges
 
@@ -222,15 +202,12 @@ def test_edge_hnc_filter_merge(tmpdir, synthetic_video_path):
     assert graph_plot_path.is_file()
 
     # find ROIs
-
-    roi_raw_path = tmpdir_path/'hnc_rois.json'
-    qc_path = tmpdir_path/'hnc_qc.h5'
+    log_path = tmpdir_path/'hnc_qc.h5'
     roi_plot_path = tmpdir_path/'hnc_plot.png'
 
     data = {'video_input': str(synthetic_video_path),
             'graph_input': str(graph_path),
-            'roi_output': str(roi_raw_path),
-            'seed_output': str(qc_path),
+            'log_path': str(log_path),
             'plot_output': str(roi_plot_path),
             'attribute_name': 'filtered_hnc_Gaussian',
             'experiment_name': 'test',
@@ -241,20 +218,16 @@ def test_edge_hnc_filter_merge(tmpdir, synthetic_video_path):
     hnc_runner = HNCSegmentationWrapper(
                      input_data=data, args=[])
     hnc_runner.run()
-    assert roi_raw_path.is_file()
-    assert qc_path.is_file()
+    assert log_path.is_file()
     assert roi_plot_path.is_file()
 
-    with open(roi_raw_path, 'rb') as in_file:
-        raw_rois = json.load(in_file)
+    processing_log = SegmentationProcessingLog(log_path)
+    raw_rois = processing_log.get_rois_from_group(
+            group_name=processing_log.get_last_group())
     n_raw_roi = len(raw_rois)
     assert n_raw_roi > 1
 
     raw_roi_pixels = pixel_set_from_roi_list(raw_rois)
-
-    with h5py.File(qc_path, 'r') as in_file:
-        # assert 'detect' in in_file
-        assert 'seed' in in_file
 
     # choose filter areas so that we don't lose
     # all ROIs
@@ -264,21 +237,15 @@ def test_edge_hnc_filter_merge(tmpdir, synthetic_video_path):
     max_area = areas[-2]
 
     # filter on area
-
-    roi_filtered_path = tmpdir_path/'filtered_rois.json'
-    data = {'roi_input': str(roi_raw_path),
-            'roi_output': str(roi_filtered_path),
-            'pipeline_stage': 'area filter',
-            'roi_log_path': str(qc_path),
+    data = {'pipeline_stage': 'area filter',
+            'log_path': str(log_path),
             'max_area': max_area,
             'min_area': min_area}
-
     filter_runner = AreaFilterRunner(input_data=data, args=[])
     filter_runner.run()
 
-    assert roi_filtered_path.is_file()
-    with open(roi_filtered_path, 'rb') as in_file:
-        filtered_rois = json.load(in_file)
+    filtered_rois = processing_log.get_rois_from_group(
+            group_name=processing_log.get_last_group())
 
     # verify pixels were conserved in filtering
     filtered_pixels = pixel_set_from_roi_list(filtered_rois)
@@ -293,23 +260,18 @@ def test_edge_hnc_filter_merge(tmpdir, synthetic_video_path):
     assert len(filtered_rois) == n_raw_roi
 
     # merge ROIs
-
-    roi_merged_path = tmpdir_path/'fvs_merged_rois.json'
     merged_plot_path = tmpdir_path/'fvs_merged_plot.png'
     data = {'video_input': str(synthetic_video_path),
-            'roi_input': str(roi_filtered_path),
-            'roi_output': str(roi_merged_path),
             'plot_output': str(merged_plot_path),
-            'qc_output': str(qc_path),
+            'log_path': str(log_path),
             'n_parallel_workers': 2,
             'attribute': 'filtered_hnc_Gaussian'}
 
     merge_runner = RoiMergerEngine(input_data=data, args=[])
     merge_runner.run()
-    assert roi_merged_path.is_file()
     assert merged_plot_path.is_file()
-    with open(roi_merged_path, 'rb') as in_file:
-        merged_rois = json.load(in_file)
+    merged_rois = processing_log.get_rois_from_group(
+            group_name=processing_log.get_last_group())
     n_merged_roi = len(merged_rois)
     assert n_merged_roi > 0
     assert n_merged_roi <= n_raw_roi

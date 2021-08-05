@@ -1,5 +1,69 @@
-from typing import Tuple, Optional
+from typing import Set, Tuple, Optional
+from itertools import product
 import numpy as np
+
+
+def flux_partition(
+        image_data: np.ndarray,
+        seed_pt: Tuple[int, int],
+        threshold: float=0.8) -> np.ndarray:
+    """
+    Select all of the pixels in an image that are connected
+    to seed_pt with fluxes greater than or equal to
+    threshold*image_data[seed_pt]
+
+    resulting mask is True at valid pixels
+    """
+    checked_pixels = set()
+    pixels_to_check = set()
+    for dr, dc in product(range(-1, 2), range(-1, 2)):
+        if dr == 0 and dc == 0:
+            continue
+        r = seed_pt[0]+dr
+        c = seed_pt[1]+dc
+        if r < 0:
+            continue
+        elif r >= image_data.shape[0]:
+            continue
+        elif c < 0:
+            continue
+        elif c >= image_data.shape[1]:
+            continue
+        pixels_to_check.add((r, c))
+    seed_flux = image_data[seed_pt[0], seed_pt[1]]
+
+    valid_pixels = np.zeros(image_data.shape, dtype=bool)
+    n_total_pixels = image_data.shape[0]*image_data.shape[1]
+    while len(pixels_to_check) > 0:
+        if len(checked_pixels) >= n_total_pixels:
+            break
+
+        pixel = pixels_to_check.pop()
+        checked_pixels.add(pixel)
+        if image_data[pixel[0], pixel[1]] >= threshold*seed_flux:
+            valid_pixels[pixel[0], pixel[1]] = True
+        for dr, dc in product(range(-1, 2), range(-1, 2)):
+            r = pixel[0] + dr
+            c = pixel[1] + dc
+            if dr == 0 and dc == 0:
+                continue
+            elif r < 0:
+                continue
+            elif r >= image_data.shape[0]:
+                continue
+            elif c < 0:
+                continue
+            elif c >= image_data.shape[1]:
+                continue
+
+            p2 = (r, c)
+            if p2 in pixels_to_check:
+                continue
+            elif p2 in checked_pixels:
+                continue
+            pixels_to_check.add(p2)
+
+    return valid_pixels
 
 
 def choose_timesteps(
@@ -64,6 +128,21 @@ def choose_timesteps(
         pixel_ignore_flat = pixel_ignore.flatten()
     else:
         pixel_ignore_flat = np.zeros(len(image_flat), dtype=bool)
+
+
+    """
+    flux_based_pixels = flux_partition(
+                           image_data,
+                           seed_pt,
+                           threshold=0.5)
+
+    print('flux based ',flux_based_pixels.sum(),
+    image_data.shape[0]*image_data.shape[1])
+    if flux_based_pixels.sum() > 0:
+        flux_based_pixels = flux_based_pixels.flatten()
+        pixel_ignore_flat = np.logical_or(pixel_ignore_flat,
+                                          np.logical_not(flux_based_pixels))
+    """
 
     pixel_indices = np.arange(len(image_flat), dtype=int)
     valid_pixels = np.logical_not(pixel_ignore_flat)

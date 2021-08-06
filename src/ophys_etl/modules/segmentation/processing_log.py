@@ -35,6 +35,19 @@ def timestamp_group(group: h5py.Group) -> None:
 
 class SegmentationProcessingLog:
     """I/O methods for segmentation quality-control (log) file
+
+    Parameters
+    ----------
+    path: Path, or pathlike
+        sets the path attribute for the file backing this class
+    read_only: bool
+       if True (default) prevents execution of any of the methods that
+       write
+    steps_dataset_name: str
+       the name of the h5py.Dataset, at the highest level of the h5py.File
+       that will contain a running list of processing step h5py.Group names
+       that have been appended to this file. The names are utf-8 encoded
+
     """
 
     def __init__(self, path: Path, read_only: bool = True):
@@ -43,6 +56,15 @@ class SegmentationProcessingLog:
         self.steps_dataset_name = "processing_steps"
 
     def read_only_decorator(func):
+        """When applied to a method in this class, emits a warning
+        if that method is called while read_only = True
+
+        Returns
+        -------
+        - None if read_only is true
+        - the evaluated method is read_only is False
+
+        """
         def check_read_only(self, *args, **kwargs):
             if self.read_only:
                 warnings.warn(f"SegmentationProcessingLog.{func.__name__} "
@@ -56,6 +78,25 @@ class SegmentationProcessingLog:
     def _append_processing_step(self,
                                 group_name: str,
                                 overwrite: bool = False) -> str:
+        """appends a processing step to the highest level h5py.Dataset with
+        name self.steps_dataset_name. If the name already exists, increments
+        the name.
+
+        Parameters
+        ----------
+        group_name: str
+            the requested group name. May be modified by this function before
+            returning.
+        overwrite: bool
+            if set to True the contents of the processing steps dataset will
+            be erased before adding this new one.
+
+        Returns
+        -------
+        group_name: str
+            the name of the group appended to the processing_steps dataset
+
+        """
         with h5py.File(self.path, "a") as f:
             steps = []
             if self.steps_dataset_name in f:
@@ -82,6 +123,9 @@ class SegmentationProcessingLog:
         return group_name
 
     def get_last_group(self) -> str:
+        """returns the last group written to the self.steps_dataset_name
+        dataset
+        """
         with h5py.File(self.path, "r") as f:
             steps = [i.decode("utf-8")
                      for i in f[self.steps_dataset_name][()]]
@@ -107,6 +151,10 @@ class SegmentationProcessingLog:
         group_name: str
             the name of the hdf5 group for logging this step
             (default = 'detect')
+        seeder: ImageMetricSeeder
+            a seeder instance to log as a subgroup of the detection group
+        seeder_group_name: str
+            the name of the seeder subgroup
 
         """
         group_name = self._append_processing_step(group_name, overwrite=True)
@@ -140,7 +188,7 @@ class SegmentationProcessingLog:
             the list of ROIs resulting from detection
         group_name: str
             the name of the hdf5 group for logging this step
-            (default = 'detect')
+            (default = 'merge')
         merger_ids: np.ndarray
             an n_merge x 2 shape array, each row indicating (dst, src)
             ROI IDs from a merge
@@ -169,7 +217,7 @@ class SegmentationProcessingLog:
             the list of ROIs resulting from detection
         group_name: str
             the name of the hdf5 group for logging this step
-            (default = 'detect')
+            (default = 'filter')
         filter_ids: np.ndarray
             the list of ROI IDs filtered by this step
         filter_reason: str
@@ -297,6 +345,30 @@ class SegmentationProcessingLog:
             attribute_group: str = "detect",
             metric_image_group: List[str] = ["detect", "seed"]
             ) -> matplotlib.figure.Figure:
+        """returns a figure comparing ROIs before and after a merge step
+
+        Parameters
+        ----------
+        original_rois_group: str
+            the h5py group within the file containing dataset 'rois', i.e.
+            'detect' holding the ROIs before merging
+        merged_rois_group: str
+            the h5py group within the file containing dataset 'rois', i.e.
+            'merge' holding the ROIs after merging
+        attribute_group: str
+            the h5py group within the file containging dataset 'attribute',
+            typically 'detect'
+        metric_image_group: List[str]
+            a list of keys indicating the hierarchical path to the seed
+            log group. I.e. ['a','b'] will look in the h5py.File['a']['b']
+            group
+
+        Returns
+        -------
+        fig: matplotlib.figure.Figure
+            a figure showing ROIs and stats
+
+        """
         original_rois = self.get_rois_from_group(
                 group_name=original_rois_group)
         merged_rois = self.get_rois_from_group(

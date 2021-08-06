@@ -139,6 +139,7 @@ def ground_truth_fixture(roi_list_fixture,
                       roi,
                       img_fixture,
                       bckgd_mask,
+                      0.25,
                       n_desired_background=max(15, 2*roi.area))
         z_score_lookup[roi.roi_id] = z_score
     return z_score_lookup

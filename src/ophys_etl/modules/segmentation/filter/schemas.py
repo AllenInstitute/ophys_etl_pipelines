@@ -138,6 +138,15 @@ class StatFilterSchema(MetricBaseSchema):
 
 class ZvsBackgroundSchema(MetricBaseSchema):
 
+    clip_quantile = argschema.fields.Float(
+            default=0.25,
+            required=False,
+            allow_none=False,
+            description=("fraction of ROI pixels to remove from "
+                         "the bottom (in brightness) before "
+                         "computing ROI mean to compare against "
+                         "the background"))
+
     min_z = argschema.fields.Float(
             default=None,
             required=True,
@@ -160,3 +169,10 @@ class ZvsBackgroundSchema(MetricBaseSchema):
                          "when selecting population of background "
                          "pixels to use in calculating z-score "
                          "(in case ROI.AREA is small)"))
+
+    @post_load
+    def check_clip_quantile(self, data, **kwargs):
+        if data['clip_quantile'] < 0.0 or data['clip_quantile'] >= 1.0:
+            msg = "clip_quantile must be in [0.0, 1.0); "
+            msg += f"you gave {data['clip_quantile']: .2e}"
+            raise ValidationError(msg)

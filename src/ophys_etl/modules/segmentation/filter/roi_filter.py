@@ -291,19 +291,30 @@ class ZvsBackgroundFilter(ROIBaseFilter):
     n_background_min: int
         The minimum number of background pixels to use
         (in case roi.area is very small)
+
+    clip_quantile: float
+        Discard the dimmest clip_quantile [0, 1.0) pixels from
+        the ROI before computing the mean to compare against
+        the background.
     """
 
     def __init__(self,
                  metric_img: np.ndarray,
                  min_z: float,
                  n_background_factor: int,
-                 n_background_min: int):
+                 n_background_min: int,
+                 clip_quantile: float):
         self._img = np.copy(metric_img)
         self._min_z = min_z
         self._n_background_factor = n_background_factor
         self._n_background_min = n_background_min
         self._background_mask = None
         self._reason = "z-score vs background pixels"
+        self._clip_quantile = clip_quantile
+
+    @property
+    def clip_quantile(self) -> float:
+        return self._clip_quantile
 
     @property
     def img(self) -> np.ndarray:
@@ -361,6 +372,7 @@ class ZvsBackgroundFilter(ROIBaseFilter):
                         roi,
                         self.img,
                         self.background_mask,
+                        self.clip_quantile,
                         n_desired_background=n_bckgd)
         if z_score < self.min_z:
             return False

@@ -64,6 +64,7 @@ def z_vs_background_from_roi(
         roi: OphysROI,
         img: np.ndarray,
         background_mask: np.ndarray,
+        clip_quantile: float,
         n_desired_background: Optional[int] = None) -> float:
     """
     For an ROI and a metric image, calculate the z-score
@@ -87,6 +88,11 @@ def z_vs_background_from_roi(
         pixels to compare against. No pixels that are included
         in any ROI will be selected.
 
+    clip_quantile: float
+        Discard the dimmest clip_quantile [0, 1.0) pixels from
+        the ROI before computing the mean to compare against
+        the background.
+
     n_desired_background: Optional[int]
         The minimum number of background pixels to use
         in calculating the z_score. If None, take roi.area.
@@ -96,6 +102,10 @@ def z_vs_background_from_roi(
     -------
     z_score: float
     """
+
+    if clip_quantile >= 1.0 or clip_quantile < 0.0:
+        raise RuntimeError("clip_quantile must be in [0.0, 1.0); "
+                           f"you gave {clip_quantile: .2e}")
 
     if img.shape != background_mask.shape:
         msg = f"img.shape: {img.shape}\n"
@@ -122,6 +132,10 @@ def z_vs_background_from_roi(
     roi_rows = roi.global_pixel_array[:, 0]
     roi_cols = roi.global_pixel_array[:, 1]
     roi_pixels = img[roi_rows, roi_cols].flatten()
+
+    if clip_quantile > 0.0:
+        th = np.quantile(roi_pixels, clip_quantile)
+        roi_pixels = roi_pixels[roi_pixels >= th]
 
     roi_mean = np.mean(roi_pixels)
     background_mean = np.mean(background_pixels)

@@ -46,7 +46,8 @@ def test_median_from_roi(image_fixture, x0, y0, mask, expected):
     assert np.allclose(actual, expected, rtol=0.0, atol=0.0001)
 
 
-def test_z_vs_background_from_roi():
+@pytest.mark.parametrize('clip_quantile', [0.0, 0.2222, 0.3333])
+def test_z_vs_background_from_roi(clip_quantile):
 
     rng = np.random.default_rng(776233)
     img_shape = (32, 32)
@@ -68,6 +69,7 @@ def test_z_vs_background_from_roi():
                   roi,
                   img,
                   background,
+                  clip_quantile,
                   n_desired_background=100)
     assert np.allclose(z_score, 3, rtol=0.1, atol=0.0)
 
@@ -77,6 +79,7 @@ def test_z_vs_background_from_roi():
                   roi,
                   img,
                   background,
+                  clip_quantile,
                   n_desired_background=10000)
     assert np.allclose(z_score, 3, rtol=0.1, atol=0.0)
 
@@ -85,4 +88,21 @@ def test_z_vs_background_from_roi():
                   roi,
                   img,
                   np.ones((10, 10), dtype=bool),
+                  clip_quantile,
+                  n_desired_background=100)
+
+    with pytest.raises(RuntimeError, match='\\[0.0, 1.0\\)'):
+            z_vs_background_from_roi(
+                  roi,
+                  img,
+                  np.ones((10, 10), dtype=bool),
+                  -0.1,
+                  n_desired_background=100)
+
+    with pytest.raises(RuntimeError, match='\\[0.0, 1.0\\)'):
+            z_vs_background_from_roi(
+                  roi,
+                  img,
+                  np.ones((10, 10), dtype=bool),
+                  1.0001,
                   n_desired_background=100)

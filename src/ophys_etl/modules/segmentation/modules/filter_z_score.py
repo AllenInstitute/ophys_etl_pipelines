@@ -23,7 +23,8 @@ class ZvsBackgroundFilterRunner(FilterRunnerBase):
                     metric_img,
                     self.args['min_z'],
                     self.args['n_background_factor'],
-                    self.args['n_background_minimum'])
+                    self.args['n_background_minimum'],
+                    self.args['clip_quantile'])
 
 
 if __name__ == "__main__":

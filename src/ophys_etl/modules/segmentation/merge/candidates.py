@@ -7,7 +7,7 @@ from itertools import combinations
 import numpy as np
 import multiprocessing
 import multiprocessing.managers
-from ophys_etl.modules.segmentation.merge.utils import (
+from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
     _winnow_process_list)
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.utils.roi_utils import (

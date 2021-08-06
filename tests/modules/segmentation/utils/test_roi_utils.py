@@ -15,7 +15,6 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     intersection_over_union,
     convert_to_lims_roi,
     ophys_roi_list_from_file,
-    select_contiguous_region,
     serialize_extract_roi_list,
     deserialize_extract_roi_list,
     check_matching_extract_roi_lists,

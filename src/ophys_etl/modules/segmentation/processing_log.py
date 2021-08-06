@@ -206,7 +206,7 @@ class SegmentationProcessingLog:
                                      rois))
             group.create_dataset("merger_ids", data=merger_ids)
             group.create_dataset("roi_source_group",
-                                 roi_source_group.encode("utf-8"))
+                                 data=roi_source_group.encode("utf-8"))
             timestamp_group(group)
 
     @read_only_decorator
@@ -244,7 +244,7 @@ class SegmentationProcessingLog:
             group.create_dataset("filter_reason",
                                  data=filter_reason.encode("utf-8"))
             group.create_dataset("roi_source_group",
-                                 roi_source_group.encode("utf-8"))
+                                 data=roi_source_group.encode("utf-8"))
             timestamp_group(group)
 
     @read_only_decorator

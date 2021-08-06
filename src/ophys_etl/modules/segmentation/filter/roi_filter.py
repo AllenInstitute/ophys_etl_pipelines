@@ -250,6 +250,7 @@ class FilterRunnerBase(argschema.ArgSchemaParser):
         processing_log = SegmentationProcessingLog(self.args["log_path"],
                                                    read_only=False)
         processing_log.log_filter(rois=rois,
+                                  roi_source_group=self.args["rois_group"],
                                   filter_ids=invalid_ids,
                                   filter_reason=reason,
                                   group_name="filter")

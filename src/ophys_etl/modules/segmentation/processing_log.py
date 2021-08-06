@@ -178,6 +178,7 @@ class SegmentationProcessingLog:
     @read_only_decorator
     def log_merge(self,
                   rois: List[ExtractROI],
+                  roi_source_group: str,
                   merger_ids: np.ndarray,
                   group_name: str = "merge") -> None:
         """log the merge phase of segmentation to a file
@@ -186,6 +187,9 @@ class SegmentationProcessingLog:
         ----------
         rois: List[ExtractROI]
             the list of ROIs resulting from detection
+        roi_source_group: str
+            the name of the group from which the ROIs were taken
+            as input to the merge step
         group_name: str
             the name of the hdf5 group for logging this step
             (default = 'merge')
@@ -201,11 +205,14 @@ class SegmentationProcessingLog:
                                  data=roi_utils.serialize_extract_roi_list(
                                      rois))
             group.create_dataset("merger_ids", data=merger_ids)
+            group.create_dataset("roi_source_group",
+                                 roi_source_group.encode("utf-8"))
             timestamp_group(group)
 
     @read_only_decorator
     def log_filter(self,
                    rois: List[ExtractROI],
+                   roi_source_group: str,
                    filter_ids: np.ndarray,
                    filter_reason: str,
                    group_name: str = "filter") -> None:
@@ -215,6 +222,9 @@ class SegmentationProcessingLog:
         ----------
         rois: List[ExtractROI]
             the list of ROIs resulting from detection
+        roi_source_group: str
+            the name of the group from which the ROIs were taken
+            as input to the filter step
         group_name: str
             the name of the hdf5 group for logging this step
             (default = 'filter')
@@ -233,6 +243,8 @@ class SegmentationProcessingLog:
             group.create_dataset("filter_ids", data=filter_ids)
             group.create_dataset("filter_reason",
                                  data=filter_reason.encode("utf-8"))
+            group.create_dataset("roi_source_group",
+                                 roi_source_group.encode("utf-8"))
             timestamp_group(group)
 
     @read_only_decorator

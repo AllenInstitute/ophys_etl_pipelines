@@ -56,6 +56,7 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
         processing_log = SegmentationProcessingLog(self.args["log_path"],
                                                    read_only=False)
         processing_log.log_merge(rois=merged_roi_list,
+                                 roi_source_group=self.args["rois_group"],
                                  merger_ids=np.array(merger_ids),
                                  group_name="merge")
         self.logger.info(f'added group {processing_log.get_last_group()} '

@@ -19,6 +19,10 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
+class SegmentationProcessingLogError(Exception):
+    pass
+
+
 def timestamp_group(group: h5py.Group) -> None:
     """adds a 'group_creation_time' utf-8 encoded timestamp to group
 
@@ -75,9 +79,7 @@ class SegmentationProcessingLog:
         return check_read_only
 
     @read_only_decorator
-    def _append_processing_step(self,
-                                group_name: str,
-                                overwrite: bool = False) -> str:
+    def _append_processing_step(self, group_name: str) -> str:
         """appends a processing step to the highest level h5py.Dataset with
         name self.steps_dataset_name. If the name already exists, increments
         the name.
@@ -87,9 +89,6 @@ class SegmentationProcessingLog:
         group_name: str
             the requested group name. May be modified by this function before
             returning.
-        overwrite: bool
-            if set to True the contents of the processing steps dataset will
-            be erased before adding this new one.
 
         Returns
         -------
@@ -100,12 +99,8 @@ class SegmentationProcessingLog:
         with h5py.File(self.path, "a") as f:
             steps = []
             if self.steps_dataset_name in f:
-                if overwrite:
-                    logger.warn(
-                            f"overwriting dataset {self.steps_dataset_name}")
-                else:
-                    steps = [i.decode("utf-8")
-                             for i in f[self.steps_dataset_name][()]]
+                steps = [i.decode("utf-8")
+                         for i in f[self.steps_dataset_name][()]]
                 del f[self.steps_dataset_name]
             # get unique group name, if necessary. e.g. multiple
             # steps called 'filter'
@@ -156,24 +151,43 @@ class SegmentationProcessingLog:
         seeder_group_name: str
             the name of the seeder subgroup
 
+        Notes
+        -----
+        This class supports a single detection group per file. Once this
+        method is called once, a dataset at the highest file level is
+        created called 'detection_group' with the name of this group. This
+        method can not be subsequently called on a file that has
+        a designated 'detection_group'
+
         """
-        group_name = self._append_processing_step(group_name, overwrite=True)
+        if self.get_detection_group() is not None:
+            raise SegmentationProcessingLogError(
+                    "tried to 'log_detection' but there is already a "
+                    f"detection_group in {self.path}")
+
+        group_name = self._append_processing_step(group_name)
         with h5py.File(self.path, "a") as h5file:
-            if group_name in h5file:
-                # only one detect step per QC file
-                del h5file[group_name]
-                logging.warn(f"overwriting existing {group_name} group in "
-                             f"{self.path}")
             group = h5file.create_group(group_name)
             group.create_dataset("attribute", data=attribute)
             group.create_dataset("rois",
                                  data=roi_utils.serialize_extract_roi_list(
                                      rois))
             timestamp_group(group)
+            h5file.create_dataset("detection_group",
+                                  data=group_name.encode("utf-8"))
 
         self._log_seeder(seeder=seeder,
                          parent_group=group_name,
                          group_name=seeder_group_name)
+
+    def get_detection_group(self):
+        if not Path(self.path).exists():
+            return None
+        with h5py.File(self.path, "r") as f:
+            if "detection_group" not in f:
+                return None
+            detection_group = f["detection_group"][()].decode("utf-8")
+        return detection_group
 
     @read_only_decorator
     def log_merge(self,
@@ -198,7 +212,7 @@ class SegmentationProcessingLog:
             ROI IDs from a merge
 
         """
-        group_name = self._append_processing_step(group_name, overwrite=False)
+        group_name = self._append_processing_step(group_name)
         with h5py.File(self.path, "a") as h5file:
             group = h5file.create_group(group_name)
             group.create_dataset("rois",
@@ -234,7 +248,7 @@ class SegmentationProcessingLog:
             a description of this filter
 
         """
-        group_name = self._append_processing_step(group_name, overwrite=False)
+        group_name = self._append_processing_step(group_name)
         with h5py.File(self.path, "a") as h5file:
             group = h5file.create_group(group_name)
             group.create_dataset("rois",
@@ -272,9 +286,6 @@ class SegmentationProcessingLog:
 
         with h5py.File(self.path, "a") as f:
             parent_group = f[parent_group]
-            if group_name in parent_group:
-                raise ValueError(f"group {parent_group} in {self.path} "
-                                 f"already has a group named {group_name}")
             group = parent_group.create_group(group_name)
             group.create_dataset("provided_seeds", data=provided_seeds)
             group.create_dataset("excluded_seeds", data=excluded_seeds)

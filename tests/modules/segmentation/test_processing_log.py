@@ -3,6 +3,7 @@ import h5py
 import datetime
 import contextlib
 import numpy as np
+import matplotlib
 
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation import processing_log
@@ -42,7 +43,7 @@ def extract_roi_list():
 def seeder_fixture():
     # minimal seeder to satisfy logging
     seeder = ImageMetricSeeder()
-    seeder._seed_image = np.zeros((10, 10))
+    seeder._seed_image = np.zeros((512, 512)).astype("uint8")
     return seeder
 
 
@@ -93,6 +94,7 @@ def test_read_only(tmpdir, extract_roi_list,
     with context:
         plog.log_merge(merger_ids=[],
                        rois=extract_roi_list,
+                       roi_source_group="detect",
                        group_name="merge")
     if read_only:
         assert "processing_steps" not in plog.__dict__
@@ -105,6 +107,7 @@ def test_read_only(tmpdir, extract_roi_list,
         plog.log_filter(filter_ids=[],
                         filter_reason="why not?",
                         rois=extract_roi_list,
+                        roi_source_group="merge",
                         group_name="filter")
     if read_only:
         assert "processing_steps" not in plog.__dict__
@@ -118,3 +121,76 @@ def test_SegmentationProcessingLog_init():
     assert plog.path == path
     assert plog.steps_dataset_name == "processing_steps"
     assert plog.read_only
+
+
+def test_get_detection_group(tmpdir):
+    path = tmpdir / "log.h5"
+    plog = processing_log.SegmentationProcessingLog(path=path)
+    assert plog.get_detection_group() is None
+
+    with h5py.File(path, "w") as f:
+        f.create_dataset("something_else_but_file_exists", data=[])
+    assert plog.get_detection_group() is None
+
+    with h5py.File(path, "w") as f:
+        f.create_dataset("detection_group", data="testme".encode("utf-8"))
+    assert plog.get_detection_group() == "testme"
+
+
+def test_append_processing_step(tmpdir):
+    path = tmpdir / "log.h5"
+    plog = processing_log.SegmentationProcessingLog(path=path,
+                                                    read_only=False)
+    plog._append_processing_step("test")
+    with h5py.File(plog.path, "r") as f:
+        steps = [i.decode("utf-8") for i in f[plog.steps_dataset_name][()]]
+    assert steps == ["test"]
+
+    plog._append_processing_step("test")
+    with h5py.File(plog.path, "r") as f:
+        steps = [i.decode("utf-8") for i in f[plog.steps_dataset_name][()]]
+    assert steps == ["test", "test_1"]
+
+
+def test_log_two_detection_attempts(tmpdir, extract_roi_list, seeder_fixture):
+    """do not allow more than one detection group per file
+    """
+    path = tmpdir / "log.h5"
+    plog = processing_log.SegmentationProcessingLog(path=path,
+                                                    read_only=False)
+    plog.log_detection(attribute="attribute",
+                       rois=extract_roi_list,
+                       group_name="detect",
+                       seeder=seeder_fixture,
+                       seeder_group_name="seed")
+    with pytest.raises(processing_log.SegmentationProcessingLogError,
+                       match="there is already a detection_group"):
+        plog.log_detection(attribute="attribute",
+                           rois=extract_roi_list,
+                           group_name="detect",
+                           seeder=seeder_fixture,
+                           seeder_group_name="seed")
+
+
+def test_create_figures(tmpdir, extract_roi_list, seeder_fixture):
+    """smoke test
+    """
+    h5path = tmpdir / "test.h5"
+    plog = processing_log.SegmentationProcessingLog(path=h5path,
+                                                    read_only=False)
+    plog.log_detection(attribute="attribute",
+                       rois=extract_roi_list,
+                       group_name="detect",
+                       seeder=seeder_fixture,
+                       seeder_group_name="seed")
+    fig = plog.create_seeder_figure()
+    assert isinstance(fig, matplotlib.figure.Figure)
+
+    fig = plog.create_roi_metric_figure()
+    assert isinstance(fig, matplotlib.figure.Figure)
+
+    plog.log_merge(rois=extract_roi_list,
+                   roi_source_group="detect",
+                   merger_ids=[])
+    fig = plog.create_roi_merge_figure()
+    assert isinstance(fig, matplotlib.figure.Figure)

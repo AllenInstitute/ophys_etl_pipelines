@@ -57,15 +57,16 @@ def roi_list_fixture(img_shape_fixture):
 
 
 @pytest.fixture(scope='function')
-def processing_log_path_fixture(tmpdir, roi_list_fixture):
+def processing_log_path_fixture(tmpdir, roi_list_fixture, seeder_fixture):
     extract_roi_list = [ophys_roi_to_extract_roi(roi)
                         for roi in roi_list_fixture]
 
     log_path = pathlib.Path(tmpdir) / 'roi_log_for_filter_test.h5'
-    log = SegmentationProcessingLog(log_path)
+    log = SegmentationProcessingLog(log_path, read_only=False)
     log.log_detection(attribute='dummy_metric',
                       rois=extract_roi_list,
-                      group_name='detect')
+                      group_name='detect',
+                      seeder=seeder_fixture)
     yield log_path
 
 

@@ -454,7 +454,7 @@ class RoiMergerSchema(argschema.ArgSchema):
 
     @post_load
     def check_for_rois(self, data, **kwargs):
-        qcfile = SegmentationProcessingLog(data["log_path"])
+        qcfile = SegmentationProcessingLog(data["log_path"], read_only=True)
         if data["rois_group"] is None:
             data["rois_group"] = qcfile.get_last_group()
         with h5py.File(qcfile.path, "r") as f:

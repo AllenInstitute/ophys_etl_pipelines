@@ -28,7 +28,8 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
             video_data = in_file['data'][()]
 
         t0 = time.time()
-        processing_log = SegmentationProcessingLog(self.args["log_path"])
+        processing_log = SegmentationProcessingLog(self.args["log_path"],
+                                                   read_only=True)
         original_roi_list = processing_log.get_rois_from_group(
                 group_name=self.args["rois_group"])
 
@@ -52,6 +53,8 @@ class RoiMergerEngine(argschema.ArgSchemaParser):
                            for i in roi_list]
 
         # log merging to hdf5 QC output
+        processing_log = SegmentationProcessingLog(self.args["log_path"],
+                                                   read_only=False)
         processing_log.log_merge(rois=merged_roi_list,
                                  merger_ids=np.array(merger_ids),
                                  group_name="merge")

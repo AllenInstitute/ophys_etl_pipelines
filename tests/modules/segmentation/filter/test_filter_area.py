@@ -49,7 +49,7 @@ def compare_rois(roi0: OphysROI,
 def log_file_with_previous_step(tmpdir, roi_dict):
     path = tmpdir / "log_with_step.h5"
     rois = [ophys_roi_to_extract_roi(i) for i in roi_dict.values()]
-    log = SegmentationProcessingLog(path)
+    log = SegmentationProcessingLog(path, read_only=False)
     log.log_detection(attribute="something",
                       rois=rois,
                       group_name="previous_step")
@@ -75,7 +75,8 @@ def test_area_filter_runner(log_file_with_previous_step,
                               args=[])
     runner.run()
 
-    log = SegmentationProcessingLog(log_file_with_previous_step)
+    log = SegmentationProcessingLog(log_file_with_previous_step,
+                                    read_only=True)
     original_rois = log.get_rois_from_group("previous_step")
     filtered_rois = log.get_rois_from_group("filter")
     valid_filtered = {i['id'] for i in filtered_rois if i["valid_roi"]}

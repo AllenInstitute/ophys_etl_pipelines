@@ -464,7 +464,8 @@ class FeatureVectorSegmenter(object):
         logger.info('finished iterating on ROIs')
 
         # log detection to hdf5 processing log
-        processing_log = SegmentationProcessingLog(path=log_path)
+        processing_log = SegmentationProcessingLog(path=log_path,
+                                                   read_only=False)
         processing_log.log_detection(
                 attribute=self._attribute.encode("utf-8"),
                 rois=self.roi_list,
@@ -474,6 +475,8 @@ class FeatureVectorSegmenter(object):
                                   group_name="seed")
         logger.info(f'logged detection step to {str(log_path)}')
 
+        processing_log = SegmentationProcessingLog(path=log_path,
+                                                   read_only=True)
         # create plots of this detection step
         if seed_plot_output is not None:
             fig = processing_log.create_seeder_figure(

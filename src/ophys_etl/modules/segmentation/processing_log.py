@@ -2,6 +2,7 @@ import h5py
 import logging
 import datetime
 import matplotlib
+import warnings
 import numpy as np
 from pathlib import Path
 from typing import List
@@ -36,13 +37,25 @@ class SegmentationProcessingLog:
     """I/O methods for segmentation quality-control (log) file
     """
 
-    def __init__(self, path: Path):
+    def __init__(self, path: Path, read_only: bool = True):
         self.path = path
+        self.read_only = read_only
         self.steps_dataset_name = "processing_steps"
 
-    def append_processing_step(self,
-                               group_name: str,
-                               overwrite: bool = False) -> str:
+    def read_only_decorator(func):
+        def check_read_only(self, *args, **kwargs):
+            if self.read_only:
+                warnings.warn(f"SegmentationProcessingLog.{func.__name__} "
+                              "can not be invoked while "
+                              "SegmentationProcessingLog.read_only is True")
+                return
+            return func(self, *args, **kwargs)
+        return check_read_only
+
+    @read_only_decorator
+    def _append_processing_step(self,
+                                group_name: str,
+                                overwrite: bool = False) -> str:
         with h5py.File(self.path, "a") as f:
             steps = []
             if self.steps_dataset_name in f:
@@ -74,6 +87,7 @@ class SegmentationProcessingLog:
                      for i in f[self.steps_dataset_name][()]]
         return steps[-1]
 
+    @read_only_decorator
     def log_detection(self,
                       attribute: str,
                       rois: List[ExtractROI],
@@ -92,7 +106,7 @@ class SegmentationProcessingLog:
             (default = 'detect')
 
         """
-        group_name = self.append_processing_step(group_name, overwrite=True)
+        group_name = self._append_processing_step(group_name, overwrite=True)
         with h5py.File(self.path, "a") as h5file:
             if group_name in h5file:
                 # only one detect step per QC file
@@ -106,6 +120,7 @@ class SegmentationProcessingLog:
                                      rois))
             timestamp_group(group)
 
+    @read_only_decorator
     def log_merge(self,
                   rois: List[ExtractROI],
                   merger_ids: np.ndarray,
@@ -124,7 +139,7 @@ class SegmentationProcessingLog:
             ROI IDs from a merge
 
         """
-        group_name = self.append_processing_step(group_name, overwrite=False)
+        group_name = self._append_processing_step(group_name, overwrite=False)
         with h5py.File(self.path, "a") as h5file:
             group = h5file.create_group(group_name)
             group.create_dataset("rois",
@@ -133,6 +148,7 @@ class SegmentationProcessingLog:
             group.create_dataset("merger_ids", data=merger_ids)
             timestamp_group(group)
 
+    @read_only_decorator
     def log_filter(self,
                    rois: List[ExtractROI],
                    filter_ids: np.ndarray,
@@ -153,7 +169,7 @@ class SegmentationProcessingLog:
             a description of this filter
 
         """
-        group_name = self.append_processing_step(group_name, overwrite=False)
+        group_name = self._append_processing_step(group_name, overwrite=False)
         with h5py.File(self.path, "a") as h5file:
             group = h5file.create_group(group_name)
             group.create_dataset("rois",
@@ -164,6 +180,7 @@ class SegmentationProcessingLog:
                                  data=filter_reason.encode("utf-8"))
             timestamp_group(group)
 
+    @read_only_decorator
     def log_seeder(self,
                    seeder: ImageMetricSeeder,
                    parent_group: str = "detect",

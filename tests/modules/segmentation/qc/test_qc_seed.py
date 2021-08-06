@@ -25,7 +25,7 @@ def seed_h5_group(tmp_path):
     h5path = tmp_path / "seed_results.h5"
     with h5py.File(h5path, "w") as f:
         f.create_group("detect")
-    processing_log = SegmentationProcessingLog(h5path)
+    processing_log = SegmentationProcessingLog(h5path, read_only=False)
     processing_log.log_seeder(seeder=sb,
                               parent_group="detect",
                               group_name="seed")

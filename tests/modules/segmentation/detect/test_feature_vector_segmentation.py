@@ -76,7 +76,7 @@ def test_segmenter(tmpdir, example_graph, example_video, seeder_args):
     assert plot_path.is_file()
 
     # check that all ROIs are marked as valid
-    processing_log = SegmentationProcessingLog(log_path)
+    processing_log = SegmentationProcessingLog(log_path, read_only=True)
     roi_data = processing_log.get_rois_from_group(
             processing_log.get_last_group())
     assert len(roi_data) > 0

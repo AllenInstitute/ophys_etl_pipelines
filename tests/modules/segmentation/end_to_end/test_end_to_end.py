@@ -116,7 +116,7 @@ def test_edge_fvs_filter_merge(tmpdir, synthetic_video_path, roi_class):
     assert log_path.is_file()
     assert roi_plot_path.is_file()
 
-    qcfile = SegmentationProcessingLog(log_path)
+    qcfile = SegmentationProcessingLog(log_path, read_only=True)
     raw_rois = qcfile.get_rois_from_group(qcfile.get_last_group())
     n_raw_roi = len(raw_rois)
     assert n_raw_roi > 0
@@ -221,7 +221,7 @@ def test_edge_hnc_filter_merge(tmpdir, synthetic_video_path):
     assert log_path.is_file()
     assert roi_plot_path.is_file()
 
-    processing_log = SegmentationProcessingLog(log_path)
+    processing_log = SegmentationProcessingLog(log_path, read_only=True)
     raw_rois = processing_log.get_rois_from_group(
             group_name=processing_log.get_last_group())
     n_raw_roi = len(raw_rois)

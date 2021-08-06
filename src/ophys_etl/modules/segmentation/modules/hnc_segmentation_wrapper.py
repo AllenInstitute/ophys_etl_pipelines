@@ -11,7 +11,6 @@ from ophys_etl.modules.segmentation.qc_utils.roi_utils import \
         hnc_roi_to_extract_roi
 from ophys_etl.modules.segmentation.seed.seeder import ImageMetricSeeder
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
-from ophys_etl.modules.segmentation.qc_utils.roi_utils import create_roi_plot
 from ophys_etl.modules.segmentation.processing_log import \
         SegmentationProcessingLog
 
@@ -59,7 +58,8 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
         self.logger.info("segmentation complete")
 
         # log detection to hdf5 processing log
-        processing_log = SegmentationProcessingLog(path=self.args["log_path"])
+        processing_log = SegmentationProcessingLog(path=self.args["log_path"],
+                                                   read_only=False)
         processing_log.log_detection(
                 attribute=self.args["attribute_name"].encode("utf-8"),
                 rois=rois,
@@ -70,10 +70,8 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
         self.logger.info(
             f'logged detection step to {str(self.args["log_path"])}')
 
-        if self.args['plot_output'] is not None:
-            create_roi_plot(self.args['plot_output'], graph_img, rois)
-            self.logger.info(f"wrote {self.args['plot_output']}")
-
+        processing_log = SegmentationProcessingLog(path=self.args["log_path"],
+                                                   read_only=True)
         # create plots of this detection step
         if self.args["seed_plot_output"] is not None:
             fig = processing_log.create_seeder_figure(

@@ -225,7 +225,8 @@ class FilterRunnerBase(argschema.ArgSchemaParser):
 
     def run(self):
         # get the ROIs to filter
-        processing_log = SegmentationProcessingLog(self.args["log_path"])
+        processing_log = SegmentationProcessingLog(self.args["log_path"],
+                                                   read_only=True)
         original_roi_list = processing_log.get_rois_from_group(
                 group_name=self.args["rois_group"])
         ophys_roi_list = ophys_roi_list_from_deserialized(original_roi_list)
@@ -246,6 +247,8 @@ class FilterRunnerBase(argschema.ArgSchemaParser):
                               self.args['pipeline_stage']))
 
         # log
+        processing_log = SegmentationProcessingLog(self.args["log_path"],
+                                                   read_only=False)
         processing_log.log_filter(rois=rois,
                                   filter_ids=invalid_ids,
                                   filter_reason=reason,

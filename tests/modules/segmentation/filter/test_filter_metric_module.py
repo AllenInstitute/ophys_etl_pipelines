@@ -12,7 +12,8 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
-    ophys_roi_to_extract_roi)
+    ophys_roi_to_extract_roi,
+    deserialize_extract_roi_list)
 
 from ophys_etl.modules.segmentation.filter.filter_utils import (
     mean_metric_from_roi,
@@ -20,6 +21,9 @@ from ophys_etl.modules.segmentation.filter.filter_utils import (
 
 from ophys_etl.modules.segmentation.modules.filter_metric_stat import (
     StatFilterRunner)
+
+from ophys_etl.modules.segmentation.processing_log import (
+    SegmentationProcessingLog)
 
 
 @pytest.fixture(scope='session')
@@ -90,6 +94,20 @@ def roi_list_fixture(tmpdir_factory, graph_fixture):
            'median_lookup': median_lookup}
 
 
+@pytest.fixture(scope='function')
+def processing_log_path_fixture(tmpdir, roi_list_fixture):
+    with open(roi_list_fixture['path'], 'rb') as in_file:
+        extract_roi_list = deserialize_extract_roi_list(
+                                in_file.read())
+
+    log_path = pathlib.Path(tmpdir) / 'roi_log_for_filter_test.h5'
+    log = SegmentationProcessingLog(log_path)
+    log.log_detection(attribute='dummy_metric',
+                      rois=extract_roi_list,
+                      group_name='detect')
+    yield log_path
+
+
 @pytest.mark.parametrize(
     'stat_name, use_min, use_max',
     [('mean', False, True),
@@ -98,7 +116,7 @@ def roi_list_fixture(tmpdir_factory, graph_fixture):
      ('median', False, True),
      ('median', True, False),
      ('median', True, True)])
-def test_stat_filter_runner(tmpdir,
+def test_stat_filter_runner(processing_log_path_fixture,
                             graph_fixture, roi_list_fixture,
                             stat_name, use_min, use_max):
 
@@ -114,13 +132,8 @@ def test_stat_filter_runner(tmpdir,
     else:
         max_val = None
 
-    tmpdir_path = pathlib.Path(tmpdir)
-    out_path = tmpdir_path/'output_rois.json'
-    log_path = tmpdir_path/'log.h5'
-    data = {'roi_input': str(roi_list_fixture['path']),
+    data = {'log_path': str(processing_log_path_fixture),
             'graph_input': str(graph_fixture),
-            'roi_output': str(out_path),
-            'roi_log_path': str(log_path),
             'pipeline_stage': 'just a test',
             'stat_name': stat_name,
             'attribute_name': 'dummy_metric',
@@ -129,8 +142,12 @@ def test_stat_filter_runner(tmpdir,
 
     runner = StatFilterRunner(input_data=data, args=[])
     runner.run()
-    assert out_path.is_file()
-    assert log_path.is_file()
+    with h5py.File(processing_log_path_fixture, 'r') as in_file:
+        assert 'filter' in in_file.keys()
+        filtered_rois = deserialize_extract_roi_list(
+                             in_file['filter/rois'][()])
+        log_invalid = set(in_file['filter/filter_ids'][()])
+        log_reason = np.unique(in_file['filter/filter_reason'][()])
 
     expected_valid = set()
     expected_invalid = set()
@@ -146,8 +163,7 @@ def test_stat_filter_runner(tmpdir,
             expected_invalid.add(roi_id)
     assert len(expected_valid) > 0
     assert len(expected_invalid) > 0
-    with open(out_path, 'rb') as in_file:
-        filtered_rois = json.load(in_file)
+
     actual_valid = set([roi['id'] for roi in filtered_rois
                         if roi['valid_roi']])
     actual_invalid = set([roi['id'] for roi in filtered_rois
@@ -155,11 +171,6 @@ def test_stat_filter_runner(tmpdir,
 
     assert actual_valid == expected_valid
     assert actual_invalid == expected_invalid
-
-    with h5py.File(log_path, 'r') as in_file:
-        qc_log = in_file['filter_log']
-        log_invalid = set(qc_log['invalid_roi_id'][()])
-        log_reason = np.unique(qc_log['reason'][()])
     assert log_invalid == expected_invalid
     assert len(log_reason) == 1
     assert f'{stat_name}'.encode('utf-8') in log_reason[0]

@@ -75,7 +75,8 @@ def test_read_only(tmpdir, extract_roi_list,
                                                     read_only=read_only)
     assert plog.read_only == read_only
 
-    # log_detection should be read only when asked
+    # log_detect should emit a warning and not create a step
+    # if SegmentationProcessingLog.read_only=True
     with context:
         plog.log_detection(attribute="attribute",
                            rois=extract_roi_list,
@@ -87,7 +88,8 @@ def test_read_only(tmpdir, extract_roi_list,
     else:
         assert plog.get_last_group() == "detect"
 
-    # log_merge should be read only when asked
+    # log_merge should emit a warning and not create a step
+    # if SegmentationProcessingLog.read_only=True
     with context:
         plog.log_merge(merger_ids=[],
                        rois=extract_roi_list,
@@ -97,7 +99,8 @@ def test_read_only(tmpdir, extract_roi_list,
     else:
         assert plog.get_last_group() == "merge"
 
-    # log_filter should be read only when asked
+    # log_filter should emit a warning and not create a step
+    # if SegmentationProcessingLog.read_only=True
     with context:
         plog.log_filter(filter_ids=[],
                         filter_reason="why not?",

@@ -1,5 +1,10 @@
 from typing import Tuple, Optional
 import numpy as np
+from itertools import product
+import multiprocessing
+import multiprocessing.managers
+from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
+    _winnow_process_list)
 
 
 def choose_timesteps(
@@ -174,3 +179,91 @@ def select_window_size(
             if c0 == 0 and c1 == image_data.shape[1]:
                 break
     return window
+
+
+def _quantile_image_from_video_worker(
+        video_data: np.ndarray,
+        quantile: float,
+        bounds: Tuple[Tuple[int, int], Tuple[int, int]],
+        output_dict: multiprocessing.managers.DictProxy) -> None:
+    """
+    Compute a quantile in each pixel of a video chunk
+
+    Parameters
+    ----------
+    video_data: np.ndarray
+
+    quantile: float
+
+    bounds: Tuple[Tuple[int, int], Tuple[int, int]]
+        Used for reconstituting entire array
+
+    output_dict: multiprocessing.managers.DictProxy
+
+    Returns
+    -------
+    None
+        Results are stored in output_dict, keyed on bounds
+    """
+    result = np.quantile(video_data, quantile, axis=0)
+    result = result.astype(float)
+    output_dict[bounds] = result
+
+
+def quantile_image_from_video(
+        video_data: np.ndarray,
+        quantile: float,
+        n_processors: int) -> np.ndarray:
+    """
+    Compute a quantile in each pixel of a video chunk
+
+    Parameters
+    ----------
+    video_data: np.ndarray
+
+    quantile: float
+
+    n_processors: int
+
+    Returns
+    -------
+    quantile_image: np.ndarray
+        A video_data.shape[1:] image that contains the specified
+        quantile of the video per pixel
+    """
+
+    divisor = np.round(np.sqrt(n_processors)).astype(int)
+    d_row = max(1, video_data.shape[1]//divisor)
+    d_col = max(1, video_data.shape[2]//divisor)
+
+    mgr = multiprocessing.Manager()
+    output_dict = mgr.dict()
+
+    process_list = []
+    for r0, c0 in product(range(0, video_data.shape[1], d_row),
+                          range(0, video_data.shape[2], d_col)):
+        r1 = min(video_data.shape[1], r0+d_row)
+        c1 = min(video_data.shape[2], c0+d_col)
+        bounds = ((r0, r1), (c0, c1))
+        p = multiprocessing.Process(
+                 target=_quantile_image_from_video_worker,
+                 args=(video_data[:, r0:r1, c0:c1],
+                       quantile,
+                       bounds,
+                       output_dict))
+        p.start()
+        process_list.append(p)
+        while len(process_list) > 0 and len(process_list) < (n_processors-1):
+            process_list = _winnow_process_list(process_list)
+    for p in process_list:
+        p.join()
+
+    quantile_image = np.zeros(video_data.shape[1:], dtype=float)
+    for bounds in output_dict:
+        r0 = bounds[0][0]
+        r1 = bounds[0][1]
+        c0 = bounds[1][0]
+        c1 = bounds[1][1]
+        quantile_image[r0:r1, c0:c1] = output_dict[bounds]
+
+    return quantile_image

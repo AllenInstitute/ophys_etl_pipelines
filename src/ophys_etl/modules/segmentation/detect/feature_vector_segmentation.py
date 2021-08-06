@@ -24,7 +24,8 @@ from ophys_etl.modules.segmentation.qc.seed import add_seeds_to_axes
 from ophys_etl.modules.segmentation.qc.detect import roi_metric_qc_plot
 from ophys_etl.modules.segmentation.detect.feature_vector_utils import (
     choose_timesteps,
-    select_window_size)
+    select_window_size,
+    quantile_image_from_video)
 
 import logging
 
@@ -484,12 +485,16 @@ class FeatureVectorSegmenter(object):
         i_iteration = 0
 
         if self._filter_fraction < 1.0:
-            video_mu_image = np.quantile(video_data,
-                                         1.0-self._filter_fraction,
-                                         axis=0).astype(float)
+            video_mu_image = quantile_image_from_video(
+                                  video_data,
+                                  1.0-self._filter_fraction,
+                                  self.n_processors)
         else:
             video_mu_image = np.mean(video_data,
                                      axis=0).astype(float)
+
+        logger.info('generated video_mu_image after '
+                    f'{time.time()-t0:.2f} seconds')
 
         while keep_going:
 

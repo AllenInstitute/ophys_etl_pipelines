@@ -9,6 +9,8 @@ import json
 import matplotlib
 import datetime
 
+from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
+    _winnow_process_list)
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     convert_to_lims_roi,
     serialize_extract_roi_list,
@@ -373,12 +375,8 @@ class FeatureVectorSegmenter(object):
             # make sure that all processors are working at all times,
             # if possible
             while len(p_list) > 0 and len(p_list) >= self.n_processors-1:
-                to_pop = []
-                for ii in range(len(p_list)-1, -1, -1):
-                    if p_list[ii].exitcode is not None:
-                        to_pop.append(ii)
-                for ii in to_pop:
-                    p_list.pop(ii)
+                p_list = _winnow_process_list(p_list)
+
         for p in p_list:
             p.join()
 

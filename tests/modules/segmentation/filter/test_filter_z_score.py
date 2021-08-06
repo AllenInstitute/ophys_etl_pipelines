@@ -1,4 +1,5 @@
 import pytest
+import h5py
 import numpy as np
 from itertools import product
 import pathlib
@@ -14,7 +15,8 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
-    background_mask_from_roi_list)
+    background_mask_from_roi_list,
+    deserialize_extract_roi_list)
 
 from ophys_etl.modules.segmentation.filter.filter_utils import (
     z_vs_background_from_roi)
@@ -24,6 +26,9 @@ from ophys_etl.modules.segmentation.filter.roi_filter import (
 
 from ophys_etl.modules.segmentation.modules.filter_z_score import (
     ZvsBackgroundFilterRunner)
+
+from ophys_etl.modules.segmentation.processing_log import (
+    SegmentationProcessingLog)
 
 
 @pytest.fixture(scope='session')
@@ -49,6 +54,19 @@ def roi_list_fixture(img_shape_fixture):
                        mask_matrix=mask)
         roi_list.append(roi)
     return roi_list
+
+
+@pytest.fixture(scope='function')
+def processing_log_path_fixture(tmpdir, roi_list_fixture):
+    extract_roi_list = [ophys_roi_to_extract_roi(roi)
+                        for roi in roi_list_fixture]
+
+    log_path = pathlib.Path(tmpdir) / 'roi_log_for_filter_test.h5'
+    log = SegmentationProcessingLog(log_path)
+    log.log_detection(attribute='dummy_metric',
+                      rois=extract_roi_list,
+                      group_name='detect')
+    yield log_path
 
 
 @pytest.fixture(scope='session')
@@ -155,14 +173,13 @@ def test_z_vs_background_filter(
 
 @pytest.mark.parametrize('cutoff', [0.0, 9.0, 24.0, 25.0])
 def test_z_vs_background_module(
-        tmpdir,
+        processing_log_path_fixture,
         roi_list_path_fixture,
         roi_list_fixture,
         graph_fixture,
         ground_truth_fixture,
         cutoff):
 
-    tmpdir_path = pathlib.Path(tmpdir)
     valid_roi_id = set()
     invalid_roi_id = set()
     for roi in roi_list_fixture:
@@ -171,15 +188,11 @@ def test_z_vs_background_module(
         else:
             valid_roi_id.add(roi.roi_id)
 
-    output_path = tmpdir_path/'output_rois.json'
-    log_path = tmpdir_path/'test_log.h5'
-    data = {'roi_input': str(roi_list_path_fixture),
-            'roi_output': str(output_path),
+    data = {'log_path': str(processing_log_path_fixture),
             'pipeline_stage': 'test filter',
             'graph_input': str(graph_fixture),
             'attribute_name': 'dummy',
             'min_z': cutoff,
-            'roi_log_path': str(log_path),
             'n_background_factor': 2,
             'n_background_minimum': 15}
 
@@ -187,10 +200,11 @@ def test_z_vs_background_module(
                    input_data=data,
                    args=[])
     runner.run()
-    assert output_path.is_file()
-    assert log_path.is_file()
-    with open(output_path, 'rb') as in_file:
-        results = json.load(in_file)
+
+    with h5py.File(processing_log_path_fixture, 'r') as in_file:
+        results = deserialize_extract_roi_list(
+                             in_file['filter/rois'][()])
+
     actual_valid = set([roi['id'] for roi in results
                         if roi['valid_roi']])
     actual_invalid = set([roi['id'] for roi in results

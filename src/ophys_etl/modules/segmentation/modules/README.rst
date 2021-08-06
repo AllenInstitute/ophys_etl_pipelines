@@ -12,6 +12,9 @@ dataset: "processing_steps"
 ***************************
 A list of 'utf-8' encoded strings that tracks the order of the steps (hdf5 groups) added to the processing log
 
+dataset: "detection_group"
+**************************
+A utf-8 encoded string indicating the group name for the detection step logged to this file. This is created once upon a call to SegmentationProcessingLog.log_detection() and additional calls to this method on the same file are rejected. This processing log supports one detection_group per file.
 
 group: "detect"
 ***************

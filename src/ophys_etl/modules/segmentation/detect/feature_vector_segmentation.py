@@ -5,9 +5,6 @@ import multiprocessing.managers
 import h5py
 import pathlib
 import time
-import json
-import matplotlib
-import datetime
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     convert_to_lims_roi)
@@ -15,9 +12,9 @@ from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
     PearsonFeatureROI)
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
 from ophys_etl.modules.segmentation.seed.seeder import \
-        BatchImageMetricSeeder
-from ophys_etl.modules.segmentation.qc.seed import add_seeds_to_axes
-from ophys_etl.modules.segmentation.qc.detect import roi_metric_qc_plot
+    BatchImageMetricSeeder
+from ophys_etl.modules.segmentation.processing_log import \
+    SegmentationProcessingLog
 
 import logging
 
@@ -370,8 +367,7 @@ class FeatureVectorSegmenter(object):
         return seed_list
 
     def run(self,
-            roi_output: pathlib.Path,
-            qc_output: pathlib.Path,
+            log_path: pathlib.Path,
             plot_output: Optional[pathlib.Path] = None,
             seed_plot_output: Optional[pathlib.Path] = None,
             ) -> None:
@@ -380,11 +376,8 @@ class FeatureVectorSegmenter(object):
 
         Parameters
         ----------
-        roi_output: pathlib.Path
-            Path to the JSON file where discovered ROIs will be recorded
-
-        qc_output: pathlib.Path
-            the path where the qc results will be written
+        log_path: pathlib.Path
+            the path where the processing results will be written
 
         plot_output: Optional[pathlib.Path]
             If not None, the path where a plot comparing the seed image
@@ -470,47 +463,31 @@ class FeatureVectorSegmenter(object):
 
         logger.info('finished iterating on ROIs')
 
-        # log seeder to hdf5 QC output
-        with h5py.File(qc_output, "a") as f:
-            self.seeder.log_to_h5_group(f)
-        logger.info(f'wrote seeding QC to {str(qc_output)}')
+        # log detection to hdf5 processing log
+        processing_log = SegmentationProcessingLog(path=log_path,
+                                                   read_only=False)
+        processing_log.log_detection(
+                attribute=self._attribute.encode("utf-8"),
+                rois=self.roi_list,
+                group_name="detect",
+                seeder=self.seeder,
+                seeder_group_name="seed")
+        logger.info(f'logged detection step to {str(log_path)}')
 
-        # log detection to hdf5 QC ouput
-        with h5py.File(qc_output, "a") as h5file:
-            if "detect" in list(h5file.keys()):
-                del h5file["detect"]
-            group = h5file.create_group("detect")
-            group.create_dataset(
-                    "group_creation_time",
-                    data=str(datetime.datetime.now()).encode("utf-8"))
-            group.create_dataset("metric_image", data=self._graph_img)
-            group.create_dataset("attribute",
-                                 data=self._attribute.encode("utf-8"))
-
-        # create a plot from the seeder QC output
+        processing_log = SegmentationProcessingLog(path=log_path,
+                                                   read_only=True)
+        # create plots of this detection step
         if seed_plot_output is not None:
-            fig = matplotlib.figure.Figure(figsize=(8, 8))
-            axes = fig.add_subplot(111)
-            with h5py.File(qc_output, "r") as f:
-                add_seeds_to_axes(fig, axes, seed_h5_group=f["seed"])
+            fig = processing_log.create_seeder_figure(
+                    group_keys=["detect", "seed"])
             fig.savefig(seed_plot_output, dpi=300)
             logger.info(f'wrote {seed_plot_output}')
 
-        logger.info(f'writing {str(roi_output)}')
-        with open(roi_output, 'w') as out_file:
-            out_file.write(json.dumps(self.roi_list, indent=2))
-
         if plot_output is not None:
-            # TODO: store ROIs in QC output hdf5
-            figure = matplotlib.figure.Figure(figsize=(15, 15))
-            with h5py.File(qc_output, "r") as f:
-                group = f["detect"]
-                roi_metric_qc_plot(
-                        figure=figure,
-                        metric_image=group["metric_image"][()],
-                        attribute=group["attribute"][()].decode("utf-8"),
-                        roi_list=self.roi_list)
-            figure.tight_layout()
+            figure = processing_log.create_roi_metric_figure(
+                    rois_group="detect",
+                    attribute_group="detect",
+                    metric_image_group=["detect", "seed"])
             figure.savefig(plot_output, dpi=300)
             logger.info(f'wrote {plot_output}')
 

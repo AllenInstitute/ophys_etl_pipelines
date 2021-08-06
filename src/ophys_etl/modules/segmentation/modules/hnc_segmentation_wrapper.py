@@ -1,9 +1,7 @@
 import argschema
 import h5py
-import json
 import networkx as nx
 from hnccorr import Movie
-from matplotlib.figure import Figure
 
 from ophys_etl.modules.segmentation.modules.schemas import \
         HNCSegmentationWrapperInputSchema
@@ -12,9 +10,9 @@ from ophys_etl.modules.segmentation.detect.hnc_segmentation_utils import (
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import \
         hnc_roi_to_extract_roi
 from ophys_etl.modules.segmentation.seed.seeder import ImageMetricSeeder
-from ophys_etl.modules.segmentation.qc.seed import add_seeds_to_axes
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
-from ophys_etl.modules.segmentation.qc_utils.roi_utils import create_roi_plot
+from ophys_etl.modules.segmentation.processing_log import \
+        SegmentationProcessingLog
 
 
 class HNCSegmentationWrapper(argschema.ArgSchemaParser):
@@ -27,7 +25,7 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
         seeder = ImageMetricSeeder(**self.args['seeder_args'])
         graph_img = graph_to_img(
                 nx.read_gpickle(self.args['graph_input']),
-                attribute_name=self.args["attribute_name"])
+                attribute_name=self.args["attribute"])
         seeder.select_seeds(graph_img, sigma=None)
         # define all the HNCcorr repo objects
         hnc_objects: HNCcorrSegmentationObjects = hnc_construct(
@@ -59,26 +57,34 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
         self.logger.setLevel(self.args["log_level"])
         self.logger.info("segmentation complete")
 
-        if self.args['seed_output'] is not None:
-            with h5py.File(self.args['seed_output'], "w") as f:
-                seeder.log_to_h5_group(f)
-            self.logger.info(f"wrote {self.args['seed_output']}")
+        # log detection to hdf5 processing log
+        processing_log = SegmentationProcessingLog(path=self.args["log_path"],
+                                                   read_only=False)
+        processing_log.log_detection(
+                attribute=self.args["attribute"].encode("utf-8"),
+                rois=rois,
+                group_name="detect",
+                seeder=seeder,
+                seeder_group_name="seed")
+        self.logger.info(
+            f'logged detection step to {str(self.args["log_path"])}')
 
-            if self.args['seed_plot_output'] is not None:
-                fig = Figure(figsize=(8, 8))
-                axes = fig.add_subplot(111)
-                with h5py.File(self.args['seed_output'], "r") as f:
-                    add_seeds_to_axes(fig, axes, seed_h5_group=f["seed"])
-                fig.savefig(self.args['seed_plot_output'], dpi=300)
-                self.logger.info(f"wrote {self.args['seed_plot_output']}")
+        processing_log = SegmentationProcessingLog(path=self.args["log_path"],
+                                                   read_only=True)
+        # create plots of this detection step
+        if self.args["seed_plot_output"] is not None:
+            fig = processing_log.create_seeder_figure(
+                    group_keys=["detect", "seed"])
+            fig.savefig(self.args["seed_plot_output"], dpi=300)
+            self.logger.info(f'wrote {self.args["seed_plot_output"]}')
 
-        self.logger.info(f"writing {self.args['roi_output']}")
-        with open(self.args['roi_output'], 'w') as out_file:
-            out_file.write(json.dumps(rois, indent=2))
-
-        if self.args['plot_output'] is not None:
-            create_roi_plot(self.args['plot_output'], graph_img, rois)
-            self.logger.info(f"wrote {self.args['plot_output']}")
+        if self.args["plot_output"] is not None:
+            figure = processing_log.create_roi_metric_figure(
+                    rois_group="detect",
+                    attribute_group="detect",
+                    metric_image_group=["detect", "seed"])
+            figure.savefig(self.args["plot_output"], dpi=300)
+            self.logger.info(f'wrote {self.args["plot_output"]}')
 
 
 if __name__ == "__main__":

@@ -1,15 +1,14 @@
 import pytest
+from pathlib import Path
 
-import pathlib
 import numpy as np
-import json
 
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
-
-from ophys_etl.modules.segmentation.detect.feature_vector_segmentation import (
-        FeatureVectorSegmenter,
-        _is_roi_at_edge)
+from ophys_etl.modules.segmentation.detect.feature_vector_segmentation \
+    import (FeatureVectorSegmenter, _is_roi_at_edge)
+from ophys_etl.modules.segmentation.processing_log import \
+    SegmentationProcessingLog
 
 
 @pytest.fixture
@@ -65,45 +64,37 @@ def test_segmenter(tmpdir, example_graph, example_video, seeder_args):
                                        n_processors=1,
                                        seeder_args=seeder_args)
 
-    dir_path = pathlib.Path(tmpdir)
-    roi_path = dir_path / 'roi.json'
-    qc_path = dir_path / 'qc.h5'
-    plot_path = dir_path / 'plot.png'
-    assert not roi_path.exists()
-    assert not qc_path.exists()
+    log_path = Path(tmpdir / 'processing_log.h5')
+    plot_path = Path(tmpdir / 'plot.png')
+    assert not log_path.exists()
     assert not plot_path.exists()
 
-    segmenter.run(roi_output=roi_path,
-                  qc_output=qc_path,
+    segmenter.run(log_path=log_path,
                   plot_output=plot_path)
 
-    assert roi_path.is_file()
-    assert qc_path.is_file()
+    assert log_path.is_file()
     assert plot_path.is_file()
 
     # check that all ROIs are marked as valid
-    with open(roi_path, 'rb') as in_file:
-        roi_data = json.load(in_file)
+    processing_log = SegmentationProcessingLog(log_path, read_only=True)
+    roi_data = processing_log.get_rois_from_group(
+            processing_log.get_last_group())
     assert len(roi_data) > 0
     for roi in roi_data:
         assert roi['valid']
 
     # test that it can handle not receiving a
-    # qc_path or plot_path
-    roi_path.unlink()
-    qc_path.unlink()
+    # log_path or plot_path
+    log_path.unlink()
     plot_path.unlink()
 
-    assert not roi_path.exists()
-    assert not qc_path.exists()
+    assert not log_path.exists()
     assert not plot_path.exists()
 
-    segmenter.run(roi_output=roi_path,
-                  qc_output=qc_path,
+    segmenter.run(log_path=log_path,
                   plot_output=None)
 
-    assert roi_path.is_file()
-    assert qc_path.exists()
+    assert log_path.exists()
     assert not plot_path.exists()
 
     # Not going to re-do the check on the contents
@@ -126,11 +117,8 @@ def test_segmenter_blank(tmpdir, blank_graph, blank_video, seeder_args):
                                        filter_fraction=0.2,
                                        n_processors=1,
                                        seeder_args=seeder_args)
-    dir_path = pathlib.Path(tmpdir)
-    roi_path = dir_path / 'roi.json'
-    qc_path = tmpdir / "qc.h5"
-    segmenter.run(roi_output=roi_path,
-                  qc_output=qc_path)
+    log_path = tmpdir / "processing_log.h5"
+    segmenter.run(log_path=log_path)
 
 
 def test_is_roi_at_edge():

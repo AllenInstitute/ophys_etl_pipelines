@@ -1,30 +1,18 @@
+import h5py
 import argschema
-from marshmallow import post_load
+from marshmallow import post_load, ValidationError
+
+from ophys_etl.schemas.fields import InputOutputFile
+from ophys_etl.modules.segmentation.processing_log import \
+    SegmentationProcessingLog
 
 
 class FilterBaseSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
 
-    roi_input = argschema.fields.InputFile(
+    log_path = InputOutputFile(
             required=True,
-            default=None,
-            allow_none=False,
-            description=("Path to the JSON file containing the ROIs "
-                         "to be filtered"))
-
-    roi_output = argschema.fields.OutputFile(
-            required=True,
-            default=None,
-            allow_none=False,
-            description=("Path to the JSON file where the filtered ROIs "
-                         "will be written"))
-
-    roi_log_path = argschema.fields.OutputFile(
-            required=True,
-            default=None,
-            allow_none=False,
-            description=("Path to HDF5 file where a record of why "
-                         "ROIs were flagged as invalid will be kept"))
+            description="Path to HDF5 log for input/output ")
 
     pipeline_stage = argschema.fields.String(
             required=True,
@@ -37,6 +25,25 @@ class FilterBaseSchema(argschema.ArgSchema):
                          "between, e.g., filtering that happens between "
                          "growth and merging and filtering that happens "
                          "after merging"))
+
+    rois_group = argschema.fields.String(
+        required=False,
+        default=None,
+        allow_none=True,
+        description=("name of hdf5 group from which to take the ROIs to "
+                     "merge. If not provided, will take the last group."))
+
+    @post_load
+    def check_for_rois(self, data, **kwargs):
+        qcfile = SegmentationProcessingLog(data["log_path"], read_only=True)
+        if data["rois_group"] is None:
+            data["rois_group"] = qcfile.get_last_group()
+        with h5py.File(qcfile.path, "r") as f:
+            if "rois" not in f[data["rois_group"]]:
+                raise ValidationError(f"group {data['rois_group']} does not "
+                                      "have dataset 'rois' in file "
+                                      f"{data['log_path']}")
+        return data
 
 
 class AreaFilterSchema(FilterBaseSchema):

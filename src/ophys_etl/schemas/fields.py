@@ -3,6 +3,12 @@ import h5py
 import argschema
 
 
+class InputOutputFile(fields.Str):
+    def _validate(self, value):
+        argschema.fields.InputFile()._validate(value)
+        argschema.fields.OutputFile()._validate(value)
+
+
 class ExistingFile(argschema.fields.InputFile):
     pass
 

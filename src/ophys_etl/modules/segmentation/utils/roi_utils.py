@@ -2,11 +2,80 @@ from typing import List, Dict, Tuple
 import numpy as np
 import pathlib
 import json
+import copy
 from skimage.measure import label as skimage_label
 from scipy.spatial.distance import cdist
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
+
+
+def check_matching_extract_roi_lists(listA: List[ExtractROI],
+                                     listB: List[ExtractROI]) -> None:
+    """check that 2 lists of ROIs are the same, order independent
+
+    Parameters
+    ----------
+    listA: List[ExtractROI]
+        first list of ROIs
+    listB: List[ExtractROI]
+        second list of ROIs
+
+    Raises
+    ------
+    AssertionError if the lists do not match
+
+    """
+    # list of IDs match
+    idsA = {i["id"] for i in listA}
+    idsB = {i["id"] for i in listB}
+    assert idsA == idsB, ("ids in ROI lists do not match. "
+                          f"{idsA - idsB} in first list but not second list. "
+                          f"{idsB - idsA} in second list but not first list. ")
+
+    # ROIs match
+    lookupA = {i["id"]: i for i in listA}
+    lookupB = {i["id"]: i for i in listB}
+    for idkey, roi in lookupA.items():
+        assert roi == lookupB[idkey], (f"roi with ID {idkey} does not match "
+                                       "between the 2 lists.")
+
+
+def serialize_extract_roi_list(rois: List[ExtractROI]) -> bytes:
+    """converts a list of ROIs to bytes that can be stored
+    in an hdf5 dataset.
+
+    Parameters
+    ----------
+    rois: List[ExtractROI]
+        the list of ROI dictionaries
+
+    Returns
+    -------
+    serialized: bytes
+        the serialized representation
+
+    """
+    serialized = json.dumps(rois).encode("utf-8")
+    return serialized
+
+
+def deserialize_extract_roi_list(serialized: bytes) -> List[ExtractROI]:
+    """deserializes bytest into a list of ROIs
+
+    Parameters
+    ----------
+    serialized: bytes
+        the serialized representation
+
+    Returns
+    -------
+    rois: List[ExtractROI]
+        the list of ROI dictionaries
+
+    """
+    rois = json.loads(serialized.decode("utf-8"))
+    return rois
 
 
 def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:
@@ -292,7 +361,8 @@ def convert_roi_keys(roi_list: List[Dict]) -> List[Dict]:
     key names expected by OphysROI
     """
     new_list = []
-    for roi in roi_list:
+    for old_roi in roi_list:
+        roi = copy.deepcopy(old_roi)
         if "valid" in roi:
             roi["valid_roi"] = roi.pop("valid")
         if "mask" in roi:
@@ -301,7 +371,31 @@ def convert_roi_keys(roi_list: List[Dict]) -> List[Dict]:
     return new_list
 
 
-def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
+def ophys_roi_list_from_deserialized(
+        rois: List[ExtractROI]) -> List[OphysROI]:
+    """Convert a deserialized ExtractROI list to a list
+    of OphysROI objects.
+
+    Parameters
+    ----------
+    rois: List[ExtractROI]
+        list of ExtractROI
+
+    Returns
+    -------
+    output_list: List[OphysROI]
+        converted list of OphysROI
+
+    """
+    roi_data_list = convert_roi_keys(rois)
+    output_list = []
+    for roi_data in roi_data_list:
+        roi = OphysROI.from_schema_dict(roi_data)
+        output_list.append(roi)
+    return output_list
+
+
+def ophys_roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
     """
     Read in a JSONized file of ExtractROIs; return a list of
     OphysROIs
@@ -313,14 +407,11 @@ def roi_list_from_file(file_path: pathlib.Path) -> List[OphysROI]:
     Returns
     -------
     List[OphysROI]
+
     """
-    output_list = []
     with open(file_path, 'rb') as in_file:
         roi_data_list = json.load(in_file)
-        roi_data_list = convert_roi_keys(roi_data_list)
-        for roi_data in roi_data_list:
-            roi = OphysROI.from_schema_dict(roi_data)
-            output_list.append(roi)
+    output_list = ophys_roi_list_from_deserialized(roi_data_list)
     return output_list
 
 

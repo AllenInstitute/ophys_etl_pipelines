@@ -73,47 +73,36 @@ def test_area_roi_filter(roi_dict, min_area, max_area, expected_valid):
 
 def test_area_filter_schema(tmpdir):
     area_schema = AreaFilterSchema()
-    log_file_path = pathlib.Path(tmpdir)/'dummy_log.h5'
-    input_json = str(pathlib.Path(tmpdir)/'input.json')
-    output_json = str(pathlib.Path(tmpdir)/'output.json')
-    with open(input_json, 'w') as out_file:
-        out_file.write('hi there')
+    log_file_path = pathlib.Path(tmpdir) / 'dummy_log.h5'
+    with h5py.File(log_file_path, "w") as f:
+        group = f.create_group("last_group")
+        group.create_dataset("rois", data=[])
+        f.create_dataset("processing_steps",
+                         data=["last_group".encode("utf-8")])
 
-    valid_schema = {'roi_log_path': str(log_file_path.absolute()),
+    valid_schema = {'log_path': str(log_file_path.absolute()),
                     'pipeline_stage': 'something',
-                    'roi_input': input_json,
-                    'roi_output': output_json,
                     'max_area': 5,
                     'min_area': 3}
-
     area_schema.load(valid_schema)
 
-    valid_schema = {'roi_log_path': str(log_file_path.absolute()),
+    valid_schema = {'log_path': str(log_file_path.absolute()),
                     'pipeline_stage': 'something',
-                    'roi_input': input_json,
-                    'roi_output': output_json,
                     'max_area': 5,
                     'min_area': None}
-
     area_schema.load(valid_schema)
 
-    valid_schema = {'roi_log_path': str(log_file_path.absolute()),
+    valid_schema = {'log_path': str(log_file_path.absolute()),
                     'pipeline_stage': 'something',
-                    'roi_input': input_json,
-                    'roi_output': output_json,
                     'max_area': None,
                     'min_area': 2}
-
     area_schema.load(valid_schema)
 
     with pytest.raises(RuntimeError, match='are both None'):
-        invalid_schema = {'roi_log_path': str(log_file_path.absolute()),
+        invalid_schema = {'log_path': str(log_file_path.absolute()),
                           'pipeline_stage': 'something',
-                          'roi_input': input_json,
-                          'roi_output': output_json,
                           'max_area': None,
                           'min_area': None}
-
         area_schema.load(invalid_schema)
 
 

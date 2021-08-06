@@ -9,7 +9,7 @@ import networkx
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
-    roi_list_from_file,
+    ophys_roi_list_from_file,
     do_rois_abut)
 
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
@@ -207,7 +207,7 @@ def create_roi_v_background_grid(
     roi_lists = []
     roi_color_maps = []
     for this_roi_paths in roi_paths:
-        roi = roi_list_from_file(this_roi_paths)
+        roi = ophys_roi_list_from_file(this_roi_paths)
         color_map = get_roi_color_map(roi)
         roi_color_maps.append(color_map)
         roi_lists.append(roi)

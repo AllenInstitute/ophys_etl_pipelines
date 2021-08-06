@@ -1,5 +1,3 @@
-import h5py
-import datetime
 import numpy as np
 from typing import Tuple, Optional, List, Set
 from collections.abc import Iterator
@@ -217,19 +215,22 @@ class ImageMetricSeeder(SeederBase):
             self._excluded_seeds[i]["exclusion_reason"] = \
                     "excluded by fraction"
 
-    def log_to_h5_group(self,
-                        h5file: h5py.File,
-                        group_name: str = "seed"):
-        """records some attributes of this seeder to an hdf5 group for
-        inspection purposes.
+    def get_logged_values(
+            self
+            ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        """provides some attributes for logging
 
-        Parameters
+        Returns
         ----------
-        h5file: h5py.File
-            an h5py.File object which has been opened in a writable mode
-        group_name: str
-            the name of the group to which this object's logged attrbiutes
-            will be inserted
+        provided_seeds: np.ndarray
+            n_seeds x 2 array of (row, col) values of provided seeds
+        excluded_seeds: np.ndarray
+            n_seeds x 2 array of (row, col) values of provided seeds
+        exclusion_reason: np.ndarray
+            n_seeds (same length as excluded_seeds) list of reasons for
+            exclusion
+        seed_image: np.ndarray
+            nrow x ncol image containing the metric used for seeding
 
         """
         # collect any candidates not even considered (perhaps a segmenter
@@ -238,28 +239,17 @@ class ImageMetricSeeder(SeederBase):
             seed["exclusion_reason"] = "never considered"
             self._excluded_seeds.append(seed)
 
-        if group_name in list(h5file.keys()):
-            del h5file[group_name]
+        provided_seeds = np.array([i['coordinates']
+                                   for i in self._provided_seeds])
+        excluded_seeds = np.array([i['coordinates']
+                                   for i in self._excluded_seeds])
+        exclusion_reason = np.array([i['exclusion_reason'].encode("utf-8")
+                                     for i in self._excluded_seeds])
 
-        group = h5file.create_group(group_name)
-        group.create_dataset(
-                "group_creation_time",
-                data=str(datetime.datetime.now()).encode("utf-8"))
-        group.create_dataset(
-                "provided_seeds",
-                data=np.array([i['coordinates']
-                               for i in self._provided_seeds]))
-        group.create_dataset(
-                "excluded_seeds",
-                data=np.array([i['coordinates']
-                               for i in self._excluded_seeds]))
-        group.create_dataset(
-                "exclusion_reason",
-                data=np.array([i['exclusion_reason'].encode("utf-8")
-                               for i in self._excluded_seeds]))
-        group.create_dataset(
-                "seed_image",
-                data=self._seed_image)
+        return (provided_seeds,
+                excluded_seeds,
+                exclusion_reason,
+                self._seed_image)
 
 
 class BatchImageMetricSeeder(ImageMetricSeeder):

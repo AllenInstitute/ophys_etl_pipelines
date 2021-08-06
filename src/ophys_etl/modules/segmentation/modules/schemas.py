@@ -1,5 +1,6 @@
 import h5py
 import argschema
+import warnings
 import numpy as np
 from pathlib import Path
 from marshmallow import pre_load, post_load, ValidationError
@@ -244,70 +245,83 @@ class SimpleDenoiseInputSchema(argschema.ArgSchema, DenoiseBaseSchema):
                      "1, multiprocessing is not invoked."))
 
 
-class FeatureVectorSegmentationInputSchema(argschema.ArgSchema):
+class SharedSegmentationInputSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
-
-    seeder_args = argschema.fields.Nested(
-        BatchImageMetricSeederSchema,
-        default={})
-
+    graph_input = argschema.fields.InputFile(
+        required=True,
+        description=("path to graph used to seed ROIS"))
+    attribute = argschema.fields.Str(
+        required=False,
+        default='filtered_hnc_Gaussian',
+        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
+                        "filtered_hnc_Gaussian"]),
+        description="which graph edge attribute to use to create image.")
     video_input = argschema.fields.InputFile(
         required=False,
         description=("path to hdf5 video with movie stored "
                      "in dataset 'data' nframes x nrow x ncol"))
-
-    graph_input = argschema.fields.InputFile(
-        required=False,
-        description=("path to graph used to seed ROIS"))
-
-    attribute = argschema.fields.Str(
-        required=False,
-        default="Pearson",
-        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
-                        "filtered_hnc_Gaussian"]),
-        description="which attribute to use in image")
-
     plot_output = argschema.fields.OutputFile(
         required=False,
         default=None,
         allow_none=True,
         description="path to summary plot of segmentation")
-
     log_path = argschema.fields.OutputFile(
         required=True,
         default=None,
         description=("path to hdf5 log output"))
-
+    overwrite_log = argschema.fields.Boolean(
+        required=False,
+        default=False,
+        description=("if set to True, an existing file specified by "
+                     "'log_path' will be deleted before processing starts."))
     seed_plot_output = argschema.fields.OutputFile(
         required=False,
         default=None,
         allow_none=True,
         description=("path to plot of seeding summary."))
 
-    n_parallel_workers = argschema.fields.Int(
-        required=False,
-        default=1,
-        description=("how many multiprocessing workers to use."))
-
-    roi_class = argschema.fields.Str(
-        required=False,
-        default="PearsonFeatureROI",
-        validate=OneOf(["PearsonFeatureROI", "PCAFeatureROI"]),
-        description="which class to use.")
-
-    filter_fraction = argschema.fields.Float(
-        required=False,
-        default=0.2,
-        description="fraction of timesteps to use in time correlation")
+    @post_load
+    def check_log_overwrite(self, data, **kwargs):
+        log_path = Path(data['log_path'])
+        if log_path.exists():
+            if data['overwrite_log']:
+                warnings.warn(f"deleting contents of {log_path}")
+                log_path.unlink()
+            else:
+                raise ValidationError(f"{log_path} already exists "
+                                      "and 'overwrite_log' is set to False. "
+                                      "Specify a different and non-existing "
+                                      "'log_path' or ser 'overwrite_log' to "
+                                      "True")
+        return data
 
     @post_load
     def plot_outputs(self, data, **kwargs):
         if data['seed_plot_output'] is None:
             if data['plot_output'] is not None:
                 plot_path = Path(data['plot_output'])
-            data['seed_plot_output'] = str(
+                data['seed_plot_output'] = str(
                     plot_path.parent / f"{plot_path.stem}_seeds.png")
         return data
+
+
+class FeatureVectorSegmentationInputSchema(SharedSegmentationInputSchema):
+    seeder_args = argschema.fields.Nested(
+        BatchImageMetricSeederSchema,
+        default={})
+    n_parallel_workers = argschema.fields.Int(
+        required=False,
+        default=1,
+        description=("how many multiprocessing workers to use."))
+    roi_class = argschema.fields.Str(
+        required=False,
+        default="PearsonFeatureROI",
+        validate=OneOf(["PearsonFeatureROI", "PCAFeatureROI"]),
+        description="which class to use.")
+    filter_fraction = argschema.fields.Float(
+        required=False,
+        default=0.2,
+        description="fraction of timesteps to use in time correlation")
 
 
 class HNC_args(argschema.schemas.DefaultSchema):
@@ -351,43 +365,16 @@ class HNC_args(argschema.schemas.DefaultSchema):
                      "computation."))
 
 
-class HNCSegmentationWrapperInputSchema(argschema.ArgSchema):
+class HNCSegmentationWrapperInputSchema(SharedSegmentationInputSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
-    log_path = argschema.fields.OutputFile(
-        required=True,
-        description=("path to hdf5 log input/output. ROIs will be read "
-                     "from this file, specified by parameter 'rois_group'"))
-    video_input = argschema.fields.InputFile(
-        required=False,
-        description=("path to hdf5 video with movie stored "
-                     "in dataset 'data' nframes x nrow x ncol"))
-    graph_input = argschema.fields.InputFile(
-        required=True,
-        description=("path to graph used to seed ROIS"))
-    attribute_name = argschema.fields.Str(
-        required=False,
-        default='filtered_hnc_Gaussian',
-        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
-                        "filtered_hnc_Gaussian"]),
-        description="which graph edge attribute to use to create image.")
+    seeder_args = argschema.fields.Nested(
+        ImageMetricSeederSchema,
+        default={})
     experiment_name = argschema.fields.Str(
         required=False,
         default="movie_name",
         description="passed to HNCcorr.Movie as 'name'")
-    seeder_args = argschema.fields.Nested(
-        ImageMetricSeederSchema,
-        default={})
     hnc_args = argschema.fields.Nested(HNC_args, default={})
-    plot_output = argschema.fields.OutputFile(
-        required=False,
-        default=None,
-        allow_none=True,
-        description="path to summary plot of segmentation")
-    seed_plot_output = argschema.fields.OutputFile(
-        required=False,
-        default=None,
-        allow_none=True,
-        description=("path to plot of seeding summary."))
 
 
 class RoiMergerSchema(argschema.ArgSchema):

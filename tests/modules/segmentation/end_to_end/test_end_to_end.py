@@ -209,7 +209,7 @@ def test_edge_hnc_filter_merge(tmpdir, synthetic_video_path):
             'graph_input': str(graph_path),
             'log_path': str(log_path),
             'plot_output': str(roi_plot_path),
-            'attribute_name': 'filtered_hnc_Gaussian',
+            'attribute': 'filtered_hnc_Gaussian',
             'experiment_name': 'test',
             'seeder_args': {'keep_fraction': 0.05},
             'hnc_args': {'postprocessor_min_cell_size': 4,

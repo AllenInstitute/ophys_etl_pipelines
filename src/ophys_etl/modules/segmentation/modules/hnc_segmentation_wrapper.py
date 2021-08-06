@@ -25,7 +25,7 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
         seeder = ImageMetricSeeder(**self.args['seeder_args'])
         graph_img = graph_to_img(
                 nx.read_gpickle(self.args['graph_input']),
-                attribute_name=self.args["attribute_name"])
+                attribute_name=self.args["attribute"])
         seeder.select_seeds(graph_img, sigma=None)
         # define all the HNCcorr repo objects
         hnc_objects: HNCcorrSegmentationObjects = hnc_construct(
@@ -61,7 +61,7 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
         processing_log = SegmentationProcessingLog(path=self.args["log_path"],
                                                    read_only=False)
         processing_log.log_detection(
-                attribute=self.args["attribute_name"].encode("utf-8"),
+                attribute=self.args["attribute"].encode("utf-8"),
                 rois=rois,
                 group_name="detect",
                 seeder=seeder,

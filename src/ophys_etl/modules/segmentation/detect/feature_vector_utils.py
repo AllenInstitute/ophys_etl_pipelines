@@ -253,7 +253,7 @@ def quantile_image_from_video(
                        output_dict))
         p.start()
         process_list.append(p)
-        while len(process_list) > 0 and len(process_list) < (n_processors-1):
+        while len(process_list) > 0 and len(process_list) >= (n_processors-1):
             process_list = _winnow_process_list(process_list)
     for p in process_list:
         p.join()

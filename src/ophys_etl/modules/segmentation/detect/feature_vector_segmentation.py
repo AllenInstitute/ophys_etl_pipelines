@@ -469,10 +469,9 @@ class FeatureVectorSegmenter(object):
         processing_log.log_detection(
                 attribute=self._attribute.encode("utf-8"),
                 rois=self.roi_list,
-                group_name="detect")
-        processing_log.log_seeder(seeder=self.seeder,
-                                  parent_group="detect",
-                                  group_name="seed")
+                group_name="detect",
+                seeder=self.seeder,
+                seeder_group_name="seed")
         logger.info(f'logged detection step to {str(log_path)}')
 
         processing_log = SegmentationProcessingLog(path=log_path,

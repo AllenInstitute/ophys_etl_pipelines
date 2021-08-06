@@ -6,6 +6,7 @@ import numpy as np
 
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation import processing_log
+from ophys_etl.modules.segmentation.seed.seeder import ImageMetricSeeder
 
 
 @pytest.fixture
@@ -37,6 +38,14 @@ def extract_roi_list():
     return roi_list
 
 
+@pytest.fixture
+def seeder_fixture():
+    # minimal seeder to satisfy logging
+    seeder = ImageMetricSeeder()
+    seeder._seed_image = np.zeros((10, 10))
+    return seeder
+
+
 def test_timestamp(tmpdir):
     h5path = tmpdir / "test.h5"
     with h5py.File(h5path, "w") as f:
@@ -56,7 +65,8 @@ def test_timestamp(tmpdir):
                 UserWarning, match=r".*can not be invoked.*")),
             (False, contextlib.nullcontext())
             ])
-def test_read_only(tmpdir, extract_roi_list, read_only, context):
+def test_read_only(tmpdir, extract_roi_list,
+                   seeder_fixture, read_only, context):
     """tests that write methods emit a warning and don't write
     when read_only=False
     """
@@ -69,7 +79,9 @@ def test_read_only(tmpdir, extract_roi_list, read_only, context):
     with context:
         plog.log_detection(attribute="attribute",
                            rois=extract_roi_list,
-                           group_name="detect")
+                           group_name="detect",
+                           seeder=seeder_fixture,
+                           seeder_group_name="seed")
     if read_only:
         assert "processing_steps" not in plog.__dict__
     else:

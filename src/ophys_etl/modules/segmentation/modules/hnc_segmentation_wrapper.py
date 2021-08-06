@@ -63,10 +63,9 @@ class HNCSegmentationWrapper(argschema.ArgSchemaParser):
         processing_log.log_detection(
                 attribute=self.args["attribute_name"].encode("utf-8"),
                 rois=rois,
-                group_name="detect")
-        processing_log.log_seeder(seeder=seeder,
-                                  parent_group="detect",
-                                  group_name="seed")
+                group_name="detect",
+                seeder=seeder,
+                seeder_group_name="seed")
         self.logger.info(
             f'logged detection step to {str(self.args["log_path"])}')
 

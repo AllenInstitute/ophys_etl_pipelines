@@ -91,7 +91,10 @@ class SegmentationProcessingLog:
     def log_detection(self,
                       attribute: str,
                       rois: List[ExtractROI],
-                      group_name: str = "detect") -> None:
+                      seeder: ImageMetricSeeder,
+                      group_name: str = "detect",
+                      seeder_group_name: str = "seed",
+                      ) -> None:
         """log the detection phase of segmentation to a file
 
         Parameters
@@ -119,6 +122,10 @@ class SegmentationProcessingLog:
                                  data=roi_utils.serialize_extract_roi_list(
                                      rois))
             timestamp_group(group)
+
+        self._log_seeder(seeder=seeder,
+                         parent_group=group_name,
+                         group_name=seeder_group_name)
 
     @read_only_decorator
     def log_merge(self,
@@ -181,10 +188,10 @@ class SegmentationProcessingLog:
             timestamp_group(group)
 
     @read_only_decorator
-    def log_seeder(self,
-                   seeder: ImageMetricSeeder,
-                   parent_group: str = "detect",
-                   group_name: str = "seed") -> None:
+    def _log_seeder(self,
+                    seeder: ImageMetricSeeder,
+                    parent_group: str = "detect",
+                    group_name: str = "seed") -> None:
         """log seeder information to a new subgroup, usually a subgroup
         of 'detect' group
 

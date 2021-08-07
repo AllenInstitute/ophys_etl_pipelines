@@ -56,6 +56,14 @@ def roi_list_fixture(img_shape_fixture):
     return roi_list
 
 
+@pytest.fixture
+def seeder_fixture():
+    # minimal seeder to satisfy logging
+    seeder = ImageMetricSeeder()
+    seeder._seed_image = np.zeros((10, 10))
+    return seeder
+
+
 @pytest.fixture(scope='function')
 def processing_log_path_fixture(tmpdir, roi_list_fixture, seeder_fixture):
     extract_roi_list = [ophys_roi_to_extract_roi(roi)

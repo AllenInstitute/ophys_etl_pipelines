@@ -92,7 +92,7 @@ def test_z_vs_background_from_roi(clip_quantile):
                   n_desired_background=100)
 
     with pytest.raises(RuntimeError, match='\\[0.0, 1.0\\)'):
-            z_vs_background_from_roi(
+        z_vs_background_from_roi(
                   roi,
                   img,
                   np.ones((10, 10), dtype=bool),
@@ -100,7 +100,7 @@ def test_z_vs_background_from_roi(clip_quantile):
                   n_desired_background=100)
 
     with pytest.raises(RuntimeError, match='\\[0.0, 1.0\\)'):
-            z_vs_background_from_roi(
+        z_vs_background_from_roi(
                   roi,
                   img,
                   np.ones((10, 10), dtype=bool),

@@ -176,3 +176,4 @@ class ZvsBackgroundSchema(MetricBaseSchema):
             msg = "clip_quantile must be in [0.0, 1.0); "
             msg += f"you gave {data['clip_quantile']: .2e}"
             raise ValidationError(msg)
+        return data

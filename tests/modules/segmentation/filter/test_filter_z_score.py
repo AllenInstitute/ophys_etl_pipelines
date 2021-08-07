@@ -164,7 +164,8 @@ def test_z_vs_background_filter(
                      img_fixture,
                      cutoff,
                      2,
-                     15)
+                     15,
+                     0.25)
     results = this_filter.do_filtering(roi_list_fixture)
 
     actual_valid = set([r.roi_id for r in results['valid_roi']])

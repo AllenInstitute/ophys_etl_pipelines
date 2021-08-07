@@ -30,6 +30,8 @@ from ophys_etl.modules.segmentation.modules.filter_z_score import (
 from ophys_etl.modules.segmentation.processing_log import (
     SegmentationProcessingLog)
 
+from ophys_etl.modules.segmentation.seed.seeder import ImageMetricSeeder
+
 
 @pytest.fixture(scope='session')
 def img_shape_fixture():

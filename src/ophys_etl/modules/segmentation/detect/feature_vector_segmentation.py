@@ -15,8 +15,6 @@ from ophys_etl.modules.segmentation.seed.seeder import \
     BatchImageMetricSeeder
 from ophys_etl.modules.segmentation.processing_log import \
     SegmentationProcessingLog
-from ophys_etl.modules.segmentation.qc.seed import add_seeds_to_axes
-from ophys_etl.modules.segmentation.qc.detect import roi_metric_qc_plot
 from ophys_etl.modules.segmentation.detect.feature_vector_utils import (
     choose_timesteps,
     select_window_size)

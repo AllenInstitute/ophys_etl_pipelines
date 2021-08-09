@@ -10,7 +10,6 @@ from ophys_etl.modules.segmentation.utils.roi_utils import \
     ophys_roi_to_extract_roi
 from ophys_etl.modules.segmentation.processing_log import \
     SegmentationProcessingLog
-from ophys_etl.modules.segmentation.seed.seeder import ImageMetricSeeder
 
 
 def compare_rois(roi0: OphysROI,
@@ -44,14 +43,6 @@ def compare_rois(roi0: OphysROI,
         return False
 
     return True
-
-
-@pytest.fixture
-def seeder_fixture():
-    # minimal seeder to satisfy logging
-    seeder = ImageMetricSeeder()
-    seeder._seed_image = np.zeros((10, 10))
-    return seeder
 
 
 @pytest.fixture

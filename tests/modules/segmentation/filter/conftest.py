@@ -8,6 +8,16 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     ophys_roi_to_extract_roi)
 
+from ophys_etl.modules.segmentation.seed.seeder import ImageMetricSeeder
+
+
+@pytest.fixture
+def seeder_fixture():
+    # minimal seeder to satisfy logging
+    seeder = ImageMetricSeeder()
+    seeder._seed_image = np.zeros((10, 10))
+    return seeder
+
 
 @pytest.fixture(scope='session')
 def roi_dict():

@@ -209,9 +209,9 @@ def test_z_vs_background_module(
                              in_file['filter/rois'][()])
 
     actual_valid = set([roi['id'] for roi in results
-                        if roi['valid_roi']])
+                        if roi['valid']])
     actual_invalid = set([roi['id'] for roi in results
-                          if not roi['valid_roi']])
+                          if not roi['valid']])
 
     assert actual_valid == valid_roi_id
     assert actual_invalid == invalid_roi_id

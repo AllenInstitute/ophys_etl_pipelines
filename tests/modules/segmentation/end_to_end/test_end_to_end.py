@@ -149,7 +149,7 @@ def test_edge_fvs_filter_merge(tmpdir, synthetic_video_path, roi_class):
 
     n_valid_filtered_roi = 0
     for roi in filtered_rois:
-        if roi['valid_roi']:
+        if roi['valid']:
             n_valid_filtered_roi += 1
     assert n_valid_filtered_roi > 0
     assert n_valid_filtered_roi < n_raw_roi
@@ -253,7 +253,7 @@ def test_edge_hnc_filter_merge(tmpdir, synthetic_video_path):
 
     n_valid_filtered_roi = 0
     for roi in filtered_rois:
-        if roi['valid_roi']:
+        if roi['valid']:
             n_valid_filtered_roi += 1
     assert n_valid_filtered_roi > 0
     assert n_valid_filtered_roi < n_raw_roi

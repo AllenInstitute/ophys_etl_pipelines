@@ -166,9 +166,9 @@ def test_stat_filter_runner(processing_log_path_fixture,
     assert len(expected_invalid) > 0
 
     actual_valid = set([roi['id'] for roi in filtered_rois
-                        if roi['valid_roi']])
+                        if roi['valid']])
     actual_invalid = set([roi['id'] for roi in filtered_rois
-                          if not roi['valid_roi']])
+                          if not roi['valid']])
 
     assert actual_valid == expected_valid
     assert actual_invalid == expected_invalid

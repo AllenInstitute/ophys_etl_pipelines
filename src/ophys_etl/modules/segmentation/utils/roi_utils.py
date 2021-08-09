@@ -128,7 +128,7 @@ def ophys_roi_to_extract_roi(roi: OphysROI) -> ExtractROI:
                          width=roi.width,
                          height=roi.height,
                          mask=mask,
-                         valid_roi=roi.valid_roi,
+                         valid=roi.valid_roi,
                          id=roi.roi_id)
     return new_roi
 

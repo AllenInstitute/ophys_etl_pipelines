@@ -118,9 +118,12 @@ def choose_timesteps(
     pearson_min = pearson_img.min()
     t25, t75 = np.quantile(pearson_img, (0.25, 0.75))
     std = (t75-t25)/1.34896
+    med_val = np.median(pearson_img)
 
-    for val in (pearson_max-std, pearson_min-2*std,
-                pearson_min+std, pearson_min+2*std):
+    for val in (pearson_max-std,
+                med_val,
+                pearson_min+std,
+                pearson_min):
         ii = pixel_indices[np.argmin(np.abs(val-pearson_img))]
         pt = np.unravel_index(ii, sub_video.shape[1:])
         trace = sub_video[:, pt[0], pt[1]]

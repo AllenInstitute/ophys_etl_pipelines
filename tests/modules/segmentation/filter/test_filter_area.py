@@ -46,9 +46,9 @@ def compare_rois(roi0: OphysROI,
 
 
 @pytest.fixture
-def log_file_with_previous_step(tmpdir, roi_dict, seeder_fixture):
+def log_file_with_previous_step(tmpdir, area_roi_dict, seeder_fixture):
     path = tmpdir / "log_with_step.h5"
-    rois = [ophys_roi_to_extract_roi(i) for i in roi_dict.values()]
+    rois = [ophys_roi_to_extract_roi(i) for i in area_roi_dict.values()]
     log = SegmentationProcessingLog(path, read_only=False)
     log.log_detection(attribute="something",
                       rois=rois,

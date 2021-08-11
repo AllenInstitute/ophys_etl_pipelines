@@ -20,7 +20,7 @@ def seeder_fixture():
 
 
 @pytest.fixture(scope='session')
-def roi_dict():
+def area_roi_dict():
     """
     Create a dict of ROIs with IDs [1, 6)
     whose areas = 2*roi_id.
@@ -48,17 +48,3 @@ def roi_dict():
         assert roi.area == 2*roi_id
         roi_dict[roi_id] = roi
     return roi_dict
-
-
-@pytest.fixture(scope='session')
-def roi_input_path(tmpdir_factory, roi_dict):
-    tmpdir = pathlib.Path(tmpdir_factory.mktemp('filter_test_rois'))
-    file_path = tmpdir/'roi_input.json'
-
-    key_list = list(roi_dict.keys())
-    key_list.sort()
-    roi_list = [ophys_roi_to_extract_roi(roi_dict[k])
-                for k in key_list]
-    with open(file_path, 'w') as out_file:
-        json.dump(roi_list, out_file, indent=2)
-    yield file_path

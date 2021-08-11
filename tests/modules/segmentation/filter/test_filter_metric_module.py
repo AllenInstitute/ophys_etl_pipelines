@@ -13,9 +13,7 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     ophys_roi_to_extract_roi,
-    deserialize_extract_roi_list)
-
-from ophys_etl.modules.segmentation.filter.filter_utils import (
+    deserialize_extract_roi_list,
     mean_metric_from_roi,
     median_metric_from_roi)
 

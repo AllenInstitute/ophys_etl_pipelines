@@ -10,13 +10,14 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     ophys_roi_to_extract_roi,
     ophys_roi_list_from_deserialized,
-    background_mask_from_roi_list)
+    background_mask_from_roi_list,
+    mean_metric_from_roi,
+    median_metric_from_roi,)
+
 from ophys_etl.modules.segmentation.processing_log import \
     SegmentationProcessingLog
 
 from ophys_etl.modules.segmentation.filter.filter_utils import (
-    mean_metric_from_roi,
-    median_metric_from_roi,
     z_vs_background_from_roi)
 
 

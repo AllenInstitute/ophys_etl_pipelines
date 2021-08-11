@@ -1,18 +1,8 @@
 import pytest
-import networkx
-import pathlib
 import numpy as np
-import json
 import h5py
-from itertools import product
-
-from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
-
-from ophys_etl.modules.segmentation.graph_utils.conversion import (
-    graph_to_img)
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
-    ophys_roi_to_extract_roi,
     deserialize_extract_roi_list,
     mean_metric_from_roi,
     median_metric_from_roi)
@@ -20,91 +10,21 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
 from ophys_etl.modules.segmentation.modules.filter_metric_stat import (
     StatFilterRunner)
 
-from ophys_etl.modules.segmentation.processing_log import (
-    SegmentationProcessingLog)
+
+@pytest.fixture(scope='session')
+def mean_lookup_fixture(img_fixture, roi_list_fixture):
+    lookup = dict()
+    for roi in roi_list_fixture:
+        lookup[roi.roi_id] = mean_metric_from_roi(roi, img_fixture)
+    return lookup
 
 
 @pytest.fixture(scope='session')
-def graph_fixture(tmpdir_factory):
-    tmpdir_path = pathlib.Path(tmpdir_factory.mktemp('stat_graph'))
-    graph_path = tmpdir_path / 'stat_graph.pkl'
-
-    graph = networkx.Graph()
-    for r in range(32):
-        for c in range(32):
-            pt = (r, c)
-            graph.add_node(pt)
-
-    rng = np.random.default_rng(77123)
-    for r in range(32):
-        r0 = max(0, r-1)
-        r1 = min(31, r+1)
-        for c in range(32):
-            c0 = max(0, c-1)
-            c1 = min(31, c+1)
-            pt = (r, c)
-            for rr, cc in product(range(r0, r1), range(c0, c1)):
-                if rr == r and cc == c:
-                    continue
-                other = (rr, cc)
-                val = rng.random()
-                graph.add_edge(pt, other, dummy_metric=val)
-
-    networkx.write_gpickle(graph, graph_path)
-    yield graph_path
-
-
-@pytest.fixture(scope='session')
-def roi_list_fixture(tmpdir_factory, graph_fixture):
-    metric_img = graph_to_img(graph_fixture, attribute_name='dummy_metric')
-
-    tmpdir_path = pathlib.Path(tmpdir_factory.mktemp('roi_list'))
-    roi_list_path = tmpdir_path / 'roi_list.json'
-
-    roi_list = []
-    mean_lookup = dict()
-    median_lookup = dict()
-
-    rng = np.random.default_rng(623321)
-    for ii in range(20):
-        x0 = rng.integers(0, 20)
-        y0 = rng.integers(0, 20)
-        width = min(rng.integers(3, 6), 32-x0)
-        height = min(rng.integers(3, 6), 32-y0)
-        mask = rng.integers(0, 2, (height, width)).astype(bool)
-        roi = OphysROI(x0=int(x0), width=int(width),
-                       y0=int(y0), height=int(height),
-                       valid_roi=True,
-                       roi_id=ii,
-                       mask_matrix=mask)
-        mn = mean_metric_from_roi(roi, metric_img)
-        md = median_metric_from_roi(roi, metric_img)
-        mean_lookup[ii] = mn
-        median_lookup[ii] = md
-
-        roi_list.append(ophys_roi_to_extract_roi(roi))
-
-    with open(roi_list_path, 'w') as out_file:
-        out_file.write(json.dumps(roi_list, indent=2))
-
-    yield {'path': roi_list_path,
-           'mean_lookup': mean_lookup,
-           'median_lookup': median_lookup}
-
-
-@pytest.fixture(scope='function')
-def processing_log_path_fixture(tmpdir, roi_list_fixture, seeder_fixture):
-    with open(roi_list_fixture['path'], 'rb') as in_file:
-        extract_roi_list = deserialize_extract_roi_list(
-                                in_file.read())
-
-    log_path = pathlib.Path(tmpdir) / 'roi_log_for_filter_test.h5'
-    log = SegmentationProcessingLog(log_path, read_only=False)
-    log.log_detection(attribute='dummy_metric',
-                      rois=extract_roi_list,
-                      group_name='detect',
-                      seeder=seeder_fixture)
-    yield log_path
+def median_lookup_fixture(img_fixture, roi_list_fixture):
+    lookup = dict()
+    for roi in roi_list_fixture:
+        lookup[roi.roi_id] = median_metric_from_roi(roi, img_fixture)
+    return lookup
 
 
 @pytest.mark.parametrize(
@@ -116,10 +36,18 @@ def processing_log_path_fixture(tmpdir, roi_list_fixture, seeder_fixture):
      ('median', True, False),
      ('median', True, True)])
 def test_stat_filter_runner(processing_log_path_fixture,
-                            graph_fixture, roi_list_fixture,
+                            graph_fixture,
+                            median_lookup_fixture,
+                            mean_lookup_fixture,
                             stat_name, use_min, use_max):
 
-    lookup = roi_list_fixture[f'{stat_name}_lookup']
+    if stat_name == 'mean':
+        lookup = mean_lookup_fixture
+    elif stat_name == 'median':
+        lookup = median_lookup_fixture
+    else:
+        raise RuntimeError(f'test cannot parse stat {stat_name}')
+
     value_list = list(lookup.values())
     value_list.sort()
     if use_min:
@@ -127,7 +55,7 @@ def test_stat_filter_runner(processing_log_path_fixture,
     else:
         min_val = None
     if use_max:
-        max_val = value_list[16]
+        max_val = value_list[8]
     else:
         max_val = None
 
@@ -135,7 +63,7 @@ def test_stat_filter_runner(processing_log_path_fixture,
             'graph_input': str(graph_fixture),
             'pipeline_stage': 'just a test',
             'stat_name': stat_name,
-            'attribute_name': 'dummy_metric',
+            'attribute_name': 'dummy',
             'min_value': min_val,
             'max_value': max_val}
 

@@ -27,7 +27,7 @@ def test_base_roi_filter():
         roi_filter.reason
 
 
-def test_invalid_area_roi_filter(roi_dict):
+def test_invalid_area_roi_filter():
     with pytest.raises(RuntimeError, match='Both max_area and min_area'):
         ROIAreaFilter()
 

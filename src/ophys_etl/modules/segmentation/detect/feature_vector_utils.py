@@ -134,7 +134,7 @@ def select_window_size(
     Notes
     -----
     This method starts with a window size of window_min.
-    It grows the window by a factor for 3/2 at each step.
+    It grows the window by a factor for 11/10 at each step.
     It returns the first value of window that either
     exceeds window_max or results in a z-score exceeding
     target_z_score.
@@ -156,7 +156,7 @@ def select_window_size(
         if window is None:
             window = window_min
         else:
-            window = max(3*window//2, window+1)
+            window += max(1, window//10)
         r0 = max(0, seed_pt[0]-window)
         r1 = min(image_data.shape[0], seed_pt[0]+window+1)
         c0 = max(0, seed_pt[1]-window)

@@ -11,7 +11,9 @@ from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
-    convert_roi_keys)
+    convert_roi_keys,
+    extract_roi_to_ophys_roi,
+    mean_metric_from_roi)
 
 from ophys_etl.modules.decrosstalk.ophys_plane import (
     OphysMovie,
@@ -821,9 +823,10 @@ def roi_average_metric(roi_list: List[ExtractROI],
     """
     average_metric: Dict[int, float] = dict()
     for roi in roi_list:
-        sub_image = metric_image[roi["y"]: (roi["y"] + roi["height"]),
-                                 roi["x"]: (roi["x"] + roi["width"])]
-        average_metric[roi["id"]] = sub_image[np.array(roi["mask"])].mean()
+        ophys_roi = extract_roi_to_ophys_roi(roi)
+        average_metric[roi["id"]] = mean_metric_from_roi(
+                                         ophys_roi,
+                                         metric_image)
 
     return average_metric
 

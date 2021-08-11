@@ -90,12 +90,12 @@ def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:
     -------
     OphysROI
     """
-    new_roi = OphysROI(x0=roi['x'],
-                       y0=roi['y'],
-                       width=roi['width'],
-                       height=roi['height'],
+    new_roi = OphysROI(x0=int(roi['x']),
+                       y0=int(roi['y']),
+                       width=int(roi['width']),
+                       height=int(roi['height']),
                        mask_matrix=roi['mask'],
-                       roi_id=roi['id'],
+                       roi_id=int(roi['id']),
                        valid_roi=roi['valid'])
 
     return new_roi

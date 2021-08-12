@@ -379,15 +379,15 @@ class FeatureVectorSegmenter(object):
                                       roi_id=roi_id)
             if mask.sum() > 1:
                 self.roi_list.append(roi)
-            for ir in range(mask.shape[0]):
-                rr = origin[0]+ir
-                for ic in range(mask.shape[1]):
-                    cc = origin[1]+ic
-                    if mask[ir, ic]:
-                        self.roi_pixels[rr, cc] = True
-                        # make sure the seeder does not
-                        # supply new seeds that are in these ROIs
-                        self.seeder.exclude_pixels({(rr, cc)})
+                for ir in range(mask.shape[0]):
+                    rr = origin[0]+ir
+                    for ic in range(mask.shape[1]):
+                        cc = origin[1]+ic
+                        if mask[ir, ic]:
+                            self.roi_pixels[rr, cc] = True
+                            # make sure the seeder does not
+                            # supply new seeds that are in these ROIs
+                            self.seeder.exclude_pixels({(rr, cc)})
 
         return seed_list
 

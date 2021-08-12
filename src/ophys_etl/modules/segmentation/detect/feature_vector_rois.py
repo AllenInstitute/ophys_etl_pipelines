@@ -417,7 +417,7 @@ class PotentialROI(object):
         std_d_bckgd = np.std(d_bckgd, axis=1, ddof=1)
         z_score = (d_roi-mu_d_bckgd)/std_d_bckgd
 
-        valid = z_score <= -2.0
+        valid = z_score <= -3.0
         if valid.sum() > 0:
             self.roi_mask[valid] = True
 

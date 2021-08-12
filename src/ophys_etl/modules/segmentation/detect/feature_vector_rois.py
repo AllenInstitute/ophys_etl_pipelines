@@ -414,7 +414,11 @@ class PotentialROI(object):
             d_bckgd = d_bckgd[:, :2*n_roi]
 
         mu_d_bckgd = np.mean(d_bckgd, axis=1)
-        std_d_bckgd = np.std(d_bckgd, axis=1, ddof=1)
+        if len(d_bckgd.shape) >1 and d_bckgd.shape[1] > 0:
+            q25, q75 = np.quantile(d_bckgd, (0.25, 0.75), axis=1)
+            std_d_bckgd = (q75-q25)/1.34896
+        else:
+            std_d_bckgd = np.std(d_bckgd, axis=1, ddof=1)
         z_score = (d_roi-mu_d_bckgd)/std_d_bckgd
 
         valid = z_score <= -3.0

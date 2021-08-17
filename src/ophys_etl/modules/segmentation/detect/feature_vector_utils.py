@@ -2,45 +2,6 @@ from typing import Tuple, Optional
 import numpy as np
 
 
-def correlate_to_single_pixel(
-        sub_video: np.ndarray,
-        pixel: Tuple[int, int],
-        filter_fraction: float = 0.2) -> np.ndarray:
-    """
-    Calculate the Pearson correlation coefficient of all pixels
-    in a video against a single pixel
-
-    Parameters
-    -----------
-    sub_video: np.ndarray
-        (n_time, n_rows, n_cols)
-
-    pixel: Tuple[int, int]
-
-    filter_fraction: float
-        default: 0.2
-
-    Returns
-    -------
-    correlation_coeffs: np.ndarray
-        (nrows, ncols)
-    """
-    pixel_trace = sub_video[:, pixel[0], pixel[1]]
-    th = np.quantile(pixel_trace, 1.0-filter_fraction)
-    valid_timesteps = (pixel_trace >= th)
-    sub_video = sub_video[valid_timesteps, :, :]
-    img_shape = sub_video.shape[1:]
-    i_pixel = np.ravel_multi_index(pixel, img_shape)
-    sub_video = sub_video.reshape(sub_video.shape[0], -1)
-    mean_image = np.mean(sub_video, axis=0)
-    sub_video = sub_video - mean_image
-    var = np.mean(sub_video**2, axis=0)
-    sub_video = sub_video.transpose()
-    numerator = np.dot(sub_video, sub_video[i_pixel, :])/sub_video.shape[1]
-    corr = numerator/np.sqrt(var*var[i_pixel])
-    return corr.reshape(img_shape)
-
-
 def choose_timesteps(
             sub_video: np.ndarray,
             seed_pt: Tuple[int, int],
@@ -94,37 +55,28 @@ def choose_timesteps(
     mask = np.where(trace >= thresh)[0]
     global_mask.append(mask)
 
-    pearson_img = correlate_to_single_pixel(
-                      sub_video,
-                      seed_pt)
-
-    pearson_img = pearson_img.flatten()
-
     # now select the pixels that are closest to
     # image_data.max() - sigma and
     # image_data.max() - 2*sigma
 
+    image_flat = image_data.flatten()
     if pixel_ignore is not None:
         pixel_ignore_flat = pixel_ignore.flatten()
     else:
-        pixel_ignore_flat = np.zeros(len(pearson_img), dtype=bool)
+        pixel_ignore_flat = np.zeros(len(image_flat), dtype=bool)
 
-    pixel_indices = np.arange(len(pearson_img), dtype=int)
+    pixel_indices = np.arange(len(image_flat), dtype=int)
     valid_pixels = np.logical_not(pixel_ignore_flat)
-    pearson_img = pearson_img[valid_pixels]
+    image_flat = image_flat[valid_pixels]
     pixel_indices = pixel_indices[valid_pixels]
 
-    pearson_max = pearson_img.max()
-    pearson_min = pearson_img.min()
-    t25, t75 = np.quantile(pearson_img, (0.25, 0.75))
+    image_max = image_flat.max()
+    image_min = image_flat.min()
+    t25, t75 = np.quantile(image_flat, (0.25, 0.75))
     std = (t75-t25)/1.34896
-    med_val = np.median(pearson_img)
 
-    for val in (pearson_max-std,
-                med_val,
-                pearson_min+std,
-                pearson_min):
-        ii = pixel_indices[np.argmin(np.abs(val-pearson_img))]
+    for val in (image_max-std, image_min+std):
+        ii = pixel_indices[np.argmin(np.abs(val-image_flat))]
         pt = np.unravel_index(ii, sub_video.shape[1:])
         trace = sub_video[:, pt[0], pt[1]]
         thresh = np.quantile(trace, discard)

@@ -367,9 +367,17 @@ class PotentialROI(object):
 
         self.feature_distances = pairwise_distances(features)
 
-    def select_pixels(self) -> bool:
+    def select_pixels(self,
+                      growth_z_score: float = 3.0) -> bool:
         """
         Run one iteration, looking for pixels to add to self.roi_mask.
+
+        Parameters
+        ----------
+        growth_z_score: float
+            z-score by which a pixel must prefer correlation with
+            ROI pixels over correlation with background pixels
+            in order to be added to the ROI (default=3.0)
 
         Returns
         -------
@@ -421,7 +429,7 @@ class PotentialROI(object):
             std_d_bckgd = np.std(d_bckgd, axis=1, ddof=1)
         z_score = (d_roi-mu_d_bckgd)/std_d_bckgd
 
-        valid = z_score <= -3.0
+        valid = z_score <= -1.0*growth_z_score
         if valid.sum() > 0:
             self.roi_mask[valid] = True
 
@@ -431,9 +439,16 @@ class PotentialROI(object):
 
         return chose_one
 
-    def get_mask(self) -> np.ndarray:
+    def get_mask(self, growth_z_score) -> np.ndarray:
         """
         Iterate over the pixels, building up the ROI
+
+        Parameters
+        ----------
+        growth_z_score: float
+            z-score by which a pixel must prefer correlation with
+            ROI pixels over correlation with background pixels
+            in order to be added to the ROI (default=3.0)
 
         Returns
         -------
@@ -446,7 +461,7 @@ class PotentialROI(object):
         # keep going as long as pizels are being added
         # to the ROI
         while keep_going:
-            keep_going = self.select_pixels()
+            keep_going = self.select_pixels(growth_z_score)
 
         output_img = np.zeros(self.img_shape, dtype=bool)
         for i_pixel in range(self.n_pixels):

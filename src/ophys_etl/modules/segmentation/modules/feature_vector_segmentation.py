@@ -41,7 +41,8 @@ class FeatureVectorSegmentationRunner(argschema.ArgSchemaParser):
             plot_output = None
         segmenter.run(log_path=pathlib.Path(self.args['log_path']),
                       plot_output=plot_output,
-                      seed_plot_output=self.args['seed_plot_output'])
+                      seed_plot_output=self.args['seed_plot_output'],
+                      growth_z_score=self.args['growth_z_score'])
 
 
 if __name__ == "__main__":

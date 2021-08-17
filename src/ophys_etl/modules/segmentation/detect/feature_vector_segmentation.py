@@ -44,6 +44,7 @@ class ROISeed(TypedDict):
 def _get_roi(seed_obj: ROISeed,
              video_data: np.ndarray,
              pixel_ignore: np.ndarray,
+             growth_z_score: float,
              output_dict: multiprocessing.managers.DictProxy,
              roi_id: int,
              roi_class: type) -> None:
@@ -71,6 +72,11 @@ def _get_roi(seed_obj: ROISeed,
         A (n_rows, n_cols) array of booleans marked True at
         any pixels that should be ignored, presumably because
         they have already been added to an ROI
+
+    growth_z_score: float
+        z-score by which a pixel must prefer correlation with
+        ROI pixels over correlation with background pixels
+        in order to be added to the ROI (default=3.0)
 
     output_dict: multiprocessing.managers.DictProxy
         The dict where the final ROI mask from this search will
@@ -102,7 +108,7 @@ def _get_roi(seed_obj: ROISeed,
                     video_data,
                     pixel_ignore=pixel_ignore)
 
-    final_mask = roi.get_mask()
+    final_mask = roi.get_mask(growth_z_score)
 
     output_dict[roi_id] = (origin, final_mask)
     return None
@@ -233,7 +239,8 @@ class FeatureVectorSegmenter(object):
         self.movie_shape = movie_shape
 
     def _run(self,
-             video_data: np.ndarray) -> List[dict]:
+             video_data: np.ndarray,
+             growth_z_score: float) -> List[dict]:
         """
         Run one iteration of ROI detection
 
@@ -242,6 +249,11 @@ class FeatureVectorSegmenter(object):
         video_data: np.ndarray
             A (n_time, n_rows, n_cols) array containing the video data
             used to detect ROIs
+
+        growth_z_score: float
+            z-score by which a pixel must prefer correlation with
+            ROI pixels over correlation with background pixels
+            in order to be added to the ROI (default=3.0)
 
         Returns
         -------
@@ -346,6 +358,7 @@ class FeatureVectorSegmenter(object):
                                         args=(this_seed,
                                               video_data_subset,
                                               mask,
+                                              growth_z_score,
                                               mgr_dict,
                                               self.roi_id,
                                               self.roi_class))
@@ -392,6 +405,7 @@ class FeatureVectorSegmenter(object):
         return seed_list
 
     def run(self,
+            growth_z_score: float,
             log_path: pathlib.Path,
             plot_output: Optional[pathlib.Path] = None,
             seed_plot_output: Optional[pathlib.Path] = None,
@@ -401,6 +415,11 @@ class FeatureVectorSegmenter(object):
 
         Parameters
         ----------
+        growth_z_score: float
+            z-score by which a pixel must prefer correlation with
+            ROI pixels over correlation with background pixels
+            in order to be added to the ROI (default=3.0)
+
         log_path: pathlib.Path
             the path where the processing results will be written
 
@@ -461,7 +480,8 @@ class FeatureVectorSegmenter(object):
 
         while keep_going:
 
-            roi_seeds = self._run(video_data)
+            roi_seeds = self._run(video_data,
+                                  growth_z_score)
 
             # NOTE: this change lets the seeder/iterator control
             # the stopping condition of segmentation. I.e. when seeds

@@ -324,6 +324,15 @@ class FeatureVectorSegmentationInputSchema(SharedSegmentationInputSchema):
         description=("fraction of timesteps to use in time correlation "
                      "Note: will also affect PCA-based segmentation"))
 
+    growth_z_score = argschema.fields.Float(
+        required=False,
+        default=3.0,
+        allow_none=False,
+        description=("z-score by which a pixel must prefer "
+                     "correlation to ROI pixels over correlation "
+                     "to background pixels in order for it to be "
+                     "added to the ROI"))
+
     window_min = argschema.fields.Int(
         required=False,
         default=20,

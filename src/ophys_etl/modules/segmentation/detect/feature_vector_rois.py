@@ -414,7 +414,7 @@ class PotentialROI(object):
         d_bckgd = d_bckgd[:, :n_bckgd]
 
         mu_d_bckgd = np.mean(d_bckgd, axis=1)
-        if len(d_bckgd.shape) >1 and d_bckgd.shape[1] > 0:
+        if len(d_bckgd.shape) > 1 and d_bckgd.shape[1] > 0:
             q25, q75 = np.quantile(d_bckgd, (0.25, 0.75), axis=1)
             std_d_bckgd = (q75-q25)/1.34896
         else:

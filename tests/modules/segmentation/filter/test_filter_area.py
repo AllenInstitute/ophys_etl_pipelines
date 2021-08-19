@@ -10,7 +10,6 @@ from ophys_etl.modules.segmentation.utils.roi_utils import \
     ophys_roi_to_extract_roi
 from ophys_etl.modules.segmentation.processing_log import \
     SegmentationProcessingLog
-from ophys_etl.modules.segmentation.seed.seeder import ImageMetricSeeder
 
 
 def compare_rois(roi0: OphysROI,
@@ -47,17 +46,9 @@ def compare_rois(roi0: OphysROI,
 
 
 @pytest.fixture
-def seeder_fixture():
-    # minimal seeder to satisfy logging
-    seeder = ImageMetricSeeder()
-    seeder._seed_image = np.zeros((10, 10))
-    return seeder
-
-
-@pytest.fixture
-def log_file_with_previous_step(tmpdir, roi_dict, seeder_fixture):
+def log_file_with_previous_step(tmpdir, area_roi_dict, seeder_fixture):
     path = tmpdir / "log_with_step.h5"
-    rois = [ophys_roi_to_extract_roi(i) for i in roi_dict.values()]
+    rois = [ophys_roi_to_extract_roi(i) for i in area_roi_dict.values()]
     log = SegmentationProcessingLog(path, read_only=False)
     log.log_detection(attribute="something",
                       rois=rois,
@@ -90,7 +81,7 @@ def test_area_filter_runner(log_file_with_previous_step,
                                     read_only=True)
     original_rois = log.get_rois_from_group("previous_step")
     filtered_rois = log.get_rois_from_group("filter")
-    valid_filtered = {i['id'] for i in filtered_rois if i["valid_roi"]}
+    valid_filtered = {i['id'] for i in filtered_rois if i["valid"]}
     # filter should not delete ROIs
     assert len(original_rois) == len(filtered_rois)
     # expected valid ROIs
@@ -100,7 +91,7 @@ def test_area_filter_runner(log_file_with_previous_step,
     filtered_lookup = {i['id']: i for i in original_rois}
     for k, v in filtered_lookup.items():
         original = copy.deepcopy(original_lookup[k])
-        if not v["valid_roi"]:
+        if not v["valid"]:
             # if invalid, pop this key for comparison
             was_valid = original.pop("valid_roi")
             is_valid = v.pop("valid_roi")

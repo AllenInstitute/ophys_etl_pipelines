@@ -1,6 +1,7 @@
 import h5py
 import argschema
 from marshmallow import post_load, ValidationError
+from marshmallow.validate import OneOf
 
 from ophys_etl.schemas.fields import InputOutputFile
 from ophys_etl.modules.segmentation.processing_log import \
@@ -46,6 +47,31 @@ class FilterBaseSchema(argschema.ArgSchema):
         return data
 
 
+class MetricBaseSchema(FilterBaseSchema):
+
+    graph_input = argschema.fields.InputFile(
+            default=None,
+            required=True,
+            allow_none=False,
+            description=('path to pkl file containing the graph '
+                         'that will be used to generate the metric image'))
+
+    attribute_name = argschema.fields.String(
+            default='filtered_hnc_Gaussian',
+            required=True,
+            allow_none=False,
+            description=('attribute of graph that will be used to '
+                         'generate the metric image'))
+
+    @post_load
+    def check_graph_name(self, data, **kwargs):
+        if not str(data['graph_input']).endswith('pkl'):
+            msg = f"\n{data['graph_input']} does not appear "
+            msg += "to be a pkl file\n"
+            raise RuntimeError(msg)
+        return data
+
+
 class AreaFilterSchema(FilterBaseSchema):
 
     max_area = argschema.fields.Int(
@@ -66,4 +92,88 @@ class AreaFilterSchema(FilterBaseSchema):
             msg = "min_area and max_area are both None; "
             msg += "must specify at least one"
             raise RuntimeError(msg)
+        return data
+
+
+class StatFilterSchema(MetricBaseSchema):
+
+    stat_name = argschema.fields.String(
+            default=None,
+            required=True,
+            allow_none=False,
+            validation=OneOf(['mean', 'median']),
+            description=('metric statistic on which to filter'))
+
+    min_value = argschema.fields.Float(
+            default=None,
+            required=False,
+            allow_none=True,
+            description=("minimum value of stat allowed for a valid ROI"))
+
+    max_value = argschema.fields.Float(
+            default=None,
+            required=False,
+            allow_none=True,
+            description=("maximum value of stat allowed for a valid ROI"))
+
+    @post_load
+    def check_stat_filter_fields(self, data, **kwargs):
+        msg = ''
+        is_valid = True
+        if data['min_value'] is None and data['max_value'] is None:
+            msg += "\nmin_value and max_value are both None; "
+            msg += "must specify at least one\n"
+            is_valid = False
+
+        if data['min_value'] is not None and data['max_value'] is not None:
+            if data['min_value'] > data['max_value']:
+                msg += "\nmin_value > max_value\n"
+                is_valid = False
+
+        if not is_valid:
+            raise RuntimeError(msg)
+
+        return data
+
+
+class ZvsBackgroundSchema(MetricBaseSchema):
+
+    clip_quantile = argschema.fields.Float(
+            default=0.25,
+            required=False,
+            allow_none=False,
+            description=("fraction of ROI pixels to remove from "
+                         "the bottom (in brightness) before "
+                         "computing ROI mean to compare against "
+                         "the background"))
+
+    min_z = argschema.fields.Float(
+            default=None,
+            required=True,
+            allow_none=False,
+            description=("minimum z-value above background of valid ROI"))
+
+    n_background_factor = argschema.fields.Int(
+            default=5,
+            required=False,
+            allow_none=False,
+            description=("select N_BACKGROUND_FACTOR*ROI.AREA pixels "
+                         "when constructing population of background "
+                         "pixels to use in calculating z-score"))
+
+    n_background_minimum = argschema.fields.Int(
+            default=1000,
+            required=False,
+            allow_none=False,
+            description=("minimum number of background pixels to use "
+                         "when selecting population of background "
+                         "pixels to use in calculating z-score "
+                         "(in case ROI.AREA is small)"))
+
+    @post_load
+    def check_clip_quantile(self, data, **kwargs):
+        if data['clip_quantile'] < 0.0 or data['clip_quantile'] >= 1.0:
+            msg = "clip_quantile must be in [0.0, 1.0); "
+            msg += f"you gave {data['clip_quantile']: .2e}"
+            raise ValidationError(msg)
         return data

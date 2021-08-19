@@ -27,7 +27,7 @@ def test_base_roi_filter():
         roi_filter.reason
 
 
-def test_invalid_area_roi_filter(roi_dict):
+def test_invalid_area_roi_filter():
     with pytest.raises(RuntimeError, match='Both max_area and min_area'):
         ROIAreaFilter()
 
@@ -38,21 +38,24 @@ def test_invalid_area_roi_filter(roi_dict):
          (6, None, set([3, 4, 5, 6])),
          (4, 8, set([2, 3, 4]))
          ])
-def test_area_roi_filter(roi_dict, min_area, max_area, expected_valid):
+def test_area_roi_filter(area_roi_dict,
+                         min_area,
+                         max_area,
+                         expected_valid):
 
     area_filter = ROIAreaFilter(min_area=min_area,
                                 max_area=max_area)
 
     assert area_filter.reason == 'area'
 
-    results = area_filter.do_filtering(list(roi_dict.values()))
+    results = area_filter.do_filtering(list(area_roi_dict.values()))
 
     valid_lookup = {roi.roi_id: roi for roi in results['valid_roi']}
     invalid_lookup = {roi.roi_id: roi for roi in results['invalid_roi']}
     assert (len(results['valid_roi'])
-            + len(results['invalid_roi'])) == len(roi_dict)
+            + len(results['invalid_roi'])) == len(area_roi_dict)
 
-    for roi_id in roi_dict:
+    for roi_id in area_roi_dict:
         if roi_id in expected_valid:
             assert roi_id in valid_lookup
             actual_roi = valid_lookup[roi_id]
@@ -62,7 +65,7 @@ def test_area_roi_filter(roi_dict, min_area, max_area, expected_valid):
             actual_roi = invalid_lookup[roi_id]
             assert not actual_roi.valid_roi
 
-        expected_roi = roi_dict[roi_id]
+        expected_roi = area_roi_dict[roi_id]
         assert expected_roi.x0 == actual_roi.x0
         assert expected_roi.y0 == actual_roi.y0
         assert expected_roi.width == actual_roi.width
@@ -106,7 +109,7 @@ def test_area_filter_schema(tmpdir):
         area_schema.load(invalid_schema)
 
 
-def test_log_invalid_rois(tmpdir, roi_dict):
+def test_log_invalid_rois(tmpdir, area_roi_dict):
 
     # test case of non-empty log file
     log_path = pathlib.Path(tmpdir)/'dummy_invalid_log.h5'
@@ -117,7 +120,7 @@ def test_log_invalid_rois(tmpdir, roi_dict):
         g.create_dataset('reason',
                          data=np.array(['prefill'.encode('utf-8')]*4))
 
-    roi_list = list(roi_dict.values())
+    roi_list = list(area_roi_dict.values())
     log_invalid_rois(roi_list, 'area post-merge', log_path)
 
     expected_roi_id = [-5, -4, -3, -2] + list([roi.roi_id for roi in roi_list])
@@ -137,7 +140,7 @@ def test_log_invalid_rois(tmpdir, roi_dict):
 
     # test case of empty log file
     log_path = pathlib.Path(tmpdir)/'dummy_invalid_log2.h5'
-    roi_list = list(roi_dict.values())
+    roi_list = list(area_roi_dict.values())
     log_invalid_rois(roi_list, 'area pre-merge', log_path)
 
     with h5py.File(log_path, 'r') as in_file:

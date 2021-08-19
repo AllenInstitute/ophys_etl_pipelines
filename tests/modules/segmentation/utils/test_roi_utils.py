@@ -15,10 +15,12 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     intersection_over_union,
     convert_to_lims_roi,
     ophys_roi_list_from_file,
-    select_contiguous_region,
     serialize_extract_roi_list,
     deserialize_extract_roi_list,
-    check_matching_extract_roi_lists)
+    check_matching_extract_roi_lists,
+    select_contiguous_region,
+    background_mask_from_roi_list,
+    select_window_from_background)
 
 
 @pytest.fixture
@@ -391,3 +393,132 @@ def test_select_contiguous_region():
     expected[2:5, 2:5] = True
     expected[1, 1] = True
     np.testing.assert_array_equal(output, expected)
+
+
+def test_background_mask_from_roi_list():
+    roi_list = []
+    mask = [[True, True, False], [False, False, True]]
+    roi = OphysROI(x0=2, width=3,
+                   y0=1, height=2,
+                   roi_id=0, valid_roi=True,
+                   mask_matrix=mask)
+    roi_list.append(roi)
+
+    mask = [[True, False], [False, False], [True, True]]
+    roi = OphysROI(x0=3, width=2,
+                   y0=0, height=3,
+                   roi_id=1, valid_roi=True,
+                   mask_matrix=mask)
+
+    roi_list.append(roi)
+
+    mask = [[True, False], [False, False], [True, True]]
+    roi = OphysROI(x0=0, width=2,
+                   y0=1, height=3,
+                   roi_id=2, valid_roi=True,
+                   mask_matrix=mask)
+
+    roi_list.append(roi)
+
+    img_shape = (4, 6)
+
+    expected = [[True, True, True, False, True, True],
+                [False, True, False, False, True, True],
+                [True, True, True, False, False, True],
+                [False, False, True, True, True, True]]
+    expected = np.array(expected)
+    actual = background_mask_from_roi_list(roi_list, img_shape)
+    np.testing.assert_array_equal(actual, expected)
+
+    # assert an error gets raised if img_shape is too small
+    # (this actually relies on native numpy IndexErrors being
+    # raised; I just want to be aware if numpy changes its
+    # default behavior out from under us)
+    with pytest.raises(Exception):
+        background_mask_from_roi_list(roi_list, (4, 3))
+
+
+def test_select_window_from_background():
+
+    # 9 x 8
+    background = [[0, 0, 1, 1, 1, 1, 1, 1],
+                  [0, 0, 1, 1, 1, 1, 1, 1],
+                  [1, 1, 0, 0, 0, 1, 1, 1],
+                  [1, 1, 0, 0, 0, 1, 1, 1],
+                  [1, 1, 0, 0, 0, 1, 1, 1],
+                  [1, 1, 1, 1, 1, 1, 1, 1],
+                  [1, 1, 1, 1, 1, 1, 1, 1],
+                  [1, 1, 1, 1, 1, 1, 1, 1],
+                  [1, 1, 1, 1, 1, 1, 1, 1]]
+    background = np.array(background)
+
+    roi = OphysROI(x0=2, width=3,
+                   y0=2, height=3,
+                   valid_roi=True, roi_id=0,
+                   mask_matrix=[[True, True, True],
+                                [True, True, True],
+                                [True, True, True]])
+
+    # check when you ask for too much
+    ((rowmin, rowmax),
+     (colmin, colmax)) = select_window_from_background(
+                             roi,
+                             background,
+                             60)
+    assert rowmin == 0
+    assert rowmax == 9
+    assert colmin == 0
+    assert colmax == 8
+
+    # should just get one pixel outside of roi
+    ((rowmin, rowmax),
+     (colmin, colmax)) = select_window_from_background(
+                             roi,
+                             background,
+                             15)
+    assert rowmin == 1
+    assert rowmax == 6
+    assert colmin == 1
+    assert colmax == 6
+
+    # should get two pixels outside of roi
+    ((rowmin, rowmax),
+     (colmin, colmax)) = select_window_from_background(
+                             roi,
+                             background,
+                             16)
+
+    assert rowmin == 0
+    assert rowmax == 7
+    assert colmin == 0
+    assert colmax == 7
+
+    # should get three pixels outside of roi
+    ((rowmin, rowmax),
+     (colmin, colmax)) = select_window_from_background(
+                             roi,
+                             background,
+                             37)
+
+    assert rowmin == 0
+    assert rowmax == 8
+    assert colmin == 0
+    assert colmax == 8
+
+    # move to the corner ROI
+    roi = OphysROI(x0=0, width=2,
+                   y0=0, height=2,
+                   valid_roi=True, roi_id=0,
+                   mask_matrix=[[True, True],
+                                [True, True]])
+
+    ((rowmin, rowmax),
+     (colmin, colmax)) = select_window_from_background(
+                             roi,
+                             background,
+                             5)
+
+    assert rowmin == 0
+    assert rowmax == 4
+    assert colmin == 0
+    assert colmax == 4

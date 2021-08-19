@@ -9,9 +9,16 @@ import numpy as np
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     ophys_roi_to_extract_roi,
-    ophys_roi_list_from_deserialized)
+    ophys_roi_list_from_deserialized,
+    background_mask_from_roi_list,
+    mean_metric_from_roi,
+    median_metric_from_roi,)
+
 from ophys_etl.modules.segmentation.processing_log import \
     SegmentationProcessingLog
+
+from ophys_etl.modules.segmentation.filter.filter_utils import (
+    z_vs_background_from_roi)
 
 
 class ROIBaseFilter(ABC):
@@ -46,6 +53,26 @@ class ROIBaseFilter(ABC):
         """
         raise NotImplementedError()
 
+    def _pre_processing(self,
+                        roi_list: List[OphysROI]) -> List[OphysROI]:
+        """
+        Method that can be overloaded to do any pre-processing
+        of roi_list as a whole before each ROI is passed to
+        self.is_roi_valid
+
+        Parameters
+        ----------
+        roi_list: List[OphysROI]
+
+        Returns
+        -------
+        roi_list: List[OphysROI]
+            The list of ROIs after preprocessing has been
+            applied (default for base class performs no
+            actual operation)
+        """
+        return roi_list
+
     def do_filtering(
             self,
             roi_list: List[OphysROI]) -> Dict[str, List[OphysROI]]:
@@ -64,6 +91,8 @@ class ROIBaseFilter(ABC):
         -------
         Dict[str, List[OphysROI]]
         """
+        roi_list = self._pre_processing(roi_list)
+
         valid_roi = []
         invalid_roi = []
         for roi in roi_list:
@@ -160,6 +189,194 @@ class ROIAreaFilter(ROIBaseFilter):
         if self.min_area is not None:
             if roi.area < self.min_area:
                 return False
+        return True
+
+
+class ROIMetricStatFilter(ROIBaseFilter):
+    """
+    A sub-class of ROIBaseFilter that filters ROIs on some statistic
+    computed from a metric image.
+
+    Parameters
+    ----------
+    metric_img: np.ndarray
+        The metric image from which to compute the summary statistic
+
+    metric_data: str
+        The name of the metric stat to be used.
+        Currently accepted values are 'mean' and 'median'.
+
+    min_metric: Optional[float]
+        The minimum allowed value of the summary statistic in
+        a valid ROI (default: None)
+
+    max_metric: Optional[float]
+        The maximum allowed value of the summary statistic in
+        a valid ROI (default: None)
+
+    Note
+    ----
+    Any limit that is None is ignored. If both limits are
+    None, an error is raised.
+    """
+
+    def __init__(self,
+                 metric_img: np.ndarray,
+                 metric_stat: str,
+                 min_metric: Optional[float] = None,
+                 max_metric: Optional[float] = None):
+
+        if metric_stat == 'mean':
+            self._stat_method = mean_metric_from_roi
+        elif metric_stat == 'median':
+            self._stat_method = median_metric_from_roi
+        else:
+            msg = "ROIMetricStatFilter only knows how to compute "
+            msg += "'mean' and 'median'; you gave "
+            msg += f"metric_stat='f{metric_stat}'"
+            raise ValueError(msg)
+
+        if max_metric is None and min_metric is None:
+            msg = "Both max_metric and min_metric are None; "
+            msg += "you must specify at least one"
+            raise RuntimeError(msg)
+
+        self._max_metric = max_metric
+        self._min_metric = min_metric
+
+        self.img = np.copy(metric_img)
+        self._reason = f'{metric_stat} ('
+        if min_metric is not None:
+            self._reason += f' min: {min_metric: .2e};'
+        if max_metric is not None:
+            self._reason += f' max: {max_metric: .2e}'
+        self._reason += ' )'
+
+    @property
+    def max_metric(self) -> Union[float, None]:
+        return self._max_metric
+
+    @property
+    def min_metric(self) -> Union[float, None]:
+        return self._min_metric
+
+    def is_roi_valid(self, roi: OphysROI) -> bool:
+        metric_value = self._stat_method(roi, self.img)
+        if self.max_metric is not None:
+            if metric_value > self.max_metric:
+                return False
+        if self.min_metric is not None:
+            if metric_value < self.min_metric:
+                return False
+        return True
+
+
+class ZvsBackgroundFilter(ROIBaseFilter):
+    """
+    A sub-class of ROIBaseFilter that filters ROIs based on the
+    z-score of their mean pixel value relative to the local
+    background
+
+    Parameters
+    ----------
+    metric_img: np.ndarray
+        The metric image from which to compute the summary statistic
+
+    min_z: float
+        The minimum z-score allowed for a valid ROI
+
+    n_background_factor: int
+        The the factor to multiply roi.area by when requesting
+        background pixels
+
+    n_background_min: int
+        The minimum number of background pixels to use
+        (in case roi.area is very small)
+
+    clip_quantile: float
+        Discard the dimmest clip_quantile [0, 1.0) pixels from
+        the ROI before computing the mean to compare against
+        the background.
+    """
+
+    def __init__(self,
+                 metric_img: np.ndarray,
+                 min_z: float,
+                 n_background_factor: int,
+                 n_background_min: int,
+                 clip_quantile: float):
+        self._img = np.copy(metric_img)
+        self._min_z = min_z
+        self._n_background_factor = n_background_factor
+        self._n_background_min = n_background_min
+        self._background_mask = None
+        self._reason = "z-score vs background pixels"
+        self._clip_quantile = clip_quantile
+
+    @property
+    def clip_quantile(self) -> float:
+        return self._clip_quantile
+
+    @property
+    def img(self) -> np.ndarray:
+        return self._img
+
+    @property
+    def min_z(self) -> float:
+        return self._min_z
+
+    @property
+    def n_background_factor(self) -> int:
+        return self._n_background_factor
+
+    @property
+    def n_background_min(self) -> int:
+        return self._n_background_min
+
+    @property
+    def background_mask(self) -> np.ndarray:
+        if self._background_mask is None:
+            msg = "self._background_mask is None; "
+            msg += "cannot filter ROIs based on z-score "
+            msg += "versus background"
+            raise RuntimeError(msg)
+        return self._background_mask
+
+    def _pre_processing(self, roi_list: List[OphysROI]) -> List[OphysROI]:
+        """
+        Use the full list of ROI to construct a mask indicating which
+        pixels are not a part of any ROIs
+
+        Parameters
+        ----------
+        roi_list: List[OphysROI]
+
+        Returns
+        -------
+        roi_list: List[OphysROI]
+
+        Notes
+        -----
+        This method does not alter roi_list. It does create
+        self._background_mask, an np.ndarray marked as True
+        for all background pixels
+        """
+        self._background_mask = background_mask_from_roi_list(
+                                    roi_list,
+                                    self.img.shape)
+        return roi_list
+
+    def is_roi_valid(self, roi: OphysROI) -> bool:
+        n_bckgd = max(self.n_background_min,
+                      self.n_background_factor*roi.area)
+        z_score = z_vs_background_from_roi(
+                        roi,
+                        self.img,
+                        self.background_mask,
+                        self.clip_quantile,
+                        n_desired_background=n_bckgd)
+        if z_score < self.min_z:
+            return False
         return True
 
 

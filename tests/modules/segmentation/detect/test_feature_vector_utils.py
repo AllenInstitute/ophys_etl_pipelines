@@ -67,10 +67,6 @@ def test_choose_extreme_pixels(ignored_pixels, true_std):
 
 
 def test_choose_timesteps():
-    """
-    just a smoke test at this point; we are iterating on what
-    timesteps should be chosen
-    """
     rng = np.random.default_rng(16232213)
     movie_shape = (100, 32, 32)
 
@@ -106,65 +102,85 @@ def test_choose_timesteps():
                     image_data,
                     pixel_ignore=np.zeros((4, 4), dtype=bool))
 
-    choose_timesteps(
+    timesteps = choose_timesteps(
                     movie_data,
                     seed_pt,
                     0.15,
                     image_data)
 
-    """
-    expected = np.concatenate([range(0, 15),
-                               range(20, 35),
-                               range(70, 85)])
-    np.testing.assert_array_equal(expected, timesteps)
-    """
+    chosen_pixels = choose_extreme_pixels(
+                       image_data, [1.0])
 
-    choose_timesteps(
+    expected_timesteps = []
+    chosen_pixels.append(seed_pt)
+    for p in chosen_pixels:
+        trace = movie_data[:, p[0], p[1]]
+        th = np.quantile(trace, 0.85)
+        expected_timesteps.append(np.where(trace >= th)[0])
+    expected_timesteps = np.unique(np.concatenate(expected_timesteps))
+    np.testing.assert_array_equal(timesteps, expected_timesteps)
+
+    timesteps = choose_timesteps(
                     movie_data,
                     seed_pt,
                     0.2,
                     image_data)
 
-    """
-    expected = np.concatenate([range(0, 20),
-                               range(20, 40),
-                               range(70, 90)])
-    np.testing.assert_array_equal(expected, timesteps)
-    """
+    chosen_pixels = choose_extreme_pixels(
+                       image_data, [1.0])
+
+    expected_timesteps = []
+    chosen_pixels.append(seed_pt)
+    for p in chosen_pixels:
+        trace = movie_data[:, p[0], p[1]]
+        th = np.quantile(trace, 0.8)
+        expected_timesteps.append(np.where(trace >= th)[0])
+    expected_timesteps = np.unique(np.concatenate(expected_timesteps))
+    np.testing.assert_array_equal(timesteps, expected_timesteps)
 
     # mark 13, 11 as a pixel to ignore
     mask = np.zeros((32, 32), dtype=bool)
     mask[13, 11] = True
 
-    choose_timesteps(
+    timesteps = choose_timesteps(
                     movie_data,
                     seed_pt,
                     0.15,
                     image_data,
                     pixel_ignore=mask)
 
-    """
-    expected = np.concatenate([range(0, 15),
-                               range(20, 35),
-                               range(65, 80)])
+    chosen_pixels = choose_extreme_pixels(
+                       image_data, [1.0],
+                       pixel_ignore=mask)
 
-    np.testing.assert_array_equal(expected, timesteps)
-    """
+    expected_timesteps = []
+    chosen_pixels.append(seed_pt)
+    for p in chosen_pixels:
+        trace = movie_data[:, p[0], p[1]]
+        th = np.quantile(trace, 0.85)
+        expected_timesteps.append(np.where(trace >= th)[0])
+    expected_timesteps = np.unique(np.concatenate(expected_timesteps))
+    np.testing.assert_array_equal(timesteps, expected_timesteps)
 
-    choose_timesteps(
+    timesteps = choose_timesteps(
                     movie_data,
                     seed_pt,
                     0.2,
                     image_data,
                     pixel_ignore=mask)
 
-    """
-    expected = np.concatenate([range(0, 20),
-                               range(20, 40),
-                               range(65, 85)])
+    chosen_pixels = choose_extreme_pixels(
+                       image_data, [1.0],
+                       pixel_ignore=mask)
 
-    np.testing.assert_array_equal(expected, timesteps)
-    """
+    expected_timesteps = []
+    chosen_pixels.append(seed_pt)
+    for p in chosen_pixels:
+        trace = movie_data[:, p[0], p[1]]
+        th = np.quantile(trace, 0.8)
+        expected_timesteps.append(np.where(trace >= th)[0])
+    expected_timesteps = np.unique(np.concatenate(expected_timesteps))
+    np.testing.assert_array_equal(timesteps, expected_timesteps)
 
 
 @pytest.fixture(scope='session')

@@ -35,7 +35,7 @@ def choose_timesteps(
 
     Returns
     -------
-    global_mask: np.ndarray
+    global_time_mask: np.ndarray
         Array of timesteps (ints) to be used for calculating correlations
     """
     if pixel_ignore is not None:
@@ -51,9 +51,9 @@ def choose_timesteps(
     # start assembling mask in timesteps
     trace = sub_video[:, seed_pt[0], seed_pt[1]]
     thresh = np.quantile(trace, discard)
-    global_mask = []
+    global_time_mask = []
     mask = np.where(trace >= thresh)[0]
-    global_mask.append(mask)
+    global_time_mask.append(mask)
 
     # now select the pixels that are closest to
     #
@@ -88,9 +88,9 @@ def choose_timesteps(
         trace = sub_video[:, pt[0], pt[1]]
         thresh = np.quantile(trace, discard)
         mask = np.where(trace >= thresh)[0]
-        global_mask.append(mask)
+        global_time_mask.append(mask)
 
-    return np.unique(np.concatenate(global_mask))
+    return np.unique(np.concatenate(global_time_mask))
 
 
 def select_window_size(

@@ -401,8 +401,8 @@ class PotentialROI(object):
         currently in the ROI).
 
         4) Any pixel whose distance to the ROI (from step (2)) has a z-score
-        of less than -2 relative to the distribution of its distances from
-        background pixels (from step (3)) is added to the ROI.
+        of less than -1*growth-z_score relative to the distribution of its
+        distances from background pixels (from step (3)) is added to the ROI.
         """
         chose_one = False
 

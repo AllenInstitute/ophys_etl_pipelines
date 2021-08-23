@@ -141,7 +141,7 @@ def select_window_size(
     Notes
     -----
     This method starts with a window size of window_min.
-    It grows the window by a factor for 11/10 at each step.
+    It grows the window by 10% at each step.
     It returns the first value of window that either
     exceeds window_max or results in a z-score exceeding
     target_z_score.

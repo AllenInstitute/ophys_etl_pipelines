@@ -56,8 +56,15 @@ def choose_timesteps(
     global_mask.append(mask)
 
     # now select the pixels that are closest to
+    #
     # image_data.max() - sigma and
-    # image_data.max() - 2*sigma
+    # image_data.min() + sigma
+    #
+    # (ignoring pixels masked by pixel_ignore)
+    #
+    # so that we get timesteps that reasonably
+    # span the dynamic range of the ROI and its
+    # background
 
     image_flat = image_data.flatten()
     if pixel_ignore is not None:

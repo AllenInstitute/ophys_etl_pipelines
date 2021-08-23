@@ -3,8 +3,67 @@ import numpy as np
 from itertools import product
 
 from ophys_etl.modules.segmentation.detect.feature_vector_utils import (
+    choose_extreme_pixels,
     choose_timesteps,
     select_window_size)
+
+
+@pytest.mark.parametrize(
+    "ignored_pixels, true_std",
+    [(None, 36.6949),
+     (np.arange(10, 35), 27.4285),
+     (np.arange(22), 28.54051),
+     (np.arange(88, 100), 32.2470644),
+     (np.concatenate([np.arange(15),
+                      np.arange(44, 56),
+                      np.arange(80, 100)]),
+      28.16985)]
+)
+def test_choose_extreme_pixels(ignored_pixels, true_std):
+    flat_image = np.arange(100)
+    image_data = flat_image.reshape((10, 10))
+
+    with pytest.raises(RuntimeError, match="should be the same"):
+        pixel_mask = np.zeros((4, 4), dtype=bool)
+        choose_extreme_pixels(image_data, [1.0], pixel_ignore=pixel_mask)
+
+    pixel_ignore = None
+    if ignored_pixels is not None:
+        flat_mask = np.zeros(100, dtype=bool)
+        flat_mask[ignored_pixels] = True
+        pixel_ignore = flat_mask.reshape((10, 10))
+
+    for delta_z in ([1.0], [1.0, 2.0], [1.5, 0.1, 3.5]):
+
+        masked_image = np.copy(flat_image)
+        img_max = flat_image.max()
+        img_min = flat_image.min()
+        if pixel_ignore is not None:
+            masked_image[flat_mask] = 99999.0
+            img_max = flat_image[np.logical_not(flat_mask)].max()
+            img_min = flat_image[np.logical_not(flat_mask)].min()
+        expected_points = []
+        for dz in delta_z:
+            ii = np.argmin(np.abs(masked_image-(img_max-dz*true_std)))
+            expected_points.append(tuple(np.unravel_index(ii,
+                                                          image_data.shape)))
+
+            ii = np.argmin(np.abs(masked_image-(img_min+dz*true_std)))
+            expected_points.append(tuple(np.unravel_index(ii,
+                                                          image_data.shape)))
+
+        chosen_points = choose_extreme_pixels(
+                              image_data,
+                              delta_z,
+                              pixel_ignore=pixel_ignore)
+
+        # check that flux values are in sorted order
+        flux_values = [image_data[p[0], p[1]] for p in chosen_points]
+        for ii in range(1, len(flux_values), 1):
+            assert flux_values[ii] >= flux_values[ii-1]
+
+        for expected in expected_points:
+            assert expected in chosen_points
 
 
 def test_choose_timesteps():

@@ -1,5 +1,86 @@
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 import numpy as np
+
+
+def choose_extreme_pixels(
+        image_data: np.ndarray,
+        delta_z: List[float],
+        pixel_ignore: Optional[np.ndarray] = None) -> List[Tuple[int, int]]:
+    """
+    For a specified list of values delta_z, choose the pixels in an
+    image that are that many standard deviations from the maximum
+    and minimum flux values
+
+    i.e. if delta_z = [1, 2]
+
+    The output will be the row, column coordinates of the pixels
+    at
+
+    [flux_min + 2*sigma,
+     flux_min + 1*sigma,
+     flux_max - 2*sigma,
+     flux_max - 1*sigma]
+
+    Note: for each delta_z value, only one pixel will be found
+    using np.argmin(flux-target_flux)
+
+    Parameters
+    ----------
+    image_data: np.ndarray
+        Image data used for determining flux of pixels
+
+    delta_z: List[float]
+        List of differences, in z-score, from extremities
+        to find
+
+    pixel_ignore: Optional[np.ndarray]:
+        A boolean mask marked True at any pixels
+        that should be ignored, presumably because
+        they have already been selected as ROI pixels.
+        (default: None)
+
+    Returns
+    -------
+    interesting_points: List[Tupple[int, int]]
+        Coordinates of interesting points in row, column space.
+        Points will be in ascending flux order.
+
+    """
+    if pixel_ignore is not None:
+        if pixel_ignore.shape != image_data.shape:
+            msg = f"pixel_ignore.shape {pixel_ignore.shape}\n"
+            msg += f"image_data.shape {image_data.shape}\n"
+            msg += "These should be the same"
+            raise RuntimeError(msg)
+
+    image_flat = image_data.flatten()
+    if pixel_ignore is not None:
+        pixel_ignore_flat = pixel_ignore.flatten()
+    else:
+        pixel_ignore_flat = np.zeros(len(image_flat), dtype=bool)
+
+    pixel_indices = np.arange(len(image_flat), dtype=int)
+    valid_pixels = np.logical_not(pixel_ignore_flat)
+    image_flat = image_flat[valid_pixels]
+    pixel_indices = pixel_indices[valid_pixels]
+
+    image_max = image_flat.max()
+    image_min = image_flat.min()
+    t25, t75 = np.quantile(image_flat, (0.25, 0.75))
+    std = (t75-t25)/1.34896
+
+    flux_values = []
+    for dz in delta_z:
+        flux_values.append(image_max-dz*std)
+        flux_values.append(image_min+dz*std)
+    flux_values.sort()
+
+    interesting_points = []
+    for flux in flux_values:
+        ii = pixel_indices[np.argmin(np.abs(flux-image_flat))]
+        pt = np.unravel_index(ii, image_data.shape)
+        interesting_points.append(tuple(pt))
+    return interesting_points
 
 
 def choose_timesteps(
@@ -29,21 +110,16 @@ def choose_timesteps(
         The metric image being used for seeding
 
     pixel_ignore: Optional[np.ndarray]:
-        An 1-D array of booleans marked True at any pixels
-        that should be ignored, presumably because they have already been
-        selected as ROI pixels. (default: None)
+        A boolean mask marked True at any pixels
+        that should be ignored, presumably because
+        they have already been selected as ROI pixels.
+        (default: None)
 
     Returns
     -------
     global_time_mask: np.ndarray
         Array of timesteps (ints) to be used for calculating correlations
     """
-    if pixel_ignore is not None:
-        if pixel_ignore.shape != image_data.shape:
-            msg = f"pixel_ignore.shape {pixel_ignore.shape}\n"
-            msg += f"image_data.shape {image_data.shape}\n"
-            msg += "These should be the same"
-            raise RuntimeError(msg)
 
     # fraction of timesteps to discard
     discard = 1.0-filter_fraction
@@ -66,25 +142,12 @@ def choose_timesteps(
     # span the dynamic range of the ROI and its
     # background
 
-    image_flat = image_data.flatten()
-    if pixel_ignore is not None:
-        pixel_ignore_flat = pixel_ignore.flatten()
-    else:
-        pixel_ignore_flat = np.zeros(len(image_flat), dtype=bool)
+    interesting_points = choose_extreme_pixels(
+                             image_data,
+                             [1.0],
+                             pixel_ignore=pixel_ignore)
 
-    pixel_indices = np.arange(len(image_flat), dtype=int)
-    valid_pixels = np.logical_not(pixel_ignore_flat)
-    image_flat = image_flat[valid_pixels]
-    pixel_indices = pixel_indices[valid_pixels]
-
-    image_max = image_flat.max()
-    image_min = image_flat.min()
-    t25, t75 = np.quantile(image_flat, (0.25, 0.75))
-    std = (t75-t25)/1.34896
-
-    for val in (image_max-std, image_min+std):
-        ii = pixel_indices[np.argmin(np.abs(val-image_flat))]
-        pt = np.unravel_index(ii, sub_video.shape[1:])
+    for pt in interesting_points:
         trace = sub_video[:, pt[0], pt[1]]
         thresh = np.quantile(trace, discard)
         mask = np.where(trace >= thresh)[0]

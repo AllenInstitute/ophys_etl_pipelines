@@ -6,24 +6,24 @@ from ophys_etl.modules.segmentation.utils.stats_utils import (
 
 def choose_extreme_pixels(
         image_data: np.ndarray,
-        delta_z: List[float],
+        delta_sigma: List[float],
         pixel_ignore: Optional[np.ndarray] = None) -> List[Tuple[int, int]]:
     """
-    For a specified list of values delta_z, choose the pixels in an
+    For a specified list of values delta_sigma, choose the pixels in an
     image that are that many standard deviations from the maximum
     and minimum flux values
 
-    i.e. if delta_z = [1, 2]
+    i.e. if delta_sigma = [1, 2]
 
     The output will be the row, column coordinates of the pixels
-    at
+    whose flux values are closest to
 
     [flux_min + 2*sigma,
      flux_min + 1*sigma,
      flux_max - 2*sigma,
      flux_max - 1*sigma]
 
-    Note: for each delta_z value, only one pixel will be found
+    Note: for each delta_sigma value, only one pixel will be found
     using np.argmin(flux-target_flux)
 
     Parameters
@@ -31,9 +31,9 @@ def choose_extreme_pixels(
     image_data: np.ndarray
         Image data used for determining flux of pixels
 
-    delta_z: List[float]
-        List of differences, in z-score, from extremities
-        to find
+    delta_sigma: List[float]
+        List of distances (in units of the standard deviation) from
+        extremities to find
 
     pixel_ignore: Optional[np.ndarray]:
         A boolean mask marked True at any pixels
@@ -71,9 +71,9 @@ def choose_extreme_pixels(
     std = estimate_std_from_interquartile_range(image_flat)
 
     flux_values = []
-    for dz in delta_z:
-        flux_values.append(image_max-dz*std)
-        flux_values.append(image_min+dz*std)
+    for ds in delta_sigma:
+        flux_values.append(image_max-ds*std)
+        flux_values.append(image_min+ds*std)
     flux_values.sort()
 
     interesting_points = []

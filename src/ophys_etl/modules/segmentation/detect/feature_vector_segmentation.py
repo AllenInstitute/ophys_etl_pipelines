@@ -179,11 +179,11 @@ class FeatureVectorSegmenter(object):
 
     window_min: int
         Minimum half side length of the window in which ROIs are allowed
-        to grow in units of pixels (deafault=20)
+        to grow in units of pixels (default=20)
 
     window_max: int
         Maximum half side length of the window in which ROIs are allowed
-        to grow in units of pixels (deafault=20)
+        to grow in units of pixels (default=20)
 
     n_processors: int
         The number of parallel processors to use when searching for ROIs

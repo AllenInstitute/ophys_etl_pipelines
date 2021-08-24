@@ -166,9 +166,10 @@ def select_window_size(
         pixel_ignore: Optional[np.ndarray] = None) -> int:
     """
     For an image, find the window half side length
-    centered on a pixel such that the specified pixel
-    is at least N-sigma brighter than the distribution
-    of pixels the image.
+    centered on a pixel with (row, column) coordinates
+    seed_pt such that the specified pixel is at least
+    N-sigma brighter than the distribution of pixels the
+    image.
 
     Parameters
     ----------

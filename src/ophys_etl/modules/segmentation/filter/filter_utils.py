@@ -4,6 +4,8 @@ import numpy as np
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     select_window_from_background)
+from ophys_etl.modules.segmentation.utils.stats_utils import (
+    estimate_std_from_interquartile_range)
 
 
 def z_vs_background_from_roi(
@@ -88,8 +90,8 @@ def z_vs_background_from_roi(
 
     # use interquartile range to estimate standard deviation
     # of background pixels
-    q25, q75 = np.quantile(background_pixels, (0.25, 0.75))
-    background_std = max(1.0e-6, (q75-q25)/1.34896)
+    background_std = estimate_std_from_interquartile_range(background_pixels)
+    background_std = max(background_std, 1.0e-6)
 
     z_score = (roi_mean-background_mean)/background_std
     return z_score

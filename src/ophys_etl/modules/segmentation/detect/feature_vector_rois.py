@@ -4,6 +4,8 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
 from ophys_etl.utils.array_utils import pairwise_distances
+from ophys_etl.modules.segmentation.utils.stats_utils import (
+    estimate_std_from_interquartile_range)
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     select_contiguous_region)
 
@@ -227,8 +229,7 @@ def get_background_mask(
         # select the pixels that are more than 1.3 std below
         # median of distribution (1.3 std below distribution
         # should exclude lowest 10% of a Gaussian)
-        t25, t75 = np.quantile(complement_distances, (0.25, 0.75))
-        std = (t75-t25)/1.34896
+        std = estimate_std_from_interquartile_range(complement_distances)
         mu = np.median(complement_distances)
         threshold = (mu-1.3*std)
         valid = complement_distances > threshold
@@ -423,8 +424,8 @@ class PotentialROI(object):
 
         mu_d_bckgd = np.mean(d_bckgd, axis=1)
         if len(d_bckgd.shape) > 1 and d_bckgd.shape[1] > 0:
-            q25, q75 = np.quantile(d_bckgd, (0.25, 0.75), axis=1)
-            std_d_bckgd = (q75-q25)/1.34896
+            std_d_bckgd = estimate_std_from_interquartile_range(d_bckgd,
+                                                                axis=1)
         else:
             std_d_bckgd = np.std(d_bckgd, axis=1, ddof=1)
         z_score = (d_roi-mu_d_bckgd)/std_d_bckgd

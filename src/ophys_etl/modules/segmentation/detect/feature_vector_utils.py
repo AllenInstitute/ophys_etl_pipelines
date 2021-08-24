@@ -1,5 +1,7 @@
 from typing import Tuple, Optional, List
 import numpy as np
+from ophys_etl.modules.segmentation.utils.stats_utils import (
+    estimate_std_from_interquartile_range)
 
 
 def choose_extreme_pixels(
@@ -66,8 +68,7 @@ def choose_extreme_pixels(
 
     image_max = image_flat.max()
     image_min = image_flat.min()
-    t25, t75 = np.quantile(image_flat, (0.25, 0.75))
-    std = (t75-t25)/1.34896
+    std = estimate_std_from_interquartile_range(image_flat)
 
     flux_values = []
     for dz in delta_z:
@@ -235,8 +236,9 @@ def select_window_size(
         local_image = image_data[r0:r1, c0:c1]
         background = local_image[local_mask].flatten()
         mu = np.mean(background)
-        q25, q75 = np.quantile(background, (0.25, 0.75))
-        std = max(1.0e-10, (q75-q25)/1.34896)
+        std = estimate_std_from_interquartile_range(background)
+        std = max(1.0e-10, std)
+
         z_score = (seed_flux-mu)/std
         if window >= window_max:
             break

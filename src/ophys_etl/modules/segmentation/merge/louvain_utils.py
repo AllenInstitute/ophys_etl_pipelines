@@ -43,7 +43,6 @@ def _correlation_worker(
             result[i0-pixel_range[0]][i1] = num/np.sqrt(var0*var1)
 
     with lock:
-        print(f'writing {pixel_range}')
         with h5py.File(output_file_path, 'a') as output_file:
             output_file[dataset_name][pixel_range[0]:pixel_range[1],
                                       :] = result

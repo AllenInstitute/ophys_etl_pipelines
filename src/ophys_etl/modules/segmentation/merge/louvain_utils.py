@@ -120,4 +120,8 @@ def correlate_all_pixels(
         if scratch_file_path.exists():
             scratch_file_path.unlink()
 
+    # fill in the entire matrix
+    for i0 in range(result.shape[1]):
+        result[i0+1:, i0] = result[i0, i0+1:]
+
     return result

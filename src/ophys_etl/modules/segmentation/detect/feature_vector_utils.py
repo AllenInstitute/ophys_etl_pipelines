@@ -11,15 +11,16 @@ def choose_extreme_pixels(
     """
     For a specified list of values delta_sigma, choose the pixels in an
     image that are that many standard deviations from the maximum
-    and minimum flux values
+    and minimum flux values. Pixels are returned in ascending order
+    of flux
 
     i.e. if delta_sigma = [1, 2]
 
     The output will be the row, column coordinates of the pixels
     whose flux values are closest to
 
-    [flux_min + 2*sigma,
-     flux_min + 1*sigma,
+    [flux_min + 1*sigma,
+     flux_min + 2*sigma,
      flux_max - 2*sigma,
      flux_max - 1*sigma]
 

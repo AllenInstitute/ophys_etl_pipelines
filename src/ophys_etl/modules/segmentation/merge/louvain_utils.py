@@ -1,7 +1,6 @@
 from typing import Tuple
 import numpy as np
 import h5py
-import time
 import pathlib
 import multiprocessing
 import multiprocessing.managers
@@ -19,14 +18,12 @@ def _correlation_worker(
     """
     pixel_range is [min, max)
     """
-    print(f'starting {pixel_range}')
     result = np.zeros((pixel_range[1]-pixel_range[0],
                        sub_video.shape[1]),
                       dtype=float)
-    t0 = time.time()
-    ct = 0
+
     discard = 1.0-filter_fraction
-    tot = (pixel_range[1]-pixel_range[0])*sub_video.shape[1]
+
     for i0 in range(pixel_range[0], pixel_range[1]):
         trace0 = sub_video[:, i0]
         th = np.quantile(trace0, discard)
@@ -44,13 +41,6 @@ def _correlation_worker(
             var1 = np.var(f1, ddof=1)
             num = np.mean((f0-mu0)*(f1-mu1))
             result[i0-pixel_range[0]][i1] = num/np.sqrt(var0*var1)
-            ct += 1
-            if ct % 10000 == 0:
-                duration = time.time()-t0
-                per = duration/ct
-                estimate = per*tot
-                remain = estimate-duration
-                print(f'{ct} in {duration:.2e} -- {per:.2e} {remain:.2e} {estimate:.2e}')
 
     with lock:
         print(f'writing {pixel_range}')
@@ -69,10 +59,10 @@ def _correlate_all_pixels(
     """
     dataset_name = 'correlation'
     n_pixels = sub_video.shape[1]
-    print(f'creating {scratch_file_path}')
     with h5py.File(scratch_file_path, 'w') as out_file:
         out_file.create_dataset(dataset_name,
-                                data = np.zeros((n_pixels, n_pixels), dtype=float),
+                                data=np.zeros((n_pixels, n_pixels),
+                                              dtype=float),
                                 chunks=(352, 352),
                                 dtype=float)
 
@@ -91,7 +81,7 @@ def _correlate_all_pixels(
                                           dataset_name))
         p.start()
         process_list.append(p)
-        while len(process_list) >0 and len(process_list) >= (n_processors-1):
+        while len(process_list) > 0 and len(process_list) >= (n_processors-1):
             process_list = _winnow_process_list(process_list)
     for p in process_list:
         p.join()
@@ -113,10 +103,10 @@ def correlate_all_pixels(
     scratch_file_path = None
     ii = 0
     while scratch_file_path is None:
-         possible_fname = scratch_dir / f'correlation_array_{ii}.h5'
-         if not possible_fname.is_file():
-             scratch_file_path = possible_fname
-         ii += 1
+        possible_fname = scratch_dir / f'correlation_array_{ii}.h5'
+        if not possible_fname.is_file():
+            scratch_file_path = possible_fname
+        ii += 1
     try:
         result = _correlate_all_pixels(
                       sub_video,
@@ -125,9 +115,6 @@ def correlate_all_pixels(
                       scratch_file_path)
     finally:
         if scratch_file_path.exists():
-            print(f'unlinking {scratch_file_path}')
             scratch_file_path.unlink()
 
     return result
-
-

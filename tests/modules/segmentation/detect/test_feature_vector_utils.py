@@ -33,28 +33,23 @@ def test_choose_extreme_pixels(ignored_pixels, true_std):
         flat_mask[ignored_pixels] = True
         pixel_ignore = flat_mask.reshape((10, 10))
 
-    for delta_z in ([1.0], [1.0, 2.0], [1.5, 0.1, 3.5]):
+    for quantiles in ([0.1], [0.1, 0.2], [0.1, 0.7, 0.9]):
 
         masked_image = np.copy(flat_image)
-        img_max = flat_image.max()
-        img_min = flat_image.min()
+        full_image = np.copy(flat_image)
         if pixel_ignore is not None:
-            masked_image[flat_mask] = 99999.0
-            img_max = flat_image[np.logical_not(flat_mask)].max()
-            img_min = flat_image[np.logical_not(flat_mask)].min()
+            masked_image = masked_image[np.logical_not(flat_mask)]
+            full_image[flat_mask] = 99999.0
         expected_points = []
-        for dz in delta_z:
-            ii = np.argmin(np.abs(masked_image-(img_max-dz*true_std)))
-            expected_points.append(tuple(np.unravel_index(ii,
-                                                          image_data.shape)))
-
-            ii = np.argmin(np.abs(masked_image-(img_min+dz*true_std)))
+        for q in quantiles:
+            f = np.quantile(masked_image, q)
+            ii = np.argmin(np.abs(full_image-f))
             expected_points.append(tuple(np.unravel_index(ii,
                                                           image_data.shape)))
 
         chosen_points = choose_extreme_pixels(
                               image_data,
-                              delta_z,
+                              quantiles,
                               pixel_ignore=pixel_ignore)
 
         # check that flux values are in sorted order
@@ -109,7 +104,7 @@ def test_choose_timesteps():
                     image_data)
 
     chosen_pixels = choose_extreme_pixels(
-                       image_data, [1.0])
+                       image_data, [0.1, 0.9])
 
     expected_timesteps = []
     chosen_pixels.append(seed_pt)
@@ -127,7 +122,7 @@ def test_choose_timesteps():
                     image_data)
 
     chosen_pixels = choose_extreme_pixels(
-                       image_data, [1.0])
+                       image_data, [0.1, 0.9])
 
     expected_timesteps = []
     chosen_pixels.append(seed_pt)
@@ -150,7 +145,7 @@ def test_choose_timesteps():
                     pixel_ignore=mask)
 
     chosen_pixels = choose_extreme_pixels(
-                       image_data, [1.0],
+                       image_data, [0.1, 0.9],
                        pixel_ignore=mask)
 
     expected_timesteps = []
@@ -170,7 +165,7 @@ def test_choose_timesteps():
                     pixel_ignore=mask)
 
     chosen_pixels = choose_extreme_pixels(
-                       image_data, [1.0],
+                       image_data, [0.1, 0.9],
                        pixel_ignore=mask)
 
     expected_timesteps = []

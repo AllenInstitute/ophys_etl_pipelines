@@ -6,35 +6,19 @@ from ophys_etl.modules.segmentation.utils.stats_utils import (
 
 def choose_extreme_pixels(
         image_data: np.ndarray,
-        delta_sigma: List[float],
+        quantiles: List[float],
         pixel_ignore: Optional[np.ndarray] = None) -> List[Tuple[int, int]]:
     """
-    For a specified list of values delta_sigma, choose the pixels in an
-    image that are that many standard deviations from the maximum
-    and minimum flux values. Pixels are returned in ascending order
-    of flux
-
-    i.e. if delta_sigma = [1, 2]
-
-    The output will be the row, column coordinates of the pixels
-    whose flux values are closest to
-
-    [flux_min + 1*sigma,
-     flux_min + 2*sigma,
-     flux_max - 2*sigma,
-     flux_max - 1*sigma]
-
-    Note: for each delta_sigma value, only one pixel will be found
-    using np.argmin(flux-target_flux)
+    For a specified list of quantiles, choose the pixels in an
+    image that are closest in flux to those quantiles
 
     Parameters
     ----------
     image_data: np.ndarray
         Image data used for determining flux of pixels
 
-    delta_sigma: List[float]
-        List of distances (in units of the standard deviation) from
-        extremities to find
+    quantiles: List[float]
+        List of flux quantiles to find
 
     pixel_ignore: Optional[np.ndarray]:
         A boolean mask marked True at any pixels
@@ -67,15 +51,7 @@ def choose_extreme_pixels(
     image_flat = image_flat[valid_pixels]
     pixel_indices = pixel_indices[valid_pixels]
 
-    image_max = image_flat.max()
-    image_min = image_flat.min()
-    std = estimate_std_from_interquartile_range(image_flat)
-
-    flux_values = []
-    for ds in delta_sigma:
-        flux_values.append(image_max-ds*std)
-        flux_values.append(image_min+ds*std)
-    flux_values.sort()
+    flux_values = np.sort(np.quantile(image_flat, quantiles))
 
     interesting_points = []
     for flux in flux_values:
@@ -146,7 +122,7 @@ def choose_timesteps(
 
     interesting_points = choose_extreme_pixels(
                              image_data,
-                             [1.0],
+                             [0.1, 0.9],
                              pixel_ignore=pixel_ignore)
 
     for pt in interesting_points:

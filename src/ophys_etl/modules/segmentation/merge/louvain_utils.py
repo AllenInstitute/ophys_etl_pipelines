@@ -58,11 +58,15 @@ def _correlate_all_pixels(
     """
     dataset_name = 'correlation'
     n_pixels = sub_video.shape[1]
+    if n_pixels > 352:
+        chunks = (352, 352)
+    else:
+        chunks = None
     with h5py.File(scratch_file_path, 'w') as out_file:
         out_file.create_dataset(dataset_name,
                                 data=np.zeros((n_pixels, n_pixels),
                                               dtype=float),
-                                chunks=(352, 352),
+                                chunks=None,
                                 dtype=float)
 
     mgr = multiprocessing.Manager()

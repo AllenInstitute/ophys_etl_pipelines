@@ -148,13 +148,18 @@ def choose_timesteps(
                              [1.0],
                              pixel_ignore=pixel_ignore)
 
+    print('\ninteresting points')
+
     for pt in interesting_points:
+        print(f'{pt}')
         trace = sub_video[:, pt[0], pt[1]]
         thresh = np.quantile(trace, discard)
         mask = np.where(trace >= thresh)[0]
         global_time_mask.append(mask)
 
-    return np.unique(np.concatenate(global_time_mask))
+    print('')
+
+    return np.unique(np.concatenate(global_time_mask)), interesting_points
 
 
 def select_window_size(

@@ -438,7 +438,7 @@ class PotentialROI(object):
         if n_roi_1 > n_roi:
             chose_one = True
 
-        return chose_one
+        return chose_one, background_mask
 
     def get_mask(self, growth_z_score) -> np.ndarray:
         """
@@ -457,12 +457,31 @@ class PotentialROI(object):
             A (n_rows, n_cols) np.ndarray of booleans marked
             True for all ROI pixels
         """
+        diagnostic_output = dict()
         keep_going = True
 
         # keep going as long as pizels are being added
         # to the ROI
+        i_iteration = 0
         while keep_going:
-            keep_going = self.select_pixels(growth_z_score)
+            i_iteration += 1
+            print(f'selecting pixels {i_iteration}')
+            old_mask = np.copy(self.roi_mask)
+            keep_going, bckgd = self.select_pixels(growth_z_score)
+            local_bckgd = np.zeros(self.img_shape, dtype=bool)
+            local_old = np.zeros(self.img_shape, dtype=bool)
+            local_new = np.zeros(self.img_shape, dtype=bool)
+            for i_pixel in range(self.n_pixels):
+                p = self.index_to_pixel[i_pixel]
+                if bckgd[i_pixel]:
+                    local_bckgd[p[0], p[1]] = True
+                if old_mask[i_pixel]:
+                    local_old[p[0], p[1]] = True
+                elif self.roi_mask[i_pixel]:
+                    local_new[p[0], p[1]] = True
+            diagnostic_output[i_iteration] = {'background': local_bckgd,
+                                              'old': local_old,
+                                              'new': local_new}
 
         output_img = np.zeros(self.img_shape, dtype=bool)
         for i_pixel in range(self.n_pixels):
@@ -475,7 +494,7 @@ class PotentialROI(object):
                             self.seed_pt,
                             output_img)
 
-        return output_img
+        return output_img, diagnostic_output
 
 
 class PearsonFeatureROI(PotentialROI):

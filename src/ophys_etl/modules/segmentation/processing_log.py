@@ -323,7 +323,8 @@ class SegmentationProcessingLog:
             self,
             rois_group: str = "detect",
             attribute_group: str = "detect",
-            metric_image_group: List[str] = ["detect", "seed"]
+            metric_image_group: List[str] = ["detect", "seed"],
+            only_valid: bool = False
             ) -> matplotlib.figure.Figure:
         """return a figure showing ROIs
 
@@ -339,6 +340,8 @@ class SegmentationProcessingLog:
             a list of keys indicating the hierarchical path to the seed
             log group. I.e. ['a','b'] will look in the h5py.File['a']['b']
             group
+        only_valid: bool
+            If True, only plot valid ROIs (default: False)
 
         Returns
         -------
@@ -347,6 +350,10 @@ class SegmentationProcessingLog:
 
         """
         rois = self.get_rois_from_group(group_name=rois_group)
+
+        if only_valid:
+            rois = [roi for roi in rois if roi['valid']]
+
         with h5py.File(self.path, "r") as group:
             attribute = \
                 group[attribute_group]["attribute"][()].decode("utf-8")

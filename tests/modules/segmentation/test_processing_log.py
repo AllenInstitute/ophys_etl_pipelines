@@ -172,7 +172,8 @@ def test_log_two_detection_attempts(tmpdir, extract_roi_list, seeder_fixture):
                            seeder_group_name="seed")
 
 
-def test_create_figures(tmpdir, extract_roi_list, seeder_fixture):
+@pytest.mark.parametrize('only_valid', [True, False])
+def test_create_figures(tmpdir, extract_roi_list, seeder_fixture, only_valid):
     """smoke test
     """
     h5path = tmpdir / "test.h5"
@@ -186,7 +187,7 @@ def test_create_figures(tmpdir, extract_roi_list, seeder_fixture):
     fig = plog.create_seeder_figure()
     assert isinstance(fig, matplotlib.figure.Figure)
 
-    fig = plog.create_roi_metric_figure()
+    fig = plog.create_roi_metric_figure(only_valid=only_valid)
     assert isinstance(fig, matplotlib.figure.Figure)
 
     plog.log_merge(rois=extract_roi_list,

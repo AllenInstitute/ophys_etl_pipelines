@@ -7,7 +7,8 @@ import multiprocessing
 from ophys_etl.modules.segmentation.merge.louvain_utils import (
     _correlation_worker,
     _correlate_all_pixels,
-    correlate_all_pixels)
+    correlate_all_pixels,
+    modularity)
 
 
 @pytest.mark.parametrize(
@@ -164,3 +165,50 @@ def test_correlate_all_pixels_public(tmpdir,
 
     tmpfile_list = list(tmpdir_path.glob('**/*'))
     assert len(tmpfile_list) == 0
+
+
+def test_modularity():
+    # test against modularity definition in
+    # https://en.wikipedia.org/wiki/Louvain_method
+    n_pixels = 100
+    possible_roi = (1, 2, 3, 4)
+
+    rng = np.random.default_rng(55332211)
+
+    roi_id = rng.choice(possible_roi, size=n_pixels, replace=True)
+    corr = np.zeros((n_pixels, n_pixels), dtype=float)
+    for i0 in range(n_pixels):
+        corr[i0, i0] = 1.0
+        for i1 in range(i0+1, n_pixels):
+            v = rng.random()
+            corr[i0, i1] = v
+            corr[i1, i0] = v
+
+    corr0 = np.copy(corr)
+    weight_sum = np.sum(corr, axis=1)
+
+    actual = modularity(roi_id,
+                        corr,
+                        weight_sum)
+
+    # make sure we did not accidentally change the contents
+    # of corr
+    np.testing.assert_array_equal(corr, corr0)
+
+    expected = 0.0
+    total_weights = 0.0
+    for i0 in range(n_pixels):
+        for i1 in range(i0+1, n_pixels):
+            total_weights += corr[i0, i1]
+
+
+    for i0 in range(n_pixels):
+        for i1 in range(i0+1, n_pixels):
+            if roi_id[i0] != roi_id[i1]:
+                continue
+            expected += corr[i0, i1]
+            expected -=(weight_sum[i0]*weight_sum[i1])/(2.0*total_weights)
+    expected = expected*0.5/total_weights
+
+    assert np.abs(actual-expected) < 1.0e-10
+    assert np.abs(expected) >= 1.0e-5

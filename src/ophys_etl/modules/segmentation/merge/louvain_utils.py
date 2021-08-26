@@ -125,3 +125,32 @@ def correlate_all_pixels(
         result[i0+1:, i0] = result[i0, i0+1:]
 
     return result
+
+
+def modularity(roi_id_arr: np.ndarray,
+               pixel_corr: np.ndarray,
+               weight_sum_arr: np.ndarray) -> float:
+    """
+    roi_id_arr: (n_pixels,) array of ROI IDs
+    pixel_corr: (n_pixels, n_pixels) array of correlations
+    weight_sum_arr: (n_pixels,) array that is np.sum(pixel_corr, axis=1)
+    """
+    weight_sum = 0.0
+    for i0 in range(pixel_corr.shape[0]):
+        weight_sum += pixel_corr[i0, i0+1:].sum()
+
+    unique_roi_id = np.unique(roi_id_arr)
+    qq = 0.0
+    for roi_id in unique_roi_id:
+        valid_roi_index = np.where(roi_id_arr==roi_id)[0]
+        sub_corr = pixel_corr[valid_roi_index, :]
+        sub_corr = sub_corr[:, valid_roi_index]
+        sub_wgt_arr = weight_sum_arr[valid_roi_index]
+        kk = np.outer(sub_wgt_arr, sub_wgt_arr)
+        for ii in range(len(valid_roi_index)):
+            kk[ii,ii] = 0.0
+            sub_corr[ii, ii] = 0.0
+        aa = sub_corr.sum()
+        kk = kk.sum()
+        qq += 0.5*(aa-(kk/(2.0*weight_sum)))
+    return qq*0.5/weight_sum

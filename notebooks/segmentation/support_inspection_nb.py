@@ -127,8 +127,11 @@ def roi_viewer(inspection_manifest, nrows=1, ncols=1):
     for i in range(len(processing_logs)):
         processing_logs[i].observe(on_change_logs(i))
 
-    label_checks = [widgets.Checkbox(description="include labels")
-                    for i in range(nrows*ncols)]
+    label_checks = [
+            widgets.Checkbox(
+                description="yes",
+                layout=widgets.Layout(width='150px'))
+            for i in range(nrows*ncols)]
     partials = []
     for ax, bgw, logw, dataw, lw in zip(axes.flat,
                                         backgrounds,

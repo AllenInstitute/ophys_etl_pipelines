@@ -202,13 +202,12 @@ def test_modularity():
         for i1 in range(i0+1, n_pixels):
             total_weights += corr[i0, i1]
 
-
     for i0 in range(n_pixels):
         for i1 in range(i0+1, n_pixels):
             if roi_id[i0] != roi_id[i1]:
                 continue
             expected += corr[i0, i1]
-            expected -=(weight_sum[i0]*weight_sum[i1])/(2.0*total_weights)
+            expected -= (weight_sum[i0]*weight_sum[i1])/(2.0*total_weights)
     expected = expected*0.5/total_weights
 
     assert np.abs(actual-expected) < 1.0e-10

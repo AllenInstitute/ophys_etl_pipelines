@@ -224,3 +224,50 @@ def _louvain_clustering_iteration(
             merger)
 
 
+def _do_louvain_clustering(
+        roi_id_arr: np.ndarray,
+        pixel_corr: np.ndarray) -> Tuple[np.ndarray,
+                                         List[Dict[str, Tuple[int]]]]:
+    """
+    index_to_pixel_coords: maps i_pixel to (row, col)
+    roi_id_arr: maps i_pixel to roi_id
+    pixel_corr: (n_pixels, n_pixels) correlation
+
+    Returns
+    -------
+    roi_id_arr
+    List[Dict[new_roi_id, Tuple of absorbed ROI IDs]]
+    """
+
+    # set any correlations < 0 to 0
+    pixel_corr = np.where(pixel_corr>=0.0,
+                          pixel_corr,
+                          0.0)
+
+    n_pixels = pixel_corr.shape[0]
+
+    weight_sum_arr = np.sum(pixel_corr, axis=1)
+    # exclude self correlation
+    for ii in range(n_pixels):
+        weight_sum_arr[ii] -= pixel_corr[ii, ii]
+
+    # maps input ROI ID to output ROI ID
+    final_mergers = dict()
+    for roi_id in roi_id_arr:
+        final_mergers[roi_id] = roi_id
+
+    keep_going = True
+    while keep_going:
+        (keep_going,
+         roi_id_arr,
+         this_merger) = _louvain_clustering_iteration(
+                            roi_id_arr,
+                            pixel_corr,
+                            weight_sum_arr)
+
+        if this_merger is not None:
+            final_mergers = update_merger_history(
+                                  final_mergers,
+                                  this_merger)
+
+    return (roi_id_arr, final_mergers)

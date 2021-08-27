@@ -9,7 +9,8 @@ from ophys_etl.modules.segmentation.merge.louvain_utils import (
     _correlate_all_pixels,
     correlate_all_pixels,
     modularity,
-    update_merger_history)
+    update_merger_history,
+    _louvain_clustering_iteration)
 
 
 @pytest.mark.parametrize(
@@ -241,3 +242,73 @@ def test_update_merger_history():
     expected[5] = 4
     expected[3] = 2
     assert expected == merger_history
+
+
+def test_louvain_clustering_iteration():
+
+    n_pixels = 10
+    corr = np.zeros((n_pixels, n_pixels), dtype=float)
+    roi_id_arr = np.arange(10)
+    corr[1, 8] = 5.0
+    corr[8, 1] = 5.0
+    corr[1, 2] = 2.0
+    corr[2, 1] = 2.0
+
+    corr0 = np.copy(corr)
+
+    weight_sum_arr = np.sum(corr, axis=1)
+    # exclude self correlation
+    for ii in range(n_pixels):
+        weight_sum_arr -= corr[ii, ii]
+
+    weight0 = np.copy(weight_sum_arr)
+
+    mod0 = modularity(roi_id_arr, corr, weight_sum_arr)
+
+    # best merger is absorb pixel 8 into pixel 1
+    (has_changed,
+     new_roi_id_arr,
+     this_merger) = _louvain_clustering_iteration(
+                        roi_id_arr,
+                        corr,
+                        weight_sum_arr)
+
+    assert has_changed
+    assert this_merger == {'absorber': 1, 'absorbed': 8}
+    mod1 = modularity(new_roi_id_arr, corr, weight_sum_arr)
+    assert mod1 > mod0
+    expected = np.array([0, 1, 2, 3, 4, 5, 6, 7, 1, 9])
+    np.testing.assert_array_equal(new_roi_id_arr, expected)
+    np.testing.assert_array_equal(corr0, corr)
+    np.testing.assert_array_equal(weight0, weight_sum_arr)
+
+    # next best merger is to add pixel 2
+    (has_changed,
+     new_roi_id_arr,
+     this_merger) = _louvain_clustering_iteration(
+                        new_roi_id_arr,
+                        corr,
+                        weight_sum_arr)
+
+    assert has_changed
+    assert this_merger == {'absorber': 1, 'absorbed': 2}
+    mod2 = modularity(new_roi_id_arr, corr, weight_sum_arr)
+    assert mod2 > mod1
+    expected = np.array([0, 1, 1, 3, 4, 5, 6, 7, 1, 9])
+    np.testing.assert_array_equal(new_roi_id_arr, expected)
+    np.testing.assert_array_equal(corr0, corr)
+    np.testing.assert_array_equal(weight0, weight_sum_arr)
+
+    # should be no more mergers
+    roi_input = np.copy(new_roi_id_arr)
+
+    (has_changed,
+     new_roi_id_arr,
+     this_merger) = _louvain_clustering_iteration(
+                        new_roi_id_arr,
+                        corr,
+                        weight_sum_arr)
+
+    assert not has_changed
+    assert this_merger is None
+    np.testing.assert_array_equal(roi_input, new_roi_id_arr)

@@ -2,6 +2,7 @@ from typing import Tuple, Dict, Union, List
 import numpy as np
 import h5py
 import pathlib
+from itertools import combinations
 import multiprocessing
 import multiprocessing.managers
 from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
@@ -170,3 +171,56 @@ def modularity(roi_id_arr: np.ndarray,
         kk = kk.sum()
         qq += 0.5*(aa-(kk/(2.0*weight_sum)))
     return qq*0.5/weight_sum
+
+
+def _louvain_clustering_iteration(
+        roi_id_arr: np.ndarray,
+        pixel_corr: np.ndarray,
+        weight_sum_arr: np.ndarray) -> Tuple[bool,
+                                            np.ndarray,
+                                            Union[None, Dict[str, int]]]:
+    """
+    Find the one roi_id merger that maximizes modularity
+
+    Just iterate over all possible pairs without regard to
+    spatial distribution
+    Returns
+    -------
+    has_changed: boolean
+    roi_id: new roi_id array
+    merger: Dict[str, int] absorber, absorbed
+    """
+
+    unq_roi_id = np.unique(roi_id_arr)
+    best_roi_id_arr = roi_id_arr
+    max_modularity = modularity(
+                         roi_id_arr,
+                         pixel_corr,
+                         weight_sum_arr)
+
+    has_changed = False
+    merger = None
+    for roi_id_pair in combinations(unq_roi_id, 2):
+        # roi_id_pair is (absorber, absorbed)
+        test_roi_id_arr = np.where(
+                               roi_id_arr==roi_id_pair[1],
+                               roi_id_pair[0],
+                               roi_id_arr)
+
+        new_modularity = modularity(
+                            test_roi_id_arr,
+                            pixel_corr,
+                            weight_sum_arr)
+
+        if new_modularity > max_modularity:
+            has_changed = True
+            max_modularity = new_modularity
+            best_roi_id_arr = test_roi_id_arr
+            merger = {'absorber': roi_id_pair[0],
+                      'absorbed': roi_id_pair[1]}
+
+    return (has_changed,
+            best_roi_id_arr,
+            merger)
+
+

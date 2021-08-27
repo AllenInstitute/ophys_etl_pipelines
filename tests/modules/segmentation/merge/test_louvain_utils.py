@@ -8,7 +8,8 @@ from ophys_etl.modules.segmentation.merge.louvain_utils import (
     _correlation_worker,
     _correlate_all_pixels,
     correlate_all_pixels,
-    modularity)
+    modularity,
+    update_merger_history)
 
 
 @pytest.mark.parametrize(
@@ -212,3 +213,32 @@ def test_modularity():
 
     assert np.abs(actual-expected) < 1.0e-10
     assert np.abs(expected) >= 1.0e-5
+
+
+def test_update_merger_history():
+    merger_history = {ii: ii for ii in range(5)}
+
+    merger_history = update_merger_history(
+                         merger_history,
+                         {'absorbed': 1, 'absorber': 5})
+
+    expected = {ii: ii for ii in range(5)}
+    expected[1] = 5
+    assert expected == merger_history
+
+    merger_history = update_merger_history(
+                         merger_history,
+                         {'absorbed': 3, 'absorber': 2})
+
+    expected[3] = 2
+    assert expected == merger_history
+
+    merger_history = update_merger_history(
+                         merger_history,
+                         {'absorbed': 5, 'absorber': 4})
+
+    expected = {ii: ii for ii in range(5)}
+    expected[1] = 4
+    expected[5] = 4
+    expected[3] = 2
+    assert expected == merger_history

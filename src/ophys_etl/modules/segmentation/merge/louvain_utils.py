@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Dict, Union, List
 import numpy as np
 import h5py
 import pathlib
@@ -6,6 +6,22 @@ import multiprocessing
 import multiprocessing.managers
 from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
     _winnow_process_list)
+
+
+def update_merger_history(merger_history: Dict[int, int],
+                          this_merger: Dict[str, int]) -> Dict[int, int]:
+    """
+    merger_history maps roi_id_in to roi_id_out
+    this_merger has keys 'absorbed', 'absorber'
+
+    WARNING will atler merger_history in-place, as well as return it
+    """
+
+    merger_history[this_merger['absorbed']] = this_merger['absorber']
+    for roi_id_in in merger_history:
+        if merger_history[roi_id_in] == this_merger['absorbed']:
+            merger_history[roi_id_in] = this_merger['absorber']
+    return merger_history
 
 
 def _correlation_worker(

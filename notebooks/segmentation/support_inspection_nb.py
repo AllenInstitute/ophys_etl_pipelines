@@ -1,13 +1,17 @@
 import h5py
+import multiprocessing
 import ipywidgets as widgets
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
+import pandas as pd
 from IPython.core.display import display
 from functools import partial
+from pathlib import Path
 
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
-        add_list_of_roi_boundaries_to_img, add_labels_to_axes)
+        add_list_of_roi_boundaries_to_img, add_labels_to_axes,
+        convert_roi_keys)
 from ophys_etl.modules.segmentation.processing_log import \
         SegmentationProcessingLog
 from ophys_etl.modules.segmentation.qc_utils.graph_plotting import \
@@ -166,3 +170,158 @@ def roi_viewer(inspection_manifest, nrows=1, ncols=1):
                                  label_box,
                                  button_box])
     display(selector_box)
+
+
+def all_roi_dicts(inspection_manifest):
+    """returns a dictionary
+    keys are log_path.fname-hdf5_group
+    values are the deserialized ROI List[Dict] for that key
+    """
+    results = dict()
+    for log in inspection_manifest["processing_logs"]:
+        groups = []
+        with h5py.File(log, "r") as f:
+            for key in f.keys():
+                if isinstance(f[key], h5py.Group):
+                    if "rois" in f[key]:
+                        groups.append(key)
+        splog = SegmentationProcessingLog(log)
+        for group in groups:
+            results[f"{log.name}-{group}"] = splog.get_rois_from_group(group)
+    return results
+
+
+def get_movie_widget_list(video_list):
+    """a list of checkboxes for available movies
+    NOTE: dscription_tooltip is the full path for retrieval later.
+    """
+    movie_widget_list = [
+        widgets.Checkbox(
+            value=True,
+            description=Path(f).name,
+            description_tooltip=str(f),
+            layout={'width': 'max-content'}
+        )
+        for f in video_list]
+    return movie_widget_list
+
+
+def get_roi_dropdowns(rois_dict):
+    roi_drops = [
+        widgets.Dropdown(
+            options=np.sort([-1] + [i["id"] for i in v]),
+            description=k,
+            layout={'width': 'max-content'},
+            style={'description_width': 'initial'}
+        )
+        for k, v in rois_dict.items()]
+    return roi_drops
+
+
+def get_trace_selection_widgets(inspection_manifest):
+    movie_widget_list = get_movie_widget_list(inspection_manifest["videos"])
+    movie_list = widgets.VBox(movie_widget_list)
+
+    rois_dict = all_roi_dicts(inspection_manifest)
+    roi_drops = get_roi_dropdowns(rois_dict)
+    roi_list = widgets.VBox(roi_drops)
+
+    movies_and_rois = widgets.HBox(
+        [widgets.VBox([widgets.HTML(value="<b>available movies</b>"),
+                       movie_list]),
+         widgets.VBox([widgets.HTML(value="<b>available ROIs</b>"),
+                       roi_list])],
+        layout={'width': 'max-content'})
+    trace_grouping = widgets.Dropdown(
+        options=[
+            ("group traces by ROI", 0),
+            ("group traces by movie", 1)])
+    all_widgets = widgets.VBox([movies_and_rois, trace_grouping])
+    return rois_dict, all_widgets, roi_drops, movie_widget_list, trace_grouping
+
+
+def extents_from_roi(roi):
+    xmin = roi["x"]
+    xmax = xmin + roi["width"]
+    ymin = roi["y"]
+    ymax = ymin + roi["height"]
+    return xmin, xmax, ymin, ymax
+
+
+def get_trace(movie_path, roi):
+    xmin, xmax, ymin, ymax = extents_from_roi(roi)
+    with h5py.File(movie_path, "r") as f:
+        data = f["data"][:, ymin: ymax, xmin: xmax]
+    data = data.reshape(data.shape[0], -1)
+    mask = np.array(roi["mask_matrix"]).reshape(data.shape[1])
+    npix = np.count_nonzero(mask)
+    trace = data[:, mask].sum(axis=1) / npix
+    return trace
+
+
+def trace_plot_callback(rois_dict, roi_drops,
+                        movie_widget_list, trace_grouping):
+    # determine which ROIs are selected
+    rois_lookup = dict()
+    for roi_select in roi_drops:
+        if roi_select.value != -1:
+            rois_lookup[roi_select.description] = int(roi_select.value)
+    for k, v in list(rois_lookup.items()):
+        j = rois_dict[k]
+        j = convert_roi_keys(j)
+        for i in j:
+            if i["id"] == v:
+                rois_lookup[k] = i
+
+    # determine which movie paths are selected
+    movie_paths = []
+    for movie_widget in movie_widget_list:
+        if movie_widget.value:
+            movie_paths.append(Path(movie_widget.description_tooltip))
+
+    # get all combinations of ROIs and movie paths
+    trace_list = []
+    for roi_source, roi in rois_lookup.items():
+        for movie_path in movie_paths:
+            trace_list.append(
+                {
+                    "roi_source": roi_source,
+                    "roi": roi,
+                    "roi_id": roi["id"],
+                    "movie_path": movie_path,
+                    "movie_label": movie_path.name,
+                    "roi_label": f"{roi_source}_{roi['id']}"
+                }
+            )
+
+    # load traces in parallel
+    args = [(i["movie_path"], i["roi"]) for i in trace_list]
+    with multiprocessing.Pool(4) as pool:
+        results = pool.starmap(get_trace, args)
+    for i, result in enumerate(results):
+        trace_list[i]["trace"] = result
+
+    # group according to selected method
+    df = pd.DataFrame.from_records(trace_list)
+    if trace_grouping.value == 0:
+        groups = df.groupby(["roi_source", "roi_id"])
+        label = "movie_label"
+    elif trace_grouping.value == 1:
+        groups = df.groupby(["movie_label"])
+        label = "roi_label"
+
+    fig2, axes2 = plt.subplots(
+            len(groups), 1, clear=True,
+            sharex=True, sharey=False, squeeze=False)
+    for group, ax in zip(groups, axes2.flat):
+        if isinstance(group[0], tuple):
+            ylab = "\n".join([f"{i}" for i in group[0]])
+        else:
+            ylab = group[0]
+        ax.set_ylabel(ylab, fontsize=6)
+        for entry in group[1].iterrows():
+            ax.plot(entry[1]["trace"], linewidth=0.4, label=entry[1][label])
+
+    axes2.flat[0].legend(fontsize=6)
+    fig2.tight_layout()
+    plt.show()

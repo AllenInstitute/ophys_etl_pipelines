@@ -19,6 +19,25 @@ from ophys_etl.modules.segmentation.qc_utils.graph_plotting import \
 
 
 def new_background_selector(nrows, ncols, background_paths):
+    """creates a list of widgets for selecting subplot background images.
+
+    Parameters
+    ----------
+    nrows: int
+        the number of subplot rows
+    ncols: int
+        the number of subplot columns
+    background_paths: List[str]
+        the list of paths
+
+    Returns
+    -------
+    background_selector: List[widgets.Dropdown]
+        there is one dropdown widget per ROI inspection subplot.
+        each dropdown widget lists the background_paths options.
+        The displayed key is the 'path.name' and the selected value is 'path'
+
+    """
     background_selector = [
         widgets.Dropdown(
             options=[(None, None)] + [(p.name, p) for p in background_paths],
@@ -31,6 +50,28 @@ def new_background_selector(nrows, ncols, background_paths):
 
 
 def new_processing_log_selector(nrows, ncols, processing_logs):
+    """creates 2 lists of widgets for selecting foreground ROIs.
+
+    Parameters
+    ----------
+    nrows: int
+        the number of subplot rows
+    ncols: int
+        the number of subplot columns
+    processing_logs: List[str]
+        the list of paths
+
+    Returns
+    -------
+    foreground_selector: List[widgets.Dropdown]
+        there is one dropdown widget per ROI inspection subplot.
+        each dropdown widget lists the processing_log option
+        The displayed key is the 'path.name' and the selected value is 'path'
+    dataset_selector: List[widgets.Dropdown]
+        for the selected foreground, or procesing log, will display the
+        h5 group names which are available that contain ROIs.
+
+    """
     foreground_selector = [
         widgets.Dropdown(
             options=[(None, None)] + [(f.name, f) for f in processing_logs],
@@ -45,6 +86,21 @@ def new_processing_log_selector(nrows, ncols, processing_logs):
 
 
 def new_plot_update_buttons(nrows, ncols):
+    """ list of update buttons per subplot
+
+    Parameters
+    ----------
+    nrows: int
+        the number of subplot rows
+    ncols: int
+        the number of subplot columns
+
+    Returns
+    -------
+    buttons: List[widgets.Button]
+        the update buttons
+
+    """
     buttons = [
         widgets.Button(description="Update")
         for i in range(nrows)
@@ -54,6 +110,32 @@ def new_plot_update_buttons(nrows, ncols):
 
 def update_plot(widget, fig, axes, background_widget, log_widget,
                 dataset_widget, label_widget):
+    """updates the plots for ROI inspection
+
+    Parameters
+    ----------
+    widget:
+        I believe this needs to be here for this function to be used as an
+        argument for button.on_click()
+    fig: matplotlib.figure.Figure
+        the figure for plotting into
+    axes: matplotlib.axes.Axes
+        the axes for plotting into
+    background_widget:
+        the widget controlling this axes' background
+    log_widget:
+        the widget controlling this axes' foreground (1 of 2)
+    dataset_widget:
+        the widget controlling this axes' foreground (2 of 2)
+    label_widget:
+        the widget controlling whether labels should be applied to these
+        axes.
+
+    Notes
+    -----
+    - the labels can make the plot difficult to read, and could be improved.
+
+    """
     background_path = background_widget.value
     if background_path is None:
         im = np.ones((512, 512, 3), dtype="uint8") * 255
@@ -96,6 +178,20 @@ def update_plot(widget, fig, axes, background_widget, log_widget,
 
 
 def roi_viewer(inspection_manifest, nrows=1, ncols=1):
+    """displays a figure and selector boxes for viewing ROIs
+
+    Parameters
+    ----------
+    inspection_manifest: dict
+        {'videos': a list of video paths/str (not used here),
+         'processing_logs: a list of processing log paths/str,
+         'backgounds: a list of background paths/str}
+    nrows: int
+        how many rows of subplots
+    ncols: int
+        how many columns of subplots
+
+    """
     # erase old figure
     fig = plt.figure(1)
     plt.close(fig)
@@ -207,6 +303,8 @@ def get_movie_widget_list(video_list):
 
 
 def get_roi_dropdowns(rois_dict):
+    """a dropdown listing the available ROI IDs per dataset
+    """
     roi_drops = [
         widgets.Dropdown(
             options=np.sort([-1] + [i["id"] for i in v]),
@@ -219,6 +317,16 @@ def get_roi_dropdowns(rois_dict):
 
 
 def get_trace_selection_widgets(inspection_manifest):
+    """returns the trace selection widgets, grouped in one box to
+    display (all_widgets) and individually to help grab items
+    elsewhere.
+
+    Notes
+    -----
+    - admittedly, this could be cleaner, probably ROIViewer and TraceViewer
+    should both be classes so things don't need to be passed around so much.
+
+    """
     movie_widget_list = get_movie_widget_list(inspection_manifest["videos"])
     movie_list = widgets.VBox(movie_widget_list)
 
@@ -241,6 +349,8 @@ def get_trace_selection_widgets(inspection_manifest):
 
 
 def extents_from_roi(roi):
+    """get bounding box extents for an ROI
+    """
     xmin = roi["x"]
     xmax = xmin + roi["width"]
     ymin = roi["y"]
@@ -249,6 +359,8 @@ def extents_from_roi(roi):
 
 
 def get_trace(movie_path, roi):
+    """extract a trace given a movie path and an ROI
+    """
     xmin, xmax, ymin, ymax = extents_from_roi(roi)
     with h5py.File(movie_path, "r") as f:
         data = f["data"][:, ymin: ymax, xmin: xmax]
@@ -261,6 +373,9 @@ def get_trace(movie_path, roi):
 
 def trace_plot_callback(rois_dict, roi_drops,
                         movie_widget_list, trace_grouping):
+    """plot traces of selected ROIs from selected movies
+    grouped by choice in trace_grouping.
+    """
     # determine which ROIs are selected
     rois_lookup = dict()
     for roi_select in roi_drops:

@@ -6,7 +6,7 @@ from typing import List, Tuple, Dict, Union
 import numpy as np
 import multiprocessing
 import multiprocessing.managers
-from ophys_etl.modules.segmentation.merge.utils import (
+from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
     _winnow_process_list)
 
 from ophys_etl.modules.segmentation.merge.self_correlation import (

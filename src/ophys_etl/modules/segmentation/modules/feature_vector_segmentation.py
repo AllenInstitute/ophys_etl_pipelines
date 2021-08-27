@@ -30,6 +30,8 @@ class FeatureVectorSegmentationRunner(argschema.ArgSchemaParser):
                 attribute=attr,
                 n_processors=n_processors,
                 roi_class=roi_class,
+                window_min=self.args['window_min'],
+                window_max=self.args['window_max'],
                 filter_fraction=self.args['filter_fraction'],
                 seeder_args=self.args['seeder_args'])
 
@@ -39,7 +41,8 @@ class FeatureVectorSegmentationRunner(argschema.ArgSchemaParser):
             plot_output = None
         segmenter.run(log_path=pathlib.Path(self.args['log_path']),
                       plot_output=plot_output,
-                      seed_plot_output=self.args['seed_plot_output'])
+                      seed_plot_output=self.args['seed_plot_output'],
+                      growth_z_score=self.args['growth_z_score'])
 
 
 if __name__ == "__main__":

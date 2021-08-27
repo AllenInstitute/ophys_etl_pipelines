@@ -6,6 +6,8 @@ import h5py
 import pathlib
 import time
 
+from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
+    _winnow_process_list)
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     convert_to_lims_roi)
 from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
@@ -15,6 +17,9 @@ from ophys_etl.modules.segmentation.seed.seeder import \
     BatchImageMetricSeeder
 from ophys_etl.modules.segmentation.processing_log import \
     SegmentationProcessingLog
+from ophys_etl.modules.segmentation.detect.feature_vector_utils import (
+    choose_timesteps,
+    select_window_size)
 
 import logging
 
@@ -38,8 +43,8 @@ class ROISeed(TypedDict):
 
 def _get_roi(seed_obj: ROISeed,
              video_data: np.ndarray,
-             filter_fraction: float,
              pixel_ignore: np.ndarray,
+             growth_z_score: float,
              output_dict: multiprocessing.managers.DictProxy,
              roi_id: int,
              roi_class: type) -> None:
@@ -60,14 +65,18 @@ def _get_roi(seed_obj: ROISeed,
         and seed_boj['cols'][1]-seed_obj['cols'][0] (i.e. the
         field of view has already been clipped)
 
-    filter_fraction: float
-        The fraction of brightest timesteps to use in feature
-        calculation
+        Note: in the case of filter_fraction<1.0, this video
+        will also already have been down-selected in time
 
     pixel_ignore: np.ndarray
         A (n_rows, n_cols) array of booleans marked True at
         any pixels that should be ignored, presumably because
         they have already been added to an ROI
+
+    growth_z_score: float
+        z-score by which a pixel must prefer correlation with
+        ROI pixels over correlation with background pixels
+        in order to be added to the ROI (default=3.0)
 
     output_dict: multiprocessing.managers.DictProxy
         The dict where the final ROI mask from this search will
@@ -97,10 +106,9 @@ def _get_roi(seed_obj: ROISeed,
     roi = roi_class(seed_pt,
                     origin,
                     video_data,
-                    filter_fraction,
                     pixel_ignore=pixel_ignore)
 
-    final_mask = roi.get_mask()
+    final_mask = roi.get_mask(growth_z_score)
 
     output_dict[roi_id] = (origin, final_mask)
     return None
@@ -169,6 +177,14 @@ class FeatureVectorSegmenter(object):
         The fraction of brightest timesteps that will be used to construct
         features from the video data
 
+    window_min: int
+        Minimum half side length of the window in which ROIs are allowed
+        to grow in units of pixels (default=20)
+
+    window_max: int
+        Maximum half side length of the window in which ROIs are allowed
+        to grow in units of pixels (default=20)
+
     n_processors: int
         The number of parallel processors to use when searching for ROIs
         (default: 8)
@@ -194,9 +210,13 @@ class FeatureVectorSegmenter(object):
                  seeder_args: dict,
                  attribute: str = 'filtered_hnc_Gaussian',
                  filter_fraction: float = 0.2,
+                 window_min: int = 20,
+                 window_max: int = 40,
                  n_processors=8,
                  roi_class=PearsonFeatureROI):
 
+        self.window_min = window_min
+        self.window_max = window_max
         self.roi_class = roi_class
         self.n_processors = n_processors
         self._attribute = attribute
@@ -219,7 +239,8 @@ class FeatureVectorSegmenter(object):
         self.movie_shape = movie_shape
 
     def _run(self,
-             video_data: np.ndarray) -> List[dict]:
+             video_data: np.ndarray,
+             growth_z_score: float) -> List[dict]:
         """
         Run one iteration of ROI detection
 
@@ -228,6 +249,11 @@ class FeatureVectorSegmenter(object):
         video_data: np.ndarray
             A (n_time, n_rows, n_cols) array containing the video data
             used to detect ROIs
+
+        growth_z_score: float
+            z-score by which a pixel must prefer correlation with
+            ROI pixels over correlation with background pixels
+            in order to be added to the ROI (default=3.0)
 
         Returns
         -------
@@ -244,7 +270,7 @@ class FeatureVectorSegmenter(object):
 
         # in case we end up retrying ROIs, make sure we can
         # grow their available thumbnails
-        seed_to_slop = dict()
+        seed_to_window = dict()
 
         # NOTE: we should rewrite run() and _run() so that they can
         # use the parallel seed iterator like
@@ -258,10 +284,11 @@ class FeatureVectorSegmenter(object):
             # if there are ROIs from a previous iteration that filled
             # their thumbnail, try those again first with a larger
             # thumbnail
+
             seed_list = []
             for roi in self.roi_to_retry:
                 seed_list.append(roi['seed'])
-                seed_to_slop[roi['seed']] = 3*roi['slop']//2
+                seed_to_window[roi['seed']] = 3*roi['window']//2
 
             self.roi_to_retry = []
         else:
@@ -270,9 +297,6 @@ class FeatureVectorSegmenter(object):
                 seed_list = next(self.seeder)
             except StopIteration:
                 seed_list = []
-
-        default_slop = 20
-        max_slop = 40
 
         # lookup from ROI ID to seed and size of ROI
         # thumbnail
@@ -290,19 +314,37 @@ class FeatureVectorSegmenter(object):
                 continue
 
             self.roi_id += 1
-            slop = seed_to_slop.get(seed, default_slop)
+            window = seed_to_window.get(seed, None)
+            if window is None:
+                window = select_window_size(
+                               seed,
+                               self._graph_img,
+                               target_z_score=2.0,
+                               window_min=self.window_min,
+                               window_max=self.window_max,
+                               pixel_ignore=self.roi_pixels)
 
             roi_inputs[self.roi_id] = {'seed': seed,
-                                       'slop': slop}
+                                       'window': window}
 
-            r0 = int(max(0, seed[0] - slop))
-            r1 = int(min(self.movie_shape[1], seed[0] + slop))
-            c0 = int(max(0, seed[1] - slop))
-            c1 = int(min(self.movie_shape[2], seed[1] + slop))
+            r0 = int(max(0, seed[0] - window))
+            r1 = int(min(self.movie_shape[1], seed[0] + window))
+            c0 = int(max(0, seed[1] - window))
+            c1 = int(min(self.movie_shape[2], seed[1] + window))
 
             mask = self.roi_pixels[r0:r1, c0:c1]
 
             video_data_subset = video_data[:, r0:r1, c0:c1]
+
+            if self._filter_fraction < 1.0:
+                timesteps = choose_timesteps(
+                                video_data_subset,
+                                (seed[0]-r0, seed[1]-c0),
+                                self._filter_fraction,
+                                self._graph_img[r0:r1, c0:c1],
+                                pixel_ignore=mask)
+                video_data_subset = video_data_subset[timesteps, :, :]
+            video_data_subset = video_data_subset.astype(float)
 
             # NOTE: eventually, get rid of ROISeed
             # rationale: seeding produces seeds (coordinates), this object
@@ -315,8 +357,8 @@ class FeatureVectorSegmenter(object):
             p = multiprocessing.Process(target=_get_roi,
                                         args=(this_seed,
                                               video_data_subset,
-                                              self._filter_fraction,
                                               mask,
+                                              growth_z_score,
                                               mgr_dict,
                                               self.roi_id,
                                               self.roi_class))
@@ -326,12 +368,8 @@ class FeatureVectorSegmenter(object):
             # make sure that all processors are working at all times,
             # if possible
             while len(p_list) > 0 and len(p_list) >= self.n_processors-1:
-                to_pop = []
-                for ii in range(len(p_list)-1, -1, -1):
-                    if p_list[ii].exitcode is not None:
-                        to_pop.append(ii)
-                for ii in to_pop:
-                    p_list.pop(ii)
+                p_list = _winnow_process_list(p_list)
+
         for p in p_list:
             p.join()
 
@@ -345,7 +383,7 @@ class FeatureVectorSegmenter(object):
             at_edge = _is_roi_at_edge(origin,
                                       video_data.shape[1:],
                                       mask)
-            if at_edge and roi_inputs[roi_id]['slop'] < max_slop:
+            if at_edge and roi_inputs[roi_id]['window'] < self.window_max:
                 self.roi_to_retry.append(roi_inputs[roi_id])
                 continue
 
@@ -354,19 +392,20 @@ class FeatureVectorSegmenter(object):
                                       roi_id=roi_id)
             if mask.sum() > 1:
                 self.roi_list.append(roi)
-            for ir in range(mask.shape[0]):
-                rr = origin[0]+ir
-                for ic in range(mask.shape[1]):
-                    cc = origin[1]+ic
-                    if mask[ir, ic]:
-                        self.roi_pixels[rr, cc] = True
-                        # make sure the seeder does not
-                        # supply new seeds that are in these ROIs
-                        self.seeder.exclude_pixels({(rr, cc)})
+                for ir in range(mask.shape[0]):
+                    rr = origin[0]+ir
+                    for ic in range(mask.shape[1]):
+                        cc = origin[1]+ic
+                        if mask[ir, ic]:
+                            self.roi_pixels[rr, cc] = True
+                            # make sure the seeder does not
+                            # supply new seeds that are in these ROIs
+                            self.seeder.exclude_pixels({(rr, cc)})
 
         return seed_list
 
     def run(self,
+            growth_z_score: float,
             log_path: pathlib.Path,
             plot_output: Optional[pathlib.Path] = None,
             seed_plot_output: Optional[pathlib.Path] = None,
@@ -376,6 +415,11 @@ class FeatureVectorSegmenter(object):
 
         Parameters
         ----------
+        growth_z_score: float
+            z-score by which a pixel must prefer correlation with
+            ROI pixels over correlation with background pixels
+            in order to be added to the ROI (default=3.0)
+
         log_path: pathlib.Path
             the path where the processing results will be written
 
@@ -436,7 +480,8 @@ class FeatureVectorSegmenter(object):
 
         while keep_going:
 
-            roi_seeds = self._run(video_data)
+            roi_seeds = self._run(video_data,
+                                  growth_z_score)
 
             # NOTE: this change lets the seeder/iterator control
             # the stopping condition of segmentation. I.e. when seeds

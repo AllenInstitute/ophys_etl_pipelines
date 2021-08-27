@@ -95,7 +95,7 @@ class CalculateEdgesInputSchema(argschema.ArgSchema):
     filter_fraction = argschema.fields.Float(
         required=False,
         default=0.2,
-        description="Fraction of timesteps to kee if "
+        description="Fraction of timesteps to keep if "
                     "calculating the filtered Pearson coefficient")
     neighborhood_radius = argschema.fields.Int(
         required=False,
@@ -321,7 +321,31 @@ class FeatureVectorSegmentationInputSchema(SharedSegmentationInputSchema):
     filter_fraction = argschema.fields.Float(
         required=False,
         default=0.2,
-        description="fraction of timesteps to use in time correlation")
+        description=("fraction of timesteps to use in time correlation "
+                     "Note: will also affect PCA-based segmentation"))
+
+    growth_z_score = argschema.fields.Float(
+        required=False,
+        default=3.0,
+        allow_none=False,
+        description=("z-score by which a pixel must prefer "
+                     "correlation to ROI pixels over correlation "
+                     "to background pixels in order for it to be "
+                     "added to the ROI"))
+
+    window_min = argschema.fields.Int(
+        required=False,
+        default=20,
+        allow_none=False,
+        description=("minimum half side length of window in which "
+                     "ROI is allowed to grow in units of pixels"))
+
+    window_max = argschema.fields.Int(
+        required=False,
+        default=40,
+        allow_none=False,
+        description=("maximum half side length of window in which "
+                     "ROI is allowed to grow in units of pixels"))
 
 
 class HNC_args(argschema.schemas.DefaultSchema):

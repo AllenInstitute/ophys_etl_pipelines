@@ -4,97 +4,14 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
 from ophys_etl.utils.array_utils import pairwise_distances
+from ophys_etl.modules.segmentation.utils.stats_utils import (
+    estimate_std_from_interquartile_range)
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     select_contiguous_region)
 
 
-def choose_timesteps(
-            sub_video: np.ndarray,
-            i_seed: int,
-            filter_fraction: float,
-            rng: Optional[np.random.RandomState] = None,
-            pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
-    """
-    Calculate the Pearson correlation-based feature vectors relating
-    a grid of pixels in a video to each other
-
-    Parameters
-    ----------
-    sub_video: np.ndarray
-        A subset of a video to be correlated.
-        Shape is (n_time, n_pixels)
-
-    i_seed: int
-        The index of the point being considered as the seed
-        for the ROI.
-
-    filter_fraction: float
-        The fraction of brightest timesteps to be used in calculating
-        the Pearson correlation between pixels
-
-    rng: Optional[np.random.RandomState]
-        A random number generator used to choose pixels which will be
-        used to select the brightest filter_fraction of pixels. If None,
-        an np.random.RandomState will be instantiated with a hard-coded
-        seed (default: None)
-
-    pixel_ignore: Optional[np.ndarray]:
-        An 1-D array of booleans marked True at any pixels
-        that should be ignored, presumably because they have already been
-        selected as ROI pixels. (default: None)
-
-    Returns
-    -------
-    global_mask: np.ndarray
-        Array of timesteps (ints) to be used for calculating correlations
-    """
-    # fraction of timesteps to discard
-    discard = 1.0-filter_fraction
-
-    # start assembling mask in timesteps
-    trace = sub_video[:, i_seed]
-    thresh = np.quantile(trace, discard)
-    global_mask = []
-    mask = np.where(trace >= thresh)[0]
-    global_mask.append(mask)
-
-    # choose n_seeds other points to populate global_mask
-    possible_seeds = []
-    for ii in range(sub_video.shape[1]):
-        if ii == i_seed:
-            continue
-
-        if pixel_ignore is None or not pixel_ignore[i_seed]:
-            possible_seeds.append(ii)
-
-    n_seeds = 10
-    if rng is None:
-        rng = np.random.RandomState(87123)
-    chosen = set()
-    chosen.add(i_seed)
-
-    if len(possible_seeds) > n_seeds:
-        chosen_seeds = rng.choice(possible_seeds,
-                                  size=n_seeds, replace=False)
-        for ii in chosen_seeds:
-            chosen.add(ii)
-    else:
-        for ii in possible_seeds:
-            chosen.add(ii)
-
-    for chosen_pixel in chosen:
-        trace = sub_video[:, chosen_pixel]
-        thresh = np.quantile(trace, discard)
-        mask = np.where(trace >= thresh)[0]
-        global_mask.append(mask)
-    global_mask = np.unique(np.concatenate(global_mask))
-    return global_mask
-
-
-def calculate_masked_correlations(
-            sub_video: np.ndarray,
-            global_mask: np.ndarray,
-            pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
+def calculate_correlations(
+            sub_video: np.ndarray) -> np.ndarray:
     """
     Calculate and return the Pearson correlation coefficient between
     pixels in a video, using only specific timesteps
@@ -105,10 +22,6 @@ def calculate_masked_correlations(
         A subset of a video to be correlated.
         Shape is (n_time, n_pixels)
 
-    global_mask: np.ndarray
-        The array of timesteps to be used when calculating the
-        Pearson correlation coefficient
-
     Returns
     -------
     pearson: np.ndarray
@@ -116,20 +29,18 @@ def calculate_masked_correlations(
         between pixels in the movie.
     """
 
-    # apply timestep mask
-    traces = sub_video[global_mask, :].astype(float)
-
     # calculate the Pearson correlation coefficient between pixels
-    mu = np.mean(traces, axis=0)
-    traces -= mu
-    var = np.mean(traces**2, axis=0)
+    mu = np.mean(sub_video, axis=0)
+    sub_video = sub_video - mu
+    var = np.mean(sub_video**2, axis=0)
 
-    n_pixels = traces.shape[1]
+    n_pixels = sub_video.shape[1]
     pearson = np.ones((n_pixels,
                        n_pixels),
                       dtype=float)
 
-    numerators = np.tensordot(traces, traces, axes=(0, 0))/sub_video.shape[0]
+    numerators = np.tensordot(sub_video,
+                              sub_video, axes=(0, 0))/sub_video.shape[0]
 
     for ii in range(n_pixels):
         local_numerators = numerators[ii, ii+1:]
@@ -189,8 +100,6 @@ def normalize_features(input_features: np.ndarray) -> np.ndarray:
 def calculate_pearson_feature_vectors(
             sub_video: np.ndarray,
             seed_pt: Tuple[int, int],
-            filter_fraction: float,
-            rng: Optional[np.random.RandomState] = None,
             pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
     """
     Calculate the Pearson correlation-based feature vectors relating
@@ -202,21 +111,14 @@ def calculate_pearson_feature_vectors(
         A subset of a video to be correlated.
         Shape is (n_time, n_rows, n_cols)
 
+        Note: any filtering on time that should be done on
+        sub_video must already have been done.
+
     seed_pt: Tuple[int, int]
         The coordinates of the point being considered as the seed
         for the ROI. Coordinates must be in the frame of the
         sub-video represented by sub_video (i.e. seed_pt=(0,0) will be the
         upper left corner of whatever frame is represented by sub_video)
-
-    filter_fraction: float
-        The fraction of brightest timesteps to be used in calculating
-        the Pearson correlation between pixels
-
-    rng: Optional[np.random.RandomState]
-        A random number generator used to choose pixels which will be
-        used to select the brightest filter_fraction of pixels. If None,
-        an np.random.RandomState will be instantiated with a hard-coded
-        seed (default: None)
 
     pixel_ignore: Optional[np.ndarray]:
         An (n_rows, n_cols) array of booleans marked True at any pixels
@@ -235,15 +137,12 @@ def calculate_pearson_feature_vectors(
     -----
     The feature vectors returned by this method are calculated as follows:
 
-    1) Select a random set of 10 pixels from sub_video including the seed_pt.
-
-    2) Use the brightest filter_fraction of timestamps from the 10 selected
-    seeds to calculate the Pearson correlation coefficient between each
+    1) Calculate the Pearson correlation coefficient between each
     pair of pixels. This results in an (n_pixels, n_pixels) array in which
     pearson[ii, jj] is the correlation coefficient between the ii_th and
     jj_th pixels.
 
-    3) For each column pearson [:, ii] in the array of Pearson
+    2) For each column pearson [:, ii] in the array of Pearson
     correlation coefficients, subtract off the minimum value in
     that column and divide by the gap between the 25th adn 75th
     percentile of that column's values.
@@ -267,18 +166,9 @@ def calculate_pearson_feature_vectors(
         if not flat_mask[ii]:
             i_seed += 1
 
-    sub_video = sub_video.reshape(sub_video.shape[0], -1)
-    sub_video = sub_video[:, np.logical_not(flat_mask)]
-
-    global_mask = choose_timesteps(sub_video,
-                                   i_seed,
-                                   filter_fraction,
-                                   rng=rng,
-                                   pixel_ignore=flat_mask)
-
-    pearson = calculate_masked_correlations(sub_video,
-                                            global_mask)
-
+    local_video = sub_video.reshape(sub_video.shape[0], -1)
+    local_video = local_video[:, np.logical_not(flat_mask)]
+    pearson = calculate_correlations(local_video)
     features = normalize_features(pearson)
 
     return features
@@ -336,10 +226,13 @@ def get_background_mask(
     if n_complement < 10:
         background_mask[complement] = True
     else:
-        # select the 90% most distant pixels to be
-        # designated background pixels
-        t10 = np.quantile(complement_distances, 0.1)
-        valid = complement_distances > t10
+        # select the pixels that are more than 1.3 std below
+        # median of distribution (1.3 std below distribution
+        # should exclude lowest 10% of a Gaussian)
+        std = estimate_std_from_interquartile_range(complement_distances)
+        mu = np.median(complement_distances)
+        threshold = (mu-1.3*std)
+        valid = complement_distances > threshold
         valid_dexes = complement_dexes[valid]
         background_mask[valid_dexes] = True
 
@@ -367,32 +260,23 @@ class PotentialROI(object):
         The segment of the video data to search for the ROI.
         Its shape is (n_time, n_rows, n_cols)
 
-    filter_fraction: float
-        The fraction of timesteps to use when correlating pixels
-        (this is used by calculate_pearson_feature_vectors)
+        Note: any filtering on time that needs to be done to sub_video
+        must already have been done.
 
     pixel_ignore: Optional[np.ndarray]
         A (n_rows, n_cols) array of booleans marked True for any
         pixels that should be ignored, presumably because they
         have already been included as ROIs in another iteration.
         (default: None)
-
-    rng: Optional[np.random.RandomState]
-        A random number generator to be used by
-        calculate_pearson_feature_vectors in selecting timesteps
-        to correlate (default: None)
     """
 
     def __init__(self,
                  seed_pt: Tuple[int, int],
                  origin: Tuple[int, int],
                  sub_video: np.ndarray,
-                 filter_fraction: float,
-                 pixel_ignore: Optional[np.ndarray] = None,
-                 rng: Optional[np.random.RandomState] = None):
+                 pixel_ignore: Optional[np.ndarray] = None):
         self.origin = origin
         self.seed_pt = (seed_pt[0]-origin[0], seed_pt[1]-origin[1])
-        self.filter_fraction = filter_fraction
         self.img_shape = sub_video.shape[1:]
 
         self.index_to_pixel = []
@@ -416,9 +300,7 @@ class PotentialROI(object):
             raise RuntimeError("Tried to create ROI with no valid pixels")
 
         self.calculate_feature_distances(sub_video,
-                                         filter_fraction,
-                                         pixel_ignore=pixel_ignore,
-                                         rng=rng)
+                                         pixel_ignore=pixel_ignore)
 
         self.roi_mask = np.zeros(self.n_pixels, dtype=bool)
         self.roi_mask[self.pixel_to_index[self.seed_pt]] = True
@@ -426,9 +308,7 @@ class PotentialROI(object):
     def get_features(
             self,
             sub_video: np.ndarray,
-            filter_fraction: float,
-            pixel_ignore: Optional[np.ndarray] = None,
-            rng: Optional[np.random.RandomState] = None) -> np.ndarray:
+            pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
         """
         Return the (n_pixels, n_pixels) array of feature vectors
 
@@ -438,19 +318,10 @@ class PotentialROI(object):
             The subset of video data being scanned for an ROI.
             Shape is (n_time, n_rows, n_cols)
 
-        filter_fraction: float
-            Fraction of brightest timesteps to use in calculating
-            features.
-
         pixel_ignore: Optional[np.ndarray]
             A (n_rows, n_cols) array of booleans that is True
             for any pixel to be ignored, presumably because it
             has already been assigned to an ROI (default: None)
-
-        rng: Optional[np.random.RandomState]
-            A random number generator (used by
-            calculate_pearson_feature_vectors to select pixels
-            for use in choosing brightest timesteps)
 
         Returns
         -------
@@ -470,9 +341,7 @@ class PotentialROI(object):
     def calculate_feature_distances(
             self,
             sub_video: np.ndarray,
-            filter_fraction: float,
-            pixel_ignore: Optional[np.ndarray] = None,
-            rng: Optional[np.random.RandomState] = None):
+            pixel_ignore: Optional[np.ndarray] = None):
         """
         Set self.feature_distances, an (n_pixel, n_pixel) array
         of distances between pixels in feature space.
@@ -483,19 +352,10 @@ class PotentialROI(object):
             The subset of video data being scanned for an ROI.
             Shape is (n_time, n_rows, n_cols)
 
-        filter_fraction: float
-            Fraction of brightest timesteps to use in calculating
-            features.
-
         pixel_ignore: Optional[np.ndarray]
             A (n_rows, n_cols) array of booleans that is True
             for any pixel to be ignored, presumably because it
             has already been assigned to an ROI (default: None)
-
-        rng: Optional[np.random.RandomState]
-            A random number generator (used by
-            calculate_pearson_feature_vectors to select pixels
-            for use in choosing brightest timesteps)
 
         Notes
         ------
@@ -504,15 +364,21 @@ class PotentialROI(object):
         """
 
         features = self.get_features(sub_video,
-                                     filter_fraction,
-                                     pixel_ignore=pixel_ignore,
-                                     rng=rng)
+                                     pixel_ignore=pixel_ignore)
 
         self.feature_distances = pairwise_distances(features)
 
-    def select_pixels(self) -> bool:
+    def select_pixels(self,
+                      growth_z_score: float = 3.0) -> bool:
         """
         Run one iteration, looking for pixels to add to self.roi_mask.
+
+        Parameters
+        ----------
+        growth_z_score: float
+            z-score by which a pixel must prefer correlation with
+            ROI pixels over correlation with background pixels
+            in order to be added to the ROI (default=3.0)
 
         Returns
         -------
@@ -536,8 +402,8 @@ class PotentialROI(object):
         currently in the ROI).
 
         4) Any pixel whose distance to the ROI (from step (2)) has a z-score
-        of less than -2 relative to the distribution of its distances from
-        background pixels (from step (3)) is added to the ROI.
+        of less than -1*growth-z_score relative to the distribution of its
+        distances from background pixels (from step (3)) is added to the ROI.
         """
         chose_one = False
 
@@ -553,14 +419,18 @@ class PotentialROI(object):
         # take the median of the n_roi nearest background distances;
         # hopefully this will limit the effect of outliers
         d_bckgd = np.sort(self.feature_distances[:, background_mask], axis=1)
-        if n_roi > 20:
-            d_bckgd = d_bckgd[:, :n_roi]
+        n_bckgd = max(20, n_roi)
+        d_bckgd = d_bckgd[:, :n_bckgd]
 
         mu_d_bckgd = np.mean(d_bckgd, axis=1)
-        std_d_bckgd = np.std(d_bckgd, axis=1, ddof=1)
+        if len(d_bckgd.shape) > 1 and d_bckgd.shape[1] > 0:
+            std_d_bckgd = estimate_std_from_interquartile_range(d_bckgd,
+                                                                axis=1)
+        else:
+            std_d_bckgd = np.std(d_bckgd, axis=1, ddof=1)
         z_score = (d_roi-mu_d_bckgd)/std_d_bckgd
 
-        valid = z_score <= -2.0
+        valid = z_score <= -1.0*growth_z_score
         if valid.sum() > 0:
             self.roi_mask[valid] = True
 
@@ -570,9 +440,16 @@ class PotentialROI(object):
 
         return chose_one
 
-    def get_mask(self) -> np.ndarray:
+    def get_mask(self, growth_z_score) -> np.ndarray:
         """
         Iterate over the pixels, building up the ROI
+
+        Parameters
+        ----------
+        growth_z_score: float
+            z-score by which a pixel must prefer correlation with
+            ROI pixels over correlation with background pixels
+            in order to be added to the ROI (default=3.0)
 
         Returns
         -------
@@ -585,7 +462,7 @@ class PotentialROI(object):
         # keep going as long as pizels are being added
         # to the ROI
         while keep_going:
-            keep_going = self.select_pixels()
+            keep_going = self.select_pixels(growth_z_score)
 
         output_img = np.zeros(self.img_shape, dtype=bool)
         for i_pixel in range(self.n_pixels):
@@ -613,9 +490,7 @@ class PearsonFeatureROI(PotentialROI):
     def get_features(
             self,
             sub_video: np.ndarray,
-            filter_fraction: float,
-            pixel_ignore: Optional[np.ndarray] = None,
-            rng: Optional[np.random.RandomState] = None) -> np.ndarray:
+            pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
         """
         Return the (n_pixels, n_pixels) array of feature vectors
 
@@ -625,19 +500,10 @@ class PearsonFeatureROI(PotentialROI):
             The subset of video data being scanned for an ROI.
             Shape is (n_time, n_rows, n_cols)
 
-        filter_fraction: float
-            Fraction of brightest timesteps to use in calculating
-            features.
-
         pixel_ignore: Optional[np.ndarray]
             A (n_rows, n_cols) array of booleans that is True
             for any pixel to be ignored, presumably because it
             has already been assigned to an ROI (default: None)
-
-        rng: Optional[np.random.RandomState]
-            A random number generator (used by
-            calculate_pearson_feature_vectors to select pixels
-            for use in choosing brightest timesteps)
 
         Returns
         -------
@@ -650,12 +516,11 @@ class PearsonFeatureROI(PotentialROI):
         features[ii, :] can be mapped into a pixel in sub_video using
         self.index_to_pixel[ii]
         """
+
         features = calculate_pearson_feature_vectors(
                                     sub_video,
                                     self.seed_pt,
-                                    filter_fraction,
-                                    pixel_ignore=pixel_ignore,
-                                    rng=rng)
+                                    pixel_ignore=pixel_ignore)
         return features
 
 
@@ -719,9 +584,7 @@ class PCAFeatureROI(PotentialROI):
     def get_features(
             self,
             sub_video: np.ndarray,
-            filter_fraction: float,
-            pixel_ignore: Optional[np.ndarray] = None,
-            rng: Optional[np.random.RandomState] = None) -> np.ndarray:
+            pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
         """
         Return the (n_pixels, n_pixels) array of feature vectors
 
@@ -731,19 +594,10 @@ class PCAFeatureROI(PotentialROI):
             The subset of video data being scanned for an ROI.
             Shape is (n_time, n_rows, n_cols)
 
-        filter_fraction: float
-            Fraction of brightest timesteps to use in calculating
-            features.
-
         pixel_ignore: Optional[np.ndarray]
             A (n_rows, n_cols) array of booleans that is True
             for any pixel to be ignored, presumably because it
             has already been assigned to an ROI (default: None)
-
-        rng: Optional[np.random.RandomState]
-            A random number generator (used by
-            calculate_pearson_feature_vectors to select pixels
-            for use in choosing brightest timesteps)
 
         Returns
         -------

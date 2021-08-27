@@ -10,7 +10,8 @@ from ophys_etl.modules.segmentation.merge.louvain_utils import (
     correlate_all_pixels,
     modularity,
     update_merger_history,
-    _louvain_clustering_iteration)
+    _louvain_clustering_iteration,
+    _do_louvain_clustering)
 
 
 @pytest.mark.parametrize(
@@ -248,7 +249,7 @@ def test_louvain_clustering_iteration():
 
     n_pixels = 10
     corr = np.zeros((n_pixels, n_pixels), dtype=float)
-    roi_id_arr = np.arange(10)
+    roi_id_arr = np.arange(n_pixels)
     corr[1, 8] = 5.0
     corr[8, 1] = 5.0
     corr[1, 2] = 2.0
@@ -312,3 +313,31 @@ def test_louvain_clustering_iteration():
     assert not has_changed
     assert this_merger is None
     np.testing.assert_array_equal(roi_input, new_roi_id_arr)
+
+
+def test_do_louvain_clustering():
+
+    n_pixels = 10
+    roi_id_arr = np.arange(n_pixels)
+    corr = np.zeros((n_pixels, n_pixels), dtype=float)
+    for ii in range(n_pixels):
+        corr[ii, ii] = 1.0
+    corr[4, 5] = 6.0
+    corr[5, 4] = 6.0
+    corr[2, 3] = 1.0
+    corr[3, 2] = 1.0
+    corr[4, 7] = 2.0
+    corr[7, 4] = 2.0
+
+    (new_roi_id_arr,
+     final_mergers) = _do_louvain_clustering(roi_id_arr,
+                                             corr)
+
+    expected = np.array([0, 1, 2, 2, 4, 4, 6, 4, 8, 9])
+    np.testing.assert_array_equal(new_roi_id_arr, expected)
+
+    expected_mergers = {ii: ii for ii in range(10)}
+    expected_mergers[5] = 4
+    expected_mergers[3] = 2
+    expected_mergers[7] = 4
+    assert expected_mergers == final_mergers

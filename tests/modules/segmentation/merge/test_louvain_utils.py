@@ -4,6 +4,10 @@ import numpy as np
 import pathlib
 import multiprocessing
 
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    pixel_list_to_extract_roi,
+    extract_roi_to_ophys_roi)
+
 from ophys_etl.modules.segmentation.merge.louvain_utils import (
     _correlation_worker,
     _correlate_all_pixels,
@@ -11,7 +15,51 @@ from ophys_etl.modules.segmentation.merge.louvain_utils import (
     modularity,
     update_merger_history,
     _louvain_clustering_iteration,
-    _do_louvain_clustering)
+    _do_louvain_clustering,
+    find_roi_clusters)
+
+
+@pytest.fixture(scope='session')
+def rois_for_clustering_fixture():
+
+    pixel_map = [[1, 1, 0, 0, 0, 0, 0, 0],
+                 [1, 1, 0, 0, 0, 0, 0, 0],
+                 [0, 0, 2, 2, 0, 0, 0, 0],
+                 [0, 0, 2, 2, 0, 0, 5, 0],
+                 [0, 0, 0, 0, 0, 0, 5, 0],
+                 [0, 0, 0, 0, 0, 0, 5, 0],
+                 [3, 3, 0, 0, 0, 0, 0, 0],
+                 [3, 3, 0, 4, 4, 4, 4, 0]]
+
+    pixel_map = np.array(pixel_map).astype(int)
+    roi_list = []
+    for roi_id in range(1, 6):
+        valid = np.where(pixel_map==roi_id)
+        pixel_list = [(r, c) for r, c in zip(valid[0], valid[1])]
+        extract_roi = pixel_list_to_extract_roi(pixel_list, roi_id)
+        ophys_roi = extract_roi_to_ophys_roi(extract_roi)
+        roi_list.append(ophys_roi)
+    return roi_list
+
+
+@pytest.mark.parametrize(
+    'pixel_distance, expected_clusters',
+    [(np.sqrt(2.0), set([(1, 2), (3,), (4,), (5,)])),
+     (2.0, set([(1, 2), (3, 4, 5)])),
+     (3.0, set([(1, 2, 3, 4, 5),]))])
+def test_find_roi_clusters(rois_for_clustering_fixture,
+                           pixel_distance,
+                           expected_clusters):
+
+    clusters = find_roi_clusters(rois_for_clustering_fixture,
+                                 pixel_distance=pixel_distance)
+
+    actual = set()
+    for roi_cluster in clusters:
+        roi_id = [roi.roi_id for roi in roi_cluster]
+        roi_id.sort()
+        actual.add(tuple(roi_id))
+    assert actual == expected_clusters
 
 
 @pytest.mark.parametrize(

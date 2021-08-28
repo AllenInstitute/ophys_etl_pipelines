@@ -2,11 +2,42 @@ from typing import Tuple, Dict, Union, List
 import numpy as np
 import h5py
 import pathlib
+import networkx
 from itertools import combinations
 import multiprocessing
 import multiprocessing.managers
+
+from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    do_rois_abut)
+
 from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
     _winnow_process_list)
+
+
+def find_roi_clusters(
+        roi_list: List[OphysROI],
+        pixel_distance: float = np.sqrt(2.0)) -> List[List[OphysROI]]:
+    """
+    Given a list of OphysROI, find a list of lists representing
+    the complexes of contiguous ROIs
+    """
+
+    roi_lookup = {roi.roi_id: roi for roi in roi_list}
+    graph = networkx.Graph()
+    for i0 in range(len(roi_list)):
+        graph.add_node(roi_list[i0].roi_id)
+        for i1 in range(i0+1, len(roi_list)):
+            if do_rois_abut(roi_list[i0], roi_list[i1], pixel_distance):
+                graph.add_edge(roi_list[i0].roi_id, roi_list[i1].roi_id)
+    output = []
+    for component in networkx.connected_components(graph):
+        local_list = []
+        for roi_id in component:
+            local_list.append(roi_lookup[roi_id])
+        output.append(local_list)
+    return output
 
 
 def update_merger_history(merger_history: Dict[int, int],

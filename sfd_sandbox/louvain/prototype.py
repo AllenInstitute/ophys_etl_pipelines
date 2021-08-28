@@ -61,7 +61,7 @@ def generate_roi_figure(axis,
 
 
 if __name__ == "__main__":
-
+    global_t0 = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument('--log_path', type=str)
     parser.add_argument('--video_path', type=str)
@@ -174,3 +174,6 @@ if __name__ == "__main__":
             a.axvline(ii, color='w', alpha=0.5)
     fig.tight_layout()
     fig.savefig(args.plot_path)
+
+    duration = time.time()-global_t0
+    print(f'whole thing took {duration:.2f} seconds')

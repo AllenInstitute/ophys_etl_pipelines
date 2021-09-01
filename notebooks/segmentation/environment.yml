@@ -9,5 +9,5 @@ dependencies:
   - ffmpeg=4.2.2
   - imageio=2.9.0
   - pip:
-    - voila==0.2.10
-    - git+https://github.com/AllenInstitute/ophys_etl_pipelines@notebook_update
+    - git+https://github.com/AllenInstitute/ophys_etl_pipelines@staging/segmentation_dev
+    - 'evaldb[READ] @ git+https://github.com/AllenInstitute/ophys_segmentation_eval_db'

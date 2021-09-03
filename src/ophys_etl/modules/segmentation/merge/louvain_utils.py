@@ -1,6 +1,7 @@
 from typing import Tuple, Dict, Union, List
 import numpy as np
 import h5py
+import time
 import pathlib
 import networkx
 from itertools import combinations
@@ -288,6 +289,8 @@ def _do_louvain_clustering(
         final_mergers[roi_id] = roi_id
 
     keep_going = True
+    _n0 = len(np.unique(roi_id_arr))
+    _t0 = time.time()
     while keep_going:
         (keep_going,
          roi_id_arr,
@@ -295,6 +298,10 @@ def _do_louvain_clustering(
                             roi_id_arr,
                             pixel_corr,
                             weight_sum_arr)
+
+        _n_roi = len(np.unique(roi_id_arr))
+        _duration = time.time()-_t0
+        print(f'{_n_roi} from {_n0} ROI after {_duration:.2e} seconds')
 
         if this_merger is not None:
             final_mergers = update_merger_history(

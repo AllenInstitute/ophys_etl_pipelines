@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, Union, List
+from typing import Tuple, Dict, Union, List, Optional
 import pathlib
 import numpy as np
 
@@ -7,6 +7,9 @@ import time
 
 from ophys_etl.utils.array_utils import (
     pairwise_distances)
+
+from ophys_etl.modules.segmentation.merge.candidates import (
+    create_neighbor_lookup)
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
@@ -30,12 +33,21 @@ def do_louvain_clustering_on_rois(
         kernel_size: Union[float, None],
         filter_fraction: float,
         n_processors: int,
-        scratch_dir: pathlib.Path) -> Tuple[List[OphysROI],
-                                            List[List[int]]]:
+        scratch_dir: pathlib.Path,
+        only_neighbors: Optional[bool] = False) -> Tuple[List[OphysROI],
+                                                         List[List[int]]]:
     """
     full_video is in (n_time, n_rows, n_cols)
     output array is of form [[dst, src], [dst, src], [dst, src]]
     """
+    if not only_neighbors:
+        neighbor_lookup = None
+    else:
+        neighbor_lookup = create_neighbor_lookup(
+                                {roi.roi_id: roi
+                                 for roi in roi_list},
+                                n_processors)
+
     n_time = full_video.shape[0]
     all_pixel_set = set()
     for roi in roi_list:
@@ -82,8 +94,11 @@ def do_louvain_clustering_on_rois(
     logger.info(f'calculated correlation matrix in {duration:.2f} seconds')
 
     (merged_roi_id_array,
-     merger_history) = _do_louvain_clustering(roi_id_array,
-                                              correlation_matrix)
+     merger_history) = _do_louvain_clustering(
+                              roi_id_array,
+                              correlation_matrix,
+                              neighbor_lookup=neighbor_lookup,
+                              n_processors=n_processors)
 
     new_roi_list = []
     for roi_id in np.unique(merged_roi_id_array):

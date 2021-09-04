@@ -82,6 +82,7 @@ def test_do_louvain_clustering_on_rois(
      merger_history) = do_louvain_clustering_on_rois(
                            input_roi_list,
                            video,
+                           20,
                            0.2,
                            2,
                            tmpdir_path)

@@ -70,6 +70,7 @@ if __name__ == "__main__":
     parser.add_argument('--plot_path', type=str)
     parser.add_argument('--scratch_dir', type=str)
     parser.add_argument('--n_processors', type=int, default=8)
+    parser.add_argument('--kernel_size', type=float, default=None)
 
     args = parser.parse_args()
 
@@ -107,6 +108,7 @@ if __name__ == "__main__":
          history) = do_louvain_clustering_on_rois(
                          cluster,
                          full_video,
+                         args.kernel_size,
                          0.2,
                          args.n_processors,
                          pathlib.Path(args.scratch_dir))

@@ -111,7 +111,8 @@ if __name__ == "__main__":
                          args.kernel_size,
                          0.2,
                          args.n_processors,
-                         pathlib.Path(args.scratch_dir))
+                         pathlib.Path(args.scratch_dir),
+                         only_neighbors=True)
         duration = time.time()-t0
         print(f'done in {duration:.2e} seconds -- {len(new_cluster)} ROIs')
         for roi in new_cluster:

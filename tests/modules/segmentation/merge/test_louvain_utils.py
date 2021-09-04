@@ -4,6 +4,9 @@ import numpy as np
 import pathlib
 import multiprocessing
 
+from ophys_etl.utils.array_utils import (
+    pairwise_distances)
+
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     pixel_list_to_extract_roi,
     extract_roi_to_ophys_roi)
@@ -63,11 +66,19 @@ def test_find_roi_clusters(rois_for_clustering_fixture,
 
 
 @pytest.mark.parametrize(
-    "pixel_range, filter_fraction",
-    [((5, 11), 0.2),
-     ((7, 16), 0.3)]
+    "pixel_range, filter_fraction, use_pixel_distances, kernel_size",
+    [((5, 11), 0.2, False, None),
+     ((7, 16), 0.3, False, None),
+     ((5, 11), 0.2, True, 1.0),
+     ((7, 16), 0.3, True, 1.0),
+     ((5, 11), 0.2, True, 5.0),
+     ((7, 16), 0.3, True, 5.0)]
 )
-def test_correlation_worker(tmpdir, pixel_range, filter_fraction):
+def test_correlation_worker(tmpdir,
+                            pixel_range,
+                            filter_fraction,
+                            use_pixel_distances,
+                            kernel_size):
     """
     Test that a single _correlation_worker writes what is expected
     to the scratch file
@@ -86,11 +97,25 @@ def test_correlation_worker(tmpdir, pixel_range, filter_fraction):
     rng = np.random.default_rng(762332)
     sub_video = rng.random((1000, n_pixels))
 
+    if use_pixel_distances:
+        pixel_distances = np.zeros((n_pixels, n_pixels), dtype=float)
+        for i0 in range(n_pixels):
+            for i1 in range(i0+1, n_pixels):
+                d = rng.random()*7.0
+                pixel_distances[i0, i1] = d
+                pixel_distances[i1, i0] = d
+        too_large = np.where(pixel_distances>kernel_size)
+        assert len(too_large[0]) > 0
+    else:
+        pixel_distances = None
+
     mgr = multiprocessing.Manager()
     lock = mgr.Lock()
 
     _correlation_worker(
         sub_video,
+        pixel_distances,
+        kernel_size,
         filter_fraction,
         pixel_range,
         lock,
@@ -103,6 +128,10 @@ def test_correlation_worker(tmpdir, pixel_range, filter_fraction):
         th = np.quantile(trace0, 1.0-filter_fraction)
         time0 = np.where(trace0 >= th)
         for i1 in range(i0+1, sub_video.shape[1]):
+            if kernel_size is not None:
+                distance = pixel_distances[i0, i1]
+                if distance > kernel_size:
+                    continue
             trace1 = sub_video[:, i1]
             th = np.quantile(trace1, 1.0-filter_fraction)
             time1 = np.where(trace1 >= th)
@@ -118,19 +147,47 @@ def test_correlation_worker(tmpdir, pixel_range, filter_fraction):
 
     with h5py.File(tmpfile_path, 'r') as in_file:
         actual = in_file[dataset_name][()]
+
     np.testing.assert_allclose(actual, expected, rtol=1.0e-10, atol=1.0e-10)
 
 
 @pytest.mark.parametrize(
-    "filter_fraction, n_processors, n_pixels",
-    [(0.1, 2, 50), (0.1, 3, 50), (0.1, 3, 353),
-     (0.2, 2, 50), (0.2, 3, 50), (0.1, 3, 353),
-     (0.3, 2, 50), (0.3, 3, 50), (0.1, 3, 353)]
+    "filter_fraction, n_processors, n_pixels, use_pixel_distances, kernel_size",
+    [(0.1, 2, 50, False, None),
+     (0.1, 3, 50, False, None),
+     (0.1, 3, 353, False, None),
+     (0.2, 2, 50, False, None),
+     (0.2, 3, 50, False, None),
+     (0.1, 3, 353, False, None),
+     (0.3, 2, 50, False, None),
+     (0.3, 3, 50, False, None),
+     (0.1, 3, 353, False, None),
+     (0.1, 2, 50, True, 1.0),
+     (0.1, 3, 50, True, 1.0),
+     (0.1, 3, 353, True, 1.0),
+     (0.2, 2, 50, True, 1.0),
+     (0.2, 3, 50, True, 1.0),
+     (0.1, 3, 353, True, 1.0),
+     (0.3, 2, 50, True, 1.0),
+     (0.3, 3, 50, True, 1.0),
+     (0.1, 3, 353, True, 1.0),
+     (0.1, 2, 50, True, 5.0),
+     (0.1, 3, 50, True, 5.0),
+     (0.1, 3, 353, True, 5.0),
+     (0.2, 2, 50, True, 5.0),
+     (0.2, 3, 50, True, 5.0),
+     (0.1, 3, 353, True, 5.0),
+     (0.3, 2, 50, True, 5.0),
+     (0.3, 3, 50, True, 5.0),
+     (0.1, 3, 353, True, 5.0),
+     ]
 )
 def test_correlate_all_pixels_private(tmpdir,
                                       filter_fraction,
                                       n_processors,
-                                      n_pixels):
+                                      n_pixels,
+                                      use_pixel_distances,
+                                      kernel_size):
     """
     Test that _correlate_all_pixels returns the upper-diagonal
     correlation matrix
@@ -141,7 +198,21 @@ def test_correlate_all_pixels_private(tmpdir,
     rng = np.random.default_rng(887213)
     sub_video = rng.random((1000, n_pixels))
 
+    if use_pixel_distances:
+        pixel_distances = np.zeros((n_pixels, n_pixels), dtype=float)
+        for i0 in range(n_pixels):
+            for i1 in range(i0+1, n_pixels):
+                d = rng.random()*7.0
+                pixel_distances[i0, i1] = d
+                pixel_distances[i1, i0] = d
+        too_large = np.where(pixel_distances>kernel_size)
+        assert len(too_large[0]) > 0
+    else:
+        pixel_distances = None
+
     actual = _correlate_all_pixels(sub_video,
+                                   pixel_distances,
+                                   kernel_size,
                                    filter_fraction,
                                    n_processors,
                                    tmpfile_path)
@@ -152,6 +223,10 @@ def test_correlate_all_pixels_private(tmpdir,
         th = np.quantile(trace0, 1.0-filter_fraction)
         time0 = np.where(trace0 >= th)
         for i1 in range(i0+1, n_pixels):
+            if kernel_size is not None:
+                distance = pixel_distances[i0, i1]
+                if distance > kernel_size:
+                    continue
             trace1 = sub_video[:, i1]
             th = np.quantile(trace1, 1.0-filter_fraction)
             time1 = np.where(trace1 >= th)

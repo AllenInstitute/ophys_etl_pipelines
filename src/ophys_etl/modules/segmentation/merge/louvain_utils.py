@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, Union, List
+from typing import Tuple, Dict, Union, List, Optional
 import numpy as np
 import h5py
 import time
@@ -59,6 +59,8 @@ def update_merger_history(merger_history: Dict[int, int],
 
 def _correlation_worker(
         sub_video: np.ndarray,
+        pixel_distances: Union[np.ndarray, None],
+        kernel_size: Union[float, None],
         filter_fraction: float,
         pixel_range: Tuple[int, int],
         lock: multiprocessing.managers.AcquirerProxy,
@@ -73,11 +75,20 @@ def _correlation_worker(
 
     discard = 1.0-filter_fraction
 
+    pixel_index_array = np.arange(sub_video.shape[1])
+
     for i0 in range(pixel_range[0], pixel_range[1]):
         trace0 = sub_video[:, i0]
         th = np.quantile(trace0, discard)
         time0 = np.where(trace0 >= th)[0]
-        for i1 in range(i0+1, sub_video.shape[1]):
+        if kernel_size is not None:
+            other_pixel_mask = np.logical_and(
+                                  pixel_index_array>i0,
+                                  pixel_distances[i0,:]<=kernel_size)
+        else:
+            other_pixel_mask = pixel_index_array > i0
+        other_pixel_indices = pixel_index_array[other_pixel_mask]
+        for i1 in other_pixel_indices:
             trace1 = sub_video[:, i1]
             th = np.quantile(trace1, discard)
             time1 = np.where(trace1 >= th)[0]
@@ -99,6 +110,8 @@ def _correlation_worker(
 
 def _correlate_all_pixels(
         sub_video: np.ndarray,
+        pixel_distances: Union[np.ndarray, None],
+        kernel_size: Union[float, None],
         filter_fraction,
         n_processors: int,
         scratch_file_path: pathlib.Path) -> np.ndarray:
@@ -126,6 +139,8 @@ def _correlate_all_pixels(
         i1 = min(n_pixels, i0+d_pixels)
         p = multiprocessing.Process(target=_correlation_worker,
                                     args=(sub_video,
+                                          pixel_distances,
+                                          kernel_size,
                                           filter_fraction,
                                           (i0, i1),
                                           lock,
@@ -147,7 +162,9 @@ def correlate_all_pixels(
         sub_video: np.ndarray,
         filter_fraction: float,
         n_processors: int,
-        scratch_dir: pathlib.Path) -> np.ndarray:
+        scratch_dir: pathlib.Path,
+        pixel_distances: Optional[np.ndarray] = None,
+        kernel_size: Optional[float] = None) -> np.ndarray:
     """
     sub_video: shape(n_time, n_pixels)
     result will be upper-diagonal array
@@ -162,6 +179,8 @@ def correlate_all_pixels(
     try:
         result = _correlate_all_pixels(
                       sub_video,
+                      pixel_distances,
+                      kernel_size,
                       filter_fraction,
                       n_processors,
                       scratch_file_path)

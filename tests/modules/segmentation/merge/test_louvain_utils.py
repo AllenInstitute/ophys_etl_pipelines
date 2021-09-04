@@ -4,9 +4,6 @@ import numpy as np
 import pathlib
 import multiprocessing
 
-from ophys_etl.utils.array_utils import (
-    pairwise_distances)
-
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     pixel_list_to_extract_roi,
     extract_roi_to_ophys_roi)

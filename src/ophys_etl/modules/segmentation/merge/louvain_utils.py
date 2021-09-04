@@ -231,9 +231,7 @@ def _louvain_clustering_iteration(
         roi_id_arr: np.ndarray,
         pixel_corr: np.ndarray,
         weight_sum_arr: np.ndarray,
-        valid_pairs: Optional[List[Tuple[int, int]]] = None) -> Tuple[bool,
-                                                                      np.ndarray,
-                                                                      Union[None, Dict[str, int]]]:
+        valid_pairs: Optional[List[Tuple[int, int]]] = None) -> Dict:
     """
     Find the one roi_id merger that maximizes modularity
 
@@ -244,6 +242,7 @@ def _louvain_clustering_iteration(
     has_changed: boolean
     roi_id: new roi_id array
     merger: Dict[str, int] absorber, absorbed
+    best_modularity
     """
 
     unq_roi_id = np.unique(roi_id_arr)
@@ -278,9 +277,29 @@ def _louvain_clustering_iteration(
             merger = {'absorber': roi_id_pair[0],
                       'absorbed': roi_id_pair[1]}
 
-    return (has_changed,
-            best_roi_id_arr,
-            merger)
+    return {'has_changed': has_changed,
+            'roi_id_arr': best_roi_id_arr,
+            'this_merger': merger,
+            'modularity': max_modularity}
+
+
+def _louvain_clustering_worker(
+        roi_id_arr: np.ndarray,
+        pixel_corr: np.ndarray,
+        weight_sum_arr: np.ndarray,
+        valid_pairs: List[Tuple[int, int]],
+        process_id: int,
+        output_dict: multiprocessing.managers.DictProxy) -> None:
+    """
+    """
+
+    result = _louvain_clustering_iteration(
+                roi_id_arr,
+                pixel_corr,
+                weight_sum_arr,
+                valid_pairs=valid_pairs)
+
+    output_dict[process_id] = result
 
 
 def _do_louvain_clustering(
@@ -322,9 +341,9 @@ def _do_louvain_clustering(
     _t0 = time.time()
 
     while keep_going:
+        _n_proc = 0
         if neighbor_lookup is None:
-            valid_pairs = None
-            _n_valid = -1
+            valid_pairs = list(combinations(np.unique(roi_id_arr), 2))
         else:
             valid_pairs = set()
             for i0 in neighbor_lookup:
@@ -335,21 +354,53 @@ def _do_louvain_clustering(
                         t = (i1, i0)
                     valid_pairs.add(t)
             valid_pairs = list(valid_pairs)
-            _n_valid = len(valid_pairs)
+        _n_valid = len(valid_pairs)
 
-        (keep_going,
-         roi_id_arr,
-         this_merger) = _louvain_clustering_iteration(
-                            roi_id_arr,
-                            pixel_corr,
-                            weight_sum_arr,
-                            valid_pairs=valid_pairs)
+        mgr = multiprocessing.Manager()
+        output_dict = mgr.dict()
+        process_list = []
+        d_pairs = max(1,
+                      np.round(0.6666*_n_valid/n_processors).astype(int))
+
+        for i0 in range(0, _n_valid, d_pairs):
+            subset = valid_pairs[i0:i0+d_pairs]
+            p = multiprocessing.Process(
+                        target=_louvain_clustering_worker,
+                        args=(roi_id_arr,
+                              pixel_corr,
+                              weight_sum_arr,
+                              subset,
+                              i0,
+                              output_dict))
+
+            p.start()
+            _n_proc += 1
+            process_list.append(p)
+            while len(process_list) > 0 and len(process_list) >= (n_processors-1):
+                process_list = _winnow_process_list(process_list)
+
+        for p in process_list:
+            p.join()
+
+        keep_going = False
+        this_merger = None
+        max_modularity = None
+        for pid in output_dict:
+            candidate = output_dict[pid]
+            if not candidate['has_changed']:
+                continue
+            if max_modularity is None or candidate['modularity'] > max_modularity:
+                max_modularity = candidate['modularity']
+                keep_going = True
+                roi_id_arr = candidate['roi_id_arr']
+                this_merger = candidate['this_merger']
 
         _n_roi = len(np.unique(roi_id_arr))
         _duration = time.time()-_t0
         print(f'{_n_roi} from {_n0} ROI after '
               f'{_duration:.2e} seconds; '
-              f'considered {_n_valid} pairs')
+              f'considered {_n_valid} pairs; '
+              f'used {_n_proc} processes')
 
         if this_merger is not None:
             final_mergers = update_merger_history(

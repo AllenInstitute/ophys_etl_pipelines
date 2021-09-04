@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, Union, List, Optional
+from typing import Tuple, Dict, Union, List, Optional, Set
 import numpy as np
 import h5py
 import time
@@ -9,6 +9,9 @@ import multiprocessing
 import multiprocessing.managers
 
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+
+from ophys_etl.modules.segmentation.merge.candidates import (
+    update_neighbor_lookup)
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     do_rois_abut)
@@ -227,9 +230,10 @@ def modularity(roi_id_arr: np.ndarray,
 def _louvain_clustering_iteration(
         roi_id_arr: np.ndarray,
         pixel_corr: np.ndarray,
-        weight_sum_arr: np.ndarray) -> Tuple[bool,
-                                            np.ndarray,
-                                            Union[None, Dict[str, int]]]:
+        weight_sum_arr: np.ndarray,
+        valid_pairs: Optional[List[Tuple[int, int]]] = None) -> Tuple[bool,
+                                                                      np.ndarray,
+                                                                      Union[None, Dict[str, int]]]:
     """
     Find the one roi_id merger that maximizes modularity
 
@@ -251,7 +255,11 @@ def _louvain_clustering_iteration(
 
     has_changed = False
     merger = None
-    for roi_id_pair in combinations(unq_roi_id, 2):
+
+    if valid_pairs is None:
+        valid_pairs = list(combinations(unq_roi_id, 2))
+
+    for roi_id_pair in valid_pairs:
         # roi_id_pair is (absorber, absorbed)
         test_roi_id_arr = np.where(
                                roi_id_arr==roi_id_pair[1],
@@ -276,9 +284,11 @@ def _louvain_clustering_iteration(
 
 
 def _do_louvain_clustering(
-        roi_id_arr: np.ndarray,
-        pixel_corr: np.ndarray) -> Tuple[np.ndarray,
-                                         List[Dict[str, Tuple[int]]]]:
+      roi_id_arr: np.ndarray,
+      pixel_corr: np.ndarray,
+      neighbor_lookup: Optional[Dict[int, Set[int]]] = None,
+      n_processors: Optional[int] = None) -> Tuple[np.ndarray,
+                                                   List[Dict[str, Tuple[int]]]]:
     """
     index_to_pixel_coords: maps i_pixel to (row, col)
     roi_id_arr: maps i_pixel to roi_id
@@ -310,21 +320,44 @@ def _do_louvain_clustering(
     keep_going = True
     _n0 = len(np.unique(roi_id_arr))
     _t0 = time.time()
+
     while keep_going:
+        if neighbor_lookup is None:
+            valid_pairs = None
+            _n_valid = -1
+        else:
+            valid_pairs = set()
+            for i0 in neighbor_lookup:
+                for i1 in neighbor_lookup[i0]:
+                    if i0 > i1:
+                        t = (i0, i1)
+                    else:
+                        t = (i1, i0)
+                    valid_pairs.add(t)
+            valid_pairs = list(valid_pairs)
+            _n_valid = len(valid_pairs)
+
         (keep_going,
          roi_id_arr,
          this_merger) = _louvain_clustering_iteration(
                             roi_id_arr,
                             pixel_corr,
-                            weight_sum_arr)
+                            weight_sum_arr,
+                            valid_pairs=valid_pairs)
 
         _n_roi = len(np.unique(roi_id_arr))
         _duration = time.time()-_t0
-        print(f'{_n_roi} from {_n0} ROI after {_duration:.2e} seconds')
+        print(f'{_n_roi} from {_n0} ROI after '
+              f'{_duration:.2e} seconds; '
+              f'considered {_n_valid} pairs')
 
         if this_merger is not None:
             final_mergers = update_merger_history(
                                   final_mergers,
                                   this_merger)
+            if neighbor_lookup is not None:
+                neighbor_lookup = update_neighbor_lookup(
+                                      neighbor_lookup,
+                                      [this_merger])
 
     return (roi_id_arr, final_mergers)

@@ -2,7 +2,8 @@ import pytest
 import numpy as np
 from ophys_etl.modules.segmentation.merge.candidates import (
     find_merger_candidates,
-    create_neighbor_lookup)
+    create_neighbor_lookup,
+    update_neighbor_lookup)
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     do_rois_abut)
@@ -90,3 +91,48 @@ def test_create_neighbor_lookup(example_roi_list, n_processors):
     for id0 in neighbor_lookup:
         for id1 in neighbor_lookup[id0]:
             assert (id0, id1) in true_matches or (id1, id0) in true_matches
+
+
+def test_update_neighbor_lookup():
+    input_lookup = dict()
+    input_lookup[0] = set([1, 4])
+    input_lookup[1] = set([0, 3])
+    input_lookup[2] = set([4, 3])
+    input_lookup[3] = set([2, 1])
+    input_lookup[4] = set([0, 2])
+
+    new_lookup = update_neighbor_lookup(input_lookup,
+                                        [{'absorber': 0,
+                                          'absorbed': 1}])
+    assert new_lookup != input_lookup
+    expected_lookup = dict()
+    expected_lookup[0] = set([4, 3])
+    expected_lookup[2] = set([4, 3])
+    expected_lookup[3] = set([2, 0])
+    expected_lookup[4] = set([0, 2])
+    assert new_lookup == expected_lookup
+
+    new_lookup = update_neighbor_lookup(input_lookup,
+                                        [{'absorber': 1,
+                                          'absorbed': 0}])
+
+    assert new_lookup != input_lookup
+    expected_lookup = dict()
+    expected_lookup[1] = set([4, 3])
+    expected_lookup[2] = set([4, 3])
+    expected_lookup[3] = set([2, 1])
+    expected_lookup[4] = set([1, 2])
+    assert new_lookup == expected_lookup
+
+    new_lookup = update_neighbor_lookup(input_lookup,
+                                        [{'absorber': 1,
+                                          'absorbed': 0},
+                                         {'absorber': 3,
+                                          'absorbed': 1}])
+
+    assert new_lookup != input_lookup
+    expected_lookup = dict()
+    expected_lookup[2] = set([4, 3])
+    expected_lookup[3] = set([2, 4])
+    expected_lookup[4] = set([3, 2])
+    assert new_lookup == expected_lookup

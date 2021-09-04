@@ -5,6 +5,7 @@ find all pairs of ROIs that need to be considered for merger.
 from typing import List, Optional, Tuple, Set, Dict, Union
 from itertools import combinations
 import numpy as np
+import copy
 import multiprocessing
 import multiprocessing.managers
 from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
@@ -188,4 +189,29 @@ def create_neighbor_lookup(roi_lookup: Dict[int, OphysROI],
         neighbor_lookup[pair[1]].add(pair[0])
         neighbor_lookup[pair[0]].add(pair[1])
 
+    return neighbor_lookup
+
+
+def update_neighbor_lookup(
+        neighbor_lookup: Dict[int, Set[int]],
+        mergers: List[Dict[str, int]]) -> Dict[int, Set[int]]:
+    """
+    Update a neighbor_lookup dict for a set of mergers
+    Mergers are dicts listed like
+    {'absorber': roi_id, 'absorbed': roi_id}
+    Mergers are applied in order, zeroth first
+    """
+    neighbor_lookup = copy.deepcopy(neighbor_lookup)
+    for pair in mergers:
+        src_id = pair['absorbed']
+        dest_id = pair['absorber']
+        src_neighbors = neighbor_lookup.pop(src_id)
+        src_neighbors.remove(dest_id)
+        neighbor_lookup[dest_id].remove(src_id)
+        neighbor_lookup[dest_id] = neighbor_lookup[dest_id].union(src_neighbors)
+        for key in neighbor_lookup:
+            if src_id not in neighbor_lookup[key]:
+                continue
+            neighbor_lookup[key].remove(src_id)
+            neighbor_lookup[key].add(dest_id)
     return neighbor_lookup

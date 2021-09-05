@@ -137,7 +137,7 @@ def _correlate_all_pixels(
     mgr = multiprocessing.Manager()
     lock = mgr.Lock()
     process_list = []
-    d_pixels = n_pixels//(2*n_processors-2)
+    d_pixels = max(1, n_pixels//(2*n_processors-2))
     for i0 in range(0, n_pixels, d_pixels):
         i1 = min(n_pixels, i0+d_pixels)
         p = multiprocessing.Process(target=_correlation_worker,

@@ -85,8 +85,8 @@ def _correlation_worker(
         time0 = np.where(trace0 >= th)[0]
         if kernel_size is not None:
             other_pixel_mask = np.logical_and(
-                                  pixel_index_array>i0,
-                                  pixel_distances[i0,:]<=kernel_size)
+                                  pixel_index_array > i0,
+                                  pixel_distances[i0, :] <= kernel_size)
         else:
             other_pixel_mask = pixel_index_array > i0
         other_pixel_indices = pixel_index_array[other_pixel_mask]
@@ -130,7 +130,7 @@ def _correlate_all_pixels(
         out_file.create_dataset(dataset_name,
                                 data=np.zeros((n_pixels, n_pixels),
                                               dtype=float),
-                                chunks=None,
+                                chunks=chunks,
                                 dtype=float)
 
     mgr = multiprocessing.Manager()
@@ -212,13 +212,13 @@ def modularity(roi_id_arr: np.ndarray,
     unique_roi_id = np.unique(roi_id_arr)
     qq = 0.0
     for roi_id in unique_roi_id:
-        valid_roi_index = np.where(roi_id_arr==roi_id)[0]
+        valid_roi_index = np.where(roi_id_arr == roi_id)[0]
         sub_corr = pixel_corr[valid_roi_index, :]
         sub_corr = sub_corr[:, valid_roi_index]
         sub_wgt_arr = weight_sum_arr[valid_roi_index]
         kk = np.outer(sub_wgt_arr, sub_wgt_arr)
         for ii in range(len(valid_roi_index)):
-            kk[ii,ii] = 0.0
+            kk[ii, ii] = 0.0
             sub_corr[ii, ii] = 0.0
         aa = sub_corr.sum()
         kk = kk.sum()
@@ -260,7 +260,7 @@ def _louvain_clustering_iteration(
     for roi_id_pair in valid_pairs:
         # roi_id_pair is (absorber, absorbed)
         test_roi_id_arr = np.where(
-                               roi_id_arr==roi_id_pair[1],
+                               roi_id_arr == roi_id_pair[1],
                                roi_id_pair[0],
                                roi_id_arr)
 
@@ -305,8 +305,9 @@ def _do_louvain_clustering(
       roi_id_arr: np.ndarray,
       pixel_corr: np.ndarray,
       neighbor_lookup: Optional[Dict[int, Set[int]]] = None,
-      n_processors: Optional[int] = None) -> Tuple[np.ndarray,
-                                                   List[Dict[str, Tuple[int]]]]:
+      n_processors: Optional[int] = None
+      ) -> Tuple[np.ndarray,
+                 List[Dict[str, Tuple[int]]]]:
     """
     index_to_pixel_coords: maps i_pixel to (row, col)
     roi_id_arr: maps i_pixel to roi_id
@@ -322,7 +323,7 @@ def _do_louvain_clustering(
         n_processors = 1
 
     # set any correlations < 0 to 0
-    pixel_corr = np.where(pixel_corr>=0.0,
+    pixel_corr = np.where(pixel_corr >= 0.0,
                           pixel_corr,
                           0.0)
 
@@ -341,7 +342,6 @@ def _do_louvain_clustering(
     keep_going = True
 
     while keep_going:
-        _n_proc = 0
         if neighbor_lookup is None:
             valid_pairs = list(combinations(np.unique(roi_id_arr), 2))
         else:
@@ -375,8 +375,10 @@ def _do_louvain_clustering(
 
             p.start()
             process_list.append(p)
-            while len(process_list) > 0 and len(process_list) >= (n_processors-1):
+            n_p = len(process_list)
+            while n_p > 0 and n_p >= (n_processors-1):
                 process_list = _winnow_process_list(process_list)
+                n_p = len(process_list)
 
         for p in process_list:
             p.join()
@@ -390,7 +392,8 @@ def _do_louvain_clustering(
             candidate = output_dict[pid]
             if not candidate['has_changed']:
                 continue
-            if max_modularity is None or candidate['modularity'] > max_modularity:
+            c_mod = candidate['modularity']
+            if max_modularity is None or c_mod > max_modularity:
                 max_modularity = candidate['modularity']
                 keep_going = True
                 roi_id_arr = candidate['roi_id_arr']

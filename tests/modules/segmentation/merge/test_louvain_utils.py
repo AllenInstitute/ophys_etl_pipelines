@@ -34,7 +34,7 @@ def rois_for_clustering_fixture():
     pixel_map = np.array(pixel_map).astype(int)
     roi_list = []
     for roi_id in range(1, 6):
-        valid = np.where(pixel_map==roi_id)
+        valid = np.where(pixel_map == roi_id)
         pixel_list = [(r, c) for r, c in zip(valid[0], valid[1])]
         extract_roi = pixel_list_to_extract_roi(pixel_list, roi_id)
         ophys_roi = extract_roi_to_ophys_roi(extract_roi)
@@ -46,7 +46,7 @@ def rois_for_clustering_fixture():
     'pixel_distance, expected_clusters',
     [(np.sqrt(2.0), set([(1, 2), (3,), (4,), (5,)])),
      (2.0, set([(1, 2), (3, 4, 5)])),
-     (3.0, set([(1, 2, 3, 4, 5),]))])
+     (3.0, set([(1, 2, 3, 4, 5), ]))])
 def test_find_roi_clusters(rois_for_clustering_fixture,
                            pixel_distance,
                            expected_clusters):
@@ -101,7 +101,7 @@ def test_correlation_worker(tmpdir,
                 d = rng.random()*7.0
                 pixel_distances[i0, i1] = d
                 pixel_distances[i1, i0] = d
-        too_large = np.where(pixel_distances>kernel_size)
+        too_large = np.where(pixel_distances > kernel_size)
         assert len(too_large[0]) > 0
     else:
         pixel_distances = None
@@ -149,7 +149,8 @@ def test_correlation_worker(tmpdir,
 
 
 @pytest.mark.parametrize(
-    "filter_fraction, n_processors, n_pixels, use_pixel_distances, kernel_size",
+    "filter_fraction, n_processors, n_pixels, "
+    "use_pixel_distances, kernel_size",
     [(0.1, 2, 50, False, None),
      (0.1, 3, 50, False, None),
      (0.1, 3, 353, False, None),
@@ -202,7 +203,7 @@ def test_correlate_all_pixels_private(tmpdir,
                 d = rng.random()*7.0
                 pixel_distances[i0, i1] = d
                 pixel_distances[i1, i0] = d
-        too_large = np.where(pixel_distances>kernel_size)
+        too_large = np.where(pixel_distances > kernel_size)
         assert len(too_large[0]) > 0
     else:
         pixel_distances = None

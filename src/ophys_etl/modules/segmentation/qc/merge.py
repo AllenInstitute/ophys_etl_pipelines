@@ -5,7 +5,13 @@ from matplotlib.figure import Figure
 from typing import List
 
 from ophys_etl.modules.segmentation.qc_utils import roi_utils
+
+from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import (
+    get_roi_color_map)
+
 from ophys_etl.types import ExtractROI
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    extract_roi_to_ophys_roi)
 
 
 def roi_ancestor_gallery(figure: Figure,
@@ -129,25 +135,27 @@ def roi_merge_plot(figure: Figure,
 
     """
 
+    dst_id_set = set()
+    for pair in merger_ids:
+        dst_id_set.add(pair[0])
+
+    rois_for_color_map = []
+    for roi in merged_roi_list:
+        if roi['id'] in dst_id_set:
+            rois_for_color_map.append(extract_roi_to_ophys_roi(roi))
+
+    roi_color_map = get_roi_color_map(rois_for_color_map)
+
     # separate out mergers with different resulting ROIs
     graph = nx.from_edgelist(merger_ids)
     subgraphs = list(nx.connected_components(graph))
-
-    # define colors for the different mergers
-    cmap = cm.plasma
-    color_indices = np.linspace(start=0,
-                                stop=cmap.N,
-                                num=len(subgraphs),
-                                dtype=int)
-    rng = np.random.default_rng(seed)
-    rng.shuffle(color_indices)
 
     ax00 = figure.add_subplot(1, 2, 1)
     ax01 = figure.add_subplot(1, 2, 2)
     ax00.imshow(metric_image, cmap="gray")
     ax01.imshow(metric_image, cmap="gray")
 
-    for subgraph, color_index in zip(subgraphs, color_indices):
+    for subgraph in subgraphs:
         originals = [i for i in original_roi_list
                      if i["id"] in subgraph]
         merged = [i for i in merged_roi_list
@@ -156,15 +164,20 @@ def roi_merge_plot(figure: Figure,
             raise ValueError("Expected a single ROI in merging graph "
                              f"{subgraph} to be in the merged ROI list "
                              f"but got {len(merged)} ROIs: {merged}")
-        color = cmap(color_index)
+        rgb_color = roi_color_map[merged[0]['id']]
+        rgba_color = (rgb_color[0]/255.0,
+                      rgb_color[1]/255.0,
+                      rgb_color[2]/255.0,
+                      1.0)
+
         roi_utils.add_rois_to_axes(ax00,
                                    originals,
                                    metric_image.shape,
-                                   rgba=color)
+                                   rgba=rgba_color)
         roi_utils.add_rois_to_axes(ax01,
                                    merged,
                                    metric_image.shape,
-                                   rgba=color)
+                                   rgba=rgba_color)
 
     # plot in gray ROIs that were not part of merging
     untouched = [i for i in original_roi_list if i["id"] not in graph]

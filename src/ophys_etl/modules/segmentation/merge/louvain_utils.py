@@ -319,6 +319,9 @@ def _do_louvain_clustering(
     List[Dict[new_roi_id, Tuple of absorbed ROI IDs]]
     """
 
+    if n_processors is None:
+        n_processors = 1
+
     # set any correlations < 0 to 0
     pixel_corr = np.where(pixel_corr>=0.0,
                           pixel_corr,

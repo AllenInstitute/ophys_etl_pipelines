@@ -208,7 +208,8 @@ def update_neighbor_lookup(
         src_neighbors = neighbor_lookup.pop(src_id)
         src_neighbors.remove(dest_id)
         neighbor_lookup[dest_id].remove(src_id)
-        neighbor_lookup[dest_id] = neighbor_lookup[dest_id].union(src_neighbors)
+        neighbor_lookup[dest_id] = neighbor_lookup[dest_id].union(
+                                      src_neighbors)
         for key in neighbor_lookup:
             if src_id not in neighbor_lookup[key]:
                 continue

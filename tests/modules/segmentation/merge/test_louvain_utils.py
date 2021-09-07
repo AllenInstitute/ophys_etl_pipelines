@@ -387,12 +387,14 @@ def test_louvain_clustering_iteration():
     mod0 = modularity(roi_id_arr, corr, weight_sum_arr)
 
     # best merger is absorb pixel 8 into pixel 1
-    (has_changed,
-     new_roi_id_arr,
-     this_merger) = _louvain_clustering_iteration(
+    actual = _louvain_clustering_iteration(
                         roi_id_arr,
                         corr,
                         weight_sum_arr)
+
+    has_changed = actual['has_changed']
+    new_roi_id_arr = actual['roi_id_arr']
+    this_merger = actual['this_merger']
 
     assert has_changed
     assert this_merger == {'absorber': 1, 'absorbed': 8}
@@ -404,12 +406,14 @@ def test_louvain_clustering_iteration():
     np.testing.assert_array_equal(weight0, weight_sum_arr)
 
     # next best merger is to add pixel 2
-    (has_changed,
-     new_roi_id_arr,
-     this_merger) = _louvain_clustering_iteration(
+    actual = _louvain_clustering_iteration(
                         new_roi_id_arr,
                         corr,
                         weight_sum_arr)
+
+    has_changed = actual['has_changed']
+    new_roi_id_arr = actual['roi_id_arr']
+    this_merger = actual['this_merger']
 
     assert has_changed
     assert this_merger == {'absorber': 1, 'absorbed': 2}
@@ -423,12 +427,14 @@ def test_louvain_clustering_iteration():
     # should be no more mergers
     roi_input = np.copy(new_roi_id_arr)
 
-    (has_changed,
-     new_roi_id_arr,
-     this_merger) = _louvain_clustering_iteration(
+    actual = _louvain_clustering_iteration(
                         new_roi_id_arr,
                         corr,
                         weight_sum_arr)
+
+    has_changed = actual['has_changed']
+    new_roi_id_arr = actual['roi_id_arr']
+    this_merger = actual['this_merger']
 
     assert not has_changed
     assert this_merger is None

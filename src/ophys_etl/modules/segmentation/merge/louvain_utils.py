@@ -50,7 +50,7 @@ def update_merger_history(merger_history: Dict[int, int],
     merger_history maps roi_id_in to roi_id_out
     this_merger has keys 'absorbed', 'absorber'
 
-    WARNING will atler merger_history in-place, as well as return it
+    WARNING will alter merger_history in-place, as well as return it
     """
 
     merger_history[this_merger['absorbed']] = this_merger['absorber']

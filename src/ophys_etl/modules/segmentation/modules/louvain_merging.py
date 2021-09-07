@@ -2,7 +2,6 @@ import argschema
 
 import pathlib
 import h5py
-import json
 import numpy as np
 import time
 
@@ -15,19 +14,10 @@ from ophys_etl.modules.segmentation.merge.louvain_utils import (
     find_roi_clusters)
 from ophys_etl.modules.segmentation.merge.louvain_merging import (
     do_louvain_clustering_on_rois)
-from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import(
-    get_roi_color_map)
-from ophys_etl.modules.segmentation.graph_utils.conversion import(
-    graph_to_img)
-from ophys_etl.modules.segmentation.utils.roi_utils import(
+
+from ophys_etl.modules.segmentation.utils.roi_utils import (
     extract_roi_to_ophys_roi,
     ophys_roi_to_extract_roi)
-import os
-
-from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
-    add_roi_boundary_to_img)
-from ophys_etl.modules.segmentation.qc_utils.video_utils import (
-    scale_video_to_uint8)
 
 import logging
 

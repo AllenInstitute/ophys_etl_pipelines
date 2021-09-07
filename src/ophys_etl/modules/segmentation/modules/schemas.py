@@ -487,3 +487,23 @@ class FeatureVectorRoiMergerSchema(SharedRoiMergerSchema):
         validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
                         "filtered_hnc_Gaussian"]),
         description="which attribute to use in image")
+
+
+class LouvainRoiMergerSchema(SharedRoiMergerSchema):
+
+    kernel_size = argschema.fields.Int(
+            required=True,
+            default=20,
+            allow_none=False,
+            description=('When constructing the pixel-to-pixel '
+                         'correlation matrix for a cluster of ROIs, '
+                         'only allow pixels that are within '
+                         'kernel_distance of each other to have '
+                         'non-zero correlation'))
+
+    scratch_dir = argschema.fields.OutputDir(
+            required=True,
+            default=None,
+            allow_none=False,
+            description=('scratch directory where correlation matrices '
+                         'will be written during processing'))

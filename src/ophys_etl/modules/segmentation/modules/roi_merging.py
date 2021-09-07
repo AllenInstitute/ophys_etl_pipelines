@@ -3,7 +3,7 @@ import h5py
 import numpy as np
 
 from ophys_etl.modules.segmentation.modules.schemas import \
-    RoiMergerSchema
+    FeatureVectorRoiMergerSchema
 import ophys_etl.modules.segmentation.merge.roi_merging as merging
 import ophys_etl.modules.segmentation.utils.roi_utils as roi_utils
 from ophys_etl.modules.segmentation.processing_log import \
@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO)
 
 class RoiMergerEngine(argschema.ArgSchemaParser):
 
-    default_schema = RoiMergerSchema
+    default_schema = FeatureVectorRoiMergerSchema
 
     def run(self):
 

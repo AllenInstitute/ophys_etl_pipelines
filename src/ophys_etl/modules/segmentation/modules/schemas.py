@@ -401,7 +401,7 @@ class HNCSegmentationWrapperInputSchema(SharedSegmentationInputSchema):
     hnc_args = argschema.fields.Nested(HNC_args, default={})
 
 
-class RoiMergerSchema(argschema.ArgSchema):
+class SharedRoiMergerSchema(argschema.ArgSchema):
     log_level = argschema.fields.LogLevel(default="INFO")
 
     log_path = InputOutputFile(
@@ -433,29 +433,10 @@ class RoiMergerSchema(argschema.ArgSchema):
             default=8,
             description=("number of parallel processes to use"))
 
-    attribute = argschema.fields.Str(
-        required=False,
-        default="filtered_hnc_Gaussian",
-        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
-                        "filtered_hnc_Gaussian"]),
-        description="which attribute to use in image")
-
     video_input = argschema.fields.InputFile(
         required=True,
         description=("path to hdf5 video with movie stored "
                      "in dataset 'data' nframes x nrow x ncol"))
-
-    corr_acceptance = argschema.fields.Float(
-        required=False,
-        default=2.0,
-        decription=("level of time series correlation needed "
-                    "to accept a merger (in units of z-score)"))
-
-    anomalous_size = argschema.fields.Int(
-        required=False,
-        default=800,
-        description=("If an ROI reaches this size, it is considered "
-                     "invalid and removed from the merging process"))
 
     filter_fraction = argschema.fields.Float(
         required=False,
@@ -484,3 +465,25 @@ class RoiMergerSchema(argschema.ArgSchema):
                                f"{template.stem}_merge{template.suffix}")
             data["merge_plot_output"] = str(merge_plot_path)
         return data
+
+
+class FeatureVectorRoiMergerSchema(SharedRoiMergerSchema):
+
+    corr_acceptance = argschema.fields.Float(
+        required=False,
+        default=2.0,
+        decription=("level of time series correlation needed "
+                    "to accept a merger (in units of z-score)"))
+
+    anomalous_size = argschema.fields.Int(
+        required=False,
+        default=800,
+        description=("If an ROI reaches this size, it is considered "
+                     "invalid and removed from the merging process"))
+
+    attribute = argschema.fields.Str(
+        required=False,
+        default="filtered_hnc_Gaussian",
+        validate=OneOf(["Pearson", "filtered_Pearson", "hnc_Gaussian",
+                        "filtered_hnc_Gaussian"]),
+        description="which attribute to use in image")

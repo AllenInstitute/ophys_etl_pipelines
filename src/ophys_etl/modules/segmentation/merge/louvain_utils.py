@@ -382,6 +382,8 @@ def _do_louvain_clustering(
         for p in process_list:
             p.join()
 
+        # look through the results of all clustering workers;
+        # select the best merger and adopt that
         keep_going = False
         this_merger = None
         max_modularity = None

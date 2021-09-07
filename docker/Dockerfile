@@ -26,7 +26,7 @@ RUN mkdir ${CONDA_ENVS}
 
 # Install Suite2P (into conda environment named suite2p)
 WORKDIR /repos
-RUN apt-get -y update \
+RUN apt-get -y update --allow-releaseinfo-change \
     # for Suite2P
     && apt-get -y install libgl1-mesa-glx \
     # for FastLZero

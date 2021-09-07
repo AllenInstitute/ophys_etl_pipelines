@@ -526,7 +526,7 @@ def test_select_window_from_background():
 
 
 def test_pixel_list_to_extract_roi():
-    pixel_list = [(1,2), (4,7), (9, 2)]
+    pixel_list = [(1, 2), (4, 7), (9, 2)]
     roi = pixel_list_to_extract_roi(pixel_list, 5)
     assert roi['id'] == 5
     assert roi['x'] == 2

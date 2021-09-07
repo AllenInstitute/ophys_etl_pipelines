@@ -2,14 +2,12 @@ import pytest
 import numpy as np
 import pathlib
 
-from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
-from ophys_etl.modules.segmentation.utils.roi_utils import(
+from ophys_etl.modules.segmentation.utils.roi_utils import (
     pixel_list_to_extract_roi,
     extract_roi_to_ophys_roi)
 
 from ophys_etl.modules.segmentation.merge.louvain_merging import (
     do_louvain_clustering_on_rois)
-
 
 
 @pytest.fixture(scope='session')
@@ -31,7 +29,6 @@ def louvain_test_data_fixture():
                            (14, 16), (14, 17), (14, 18)])
 
     rois_as_pixels.append([(0, 0), (1, 1), (1, 0), (0, 1), (0, 2)])
-
 
     tt = np.arange(ntime)
     for roi in rois_as_pixels[:2]:
@@ -55,7 +52,8 @@ def louvain_test_data_fixture():
         for pixel in roi:
             video[:, pixel[0], pixel[1]] = trace
 
-    roi_list = [extract_roi_to_ophys_roi(pixel_list_to_extract_roi(roi, roi_id))
+    roi_list = [extract_roi_to_ophys_roi(
+                    pixel_list_to_extract_roi(roi, roi_id))
                 for roi_id, roi in enumerate(rois_as_pixels)]
 
     return {'roi_list': roi_list, 'video': video}
@@ -77,15 +75,14 @@ def test_do_louvain_clustering_on_rois(
             input_pixel_set.add(pixel)
             input_roi_to_pixel[roi.roi_id].add(pixel)
 
-
     (output_roi_list,
      merger_history) = do_louvain_clustering_on_rois(
-                           input_roi_list,
-                           video,
-                           20,
-                           0.2,
-                           2,
-                           tmpdir_path)
+                            input_roi_list,
+                            video,
+                            20,
+                            0.2,
+                            2,
+                            tmpdir_path)
 
     assert len(output_roi_list) < len(input_roi_list)
     assert len(output_roi_list) == 3

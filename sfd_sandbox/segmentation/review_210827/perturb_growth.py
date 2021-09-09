@@ -100,6 +100,9 @@ if __name__ == "__main__":
         pixel_mask = pixel_mask[r0:r1,
                                 c0:c1]
 
+        if i_fig > 0:
+            pixel_mask = rng.integers(0, 2, size=(r1-r0, c1-c0), dtype=bool)
+
         old_seed = seed_pt
 
         if i_fig > 0:
@@ -127,10 +130,7 @@ if __name__ == "__main__":
                   (r0, c0),
                   sub_video)
 
-        mask, diagnostic = roi.get_mask(3.0)
-
-        print(f'final mask shape {mask.shape}')
-
+        final_mask, diagnostic = roi.get_mask(3.0)
 
         img_max = window_img.max()
         img_min = window_img.min()

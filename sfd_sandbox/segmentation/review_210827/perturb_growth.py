@@ -10,17 +10,45 @@ from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
 import pathlib
 import numpy as np
 
+import argparse
 
 if __name__ == "__main__":
     exp_id = 785569447
-    video_path = pathlib.Path(f'video/{exp_id}_denoised.h5')
-    graph_path = pathlib.Path(f'graph/{exp_id}_graph.pkl')
+    video_path = f'video/{exp_id}_denoised.h5'
+    graph_path = f'graph/{exp_id}_graph.pkl'
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--video', type=str, default=video_path)
+    parser.add_argument('--graph', type=str, default=graph_path)
+    parser.add_argument('--seed', type=int, default=725162)
+    parser.add_argument('--rows', type=int, nargs='+', default=[140, 150])
+    parser.add_argument('--cols', type=int, nargs='+', default=[50, 150])
+    parser.add_argument('--plot_path', type=str, default=None)
+
+    args = parser.parse_args()
+
+
+    assert args.plot_path is not None
+
+    video_path = pathlib.Path(args.video)
+    graph_path = pathlib.Path(args.graph)
+
+
+    #best_guess_rows = (250, 300)
+    #best_guess_cols = (350, 450)
+
+    #best_guess_rows = (140, 150)
+    #best_guess_cols = (50, 150)
+
+
+    best_guess_rows = tuple(args.rows)
+    best_guess_cols = tuple(args.cols)
 
     full_img = graph_to_img(
                       graph_path,
                       attribute_name='filtered_hnc_Gaussian')
 
-    rng = np.random.default_rng(725162)
+    rng = np.random.default_rng(args.seed)
 
     n_perturbations = 5
     fig = mplt_figure.Figure(figsize=(15,5*n_perturbations))
@@ -32,6 +60,7 @@ if __name__ == "__main__":
     fontsize=15
     marker_size=80
 
+    true_mask = None
     for i_fig in range(n_perturbations):
         print(i_fig*3)
         raw_axis = axes[i_fig*3]
@@ -39,12 +68,6 @@ if __name__ == "__main__":
         last_axis = axes[2+i_fig*3]
 
         pixel_mask = np.zeros((512, 512), dtype=bool)
-
-        best_guess_rows = (250, 300)
-        best_guess_cols = (350, 450)
-
-        best_guess_rows = (140, 150)
-        best_guess_cols = (50, 150)
 
         sub_img = full_img[best_guess_rows[0]:best_guess_rows[1],
                            best_guess_cols[0]:best_guess_cols[1]]
@@ -55,11 +78,12 @@ if __name__ == "__main__":
                    sub_pt[1]+best_guess_cols[0])
 
 
-        # mask pixels around seed_pt for timestep selection
-        r = full_img.shape[0]
-        c = full_img.shape[1]
-        pixel_mask[max(0, seed_pt[0]-2):min(seed_pt[0]+2, r),
-                   max(0, seed_pt[1]-2):min(seed_pt[1]+2, c)] = True
+        if i_fig > 0:
+            # mask pixels around seed_pt for timestep selection
+            r = full_img.shape[0]
+            c = full_img.shape[1]
+            pixel_mask[max(0, seed_pt[0]-2):min(seed_pt[0]+2, r),
+                       max(0, seed_pt[1]-2):min(seed_pt[1]+2, c)] = True
 
         window = select_window_size(
                       seed_pt,
@@ -79,13 +103,11 @@ if __name__ == "__main__":
         old_seed = seed_pt
 
         if i_fig > 0:
-            kick_r = rng.integers(3, 6)
-            r_sgn = -1 if rng.integers(0,10)%2==0 else 1
-            kick_r *= r_sgn
-            kick_c = rng.integers(3, 6)
-            c_sgn = -1 if rng.integers(0, 10)%2==0 else 1
-            kick_c *= c_sgn
-            seed_pt = (seed_pt[0]+kick_r, seed_pt[1]+kick_c)
+            valid_pixels = np.where(true_mask)
+            pixel_indexes = np.arange(len(valid_pixels[0]))
+            chosen_index = rng.choice(pixel_indexes)
+            seed_pt = (valid_pixels[0][chosen_index]+r0,
+                       valid_pixels[1][chosen_index]+c0)
 
         with h5py.File(video_path, 'r') as in_file:
             sub_video = in_file['data'][:, r0:r1, c0:c1]
@@ -106,6 +128,7 @@ if __name__ == "__main__":
                   sub_video)
 
         mask, diagnostic = roi.get_mask(3.0)
+
         print(f'final mask shape {mask.shape}')
 
 
@@ -129,9 +152,6 @@ if __name__ == "__main__":
 
         nrows = dim0
         ncols = dim0
-        #while ncols*(nrows-2) >= n_iterations:
-        #    nrows-=1
-
 
         raw_axis.imshow(img_rgb, zorder=0)
         raw_axis.set_title('window; seed and characteristic points',
@@ -151,6 +171,9 @@ if __name__ == "__main__":
                 for ic in range(3):
                     img[:,:,ic][mask] = 255
 
+            if i_iteration == 1 and true_mask is None:
+                true_mask = data['new']
+
             img[:, :, 0][data['background']] = 125
             img[:, :, 1][data['old']] = 125
             img[:, :, 2][data['new']] = 125
@@ -158,4 +181,4 @@ if __name__ == "__main__":
             axis.set_title(f'iteration {i_iteration}', fontsize=fontsize)
 
     fig.tight_layout()
-    fig.savefig(f'output_210909/growth_perturbation.png', dpi=300)
+    fig.savefig(args.plot_path, dpi=300)

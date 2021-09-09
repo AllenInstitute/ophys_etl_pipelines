@@ -13,7 +13,6 @@ from ophys_etl.modules.segmentation.seed.seeder import ImageMetricSeeder
 from ophys_etl.modules.segmentation.qc.seed import add_seeds_to_axes
 from ophys_etl.modules.segmentation.qc.detect import roi_metric_qc_plot
 from ophys_etl.modules.segmentation.qc.merge import roi_merge_plot
-from ophys_etl.modules.segmentation.qc_utils.roi_utils import convert_roi_keys
 
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
@@ -445,7 +444,12 @@ class SegmentationProcessingLog:
         with h5py.File(self.path, "r") as f:
             rois = roi_utils.deserialize_extract_roi_list(
                     f[group_name][dataset_name][()])
-        rois = convert_roi_keys(rois)
         if valid_only:
-            rois = [i for i in rois if i['valid_roi']]
+            valid = []
+            for roi in rois:
+                for k in ['valid', 'valid_roi']:
+                    if k in roi:
+                        if roi[k]:
+                            valid.append(roi)
+            rois = valid
         return rois

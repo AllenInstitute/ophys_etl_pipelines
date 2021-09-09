@@ -501,6 +501,13 @@ class LouvainRoiMergerSchema(SharedRoiMergerSchema):
                          'kernel_distance of each other to have '
                          'non-zero correlation'))
 
+    correlation_floor = argschema.fields.Float(
+           required=True,
+           default=0.0,
+           allow_none=False,
+           description=('pixel-to-pixel correlations below this '
+                        'level are set to zero'))
+
     scratch_dir = argschema.fields.OutputDir(
             required=True,
             default=None,

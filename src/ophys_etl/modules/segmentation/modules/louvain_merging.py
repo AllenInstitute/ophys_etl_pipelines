@@ -64,6 +64,9 @@ class LouvainMergerEngine(argschema.ArgSchemaParser):
             t0 = time.time()
             self.logger.info(f'starting cluster {i_cluster} of {n_clusters} '
                              f'with area {area:.2e} -- {len(cluster)} ROIs')
+
+            floor = self.args['correlation_floor']
+
             (new_cluster,
              this_history) = do_louvain_clustering_on_rois(
                                  cluster,
@@ -72,7 +75,8 @@ class LouvainMergerEngine(argschema.ArgSchemaParser):
                                  self.args['filter_fraction'],
                                  self.args['n_parallel_workers'],
                                  pathlib.Path(self.args['scratch_dir']),
-                                 only_neighbors=True)
+                                 only_neighbors=True,
+                                 correlation_floor=floor)
 
             for pair in this_history:
                 if pair[0] != pair[1]:

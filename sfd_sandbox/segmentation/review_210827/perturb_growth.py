@@ -164,21 +164,39 @@ if __name__ == "__main__":
             raw_axis.scatter(pt[1], pt[0], color='r', marker='x', zorder=1,
                              s=marker_size)
 
-        for i_iteration, axis in zip((1, n_iterations), (first_axis, last_axis)):
-            data = diagnostic[i_iteration]
-            img = np.copy(img_rgb)
-            for mask in (data['background'], data['old'], data['new']):
-                for ic in range(3):
-                    img[:,:,ic][mask] = 255
+        data = diagnostic[1]
+        img = np.copy(img_rgb)
+        #for mask in (data['background'], data['old'], data['new']):
+        #    for ic in range(3):
+        #        img[:,:,ic][mask] = 255
 
-            if i_iteration == 1 and true_mask is None:
-                true_mask = data['new']
+        if true_mask is None:
+            true_mask = data['new']
 
-            img[:, :, 0][data['background']] = 125
-            img[:, :, 1][data['old']] = 125
-            img[:, :, 2][data['new']] = 125
-            axis.imshow(img)
-            axis.set_title(f'iteration {i_iteration}', fontsize=fontsize)
+        #img[:, :, 0][data['background']] = 125
+        #img[:, :, 1][data['old']] = 125
+        #img[:, :, 2][data['new']] = 125
+
+        for k in ('old', 'new'):
+            #img[:, :, 0][data[k]] = img[:, :, 0][data[k]]//4
+            #img[:, :, 0][data[k]] += 190
+            img[:, :, 0][data[k]] = 255
+            img[:, :, 1][data[k]] = 0
+            img[:, :, 2][data[k]] = 0
+
+        first_axis.imshow(img)
+        first_axis.set_title(f'first iteration', fontsize=fontsize)
+
+        img = np.copy(img_rgb)
+        img[:, :, 0][final_mask] = 255
+        img[:, :, 1][final_mask] = 0
+        img[:, :, 2][final_mask] = 0
+
+        #img[:, :, 0][final_mask] += 125
+
+        last_axis.imshow(img)
+        last_axis.set_title(f'final ROI', fontsize=fontsize)
+
 
     fig.tight_layout()
     fig.savefig(args.plot_path, dpi=300)

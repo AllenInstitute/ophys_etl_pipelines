@@ -397,7 +397,7 @@ class FeatureVectorSegmenter(object):
                     for ic in range(mask.shape[1]):
                         cc = origin[1]+ic
                         if mask[ir, ic]:
-                            self.roi_pixels[rr, cc] = True
+                            # self.roi_pixels[rr, cc] = True
                             # make sure the seeder does not
                             # supply new seeds that are in these ROIs
                             self.seeder.exclude_pixels({(rr, cc)})

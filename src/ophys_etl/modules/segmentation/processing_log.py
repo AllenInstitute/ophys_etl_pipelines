@@ -423,7 +423,8 @@ class SegmentationProcessingLog:
 
     def get_rois_from_group(self,
                             group_name: str,
-                            dataset_name: str = "rois") -> List[ExtractROI]:
+                            dataset_name: str = "rois",
+                            valid_only: bool = False) -> List[ExtractROI]:
         """read and deserialize ROIs from a group
 
         Parameters
@@ -443,4 +444,12 @@ class SegmentationProcessingLog:
         with h5py.File(self.path, "r") as f:
             rois = roi_utils.deserialize_extract_roi_list(
                     f[group_name][dataset_name][()])
+        if valid_only:
+            valid = []
+            for roi in rois:
+                for k in ['valid', 'valid_roi']:
+                    if k in roi:
+                        if roi[k]:
+                            valid.append(roi)
+            rois = valid
         return rois

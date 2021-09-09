@@ -109,7 +109,7 @@ def new_plot_update_buttons(nrows, ncols):
 
 
 def update_plot(widget, fig, axes, background_widget, log_widget,
-                dataset_widget, label_widget):
+                dataset_widget, label_widget, valid_widget):
     """updates the plots for ROI inspection
 
     Parameters
@@ -130,6 +130,8 @@ def update_plot(widget, fig, axes, background_widget, log_widget,
     label_widget:
         the widget controlling whether labels should be applied to these
         axes.
+    valid_widget:
+        the widget controlling whether only valid ROIs should be plotted.
 
     Notes
     -----
@@ -157,9 +159,11 @@ def update_plot(widget, fig, axes, background_widget, log_widget,
 
     log_path = log_widget.value
     dataset = dataset_widget.value
+    valid_only = valid_widget.value
     if (log_path is not None) & (dataset is not None):
         processing_log = SegmentationProcessingLog(log_path)
-        rois = processing_log.get_rois_from_group(dataset)
+        rois = processing_log.get_rois_from_group(
+                dataset, valid_only=valid_only)
         im = add_list_of_roi_boundaries_to_img(im, rois)
     axes.cla()
     axes.imshow(im)
@@ -170,6 +174,9 @@ def update_plot(widget, fig, axes, background_widget, log_widget,
         if title != "":
             title += "\n"
         title += f"{log_path.name} - {dataset}"
+    if title != "":
+        title += "\n"
+    title += f"valid_only: {valid_only}"
     axes.set_title(title, fontsize=10)
 
     if label_widget.value:
@@ -232,19 +239,26 @@ def roi_viewer(inspection_manifest, nrows=1, ncols=1):
                 description="yes",
                 layout=widgets.Layout(width='150px'))
             for i in range(nrows*ncols)]
+    valid_only = [
+            widgets.Checkbox(
+                description="valid",
+                layout=widgets.Layout(width='150px'))
+            for i in range(nrows*ncols)]
     partials = []
-    for ax, bgw, logw, dataw, lw in zip(axes.flat,
-                                        backgrounds,
-                                        processing_logs,
-                                        datasets,
-                                        label_checks):
+    for ax, bgw, logw, dataw, lw, vw in zip(axes.flat,
+                                            backgrounds,
+                                            processing_logs,
+                                            datasets,
+                                            label_checks,
+                                            valid_only):
         partials.append(partial(update_plot,
                                 fig=fig,
                                 axes=ax,
                                 log_widget=logw,
                                 dataset_widget=dataw,
                                 background_widget=bgw,
-                                label_widget=lw))
+                                label_widget=lw,
+                                valid_widget=vw))
     update_buttons = new_plot_update_buttons(nrows, ncols)
     for partial_fun, button in zip(partials, update_buttons):
         button.on_click(partial_fun)
@@ -260,10 +274,13 @@ def roi_viewer(inspection_manifest, nrows=1, ncols=1):
             [widgets.Label("update buttons")] + update_buttons)
     label_box = widgets.VBox(
             [widgets.Label("include labels")] + label_checks)
+    valid_box = widgets.VBox(
+            [widgets.Label("valid only")] + valid_only)
     selector_box = widgets.HBox([background_box,
                                  log_selection,
                                  dataset_selection,
                                  label_box,
+                                 valid_box,
                                  button_box])
     display(selector_box)
 

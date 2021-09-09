@@ -22,9 +22,21 @@ if __name__ == "__main__":
 
     rng = np.random.default_rng(725162)
 
-    for i_fig in range(5):
+    n_perturbations = 5
+    fig = mplt_figure.Figure(figsize=(15,5*n_perturbations))
+    axes = [fig.add_subplot(n_perturbations, 3, ii)
+            for ii in range(1, 3*n_perturbations+1)]
 
+    print('len axes ',len(axes))
 
+    fontsize=15
+    marker_size=80
+
+    for i_fig in range(n_perturbations):
+        print(i_fig*3)
+        raw_axis = axes[i_fig*3]
+        first_axis = axes[1+i_fig*3]
+        last_axis = axes[2+i_fig*3]
 
         pixel_mask = np.zeros((512, 512), dtype=bool)
 
@@ -48,12 +60,6 @@ if __name__ == "__main__":
         c = full_img.shape[1]
         pixel_mask[max(0, seed_pt[0]-2):min(seed_pt[0]+2, r),
                    max(0, seed_pt[1]-2):min(seed_pt[1]+2, c)] = True
-
-        #fig = mplt_figure.Figure(figsize=(10,10))
-        #axis = fig.add_subplot(1,1,1)
-        #axis.imshow(full_img,zorder=0)
-        #axis.scatter(seed_pt[1], seed_pt[0], zorder=2, color='r')
-        #fig.savefig('output/guess.png')
 
         window = select_window_size(
                       seed_pt,
@@ -91,17 +97,6 @@ if __name__ == "__main__":
                                0.2,
                                window_img,
                                pixel_ignore=pixel_mask)
-        fig = mplt_figure.Figure(figsize=(10,10))
-        axis = fig.add_subplot(1,1,1)
-        axis.imshow(window_img, zorder=0)
-        axis.scatter(seed_pt[1]-c0, seed_pt[0]-r0, color='r', zorder=1)
-        axis.scatter(old_seed[1]-c0, old_seed[0]-r0, marker='+', color='g', zorder=2)
-        print('old ',old_seed)
-        print('new ',seed_pt)
-        for pt in interesting_pts:
-            axis.scatter(pt[1], pt[0], color='r', marker='x', zorder=1)
-        fig.tight_layout()
-        fig.savefig(f'output_210909/window_{i_fig}.png')
 
         sub_video = sub_video[timesteps, :, :]
 
@@ -137,21 +132,19 @@ if __name__ == "__main__":
         #while ncols*(nrows-2) >= n_iterations:
         #    nrows-=1
 
-        fig = mplt_figure.Figure(figsize=(5*ncols, 5*nrows))
-        axes = [fig.add_subplot(nrows, ncols,1)]
-        axes += [fig.add_subplot(nrows,ncols,ii) for ii in range(2,n_graphs+1)]
 
-        fontsize=10
-
-        axes[0].imshow(img_rgb, zorder=0)
-        axes[0].set_title('window; seed and characteristic points',
+        raw_axis.imshow(img_rgb, zorder=0)
+        raw_axis.set_title('window; seed and characteristic points',
                    fontsize=fontsize)
-        axes[0].scatter(seed_pt[1]-c0, seed_pt[0]-r0, color='r', zorder=1)
-        axes[0].scatter(old_seed[1]-c0, old_seed[0]-r0, marker='+', color='g', zorder=2)
+        raw_axis.scatter(seed_pt[1]-c0, seed_pt[0]-r0, color='r', zorder=1,
+                         s=marker_size)
+        raw_axis.scatter(old_seed[1]-c0, old_seed[0]-r0, marker='+',
+                         s=marker_size, color='g', zorder=2)
         for pt in interesting_pts:
-            axes[0].scatter(pt[1], pt[0], color='r', marker='x', zorder=1)
+            raw_axis.scatter(pt[1], pt[0], color='r', marker='x', zorder=1,
+                             s=marker_size)
 
-        for i_iteration, axis in zip(range(1, n_iterations+1), axes[1:]):
+        for i_iteration, axis in zip((1, n_iterations), (first_axis, last_axis)):
             data = diagnostic[i_iteration]
             img = np.copy(img_rgb)
             for mask in (data['background'], data['old'], data['new']):
@@ -164,5 +157,5 @@ if __name__ == "__main__":
             axis.imshow(img)
             axis.set_title(f'iteration {i_iteration}', fontsize=fontsize)
 
-        fig.tight_layout()
-        fig.savefig(f'output_210909/growth_perturbation_{i_fig}.png', dpi=300)
+    fig.tight_layout()
+    fig.savefig(f'output_210909/growth_perturbation.png', dpi=300)

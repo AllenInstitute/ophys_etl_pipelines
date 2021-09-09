@@ -162,7 +162,8 @@ def update_plot(widget, fig, axes, background_widget, log_widget,
     valid_only = valid_widget.value
     if (log_path is not None) & (dataset is not None):
         processing_log = SegmentationProcessingLog(log_path)
-        rois = processing_log.get_rois_from_group(dataset, valid_only=valid_only)
+        rois = processing_log.get_rois_from_group(
+                dataset, valid_only=valid_only)
         im = add_list_of_roi_boundaries_to_img(im, rois)
     axes.cla()
     axes.imshow(im)
@@ -245,11 +246,11 @@ def roi_viewer(inspection_manifest, nrows=1, ncols=1):
             for i in range(nrows*ncols)]
     partials = []
     for ax, bgw, logw, dataw, lw, vw in zip(axes.flat,
-                                        backgrounds,
-                                        processing_logs,
-                                        datasets,
-                                        label_checks,
-                                        valid_only):
+                                            backgrounds,
+                                            processing_logs,
+                                            datasets,
+                                            label_checks,
+                                            valid_only):
         partials.append(partial(update_plot,
                                 fig=fig,
                                 axes=ax,

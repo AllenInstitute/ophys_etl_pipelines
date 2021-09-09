@@ -34,6 +34,7 @@ def do_louvain_clustering_on_rois(
         filter_fraction: float,
         n_processors: int,
         scratch_dir: pathlib.Path,
+        correlation_floor: float = 0.0,
         only_neighbors: Optional[bool] = False) -> Tuple[List[OphysROI],
                                                          List[List[int]]]:
     """
@@ -98,7 +99,8 @@ def do_louvain_clustering_on_rois(
                               roi_id_array,
                               correlation_matrix,
                               neighbor_lookup=neighbor_lookup,
-                              n_processors=n_processors)
+                              n_processors=n_processors,
+                              correlation_floor=correlation_floor)
 
     new_roi_list = []
     for roi_id in np.unique(merged_roi_id_array):

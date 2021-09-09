@@ -304,6 +304,7 @@ def _louvain_clustering_worker(
 def _do_louvain_clustering(
       roi_id_arr: np.ndarray,
       pixel_corr: np.ndarray,
+      correlation_floor: float = 0.0,
       neighbor_lookup: Optional[Dict[int, Set[int]]] = None,
       n_processors: Optional[int] = None
       ) -> Tuple[np.ndarray,
@@ -323,7 +324,7 @@ def _do_louvain_clustering(
         n_processors = 1
 
     # set any correlations < 0 to 0
-    pixel_corr = np.where(pixel_corr >= 0.0,
+    pixel_corr = np.where(pixel_corr >= correlation_floor,
                           pixel_corr,
                           0.0)
 

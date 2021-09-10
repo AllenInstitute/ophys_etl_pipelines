@@ -283,6 +283,7 @@ def roi_viewer(inspection_manifest, nrows=1, ncols=1):
                                  valid_box,
                                  button_box])
     display(selector_box)
+    return fig
 
 
 def all_roi_dicts(inspection_manifest):

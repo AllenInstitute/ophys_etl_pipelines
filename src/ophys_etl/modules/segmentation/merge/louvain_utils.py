@@ -19,6 +19,8 @@ from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
     _winnow_process_list)
 
 
+import time
+
 def find_roi_clusters(
         roi_list: List[OphysROI],
         pixel_distance: float = np.sqrt(2.0)) -> List[List[OphysROI]]:
@@ -57,6 +59,109 @@ def update_merger_history(merger_history: Dict[int, int],
         if merger_history[roi_id_in] == this_merger['absorbed']:
             merger_history[roi_id_in] = this_merger['absorber']
     return merger_history
+
+
+def hnc_correlation(parent_traces, neighbor_traces):
+    """
+    parents is (ntime, 2)
+    neighbors is (ntime, n_neigh)
+    """
+
+    n_time = neighbor_traces.shape[0]
+    n_parents = parent_traces.shape[1]
+    n_neighbors = neighbor_traces.shape[1]
+    result = np.zeros((n_parents, n_neighbors), dtype=float)
+
+    mu_neighbors = np.mean(neighbor_traces, axis=0)
+    neighbor_traces = neighbor_traces - mu_neighbors
+    std_neighbors = np.sqrt(np.sum(neighbor_traces**2, axis=0)/(n_time-1))
+
+    mu_parent = np.mean(parent_traces, axis=0)
+    parent_traces = parent_traces-mu_parent
+    std_parents = np.sqrt(np.sum(parent_traces**2, axis=0)/(n_time-1))
+
+    numerators = np.dot(parent_traces.T, neighbor_traces)/n_time
+
+    for i_parent in range(n_parents):
+        denom = std_parents[i_parent]*std_neighbors
+        result[i_parent, :] = numerators[i_parent, :]/denom
+    return result
+
+
+def _hnc_correlation_worker(
+        sub_video: np.ndarray,
+        pixel_distances: Union[np.ndarray, None],
+        kernel_size: Union[float, None],
+        filter_fraction: float,
+        pixel_range: Tuple[int, int],
+        lock: multiprocessing.managers.AcquirerProxy,
+        output_file_path: pathlib.Path,
+        dataset_name: str):
+    """
+    pixel_range is [min, max)
+    """
+    result = np.zeros((pixel_range[1]-pixel_range[0],
+                       sub_video.shape[1]),
+                      dtype=float)
+
+    discard = 1.0-filter_fraction
+
+    pixel_index_array = np.arange(sub_video.shape[1])
+
+    d_neigh = 2
+    expected_pixels = float(2*4*d_neigh**2)
+
+    t0 = time.time()
+    ct = 0
+    tot = pixel_range[1]-pixel_range[0]
+    for i0 in range(pixel_range[0], pixel_range[1]):
+        trace0 = sub_video[:, i0]
+        th = np.quantile(trace0, discard)
+        time0 = np.where(trace0 >= th)[0]
+        if kernel_size is not None:
+            other_pixel_mask = np.logical_and(
+                                  pixel_index_array > i0,
+                                  pixel_distances[i0, :] <= kernel_size)
+        else:
+            other_pixel_mask = pixel_index_array > i0
+        other_pixel_indices = pixel_index_array[other_pixel_mask]
+        for i1 in other_pixel_indices:
+            """
+            need to get neighbors
+            mask them
+            pass on to hnc_correlation
+            """
+            #t1 = time.time()
+            trace1 = sub_video[:, i1]
+            th = np.quantile(trace1, discard)
+            time1 = np.where(trace1 >= th)[0]
+            time_mask = np.unique(np.concatenate([time0, time1]))
+
+            neighbor_pixel_mask = np.logical_or(
+                                      pixel_distances[i0,:] <= d_neigh,
+                                      pixel_distances[i1, :] <= d_neigh)
+
+            neighbor_indexes = pixel_index_array[neighbor_pixel_mask]
+            correlation = hnc_correlation(sub_video[:, [i0, i1]],
+                                          sub_video[:, neighbor_indexes])
+
+            distsq = np.sum((correlation[0,:]-correlation[1,:])**2)
+            distsq = expected_pixels*distsq/correlation.shape[1]
+            result[i0-pixel_range[0]][i1] = np.exp(-1.0*distsq)
+            #p_dur = time.time()-t1
+            #print(f'pair took {p_dur:.2e} -- {result[i0-pixel_range[0]][i1]:.2e}')
+            #print(f'{distsq:.2e} {correlation.shape}')
+        ct += 1
+        duration = time.time()-t0
+        per = duration/ct
+        est = tot*per
+        remaining = est-duration
+        print(f'{ct} of {tot} in {duration:.2e} -- {remaining:.2e} remain of {est:.2e}')
+
+    with lock:
+        with h5py.File(output_file_path, 'a') as output_file:
+            output_file[dataset_name][pixel_range[0]:pixel_range[1],
+                                      :] = result
 
 
 def _correlation_worker(
@@ -136,10 +241,10 @@ def _correlate_all_pixels(
     mgr = multiprocessing.Manager()
     lock = mgr.Lock()
     process_list = []
-    d_pixels = max(1, n_pixels//(2*n_processors-2))
+    d_pixels = max(1, n_pixels//(3*n_processors-1))
     for i0 in range(0, n_pixels, d_pixels):
         i1 = min(n_pixels, i0+d_pixels)
-        p = multiprocessing.Process(target=_correlation_worker,
+        p = multiprocessing.Process(target=_hnc_correlation_worker,
                                     args=(sub_video,
                                           pixel_distances,
                                           kernel_size,

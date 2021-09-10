@@ -58,7 +58,7 @@ if __name__ == "__main__":
     print('len axes ',len(axes))
 
     fontsize=15
-    marker_size=80
+    marker_size=100
 
     true_mask = None
     for i_fig in range(n_perturbations):
@@ -158,7 +158,7 @@ if __name__ == "__main__":
                    fontsize=fontsize)
         raw_axis.scatter(seed_pt[1]-c0, seed_pt[0]-r0, color='r', zorder=1,
                          s=marker_size)
-        raw_axis.scatter(old_seed[1]-c0, old_seed[0]-r0, marker='+',
+        raw_axis.scatter(old_seed[1]-c0, old_seed[0]-r0, marker='o',
                          s=marker_size, color='g', zorder=2)
         for pt in interesting_pts:
             raw_axis.scatter(pt[1], pt[0], color='r', marker='x', zorder=1,

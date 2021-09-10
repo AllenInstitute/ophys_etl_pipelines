@@ -216,7 +216,8 @@ def add_labels_to_axes(axis: matplotlib.axes.Axes,
         axis.text(xx, yy,
                   f'{roi.roi_id}',
                   color=color_hex,
-                  fontsize=fontsize)
+                  fontsize=fontsize,
+                  clip_on=True)
 
     return axis
 

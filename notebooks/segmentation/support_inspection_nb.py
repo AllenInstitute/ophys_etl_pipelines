@@ -164,7 +164,7 @@ def update_plot(widget, fig, axes, background_widget, log_widget,
         processing_log = SegmentationProcessingLog(log_path)
         rois = processing_log.get_rois_from_group(
                 dataset, valid_only=valid_only)
-        im = add_list_of_roi_boundaries_to_img(im, rois)
+        im = add_list_of_roi_boundaries_to_img(im, rois, alpha=1.0)
     axes.cla()
     axes.imshow(im)
     title = ""
@@ -283,6 +283,7 @@ def roi_viewer(inspection_manifest, nrows=1, ncols=1):
                                  valid_box,
                                  button_box])
     display(selector_box)
+    return fig
 
 
 def all_roi_dicts(inspection_manifest):

@@ -156,7 +156,7 @@ def _hnc_correlation_worker(
         per = duration/ct
         est = tot*per
         remaining = est-duration
-        print(f'{ct} of {tot} in {duration:.2e} -- {remaining:.2e} remain of {est:.2e}')
+        #print(f'{ct} of {tot} in {duration:.2e} -- {remaining:.2e} remain of {est:.2e}')
 
     with lock:
         with h5py.File(output_file_path, 'a') as output_file:

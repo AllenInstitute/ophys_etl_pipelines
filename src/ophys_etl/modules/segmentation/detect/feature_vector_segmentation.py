@@ -377,7 +377,7 @@ class FeatureVectorSegmenter(object):
 
         # write output from individual processes to
         # class storage variables
-        for roi_id in mgr_dict:
+        for roi_id in mgr_dict.keys():
             origin = mgr_dict[roi_id][0]
             mask = mgr_dict[roi_id][1]
             at_edge = _is_roi_at_edge(origin,

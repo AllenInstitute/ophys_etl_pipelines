@@ -5,8 +5,7 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 from ophys_etl.modules.segmentation.utils.roi_utils import do_rois_abut
 
-from ophys_etl.modules.segmentation.qc_utils.roi_comparison_utils import (
-    get_roi_color_map)
+from ophys_etl.modules.segmentation.qc_utils.roi_utils import get_roi_color_map
 
 
 @pytest.fixture(scope='session')

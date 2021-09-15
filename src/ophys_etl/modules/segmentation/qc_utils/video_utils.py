@@ -775,6 +775,8 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
     """
 
     sub_video_bdry = np.copy(sub_video)
+    n_video_rows = sub_video_bdry.shape[1]
+    n_video_cols = sub_video_bdry.shape[2]
 
     # construct an ROI object to get the boundary mask
     # for us
@@ -789,10 +791,14 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
     boundary_mask = ophys_roi.boundary_mask
     for irow in range(boundary_mask.shape[0]):
         row = irow+ophys_roi.y0-origin[0]
+        if row < 0 or row >= n_video_rows:
+            continue
         for icol in range(boundary_mask.shape[1]):
             if not boundary_mask[irow, icol]:
                 continue
             col = icol+ophys_roi.x0-origin[1]
+            if col <0 or col >= n_video_cols:
+                continue
             for i_color in range(3):
                 sub_video_bdry[:, row, col, i_color] = roi_color[i_color]
     return sub_video_bdry

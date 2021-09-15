@@ -125,6 +125,76 @@ def test_get_thumbnail_video(tmpdir,
     del generator
 
 
+@pytest.mark.parametrize('origin, frame_shape, timesteps',
+                         product((None, (5, 5)),
+                                 (None, (16, 20)),
+                                 (None, np.array([1, 4, 5, 17,
+                                                  19, 23, 23, 25, 38]))))
+def test_thumbnail_with_roi_list(
+                             tmpdir,
+                             example_video,
+                             origin,
+                             frame_shape,
+                             timesteps,
+                             list_of_roi):
+    """
+    Just a smoketest that we can generate a by-hand thumbnail with ROIs
+    displayed in it
+    """
+    video_tmpdir = pathlib.Path(tmpdir) / 'video_temp'
+    generator = VideoGenerator(example_video,
+                               tmp_dir=video_tmpdir)
+
+    fps = 11
+    quality = 6
+
+    thumbnail = generator.get_thumbnail_video(origin=origin,
+                                              frame_shape=frame_shape,
+                                              timesteps=timesteps,
+                                              fps=fps,
+                                              quality=quality,
+                                              rois=list_of_roi)
+
+    assert thumbnail.video_path.is_file()
+    del thumbnail
+
+    thumbnail = generator.get_thumbnail_video(origin=origin,
+                                              frame_shape=frame_shape,
+                                              timesteps=timesteps,
+                                              fps=fps,
+                                              quality=quality,
+                                              rois=list_of_roi,
+                                              valid_only=True)
+
+    assert thumbnail.video_path.is_file()
+    del thumbnail
+
+    roi_lookup = {roi['id']: roi for roi in list_of_roi}
+
+    thumbnail = generator.get_thumbnail_video(origin=origin,
+                                              frame_shape=frame_shape,
+                                              timesteps=timesteps,
+                                              fps=fps,
+                                              quality=quality,
+                                              rois=roi_lookup)
+
+    assert thumbnail.video_path.is_file()
+    del thumbnail
+
+    thumbnail = generator.get_thumbnail_video(origin=origin,
+                                              frame_shape=frame_shape,
+                                              timesteps=timesteps,
+                                              fps=fps,
+                                              quality=quality,
+                                              rois=roi_lookup,
+                                              valid_only=True)
+
+    assert thumbnail.video_path.is_file()
+
+    del thumbnail
+    del generator
+
+
 @pytest.mark.parametrize('roi_color, timesteps, padding',
                          product((None, (122, 201, 53)),
                                  (None, np.array([1, 4, 5, 17, 19,

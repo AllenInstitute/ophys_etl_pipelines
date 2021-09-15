@@ -1,7 +1,8 @@
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib import figure
+import networkx
+from matplotlib import figure, cm as mplt_cm
 from typing import List, Tuple, Callable, Optional, Union, Dict
 import numpy as np
 import pathlib
@@ -13,7 +14,7 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     convert_roi_keys,
     extract_roi_to_ophys_roi,
-    mean_metric_from_roi)
+    mean_metric_from_roi, do_rois_abut)
 
 from ophys_etl.modules.decrosstalk.ophys_plane import (
     OphysMovie,
@@ -68,7 +69,7 @@ def add_roi_mask_to_img(
 def add_roi_boundary_to_img(
         img: np.ndarray,
         roi: OphysROI,
-        color: Tuple[int],
+        color: Tuple[int, int, int],
         alpha: float) -> np.ndarray:
     """
     Add colored ROI boundary to an image
@@ -109,7 +110,8 @@ def add_roi_boundary_to_img(
 def add_list_of_roi_boundaries_to_img(
         img: np.ndarray,
         roi_list: Union[List[OphysROI], List[Dict]],
-        color: Tuple[int] = (255, 0, 0),
+        multicolor=True,
+        color: Optional[Tuple[int, int, int]] = None,
         alpha: float = 0.25) -> np.ndarray:
     """
     Add colored ROI boundaries to an image
@@ -122,8 +124,14 @@ def add_list_of_roi_boundaries_to_img(
     roi_list: List[OphysROI]
         list of ROIs to add to image
 
-    color: Tuple[int]
+    multicolor
+        Whether to use a color scheme such that touching rois have different
+        colors
+        If True, color will be ignored
+
+    color: Optional[Tuple[int]]
         color of ROI border as RGB tuple (default: (255, 0, 0))
+        If given, multicolor will be set to False
 
     alpha: float
         transparency factor to apply to ROI (default=0.25)
@@ -134,6 +142,12 @@ def add_list_of_roi_boundaries_to_img(
         New image with ROI borders superimposed
     """
 
+    if color is not None:
+        multicolor = False
+
+    if color is None and not multicolor:
+        raise ValueError('Either specify a color or set multicolor to True')
+
     new_img = np.copy(img)
     if len(roi_list) == 0:
         return new_img
@@ -143,11 +157,16 @@ def add_list_of_roi_boundaries_to_img(
         roi_list = [OphysROI.from_schema_dict(roi)
                     for roi in roi_list]
 
+    if multicolor:
+        color_map = get_roi_color_map(roi_list=roi_list)
+    else:
+        color_map = {roi.roi_id: color for roi in roi_list}
+
     for roi in roi_list:
         new_img = add_roi_boundary_to_img(
                       new_img,
                       roi,
-                      color,
+                      color_map[roi.roi_id],
                       alpha)
     return new_img
 
@@ -227,7 +246,7 @@ def roi_thumbnail(movie: OphysMovie,
                   timestamps: Optional[np.ndarray],
                   reducer: Callable = np.mean,
                   slop: int = 20,
-                  roi_color: Tuple[int] = (255, 0, 0),
+                  roi_color: Tuple[int, int, int] = (255, 0, 0),
                   alpha=0.5) -> np.ndarray:
     """
     Get the thumbnail of an ROI from an OphysMovie
@@ -433,8 +452,7 @@ class ROIExaminer(object):
             output_img = add_list_of_roi_boundaries_to_img(
                                                    output_img,
                                                    roi_list=obj['rois'],
-                                                   alpha=alpha,
-                                                   color=obj['color'])
+                                                   alpha=alpha)
         return output_img
 
     def plot_rois(self,
@@ -852,3 +870,65 @@ def hnc_roi_to_extract_roi(hnc_roi: HNC_ROI, id: int) -> ExtractROI:
             valid=True,
             mask=[i.tolist() for i in mask])
     return roi
+
+
+def get_roi_color_map(
+        roi_list: List[OphysROI]) -> Dict[int, Tuple[int, int, int]]:
+    """
+    Take a list of OphysROI and return a dict mapping ROI ID
+    to RGB color so that no ROIs that touch have the same color
+
+    Parametrs
+    ---------
+    roi_list: List[OphysROI]
+
+    Returns
+    -------
+    color_map: Dict[int, Tuple[int, int, int]]
+    """
+    roi_graph = networkx.Graph()
+    for roi in roi_list:
+        roi_graph.add_node(roi.roi_id)
+    for ii in range(len(roi_list)):
+        roi0 = roi_list[ii]
+        for jj in range(ii+1, len(roi_list)):
+            roi1 = roi_list[jj]
+
+            # value of 5 is so that singleton ROIs that
+            # are near each other do not get assigned
+            # the same color
+            abut = do_rois_abut(roi0, roi1, 5.0)
+            if abut:
+                roi_graph.add_edge(roi0.roi_id, roi1.roi_id)
+                roi_graph.add_edge(roi1.roi_id, roi0.roi_id)
+
+    nx_coloring = networkx.greedy_color(roi_graph)
+    n_colors = len(set(nx_coloring.values()))
+
+    mplt_color_map = mplt_cm.jet
+
+    # create a list of colors based on the matplotlib color map
+    raw_color_list = []
+    for ii in range(n_colors):
+        color = mplt_color_map((1.0+ii)/(n_colors+1.0))
+        color = (int(color[0]*255), int(color[1]*255), int(color[2]*255))
+        raw_color_list.append(color)
+
+    # re-order colors so that colors that are adjacent in index
+    # have higher contrast
+    step = max(n_colors//3, 1)
+    color_list = []
+    for i0 in range(step):
+        for ii in range(i0, n_colors, step):
+            this_color = raw_color_list[ii]
+            color_list.append(this_color)
+
+    # reverse color list, since matplotlib.cm.jet will
+    # assign a dark blue as color_list[0], which isn't
+    # great for contrast
+    color_list.reverse()
+
+    color_map = {}
+    for roi_id in nx_coloring:
+        color_map[roi_id] = color_list[nx_coloring[roi_id]]
+    return color_map

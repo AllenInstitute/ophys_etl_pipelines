@@ -7,7 +7,7 @@ conda env create -f notebooks/segmentation/environment.yml
 ```
 
 ### for developers
-This environment file installs the branch `staging/segmentation_dev`. This impacts any of the import statements in the notebook that begin with `from ophys_etl ...`. If one intends changes from the local namespace of `ophys_etl` to propogate into the notebook, then
+This environment file installs the branch `staging/segmentation_dev`. This impacts any of the import statements in the notebook that begin with `from ophys_etl ...`. If one intends changes from the local namespace of `ophys_etl` to propagate into the notebook, then
 ```
 pip install -e .
 ```

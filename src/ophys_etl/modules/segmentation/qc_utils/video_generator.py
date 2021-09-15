@@ -61,7 +61,8 @@ class VideoGenerator(object):
             quality: int = 5,
             rois: Optional[Union[List[ExtractROI],
                            Dict[int, ExtractROI]]] = None,
-            roi_color: Tuple[int, int, int] = (255, 0, 0)
+            roi_color: Tuple[int, int, int] = (255, 0, 0),
+            valid_only: bool = False
             ) -> video_utils.ThumbnailVideo:
         """
         Get a ThumbnailVideo from by-hand specified parameters
@@ -93,6 +94,10 @@ class VideoGenerator(object):
 
         roi_color: Tuple[int, int, int]
             RGB color to plot ROIs (default (255, 0, 0))
+
+        valid_only: bool
+            If rois is not None, only plot valid ROIs
+            (default: False)
 
         Returns
         -------
@@ -130,6 +135,8 @@ class VideoGenerator(object):
                 if roi_c1 < colmin:
                     continue
                 if roi_c0 > colmax:
+                    continue
+                if valid_only and not this_roi['valid']:
                     continue
                 roi_list.append(this_roi)
 

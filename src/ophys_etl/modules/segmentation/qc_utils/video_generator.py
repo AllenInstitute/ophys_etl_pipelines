@@ -104,7 +104,7 @@ class VideoGenerator(object):
             frame_shape = self.video_shape[1:3]
 
         roi_list = None
-        if roi_list is not None:
+        if rois is not None:
             # select only ROIs that have a hope of intersecting
             # with the field of view
 

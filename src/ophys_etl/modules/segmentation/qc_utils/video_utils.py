@@ -1,4 +1,4 @@
-from typing import Tuple, Optional, Union
+from typing import Tuple, Optional, Union, List
 import numpy as np
 import pathlib
 import tempfile
@@ -480,7 +480,9 @@ def thumbnail_video_from_array(
         fps: int = 31,
         quality: int = 5,
         origin_offset: Optional[Tuple[int, int]] = None,
-        timestep_offset: Optional[np.ndarray] = None) -> ThumbnailVideo:
+        timestep_offset: Optional[np.ndarray] = None,
+        roi_list: Optional[List[ExtractROI]] = None,
+        roi_color: Optional[Tuple[int, int, int]] = (255, 0, 0)) -> ThumbnailVideo:
     """
     Create a ThumbnailVideo (mp4) from a numpy array. This method
     will do the work of trimming the array in space and time.
@@ -533,6 +535,14 @@ def thumbnail_video_from_array(
         after pre-truncating the video in space; do NOT use this
         by hand.*
 
+    roi_list: Optional[List[ExtractROI]]
+        If not None, list of ROIs whose boundaries are to be drawn
+        in the thumbnail video (default: None)
+
+    roi_color: Optional[Tuple[int, int, int]]
+        RGB color of ROIs to be drawn in the thumbnail video.
+        (default (255, 0, 0))
+
     Returns
     -------
     ThumbnailVideo
@@ -566,6 +576,15 @@ def thumbnail_video_from_array(
     if timesteps is None:
         if timestep_offset is not None:
             timesteps = timestep_offset
+
+    if roi_list is not None:
+        for roi in roi_list:
+            sub_video = add_roi_boundary_to_video(
+                            sub_video,
+                            (origin[0]+origin_offset[0],
+                             origin[1]+origin_offset[1]),
+                            roi,
+                            roi_color)
 
     container = ThumbnailVideo(sub_video,
                                file_path,
@@ -801,6 +820,7 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
                 continue
             for i_color in range(3):
                 sub_video_bdry[:, row, col, i_color] = roi_color[i_color]
+
     return sub_video_bdry
 
 
@@ -931,11 +951,10 @@ def _thumbnail_video_from_ROI_array(
 
     # if an ROI color has been specified, plot the ROI
     # boundary over the video in the specified color
+    roi_list = None
     if roi_color is not None:
-        sub_video = add_roi_boundary_to_video(sub_video,
-                                              origin,
-                                              roi,
-                                              roi_color)
+        roi_list = [roi]
+
 
     thumbnail = thumbnail_video_from_array(
                     sub_video,
@@ -946,7 +965,9 @@ def _thumbnail_video_from_ROI_array(
                     tmp_dir=tmp_dir,
                     fps=fps,
                     quality=quality,
-                    origin_offset=origin)
+                    origin_offset=origin,
+                    roi_list=roi_list,
+                    roi_color=roi_color)
 
     return thumbnail
 
@@ -1063,11 +1084,9 @@ def _thumbnail_video_from_ROI_path(
 
     # if an ROI color has been specified, plot the ROI
     # boundary over the video in the specified color
+    roi_list = None
     if roi_color is not None:
-        sub_video = add_roi_boundary_to_video(sub_video,
-                                              origin,
-                                              roi,
-                                              roi_color)
+        roi_list = [roi]
 
     thumbnail = thumbnail_video_from_array(
                     sub_video,
@@ -1078,7 +1097,9 @@ def _thumbnail_video_from_ROI_path(
                     tmp_dir=tmp_dir,
                     fps=fps,
                     quality=quality,
-                    origin_offset=origin)
+                    origin_offset=origin,
+                    roi_list=roi_list,
+                    roi_color=roi_color)
 
     return thumbnail
 

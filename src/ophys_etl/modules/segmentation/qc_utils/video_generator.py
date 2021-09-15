@@ -1,4 +1,4 @@
-from typing import Union, Optional, Tuple
+from typing import Union, Optional, Tuple, List, Dict
 import h5py
 import numpy as np
 import tempfile
@@ -52,12 +52,17 @@ class VideoGenerator(object):
 
         self.video_path = video_path
 
-    def get_thumbnail_video(self,
-                            origin: Optional[Tuple[int, int]] = None,
-                            frame_shape: Optional[Tuple[int, int]] = None,
-                            timesteps: Optional[np.ndarray] = None,
-                            fps: int = 31,
-                            quality: int = 5) -> video_utils.ThumbnailVideo:
+    def get_thumbnail_video(
+            self,
+            origin: Optional[Tuple[int, int]] = None,
+            frame_shape: Optional[Tuple[int, int]] = None,
+            timesteps: Optional[np.ndarray] = None,
+            fps: int = 31,
+            quality: int = 5,
+            rois: Optional[Union[List[ExtractROI],
+                           Dict[int, ExtractROI]]] = None,
+            roi_color: Tuple[int, int, int] = (255, 0, 0)
+            ) -> video_utils.ThumbnailVideo:
         """
         Get a ThumbnailVideo from by-hand specified parameters
 
@@ -82,6 +87,13 @@ class VideoGenerator(object):
             quality parameter passed to imageio. Max is 10.
             (default: 5)
 
+        rois: Optional[Union[List[ExtractROI], Dict[int, ExtractROI]]]
+            ROIs to overplot on video. Either a list or a dict that
+            maps roi_id to ROI (default: None)
+
+        roi_color: Tuple[int, int, int]
+            RGB color to plot ROIs (default (255, 0, 0))
+
         Returns
         -------
         video_utils.ThumbnailVideo
@@ -91,6 +103,39 @@ class VideoGenerator(object):
         if frame_shape is None:
             frame_shape = self.video_shape[1:3]
 
+        roi_list = None
+        if roi_list is not None:
+            # select only ROIs that have a hope of intersecting
+            # with the field of view
+
+            if isinstance(rois, list):
+                raw_roi_list = rois
+            else:
+                raw_roi_list = list(rois.values())
+
+            rowmin = origin[0]
+            rowmax = origin[0] + frame_shape[0]
+            colmin = origin[1]
+            colmax = origin[1] + frame_shape[1]
+            roi_list = []
+            for this_roi in raw_roi_list:
+                roi_r0 = this_roi['y']
+                roi_r1 = this_roi['y'] + this_roi['height']
+                roi_c0 = this_roi['x']
+                roi_c1 = this_roi['x'] + this_roi['width']
+                if roi_r1 < rowmin:
+                    continue
+                if roi_r0 > rowmax:
+                    continue
+                if roi_c1 < colmin:
+                    continue
+                if roi_c0 > colmax:
+                    continue
+                roi_list.append(this_roi)
+
+            if len(roi_list) == 0:
+                roi_list = None
+
         thumbnail = video_utils.thumbnail_video_from_path(
                         self.video_path,
                         origin,
@@ -99,7 +144,9 @@ class VideoGenerator(object):
                         tmp_dir=self.tmp_dir,
                         fps=fps,
                         quality=quality,
-                        min_max=self.min_max)
+                        min_max=self.min_max,
+                        roi_list=roi_list,
+                        roi_color=roi_color)
         return thumbnail
 
     def get_thumbnail_video_from_roi(

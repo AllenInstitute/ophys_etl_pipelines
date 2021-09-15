@@ -1,5 +1,6 @@
 import pytest
 import h5py
+import pathlib
 import datetime
 import contextlib
 import numpy as np
@@ -8,6 +9,8 @@ import matplotlib
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.segmentation import processing_log
 from ophys_etl.modules.segmentation.seed.seeder import ImageMetricSeeder
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    serialize_extract_roi_list)
 
 
 @pytest.fixture
@@ -195,3 +198,28 @@ def test_create_figures(tmpdir, extract_roi_list, seeder_fixture, only_valid):
                    merger_ids=[])
     fig = plog.create_roi_merge_figure()
     assert isinstance(fig, matplotlib.figure.Figure)
+
+
+@pytest.mark.parametrize('valid_only', [True, False])
+def test_get_rois(tmpdir, extract_roi_list, valid_only):
+    log_path = pathlib.Path(tmpdir) / 'dummy_test_log.h5'
+    with h5py.File(log_path, 'w') as out_file:
+        out_file.create_dataset(
+                'detect/rois',
+                data=serialize_extract_roi_list(extract_roi_list))
+
+    splog = processing_log.SegmentationProcessingLog(
+                    log_path,
+                    read_only=True)
+
+    expected_list = []
+    for roi in extract_roi_list:
+        if not valid_only or roi['valid']:
+            expected_list.append(roi)
+
+    actual = splog.get_rois_from_group('detect', valid_only=valid_only)
+    assert actual == expected_list
+
+    expected_dict = {roi['id']: roi for roi in expected_list}
+    actual = splog.get_roi_lookup_from_group('detect', valid_only=valid_only)
+    assert actual == expected_dict

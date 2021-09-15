@@ -5,7 +5,7 @@ import matplotlib
 import warnings
 import numpy as np
 from pathlib import Path
-from typing import List
+from typing import List, Dict
 
 from ophys_etl.modules.segmentation.utils import roi_utils
 from ophys_etl.types import ExtractROI
@@ -453,3 +453,32 @@ class SegmentationProcessingLog:
                             valid.append(roi)
             rois = valid
         return rois
+
+    def get_roi_lookup_from_group(
+                            self,
+                            group_name: str,
+                            dataset_name: str = "rois",
+                            valid_only: bool = False) -> Dict[int, ExtractROI]:
+        """Read and deserialize ROIs from a group.
+        Return a dict mapping roi_id to the deserialized ROIs.
+
+        Parameters
+        ----------
+        group_name: str
+            the name of the group, i.e. 'detect', 'merge', etc.
+        dataset_name: str
+            the name of the dataset to read and deserialize,
+            typically 'rois'
+
+        Returns
+        -------
+        roi_lookup: Dict[int, ExtractROI]
+            A dict mapping roi_id to the deserialized ROIs
+
+        """
+        roi_list = self.get_rois_from_group(
+                            group_name,
+                            dataset_name=dataset_name,
+                            valid_only=valid_only)
+        roi_lookup = {roi['id']: roi for roi in roi_list}
+        return roi_lookup

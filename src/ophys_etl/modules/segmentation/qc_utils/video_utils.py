@@ -759,7 +759,7 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
         The video as an RGB movie. Shape is (n_t, nrows, ncols, 3)
 
     origin: Tuple[int, int]
-        global (romin, colmin) of the video in sub_video
+        global (rowmin, colmin) of the video in sub_video
 
     roi: ExtractROI
         The parameters of this ROI are in global coordinates,

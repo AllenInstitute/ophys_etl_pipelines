@@ -1,21 +1,23 @@
-### create env
+### create conda environment `jlab_segmentation`
 ```
 git clone https://github.com/AllenInstitute/ophys_etl_pipelines
 cd ophys_etl_pipelines
-git checkout notebook_update
+git checkout staging/segmentation_dev
 conda env create -f notebooks/segmentation/environment.yml
 ```
 
-### launch as web app
+### for developers
+This environment file installs the branch `staging/segmentation_dev`. This impacts any of the import statements in the notebook that begin with `from ophys_etl ...`. If one intends changes from the local namespace of `ophys_etl` to propagate into the notebook, then
 ```
-conda activate jlab_segmentation
-cd notebooks/segmentation
-voila segmentation_inspection.ipynb
+pip install -e .
 ```
+inside of this conda env will update the installed copy of `ophys_etl_pipelines` to the editable local copy. Restarting the kernel should make local changes visible.
 
-### launch as normal jupyter notebook
+### launch JupyterLab
 ```
 conda activate jlab_segmentation
 cd notebooks/segmentation
 jupyter-lab
 ```
+Open the notebook `segmentation_inspection.ipynb`
+This notebook relies on the file `support_inspection_nb.py` in the correct relative path.

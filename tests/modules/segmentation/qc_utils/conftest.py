@@ -40,7 +40,7 @@ def list_of_roi():
             valid_roi = False
         roi = ExtractROI(x=x0, width=width,
                          y=y0, height=height,
-                         valid_roi=valid_roi,
+                         valid=valid_roi,
                          mask=real_mask,
                          id=ii)
         output.append(roi)

@@ -579,6 +579,11 @@ def thumbnail_video_from_array(
             timesteps = timestep_offset
 
     if roi_list is not None:
+        # convert to RGB
+        if len(sub_video.shape) < 4:
+            sub_video = get_rgb_sub_video(sub_video,
+                                          (0, 0),
+                                          sub_video.shape[1:3])
         for roi in roi_list:
             sub_video = add_roi_boundary_to_video(
                             sub_video,

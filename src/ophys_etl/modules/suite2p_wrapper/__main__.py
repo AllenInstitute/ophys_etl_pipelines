@@ -49,7 +49,7 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
                              f"{self.args['nbinned']}.")
 
         # make a tempdir for Suite2P's output
-        with tempfile.TemporaryDirectory() as tdir:
+        with tempfile.TemporaryDirectory(prefix=self.args['tmp_dir']) as tdir:
             self.args['save_path0'] = tdir
             self.logger.info(f"Running Suite2P with output going to {tdir}")
             suite2p.run_s2p(self.args)

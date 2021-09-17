@@ -30,6 +30,10 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             description=("Allen production specifies h5py as the source of "
                          "the data, but Suite2P still wants this key in the "
                          "args."))
+    tmp_dir = argschema.fields.OutputDir(
+                 required=False,
+                 default=None,
+                 allow_none=True)
     # s2p registration settings
     do_registration = argschema.fields.Int(
             default=0,

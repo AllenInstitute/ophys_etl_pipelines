@@ -15,7 +15,8 @@ class PostProcessROIsInputSchema(ArgSchema):
         validate=lambda x: Path(x).exists(),
         description=("Path to motion corrected video file *.h5"))
     motion_correction_values = InputFile(
-        required=True,
+        default=None,
+        allow_none=True,
         description=("Path to motion correction values for each frame "
                      "stored in .csv format. This .csv file is expected to"
                      "have a header row of either:\n"

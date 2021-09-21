@@ -52,7 +52,8 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
         with tempfile.TemporaryDirectory(prefix=self.args['tmp_dir']) as tdir:
             self.args['save_path0'] = tdir
             self.logger.info(f"Running Suite2P with output going to {tdir}")
-            self.args['fs'] = self.args['movie_frame_rate']
+            if 'movie_frame_rate' in self.args:
+                self.args['fs'] = self.args['movie_frame_rate']
             suite2p.run_s2p(self.args)
 
             self.logger.info(f"Suite2P complete. Copying output from {tdir} "

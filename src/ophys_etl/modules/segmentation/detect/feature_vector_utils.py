@@ -120,16 +120,16 @@ def choose_timesteps(
     # span the dynamic range of the ROI and its
     # background
 
-    interesting_points = choose_extreme_pixels(
-                             image_data,
-                             [0.1, 0.9],
-                             pixel_ignore=pixel_ignore)
-
-    for pt in interesting_points:
-        trace = sub_video[:, pt[0], pt[1]]
-        thresh = np.quantile(trace, discard)
-        mask = np.where(trace >= thresh)[0]
-        global_time_mask.append(mask)
+    # interesting_points = choose_extreme_pixels(
+    #                          image_data,
+    #                          [0.1, 0.9],
+    #                          pixel_ignore=pixel_ignore)
+    #
+    # for pt in interesting_points:
+    #     trace = sub_video[:, pt[0], pt[1]]
+    #     thresh = np.quantile(trace, discard)
+    #     mask = np.where(trace >= thresh)[0]
+    #     global_time_mask.append(mask)
 
     return np.unique(np.concatenate(global_time_mask))
 

@@ -4,6 +4,8 @@ from matplotlib.figure import Figure
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 from ophys_etl.modules.segmentation.qc_utils import roi_utils
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    extract_roi_to_ophys_roi)
 from ophys_etl.types import ExtractROI
 
 
@@ -34,12 +36,17 @@ def roi_metric_qc_plot(
     lower right: histogram of average metric
 
     """
+    ophys_list = [extract_roi_to_ophys_roi(roi)
+                  for roi in roi_list]
+    color_map = roi_utils.get_roi_color_map(ophys_list)
+
     # show the metric image with and without ROIs
     ax00 = figure.add_subplot(2, 2, 1)
     ax00.imshow(metric_image)
     ax01 = figure.add_subplot(2, 2, 2)
-    plt_im = ax01.imshow(metric_image)
-    roi_utils.add_rois_to_axes(ax01, roi_list, metric_image.shape)
+    plt_im = ax01.imshow(metric_image, cmap='gray')
+    roi_utils.add_rois_to_axes(ax01, roi_list, metric_image.shape,
+                               color_map=color_map)
     for ax in [ax00, ax01]:
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.05)

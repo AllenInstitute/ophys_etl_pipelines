@@ -751,7 +751,8 @@ def add_rois_to_axes(
         axes: matplotlib.axes.Axes,
         roi_list: List[ExtractROI],
         shape: Tuple[int, int],
-        rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 1.0)
+        rgba: Tuple[float, float, float, float] = (1.0, 0.0, 0.0, 1.0),
+        color_map: Optional[Dict] = None
         ) -> None:
     """
 
@@ -765,25 +766,64 @@ def add_rois_to_axes(
         shape of the FOV
     rgba: Tuple[float, float, float, float]
         0.0 - 1.0  RGBA values for the outlines
+    color_map: Optional[Dict]
+        Dict mapping the ROI to a tuple of ints
+        representing RGB color (default=None)
 
     """
     bdry_pixels = np.zeros((*shape, 4), dtype=float)
+    o_roi_list = []
     for roi in roi_list:
+
         ophys_roi = OphysROI(
-                        roi_id=0,
+                        roi_id=roi['id'],
                         x0=roi['x'],
                         y0=roi['y'],
                         width=roi['width'],
                         height=roi['height'],
                         valid_roi=False,
                         mask_matrix=roi['mask'])
+        o_roi_list.append(ophys_roi)
 
+    for ophys_roi in o_roi_list:
         bdry = ophys_roi.boundary_mask
         for ir in range(ophys_roi.height):
             for ic in range(ophys_roi.width):
                 if bdry[ir, ic]:
                     bdry_pixels[ir+ophys_roi.y0,
-                                ic+ophys_roi.x0] = rgba
+                                ic+ophys_roi.x0] = (0.0, 0.0, 0.0, 1.0)
+
+    for ophys_roi in o_roi_list:
+
+        this_rgba = None
+        if color_map is not None:
+            _rgb = color_map[ophys_roi.roi_id]
+            this_rgba = (float(_rgb[0]/255.0),
+                         float(_rgb[1]/255.0),
+                         float(_rgb[2]/255.0),
+                         0.5)
+
+        bdry = ophys_roi.boundary_mask
+        for ir in range(ophys_roi.height):
+            for ic in range(ophys_roi.width):
+                if bdry[ir, ic]:
+                    if this_rgba is not None:
+                        _rgba = this_rgba
+                    else:
+                        _rgba = rgba
+                    b0 = bdry_pixels[ir+ophys_roi.y0,
+                                     ic+ophys_roi.x0]
+                    if b0[0] > 0.0:
+                        a0 = 1.0-_rgba[3]
+                        a1 = _rgba[3]
+                        b1 = (a0*b0[0]+a1*_rgba[0],
+                              a0*b0[1]+a1*_rgba[1],
+                              a0*b0[2]+a1*_rgba[2],
+                              1.0)
+                    else:
+                        b1 = (_rgba[0], _rgba[1], _rgba[2], 1.0)
+                    bdry_pixels[ir+ophys_roi.y0,
+                                ic+ophys_roi.x0] = b1
     axes.imshow(bdry_pixels)
 
 

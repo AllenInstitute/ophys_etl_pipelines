@@ -106,38 +106,7 @@ def choose_timesteps(
     trace = sub_video[:, seed_pt[0], seed_pt[1]]
     thresh = np.quantile(trace, discard)
     mask = np.where(trace >= thresh)[0]
-    global_mask = [mask]
-    possible_fluxes = []
-    possible_pts = []
-    for drow in range(-1, 2, 1):
-        row = seed_pt[0]+drow
-        if row < 0 or row >= sub_video.shape[1]:
-            continue
-        for dcol in range(-1, 2, 1):
-            col = seed_pt[1]+dcol
-            if col < 0 or col >= sub_video.shape[2]:
-                continue
-            possible_fluxes.append(image_data[row, col])
-            possible_pts.append((row, col))
-
-    if len(possible_pts) == 0:
-        return np.unique(global_mask[0])
-    elif len(possible_pts) == 1:
-        pt = possible_pts[0]
-        trace = sub_video[:, pt[0], pt[1]]
-        thresh = np.quantile(trace, discard)
-        mask = np.where(trace >= thresh)[0]
-        global_mask.append(mask)
-    else:
-        sorted_dex = np.argsort(-1*np.array(possible_fluxes))
-        for ii in sorted_dex[:2]:
-            pt = possible_pts[ii]
-            trace = sub_video[:, pt[0], pt[1]]
-            thresh = np.quantile(trace, discard)
-            mask = np.where(trace >= thresh)[0]
-            global_mask.append(mask)
-
-    return np.unique(np.concatenate(global_mask))
+    return np.unique(mask)
 
 
 def select_window_size(

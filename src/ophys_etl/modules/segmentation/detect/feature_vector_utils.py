@@ -105,33 +105,8 @@ def choose_timesteps(
     # start assembling mask in timesteps
     trace = sub_video[:, seed_pt[0], seed_pt[1]]
     thresh = np.quantile(trace, discard)
-    global_time_mask = []
     mask = np.where(trace >= thresh)[0]
-    global_time_mask.append(mask)
-
-    # now select the pixels that are closest to
-    #
-    # image_data.max() - sigma and
-    # image_data.min() + sigma
-    #
-    # (ignoring pixels masked by pixel_ignore)
-    #
-    # so that we get timesteps that reasonably
-    # span the dynamic range of the ROI and its
-    # background
-
-    interesting_points = choose_extreme_pixels(
-                             image_data,
-                             [0.1, 0.9],
-                             pixel_ignore=pixel_ignore)
-
-    for pt in interesting_points:
-        trace = sub_video[:, pt[0], pt[1]]
-        thresh = np.quantile(trace, discard)
-        mask = np.where(trace >= thresh)[0]
-        global_time_mask.append(mask)
-
-    return np.unique(np.concatenate(global_time_mask))
+    return np.unique(mask)
 
 
 def select_window_size(

@@ -71,7 +71,8 @@ def test_segmenter(tmpdir, example_graph, example_video, seeder_args):
 
     segmenter.run(log_path=log_path,
                   plot_output=plot_path,
-                  growth_z_score=2.0)
+                  growth_z_score=2.0,
+                  background_z_score=1.3)
 
     assert log_path.is_file()
     assert plot_path.is_file()
@@ -94,7 +95,8 @@ def test_segmenter(tmpdir, example_graph, example_video, seeder_args):
 
     segmenter.run(log_path=log_path,
                   plot_output=None,
-                  growth_z_score=2.0)
+                  growth_z_score=2.0,
+                  background_z_score=1.3)
 
     assert log_path.exists()
     assert not plot_path.exists()
@@ -121,7 +123,8 @@ def test_segmenter_blank(tmpdir, blank_graph, blank_video, seeder_args):
                                        seeder_args=seeder_args)
     log_path = tmpdir / "processing_log.h5"
     segmenter.run(log_path=log_path,
-                  growth_z_score=2.0)
+                  growth_z_score=2.0,
+                  background_z_score=1.3)
 
 
 def test_is_roi_at_edge():

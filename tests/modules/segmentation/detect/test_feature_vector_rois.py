@@ -50,14 +50,14 @@ def test_roi_growth(example_video):
     mask[1:4, 2] = False
     roi = PearsonFeatureROI(seed_pt, origin, video_data,
                             pixel_ignore=mask)
-    roi.get_mask(2.0)
+    roi.get_mask(2.0, 1.3)
 
     # only seed is valid
     mask[:, :] = True
     mask[12, 16] = False
     roi = PearsonFeatureROI(seed_pt, origin, video_data,
                             pixel_ignore=mask)
-    roi.get_mask(2.0)
+    roi.get_mask(2.0, 1.3)
 
     # nothing is valid
     mask[:, :] = True

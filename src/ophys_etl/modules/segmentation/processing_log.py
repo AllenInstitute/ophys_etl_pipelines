@@ -5,7 +5,7 @@ import matplotlib
 import warnings
 import numpy as np
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Optional
 
 from ophys_etl.modules.segmentation.utils import roi_utils
 from ophys_etl.types import ExtractROI
@@ -127,12 +127,14 @@ class SegmentationProcessingLog:
         return steps[-1]
 
     @read_only_decorator
-    def log_detection(self,
-                      attribute: str,
-                      rois: List[ExtractROI],
-                      seeder: ImageMetricSeeder,
-                      group_name: str = "detect",
-                      seeder_group_name: str = "seed",
+    def log_detection(
+            self,
+            attribute: str,
+            rois: List[ExtractROI],
+            seeder: ImageMetricSeeder,
+            group_name: str = "detect",
+            seeder_group_name: str = "seed",
+            quality_images: Optional[List[roi_utils.QualityROI]] = None
                       ) -> None:
         """log the detection phase of segmentation to a file
 
@@ -150,6 +152,9 @@ class SegmentationProcessingLog:
             a seeder instance to log as a subgroup of the detection group
         seeder_group_name: str
             the name of the seeder subgroup
+        quality_images: Optional[List[QualityROI]]
+            list of "quality image" representations that can help assess
+            the quality of the discovered ROI (default=None)
 
         Notes
         -----
@@ -172,6 +177,13 @@ class SegmentationProcessingLog:
             group.create_dataset("rois",
                                  data=roi_utils.serialize_extract_roi_list(
                                      rois))
+
+            if quality_images is not None:
+                group.create_dataset(
+                        "quality_images",
+                        data=roi_utils.serialize_extract_roi_list(
+                                quality_images))
+
             timestamp_group(group)
             h5file.create_dataset("detection_group",
                                   data=group_name.encode("utf-8"))

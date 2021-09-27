@@ -9,7 +9,8 @@ import time
 from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
     _winnow_process_list)
 from ophys_etl.modules.segmentation.utils.roi_utils import (
-    convert_to_lims_roi)
+    convert_to_lims_roi,
+    create_quality_roi)
 from ophys_etl.modules.segmentation.detect.feature_vector_rois import (
     PearsonFeatureROI)
 from ophys_etl.modules.segmentation.graph_utils.conversion import graph_to_img
@@ -119,7 +120,10 @@ def _get_roi(seed_obj: ROISeed,
      quality_img) = roi.get_mask(growth_z_score,
                                  background_z_score)
 
-    output_dict[roi_id] = (origin, final_mask, quality_img)
+    output_dict[roi_id] = {'origin': origin,
+                           'seed': seed_pt,
+                           'mask': final_mask,
+                           'quality_img': quality_img}
     return None
 
 
@@ -395,9 +399,8 @@ class FeatureVectorSegmenter(object):
         # write output from individual processes to
         # class storage variables
         for roi_id in mgr_dict.keys():
-            origin = mgr_dict[roi_id][0]
-            mask = mgr_dict[roi_id][1]
-            quality_img = mgr_dict[roi_id][2]
+            origin = mgr_dict[roi_id]['origin']
+            mask = mgr_dict[roi_id]['mask']
 
             at_edge = _is_roi_at_edge(origin,
                                       video_data.shape[1:],
@@ -409,8 +412,20 @@ class FeatureVectorSegmenter(object):
             roi = convert_to_lims_roi(origin,
                                       mask,
                                       roi_id=roi_id)
+
+            quality_img = mgr_dict[roi_id]['quality_img']
+
+            seed_pt = mgr_dict[roi_id]['seed']
+
+            quality_roi = create_quality_roi(
+                               roi_id=roi_id,
+                               origin=origin,
+                               seed_pt=seed_pt,
+                               z_score_image=quality_img)
+
             if mask.sum() > 1:
                 self.roi_list.append(roi)
+                self.quality_image_list.append(quality_roi)
                 for ir in range(mask.shape[0]):
                     rr = origin[0]+ir
                     for ic in range(mask.shape[1]):
@@ -493,6 +508,11 @@ class FeatureVectorSegmenter(object):
         # list of discovered ROIs
         self.roi_list = []
 
+        # list of "quality images", representations
+        # of the ROI that allow us to assess our
+        # confidence in their significance
+        self.quality_image_list = []
+
         # running unique identifier of ROIs
         self.roi_id = -1
 
@@ -542,7 +562,8 @@ class FeatureVectorSegmenter(object):
                 rois=self.roi_list,
                 group_name="detect",
                 seeder=self.seeder,
-                seeder_group_name="seed")
+                seeder_group_name="seed",
+                quality_images=self.quality_image_list)
         logger.info(f'logged detection step to {str(log_path)}')
 
         processing_log = SegmentationProcessingLog(path=log_path,

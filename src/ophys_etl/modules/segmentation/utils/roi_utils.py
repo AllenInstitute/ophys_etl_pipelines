@@ -9,6 +9,63 @@ from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import get_roi_pixels
 
+import sys
+if sys.version_info >= (3, 8):
+    from typing import TypedDict
+else:
+    from typing_extensions import TypedDict
+
+
+class QualityROI(TypedDict):
+    id: int
+    seed_x: int
+    seed_y: int
+    x: int
+    y: int
+    width: int
+    height: int
+    z_score_image: List[List[float]]
+
+
+def create_quality_roi(
+        roi_id: int,
+        seed_pt: Tuple[int, int],
+        origin: Tuple[int, int],
+        z_score_image: np.ndarray) -> QualityROI:
+    """
+    Parameters
+    ----------
+    roi_id: int
+
+    seed_pt: Tuple[int, int]
+        (row, col)
+
+    origin: Tuple[int, int]
+        (row, col)
+
+    z_score_image: np.ndarray
+        (nrows, ncols) array of floats
+
+    Returns
+    -------
+    QualityROI
+    """
+
+    width = int(z_score_image.shape[1])
+    height = int(z_score_image.shape[0])
+    serializable_image = [[float(z_score_image[irow, icol])
+                           for icol in range(width)]
+                          for irow in range(height)]
+    obj = QualityROI(
+            id=roi_id,
+            seed_x=int(seed_pt[1]),
+            seed_y=int(seed_pt[0]),
+            x=int(origin[1]),
+            y=int(origin[0]),
+            width=width,
+            height=height,
+            z_score_image=serializable_image)
+    return obj
 
 def check_matching_extract_roi_lists(listA: List[ExtractROI],
                                      listB: List[ExtractROI]) -> None:

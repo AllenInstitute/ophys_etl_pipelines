@@ -279,6 +279,56 @@ def get_background_mask(
     return background_mask
 
 
+def get_pixel_growth_z_score(
+        distances: np.ndarray,
+        roi_mask: np.ndarray,
+        background_mask: np.ndarray) -> np.ndarray:
+    """
+    Get the growth z-score for candidate pixels
+
+    Parameters
+    ----------
+    distances: np.ndarray
+        (n_pixels, n_pixels) numpy array of pixel-to-pixel
+        feature space distances
+
+    roi_mask: np.ndarray
+        (n_pixels, ) numpy array marked True for pixels that
+        are already considered to be in the ROI
+
+    background_mask: np.ndarray
+        (n_pixels, ) numpy array marked True for pixels in
+        the fiducial background
+
+    Returns
+    -------
+    z_score: np.ndarray
+        (n_pixels, ) numpy array of growth z scores for the
+        pixels (z-score used to determine if we should add
+        the pixel to the ROI)
+    """
+
+    # set ROI distance for every pixel
+    d_roi = np.median(distances[:, roi_mask], axis=1)
+
+    n_roi = roi_mask.sum()
+
+    # take the median of the n_roi nearest background distances;
+    # hopefully this will limit the effect of outliers
+    d_bckgd = np.sort(distances[:, background_mask], axis=1)
+    n_bckgd = max(20, n_roi)
+    d_bckgd = d_bckgd[:, :n_bckgd]
+
+    mu_d_bckgd = np.mean(d_bckgd, axis=1)
+    if len(d_bckgd.shape) > 1 and d_bckgd.shape[1] > 0:
+        std_d_bckgd = estimate_std_from_interquartile_range(d_bckgd,
+                                                            axis=1)
+    else:
+        std_d_bckgd = np.std(d_bckgd, axis=1, ddof=1)
+    z_score = (d_roi-mu_d_bckgd)/std_d_bckgd
+    return z_score
+
+
 class PotentialROI(object):
     """
     A class to do the work of finding the pixel mask for a single
@@ -454,6 +504,7 @@ class PotentialROI(object):
         distances from background pixels (from step (3)) is added to the ROI.
         """
         chose_one = False
+        n_roi = self.roi_mask.sum()
 
         # select background pixels
         background_mask = get_background_mask(
@@ -461,24 +512,10 @@ class PotentialROI(object):
                                self.roi_mask,
                                background_z_score=background_z_score)
 
-        # set ROI distance for every pixel
-        d_roi = np.median(self.feature_distances[:, self.roi_mask], axis=1)
-
-        n_roi = self.roi_mask.sum()
-
-        # take the median of the n_roi nearest background distances;
-        # hopefully this will limit the effect of outliers
-        d_bckgd = np.sort(self.feature_distances[:, background_mask], axis=1)
-        n_bckgd = max(20, n_roi)
-        d_bckgd = d_bckgd[:, :n_bckgd]
-
-        mu_d_bckgd = np.mean(d_bckgd, axis=1)
-        if len(d_bckgd.shape) > 1 and d_bckgd.shape[1] > 0:
-            std_d_bckgd = estimate_std_from_interquartile_range(d_bckgd,
-                                                                axis=1)
-        else:
-            std_d_bckgd = np.std(d_bckgd, axis=1, ddof=1)
-        z_score = (d_roi-mu_d_bckgd)/std_d_bckgd
+        z_score = get_pixel_growth_z_score(
+                        self.feature_distances,
+                        self.roi_mask,
+                        background_mask)
 
         valid = z_score <= -1.0*growth_z_score
         if valid.sum() > 0:

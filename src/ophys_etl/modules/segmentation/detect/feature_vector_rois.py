@@ -529,7 +529,8 @@ class PotentialROI(object):
 
     def get_mask(self,
                  growth_z_score,
-                 background_z_score) -> np.ndarray:
+                 background_z_score) -> Tuple[np.ndarray,
+                                              np.ndarray]:
         """
         Iterate over the pixels, building up the ROI
 
@@ -551,6 +552,11 @@ class PotentialROI(object):
         ouput_img: np.ndarray
             A (n_rows, n_cols) np.ndarray of booleans marked
             True for all ROI pixels
+
+        quality_img: np.ndarray
+            A (n_rows, n_cols) np.ndarray of floats containing
+            the growth z-score of the pixels (a lower value
+            means the pixel is more likely to belong to the ROI)
         """
         keep_going = True
 
@@ -560,18 +566,36 @@ class PotentialROI(object):
             keep_going = self.select_pixels(growth_z_score,
                                             background_z_score)
 
+        background_mask = get_background_mask(
+                                self.feature_distances,
+                                self.roi_mask,
+                                background_z_score=background_z_score)
+
+        quality_roi_mask = np.zeros(self.roi_mask.shape, dtype=bool)
+        quality_roi_mask[self.pixel_to_index[self.seed_pt]] = True
+
+        quality_z_score = get_pixel_growth_z_score(
+                                self.feature_distances,
+                                quality_roi_mask,
+                                background_mask)
+
+        quality_img = 999.0*np.ones(self.img_shape, dtype=float)
         output_img = np.zeros(self.img_shape, dtype=bool)
         for i_pixel in range(self.n_pixels):
             if not self.roi_mask[i_pixel]:
                 continue
             p = self.index_to_pixel[i_pixel]
             output_img[p[0], p[1]] = True
+            quality_img[p[0], p[1]] = quality_z_score[i_pixel]
 
         output_img = select_contiguous_region(
                             self.seed_pt,
                             output_img)
 
-        return output_img
+        complement = np.logical_not(output_img)
+        quality_img[complement] = 999.0
+
+        return output_img, quality_img
 
 
 class PearsonFeatureROI(PotentialROI):

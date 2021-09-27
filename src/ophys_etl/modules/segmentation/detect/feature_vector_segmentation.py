@@ -115,10 +115,11 @@ def _get_roi(seed_obj: ROISeed,
                     video_data,
                     pixel_ignore=pixel_ignore)
 
-    final_mask = roi.get_mask(growth_z_score,
-                              background_z_score)
+    (final_mask,
+     quality_img) = roi.get_mask(growth_z_score,
+                                 background_z_score)
 
-    output_dict[roi_id] = (origin, final_mask)
+    output_dict[roi_id] = (origin, final_mask, quality_img)
     return None
 
 
@@ -396,6 +397,8 @@ class FeatureVectorSegmenter(object):
         for roi_id in mgr_dict.keys():
             origin = mgr_dict[roi_id][0]
             mask = mgr_dict[roi_id][1]
+            quality_img = mgr_dict[roi_id][2]
+
             at_edge = _is_roi_at_edge(origin,
                                       video_data.shape[1:],
                                       mask)

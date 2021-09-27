@@ -566,6 +566,8 @@ class PotentialROI(object):
             keep_going = self.select_pixels(growth_z_score,
                                             background_z_score)
 
+        bad_quality_value = 999.0
+
         background_mask = get_background_mask(
                                 self.feature_distances,
                                 self.roi_mask,
@@ -579,8 +581,13 @@ class PotentialROI(object):
                                 quality_roi_mask,
                                 background_mask)
 
-        quality_img = 999.0*np.ones(self.img_shape, dtype=float)
+        quality_z_score = np.where(np.isfinite(quality_z_score),
+                                   quality_z_score,
+                                   bad_quality_value)
+
+        quality_img = bad_quality_value*np.ones(self.img_shape, dtype=float)
         output_img = np.zeros(self.img_shape, dtype=bool)
+
         for i_pixel in range(self.n_pixels):
             if not self.roi_mask[i_pixel]:
                 continue

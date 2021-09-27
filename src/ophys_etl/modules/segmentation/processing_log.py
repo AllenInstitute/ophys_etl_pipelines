@@ -482,7 +482,7 @@ class SegmentationProcessingLog:
             A dict mapping roi_id to the roi_utils.QualityROI describing
             that ROI's quality image.
 
-t        Notes
+        Notes
         -----
         If there is no quality_images dataset associated with this group,
         return None
@@ -490,7 +490,7 @@ t        Notes
         with h5py.File(self.path, "r") as f:
             group = f[group_name]
             if 'quality_images' not in group.keys():
-                msg = f"group '{quality_image_group}' did not contain "
+                msg = f"group '{group_name}' did not contain "
                 msg += "a dataset 'quality_images'; "
                 msg += f"only contains\n{list(group.keys())}"
                 warnings.warn(msg)

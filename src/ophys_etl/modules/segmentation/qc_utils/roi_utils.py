@@ -1024,7 +1024,7 @@ def roi_quality_plot(
                                                 z_score_image > max_z_score),
                                  max_z_score, z_score_image)
 
-    z_score_image = np.ma.masked_where(z_score_image>=bad_value-0.01,
+    z_score_image = np.ma.masked_where(z_score_image >= bad_value-0.01,
                                        z_score_image)
 
     heatmap_img = heatmap_axis.imshow(z_score_image, zorder=1, alpha=1.0)
@@ -1048,7 +1048,6 @@ def roi_quality_plot(
             cb.set_ticklabels(ticks)
 
     cb.set_label('z-score relative to background', fontsize=fontsize//2)
-
 
     divider = make_axes_locatable(boundary_axis)
     cax2 = divider.append_axes("right", size="5%", pad=0.05)

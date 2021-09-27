@@ -67,6 +67,7 @@ def create_quality_roi(
             z_score_image=serializable_image)
     return obj
 
+
 def check_matching_extract_roi_lists(listA: List[ExtractROI],
                                      listB: List[ExtractROI]) -> None:
     """check that 2 lists of ROIs are the same, order independent

@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import networkx
 from matplotlib import figure, cm as mplt_cm
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from typing import List, Tuple, Callable, Optional, Union, Dict
 import numpy as np
 import pathlib
@@ -14,7 +15,9 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     convert_roi_keys,
     extract_roi_to_ophys_roi,
-    mean_metric_from_roi, do_rois_abut)
+    mean_metric_from_roi,
+    do_rois_abut,
+    QualityROI)
 
 from ophys_etl.modules.decrosstalk.ophys_plane import (
     OphysMovie,
@@ -972,3 +975,88 @@ def get_roi_color_map(
     for roi_id in nx_coloring:
         color_map[roi_id] = color_list[nx_coloring[roi_id]]
     return color_map
+
+
+def roi_quality_plot(
+        roi: ExtractROI,
+        quality_img: QualityROI,
+        background_img: np.ndarray,
+        figure: matplotlib.figure.Figure,
+        boundary_axis: matplotlib.axes.Axes,
+        heatmap_axis: matplotlib.axes.Axes,
+        bad_value: float = 999.0,
+        fontsize: int = 20,
+        min_z_score: Optional[float] = None,
+        max_z_score: Optional[float] = None) -> None:
+    """
+    """
+    row0 = quality_img['y']
+    col0 = quality_img['x']
+    row1 = row0 + quality_img['height']
+    col1 = col0 + quality_img['width']
+
+    bckgd = background_img[row0:row1, col0:col1]
+    boundary_axis.imshow(bckgd, cmap='gray')
+
+    recentered_roi = ExtractROI(
+                        x=roi['x']-col0,
+                        y=roi['y']-row0,
+                        width=roi['width'],
+                        height=roi['height'],
+                        id=roi['id'],
+                        valid=roi['valid'],
+                        mask=roi['mask'])
+
+    add_rois_to_axes(boundary_axis,
+                     [recentered_roi],
+                     bckgd.shape,
+                     rgba=(1.0, 0.0, 0.0, 1.0))
+
+    heatmap_axis.imshow(bckgd, zorder=0, alpha=1.0, cmap='gray')
+
+    z_score_image = np.array(quality_img['z_score_image'])
+
+    if min_z_score is not None:
+        z_score_image = np.where(z_score_image < min_z_score,
+                                 min_z_score, z_score_image)
+    if max_z_score is not None:
+        z_score_image = np.where(np.logical_and(z_score_image < bad_value-0.01,
+                                                z_score_image > max_z_score),
+                                 max_z_score, z_score_image)
+
+    z_score_image = np.ma.masked_where(z_score_image>=bad_value-0.01,
+                                       z_score_image)
+
+    heatmap_img = heatmap_axis.imshow(z_score_image, zorder=1, alpha=1.0)
+
+    divider = make_axes_locatable(heatmap_axis)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+    heatmap_axis.scatter(quality_img['seed_y']-quality_img['y'],
+                         quality_img['seed_x']-quality_img['x'],
+                         color='r',
+                         s=20,
+                         zorder=2)
+    cb = figure.colorbar(heatmap_img, cax=cax)
+    if max_z_score is not None:
+        cb_ticks = cb.get_ticks()
+        if np.abs(max_z_score-cb_ticks[-1]) < 1.0e-6:
+            ticks = []
+            for t in cb_ticks[:-1]:
+                ticks.append(f'{t:g}')
+            ticks.append(f'>={cb_ticks[-1]:g}')
+            cb.set_ticks(cb_ticks)
+            cb.set_ticklabels(ticks)
+
+    cb.set_label('z-score relative to background', fontsize=fontsize//2)
+
+
+    divider = make_axes_locatable(boundary_axis)
+    cax2 = divider.append_axes("right", size="5%", pad=0.05)
+    for x in ('top', 'bottom', 'left', 'right'):
+        cax2.spines[x].set_visible(False)
+    cax2.tick_params(which='both', axis='both', size=0, labelleft=False)
+
+    boundary_axis.set_title(f"ROI {roi['id']} boundary",
+                            fontsize=fontsize)
+    heatmap_axis.set_title(f"ROI {roi['id']} z-score image",
+                           fontsize=fontsize)

@@ -5,7 +5,7 @@ import matplotlib
 import warnings
 import numpy as np
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Union
 
 from ophys_etl.modules.segmentation.utils import roi_utils
 from ophys_etl.types import ExtractROI
@@ -465,6 +465,43 @@ class SegmentationProcessingLog:
                             valid.append(roi)
             rois = valid
         return rois
+
+    def get_quality_image_lookup_from_group(
+            self,
+            group_name: str) -> Union[None, Dict[int, roi_utils.QualityROI]]:
+        """
+        Get the quality images from a group (if None exist, return None)
+
+        Parameters:
+        -----------
+        group_name: str
+
+        Returns
+        -------
+        quality_img_lookup: Dict[int, roi_utils.QualityROI]
+            A dict mapping roi_id to the roi_utils.QualityROI describing
+            that ROI's quality image.
+
+t        Notes
+        -----
+        If there is no quality_images dataset associated with this group,
+        return None
+        """
+        with h5py.File(self.path, "r") as f:
+            group = f[group_name]
+            if 'quality_images' not in group.keys():
+                msg = f"group '{quality_image_group}' did not contain "
+                msg += "a dataset 'quality_images'; "
+                msg += f"only contains\n{list(group.keys())}"
+                warnings.warn(msg)
+                return None
+
+            raw = roi_utils.deserialize_extract_roi_list(
+                        group['quality_images'][()])
+
+        quality_img_lookup = {img['id']: roi_utils.QualityROI(**img)
+                              for img in raw}
+        return quality_img_lookup
 
     def get_roi_lookup_from_group(
                             self,

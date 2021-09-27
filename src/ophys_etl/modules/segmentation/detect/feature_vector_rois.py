@@ -174,6 +174,50 @@ def calculate_pearson_feature_vectors(
     return features
 
 
+def get_pixel_background_z_score(
+        distances: np.ndarray,
+        roi_mask: np.ndarray,
+        pixels_of_interest: np.ndarray) -> np.ndarray:
+    """
+    Convert a pixel's distance from the pixels in
+    roi_mask into a z-score
+
+    Parameters
+    ----------
+    distances: np.ndarray
+        (n_pixels, n_pixels) array of inter-pixel distances
+
+    roi_mask: np.ndarray
+        (n_pixels, ) array of booleans marked True on pixles that
+        are in the ROI
+
+    pixels_of_interest: np.ndarray
+        1D np.ndarray of integers indicating which pixels we are
+        calculating the z-score for
+
+    Returns
+    -------
+    z-score: np.ndarray
+        Same shape as pixels_of_interest. The z-score of those pixels'
+        distance from the ROI.
+    """
+
+    interesting_distances = distances[pixels_of_interest, :]
+    interesting_distances = interesting_distances[:, roi_mask]
+
+    # set a pixel's distance from the ROI to be its minimum
+    # distance from any pixel in the ROI
+    # (in the case where there is only one ROI pixel, these
+    # next two lines will not trigger)
+    if len(interesting_distances.shape) > 1:
+        interesting_distances = interesting_distances.min(axis=1)
+
+    std = estimate_std_from_interquartile_range(interesting_distances)
+    mu = np.median(interesting_distances)
+    z_score = (interesting_distances-mu)/std
+    return z_score
+
+
 def get_background_mask(
         distances: np.ndarray,
         roi_mask: np.ndarray,
@@ -219,25 +263,16 @@ def get_background_mask(
     n_complement = complement.sum()
     complement_dexes = np.arange(n_pixels, dtype=int)[complement]
 
-    complement_distances = distances[complement, :]
-    complement_distances = complement_distances[:, roi_mask]
-
-    # set a pixel's distance from the ROI to be its minimum
-    # distance from any pixel in the ROI
-    # (in the case where there is only one ROI pixel, these
-    # next two lines will not trigger)
-    if len(complement_distances.shape) > 1:
-        complement_distances = complement_distances.min(axis=1)
-
     background_mask = np.zeros(n_pixels, dtype=bool)
 
     if n_complement < 10:
         background_mask[complement] = True
     else:
-        std = estimate_std_from_interquartile_range(complement_distances)
-        mu = np.median(complement_distances)
-        threshold = (mu-background_z_score*std)
-        valid = complement_distances > threshold
+        z_score = get_pixel_background_z_score(
+                        distances,
+                        roi_mask,
+                        complement_dexes)
+        valid = z_score > -1.0*background_z_score
         valid_dexes = complement_dexes[valid]
         background_mask[valid_dexes] = True
 

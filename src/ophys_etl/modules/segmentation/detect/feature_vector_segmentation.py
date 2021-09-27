@@ -45,6 +45,7 @@ def _get_roi(seed_obj: ROISeed,
              video_data: np.ndarray,
              pixel_ignore: np.ndarray,
              growth_z_score: float,
+             background_z_score: float,
              output_dict: multiprocessing.managers.DictProxy,
              roi_id: int,
              roi_class: type) -> None:
@@ -78,6 +79,12 @@ def _get_roi(seed_obj: ROISeed,
         ROI pixels over correlation with background pixels
         in order to be added to the ROI (default=3.0)
 
+    background_z_score: float
+        When finding background pixels during an iteration
+        of ROI growth, select pixels whose minimum distance
+        from the ROI in feature space is greater than
+        mean(dist)-background_z_score*std(dist)
+
     output_dict: multiprocessing.managers.DictProxy
         The dict where the final ROI mask from this search will
         be stored. After running this method,
@@ -108,7 +115,8 @@ def _get_roi(seed_obj: ROISeed,
                     video_data,
                     pixel_ignore=pixel_ignore)
 
-    final_mask = roi.get_mask(growth_z_score)
+    final_mask = roi.get_mask(growth_z_score,
+                              background_z_score)
 
     output_dict[roi_id] = (origin, final_mask)
     return None
@@ -240,7 +248,8 @@ class FeatureVectorSegmenter(object):
 
     def _run(self,
              video_data: np.ndarray,
-             growth_z_score: float) -> List[dict]:
+             growth_z_score: float,
+             background_z_score: float) -> List[dict]:
         """
         Run one iteration of ROI detection
 
@@ -253,7 +262,13 @@ class FeatureVectorSegmenter(object):
         growth_z_score: float
             z-score by which a pixel must prefer correlation with
             ROI pixels over correlation with background pixels
-            in order to be added to the ROI (default=3.0)
+            in order to be added to the ROI
+
+        background_z_score: float
+            When finding background pixels during an iteration
+            of ROI growth, select pixels whose minimum distance
+            from the ROI in feature space is greater than
+            mean(dist)-background_z_score*std(dist)
 
         Returns
         -------
@@ -359,6 +374,7 @@ class FeatureVectorSegmenter(object):
                                               video_data_subset,
                                               mask,
                                               growth_z_score,
+                                              background_z_score,
                                               mgr_dict,
                                               self.roi_id,
                                               self.roi_class))
@@ -405,6 +421,7 @@ class FeatureVectorSegmenter(object):
 
     def run(self,
             growth_z_score: float,
+            background_z_score: float,
             log_path: pathlib.Path,
             plot_output: Optional[pathlib.Path] = None,
             seed_plot_output: Optional[pathlib.Path] = None,
@@ -418,6 +435,12 @@ class FeatureVectorSegmenter(object):
             z-score by which a pixel must prefer correlation with
             ROI pixels over correlation with background pixels
             in order to be added to the ROI (default=3.0)
+
+        background_z_score: float
+            When finding background pixels during an iteration
+            of ROI growth, select pixels whose minimum distance
+            from the ROI in feature space is greater than
+            mean(dist)-background_z_score*std(dist)
 
         log_path: pathlib.Path
             the path where the processing results will be written
@@ -480,7 +503,8 @@ class FeatureVectorSegmenter(object):
         while keep_going:
 
             roi_seeds = self._run(video_data,
-                                  growth_z_score)
+                                  growth_z_score,
+                                  background_z_score)
 
             # NOTE: this change lets the seeder/iterator control
             # the stopping condition of segmentation. I.e. when seeds

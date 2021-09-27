@@ -333,6 +333,15 @@ class FeatureVectorSegmentationInputSchema(SharedSegmentationInputSchema):
                      "to background pixels in order for it to be "
                      "added to the ROI"))
 
+    background_z_score = argschema.fields.Float(
+        required=False,
+        default=1.3,
+        allow_none=False,
+        description=("When finding a fiducial set of background pixels "
+                     "during ROI growth, use pixels whose minimum ROI "
+                     "distance in feature space is greater than "
+                     "mean(dist)-background_z_score*std(dist)"))
+
     window_min = argschema.fields.Int(
         required=False,
         default=20,

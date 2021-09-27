@@ -176,7 +176,8 @@ def calculate_pearson_feature_vectors(
 
 def get_background_mask(
         distances: np.ndarray,
-        roi_mask: np.ndarray) -> np.ndarray:
+        roi_mask: np.ndarray,
+        background_z_score: float = 0.8) -> np.ndarray:
     """
     Find a boolean mask of pixels that are in the fiducial
     background of the field of view.
@@ -191,6 +192,16 @@ def get_background_mask(
         An (n_pixels,) array of booleans marked True
         for all pixels in the ROI
 
+    background_z_score: float
+        Pixels that that are more distant from the ROI than
+        mean(distance)-background_z_score*std(distance) will be
+        considered background pixels (default=1.6).
+
+        If distances are Gaussian distributed,
+        background_z_score=1.3 will include the 90% most distant
+        pixels as background pixels. background_z_score=1.6 will
+        include the 95% most distant.
+
     Returns
     -------
     background_mask: np.ndarray
@@ -200,9 +211,6 @@ def get_background_mask(
 
     Notes
     ------
-    Background pixels are taken to be the 90% of pixels not in the
-    ROI that are the most distant from the pixels that are in the ROI.
-
     If there are fewer than 10 pixels not already in the ROI, just
     set all of these pixels to be background pixels.
     """
@@ -226,12 +234,9 @@ def get_background_mask(
     if n_complement < 10:
         background_mask[complement] = True
     else:
-        # select the pixels that are more than 1.3 std below
-        # median of distribution (1.3 std below distribution
-        # should exclude lowest 10% of a Gaussian)
         std = estimate_std_from_interquartile_range(complement_distances)
         mu = np.median(complement_distances)
-        threshold = (mu-1.3*std)
+        threshold = (mu-background_z_score*std)
         valid = complement_distances > threshold
         valid_dexes = complement_dexes[valid]
         background_mask[valid_dexes] = True
@@ -369,7 +374,8 @@ class PotentialROI(object):
         self.feature_distances = pairwise_distances(features)
 
     def select_pixels(self,
-                      growth_z_score: float = 3.0) -> bool:
+                      growth_z_score: float = 3.0,
+                      background_z_score: float = 1.3) -> bool:
         """
         Run one iteration, looking for pixels to add to self.roi_mask.
 
@@ -379,6 +385,13 @@ class PotentialROI(object):
             z-score by which a pixel must prefer correlation with
             ROI pixels over correlation with background pixels
             in order to be added to the ROI (default=3.0)
+
+        background_z_score: float
+            When finding background pixels during an iteration
+            of ROI growth, select pixels whose minimum distance
+            from the ROI in feature space is greater than
+            mean(dist)-background_z_score*std(dist)
+            (default=1.3)
 
         Returns
         -------
@@ -408,8 +421,10 @@ class PotentialROI(object):
         chose_one = False
 
         # select background pixels
-        background_mask = get_background_mask(self.feature_distances,
-                                              self.roi_mask)
+        background_mask = get_background_mask(
+                               self.feature_distances,
+                               self.roi_mask,
+                               background_z_score=background_z_score)
 
         # set ROI distance for every pixel
         d_roi = np.median(self.feature_distances[:, self.roi_mask], axis=1)
@@ -440,7 +455,9 @@ class PotentialROI(object):
 
         return chose_one
 
-    def get_mask(self, growth_z_score) -> np.ndarray:
+    def get_mask(self,
+                 growth_z_score,
+                 background_z_score) -> np.ndarray:
         """
         Iterate over the pixels, building up the ROI
 
@@ -450,6 +467,12 @@ class PotentialROI(object):
             z-score by which a pixel must prefer correlation with
             ROI pixels over correlation with background pixels
             in order to be added to the ROI (default=3.0)
+
+        background_z_score: float
+            When finding background pixels during an iteration
+            of ROI growth, select pixels whose minimum distance
+            from the ROI in feature space is greater than
+            mean(dist)-background_z_score*std(dist)
 
         Returns
         -------
@@ -462,7 +485,8 @@ class PotentialROI(object):
         # keep going as long as pizels are being added
         # to the ROI
         while keep_going:
-            keep_going = self.select_pixels(growth_z_score)
+            keep_going = self.select_pixels(growth_z_score,
+                                            background_z_score)
 
         output_img = np.zeros(self.img_shape, dtype=bool)
         for i_pixel in range(self.n_pixels):

@@ -1031,8 +1031,8 @@ def roi_quality_plot(
 
     divider = make_axes_locatable(heatmap_axis)
     cax = divider.append_axes("right", size="5%", pad=0.05)
-    heatmap_axis.scatter(quality_img['seed_y']-quality_img['y'],
-                         quality_img['seed_x']-quality_img['x'],
+    heatmap_axis.scatter(quality_img['seed_x']-quality_img['x'],
+                         quality_img['seed_y']-quality_img['y'],
                          color='r',
                          s=20,
                          zorder=2)

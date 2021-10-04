@@ -414,14 +414,32 @@ def _louvain_clustering_iteration(
     """
     Find the one roi_id merger that maximizes modularity
 
-    Just iterate over all possible pairs without regard to
-    spatial distribution
+    Parameters
+    ----------
+    roi_id_arr: np.ndarray
+        (n_pixels, ) array of ints denoting roi_id for each pixel
+
+    pixel_corr: np.ndarray
+        (n_pixels, n_pixels) array of correlations between pixels.
+        Note: diagonal elements are zero.
+
+    weight_sum_arr: np.ndarray
+        (n_pixels, ) array containing the sums of the correlations for
+        each row in in pixel_corr (precomputing this is faster)
+
+    valid_pairs: Optional[List[Tuple[int, int]]]
+        If not None, a list of pairs of roi_ids indicating
+        which mergers to consider
+
     Returns
     -------
-    has_changed: boolean
-    roi_id: new roi_id array
-    merger: Dict[str, int] absorber, absorbed
-    best_modularity
+    merger: Dict
+        A dict containing information on the merger (if any) that
+        improved modularity the most
+            'has_changed': boolean
+            'roi_id_arr': new roi_id_arr
+            'this_merger': Dict[str, int] 'absorber', 'absorbed'
+            'best_modularity': post-merger modularity value
     """
 
     unq_roi_id = np.unique(roi_id_arr)

@@ -366,9 +366,24 @@ def modularity(roi_id_arr: np.ndarray,
                pixel_corr: np.ndarray,
                weight_sum_arr: np.ndarray) -> float:
     """
-    roi_id_arr: (n_pixels,) array of ROI IDs
-    pixel_corr: (n_pixels, n_pixels) array of correlations
-    weight_sum_arr: (n_pixels,) array that is np.sum(pixel_corr, axis=1)
+    Compute the modularity for a collection of pixels and ROI assignments
+
+    Parameters
+    ----------
+    roi_id_arr: np.ndarray
+        (n_pixels, ) array of ints denoting roi_id for each pixel
+
+    pixel_corr: np.ndarray
+        (n_pixels, n_pixels) array of correlations between pixels.
+        Note: diagonal elements are zero.
+
+    weight_sum_arr: np.ndarray
+        (n_pixels, ) array containing the sums of the correlations for
+        each row in in pixel_corr (precomputing this is faster)
+
+    Returns:
+    --------
+    modularity: float
     """
     weight_sum = 0.0
     for i0 in range(pixel_corr.shape[0]):

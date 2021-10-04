@@ -100,7 +100,8 @@ def normalize_features(input_features: np.ndarray) -> np.ndarray:
 def calculate_pearson_feature_vectors(
             sub_video: np.ndarray,
             seed_pt: Tuple[int, int],
-            pixel_ignore: Optional[np.ndarray] = None) -> np.ndarray:
+            pixel_ignore: Optional[np.ndarray] = None,
+            unnorm=False) -> np.ndarray:
     """
     Calculate the Pearson correlation-based feature vectors relating
     a grid of pixels in a video to each other
@@ -170,6 +171,9 @@ def calculate_pearson_feature_vectors(
     local_video = local_video[:, np.logical_not(flat_mask)]
     pearson = calculate_correlations(local_video)
     features = normalize_features(pearson)
+
+    if unnorm:
+        return features, pearson
 
     return features
 
@@ -365,6 +369,7 @@ class PotentialROI(object):
                  origin: Tuple[int, int],
                  sub_video: np.ndarray,
                  pixel_ignore: Optional[np.ndarray] = None):
+
         self.origin = origin
         self.seed_pt = (seed_pt[0]-origin[0], seed_pt[1]-origin[1])
         self.img_shape = sub_video.shape[1:]
@@ -576,10 +581,13 @@ class PotentialROI(object):
         quality_roi_mask = np.zeros(self.roi_mask.shape, dtype=bool)
         quality_roi_mask[self.pixel_to_index[self.seed_pt]] = True
 
-        quality_z_score = get_pixel_growth_z_score(
-                                self.feature_distances,
-                                quality_roi_mask,
-                                background_mask)
+        #quality_z_score = get_pixel_growth_z_score(
+        #                        self.feature_distances,
+        #                        quality_roi_mask,
+        #                        background_mask)
+
+        quality_z_score = self.unnormalized_features[:,
+                               self.pixel_to_index[self.seed_pt]]
 
         quality_z_score = np.where(np.isfinite(quality_z_score),
                                    quality_z_score,
@@ -589,18 +597,20 @@ class PotentialROI(object):
         output_img = np.zeros(self.img_shape, dtype=bool)
 
         for i_pixel in range(self.n_pixels):
+            p = self.index_to_pixel[i_pixel]
+
+            quality_img[p[0], p[1]] = quality_z_score[i_pixel]
             if not self.roi_mask[i_pixel]:
                 continue
-            p = self.index_to_pixel[i_pixel]
+
             output_img[p[0], p[1]] = True
-            quality_img[p[0], p[1]] = quality_z_score[i_pixel]
 
         output_img = select_contiguous_region(
                             self.seed_pt,
                             output_img)
 
-        complement = np.logical_not(output_img)
-        quality_img[complement] = 999.0
+        #complement = np.logical_not(output_img)
+        #quality_img[complement] = 999.0
 
         return output_img, quality_img
 
@@ -644,10 +654,12 @@ class PearsonFeatureROI(PotentialROI):
         self.index_to_pixel[ii]
         """
 
-        features = calculate_pearson_feature_vectors(
+        (features,
+        self.unnormalized_features) = calculate_pearson_feature_vectors(
                                     sub_video,
                                     self.seed_pt,
-                                    pixel_ignore=pixel_ignore)
+                                    pixel_ignore=pixel_ignore,
+                                    unnorm=True)
         return features
 
 

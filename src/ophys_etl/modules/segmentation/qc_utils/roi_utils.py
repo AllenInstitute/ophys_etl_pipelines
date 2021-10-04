@@ -1027,7 +1027,8 @@ def roi_quality_plot(
     z_score_image = np.ma.masked_where(z_score_image >= bad_value-0.01,
                                        z_score_image)
 
-    heatmap_img = heatmap_axis.imshow(z_score_image, zorder=1, alpha=1.0)
+    heatmap_img = heatmap_axis.imshow(z_score_image, zorder=1, alpha=1.0,
+       vmin=0.0, vmax=1.0)
 
     divider = make_axes_locatable(heatmap_axis)
     cax = divider.append_axes("right", size="5%", pad=0.05)
@@ -1037,15 +1038,19 @@ def roi_quality_plot(
                          s=20,
                          zorder=2)
     cb = figure.colorbar(heatmap_img, cax=cax)
-    if max_z_score is not None:
-        cb_ticks = cb.get_ticks()
-        if np.abs(max_z_score-cb_ticks[-1]) < 1.0e-6:
-            ticks = []
-            for t in cb_ticks[:-1]:
-                ticks.append(f'{t:g}')
-            ticks.append(f'>={cb_ticks[-1]:g}')
-            cb.set_ticks(cb_ticks)
-            cb.set_ticklabels(ticks)
+    ticks = [0.0, 0.2, 0.4, 0.6, 0.8, 1.0]
+    tick_labels = [f'{t:.1f}' for t in ticks]
+    cb.set_ticks(ticks)
+    cb.set_ticklabels(tick_labels)
+    #if max_z_score is not None:
+    #    cb_ticks = cb.get_ticks()
+    #    if np.abs(max_z_score-cb_ticks[-1]) < 1.0e-6:
+    #        ticks = []
+    #        for t in cb_ticks[:-1]:
+    #            ticks.append(f'{t:g}')
+    #        ticks.append(f'>={cb_ticks[-1]:g}')
+    #        cb.set_ticks(cb_ticks)
+    #        cb.set_ticklabels(ticks)
 
     cb.set_label('z-score relative to background', fontsize=fontsize//2)
 

@@ -38,7 +38,8 @@ class LouvainMergerEngine(argschema.ArgSchemaParser):
                             read_only=True)
 
         raw_roi_list = processing_log.get_rois_from_group(
-                            group_name=self.args['rois_group'])
+                            group_name=self.args['rois_group'],
+                            valid_only=True)
 
         input_roi_list = [extract_roi_to_ophys_roi(roi) for roi in
                           raw_roi_list]

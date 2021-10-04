@@ -536,16 +536,45 @@ def _do_louvain_clustering(
       neighbor_lookup: Optional[Dict[int, Set[int]]] = None,
       n_processors: Optional[int] = None
       ) -> Tuple[np.ndarray,
-                 List[Dict[str, Tuple[int]]]]:
+                 Dict[int, int]]:
     """
-    index_to_pixel_coords: maps i_pixel to (row, col)
-    roi_id_arr: maps i_pixel to roi_id
-    pixel_corr: (n_pixels, n_pixels) correlation
+    Parent process for iterative Louvain clustering distributed
+    across multiple muliprocessing.Processes
+
+    Parameters
+    ----------
+    roi_id_arr: np.ndarray
+        (n_pixels, ) array of ints denoting roi_id for each pixel
+
+    pixel_corr: np.ndarray
+        (n_pixels, n_pixels) array of correlations between pixels.
+        Note: diagonal elements are zero.
+
+    correlation_floor: float
+        Correlation values below this will be set to zero
+        identically
+
+    neighbor_lookup: Optional[Dict[int, Set[int]]]
+        A dict mapping roi_id to the set of roi_ids
+        neighboring that ROI. If not None, then the
+        only mergers that will be considered at any
+        given iteration are mergers of neighboring
+        ROIs. If None, any pair of ROIs will be
+        considered a valid merger.
+
+    n_processors: int
+        The number of multiprocessing.Processes to use
+        when farming out iterations. If None, use one
+        process.
 
     Returns
     -------
-    roi_id_arr
-    List[Dict[new_roi_id, Tuple of absorbed ROI IDs]]
+    roi_id_arr: np.ndarray
+        (n_pixels, ) array of ints containing the ROI IDs of the
+        merged ROIs
+
+    final_mergers: Dict[int, int]
+        Maps original roi_id to post-merger roi_id
     """
 
     if n_processors is None:

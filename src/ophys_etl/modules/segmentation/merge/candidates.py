@@ -196,10 +196,31 @@ def update_neighbor_lookup(
         neighbor_lookup: Dict[int, Set[int]],
         mergers: List[Dict[str, int]]) -> Dict[int, Set[int]]:
     """
-    Update a neighbor_lookup dict for a set of mergers
-    Mergers are dicts listed like
-    {'absorber': roi_id, 'absorbed': roi_id}
-    Mergers are applied in order, zeroth first
+    Update a neighbor_lookup dict to reflect a set of mergers
+
+    Parameters
+    ----------
+    neighbor_looukup: Dict[int, Set[int]]
+        A dict mapping roi_id to the set of neighboring roi_ids
+
+    mergers: List[Dict[str, int]]
+        Each dict represents a distinct merger. The keys of the dicts
+        are 'absorbed' and 'absorber,' reflecting which ROI was lost
+        and which ROI grew during the merger.
+
+    Returns
+    -------
+    new_neighbor_lookup: Dict[int, Set[int]]
+        An updated dict mapping roi_id to the set of
+        neighboring roi_ids
+
+    Notes
+    -----
+    The method creates a copy of neighbor_lookup; neighbor_lookup
+    will not be changed in-place
+
+    Mergers are applied in the order they appear in the mergers list,
+    zeroth first.
     """
     neighbor_lookup = copy.deepcopy(neighbor_lookup)
     for pair in mergers:

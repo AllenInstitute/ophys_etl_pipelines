@@ -198,10 +198,53 @@ def _correlate_all_pixels(
         sub_video: np.ndarray,
         pixel_distances: Union[np.ndarray, None],
         kernel_size: Union[float, None],
-        filter_fraction,
+        filter_fraction: float,
         n_processors: int,
         scratch_file_path: pathlib.Path) -> np.ndarray:
     """
+    Parent worker method to compute the pixel-to-pixel
+    correlation matrix for a group of pixels. This method
+    farms the work of correlating batches of pixels out
+    to multiprocessing.Processes that all call
+    _correlation_worker
+
+    Parameters
+    ----------
+    sub_video: np.ndarray
+        (n_time, n_pixels) array of traces to be correlated
+
+    pixel_distances: Union[np.ndarray, None]
+        If not None, the (n_pixels, n_pixels) array containing the
+        distance between each pixel in sub_video in the original
+        field of view
+
+    kernel_size: Union[float, None]
+        If not None, the maximum distance two pixels can be from each
+        other (as recorded in pixel_distances) to have non-zero
+        correlation
+
+    filter_fraction: float
+        The fraction of brightest timesteps to use when correlating pixels.
+        Note: when correlating pixels i and j, the union of both pixels'
+        brightest filter_fraction of timesteps will be used.
+
+    n_processors: int
+        Number of multiprocessing.Processes to use in farming out
+        the work.
+
+    scratch_file_path: pathlib.Path
+        Path to HDF5 file where workers will write their results.
+        Creation of this file will be wrapped in a try/finally block
+        so that the file will be destroyed when this method is completed.
+
+    Returns
+    -------
+    result: np.ndarray
+        This will be the upper-triangular correlation
+        matrix for all of the pixels in sub_video. The
+        diagonal elements will all be zero, since they
+        are not needed for the clustering algorithm.
+
     result will just be upper-diagonal array
     """
     dataset_name = 'correlation'

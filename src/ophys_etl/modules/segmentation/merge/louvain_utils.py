@@ -60,9 +60,26 @@ def find_roi_clusters(
 def update_merger_history(merger_history: Dict[int, int],
                           this_merger: Dict[str, int]) -> Dict[int, int]:
     """
-    merger_history maps roi_id_in to roi_id_out
-    this_merger has keys 'absorbed', 'absorber'
+    Update a merger history with a single merger
 
+    Parameters
+    ----------
+    merger_history: Dict[int, int]
+        The key is the roi_id of the original ROI. The value
+        is the roi_id of the merged ROI of which the original
+        ROI is now a part
+
+    this_merger: Dict[str, int]
+        'absorbed': roi_id of the original ROI
+        'absorber': roi_id of the final ROI
+
+    Returns
+    -------
+    merger_history: Dict[int, int]
+        Updated to reflect this_merger
+
+    Notes
+    ------
     WARNING will alter merger_history in-place, as well as return it
     """
 

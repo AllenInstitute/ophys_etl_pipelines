@@ -25,6 +25,20 @@ def find_roi_clusters(
     """
     Given a list of OphysROI, find a list of lists representing
     the complexes of contiguous ROIs
+
+    Parameters
+    ----------
+    roi_list: List[OphysROI]
+
+    pixel_distance: float
+        ROIs within pixel_distance of each other will be considered
+        contiguous (note: pixel_distance=0 means the ROIs have to
+        overlap; pixel_distance=1 means that pixels share an edge)
+
+    Returns
+    -------
+    output: List[List[OphysROI]]
+        Each sub-list contains ROIs that are contiguous
     """
 
     roi_lookup = {roi.roi_id: roi for roi in roi_list}

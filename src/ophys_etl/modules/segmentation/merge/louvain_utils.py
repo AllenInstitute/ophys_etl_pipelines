@@ -295,8 +295,46 @@ def correlate_all_pixels(
         pixel_distances: Optional[np.ndarray] = None,
         kernel_size: Optional[float] = None) -> np.ndarray:
     """
-    sub_video: shape(n_time, n_pixels)
-    result will be upper-diagonal array
+    Compute the pixel-to-pixel correlation matrix for all of the pixels
+    in an (n_time, n_pixels) array.
+
+    Parameters
+    ----------
+    sub_video: np.ndarray
+        (n_time, n_pixels) array of traces of all the pixels being
+        considered by the parent process
+
+    filter_fraction: float
+        The fraction of brightest timesteps to use when correlating pixels.
+        Note: when correlating pixels i and j, the union of both pixels'
+        brightest filter_fraction of timesteps will be used.
+
+    n_processors: int
+        Number of multiprocessing.Processes to use in farming out
+        the work.
+
+    scratch_dir: pathlib.Path
+        Path to a directory where an intermediate HDF5 file can be written
+
+    pixel_distances: Union[np.ndarray, None]
+        If not None, the (n_pixels, n_pixels) array containing the
+        distance between each pixel in sub_video in the original
+        field of view
+
+    kernel_size: Union[float, None]
+        If not None, the maximum distance two pixels can be from each
+        other (as recorded in pixel_distances) to have non-zero
+        correlation
+
+    Returns
+    -------
+    correlation: np.ndarray
+        The (n_pixels, n_pixels) correlation array.
+
+    Note
+    ----
+    Because self correlations are uninteresting, the diagonal elements
+    of this array will be zero identically.
     """
     scratch_file_path = None
     ii = 0

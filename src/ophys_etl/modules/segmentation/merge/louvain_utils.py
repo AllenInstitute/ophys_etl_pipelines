@@ -98,9 +98,61 @@ def _correlation_worker(
         pixel_range: Tuple[int, int],
         lock: multiprocessing.managers.AcquirerProxy,
         output_file_path: pathlib.Path,
-        dataset_name: str):
+        dataset_name: str) -> None:
     """
-    pixel_range is [min, max)
+    Method to compute the pixel-to-pixel correlation matrix for
+    a chunk of pixels in the sub_video. Correlations will be
+    computed then written to an HDF5 file.
+
+    Parameters
+    ----------
+    sub_video: np.ndarray
+        (n_time, n_pixels) array of traces of all the pixels being
+        considered by the parent process
+
+    pixel_distances: Union[np.ndarray, None]
+        If not None, the (n_pixels, n_pixels) array containing the
+        distance between each pixel in sub_video in the original
+        field of view
+
+    kernel_size: Union[float, None]
+        If not None, the maximum distance two pixels can be from each
+        other (as recorded in pixel_distances) to have non-zero
+        correlation
+
+    filter_fraction: float
+        The fraction of brightest timesteps to use when correlating pixels.
+        Note: when correlating pixels i and j, the union of both pixels'
+        brightest filter_fraction of timesteps will be used.
+
+    pixel_range: Tuple[int, int]
+        The pixels this worker will actually correlate.
+        In the form [i_min, i_max)
+
+    lock: multiprocessing.managers.AcquirerProxy
+        The multiprocessing lock used to prevent multiple workers
+        from writing to the same HDF5 file at once.
+
+    output_file_path: pathlib.Path
+        Path to the HDF5 file where the worker should write its results
+
+    dataset_name: str
+        The name of the dataset where the worker should write its
+        results. This dataset should already have been created as an
+        np.array of zeros.
+
+    Returns
+    -------
+    None
+        Results are written to scratch HDF5 file
+
+    Note
+    -----
+    Workers will only compute the correlations for pixels (i, j>i).
+    The resulting correlation matrix stored in the HDF5 fill will
+    be upper-triangular with zeros along the diagonal. The method
+    that reads the HDF5 file into memory and returns the matrix will
+    need to create the fully symmetric correlation matrix.
     """
     result = np.zeros((pixel_range[1]-pixel_range[0],
                        sub_video.shape[1]),
@@ -139,6 +191,7 @@ def _correlation_worker(
         with h5py.File(output_file_path, 'a') as output_file:
             output_file[dataset_name][pixel_range[0]:pixel_range[1],
                                       :] = result
+    return None
 
 
 def _correlate_all_pixels(

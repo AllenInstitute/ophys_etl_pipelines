@@ -488,6 +488,35 @@ def _louvain_clustering_worker(
         process_id: int,
         output_dict: multiprocessing.managers.DictProxy) -> None:
     """
+    Worker process to facilitat farming Louvain merger iterations
+    over multiple multiprocessing.Processes
+
+    Parameters
+    ----------
+    roi_id_arr: np.ndarray
+        (n_pixels, ) array of ints denoting roi_id for each pixel
+
+    pixel_corr: np.ndarray
+        (n_pixels, n_pixels) array of correlations between pixels.
+        Note: diagonal elements are zero.
+
+    weight_sum_arr: np.ndarray
+        (n_pixels, ) array containing the sums of the correlations for
+        each row in in pixel_corr (precomputing this is faster)
+
+    valid_pairs: Optional[List[Tuple[int, int]]]
+        A list of pairs of roi_ids indicating which mergers to consider
+
+    process_id: int
+        Unique ID for this process to store results in output_dict
+
+    output_dict: multiprocessing.managers.DictProxy
+        Dict that will store the results of all of the workers invoked
+        by the parent process.
+
+    Returns
+    -------
+    None
     """
 
     result = _louvain_clustering_iteration(
@@ -497,6 +526,7 @@ def _louvain_clustering_worker(
                 valid_pairs=valid_pairs)
 
     output_dict[process_id] = result
+    return None
 
 
 def _do_louvain_clustering(

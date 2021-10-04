@@ -38,8 +38,46 @@ def do_louvain_clustering_on_rois(
         only_neighbors: Optional[bool] = False) -> Tuple[List[OphysROI],
                                                          List[List[int]]]:
     """
-    full_video is in (n_time, n_rows, n_cols)
-    output array is of form [[dst, src], [dst, src], [dst, src]]
+    Run Louvain-based merger algorithm on a list of ROIs.
+
+    Parameters
+    -----------
+    roi_list: List[OphysROI]
+
+    full_video: np.ndarray
+        (n_time, n_rows, n_cols) video of the full field of view
+
+    kernel_size: Union[float, None]
+        If not None, only pixels this far away from each other
+        or closer will be allowed to have non-zero correlation
+
+    filter_fraction: float
+        The fraction of brightest timesteps to use when correlating
+        two pixels
+
+    n_processors: int
+        The number of multiprocessing.Processes to use during
+        parallel computations
+
+    scratch_dir: pathlib.Path
+        Path to a directory where an intermediate HDF5 file may be
+        written out
+
+    correlation_floor: float
+        Correlation values beneath this value will be set to zero
+        (should always be set to at least zero; negative correlation
+        values cause unexpected behavior in the algorithm)
+
+    only_neighbors: bool
+        If True, only ever consider mergers between two ROIs that
+        are contiguous.
+
+    Return
+    ------
+    merged_roi_list: List[OphysROI]
+
+    merger_history: List[List[int]]
+        A list of mergers of the form ['absorber', 'absorbed']
     """
     if not only_neighbors:
         neighbor_lookup = None

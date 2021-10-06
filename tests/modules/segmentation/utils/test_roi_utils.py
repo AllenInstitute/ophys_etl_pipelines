@@ -20,7 +20,8 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     check_matching_extract_roi_lists,
     select_contiguous_region,
     background_mask_from_roi_list,
-    select_window_from_background)
+    select_window_from_background,
+    pixel_list_to_extract_roi)
 
 
 @pytest.fixture
@@ -522,3 +523,22 @@ def test_select_window_from_background():
     assert rowmax == 4
     assert colmin == 0
     assert colmax == 4
+
+
+def test_pixel_list_to_extract_roi():
+    pixel_list = [(1, 2), (4, 7), (9, 2)]
+    roi = pixel_list_to_extract_roi(pixel_list, 5)
+    assert roi['id'] == 5
+    assert roi['x'] == 2
+    assert roi['y'] == 1
+    assert roi['width'] == 6
+    assert roi['height'] == 9
+
+    assert len(roi['mask']) == roi['height']
+    for row in roi['mask']:
+        assert len(row) == roi['width']
+
+    ophys_roi = extract_roi_to_ophys_roi(roi)
+    for p in pixel_list:
+        assert p in ophys_roi.global_pixel_set
+    assert len(pixel_list) == len(ophys_roi.global_pixel_set)

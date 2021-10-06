@@ -5,6 +5,7 @@ find all pairs of ROIs that need to be considered for merger.
 from typing import List, Optional, Tuple, Set, Dict, Union
 from itertools import combinations
 import numpy as np
+import copy
 import multiprocessing
 import multiprocessing.managers
 from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
@@ -188,4 +189,51 @@ def create_neighbor_lookup(roi_lookup: Dict[int, OphysROI],
         neighbor_lookup[pair[1]].add(pair[0])
         neighbor_lookup[pair[0]].add(pair[1])
 
+    return neighbor_lookup
+
+
+def update_neighbor_lookup(
+        neighbor_lookup: Dict[int, Set[int]],
+        mergers: List[Dict[str, int]]) -> Dict[int, Set[int]]:
+    """
+    Update a neighbor_lookup dict to reflect a set of mergers
+
+    Parameters
+    ----------
+    neighbor_looukup: Dict[int, Set[int]]
+        A dict mapping roi_id to the set of neighboring roi_ids
+
+    mergers: List[Dict[str, int]]
+        Each dict represents a distinct merger. The keys of the dicts
+        are 'absorbed' and 'absorber,' reflecting which ROI was lost
+        and which ROI grew during the merger.
+
+    Returns
+    -------
+    new_neighbor_lookup: Dict[int, Set[int]]
+        An updated dict mapping roi_id to the set of
+        neighboring roi_ids
+
+    Notes
+    -----
+    The method creates a copy of neighbor_lookup; neighbor_lookup
+    will not be changed in-place
+
+    Mergers are applied in the order they appear in the mergers list,
+    zeroth first.
+    """
+    neighbor_lookup = copy.deepcopy(neighbor_lookup)
+    for pair in mergers:
+        src_id = pair['absorbed']
+        dest_id = pair['absorber']
+        src_neighbors = neighbor_lookup.pop(src_id)
+        src_neighbors.remove(dest_id)
+        neighbor_lookup[dest_id].remove(src_id)
+        neighbor_lookup[dest_id] = neighbor_lookup[dest_id].union(
+                                      src_neighbors)
+        for key in neighbor_lookup:
+            if src_id not in neighbor_lookup[key]:
+                continue
+            neighbor_lookup[key].remove(src_id)
+            neighbor_lookup[key].add(dest_id)
     return neighbor_lookup

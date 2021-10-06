@@ -174,6 +174,52 @@ def convert_to_lims_roi(origin: Tuple[int, int],
     return roi
 
 
+def pixel_list_to_extract_roi(
+        pixel_list: List[Tuple[int, int]],
+        roi_id: int) -> ExtractROI:
+    """
+    Convert a list of (row, col) tuples into an ExtractROI
+
+    Parameters
+    ----------
+    pixel_list: List[Tuple[int, int]]
+
+    roi_id: int
+
+    Returns
+    -------
+    ExtractROI
+    """
+    rowmin = None
+    rowmax = None
+    colmin = None
+    colmax = None
+    for pixel in pixel_list:
+        if rowmin is None or pixel[0] < rowmin:
+            rowmin = pixel[0]
+        if rowmax is None or pixel[0] > rowmax:
+            rowmax = pixel[0]
+        if colmin is None or pixel[1] < colmin:
+            colmin = pixel[1]
+        if colmax is None or pixel[1] > colmax:
+            colmax = pixel[1]
+
+    width = 1+colmax-colmin
+    height = 1+rowmax-rowmin
+    mask = np.zeros((height, width), dtype=bool)
+    for pixel in pixel_list:
+        mask[pixel[0]-rowmin, pixel[1]-colmin] = True
+
+    roi = ExtractROI(id=roi_id,
+                     x=int(colmin),
+                     y=int(rowmin),
+                     width=int(width),
+                     height=int(height),
+                     valid=True,
+                     mask=[i.tolist() for i in mask])
+    return roi
+
+
 def _do_rois_abut(array_0: np.ndarray,
                   array_1: np.ndarray,
                   pixel_distance: float = np.sqrt(2)) -> bool:

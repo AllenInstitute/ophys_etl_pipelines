@@ -910,7 +910,7 @@ def get_roi_color_map(
     # create a list of colors based on the matplotlib color map
     raw_color_list = []
     for ii in range(n_colors):
-        color = mplt_color_map((1.0+ii)/(n_colors+1.0))
+        color = mplt_color_map(0.8*(1.0+ii)/(n_colors+1.0))
         color = (int(color[0]*255), int(color[1]*255), int(color[2]*255))
         raw_color_list.append(color)
 

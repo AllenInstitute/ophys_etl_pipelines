@@ -79,10 +79,14 @@ if __name__ == "__main__":
 
     with h5py.File(args.video_path, 'r') as in_file:
         img_data = in_file['data'][()]
-    img_data = np.max(img_data, axis=0)
+    img_data = np.max(img_data, axis=0).astype(float)
+    img_data = img_data - img_data.min()
     q01, q999 = np.quantile(img_data, (0.1, 0.999))
     img_data = np.where(img_data>q01, img_data, q01)
     img_data = np.where(img_data<q999, img_data, q999)
+
+    img_data = np.round(255.0*(img_data/img_data.max()))
+    img_data = img_data.astype(np.uint8)
 
     with h5py.File(args.out_path, 'a') as out_file:
         out_file.create_dataset('max_projection', data=img_data)

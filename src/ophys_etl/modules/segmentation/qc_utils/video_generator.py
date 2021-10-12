@@ -215,7 +215,10 @@ class VideoGenerator(object):
                  self,
                  roi: ExtractROI,
                  padding: int = 0,
-                 roi_color: Optional[Tuple[int, int, int]] = None,
+                 other_roi: Union[None, List[ExtractROI]] = None,
+                 roi_color: Union[None,
+                                  Tuple[int, int, int],
+                                  Dict[int, Tuple[int, int, int]]] = None,
                  timesteps: Optional[np.ndarray] = None,
                  quality: int = 5,
                  fps: int = 31):
@@ -230,9 +233,15 @@ class VideoGenerator(object):
             The number of pixels to either side of the ROI to
             include in the field of view (if possible; default=0)
 
-        roi_color: Optional[Tuple[int, int, int]]
+        other_roi: Union[None, List[ExtractROI]]
+            Other ROI to display
+
+        roi_color: Union[None,
+                         Tuple[int, int, int],
+                         Dict[int, Tuple[int, int, int]]]
             If not None, the RGB color in which to plot the ROI's
-            boundary. If None, ROI is not plotted in thumbnail.
+            boundary (or dict mapping ROI ID to RGB color).
+            If None, ROI is not plotted in thumbnail.
             (default: None)
 
         timesteps: Optional[np.ndarray]
@@ -261,6 +270,7 @@ class VideoGenerator(object):
                         video_arg,
                         roi,
                         padding=padding,
+                        other_roi=other_roi,
                         roi_color=roi_color,
                         timesteps=timesteps,
                         tmp_dir=self.tmp_dir,

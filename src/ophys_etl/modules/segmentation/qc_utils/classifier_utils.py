@@ -1,4 +1,7 @@
 from typing import Union, Optional, Tuple
+
+import matplotlib.figure
+
 import copy
 import h5py
 import pathlib
@@ -78,7 +81,7 @@ class Classifier_ROISet(object):
             roi_color: Optional[Tuple[int, int, int]]=None,
             other_rois: bool = False,
             padding: int = 8,
-            timesteps: Optional[np.ndarray] = None):
+            timesteps: Optional[np.ndarray] = None) -> ThumbnailVideo:
 
         this_roi = self.extract_roi_lookup[roi_id]
 
@@ -102,3 +105,16 @@ class Classifier_ROISet(object):
                         other_roi=roi_list,
                         roi_color=this_color_map)
         return video
+
+
+    def get_trace_plot(
+            self,
+            roi_id: int,
+            timesteps: Optional[np.ndarray]=None) -> matplotlib.figure.Figure:
+        trace = self.trace_lookup[roi_id]
+        fig = matplotlib.figure.Figure(figsize=(15, 5))
+        axis = fig.add_subplot(1,1,1)
+        if timesteps is None:
+            timesteps = np.arange(len(trace), dtype=int)
+        axis.plot(timesteps, trace[timesteps])
+        return fig

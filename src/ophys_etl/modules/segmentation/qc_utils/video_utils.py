@@ -127,7 +127,7 @@ class ThumbnailVideo(object):
             self._timesteps = np.copy(timesteps)
 
         if video_data.shape[1] < 128 or video_data.shape[0] < 128:
-            video_data = upscale_video_frame(video_data, 4)
+            video_data = upscale_video_frame(video_data, 2)
 
         imageio.mimsave(self._path,
                         video_data,

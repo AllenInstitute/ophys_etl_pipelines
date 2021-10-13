@@ -7,6 +7,8 @@ import h5py
 import pathlib
 import numpy as np
 
+from ophys_etl.types import ExtractROI
+
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
     add_labels_to_axes)
 
@@ -56,6 +58,13 @@ class Classifier_ROISet(object):
     artifact_path: Union[str, pathlib.Path]
         Path to the HDF5 file containing the precomputed artifact data
 
+    log_path: Union[str, pathlib.Path]
+        Path to file where ROI Labels will be stored
+
+    clobber: bool
+        If True, allow the ROISet to overwrite the file at log_path
+        (default: False)
+
     tmp_dir: Union[None, str, pathlib.Path]
         Path to the temporary directory where video files will get written
         (default: None)
@@ -64,7 +73,22 @@ class Classifier_ROISet(object):
     def __init__(
             self,
             artifact_path: Union[str, pathlib.Path],
+            log_path: Union[str, pathlib.Path],
+            clobber: bool = False,
             tmp_dir: Union[None, str, pathlib.Path] = None):
+
+        if isinstance(log_path, str):
+            log_path = pathlib.Path(log_path)
+
+        if log_path.exists() and not clobber:
+            msg = f'\n{log_path}\n already exists.'
+            msg += '\nWe should not overwrite existing label file.'
+            msg += '\nPlease specify a new log_path.'
+            msg += '\nIf you REALLY want to overwite the file, '
+            msg += 'specify clobber=True'
+            raise RuntimeError(msg)
+
+        self.log_path = log_path
 
         if isinstance(artifact_path, str):
             artifact_path = pathlib.Path(artifact_path)
@@ -104,21 +128,41 @@ class Classifier_ROISet(object):
         for ic in range(3):
             self.max_projection[:, :, ic] = raw_max_projection
 
+        with open(self.log_path, 'w') as out_file:
+            log_data = dict()
+            log_data['artifact_file'] = str(artifact_path.absolute())
+            log_data['valid_rois'] = []
+            log_data['invalid_rois'] = []
+            out_file.write(json.dumps(log_data, indent=2))
 
     def get_roi(self, roi_id: int):
         roi = Classifier_ROI(roi_id, self)
         return roi
 
+    def _write_roi_to_log(self, roi: ExtractROI):
+        with open(self.log_path, 'rb') as in_file:
+            log = json.load(in_file)
+        if roi['valid']:
+            log['valid_rois'].append(roi)
+        else:
+            log['invalid_rois'].append(roi)
+        with open(self.log_path, 'w') as out_file:
+            out_file.write(json.dumps(log, indent=2))
+
 
     def mark_roi_valid(self, roi_id: int):
         if roi_id not in self.extract_roi_lookup:
             raise RuntimeError(f"{roi_id} is not a valid ROI ID")
-        self.extract_roi_lookup[roi_id]['valid'] = True
+        roi = copy.deepcopy(self.extract_roi_lookup[roi_id])
+        roi['valid'] = True
+        self._write_roi_to_log(roi)
 
     def mark_roi_invalid(self, roi_id:int):
         if roi_id not in self.extract_roi_lookup:
             raise RuntimeError(f"{roi_id} is not a valid ROI ID")
-        self.extract_roi_lookup[roi_id]['valid'] = False
+        roi = copy.deepcopy(self.extract_roi_lookup[roi_id])
+        roi['valid'] = False
+        self._write_roi_to_log(roi)
 
     def get_roi_video(
             self,

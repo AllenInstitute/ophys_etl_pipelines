@@ -21,6 +21,31 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
 import json
 
 
+def get_roi_list_in_fov(roi_list, origin, frame_shape):
+    global_r0 = origin[0]
+    global_r1 = global_r0 + frame_shape[0]
+    global_c0 = origin[1]
+    global_c1 = global_c0 + frame_shape[1]
+
+    output = []
+    for roi in roi_list:
+        r0 = roi['y']
+        r1 = r0+roi['height']
+        c0 = roi['x']
+        c1 = c0+roi['width']
+        if r1 < global_r0:
+            continue
+        elif r0 > global_r1:
+            continue
+        elif c1 < global_c0:
+            continue
+        elif c0 > global_c1:
+            continue
+
+        output.append(roi)
+    return output
+
+
 class Classifier_ROISet(object):
     """
     Parameters
@@ -153,14 +178,14 @@ class Classifier_ROISet(object):
                                self.max_projection.shape,
                                padding)
 
+        # cast as array with 3-axes so that we can use the
+        # add_roi_boundary_to_video method, which already is designed
+        # to handle subsected videos/images
         global_r0 = origin[0]
         global_r1 = global_r0 + frame_shape[0]
         global_c0 = origin[1]
         global_c1 = global_c0 + frame_shape[1]
 
-        # cast as array with 3-axes so that we can use the
-        # add_roi_boundary_to_video method, which already is designed
-        # to handle subsected videos/images
         img = np.array([np.copy(self.max_projection[global_r0:global_r1,
                                                     global_c0:global_c1])])
 
@@ -173,19 +198,7 @@ class Classifier_ROISet(object):
         this_color_map[this_roi['id']] = roi_color
 
 
-        for roi in roi_list:
-            r0 = roi['y']
-            r1 = r0+roi['height']
-            c0 = roi['x']
-            c1 = c0+roi['width']
-            if r1 < global_r0:
-                continue
-            elif r0 > global_r1:
-                continue
-            elif c1 < global_c0:
-                continue
-            elif c0 > global_c1:
-                continue
+        for roi in get_roi_list_in_fov(roi_list, origin, img.shape[1:]):
             this_color = this_color_map[roi['id']]
             if this_color is None:
                 continue

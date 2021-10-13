@@ -77,6 +77,11 @@ class Classifier_ROISet(object):
             self.max_projection[:, :, ic] = raw_max_projection
 
 
+    def get_roi(self, roi_id: int):
+        roi = Classifier_ROI(roi_id, self)
+        return roi
+
+
     def mark_roi_valid(self, roi_id: int):
         if roi_id not in self.extract_roi_lookup:
             raise RuntimeError(f"{roi_id} is not a valid ROI ID")

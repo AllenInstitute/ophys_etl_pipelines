@@ -174,7 +174,9 @@ def add_list_of_roi_boundaries_to_img(
 def add_labels_to_axes(axis: matplotlib.axes.Axes,
                        roi_list: Union[List[OphysROI], List[Dict]],
                        colors: Union[Tuple[int], List[Tuple[int]]],
-                       fontsize: int = 15):
+                       fontsize: int = 15,
+                       origin: Optional[Tuple[int, int]] = None,
+                       frame_shape: Optional[Tuple[int, int]] = None):
     """
     Add labels to a plot of ROIs
 
@@ -185,12 +187,26 @@ def add_labels_to_axes(axis: matplotlib.axes.Axes,
         the ROIs
     colors: List[Tuple[int]]
         if not a list, all ROIs will get same color
+    origin: Optional[Tuple[int, int]]
+        origin of the image in the original image
+    frame_shape: Optional[Tuple[int, int]]
+        shape of the field of view (rows, cols)
 
     Returns
     -------
     matplotlib.axes.Axes
         The input axis with the figure added
     """
+    if origin is None:
+        origin = (0, 0)
+
+    if frame_shape is not None:
+        rowmax = origin[0]+frame_shape[0]
+        colmax = origin[1]+frame_shape[1]
+    else:
+        rowmax = None
+        colmax = None
+
     n_roi = len(roi_list)
 
     if not isinstance(colors, list):
@@ -207,14 +223,16 @@ def add_labels_to_axes(axis: matplotlib.axes.Axes,
     rng = np.random.RandomState(44)
     for color, roi in zip(colors, roi_list):
         color_hex = '#%02x%02x%02x' % color
-        xx = roi.centroid_x
-        yy = roi.centroid_y
+        xx = roi.centroid_x-origin[1]
+        yy = roi.centroid_y-origin[0]
         dd = None
         n_iter = 0
 
         # add random salt in case two labels would
         # be right on top of each other
-        while (dd is None or dd < 100) and n_iter < 20:
+        keep_going = True
+        while keep_going:
+            keep_going = False
             if n_iter > 0:
                 _x = rng.normal()
                 _y = rng.normal()
@@ -227,6 +245,13 @@ def add_labels_to_axes(axis: matplotlib.axes.Axes,
 
             dd = np.min((xx-nx)**2+(yy-ny)**2)
             n_iter += 1
+            if n_iter > 20:
+                if rowmax is not None and yy > rowmax:
+                    keep_going = True
+                elif colmax is not None and xx > colmax:
+                     keep_going = True
+                elif (dd is None or dd < 100):
+                    keep_going = True
 
         nx[roi_ct] = xx
         ny[roi_ct] = yy

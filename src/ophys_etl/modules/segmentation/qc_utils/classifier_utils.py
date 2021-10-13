@@ -7,6 +7,9 @@ import h5py
 import pathlib
 import numpy as np
 
+from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
+    add_labels_to_axes)
+
 from ophys_etl.modules.segmentation.qc_utils.video_generator import (
     VideoGenerator)
 
@@ -225,7 +228,9 @@ class Classifier_ROISet(object):
     def get_summary_figure(
             self,
             origin: Optional[Tuple[int, int]] = None,
-            frame_shape: Optional[Tuple[int, int]] = None) -> matplotlib.figure.Figure:
+            frame_shape: Optional[Tuple[int, int]] = None,
+            label_rois: bool = False,
+            fontsize: int = 15) -> matplotlib.figure.Figure:
         """
         Will only plot ROIs that are marked as valid in self.extract_roi_lookup
         """
@@ -244,7 +249,8 @@ class Classifier_ROISet(object):
         roi_list = [roi for roi in self.extract_roi_lookup.values()
                     if roi['valid']]
 
-        for roi in get_roi_list_in_fov(roi_list, origin, img.shape[1:]):
+        valid_roi_list = get_roi_list_in_fov(roi_list, origin, img.shape[1:])
+        for roi in valid_roi_list:
             img = add_roi_boundary_to_video(
                       img,
                       origin,
@@ -254,6 +260,19 @@ class Classifier_ROISet(object):
         fig = matplotlib.figure.Figure(figsize=(20, 20))
         axis = fig.add_subplot(1,1,1)
         axis.imshow(img[0, :, :])
+
+        if label_rois:
+            valid_color_list = [self.color_map[roi['id']]
+                                for roi in valid_roi_list]
+
+            add_labels_to_axes(
+                    axis,
+                    valid_roi_list,
+                    valid_color_list,
+                    origin=origin,
+                    frame_shape=img.shape[1:],
+                    fontsize=fontsize)
+
         fig.tight_layout()
         return fig
 

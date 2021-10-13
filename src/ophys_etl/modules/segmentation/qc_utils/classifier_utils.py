@@ -243,3 +243,49 @@ class Classifier_ROI(object):
 
     def mark_invalid(self):
         self.roi_set.mark_roi_invalid(self.roi_id)
+
+    def get_trace_plot(self,
+                       timesteps: Optional[np.ndarray]=None):
+        return self.roi_set.get_trace_plot(
+                    roi_id=self.roi_id,
+                    timesteps=timesteps)
+
+    def get_thumbnail_video(self,
+                            padding: int = 32,
+                            include_boundary: bool = True,
+                            include_others: bool = False,
+                            timesteps: Optional[np.ndarray] = None) -> ThumbnailVideo:
+
+        if include_boundary:
+            roi_color = (255, 0, 0)
+        else:
+            roi_color = None
+            if include_others:
+                raise RuntimeError("You just asked to include all "
+                                   "ROIs *except* this one in your video")
+
+        return self.roi_set.get_roi_video(
+                        self.roi_id,
+                        roi_color=roi_color,
+                        other_rois=include_others,
+                        timesteps=timesteps,
+                        padding=padding)
+
+    def get_max_projection(self,
+                           padding: int = 32,
+                           include_boundary: bool = True,
+                           include_others: bool = False) -> matplotlib.figure.Figure:
+
+        if include_boundary:
+            roi_color = (255, 0, 0)
+        else:
+            roi_color = None
+            if include_others:
+                raise RuntimeError("You just asked to include all "
+                                   "ROIs *except* this one in your image")
+
+        return self.roi_set.get_max_projection_plot(
+                        self.roi_id,
+                        roi_color = roi_color,
+                        other_rois = include_others,
+                        padding=padding)

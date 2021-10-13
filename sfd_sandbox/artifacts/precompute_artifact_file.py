@@ -56,6 +56,11 @@ if __name__ == "__main__":
     parser.add_argument('--out_path', type=str, default='output.h5')
     args = parser.parse_args()
 
+    if not pathlib.Path(args.roi_path).is_file():
+        raise RuntimeError(f'{args.roi_path} is not a file')
+    if not pathlib.Path(args.video_path).is_file():
+        raise RuntimeError(f'{args.video_path} is not a file')
+
     global_t0 = time.time()
     with open(args.roi_path, 'rb') as in_file:
         raw_rois = json.load(in_file)

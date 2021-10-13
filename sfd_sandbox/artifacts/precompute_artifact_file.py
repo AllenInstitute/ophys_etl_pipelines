@@ -56,6 +56,7 @@ if __name__ == "__main__":
     parser.add_argument('--out_path', type=str, default='output.h5')
     args = parser.parse_args()
 
+    global_t0 = time.time()
     with open(args.roi_path, 'rb') as in_file:
         raw_rois = json.load(in_file)
     extract_roi_list = []
@@ -135,3 +136,5 @@ if __name__ == "__main__":
         group = out_file.create_group('traces')
         for roi_id in trace_lookup:
             group.create_dataset(str(roi_id), data=trace_lookup[roi_id])
+    global_duration = time.time()-global_t0
+    print(f'artifact generation took {global_duration:.2e}')

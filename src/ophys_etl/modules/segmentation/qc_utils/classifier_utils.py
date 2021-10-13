@@ -202,3 +202,44 @@ class Classifier_ROISet(object):
         axis.imshow(img)
         fig.tight_layout()
         return fig
+
+
+    def get_summary_figure(self) -> matplotlib.figure.Figure:
+        """
+        Will only plot ROIs that are marked as valid in self.extract_roi_lookup
+        """
+        img = np.array([np.copy(self.max_projection)])
+        roi_list = [roi for roi in self.extract_roi_lookup.values()
+                    if roi['valid']]
+
+        for roi in roi_list:
+            img = add_roi_boundary_to_video(
+                      img,
+                      (0, 0),
+                      roi,
+                      self.color_map[roi['id']])
+
+        fig = matplotlib.figure.Figure(figsize=(20, 20))
+        axis = fig.add_subplot(1,1,1)
+        axis.imshow(img[0, :, :])
+        fig.tight_layout()
+        return fig
+
+
+class Classifier_ROI(object):
+    """
+    Should not be instantiated by hand;
+    meant to be spun off from a Classifier_ROISet
+    """
+
+    def __init__(self,
+                 roi_id: int,
+                 roi_set: Classifier_ROISet):
+        self.roi_id = roi_id
+        self.roi_set = roi_set
+
+    def mark_valid(self):
+        self.roi_set.mark_roi_valid(self.roi_id)
+
+    def mark_invalid(self):
+        self.roi_set.mark_roi_invalid(self.roi_id)

@@ -332,8 +332,13 @@ class Classifier_ROISet(object):
         axis.imshow(img[0, :, :])
 
         if label_rois:
-            valid_color_list = [self.color_map[roi['id']]
-                                for roi in valid_roi_list]
+            valid_color_list = []
+            for roi in valid_roi_list:
+                base_color = self.color_map[roi['id']]
+                color = tuple([max(np.round(0.85*base_color[ii]).astype(int),
+                                   0)
+                               for ii in range(3)])
+                valid_color_list.append(color)
 
             add_labels_to_axes(
                     axis,

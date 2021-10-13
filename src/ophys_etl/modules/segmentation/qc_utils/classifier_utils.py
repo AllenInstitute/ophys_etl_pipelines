@@ -222,18 +222,32 @@ class Classifier_ROISet(object):
         return fig
 
 
-    def get_summary_figure(self) -> matplotlib.figure.Figure:
+    def get_summary_figure(
+            self,
+            origin: Optional[Tuple[int, int]] = None,
+            frame_shape: Optional[Tuple[int, int]] = None) -> matplotlib.figure.Figure:
         """
         Will only plot ROIs that are marked as valid in self.extract_roi_lookup
         """
-        img = np.array([np.copy(self.max_projection)])
+        if origin is None:
+            origin = (0, 0)
+        if frame_shape is None:
+            frame_shape = self.max_projection.shape
+
+        global_r0 = max(0, origin[0])
+        global_r1 = min(self.max_projection.shape[0], global_r0+frame_shape[0])
+        global_c0 = max(0, origin[1])
+        global_c1 = min(self.max_projection.shape[1], global_c0+frame_shape[1])
+
+        img = np.array([np.copy(self.max_projection[global_r0:global_r1,
+                                                    global_c0:global_c1])])
         roi_list = [roi for roi in self.extract_roi_lookup.values()
                     if roi['valid']]
 
-        for roi in roi_list:
+        for roi in get_roi_list_in_fov(roi_list, origin, img.shape[1:]):
             img = add_roi_boundary_to_video(
                       img,
-                      (0, 0),
+                      origin,
                       roi,
                       self.color_map[roi['id']])
 

@@ -3,6 +3,9 @@ import json
 import pathlib
 import numpy as np
 
+from ophys_etl.modules.segmentation.qc_utils.classifier_utils import (
+    file_hash_from_path)
+
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     serialize_extract_roi_list,
     extract_roi_to_ophys_roi)
@@ -64,9 +67,27 @@ if __name__ == "__main__":
         extract_roi_list.append(roi)
         ophys_roi_list.append(extract_roi_to_ophys_roi(roi))
 
+    t0 = time.time()
+    roi_hash = file_hash_from_path(args.roi_path)
+    print(f'roi_hash in {time.time()-t0:.2e}')
+    t0 = time.time()
+    video_hash = file_hash_from_path(args.video_path)
+    print(f'video_hash in {time.time()-t0:.2e}')
+
+    metadata = dict()
+    metadata['video'] = {'path':
+                         str(pathlib.Path(args.video_path).\
+                                             resolve().absolute()),
+                         'hash': video_hash}
+    metadata['rois'] = {'path':
+                        str(pathlib.Path(args.roi_path).resolve().absolute()),
+                        'hash': roi_hash}
+
     with h5py.File(args.out_path, 'w') as out_file:
         out_file.create_dataset('rois',
                     data=serialize_extract_roi_list(extract_roi_list))
+        out_file.create_dataset('metadata',
+                    data=serialize_extract_roi_list(metadata))
 
     print('wrote ROIs')
 

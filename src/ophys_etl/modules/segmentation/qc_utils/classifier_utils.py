@@ -24,6 +24,30 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     deserialize_extract_roi_list)
 
 import json
+import hashlib
+
+
+def file_hash_from_path(file_path: Union[str, pathlib.Path]) -> str:
+    """
+    Return the hexadecimal file hash for a file
+
+    Parameters
+    ----------
+    file_path: Union[str, Path]
+        path to a file
+
+    Returns
+    -------
+    str:
+        The file hash (md5; hexadecimal) of the file
+    """
+    hasher = hashlib.md5()
+    with open(file_path, 'rb') as in_file:
+        chunk = in_file.read(1000000)
+        while len(chunk) > 0:
+            hasher.update(chunk)
+            chunk = in_file.read(1000000)
+    return hasher.hexdigest()
 
 
 def get_roi_list_in_fov(roi_list, origin, frame_shape):
@@ -128,9 +152,11 @@ class Classifier_ROISet(object):
         for ic in range(3):
             self.max_projection[:, :, ic] = raw_max_projection
 
+        artifact_hash = file_hash_from_path(artifact_path)
         with open(self.log_path, 'w') as out_file:
             log_data = dict()
-            log_data['artifact_file'] = str(artifact_path.absolute())
+            log_data['artifact_file'] = str(artifact_path.resolve().absolute())
+            log_data['artifact_file_hash'] = artifact_hash
             log_data['valid_rois'] = []
             log_data['invalid_rois'] = []
             out_file.write(json.dumps(log_data, indent=2))

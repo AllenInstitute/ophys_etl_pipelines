@@ -11,7 +11,9 @@ from ophys_etl.modules.segmentation.qc_utils.video_generator import (
     VideoGenerator)
 
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
-    ThumbnailVideo)
+    ThumbnailVideo,
+    video_bounds_from_ROI,
+    add_roi_boundary_to_video)
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     deserialize_extract_roi_list)
@@ -47,7 +49,6 @@ class Classifier_ROISet(object):
             tmp_dir = pathlib.Path(tmp_dir)
 
         with h5py.File(artifact_path, 'r') as in_file:
-            self.max_projection = in_file['max_projection'][()]
             raw_color_map = json.loads(
                                in_file['roi_color_map'][()].decode('utf-8'))
             self.color_map = {int(roi_id): tuple(raw_color_map[roi_id])
@@ -64,6 +65,17 @@ class Classifier_ROISet(object):
             self.video_generator = VideoGenerator(
                                        video_data=in_file['video_data'][()],
                                        tmp_dir=tmp_dir)
+
+            raw_max_projection = in_file['max_projection'][()]
+
+
+        self.max_projection = np.zeros((raw_max_projection.shape[0],
+                                        raw_max_projection.shape[1],
+                                        3), dtype=np.uint8)
+
+        for ic in range(3):
+            self.max_projection[:, :, ic] = raw_max_projection
+
 
     def mark_roi_valid(self, roi_id: int):
         if roi_id not in self.extract_roi_lookup:
@@ -117,4 +129,76 @@ class Classifier_ROISet(object):
         if timesteps is None:
             timesteps = np.arange(len(trace), dtype=int)
         axis.plot(timesteps, trace[timesteps])
+        fig.tight_layout()
+        return fig
+
+
+    def get_max_projection_plot(
+            self,
+            roi_id: int,
+            roi_color: Tuple[int, int, int] = (255, 0, 0),
+            other_rois: bool = False,
+            padding:int = 32) -> matplotlib.figure.Figure:
+
+        this_roi = self.extract_roi_lookup[roi_id]
+
+        (origin,
+         frame_shape) = video_bounds_from_ROI(
+                               this_roi,
+                               self.max_projection.shape,
+                               padding)
+
+        global_r0 = origin[0]
+        global_r1 = global_r0 + frame_shape[0]
+        global_c0 = origin[1]
+        global_c1 = global_c0 + frame_shape[1]
+
+        # cast as array with 3-axes so that we can use the
+        # add_roi_boundary_to_video method, which already is designed
+        # to handle subsected videos/images
+        img = np.array([np.copy(self.max_projection[global_r0:global_r1,
+                                                    global_c0:global_c1])])
+
+        if other_rois:
+            this_color_map = copy.deepcopy(self.color_map)
+            roi_list = self.extract_roi_list
+        else:
+            this_color_map = dict()
+            roi_list = [this_roi]
+        this_color_map[this_roi['id']] = roi_color
+
+
+        for roi in roi_list:
+            r0 = roi['y']
+            r1 = r0+roi['height']
+            c0 = roi['x']
+            c1 = c0+roi['width']
+            if r1 < global_r0:
+                continue
+            elif r0 > global_r1:
+                continue
+            elif c1 < global_c0:
+                continue
+            elif c0 > global_c1:
+                continue
+            this_color = this_color_map[roi['id']]
+            if this_color is None:
+                continue
+            img = add_roi_boundary_to_video(
+                       img,
+                       origin,
+                       roi,
+                       this_color)
+
+        img = img[0, :, :]
+        width = img.shape[1]
+        height = img.shape[0]
+        ratio = width/height
+
+        fig_height = 10
+        fig = matplotlib.figure.Figure(figsize=(np.round(fig_height*ratio).astype(int),
+                                                 fig_height))
+        axis = fig.add_subplot(1,1,1)
+        axis.imshow(img)
+        fig.tight_layout()
         return fig

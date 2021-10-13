@@ -837,6 +837,11 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
     -------
     sub_video: np.ndarray
         sub_video with the ROI boundary
+
+    Note:
+    -----
+    While it does return a np.ndarray, this method will change
+    sub_video in-place
     """
 
     n_video_rows = sub_video.shape[1]

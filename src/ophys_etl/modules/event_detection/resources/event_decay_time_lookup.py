@@ -21,5 +21,6 @@ event_decay_lookup_dict = \
       "Scnn1a-Tg3-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/Ai93(TITL-GCaMP6f)": 0.462,
       "Emx1-IRES-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)-hyg/wt": 0.309,
       "Emx1-IRES-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/Ai93(TITL-GCaMP6f)": 0.365,
-      "Slc17a7-IRES2-Cre/wt;Camk2a-tTA/wt;Ai94(TITL-GCaMP6s)/wt": 0.738
+      "Slc17a7-IRES2-Cre/wt;Camk2a-tTA/wt;Ai94(TITL-GCaMP6s)/wt": 0.738,
+      "Gad2-IRES-Cre/wt;Slc32a1-T2A-FlpO/wt;Ai195(TIT2L-GC7s-ICF-IRES-tTA2)-hyg/wt": 0.715
     }

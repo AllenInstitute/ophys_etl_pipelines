@@ -17,3 +17,9 @@ scikit-learn
 networkx
 cachetools>=4.2.1,<5.0.0
 hnccorr
+imgaug
+torch
+torchvision
+plotly
+kaleido
+imagecorruptions

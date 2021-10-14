@@ -20,7 +20,6 @@ jobs:
                   mkdir $PWD/coverage_outputs
                   # set entrypoint like this so we can handle quotes
                   docker run --entrypoint /bin/bash --read-only --tmpfs /tmp -v $PWD/coverage_outputs:/coverage_outputs alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /repos/ophys_etl/.circleci/scripts/suite2p_container_test.sh
-                  bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN} -f $PWD/coverage_outputs/suite2p_cov.xml -cF suite2p_tests
                   docker run --entrypoint /bin/bash --read-only --tmpfs /tmp -v $PWD/coverage_outputs:/coverage_outputs alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /repos/ophys_etl/.circleci/scripts/event_container_test.sh
                   bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN} -f $PWD/coverage_outputs/event_cov.xml -cF event_detection_tests
                   docker run --entrypoint /bin/bash --read-only --tmpfs /tmp -v $PWD/coverage_outputs:/coverage_outputs alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /repos/ophys_etl/.circleci/scripts/general_container_test.sh

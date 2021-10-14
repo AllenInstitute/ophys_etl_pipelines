@@ -14,3 +14,9 @@ typing_extensions
 tifffile
 scikit-image
 networkx
+imgaug
+torch
+torchvision
+plotly
+kaleido
+imagecorruptions

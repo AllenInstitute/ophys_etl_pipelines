@@ -17,10 +17,9 @@ import argparse
 import time
 
 
-def scale_to_uint8(data):
-    mx = float(data.max())
-    mn = float(data.min())
-    new = np.round(255.0*(data.astype(float)-mn)/(mx-mn)).astype(np.uint8)
+def scale_to_uint8(data, min_val, max_val):
+    delta = float(max_val-min_val)
+    new = np.round(255.0*(data.astype(float)-min_val)/delta).astype(np.uint8)
     assert new.max() <= 255
     assert new.min() >= 0
     return new
@@ -135,12 +134,18 @@ if __name__ == "__main__":
 
     with h5py.File(video_path, 'r') as in_file:
         video_data = in_file['data'][()]
+        video_max = video_data.max()
+        video_min = video_data.min()
     max_projection = np.max(video_data, axis=0)
     avg_projection = np.mean(video_data, axis=0)
     del video_data
 
-    max_projection = scale_to_uint8(max_projection)
-    avg_projection = scale_to_uint8(avg_projection)
+    max_projection = scale_to_uint8(max_projection,
+                                    min_val=video_min,
+                                    max_val=video_max)
+    avg_projection = scale_to_uint8(avg_projection,
+                                    min_val=video_min,
+                                    max_val=video_max)
 
     with open(roi_path, 'rb') as in_file:
         raw_rois = json.load(in_file)

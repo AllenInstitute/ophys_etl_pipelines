@@ -170,7 +170,8 @@ def run_artifacts(roi_path=None, video_path=None, out_dir=None, n_roi=10):
         avg_img.save(out_dir/f"avg_{roi['id']}.png")
         mask_img = PIL.Image.fromarray(artifacts['mask'])
         mask_img.save(out_dir/f"mask_{roi['id']}.png")
-    print(f'that took {time.time()-t0:.2e}')
+
+    return roi_list
 
 if __name__ == "__main__":
 

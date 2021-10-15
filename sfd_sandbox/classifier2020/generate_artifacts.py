@@ -18,6 +18,10 @@ import time
 
 
 def scale_to_uint8(data, min_val, max_val):
+
+    data = np.where(data<min_val, min_val, data)
+    data = np.where(data>max_val, max_val, data)
+
     delta = float(max_val-min_val)
     new = np.round(255.0*(data.astype(float)-min_val)/delta).astype(np.uint8)
     assert new.max() <= 255
@@ -140,12 +144,15 @@ if __name__ == "__main__":
     avg_projection = np.mean(video_data, axis=0)
     del video_data
 
+    max020, max099 = np.quantile(max_projection, (0.2, 0.99))
     max_projection = scale_to_uint8(max_projection,
-                                    min_val=video_min,
-                                    max_val=video_max)
+                                    min_val=max020,
+                                    max_val=max099)
+
+    avg020, avg099 = np.quantile(avg_projection, (0.2, 0.99))
     avg_projection = scale_to_uint8(avg_projection,
-                                    min_val=video_min,
-                                    max_val=video_max)
+                                    min_val=avg020,
+                                    max_val=avg099)
 
     with open(roi_path, 'rb') as in_file:
         raw_rois = json.load(in_file)

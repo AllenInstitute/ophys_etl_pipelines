@@ -32,21 +32,7 @@ random.seed(1234)
 np.random.seed(1234)
 torch.manual_seed(1234)
 
-
-all_transform = transforms.Compose([
-    iaa.Sequential([
-        iaa.CenterCropToFixedSize(height=30, width=30)
-    ]).augment_image,
-    transforms.ToTensor(),
-    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-])
-
-test_transform = Transform(all_transform=all_transform)
-
-model = torchvision.models.vgg11_bn(pretrained=True, progress=False)
-cnn = VggBackbone(model=model, truncate_to_layer=15, classifier_cfg=[512])
-
-def run(cnn, experiment_dir, use_cuda=False):
+def run(cnn, experiment_dir, use_cuda=False, test_transform=None):
     res = []
     times = []
     num_rois = []
@@ -91,20 +77,41 @@ def run(cnn, experiment_dir, use_cuda=False):
 
     return pd.concat(res), np.array(times), np.array(num_rois)
 
-if __name__ == "__main__":
+def classify(artifact_dir):
+
+    all_transform = transforms.Compose([
+        iaa.Sequential([
+            iaa.CenterCropToFixedSize(height=30, width=30)
+        ]).augment_image,
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    test_transform = Transform(all_transform=all_transform)
+
+    model = torchvision.models.vgg11_bn(pretrained=True, progress=False)
+    cnn = VggBackbone(model=model, truncate_to_layer=15, classifier_cfg=[512])
 
     t0 = time.time()
     (pd_result,
      time_result,
      num_result) = run(cnn.cpu(),
-                       pathlib.Path('785569423_artifacts'))
+                       artifact_dir,
+                       test_transform=test_transform)
 
     duration = time.time()-t0
 
-    print(time_result)
-    print(num_result)
-    print(pd_result)
-    print(pd_result.y_pred.sum())
-    import Inference
-    print(Inference.__file__)
-    print(f'classification took {duration:.2e}')
+    roi_id_to_label = dict()
+    for roi_id, label in zip(pd_result['roi-id'], pd_result['y_pred']):
+        roi_id_to_label[roi_id] = label
+    return roi_id_to_label
+
+import argparse
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--artifact_dir',
+                        type=str,
+                        default=str(pathlib.Path('785569423_artifacts').resolve().absolute()))
+    args = parser.parse_args()
+    result = classify(pathlib.Path(args.artifact_dir))
+    print(result)

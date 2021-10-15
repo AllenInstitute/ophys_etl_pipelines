@@ -112,6 +112,32 @@ def classify(artifact_dir):
 import argparse
 import json
 
+def full_classification(roi_path=None,
+                        video_path=None,
+                        scratch_dir=None,
+                        out_file_path=None):
+
+    scratch_dir = tempfile.mkdtemp(dir=scratch_dir)
+    roi_list = run_artifacts(roi_path=roi_path,
+                      video_path=video_path,
+                      n_roi=-1,
+                      out_dir=scratch_dir)
+
+    result = classify(pathlib.Path(scratch_dir))
+
+    assert len(roi_list) == len(result)
+    for roi in roi_list:
+        roi['valid'] = result[roi['id']]
+
+    #print(result)
+    #print(scratch_dir)
+    #duration = time.time()-t0
+    #print(f'that took {duration:.2e}')
+
+    with open(out_file_path, 'w') as out_file:
+        out_file.write(json.dumps(roi_list, indent=2))
+
+
 if __name__ == "__main__":
 
     t0 = time.time()
@@ -123,23 +149,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     assert args.out_file is not None
-
-    scratch_dir = tempfile.mkdtemp(dir=args.scratch_dir)
-    roi_list = run_artifacts(roi_path=args.roi_path,
-                      video_path=args.video_path,
-                      n_roi=-1,
-                      out_dir=scratch_dir)
-
-    result = classify(pathlib.Path(scratch_dir))
-
-    assert len(roi_list) == len(result)
-    for roi in roi_list:
-        roi['valid'] = result[roi['id']]
-
-    print(result)
-    print(scratch_dir)
-    duration = time.time()-t0
-    print(f'that took {duration:.2e}')
-
-    with open(args.out_file, 'w') as out_file:
-        out_file.write(json.dumps(roi_list, indent=2))
+    full_classification(roi_path=args.roi_path,
+                        video_path=args.video_path,
+                        scratch_dir=args.scratch_dir,
+                        out_file_path=args.out_file)

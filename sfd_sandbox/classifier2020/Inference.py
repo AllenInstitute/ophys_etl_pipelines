@@ -33,7 +33,6 @@ def inference(model: torch.nn.Module, test_loader: DataLoader, checkpoint_path, 
                            f"apply in {checkpoint_path}")
 
     for i, model_checkpoint in enumerate(models):
-        print('SFD ', model_checkpoint)
         state_dict = torch.load(f'{checkpoint_path}/{model_checkpoint}',
                                 map_location=torch.device('cpu'))
                                 # map_location invocation is just for running
@@ -69,7 +68,6 @@ def inference(model: torch.nn.Module, test_loader: DataLoader, checkpoint_path, 
             print(f'{model_checkpoint} recall: {r}')
             print(f'{model_checkpoint} f1: {f1}')
 
-    print('they are ',y_scores)
     y_scores = y_scores.mean(axis=0)
     y_preds = y_scores > threshold
     if has_labels:

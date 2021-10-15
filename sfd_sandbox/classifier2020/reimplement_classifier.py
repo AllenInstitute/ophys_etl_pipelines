@@ -26,6 +26,9 @@ from Inference import inference
 from RoiDataset import RoiDataset
 import random
 import time
+import tempfile
+
+from generate_artifacts import run_artifacts
 
 
 random.seed(1234)
@@ -107,11 +110,36 @@ def classify(artifact_dir):
     return roi_id_to_label
 
 import argparse
+import json
+
 if __name__ == "__main__":
+
+    t0 = time.time()
     parser = argparse.ArgumentParser()
-    parser.add_argument('--artifact_dir',
-                        type=str,
-                        default=str(pathlib.Path('785569423_artifacts').resolve().absolute()))
+    parser.add_argument('--roi_path', type=str, default=None)
+    parser.add_argument('--video_path', type=str, default=None)
+    parser.add_argument('--scratch_dir', type=str, default=None)
+    parser.add_argument('--out_file', type=str, default=None)
     args = parser.parse_args()
-    result = classify(pathlib.Path(args.artifact_dir))
+
+    assert args.out_file is not None
+
+    scratch_dir = tempfile.mkdtemp(dir=args.scratch_dir)
+    roi_list = run_artifacts(roi_path=args.roi_path,
+                      video_path=args.video_path,
+                      n_roi=-1,
+                      out_dir=scratch_dir)
+
+    result = classify(pathlib.Path(scratch_dir))
+
+    assert len(roi_list) == len(result)
+    for roi in roi_list:
+        roi['valid'] = result[roi['id']]
+
     print(result)
+    print(scratch_dir)
+    duration = time.time()-t0
+    print(f'that took {duration:.2e}')
+
+    with open(args.out_file, 'w') as out_file:
+        out_file.write(json.dumps(roi_list, indent=2))

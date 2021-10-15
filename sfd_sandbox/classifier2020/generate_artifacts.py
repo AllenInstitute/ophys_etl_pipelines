@@ -114,23 +114,15 @@ def get_artifacts(roi, max_projection, avg_projection):
             'avg': avg_thumbnail,
             'mask': mask}
 
+def run_artifacts(roi_path=None, video_path=None, out_dir=None, n_roi=10):
 
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--roi_path', type=str, default=None)
-    parser.add_argument('--video_path', type=str, default=None)
-    parser.add_argument('--n_roi', type=int, default=10)
-    parser.add_argument('--out_dir', type=str, default=None)
-    args = parser.parse_args()
-
-    roi_path = pathlib.Path(args.roi_path)
+    roi_path = pathlib.Path(roi_path)
     if not roi_path.is_file():
         raise RuntimeError(f'{roi_path} is not a file')
-    video_path = pathlib.Path(args.video_path)
+    video_path = pathlib.Path(video_path)
     if not video_path.is_file():
         raise RuntimeError(f'{video_path} is not a file')
-    out_dir = pathlib.Path(args.out_dir)
+    out_dir = pathlib.Path(out_dir)
     if not out_dir.exists():
         out_dir.mkdir(parents=True)
     if not out_dir.is_dir():
@@ -164,10 +156,9 @@ if __name__ == "__main__":
                 roi['mask'] = roi.pop('mask_matrix')
             roi_list.append(roi)
 
-    if args.n_roi > 0:
-        roi_list = roi_list[:args.n_roi]
+    if n_roi > 0:
+        roi_list = roi_list[:n_roi]
 
-    t0 = time.time()
     for roi in roi_list:
         artifacts = get_artifacts(roi=roi,
                                   max_projection=max_projection,
@@ -180,3 +171,18 @@ if __name__ == "__main__":
         mask_img = PIL.Image.fromarray(artifacts['mask'])
         mask_img.save(out_dir/f"mask_{roi['id']}.png")
     print(f'that took {time.time()-t0:.2e}')
+
+if __name__ == "__main__":
+
+    t0 = time.time()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--roi_path', type=str, default=None)
+    parser.add_argument('--video_path', type=str, default=None)
+    parser.add_argument('--n_roi', type=int, default=10)
+    parser.add_argument('--out_dir', type=str, default=None)
+    args = parser.parse_args()
+
+    run_artifacts(roi_path=args.roi_path,
+                  video_path=args.video_path,
+                  n_roi=args.n_roi,
+                  out_dir=args.out_dir)

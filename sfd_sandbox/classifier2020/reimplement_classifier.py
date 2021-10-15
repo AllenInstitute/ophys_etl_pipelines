@@ -93,10 +93,13 @@ def run(cnn, experiment_dir, use_cuda=False):
 
 if __name__ == "__main__":
 
+    t0 = time.time()
     (pd_result,
      time_result,
      num_result) = run(cnn.cpu(),
                        pathlib.Path('785569423_artifacts'))
+
+    duration = time.time()-t0
 
     print(time_result)
     print(num_result)
@@ -104,3 +107,4 @@ if __name__ == "__main__":
     print(pd_result.y_pred.sum())
     import Inference
     print(Inference.__file__)
+    print(f'classification took {duration:.2e}')

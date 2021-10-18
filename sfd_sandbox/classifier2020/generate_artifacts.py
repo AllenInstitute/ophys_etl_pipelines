@@ -28,6 +28,28 @@ def scale_to_uint8(data, min_val, max_val):
     assert new.min() >= 0
     return new
 
+def centroid_pixel_from_roi(roi: ExtractROI) -> Tuple[int, int]:
+    """
+    output pixel will be in full FOV coordinates
+
+    output pixel will be in (row, column) coordinates
+    """
+    row = 0.0
+    col = 0.0
+    n = 0.0
+    for ir in range(roi['height']):
+        for ic in range(roi['width']):
+            if not roi['mask'][ir][ic]:
+                continue
+            row += roi['y']+ir
+            col += roi['x']+ic
+            n += 1.0
+
+    row = np.round(row/n).astype(int)
+    col = np.round(col/n).astype(int)
+    return (row, col)
+
+
 def thumbnail_bounds_from_ROI(
         roi: ExtractROI,
         input_fov_shape: Tuple[int, int],
@@ -49,42 +71,54 @@ def thumbnail_bounds_from_ROI(
         the ROI
     shape: Tuple[int, int]
         The shape of the sub field of view
+    padding:
+        To be passed to np.pad
     Notes
     -----
     Will try to return a square that is a multiple of 16
     on a side (this is what FFMPEG expects)
     """
 
+    (row_center,
+     col_center) = centroid_pixel_from_roi(roi)
 
-    # center the thumbnail on the ROI
-    row_center = int(roi['y'] + roi['height']//2)
-    col_center = int(roi['x'] + roi['width']//2)
+    half_height = output_fov_shape[0]//2
+    half_width = output_fov_shape[1]//2
 
-    rowmin = max(0, row_center - output_fov_shape[0]//2)
-    rowmax = rowmin + output_fov_shape[0]
-    colmin = max(0, col_center - output_fov_shape[1]//2)
-    colmax = colmin + output_fov_shape[1]
+    rowmin = max(0, row_center-half_height)
+    rowmax = min(input_fov_shape[0], row_center+half_height)
 
-    if rowmax >= input_fov_shape[0]:
-        rowmin = max(0, input_fov_shape[0]-output_fov_shape[0])
-        rowmax = min(input_fov_shape[0], rowmin+output_fov_shape[0])
-    if colmax >= input_fov_shape[1]:
-        colmin = max(0, input_fov_shape[1]-output_fov_shape[1])
-        colmax = min(input_fov_shape[1], colmin+output_fov_shape[1])
+    colmin = max(0, col_center-half_width)
+    colmax = min(input_fov_shape[1], col_center+half_width)
 
+    is_padded = False
+    padding = [[0, 0], [0, 0]]
+    if row_center-rowmin < half_height:
+        padding[0][0] = half_height-(row_center-rowmin)
+        is_padded = True
+    if rowmax-row_center < half_height:
+        padding[0][1] = half_height-(rowmax-row_center)
+        is_padded = True
+    if col_center-colmin < half_width:
+        padding[1][0] = half_width-(col_center-colmin)
+        is_padded = True
+    if colmax-col_center < half_width:
+        padding[1][1] = half_width-(colmax-col_center)
+        is_padded = True
     new_shape = (rowmax-rowmin, colmax-colmin)
-    if new_shape != output_fov_shape:
-        raise RuntimeError(f'wanted shape {output_fov_shape}\n'
-                           f'got {new_shape}')
 
-    return (rowmin, colmin), new_shape
+    if not is_padded:
+        padding = None
+
+    return (rowmin, colmin), new_shape, padding
 
 
 def get_artifacts(roi, max_projection, avg_projection):
     (origin,
-     shape) = thumbnail_bounds_from_ROI(roi,
-                                        max_projection.shape,
-                                        (128, 128))
+     shape,
+     padding) = thumbnail_bounds_from_ROI(roi,
+                                          max_projection.shape,
+                                         (128, 128))
 
     row0 = origin[0]
     row1 = row0+shape[0]
@@ -93,23 +127,31 @@ def get_artifacts(roi, max_projection, avg_projection):
 
     max_thumbnail = max_projection[row0:row1, col0:col1]
     avg_thumbnail = avg_projection[row0:row1, col0:col1]
-
-    mask = np.zeros(shape, dtype=np.uint8)
+    mask = np.zeros((row1-row0, col1-col0), dtype=np.uint8)
     for irow in range(roi['height']):
         row = irow + roi['y'] - origin[0]
         if row < 0:
             continue
-        if row >= shape[0]:
+        if row >= (row1-row0):
             continue
         for icol in range(roi['width']):
             col = icol + roi['x'] - origin[1]
             if col < 0:
                 continue
-            if col >= shape[1]:
+            if col >= (col1-col0):
                 continue
             if not roi['mask'][irow][icol]:
                 continue
             mask[row, col] = 255
+
+    if padding is not None:
+        max_thumbnail = np.pad(max_thumbnail, padding)
+        avg_thumbnail = np.pad(avg_thumbnail, padding)
+        mask = np.pad(mask, padding)
+
+    assert max_thumbnail.shape == (128, 128)
+    assert avg_thumbnail.shape == (128, 128)
+    assert mask.shape == (128, 128)
 
     return {'max': max_thumbnail,
             'avg': avg_thumbnail,

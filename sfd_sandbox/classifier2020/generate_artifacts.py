@@ -55,6 +55,7 @@ def thumbnail_bounds_from_ROI(
     on a side (this is what FFMPEG expects)
     """
 
+
     # center the thumbnail on the ROI
     row_center = int(roi['y'] + roi['height']//2)
     col_center = int(roi['x'] + roi['width']//2)

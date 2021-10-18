@@ -104,10 +104,14 @@ def classify(artifact_dir):
 
     duration = time.time()-t0
 
+    roi_id_to_score = dict()
     roi_id_to_label = dict()
-    for roi_id, label in zip(pd_result['roi-id'], pd_result['y_pred']):
+    for roi_id, label, score in zip(pd_result['roi-id'],
+                                    pd_result['y_pred'],
+                                    pd_result['y_score']):
         roi_id_to_label[roi_id] = label
-    return roi_id_to_label
+        roi_id_to_score[roi_id] = score
+    return roi_id_to_label, roi_id_to_score
 
 import argparse
 import json
@@ -117,25 +121,35 @@ def full_classification(roi_path=None,
                         scratch_dir=None,
                         out_file_path=None):
 
-    scratch_dir = tempfile.mkdtemp(dir=scratch_dir)
+    scratch_dir = pathlib.Path(tempfile.mkdtemp(dir=scratch_dir))
     roi_list = run_artifacts(roi_path=roi_path,
                       video_path=video_path,
                       n_roi=-1,
                       out_dir=scratch_dir)
 
-    result = classify(pathlib.Path(scratch_dir))
+    (result,
+     score) = classify(pathlib.Path(scratch_dir))
 
     assert len(roi_list) == len(result)
     for roi in roi_list:
         roi['valid'] = result[roi['id']]
+        roi['classifier_score'] = score[roi['id']]
+
+    with open(out_file_path, 'w') as out_file:
+        out_file.write(json.dumps(roi_list, indent=2))
+
+    print(f'cleaning up {scratch_dir}')
+    t0 = time.time()
+    for fname in scratch_dir.iterdir():
+        fname.unlink()
+    scratch_dir.rmdir()
+    duration = time.time()-t0
+    print(f'clean up took {duration:.2e}')
 
     #print(result)
     #print(scratch_dir)
     #duration = time.time()-t0
     #print(f'that took {duration:.2e}')
-
-    with open(out_file_path, 'w') as out_file:
-        out_file.write(json.dumps(roi_list, indent=2))
 
 
 if __name__ == "__main__":

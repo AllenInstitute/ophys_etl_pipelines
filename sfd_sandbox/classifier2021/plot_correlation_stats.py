@@ -279,7 +279,6 @@ if __name__ == "__main__":
 
     mgr = multiprocessing.Manager()
     roi_corr_dict = mgr.dict()
-    roi_bckgd_dict = mgr.dict()
 
     if args.n_roi > 0:
         raw_roi_list = copy.deepcopy(roi_list)
@@ -290,51 +289,20 @@ if __name__ == "__main__":
     print(f'min score {args.min_score}')
     print(f'n_roi {n_roi}')
 
-    # backgrounds
-    t0 = time.time()
-    process_list = []
-    for i_roi in range(len(roi_list)):
-        roi = roi_list[i_roi]
-        traces = get_background_trace_array_from_roi(video_data, roi)
-        p = multiprocessing.Process(
-                target=roi_worker,
-                args=(roi['id'],
-                      traces,
-                      args.filter_fraction,
-                      roi_bckgd_dict))
-
-        p.start()
-        process_list.append(p)
-        while len(process_list) > 0 and len(process_list) >= args.n_processors:
-            process_list = _winnow_process_list(process_list)
-
-        if i_roi > 0 and i_roi %5 == 0 and len(roi_bckgd_dict) > 0:
-            duration = time.time()-t0
-            done = len(roi_bckgd_dict)
-            per = duration/done
-            pred = per*n_roi
-            remaining = pred-duration
-            print(f'{done} of {n_roi} bckgds in {duration:.2e} '
-                  f'-- {remaining:.2e} remains '
-                  f'of {pred:.2e}')
-
-    print('final batch of bckgd processes')
-    for p in process_list:
-        p.join()
-    print(f'took {time.time()-t0:.2e} total')
-    print(len(roi_bckgd_dict))
-    assert len(roi_bckgd_dict) == len(roi_list)
-
     #signals
     t0 = time.time()
     process_list = []
     for i_roi in range(len(roi_list)):
         roi = roi_list[i_roi]
-        traces = get_trace_array_from_roi(video_data, roi)
+        roi_traces = get_trace_array_from_roi(video_data, roi)
+        background_traces = get_background_trace_array_from_roi(
+                                    video_data,
+                                    roi)
         p = multiprocessing.Process(
-                target=roi_worker,
+                target=diff_worker,
                 args=(roi['id'],
-                      traces,
+                      roi_traces,
+                      background_traces,
                       args.filter_fraction,
                       roi_corr_dict))
 
@@ -343,7 +311,7 @@ if __name__ == "__main__":
         while len(process_list) > 0 and len(process_list) >= args.n_processors:
             process_list = _winnow_process_list(process_list)
 
-        if i_roi > 0 and i_roi %5 == 0 and len(roi_corr_dict) > 0:
+        if i_roi > 0 and (i_roi % (2*args.n_processors) == 0) and len(roi_corr_dict) > 0:
             duration = time.time()-t0
             done = len(roi_corr_dict)
             per = duration/done
@@ -371,7 +339,7 @@ if __name__ == "__main__":
                                  'quantile0.25', 'quantile0.75')):
         img = np.copy(blank)
         for roi in roi_list:
-            val = roi_corr_dict[roi['id']][stat]-roi_bckgd_dict[roi['id']][stat]
+            val = roi_corr_dict[roi['id']][stat]
             if 'mask' in roi:
                 mask = roi['mask']
             else:

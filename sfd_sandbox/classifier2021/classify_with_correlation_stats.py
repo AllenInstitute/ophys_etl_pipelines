@@ -1,7 +1,3 @@
-import matplotlib.figure as mplt_fig
-import matplotlib.colors as mplt_colors
-from mpl_toolkits.axes_grid1 import make_axes_locatable
-
 import h5py
 import json
 import numpy as np
@@ -251,7 +247,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--video_path', type=str, default=None)
     parser.add_argument('--roi_path', type=str, default=None)
-    parser.add_argument('--min_score', type=float, default=0.3)
     parser.add_argument('--out_path', type=str, default=None)
     parser.add_argument('--filter_fraction', type=float, default=0.05)
     parser.add_argument('--n_processors', type=int, default=8)
@@ -270,9 +265,7 @@ if __name__ == "__main__":
     assert roi_path.is_file()
 
     with open(roi_path, 'rb') as in_file:
-        roi_list = [roi for roi in json.load(in_file)
-                    if args.min_score < 0.0
-                    or roi['classifier_score'] >= args.min_score]
+        roi_list = [roi for roi in json.load(in_file)]
 
     with h5py.File(video_path, 'r') as in_file:
         video_data = in_file['data'][()]
@@ -286,7 +279,6 @@ if __name__ == "__main__":
         roi_list += [r for r in raw_roi_list[-1*args.n_roi//2:]]
 
     n_roi = len(roi_list)
-    print(f'min score {args.min_score}')
     print(f'n_roi {n_roi}')
 
     #signals
@@ -331,45 +323,15 @@ if __name__ == "__main__":
     roi_lookup = {roi['id']: roi
                   for roi in roi_list}
 
-    blank = -999.0*np.ones((512, 512), dtype=float)
+    labeled_rois = []
+    for roi_id in roi_lookup:
+        stats = roi_corr_dict[roi_id]
+        roi = roi_lookup[roi_id]
+        roi['mean_dcorr_score'] = stats['mean']
+        roi['median_dcorr_score'] = stats['median']
+        roi['quantile0.25_dcorr_score'] = stats['quantile0.25']
+        roi['quantile0.75_dcorr_scorr'] = stats['quantile0.75']
+        labeled_rois.append(roi)
 
-    fig = mplt_fig.Figure(figsize=(10, 10))
-    axes = [fig.add_subplot(2,2,ii) for ii in range(1,5)]
-    for axis, stat in zip(axes, ('mean', 'median',
-                                 'quantile0.25', 'quantile0.75')):
-        img = np.copy(blank)
-        for roi in roi_list:
-            val = roi_corr_dict[roi['id']][stat]
-            if 'mask' in roi:
-                mask = roi['mask']
-            else:
-                mask = roi['mask_matrix']
-            for r in range(len(mask)):
-                row = r+roi['y']
-                for c in range(len(mask[0])):
-                    col = c+roi['x']
-                    if not mask[r][c]:
-                        continue
-                    img[row, col] = val
-
-        img = np.ma.masked_where(img<-900.0, img)
-
-        plot_img = axis.imshow(
-                      img,
-                      cmap='jet_r',
-                      vmin=0.0,
-                      vmax=1.0)
-                      #norm=mplt_colors.LogNorm(vmin=args.vmin, vmax=1.0),
-
-        divider = make_axes_locatable(axis)
-        cax = divider.append_axes("right", size="5%", pad=0.05)
-        cb = fig.colorbar(plot_img, cax=cax)
-        axis.set_title(stat, fontsize=fontsize)
-
-    for ax in axes:
-        for ii in range(128, 512, 128):
-            ax.axhline(ii, color='k', alpha=0.5)
-            ax.axvline(ii, color='k', alpha=0.5)
-
-    fig.tight_layout()
-    fig.savefig(args.out_path)
+    with open(args.out_path, 'w') as out_file:
+        out_file.write(json.dumps(labeled_rois, indent=2))

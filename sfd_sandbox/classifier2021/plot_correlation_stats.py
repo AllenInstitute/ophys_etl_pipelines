@@ -16,9 +16,49 @@ from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
     _winnow_process_list)
 
 
+def corr_from_traces(
+    raw_trace0,
+    i_trace0,
+    raw_trace1,
+    i_trace1,
+    filter_fraction,
+    trace_lookup):
+
+    if i_trace0 not in trace_lookup:
+        th = np.quantile(raw_trace0, 1.0-filter_fraction)
+        mask0 = np.where(raw_trace0 >= th)[0]
+        trace_lookup[i_trace0] = mask0
+
+    if i_trace1 not in trace_lookup:
+        th = np.quantile(raw_trace1, 1.0-filter_fraction)
+        mask1 = np.where(raw_trace1 >= th)[0]
+        trace_lookup[i_trace1] = mask1
+
+    mask0 = trace_lookup[i_trace0]
+    mask1 = trace_lookup[i_trace1]
+
+    mask = np.unique(np.concatenate([mask0, mask1]))
+    nt = len(mask)
+
+    trace0 = raw_trace0[mask]
+    mu0 = np.mean(trace0)
+    var0 = np.sum((trace0-mu0)**2)/(nt-1)
+
+    trace1 = raw_trace1[mask]
+    mu1 = np.mean(trace1)
+    var1 = np.sum((trace1-mu1)**2)/(nt-1)
+
+    num = np.mean((trace0-mu0)*(trace1-mu1))
+    denom = np.sqrt(var1*var0)
+
+    return (num/denom, trace_lookup)
+
+
 def get_pixel_to_pixel_correlation(
         trace_array,
         filter_fraction):
+
+    trace_lookup = dict()
 
     n_traces = trace_array.shape[0]
     n_correlations = n_traces*(n_traces-1)//2
@@ -27,23 +67,17 @@ def get_pixel_to_pixel_correlation(
     corr_index = 0
     for ii in range(n_traces):
         raw_trace0 = trace_array[ii,:]
-        th = np.quantile(raw_trace0, (1.0-filter_fraction))
-        mask0 = np.where(raw_trace0 >= th)[0]
         for jj in range(ii+1, n_traces, 1):
             raw_trace1 = trace_array[jj, :]
-            th = np.quantile(raw_trace1, (1.0-filter_fraction))
-            mask1 = np.where(raw_trace1 >= th)[0]
-            mask = np.unique(np.concatenate([mask0, mask1]))
-            nt = len(mask)
-            trace0 = raw_trace0[mask]
-            mu0 = np.mean(trace0)
-            var0 = np.sum((trace0-mu0)**2)/(nt-1)
-            trace1 = raw_trace1[mask]
-            mu1 = np.mean(trace1)
-            var1 = np.sum((trace1-mu1)**2)/(nt-1)
-            num = np.mean((trace0-mu0)*(trace1-mu1))
-            denom = np.sqrt(var1*var0)
-            correlations[corr_index] = num/denom
+            (val,
+             trace_lookup) = corr_from_traces(
+                                 raw_trace0,
+                                 ii,
+                                 raw_trace1,
+                                 jj,
+                                 filter_fraction,
+                                 trace_lookup)
+            correlations[corr_index] = val
             corr_index += 1
 
     assert corr_index == n_correlations

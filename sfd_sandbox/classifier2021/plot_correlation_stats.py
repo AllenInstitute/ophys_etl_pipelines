@@ -54,6 +54,62 @@ def corr_from_traces(
     return (num/denom, trace_lookup)
 
 
+def get_roi_v_background_correlation(
+        roi_trace_array,
+        background_trace_array,
+        filter_fraction):
+
+    n_roi = roi_trace_array.shape[0]
+    n_bckgd = background_trace_array.shape[0]
+
+    roi_to_roi = np.zeros(n_roi*(n_roi-1)//2, dtype=float)
+    roi_to_bckgd = np.zeros(n_roi*n_bckgd, dtype=float)
+
+    trace_lookup = dict()
+
+    ct_roi_to_roi = 0
+    ct_roi_to_bckgd = 0
+    for ii in range(n_roi):
+        raw_roi_0 = roi_trace_array[ii, :]
+        for jj in range(ii+1, n_roi, 1):
+            raw_roi_1 = roi_trace_array[jj, :]
+            (val,
+             trace_lookup) = corr_from_traces(
+                                 raw_roi_0, ii,
+                                 raw_roi_1, jj,
+                                 filter_fraction,
+                                 trace_lookup)
+
+            roi_to_roi[ct_roi_to_roi] = val
+            ct_roi_to_roi += 1
+
+        for jj in range(n_bckgd):
+            b_lookup = -1*jj-1
+            assert b_lookup < 0
+            if ii == 0:
+                assert b_lookup not in trace_lookup
+            raw_bckgd = background_trace_array[jj, :]
+            (val,
+             trace_lookup) = corr_from_traces(
+                                raw_roi_0, ii,
+                                raw_bckgd, -1*jj-1,
+                                filter_fraction,
+                                trace_lookup)
+            roi_to_bckgd[ct_roi_to_bckgd] = val
+            ct_roi_to_bckgd += 1
+
+    assert ct_roi_to_roi == n_roi*(n_roi-1)//2
+    assert ct_roi_to_bckgd == n_roi*n_bckgd
+
+    rr25, rr75 = np.quantile(roi_to_roi, (0.25, 0.75))
+    rb25, rb75 = np.quantile(roi_to_bckgd, (0.25, 0.75))
+
+    return {'mean': np.mean(roi_to_roi)-np.mean(roi_to_bckgd),
+            'median': np.median(roi_to_roi)-np.median(roi_to_bckgd),
+            'quantile0.25': rr25-rb25,
+            'quantile0.75': rr75-rb75}
+
+
 def get_pixel_to_pixel_correlation(
         trace_array,
         filter_fraction):
@@ -174,6 +230,20 @@ def roi_worker(roi_id, trace_array, filter_fraction, output_dict):
                     filter_fraction)
 
     output_dict[roi_id] = result
+
+
+def diff_worker(roi_id,
+                roi_trace_array,
+                bckgd_trace_array,
+                filter_fraction,
+                output_dict):
+    result = get_roi_v_background_correlation(
+                    roi_trace_array,
+                    bckgd_trace_array,
+                    filter_fraction)
+
+    output_dict[roi_id] = result
+
 
 
 if __name__ == "__main__":

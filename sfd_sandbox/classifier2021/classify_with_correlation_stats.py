@@ -330,7 +330,7 @@ if __name__ == "__main__":
         roi['mean_dcorr_score'] = stats['mean']
         roi['median_dcorr_score'] = stats['median']
         roi['quantile0.25_dcorr_score'] = stats['quantile0.25']
-        roi['quantile0.75_dcorr_scorr'] = stats['quantile0.75']
+        roi['quantile0.75_dcorr_score'] = stats['quantile0.75']
         labeled_rois.append(roi)
 
     with open(args.out_path, 'w') as out_file:

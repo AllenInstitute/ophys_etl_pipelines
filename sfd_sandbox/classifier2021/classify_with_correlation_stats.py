@@ -10,6 +10,19 @@ import argparse
 import multiprocessing
 from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
     _winnow_process_list)
+from ophys_etl.modules.segmentation.utils.stats_utils import (
+    estimate_std_from_interquartile_range)
+
+
+def z_score_of_data(
+       roi_data,
+       background_data):
+
+    med = np.median(background_data)
+    std = estimate_std_from_interquartile_range(background_data)
+    z_score = (roi_data-med)/std
+    z_score = np.median(std)
+    return z_score
 
 
 def corr_from_traces(
@@ -100,10 +113,15 @@ def get_roi_v_background_correlation(
     rr25, rr75 = np.quantile(roi_to_roi, (0.25, 0.75))
     rb25, rb75 = np.quantile(roi_to_bckgd, (0.25, 0.75))
 
+    z_score = z_score_of_data(
+                 roi_data=roi_to_roi,
+                 background_data=roi_to_bckgd)
+
     return {'mean': np.mean(roi_to_roi)-np.mean(roi_to_bckgd),
             'median': np.median(roi_to_roi)-np.median(roi_to_bckgd),
             'quantile0.25': rr25-rb25,
-            'quantile0.75': rr75-rb75}
+            'quantile0.75': rr75-rb75,
+            'z_score': z_score}
 
 
 def get_pixel_to_pixel_correlation(

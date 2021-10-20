@@ -182,8 +182,7 @@ def get_trace_array_from_roi(video_data, roi):
 
     return traces
 
-
-def get_background_trace_array_from_roi(video_data, roi):
+def get_background_pixels(roi, img_shape):
     if 'mask' in roi:
         mask = roi['mask']
     else:
@@ -209,9 +208,9 @@ def get_background_trace_array_from_roi(video_data, roi):
     while n_bckgd < n_pixels:
         bckgd_pixels = []
         row0 = max(0,center_row-buff)
-        row1 = min(video_data.shape[1], center_row+buff)
+        row1 = min(img_shape[0], center_row+buff)
         col0 = max(0,center_col-buff)
-        col1 = min(video_data.shape[2], center_col+buff)
+        col1 = min(img_shape[1], center_col+buff)
         n_bckgd = 0
         for r in range(row0, row1, 1):
             row = r-roi['y']
@@ -230,7 +229,16 @@ def get_background_trace_array_from_roi(video_data, roi):
                     bckgd_pixels.append((r, c))
         buff += 2
 
+    return bckgd_pixels
+
+
+def get_background_trace_array_from_roi(video_data, roi):
+
+    bckgd_pixels = get_background_pixels(roi, video_data.shape[1:])
+    n_bckgd = len(bckgd_pixels)
+
     traces = np.zeros((n_bckgd, video_data.shape[0]))
+
     for ii in range(n_bckgd):
         pix = bckgd_pixels[ii]
         traces[ii, :] = video_data[:, pix[0], pix[1]]
@@ -308,6 +316,7 @@ if __name__ == "__main__":
         background_traces = get_background_trace_array_from_roi(
                                     video_data,
                                     roi)
+
         p = multiprocessing.Process(
                 target=diff_worker,
                 args=(roi['id'],

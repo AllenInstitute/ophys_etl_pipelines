@@ -21,7 +21,7 @@ def z_score_of_data(
     med = np.median(background_data)
     std = estimate_std_from_interquartile_range(background_data)
     z_score = (roi_data-med)/std
-    z_score = np.median(std)
+    z_score = np.median(z_score)
     return z_score
 
 

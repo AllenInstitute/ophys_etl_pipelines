@@ -117,11 +117,11 @@ def get_roi_v_background_correlation(
                  roi_data=roi_to_roi,
                  background_data=roi_to_bckgd)
 
-    return {'mean': np.mean(roi_to_roi)-np.mean(roi_to_bckgd),
-            'median': np.median(roi_to_roi)-np.median(roi_to_bckgd),
-            'quantile0.25': rr25-rb25,
-            'quantile0.75': rr75-rb75,
-            'z_score': z_score}
+    return {'mean_dcorr_score': np.mean(roi_to_roi)-np.mean(roi_to_bckgd),
+            'median_dcorr_score': np.median(roi_to_roi)-np.median(roi_to_bckgd),
+            'quantile0.25_dcorr_score': rr25-rb25,
+            'quantile0.75_dcorr_score': rr75-rb75,
+            'corr_z_score': z_score}
 
 
 def get_pixel_to_pixel_correlation(
@@ -232,9 +232,8 @@ def get_background_pixels(roi, img_shape):
     return bckgd_pixels
 
 
-def get_background_trace_array_from_roi(video_data, roi):
+def get_background_trace_array(video_data, bckgd_pixels):
 
-    bckgd_pixels = get_background_pixels(roi, video_data.shape[1:])
     n_bckgd = len(bckgd_pixels)
 
     traces = np.zeros((n_bckgd, video_data.shape[0]))
@@ -246,6 +245,36 @@ def get_background_trace_array_from_roi(video_data, roi):
     return traces
 
 
+def get_background_fluxes(img_data, background_pixels):
+    n_bckgd = len(background_pixels)
+    fluxes = np.zeros(n_bckgd, dtype=float)
+    for ii in range(n_bckgd):
+        pixel = background_pixels[ii]
+        fluxes[ii] = img_data[pixel[0], pixel[1]]
+    return fluxes
+
+def get_roi_fluxes(img_data, roi):
+    if 'mask' in roi:
+        mask = roi['mask']
+    else:
+        mask = roi['mask_matrix']
+
+    mask = np.array(mask)
+    n_pixels = np.sum(mask)
+    fluxes = np.zeros(n_pixels, dtype=float)
+    flux_index = 0
+    for r in range(roi['height']):
+        row = r+roi['y']
+        for c in range(roi['width']):
+            col = c+roi['x']
+            if not mask[r, c]:
+                continue
+            fluxes[flux_index] = img_data[row, col]
+            flux_index += 1
+    return fluxes
+
+
+
 def roi_worker(roi_id, trace_array, filter_fraction, output_dict):
     result = get_pixel_to_pixel_correlation(
                     trace_array,
@@ -254,15 +283,42 @@ def roi_worker(roi_id, trace_array, filter_fraction, output_dict):
     output_dict[roi_id] = result
 
 
-def diff_worker(roi_id,
+def diff_worker(roi,
                 roi_trace_array,
                 bckgd_trace_array,
                 filter_fraction,
+                max_img,
+                avg_img,
+                background_pixels,
                 output_dict):
+
+
+    roi_id = roi['id']
+    assert roi_id not in output_dict
+
     result = get_roi_v_background_correlation(
                     roi_trace_array,
                     bckgd_trace_array,
                     filter_fraction)
+
+
+    roi_max = get_roi_fluxes(max_img, roi)
+    bckgd_max = get_background_fluxes(max_img, background_pixels)
+
+    max_img_z_score = z_score_of_data(
+                            roi_data=roi_max,
+                            background_data=bckgd_max)
+
+    roi_avg = get_roi_fluxes(avg_img, roi)
+    bckgd_avg = get_background_fluxes(avg_img, background_pixels)
+
+    avg_img_z_score = z_score_of_data(
+                            roi_data=roi_avg,
+                            background_data=bckgd_avg)
+
+
+    result['max_img_z_score'] = max_img_z_score
+    result['avg_img_z_score'] = avg_img_z_score
 
     output_dict[roi_id] = result
 
@@ -296,6 +352,9 @@ if __name__ == "__main__":
     with h5py.File(video_path, 'r') as in_file:
         video_data = in_file['data'][()]
 
+    max_img = np.max(video_data, axis=0)
+    avg_img = np.mean(video_data, axis=0)
+
     mgr = multiprocessing.Manager()
     roi_corr_dict = mgr.dict()
 
@@ -313,16 +372,22 @@ if __name__ == "__main__":
     for i_roi in range(len(roi_list)):
         roi = roi_list[i_roi]
         roi_traces = get_trace_array_from_roi(video_data, roi)
-        background_traces = get_background_trace_array_from_roi(
+
+        background_pixels = get_background_pixels(roi, video_data.shape[1:])
+
+        background_traces = get_background_trace_array(
                                     video_data,
-                                    roi)
+                                    background_pixels)
 
         p = multiprocessing.Process(
                 target=diff_worker,
-                args=(roi['id'],
+                args=(roi,
                       roi_traces,
                       background_traces,
                       args.filter_fraction,
+                      max_img,
+                      avg_img,
+                      background_pixels,
                       roi_corr_dict))
 
         p.start()
@@ -354,10 +419,7 @@ if __name__ == "__main__":
     for roi_id in roi_lookup:
         stats = roi_corr_dict[roi_id]
         roi = roi_lookup[roi_id]
-        roi['mean_dcorr_score'] = stats['mean']
-        roi['median_dcorr_score'] = stats['median']
-        roi['quantile0.25_dcorr_score'] = stats['quantile0.25']
-        roi['quantile0.75_dcorr_score'] = stats['quantile0.75']
+        roi['classifier_scores'] = stats
         labeled_rois.append(roi)
 
     with open(args.out_path, 'w') as out_file:

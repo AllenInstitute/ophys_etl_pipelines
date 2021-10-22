@@ -369,19 +369,18 @@ def test_thumbnail_from_roi(tmpdir,
                      mask=[list(row) for row in mask])
 
     if with_others:
-         other_roi = []
-         ct = 0
-         for dx, dy in product((1, 2), (-1, 0, 1)):
-             ct += 1
-             other_roi.append(ExtractROI(
-                                 id=ct,
-                                 y=y0+dy,
-                                 x=x0+dx,
-                                 height=height,
-                                 width=width,
-                                 valid=True,
-                                 mask=[list(row) for row in mask]))
-
+        other_roi = []
+        ct = 0
+        for dx, dy in product((1, 2), (-1, 0, 1)):
+            ct += 1
+            other_roi.append(ExtractROI(
+                                id=ct,
+                                y=y0+dy,
+                                x=x0+dx,
+                                height=height,
+                                width=width,
+                                valid=True,
+                                mask=[list(row) for row in mask]))
 
     else:
         other_roi = None

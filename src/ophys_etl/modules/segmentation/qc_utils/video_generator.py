@@ -16,8 +16,12 @@ class VideoGenerator(object):
 
     Parameters
     ----------
-    video_path: Union[str, pathlib.Path]
+    video_path: Union[str, pathlib.Path, None]
         Path to the HDF5 file containing the full video data
+
+    video_data: Union[np.ndarray, None]
+        A (ntime, nrows, ncols) array of to directly use as video
+        data.
 
     tmp_dir: Optional[pathlib.Path]
         Parent of temporary directory where thumbnail videos
@@ -194,7 +198,6 @@ class VideoGenerator(object):
                             tmp_dir=self.tmp_dir,
                             fps=fps,
                             quality=quality,
-                            min_max=None,
                             roi_list=roi_list,
                             roi_color=roi_color)
         else:

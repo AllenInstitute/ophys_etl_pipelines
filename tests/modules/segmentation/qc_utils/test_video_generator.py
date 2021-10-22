@@ -71,23 +71,32 @@ def test_video_generator_exception():
         VideoGenerator('not_a_file.h5')
 
 
-@pytest.mark.parametrize('origin, frame_shape, timesteps',
+@pytest.mark.parametrize('origin, frame_shape, timesteps, as_array',
                          product((None, (5, 5)),
                                  (None, (16, 20)),
                                  (None, np.array([1, 4, 5, 17,
-                                                  19, 23, 23, 25, 38]))))
+                                                  19, 23, 23, 25, 38])),
+                                 (True, False)))
 def test_get_thumbnail_video(tmpdir,
                              example_video,
                              origin,
                              frame_shape,
-                             timesteps):
+                             timesteps,
+                             as_array):
     """
     Test that results of VideoGenerator and by-hand invocation of
     video_utils.thumbnail_video_from_path are identical
     """
     video_tmpdir = pathlib.Path(tmpdir) / 'video_temp'
-    generator = VideoGenerator(example_video,
-                               tmp_dir=video_tmpdir)
+
+    if as_array:
+        with h5py.File(example_video, 'r') as in_file:
+            generator = VideoGenerator(
+                             video_data=in_file['data'][()],
+                             tmp_dir=video_tmpdir)
+    else:
+        generator = VideoGenerator(video_path=example_video,
+                                   tmp_dir=video_tmpdir)
 
     fps = 11
     quality = 6
@@ -106,15 +115,26 @@ def test_get_thumbnail_video(tmpdir,
         with h5py.File(example_video, 'r') as in_file:
             frame_shape = in_file['data'].shape
 
-    expected = video_utils.thumbnail_video_from_path(
-                    pathlib.Path(example_video),
-                    origin,
-                    frame_shape,
-                    timesteps=timesteps,
-                    tmp_dir=video_tmpdir,
-                    fps=fps,
-                    quality=quality,
-                    min_max=generator.min_max)
+    if as_array:
+        with h5py.File(example_video, 'r') as in_file:
+            expected = video_utils.thumbnail_video_from_array(
+                            in_file['data'][()],
+                            origin,
+                            frame_shape,
+                            timesteps=timesteps,
+                            tmp_dir=video_tmpdir,
+                            fps=fps,
+                            quality=quality)
+    else:
+        expected = video_utils.thumbnail_video_from_path(
+                        pathlib.Path(example_video),
+                        origin,
+                        frame_shape,
+                        timesteps=timesteps,
+                        tmp_dir=video_tmpdir,
+                        fps=fps,
+                        quality=quality,
+                        min_max=generator.min_max)
 
     assert expected.video_path.is_file()
     assert not expected.video_path == thumbnail.video_path
@@ -125,25 +145,34 @@ def test_get_thumbnail_video(tmpdir,
     del generator
 
 
-@pytest.mark.parametrize('origin, frame_shape, timesteps',
+@pytest.mark.parametrize('origin, frame_shape, timesteps, as_array',
                          product((None, (5, 5)),
                                  (None, (16, 20)),
                                  (None, np.array([1, 4, 5, 17,
-                                                  19, 23, 23, 25, 38]))))
+                                                  19, 23, 23, 25, 38])),
+                                 (True, False)))
 def test_thumbnail_with_roi_list(
                              tmpdir,
                              example_video,
                              origin,
                              frame_shape,
                              timesteps,
-                             list_of_roi):
+                             list_of_roi,
+                             as_array):
     """
     Just a smoketest that we can generate a by-hand thumbnail with ROIs
     displayed in it
     """
     video_tmpdir = pathlib.Path(tmpdir) / 'video_temp'
-    generator = VideoGenerator(example_video,
-                               tmp_dir=video_tmpdir)
+
+    if as_array:
+        with h5py.File(example_video, 'r') as in_file:
+            generator = VideoGenerator(
+                            video_data=in_file['data'][()],
+                            tmp_dir=video_tmpdir)
+    else:
+        generator = VideoGenerator(video_path=example_video,
+                                   tmp_dir=video_tmpdir)
 
     fps = 11
     quality = 6
@@ -195,25 +224,35 @@ def test_thumbnail_with_roi_list(
     del generator
 
 
-@pytest.mark.parametrize('roi_color, timesteps, padding',
+@pytest.mark.parametrize('roi_color, timesteps, padding, as_array',
                          product((None, (122, 201, 53)),
                                  (None, np.array([1, 4, 5, 17, 19,
                                                   23, 23, 25, 38])),
-                                 (0, 5, 10)))
+                                 (0, 5, 10),
+                                 (True, False)))
 def test_get_thumbnail_video_from_roi(
                              tmpdir,
                              example_video,
                              example_roi,
                              roi_color,
                              timesteps,
-                             padding):
+                             padding,
+                             as_array):
     """
     Test that results of VideoGenerator and by-hand invocation of
     video_utils.thumbnail_video_from_ROI are identical
     """
     video_tmpdir = pathlib.Path(tmpdir) / 'video_temp'
-    generator = VideoGenerator(example_video,
-                               tmp_dir=video_tmpdir)
+    if as_array:
+        with h5py.File(example_video, 'r') as in_file:
+            video_data = in_file['data'][()]
+        generator = VideoGenerator(
+                             video_data=video_data,
+                             tmp_dir=video_tmpdir)
+    else:
+        generator = VideoGenerator(video_path=example_video,
+                                   tmp_dir=video_tmpdir)
+
 
     fps = 11
     quality = 6
@@ -228,7 +267,19 @@ def test_get_thumbnail_video_from_roi(
 
     assert thumbnail.video_path.is_file()
 
-    expected = video_utils.thumbnail_video_from_ROI(
+    if as_array:
+        expected = video_utils.thumbnail_video_from_ROI(
+                       video_data,
+                       example_roi,
+                       padding=padding,
+                       roi_color=roi_color,
+                       timesteps=timesteps,
+                       tmp_dir=video_tmpdir,
+                       fps=fps,
+                       quality=quality)
+
+    else:
+        expected = video_utils.thumbnail_video_from_ROI(
                        pathlib.Path(example_video),
                        example_roi,
                        padding=padding,

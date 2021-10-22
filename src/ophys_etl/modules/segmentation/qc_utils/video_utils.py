@@ -7,6 +7,8 @@ import h5py
 import numbers
 from ophys_etl.types import ExtractROI
 from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    get_roi_list_in_fov)
 
 
 def upscale_video_frame(raw_video: np.ndarray,
@@ -589,26 +591,14 @@ def thumbnail_video_from_array(
                                           sub_video.shape[1:3])
         sub_video = np.copy(sub_video)
 
-        global_r0 = origin[0]+origin_offset[0]
-        global_c0 = origin[1]+origin_offset[1]
+        valid_rois = get_roi_list_in_fov(
+                        roi_list,
+                        (origin[0]+origin_offset[0],
+                         origin[1]+origin_offset[1]),
+                        (sub_video.shape[1],
+                         sub_video.shape[2]))
 
-        global_r1 = global_r0 + sub_video.shape[1]
-        global_c1 = global_c0 + sub_video.shape[2]
-
-        for roi in roi_list:
-            roi_r0 = roi['y']
-            roi_r1 = roi_r0 + roi['height']
-            roi_c0 = roi['x']
-            roi_c1 = roi_c0 + roi['width']
-            if roi_c1 < global_c0:
-                continue
-            elif roi_c0 > global_c1:
-                continue
-            elif roi_r1 < global_r0:
-                continue
-            elif roi_r0 > global_r1:
-                continue
-
+        for roi in valid_rois:
             if isinstance(roi_color, dict):
                 this_color = roi_color[roi['id']]
             else:

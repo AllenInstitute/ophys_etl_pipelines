@@ -21,7 +21,8 @@ from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     add_roi_boundary_to_video)
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
-    deserialize_extract_roi_list)
+    deserialize_extract_roi_list,
+    get_roi_list_in_fov)
 
 import json
 import hashlib
@@ -48,31 +49,6 @@ def file_hash_from_path(file_path: Union[str, pathlib.Path]) -> str:
             hasher.update(chunk)
             chunk = in_file.read(1000000)
     return hasher.hexdigest()
-
-
-def get_roi_list_in_fov(roi_list, origin, frame_shape):
-    global_r0 = origin[0]
-    global_r1 = global_r0 + frame_shape[0]
-    global_c0 = origin[1]
-    global_c1 = global_c0 + frame_shape[1]
-
-    output = []
-    for roi in roi_list:
-        r0 = roi['y']
-        r1 = r0+roi['height']
-        c0 = roi['x']
-        c1 = c0+roi['width']
-        if r1 < global_r0:
-            continue
-        elif r0 > global_r1:
-            continue
-        elif c1 < global_c0:
-            continue
-        elif c0 > global_c1:
-            continue
-
-        output.append(roi)
-    return output
 
 
 class Classifier_ROISet(object):

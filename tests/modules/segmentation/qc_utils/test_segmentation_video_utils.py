@@ -504,12 +504,14 @@ def test_thumbnail_from_path(tmpdir,
         np.testing.assert_array_equal(control_data[ii], test_data[ii])
 
 
-@pytest.mark.parametrize("quantiles,min_max,roi_color,timesteps,padding",
+@pytest.mark.parametrize("quantiles,min_max,roi_color,timesteps,padding,"
+                         "with_others",
                          product(((0.1, 0.9), None),
                                  ((250, 600), None),
                                  ((255, 0, 0), None),
                                  (np.arange(22, 76), None),
-                                 (0, 10)))
+                                 (0, 10),
+                                 (True, False)))
 def test_thumbnail_from_roi_and_path(tmpdir,
                                      example_unnormalized_rgb_video,
                                      example_unnormalized_rgb_video_path,
@@ -517,7 +519,8 @@ def test_thumbnail_from_roi_and_path(tmpdir,
                                      min_max,
                                      roi_color,
                                      timesteps,
-                                     padding):
+                                     padding,
+                                     with_others):
     """
     Test _thumbnail_from_ROI_path by comparing output to result
     from _thumbnail_from_ROI_array
@@ -536,9 +539,31 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     mask = np.zeros((12, 15), dtype=bool)
     mask[2:10, 3:13] = True
 
-    roi = ExtractROI(x=14, width=15,
-                     y=18, height=12,
-                     mask=[list(i) for i in mask])
+    x0 = 14
+    y0 = 18
+    width = 15
+    height = 12
+
+    roi = ExtractROI(x=x0, width=width,
+                     y=y0, height=height,
+                     mask=[list(i) for i in mask],
+                     id=0)
+
+    if with_others:
+        other_roi = []
+        ct = 0
+        for dx, dy in product((1, 2), (-1, 0, 1)):
+            ct += 1
+            other_roi.append(ExtractROI(
+                                id=ct,
+                                y=y0+dy,
+                                x=x0+dx,
+                                height=height,
+                                width=width,
+                                valid=True,
+                                mask=[list(row) for row in mask]))
+    else:
+        other_roi = None
 
     h5_fname = example_unnormalized_rgb_video_path
 
@@ -556,6 +581,7 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     control_video = _thumbnail_video_from_ROI_array(
                        normalized_video,
                        roi,
+                       other_roi=other_roi,
                        padding=padding,
                        roi_color=roi_color,
                        tmp_dir=pathlib.Path(tmpdir),
@@ -564,6 +590,7 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     test_video = _thumbnail_video_from_ROI_path(
                      h5_fname,
                      roi,
+                     other_roi=other_roi,
                      padding=padding,
                      roi_color=roi_color,
                      tmp_dir=pathlib.Path(tmpdir),

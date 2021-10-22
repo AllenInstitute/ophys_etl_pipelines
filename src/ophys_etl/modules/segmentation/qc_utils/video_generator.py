@@ -27,6 +27,11 @@ class VideoGenerator(object):
         Parent of temporary directory where thumbnail videos
         will be written. If None, tempfile will be used to
         create a temporary directory in /tmp/ (default: None)
+
+    Raises
+    ------
+    RuntimeError if both or neither video_path and video_data are
+    not None (i.e. you must specify one and only one of them).
     """
 
     def __init__(self,

@@ -391,9 +391,7 @@ def test_thumbnail_from_roi(tmpdir,
         if other_roi is not None:
             rng = np.random.default_rng(111)
             for roi in other_roi:
-                color = (rng.integers(0, 255),
-                         rng.integers(0, 255),
-                         rng.integers(0, 255))
+                color = tuple(rng.integers(0, 255, size=3))
                 roi_color[roi['id']] = color
 
     thumbnail = _thumbnail_video_from_ROI_array(

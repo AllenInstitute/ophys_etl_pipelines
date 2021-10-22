@@ -505,29 +505,11 @@ def test_thumbnail_from_path(tmpdir,
 
 
 @pytest.mark.parametrize("quantiles,min_max,roi_color,timesteps,padding",
-                         [((0.1, 0.9), None, None, None, 0),
-                          ((0.1, 0.9), None, None,
-                           np.arange(22, 76), 0),
-                          ((0.1, 0.9), None, (255, 0, 0), None, 0),
-                          ((0.1, 0.9), None, (255, 0, 0),
-                           np.arange(22, 76), 0),
-                          (None, (250, 600), None, None, 0),
-                          (None, (250, 600), None,
-                           np.arange(22, 76), 0),
-                          (None, (250, 600), (255, 0, 0), None, 0),
-                          (None, (250, 600), (255, 0, 0),
-                           np.arange(22, 76), 0),
-                          ((0.1, 0.9), None, None, None, 10),
-                          ((0.1, 0.9), None, None, np.arange(22, 76), 10),
-                          ((0.1, 0.9), None, (255, 0, 0), None, 10),
-                          ((0.1, 0.9), None, (255, 0, 0),
-                           np.arange(22, 76), 10),
-                          (None, (250, 600), None, None, 10),
-                          (None, (250, 600), None, np.arange(22, 76), 10),
-                          (None, (250, 600), (255, 0, 0), None, 10),
-                          (None, (250, 600), (255, 0, 0),
-                           np.arange(22, 76), 10),
-                          ])
+                         product(((0.1, 0.9), None),
+                                 ((250, 600), None),
+                                 ((255, 0, 0), None),
+                                 (np.arange(22, 76), None),
+                                 (0, 10)))
 def test_thumbnail_from_roi_and_path(tmpdir,
                                      example_unnormalized_rgb_video,
                                      example_unnormalized_rgb_video_path,
@@ -540,6 +522,11 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     Test _thumbnail_from_ROI_path by comparing output to result
     from _thumbnail_from_ROI_array
     """
+
+    if min_max is not None and quantiles is not None:
+        return
+    if min_max is None and quantiles is None:
+        return
 
     if timesteps is None:
         n_t = example_unnormalized_rgb_video.shape[0]

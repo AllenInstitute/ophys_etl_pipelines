@@ -355,14 +355,6 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps, padding):
     x0 = 10
     width = 8
 
-    bdry_pix = []
-    for row in (3, 4):
-        for col in range(1, 6):
-            bdry_pix.append((row+y0, col+x0))
-    for row in range(3, 5):
-        for col in (1, 5):
-            bdry_pix.append((row+y0, col+x0))
-
     roi = ExtractROI(y=y0,
                      height=height,
                      x=x0,

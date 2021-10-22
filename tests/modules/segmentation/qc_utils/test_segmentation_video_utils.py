@@ -507,7 +507,7 @@ def test_thumbnail_from_path(tmpdir,
                          "with_others",
                          product(((0.1, 0.9), None),
                                  ((250, 600), None),
-                                 ((255, 0, 0), None),
+                                 ((255, 0, 0), None, 'a_dict'),
                                  (np.arange(22, 76), None),
                                  (0, 10),
                                  (True, False)))
@@ -563,6 +563,16 @@ def test_thumbnail_from_roi_and_path(tmpdir,
                                 mask=[list(row) for row in mask]))
     else:
         other_roi = None
+
+
+    if isinstance(roi_color, str):
+        roi_color = dict()
+        roi_color[0] = (255, 0, 0)
+        if with_others:
+            rng = np.random.default_rng(2823)
+            for roi in other_roi:
+                color = rng.integers(0, 255, size=3)
+                roi_color[roi['id']] = tuple(color)
 
     h5_fname = example_unnormalized_rgb_video_path
 

@@ -280,7 +280,7 @@ def test_thumbnail_from_array(tmpdir, example_video, timesteps):
 
     # shape gets automatically upscaled when
     # written to temporary video file
-    assert read_data[0].shape == (64, 128, 3)
+    assert read_data[0].shape == (32, 64, 3)
 
     # cannot to bitwise comparison of input to read data;
     # mp4 compression leads to slight differences
@@ -321,7 +321,7 @@ def test_thumbnail_from_rgb_array(tmpdir, example_rgb_video, timesteps):
 
     # shape gets automatically upscaled by factor of 4
     # when written to temporary video file
-    assert read_data[0].shape == (64, 128, 3)
+    assert read_data[0].shape == (32, 64, 3)
 
     # cannot to bitwise comparison of input to read data;
     # mp4 compression leads to slight differences
@@ -400,9 +400,10 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps, padding):
     assert len(read_data) == n_t
 
     # factor of 4 reflects the upscaling of video frame sizes
-    if thumbnail.frame_shape[0] < 128:
-        assert read_data[0].shape == (4*thumbnail.frame_shape[0],
-                                      4*thumbnail.frame_shape[1],
+    frame_shape = thumbnail.frame_shape
+    if frame_shape[0] < 128 or frame_shape[1]<128:
+        assert read_data[0].shape == (2*thumbnail.frame_shape[0],
+                                      2*thumbnail.frame_shape[1],
                                       3)
     else:
         assert read_data[0].shape == (thumbnail.frame_shape[0],

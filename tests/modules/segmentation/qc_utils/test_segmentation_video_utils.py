@@ -335,12 +335,15 @@ def test_thumbnail_from_rgb_array(tmpdir, example_rgb_video, timesteps):
     assert not file_path.exists()
 
 
-@pytest.mark.parametrize("timesteps, padding",
-                         [(None, 10),
-                          (None, 0),
-                          (np.arange(22, 56), 10),
-                          (np.arange(22, 56), 0)])
-def test_thumbnail_from_roi(tmpdir, example_video, timesteps, padding):
+@pytest.mark.parametrize("timesteps, padding, with_others",
+                         product((None, np.arange(22, 56)),
+                                 (10, 0),
+                                 (True, False)))
+def test_thumbnail_from_roi(tmpdir,
+                            example_video,
+                            timesteps,
+                            padding,
+                            with_others):
 
     if timesteps is None:
         n_t = example_video.shape[0]
@@ -355,16 +358,36 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps, padding):
     x0 = 10
     width = 8
 
-    roi = ExtractROI(y=y0,
+    roi = ExtractROI(id=0,
+                     y=y0,
                      height=height,
                      x=x0,
                      width=width,
                      valid=True,
                      mask=[list(row) for row in mask])
 
+    if with_others:
+         other_roi = []
+         ct = 0
+         for dx, dy in product((1, 2), (-1, 0, 1)):
+             ct += 1
+             other_roi.append(ExtractROI(
+                                 id=ct,
+                                 y=y0+dy,
+                                 x=x0+dx,
+                                 height=height,
+                                 width=width,
+                                 valid=True,
+                                 mask=[list(row) for row in mask]))
+
+
+    else:
+        other_roi = None
+
     thumbnail = _thumbnail_video_from_ROI_array(
                     example_video,
                     roi,
+                    other_roi=other_roi,
                     padding=padding,
                     tmp_dir=pathlib.Path(tmpdir),
                     quality=9,
@@ -406,6 +429,7 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps, padding):
     thumbnail = _thumbnail_video_from_ROI_array(
                     example_video,
                     roi,
+                    other_roi=other_roi,
                     padding=padding,
                     roi_color=(0, 255, 0),
                     tmp_dir=pathlib.Path(tmpdir),

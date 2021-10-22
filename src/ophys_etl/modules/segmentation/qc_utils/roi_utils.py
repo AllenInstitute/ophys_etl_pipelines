@@ -185,8 +185,10 @@ def add_labels_to_axes(axis: matplotlib.axes.Axes,
     axis: matplotlib.axes.Axes
     rois: List[OphysROI]:
         the ROIs
-    colors: List[Tuple[int]]
+    colors: Union[Tuple[int], List[Tuple[int]]]
         if not a list, all ROIs will get same color
+    fontsize: int
+        size of font used when putting labels on ROIs
     origin: Optional[Tuple[int, int]]
         origin of the image in the original image
     frame_shape: Optional[Tuple[int, int]]

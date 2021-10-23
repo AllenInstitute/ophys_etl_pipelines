@@ -8,9 +8,6 @@ import PIL.Image
 import pathlib
 import numpy as np
 
-from ophys_etl.modules.segmentation.qc_utils.classifier_utils import (
-    file_hash_from_path)
-
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     extract_roi_to_ophys_roi)
 
@@ -23,7 +20,8 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
 from ophys_etl.modules.classifier2021.utils import (
     clip_img_to_quantiles,
     scale_img_to_uint8,
-    get_traces)
+    get_traces,
+    file_hash_from_path)
 
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     read_and_scale)

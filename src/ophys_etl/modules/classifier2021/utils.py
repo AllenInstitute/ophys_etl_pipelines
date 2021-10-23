@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Union
 import h5py
 import numpy as np
 import pathlib
@@ -9,10 +9,35 @@ from ophys_etl.modules.decrosstalk.ophys_plane import (
 import time
 import logging
 
+import hashlib
+
 
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
+
+
+def file_hash_from_path(file_path: Union[str, pathlib.Path]) -> str:
+    """
+    Return the hexadecimal file hash for a file
+
+    Parameters
+    ----------
+    file_path: Union[str, Path]
+        path to a file
+
+    Returns
+    -------
+    str:
+        The file hash (md5; hexadecimal) of the file
+    """
+    hasher = hashlib.md5()
+    with open(file_path, 'rb') as in_file:
+        chunk = in_file.read(1000000)
+        while len(chunk) > 0:
+            hasher.update(chunk)
+            chunk = in_file.read(1000000)
+    return hasher.hexdigest()
 
 
 def get_traces(

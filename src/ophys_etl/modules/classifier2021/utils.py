@@ -1,6 +1,10 @@
-from typing import Tuple
+from typing import Tuple, Dict, List
 import h5py
 import numpy as np
+import pathlib
+
+from ophys_etl.modules.decrosstalk.ophys_plane import (
+    OphysROI)
 
 import time
 import logging
@@ -11,7 +15,23 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
-def get_traces(video_path, ophys_roi_list):
+def get_traces(
+        video_path: pathlib.Path,
+        ophys_roi_list: List[OphysROI]) -> Dict[int, np.ndarray]:
+    """
+    Read in the path to a video and a list of OPhysROI.
+    Return a dict mapping ROI ID to the trace of the ROI.
+
+    Parameters
+    ----------
+    video_path: pathlib.Path
+
+    ophys_roi_list: List[OphysROI]
+
+    Returns
+    -------
+    Dict[int, np.ndarray]
+    """
     with h5py.File(video_path, 'r') as in_file:
         video_data = in_file['data'][()]
 

@@ -4,6 +4,7 @@ import h5py
 import json
 import pathlib
 import numpy as np
+import PIL.Image
 from itertools import product
 
 from ophys_etl.modules.classifier2021.compute_artifacts import (
@@ -18,8 +19,9 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
 
 @pytest.mark.parametrize(
         "video_lower_quantile,video_upper_quantile,"
-        "projection_lower_quantile,projection_upper_quantile",
-        product((0.1, 0.2), (0.7, 0.8), (0.1, 0.2), (0.7, 0.8)))
+        "projection_lower_quantile,projection_upper_quantile, use_graph",
+        product((0.1, 0.2), (0.7, 0.8), (0.1, 0.2), (0.7, 0.8),
+                (True, False)))
 def test_with_graph(
         classifier2021_video_fixture,
         classifier2021_video_hash_fixture,
@@ -27,11 +29,21 @@ def test_with_graph(
         suite2p_roi_hash_fixture,
         classifier2021_corr_graph_fixture,
         classifier2021_corr_graph_hash_fixture,
+        classifier2021_corr_png_fixture,
+        classifier2021_corr_png_hash_fixture,
         tmpdir,
         video_lower_quantile,
         video_upper_quantile,
         projection_lower_quantile,
-        projection_upper_quantile):
+        projection_upper_quantile,
+        use_graph):
+
+    if use_graph:
+        corr_fixture = classifier2021_corr_graph_fixture
+        corr_hash = classifier2021_corr_graph_hash_fixture
+    else:
+        corr_fixture = classifier2021_corr_png_fixture
+        corr_hash = classifier2021_corr_png_hash_fixture
 
     output_path = tempfile.mkstemp(dir=tmpdir,
                                    prefix='artifact_file_',
@@ -46,7 +58,7 @@ def test_with_graph(
     input_data = dict()
     input_data['video_path'] = str(classifier2021_video_fixture)
     input_data['roi_path'] = str(suite2p_roi_fixture)
-    input_data['correlation_path'] = str(classifier2021_corr_graph_fixture)
+    input_data['correlation_path'] = str(corr_fixture)
     input_data['artifact_path'] = str(output_path)
     input_data['clobber'] = False
     input_data['video_lower_quantile'] = video_lower_quantile
@@ -96,9 +108,14 @@ def test_with_graph(
             np.testing.assert_array_equal(raw_img, artifact_img)
 
         artifact_corr = artifact_file['correlation_projection'][()]
-        expected_corr = scale_img_to_uint8(
-                          graph_to_img(classifier2021_corr_graph_fixture,
-                                       attribute_name='filtered_hnc_Gaussian'))
+        if use_graph:
+            expected_corr = scale_img_to_uint8(
+                              graph_to_img(
+                                    corr_fixture,
+                                    attribute_name='filtered_hnc_Gaussian'))
+        else:
+            expected_corr = scale_img_to_uint8(
+                                np.array(PIL.Image.open(corr_fixture, 'r')))
 
         np.testing.assert_array_equal(artifact_corr, expected_corr)
 
@@ -111,10 +128,7 @@ def test_with_graph(
     assert metadata['rois']['path'] == str(suite2p_roi_fixture)
     assert metadata['rois']['hash'] == suite2p_roi_hash_fixture
 
-    expected_path = str(classifier2021_corr_graph_fixture)
-    assert metadata['correlation']['path'] == expected_path
-
-    expected_hash = classifier2021_corr_graph_hash_fixture
-    assert metadata['correlation']['hash'] == expected_hash
+    assert metadata['correlation']['path'] == str(corr_fixture)
+    assert metadata['correlation']['hash'] == corr_hash
 
     assert metadata['generator_args'] == input_data

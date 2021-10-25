@@ -12,6 +12,9 @@ from itertools import combinations, product
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
+from ophys_etl.modules.classifier2021.utils import (
+    scale_img_to_uint8)
+
 
 def fixture_hasher(file_path):
     hasher = hashlib.md5()
@@ -137,18 +140,19 @@ def classifier2021_corr_png_fixture(
     tmpdir = classifier2021_tmpdir_fixture
     png_path = tempfile.mkstemp(dir=tmpdir,
                                 prefix='corr_png_',
-                                suffix='.png')
+                                suffix='.png')[1]
 
     img = graph_to_img(
                 classifier2021_corr_graph_fixture,
                 attribute_name='filtered_hnc_Gaussian')
 
+    img = scale_img_to_uint8(img)
     img = PIL.Image.fromarray(img)
     img.save(png_path)
-    yield png_path
+    yield pathlib.Path(png_path)
 
 
 @pytest.fixture(scope='session')
 def classifier2021_corr_png_hash_fixture(
-        clsasifier2021_corr_png_fixture):
+        classifier2021_corr_png_fixture):
     return fixture_hasher(classifier2021_corr_png_fixture)

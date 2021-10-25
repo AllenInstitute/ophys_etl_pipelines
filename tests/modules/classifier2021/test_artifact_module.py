@@ -8,13 +8,15 @@ import PIL.Image
 from itertools import product
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
-    sanitize_extract_roi_list)
+    sanitize_extract_roi_list,
+    extract_roi_to_ophys_roi)
 
 from ophys_etl.modules.classifier2021.compute_artifacts import (
     ArtifactGenerator)
 
 from ophys_etl.modules.classifier2021.utils import (
-    scale_img_to_uint8)
+    scale_img_to_uint8,
+    get_traces)
 
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
@@ -76,6 +78,7 @@ def test_with_graph(
 
     with h5py.File(output_path, 'r') as artifact_file:
 
+        # test that ROIs were written correctly
         with open(suite2p_roi_fixture, 'rb') as in_file:
             expected_rois = json.load(in_file)
         expected_rois = sanitize_extract_roi_list(expected_rois)
@@ -85,15 +88,28 @@ def test_with_graph(
 
         assert expected_rois == artifact_rois
 
+        # test that traces were written correctly
+        ophys_rois = [extract_roi_to_ophys_roi(roi)
+                      for roi in expected_rois]
+        expected_traces = get_traces(classifier2021_video_fixture,
+                                     ophys_rois)
+
+        for roi_id in expected_traces:
+            np.testing.assert_array_equal(
+                    expected_traces[roi_id],
+                    artifact_file[f'traces/{roi_id}'][()])
+
+        # test that the scaled video data was written correctly
+        scaled_video = artifact_file['video_data'][()]
+
         with h5py.File(classifier2021_video_fixture, 'r') as raw_file:
             raw_video = raw_file['data'][()]
         raw_max = np.max(raw_video, axis=0)
         raw_avg = np.mean(raw_video, axis=0)
 
-        # test that the scaled video data was written correctly
-        scaled_video = artifact_file['video_data'][()]
         mn, mx = np.quantile(raw_video, (video_lower_quantile,
                                          video_upper_quantile))
+
         raw_video = np.where(raw_video>mn, raw_video, mn)
         raw_video = np.where(raw_video<mx, raw_video, mx)
         delta = mx-mn

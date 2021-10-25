@@ -181,6 +181,20 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
                           quantiles=(self.args['video_lower_quantile'],
                                      self.args['video_upper_quantile']))
 
+        volume = (scaled_video.shape[0]
+                  *scaled_video.shape[1]
+                  *scaled_video.shape[2])
+
+        if volume < 1000000:
+            video_chunks = None
+        else:
+            video_chunks = (scaled_video.shape[0]//10,
+                            scaled_video.shape[1]//4,
+                            scaled_video.shape[2]//4)
+            if min(video_chunks) == 0:
+                video_chunks = None
+
+
         logger.info("Created scaled video")
 
         with h5py.File(output_path, 'w') as out_file:
@@ -205,7 +219,7 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
             out_file.create_dataset(
                 'video_data',
                 data=scaled_video,
-                chunks=(100, 512, 512))
+                chunks=video_chunks)
 
         logger.info("Wrote all data except traces")
 

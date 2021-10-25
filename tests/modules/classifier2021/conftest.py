@@ -4,6 +4,23 @@ import pathlib
 import tempfile
 import numpy as np
 import json
+import PIL.Image
+import networkx as nx
+import hashlib
+from itertools import combinations, product
+
+from ophys_etl.modules.segmentation.graph_utils.conversion import (
+    graph_to_img)
+
+
+def fixture_hasher(file_path):
+    hasher = hashlib.md5()
+    with open(file_path, 'rb') as in_file:
+        chunk = in_file.read(1234567)
+        while len(chunk) > 0:
+            hasher.update(chunk)
+            chunk = in_file.read(1234567)
+    return hasher.hexdigest()
 
 
 @pytest.fixture(scope='session')
@@ -24,6 +41,12 @@ def classifier2021_video_fixture(classifier2021_tmpdir_fixture):
     with h5py.File(video_path, 'w') as out_file:
         out_file.create_dataset('data', data=data)
     yield video_path
+
+
+@pytest.fixture(scope='session')
+def classifier2021_video_hash_fixture(
+        classifier2021_video_fixture):
+    return fixture_hasher(classifier2021_video_fixture)
 
 
 @pytest.fixture(scope='session')
@@ -66,3 +89,66 @@ def suite2p_roi_fixture(classifier2021_tmpdir_fixture):
     with open(roi_path, 'w') as out_file:
         out_file.write(json.dumps(roi_list, indent=2))
     yield roi_path
+
+
+@pytest.fixture(scope='session')
+def suite2p_roi_hash_fixture(
+        suite2p_roi_fixture):
+    return fixture_hasher(suite2p_roi_fixture)
+
+
+@pytest.fixture(scope='session')
+def classifier2021_corr_graph_fixture(
+            classifier2021_tmpdir_fixture):
+    tmpdir = classifier2021_tmpdir_fixture
+    graph_path = tempfile.mkstemp(dir=tmpdir,
+                                  prefix='corr_graph_',
+                                  suffix='.pkl')[1]
+    graph_path = pathlib.Path(graph_path)
+
+    graph = nx.Graph()
+    rng = np.random.default_rng(4422)
+    coords = np.arange(0, 40)
+    for xx, yy in combinations(coords, 2):
+        minx = max(0, xx-1)
+        miny = max(0, yy-1)
+        maxx = min(xx+2, 40)
+        maxy = min(yy+2, 40)
+        xx_other = np.arange(minx, maxx)
+        yy_other = np.arange(miny, maxy)
+        for x1, y1 in product(xx_other, yy_other):
+            graph.add_edge((xx, yy), (x1, y1),
+                           filtered_hnc_Gaussian=rng.random())
+    nx.write_gpickle(graph, graph_path)
+    yield graph_path
+
+
+@pytest.fixture(scope='session')
+def classifier2021_corr_graph_hash_fixture(
+        classifier2021_corr_graph_fixture):
+    return fixture_hasher(classifier2021_corr_graph_fixture)
+
+
+@pytest.fixture(scope='session')
+def classifier2021_corr_png_fixture(
+        classifier2021_tmpdir_fixture,
+        classifier2021_corr_graph_fixture):
+
+    tmpdir = classifier2021_tmpdir_fixture
+    png_path = tempfile.mkstemp(dir=tmpdir,
+                                prefix='corr_png_',
+                                suffix='.png')
+
+    img = graph_to_img(
+                classifier2021_corr_graph_fixture,
+                attribute_name='filtered_hnc_Gaussian')
+
+    img = PIL.Image.fromarray(img)
+    img.save(png_path)
+    yield png_path
+
+
+@pytest.fixture(scope='session')
+def classifier2021_corr_png_hash_fixture(
+        clsasifier2021_corr_png_fixture):
+    return fixture_hasher(classifier2021_corr_png_fixture)

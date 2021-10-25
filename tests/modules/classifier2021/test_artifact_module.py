@@ -9,8 +9,11 @@ from itertools import product
 from ophys_etl.modules.classifier2021.compute_artifacts import (
     ArtifactGenerator)
 
-from ophys_etl.modules.segmentation.qc_utils.video_utils import (
-    read_and_scale)
+from ophys_etl.modules.classifier2021.utils import (
+    scale_img_to_uint8)
+
+from ophys_etl.modules.segmentation.graph_utils.conversion import (
+    graph_to_img)
 
 
 @pytest.mark.parametrize(
@@ -91,6 +94,13 @@ def test_with_graph(
             raw_img = raw_img.astype(float)
             raw_img = np.round(255.0*raw_img/delta).astype(np.uint8)
             np.testing.assert_array_equal(raw_img, artifact_img)
+
+        artifact_corr = artifact_file['correlation_projection'][()]
+        expected_corr = scale_img_to_uint8(
+                          graph_to_img(classifier2021_corr_graph_fixture,
+                                       attribute_name='filtered_hnc_Gaussian'))
+
+        np.testing.assert_array_equal(artifact_corr, expected_corr)
 
         metadata = json.loads(artifact_file['metadata'][()].decode('utf-8'))
 

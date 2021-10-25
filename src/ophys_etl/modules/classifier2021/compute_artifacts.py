@@ -9,6 +9,7 @@ import pathlib
 import numpy as np
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
+    sanitize_extract_roi_list,
     extract_roi_to_ophys_roi)
 
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
@@ -129,21 +130,10 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
 
         with open(roi_path, 'rb') as in_file:
             raw_rois = json.load(in_file)
-        extract_roi_list = []
-        ophys_roi_list = []
-
-        # there are, unfortunately, two serialization schemes for
-        # ROIs floating around in our codebase
-        for roi in raw_rois:
-            if 'valid_roi' in roi:
-                roi['valid'] = roi.pop('valid_roi')
-            if 'mask_matrix' in roi:
-                roi['mask'] = roi.pop('mask_matrix')
-            if 'roi_id' in roi:
-                roi['id'] = roi.pop('roi_id')
-
-            extract_roi_list.append(roi)
-            ophys_roi_list.append(extract_roi_to_ophys_roi(roi))
+        extract_roi_list = sanitize_extract_roi_list(
+                                raw_rois)
+        ophys_roi_list = [extract_roi_to_ophys_roi(roi)
+                          for roi in extract_roi_list]
 
         logger.info("read ROIs")
 

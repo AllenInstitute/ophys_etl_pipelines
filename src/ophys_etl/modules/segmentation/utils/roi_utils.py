@@ -78,6 +78,41 @@ def deserialize_extract_roi_list(serialized: bytes) -> List[ExtractROI]:
     return rois
 
 
+def sanitize_extract_roi_list(
+        input_roi_list: List[Dict]) -> List[ExtractROI]:
+    """
+    There are, unfortunately, two ROI serialization schemes floating
+    around in our code base. This method converts the one that is
+    incompatible with ExtractROI to a list of ExtractROI. Specifically,
+    it converts
+
+    valid_roi -> valid
+    mask_matrix -> mask
+    roi_id - > id
+
+    Parameters
+    ----------
+    input_roi_list: List[Dict]
+        List of ROIs represented as dicts which ar inconsistent
+        with ExtractROI
+
+    Returns
+    -------
+    output_roi_list: List[ExtractROI]
+    """
+    output_roi_list = []
+    for roi in input_roi_list:
+        new_roi = copy.deepcopy(roi)
+        if 'valid_roi' in new_roi:
+            new_roi['valid'] = new_roi.pop('valid_roi')
+        if 'mask_matrix' in new_roi:
+            new_roi['mask'] = new_roi.pop('mask_matrix')
+        if 'roi_id' in new_roi:
+            new_roi['id'] = new_roi.pop('roi_id')
+        output_roi_list.append(new_roi)
+    return output_roi_list
+
+
 def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:
     """
     Convert an ExtractROI to an equivalent OphysROI

@@ -89,7 +89,7 @@ def clip_img_to_quantiles(
     """
     mn, mx = np.quantile(img_data, quantiles)
     out_img = np.where(img_data > mn, img_data, mn)
-    out_img = np.where(img_data < mx, img_data, mx)
+    out_img = np.where(out_img < mx, out_img, mx)
     return out_img
 
 

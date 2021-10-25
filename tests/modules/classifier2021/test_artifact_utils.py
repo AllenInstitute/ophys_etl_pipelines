@@ -1,13 +1,16 @@
+import pytest
 import h5py
 import json
 import numpy as np
+from itertools import product
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     sanitize_extract_roi_list,
     extract_roi_to_ophys_roi)
 
 from ophys_etl.modules.classifier2021.utils import (
-    get_traces)
+    get_traces,
+    clip_img_to_quantiles)
 
 
 def test_sanitize_extract_roi_list(
@@ -74,3 +77,33 @@ def test_get_traces(
         expected_trace = expected_trace/npix
         np.testing.assert_array_equal(expected_trace,
                                       found_traces[roi['id']])
+
+
+@pytest.mark.parametrize("min_quantile,max_quantile",
+                         product((0.1, 0.2), (0.7, 0.8)))
+def test_clip_img_to_quantiles(min_quantile, max_quantile):
+    rng = np.random.default_rng()
+    img = rng.integers(0, 2**16-1, (100, 100)).astype(np.uint16)
+
+    (lower_limit,
+     upper_limit) = np.quantile(img, (min_quantile, max_quantile))
+
+    clipped_img = clip_img_to_quantiles(
+                      img,
+                      (min_quantile, max_quantile))
+
+    assert img.shape == clipped_img.shape
+    preserved = 0
+    eps = 1.0e-6
+    for ii in range(img.shape[0]):
+        for jj in range(img.shape[1]):
+            raw_pixel = img[ii, jj]
+            clipped_pixel = clipped_img[ii, jj]
+            if raw_pixel < lower_limit:
+                assert np.abs(clipped_pixel-lower_limit) < eps
+            elif raw_pixel > upper_limit:
+                assert np.abs(clipped_pixel-upper_limit) < eps
+            else:
+                assert np.abs(clipped_pixel-raw_pixel) < eps
+                preserved += 1
+    assert preserved > 0

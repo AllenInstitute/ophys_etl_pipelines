@@ -13,7 +13,7 @@ def classifier2021_tmpdir_fixture(tmpdir_factory):
 
 
 @pytest.fixture(scope='session')
-def video_fixture(classifier2021_tmpdir_fixture):
+def classifier2021_video_fixture(classifier2021_tmpdir_fixture):
     tmpdir = classifier2021_tmpdir_fixture
     video_path = tempfile.mkstemp(dir=tmpdir,
                                   prefix='classifier_video_',

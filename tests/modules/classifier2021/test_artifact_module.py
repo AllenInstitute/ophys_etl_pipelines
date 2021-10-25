@@ -167,3 +167,36 @@ def test_with_graph(
     assert metadata['correlation']['hash'] == corr_hash
 
     assert metadata['generator_args'] == input_data
+
+
+
+def test_clobber_error(
+        classifier2021_video_fixture,
+        suite2p_roi_fixture,
+        classifier2021_corr_graph_fixture,
+        tmpdir):
+    """
+    Test that the artifact generator will not let you over write an
+    existing file unless you specify clobber=True
+    """
+
+    output_path = tempfile.mkstemp(dir=tmpdir,
+                                   prefix='artifact_file_',
+                                   suffix='.h5')[1]
+
+    output_path = pathlib.Path(output_path)
+    assert output_path.exists()
+
+    input_data = dict()
+    input_data['video_path'] = str(classifier2021_video_fixture)
+    input_data['roi_path'] = str(suite2p_roi_fixture)
+    input_data['correlation_path'] = str(classifier2021_corr_graph_fixture)
+    input_data['artifact_path'] = str(output_path)
+    input_data['clobber'] = False
+
+
+    with pytest.raises(RuntimeError, match='--clobber=True'):
+        ArtifactGenerator(input_data=input_data, args=[])
+
+    input_data['clobber'] = True
+    ArtifactGenerator(input_data=input_data, args=[])

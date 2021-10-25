@@ -88,6 +88,13 @@ def test_with_graph(
 
         assert expected_rois == artifact_rois
 
+        # test that all ROIs appear in color map
+        color_map = json.loads(
+                        artifact_file['roi_color_map'][()].decode('utf-8'))
+        assert len(color_map) == len(expected_rois)
+        for roi in expected_rois:
+            assert str(roi['id']) in color_map
+
         # test that traces were written correctly
         ophys_rois = [extract_roi_to_ophys_roi(roi)
                       for roi in expected_rois]

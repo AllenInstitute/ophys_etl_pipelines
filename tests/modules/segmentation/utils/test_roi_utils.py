@@ -546,13 +546,12 @@ def test_pixel_list_to_extract_roi():
     assert len(pixel_list) == len(ophys_roi.global_pixel_set)
 
 
-
 def test_get_roi_list_in_fov():
     input_rois = []
     roi_lookup = dict()
     roi_id_set = set()
-    for xx, yy in product(range(0,10,2),
-                          range(0,10,2)):
+    for xx, yy in product(range(0, 10, 2),
+                          range(0, 10, 2)):
         roi_id = 10*yy+xx
         assert roi_id not in roi_id_set
         roi_id_set.add(roi_id)
@@ -560,7 +559,7 @@ def test_get_roi_list_in_fov():
                 id=roi_id,
                 width=2,
                 height=2,
-                mask=[[True, True],[True, True]],
+                mask=[[True, True], [True, True]],
                 valid=True,
                 x=xx,
                 y=yy)
@@ -594,7 +593,6 @@ def test_get_roi_list_in_fov():
     assert found_ids == expected_ids
     for roi in output_rois:
         assert roi == roi_lookup[roi['id']]
-
 
     output_rois = get_roi_list_in_fov(
                        input_rois,

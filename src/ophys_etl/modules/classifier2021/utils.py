@@ -64,12 +64,10 @@ def get_traces(
     ct = 0
     trace_lookup = {}
     for roi in ophys_roi_list:
-        assert roi.global_pixel_array.shape[1] == 2
         rows = roi.global_pixel_array[:, 0]
         cols = roi.global_pixel_array[:, 1]
         trace = video_data[:, rows, cols]
         trace = np.mean(trace, axis=1)
-        assert trace.shape == (video_data.shape[0],)
         trace_lookup[roi.roi_id] = trace
         ct += 1
         if ct % 100 == 0:

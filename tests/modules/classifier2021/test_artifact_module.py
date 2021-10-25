@@ -7,6 +7,9 @@ import numpy as np
 import PIL.Image
 from itertools import product
 
+from ophys_etl.modules.segmentation.utils.roi_utils import (
+    sanitize_extract_roi_list)
+
 from ophys_etl.modules.classifier2021.compute_artifacts import (
     ArtifactGenerator)
 
@@ -72,6 +75,15 @@ def test_with_graph(
     assert output_path.is_file()
 
     with h5py.File(output_path, 'r') as artifact_file:
+
+        with open(suite2p_roi_fixture, 'rb') as in_file:
+            expected_rois = json.load(in_file)
+        expected_rois = sanitize_extract_roi_list(expected_rois)
+
+        artifact_rois = json.loads(
+                           artifact_file['rois'][()].decode('utf-8'))
+
+        assert expected_rois == artifact_rois
 
         with h5py.File(classifier2021_video_fixture, 'r') as raw_file:
             raw_video = raw_file['data'][()]

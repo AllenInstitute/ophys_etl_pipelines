@@ -9,7 +9,9 @@ def test_sanitize_extract_roi_list(
 
     with open(suite2p_roi_fixture, 'rb') as in_file:
         raw_roi_list = json.load(in_file)
+    assert len(raw_roi_list) > 0
     extract_roi_list = sanitize_extract_roi_list(raw_roi_list)
+    assert len(extract_roi_list) == len(raw_roi_list)
     for raw_roi, extract_roi in zip(raw_roi_list,
                                     extract_roi_list):
 

@@ -58,7 +58,6 @@ def test_with_graph(
 
     # because tempfile.mkstemp actually creates the file
     output_path.unlink()
-    #assert not output_path.exists()
 
     input_data = dict()
     input_data['video_path'] = str(classifier2021_video_fixture)
@@ -117,8 +116,8 @@ def test_with_graph(
         mn, mx = np.quantile(raw_video, (video_lower_quantile,
                                          video_upper_quantile))
 
-        raw_video = np.where(raw_video>mn, raw_video, mn)
-        raw_video = np.where(raw_video<mx, raw_video, mx)
+        raw_video = np.where(raw_video > mn, raw_video, mn)
+        raw_video = np.where(raw_video < mx, raw_video, mx)
         delta = mx-mn
         raw_video = raw_video-mn
         raw_video = raw_video.astype(float)
@@ -134,8 +133,8 @@ def test_with_graph(
             mn, mx = np.quantile(raw_img,
                                  (projection_lower_quantile,
                                   projection_upper_quantile))
-            raw_img = np.where(raw_img>mn, raw_img, mn)
-            raw_img = np.where(raw_img<mx, raw_img, mx)
+            raw_img = np.where(raw_img > mn, raw_img, mn)
+            raw_img = np.where(raw_img < mx, raw_img, mx)
             delta = mx-mn
             raw_img = raw_img-mn
             raw_img = raw_img.astype(float)
@@ -169,7 +168,6 @@ def test_with_graph(
     assert metadata['generator_args'] == input_data
 
 
-
 def test_clobber_error(
         classifier2021_video_fixture,
         suite2p_roi_fixture,
@@ -194,7 +192,6 @@ def test_clobber_error(
     input_data['artifact_path'] = str(output_path)
     input_data['clobber'] = False
 
-
     with pytest.raises(RuntimeError, match='--clobber=True'):
         ArtifactGenerator(input_data=input_data, args=[])
 
@@ -212,8 +209,8 @@ def test_malformed_corr_file(
     """
 
     corr_path = tempfile.mkstemp(dir=tmpdir,
-                                   prefix='corr_file_',
-                                   suffix='.txt')[1]
+                                 prefix='corr_file_',
+                                 suffix='.txt')[1]
     corr_path = pathlib.Path(corr_path)
     assert corr_path.exists()
 
@@ -230,7 +227,6 @@ def test_malformed_corr_file(
     input_data['correlation_path'] = str(corr_path)
     input_data['artifact_path'] = str(output_path)
     input_data['clobber'] = True
-
 
     with pytest.raises(RuntimeError, match='.pkl or .png'):
         ArtifactGenerator(input_data=input_data, args=[])

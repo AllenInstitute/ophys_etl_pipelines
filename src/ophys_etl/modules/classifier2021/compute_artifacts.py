@@ -182,8 +182,8 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
                                      self.args['video_upper_quantile']))
 
         volume = (scaled_video.shape[0]
-                  *scaled_video.shape[1]
-                  *scaled_video.shape[2])
+                  * scaled_video.shape[1]
+                  * scaled_video.shape[2])
 
         if volume < 1000000:
             video_chunks = None
@@ -193,7 +193,6 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
                             scaled_video.shape[2]//4)
             if min(video_chunks) == 0:
                 video_chunks = None
-
 
         logger.info("Created scaled video")
 

@@ -58,7 +58,6 @@ class VideoGenerator(object):
         self.tmp_dir = pathlib.Path(tempfile.mkdtemp(dir=tmp_dir,
                                                      prefix='temp_dir_'))
 
-
         self._video_data = None
         self._video_path = None
         self._video_shape = None

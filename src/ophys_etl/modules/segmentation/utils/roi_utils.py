@@ -671,7 +671,6 @@ def median_metric_from_roi(
     return np.median(img[rows, cols])
 
 
-
 def get_roi_list_in_fov(
         roi_list: List[ExtractROI],
         origin: Tuple[int, int],

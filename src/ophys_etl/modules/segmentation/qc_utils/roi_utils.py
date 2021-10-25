@@ -251,7 +251,7 @@ def add_labels_to_axes(axis: matplotlib.axes.Axes,
                 if rowmax is not None and yy > rowmax:
                     keep_going = True
                 elif colmax is not None and xx > colmax:
-                     keep_going = True
+                    keep_going = True
                 elif (dd is None or dd < 100):
                     keep_going = True
 

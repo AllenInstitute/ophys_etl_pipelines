@@ -75,7 +75,7 @@ def suite2p_roi_fixture(classifier2021_tmpdir_fixture):
 
         mask_sum = 0
         while mask_sum == 0:
-            mask = [[bool(rng.integers(0,2)==0) for jj in range(width)]
+            mask = [[bool(rng.integers(0, 2) == 0) for jj in range(width)]
                     for ii in range(height)]
             mask_sum = np.array(mask).sum()
 

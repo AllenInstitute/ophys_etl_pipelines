@@ -200,3 +200,37 @@ def test_clobber_error(
 
     input_data['clobber'] = True
     ArtifactGenerator(input_data=input_data, args=[])
+
+
+def test_malformed_corr_file(
+        classifier2021_video_fixture,
+        suite2p_roi_fixture,
+        tmpdir):
+    """
+    Test that if you do not specify .png or .pkl for the correlation
+    file, you get an error
+    """
+
+    corr_path = tempfile.mkstemp(dir=tmpdir,
+                                   prefix='corr_file_',
+                                   suffix='.txt')[1]
+    corr_path = pathlib.Path(corr_path)
+    assert corr_path.exists()
+
+    output_path = tempfile.mkstemp(dir=tmpdir,
+                                   prefix='artifact_file_',
+                                   suffix='.h5')[1]
+
+    output_path = pathlib.Path(output_path)
+    assert output_path.exists()
+
+    input_data = dict()
+    input_data['video_path'] = str(classifier2021_video_fixture)
+    input_data['roi_path'] = str(suite2p_roi_fixture)
+    input_data['correlation_path'] = str(corr_path)
+    input_data['artifact_path'] = str(output_path)
+    input_data['clobber'] = True
+
+
+    with pytest.raises(RuntimeError, match='.pkl or .png'):
+        ArtifactGenerator(input_data=input_data, args=[])

@@ -541,7 +541,7 @@ def thumbnail_video_from_array(
         by hand.*
 
     roi_list: Optional[List[ExtractROI]]
-        If not None, list of ROIs whose boundaries are to be drawn
+        If not None, list of ROIs whose contours are to be drawn
         in the thumbnail video (default: None)
 
     roi_color: Optional[Tuple[int, int, int], Dict[int, Tuple[int, int, int]]]
@@ -603,7 +603,7 @@ def thumbnail_video_from_array(
                 this_color = roi_color[roi['id']]
             else:
                 this_color = roi_color
-            sub_video = add_roi_boundary_to_video(
+            sub_video = add_roi_contour_to_video(
                             sub_video,
                             (origin[0]+origin_offset[0],
                              origin[1]+origin_offset[1]),
@@ -684,7 +684,7 @@ def thumbnail_video_from_path(
         by hand*
 
     roi_list: Optional[List[ExtractROI]]
-        If not None, list of ROIs whose boundaries are to be drawn
+        If not None, list of ROIs whose contours are to be drawn
         in the thumbnail video (default: None)
 
     roi_color: Optional[Tuple[int, int, int]]
@@ -801,12 +801,12 @@ def video_bounds_from_ROI(
     return (rowmin, colmin), (rowmax-rowmin, colmax-colmin)
 
 
-def add_roi_boundary_to_video(sub_video: np.ndarray,
-                              origin: Tuple[int, int],
-                              roi: ExtractROI,
-                              roi_color: Tuple[int, int, int]) -> np.ndarray:
+def add_roi_contour_to_video(sub_video: np.ndarray,
+                             origin: Tuple[int, int],
+                             roi: ExtractROI,
+                             roi_color: Tuple[int, int, int]) -> np.ndarray:
     """
-    Add the boundary of an ROI to a video
+    Add the contour of an ROI to a video
 
     Parameters
     ----------
@@ -821,12 +821,12 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
         which is why we need origin as an argument
 
     roi_color: Tuple[int, int, int]
-        RGB color of the ROI boundary
+        RGB color of the ROI contour
 
     Returns
     -------
     sub_video: np.ndarray
-        sub_video with the ROI boundary
+        sub_video with the ROI contour
 
     Note:
     -----
@@ -837,7 +837,7 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
     n_video_rows = sub_video.shape[1]
     n_video_cols = sub_video.shape[2]
 
-    # construct an ROI object to get the boundary mask
+    # construct an ROI object to get the contour mask
     # for us
     ophys_roi = OphysROI(roi_id=-1,
                          x0=roi['x'],
@@ -847,13 +847,13 @@ def add_roi_boundary_to_video(sub_video: np.ndarray,
                          valid_roi=False,
                          mask_matrix=roi['mask'])
 
-    boundary_mask = ophys_roi.boundary_mask
-    for irow in range(boundary_mask.shape[0]):
+    contour_mask = ophys_roi.contour_mask
+    for irow in range(contour_mask.shape[0]):
         row = irow+ophys_roi.y0-origin[0]
         if row < 0 or row >= n_video_rows:
             continue
-        for icol in range(boundary_mask.shape[1]):
-            if not boundary_mask[irow, icol]:
+        for icol in range(contour_mask.shape[1]):
+            if not contour_mask[irow, icol]:
                 continue
             col = icol+ophys_roi.x0-origin[1]
             if col < 0 or col >= n_video_cols:
@@ -999,7 +999,7 @@ def _thumbnail_video_from_ROI_array(
                                   timesteps=timesteps)
 
     # if an ROI color has been specified, plot the ROI
-    # boundary over the video in the specified color
+    # contour over the video in the specified color
     roi_list = None
     if roi_color is not None:
         roi_list = [roi]
@@ -1144,7 +1144,7 @@ def _thumbnail_video_from_ROI_path(
                                   timesteps=timesteps)
 
     # if an ROI color has been specified, plot the ROI
-    # boundary over the video in the specified color
+    # contour over the video in the specified color
     roi_list = None
     if roi_color is not None:
         roi_list = [roi]

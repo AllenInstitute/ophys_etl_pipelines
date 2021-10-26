@@ -249,7 +249,7 @@ class VideoGenerator(object):
                          Tuple[int, int, int],
                          Dict[int, Tuple[int, int, int]]]
             If not None, the RGB color in which to plot the ROI's
-            boundary (or dict mapping ROI ID to RGB color).
+            contour (or dict mapping ROI ID to RGB color).
             If None, ROI is not plotted in thumbnail.
             (default: None)
 

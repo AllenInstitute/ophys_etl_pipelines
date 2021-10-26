@@ -66,13 +66,13 @@ def add_roi_mask_to_img(
     return img
 
 
-def add_roi_boundary_to_img(
+def add_roi_contour_to_img(
         img: np.ndarray,
         roi: OphysROI,
         color: Tuple[int, int, int],
         alpha: float) -> np.ndarray:
     """
-    Add colored ROI boundary to an image
+    Add colored ROI contour to an image
 
     Parameters
     ----------
@@ -95,7 +95,7 @@ def add_roi_boundary_to_img(
     While this function does return an image, it also operates
     on img in place
     """
-    bdry = roi.boundary_mask
+    bdry = roi.contour_mask
     valid = np.argwhere(bdry)
     rows = np.array([r+roi.y0 for r in valid[:, 0]])
     cols = np.array([c+roi.x0 for c in valid[:, 1]])
@@ -107,14 +107,14 @@ def add_roi_boundary_to_img(
     return img
 
 
-def add_list_of_roi_boundaries_to_img(
+def add_list_of_roi_contours_to_img(
         img: np.ndarray,
         roi_list: Union[List[OphysROI], List[Dict]],
         multicolor=True,
         color: Optional[Tuple[int, int, int]] = None,
         alpha: float = 0.25) -> np.ndarray:
     """
-    Add colored ROI boundaries to an image
+    Add colored ROI contours to an image
 
     Parameters
     ----------
@@ -163,7 +163,7 @@ def add_list_of_roi_boundaries_to_img(
         color_map = {roi.roi_id: color for roi in roi_list}
 
     for roi in roi_list:
-        new_img = add_roi_boundary_to_img(
+        new_img = add_roi_contour_to_img(
                       new_img,
                       roi,
                       color_map[roi.roi_id],
@@ -355,7 +355,7 @@ def roi_thumbnail(movie: OphysMovie,
                        valid_roi=True,
                        roi_id=-999)
 
-    thumbnail = add_list_of_roi_boundaries_to_img(
+    thumbnail = add_list_of_roi_contours_to_img(
                                           thumbnail,
                                           roi_list=[new_roi],
                                           color=roi_color,
@@ -474,7 +474,7 @@ class ROIExaminer(object):
         """
         output_img = self.ophys_movie.get_max_rgb()
         for obj in rois_and_colors:
-            output_img = add_list_of_roi_boundaries_to_img(
+            output_img = add_list_of_roi_contours_to_img(
                                                    output_img,
                                                    roi_list=obj['rois'],
                                                    alpha=alpha)
@@ -803,7 +803,7 @@ def add_rois_to_axes(
                         valid_roi=False,
                         mask_matrix=roi['mask'])
 
-        bdry = ophys_roi.boundary_mask
+        bdry = ophys_roi.contour_mask
         for ir in range(ophys_roi.height):
             for ic in range(ophys_roi.width):
                 if bdry[ir, ic]:

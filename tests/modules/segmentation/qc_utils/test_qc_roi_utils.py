@@ -67,7 +67,7 @@ def test_roi_average_metric(roi_list, metric_image, expected):
 
 
 @pytest.mark.parametrize('alpha', [0.2, 0.3, 0.4])
-def test_add_roi_boundary_to_img(alpha):
+def test_add_roi_contour_to_img(alpha):
     img = 100*np.ones((64, 64, 3), dtype=int)
 
     height = 7
@@ -91,7 +91,7 @@ def test_add_roi_boundary_to_img(alpha):
                    mask_matrix=mask)
 
     color = (22, 33, 44)
-    img = roi_utils.add_roi_boundary_to_img(
+    img = roi_utils.add_roi_contour_to_img(
                       img,
                       roi,
                       color,

@@ -122,6 +122,41 @@ def create_metadata_entry(
     return {'path': str(file_path.resolve().absolute()),
             'hash': hash_value}
 
+def create_metadata(input_args: dict,
+                    video_path: pathlib.Path,
+                    roi_path: pathlib.Path,
+                    correlation_path: pathlib.Path) -> dict:
+    """
+    Create the metadata dict for an artifact file
+
+    Parameters
+    ----------
+    input_args: dict
+        The arguments passed to the ArtifactGenerator
+
+    video_path: pathlib.Path
+        path to the video file
+
+    roi_path: pathlib.Path
+        path to the serialized ROIs
+
+    correlation_path: pathlib.Path
+        path to the correlation projection data
+
+    Returns
+    -------
+    metadata: dict
+        The complete metadata for the artifac file
+    """
+    metadata = dict()
+    metadata['generator_args'] = copy.deepcopy(input_args)
+
+    metadata['video'] = create_metadata_entry(video_path)
+    metadata['rois'] = create_metadata_entry(roi_path)
+    metadata['correlation'] = create_metadata_entry(correlation_path)
+
+    return metadata
+
 
 class ArtifactGenerator(argschema.ArgSchemaParser):
 
@@ -133,12 +168,11 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
         roi_path = pathlib.Path(self.args['roi_path'])
         output_path = pathlib.Path(self.args['artifact_path'])
 
-        metadata = dict()
-        metadata['generator_args'] = copy.deepcopy(self.args)
-
-        metadata['video'] = create_metadata_entry(video_path)
-        metadata['rois'] = create_metadata_entry(roi_path)
-        metadata['correlation'] = create_metadata_entry(correlation_path)
+        metadata = create_metadata(
+                         self.args,
+                         video_path,
+                         roi_path,
+                         correlation_path)
 
         logger.info("hashed all input files")
 

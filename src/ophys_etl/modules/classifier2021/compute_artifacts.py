@@ -205,6 +205,30 @@ def create_max_and_avg_projections(
     return avg_img_data, max_img_data
 
 
+def create_correlation_projection(
+        file_path: pathlib.Path) -> np.ndarray:
+    """
+    Parameters
+    ----------
+    file_path: pathlib.Path
+        Path to correlation projection data (either pkl data
+        containing a graph or png file containing an image)
+
+    Returns
+    -------
+    correlation_projection: np.ndarray
+        Scaled to np.uint8
+    """
+    if str(file_path).endswith('png'):
+        correlation_img_data = np.array(
+                                   PIL.Image.open(
+                                       file_path, 'r'))
+    else:
+        correlation_img_data = graph_to_img(file_path)
+
+    correlation_img_data = scale_img_to_uint8(correlation_img_data)
+    return correlation_img_data
+
 
 class ArtifactGenerator(argschema.ArgSchemaParser):
 
@@ -245,14 +269,8 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
 
         logger.info("Created max and avg projection images")
 
-        if self.args['correlation_path'].endswith('png'):
-            correlation_img_data = np.array(
-                                       PIL.Image.open(
-                                           correlation_path, 'r'))
-        else:
-            correlation_img_data = graph_to_img(correlation_path)
-
-        correlation_img_data = scale_img_to_uint8(correlation_img_data)
+        correlation_img_data = create_correlation_projection(
+                                    correlation_path)
 
         logger.info("Created correlation image")
 

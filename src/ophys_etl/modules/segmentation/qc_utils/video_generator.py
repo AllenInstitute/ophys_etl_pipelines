@@ -67,7 +67,7 @@ class VideoGenerator(object):
         self._video_path = None
         self._video_shape = None
         self._min_max = None
-        self.use_video_data = False
+        self._use_video_data = False
 
         if video_path is not None:
             # read in the video data to learn the shape of the field
@@ -78,7 +78,7 @@ class VideoGenerator(object):
 
             self._video_path = video_path
         else:
-            self.use_video_data = True
+            self._use_video_data = True
             self._video_data = video_data
             self._video_shape = self._video_data.shape
 
@@ -195,7 +195,7 @@ class VideoGenerator(object):
             if len(roi_list) == 0:
                 roi_list = None
 
-        if self.use_video_data:
+        if self._use_video_data:
             thumbnail = video_utils.thumbnail_video_from_array(
                             self.video_data,
                             origin,
@@ -268,7 +268,7 @@ class VideoGenerator(object):
         -------
         video_utils.ThumbnailVideo
         """
-        if self.use_video_data:
+        if self._use_video_data:
             video_arg = self.video_data
             min_max = None
         else:

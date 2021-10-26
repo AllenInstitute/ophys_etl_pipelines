@@ -240,14 +240,6 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
         roi_path = pathlib.Path(self.args['roi_path'])
         output_path = pathlib.Path(self.args['artifact_path'])
 
-        metadata = create_metadata(
-                         self.args,
-                         video_path,
-                         roi_path,
-                         correlation_path)
-
-        logger.info("hashed all input files")
-
         with open(roi_path, 'rb') as in_file:
             raw_rois = json.load(in_file)
         extract_roi_list = sanitize_extract_roi_list(
@@ -256,6 +248,23 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
                           for roi in extract_roi_list]
 
         logger.info("read ROIs")
+
+        trace_lookup = get_traces(video_path, ophys_roi_list)
+        with h5py.File(output_path, 'w') as out_file:
+            group = out_file.create_group('traces')
+            for roi_id in trace_lookup:
+                group.create_dataset(str(roi_id),
+                                     data=trace_lookup[roi_id])
+
+        logger.info("wrote traces")
+
+        metadata = create_metadata(
+                         self.args,
+                         video_path,
+                         roi_path,
+                         correlation_path)
+
+        logger.info("hashed all input files")
 
         color_map = get_roi_color_map(ophys_roi_list)
 
@@ -296,7 +305,7 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
 
         logger.info("Created scaled video")
 
-        with h5py.File(output_path, 'w') as out_file:
+        with h5py.File(output_path, 'a') as out_file:
             out_file.create_dataset(
                 'metadata',
                 data=json.dumps(metadata, sort_keys=True).encode('utf-8'))
@@ -320,19 +329,7 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
                 data=scaled_video,
                 chunks=video_chunks)
 
-        logger.info("Wrote all data except traces")
-
-        del scaled_video
-        del max_img_data
-        del avg_img_data
-        del correlation_img_data
-
-        trace_lookup = get_traces(video_path, ophys_roi_list)
-        with h5py.File(output_path, 'a') as out_file:
-            group = out_file.create_group('traces')
-            for roi_id in trace_lookup:
-                group.create_dataset(str(roi_id),
-                                     data=trace_lookup[roi_id])
+        logger.info("Wrote all artifacts")
 
 
 if __name__ == "__main__":

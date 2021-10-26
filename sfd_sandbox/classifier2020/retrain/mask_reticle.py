@@ -56,20 +56,12 @@ def mask_reticle(input_img: np.ndarray,
     return new_img
 
 
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--input', type=str, default=None)
-    parser.add_argument('--output', type=str, default=None)
-    parser.add_argument('--clobber', default=False, action='store_true')
-    args = parser.parse_args()
-
-    input_path = pathlib.Path(args.input)
+def do_masking(input_path, output_path, clobber=False):
+    input_path = pathlib.Path(input_path)
     if not input_path.is_file():
         raise RuntimeError(f'input file {str(input_path)} does not exist')
-    output_path = pathlib.Path(args.output)
-    if output_path.exists() and not args.clobber:
+    output_path = pathlib.Path(output_path)
+    if output_path.exists() and not clobber:
         raise RuntimeError(f'output file {str(output_path)} exists')
 
     (reticle_rows,
@@ -83,3 +75,16 @@ if __name__ == "__main__":
 
     new_img = PIL.Image.fromarray(new_img)
     new_img.save(output_path)
+
+
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--input', type=str, default=None)
+    parser.add_argument('--output', type=str, default=None)
+    parser.add_argument('--clobber', default=False, action='store_true')
+    args = parser.parse_args()
+
+    do_masking(args.input, args.output, clobber=args.clobber)

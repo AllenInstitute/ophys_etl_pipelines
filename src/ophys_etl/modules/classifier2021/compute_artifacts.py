@@ -251,11 +251,6 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
         logger.info("read ROIs")
 
         trace_lookup = get_traces(video_path, ophys_roi_list)
-        with h5py.File(output_path, 'w') as out_file:
-            group = out_file.create_group('traces')
-            for roi_id in trace_lookup:
-                group.create_dataset(str(roi_id),
-                                     data=trace_lookup[roi_id])
 
         logger.info("wrote traces")
 
@@ -329,6 +324,11 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
                 'video_data',
                 data=scaled_video,
                 chunks=video_chunks)
+
+            trace_group = out_file.create_group('traces')
+            for roi_id in trace_lookup:
+                trace_group.create_dataset(str(roi_id),
+                                           data=trace_lookup[roi_id])
 
         logger.info("Wrote all artifacts")
 

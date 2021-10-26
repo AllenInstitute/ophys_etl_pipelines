@@ -427,7 +427,7 @@ def test_thumbnail_from_roi(tmpdir,
 
     # factor of 4 reflects the upscaling of video frame sizes
     frame_shape = thumbnail.frame_shape
-    if frame_shape[0] < 128 or frame_shape[1]<128:
+    if frame_shape[0] < 128 or frame_shape[1] < 128:
         assert read_data[0].shape == (2*thumbnail.frame_shape[0],
                                       2*thumbnail.frame_shape[1],
                                       3)
@@ -561,7 +561,6 @@ def test_thumbnail_from_roi_and_path(tmpdir,
                                 mask=[list(row) for row in mask]))
     else:
         other_roi = None
-
 
     if isinstance(roi_color, str):
         roi_color = dict()

@@ -253,7 +253,6 @@ def test_get_thumbnail_video_from_roi(
         generator = VideoGenerator(video_path=example_video,
                                    tmp_dir=video_tmpdir)
 
-
     fps = 11
     quality = 6
 

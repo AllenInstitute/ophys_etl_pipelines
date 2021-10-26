@@ -1,3 +1,4 @@
+from typing import Dict
 import h5py
 import json
 from marshmallow import post_load
@@ -101,6 +102,27 @@ class ArtifactFileSchema(argschema.ArgSchema):
         return data
 
 
+def create_metadata_entry(
+        file_path: pathlib.Path) -> Dict[str, str]:
+    """
+    Create the metadata entry for a file path
+
+    Parameters
+    ----------
+    file_path: pathlib.Path
+        Path to the file whose metadata you want
+
+    Returns
+    -------
+    metadata: Dict[str, str]
+        'path' : absolute path to the file
+        'hash' : hexadecimal hash of the file
+    """
+    hash_value = file_hash_from_path(file_path)
+    return {'path': str(file_path.resolve().absolute()),
+            'hash': hash_value}
+
+
 class ArtifactGenerator(argschema.ArgSchemaParser):
 
     default_schema = ArtifactFileSchema
@@ -114,17 +136,9 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
         metadata = dict()
         metadata['generator_args'] = copy.deepcopy(self.args)
 
-        metadata['video'] = {
-                'path': str(video_path.resolve().absolute()),
-                'hash': file_hash_from_path(video_path)}
-
-        metadata['rois'] = {
-                'path': str(roi_path.resolve().absolute()),
-                'hash': file_hash_from_path(roi_path)}
-
-        metadata['correlation'] = {
-                'path': str(correlation_path.resolve().absolute()),
-                'hash': file_hash_from_path(correlation_path)}
+        metadata['video'] = create_metadata_entry(video_path)
+        metadata['rois'] = create_metadata_entry(roi_path)
+        metadata['correlation'] = create_metadata_entry(correlation_path)
 
         logger.info("hashed all input files")
 

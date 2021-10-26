@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Tuple
 import h5py
 import json
 from marshmallow import post_load
@@ -158,6 +158,54 @@ def create_metadata(input_args: dict,
     return metadata
 
 
+def create_max_and_avg_projections(
+        video_path: pathlib.Path,
+        lower_quantile: float,
+        upper_quantile: float) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Compute maximum and average projection images for a video
+
+    Parameters
+    ----------
+    video_path: pathlib.Path
+        path to video file
+
+    lower_quantile: float
+        lower quantile to clip the projections to
+
+    upper_quantile: float
+        upper quantile to clip the projections to
+
+    Returns
+    -------
+    average_projection: np.ndarray
+
+    max_projection: np.ndarray
+        Both arrays of np.uint8
+    """
+    with h5py.File(video_path, 'r') as in_file:
+        raw_video_data = in_file['data'][()]
+    max_img_data = np.max(raw_video_data, axis=0)
+    avg_img_data = np.mean(raw_video_data, axis=0)
+
+    max_img_data = clip_img_to_quantiles(
+                       max_img_data,
+                       (lower_quantile,
+                        upper_quantile))
+
+    max_img_data = scale_img_to_uint8(max_img_data)
+
+    avg_img_data = clip_img_to_quantiles(
+                       avg_img_data,
+                       (lower_quantile,
+                        upper_quantile))
+
+    avg_img_data = scale_img_to_uint8(avg_img_data)
+
+    return avg_img_data, max_img_data
+
+
+
 class ArtifactGenerator(argschema.ArgSchemaParser):
 
     default_schema = ArtifactFileSchema
@@ -189,25 +237,11 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
 
         logger.info("computed color map")
 
-        with h5py.File(video_path, 'r') as in_file:
-            raw_video_data = in_file['data'][()]
-        max_img_data = np.max(raw_video_data, axis=0)
-        avg_img_data = np.mean(raw_video_data, axis=0)
-        del raw_video_data
-
-        max_img_data = clip_img_to_quantiles(
-                           max_img_data,
-                           (self.args['projection_lower_quantile'],
-                            self.args['projection_upper_quantile']))
-
-        max_img_data = scale_img_to_uint8(max_img_data)
-
-        avg_img_data = clip_img_to_quantiles(
-                           avg_img_data,
-                           (self.args['projection_lower_quantile'],
-                            self.args['projection_upper_quantile']))
-
-        avg_img_data = scale_img_to_uint8(avg_img_data)
+        (avg_img_data,
+         max_img_data) = create_max_and_avg_projections(
+                             video_path,
+                             self.args['projection_lower_quantile'],
+                             self.args['projection_upper_quantile'])
 
         logger.info("Created max and avg projection images")
 

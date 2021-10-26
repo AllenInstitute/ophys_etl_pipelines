@@ -122,6 +122,7 @@ def create_metadata_entry(
     return {'path': str(file_path.resolve().absolute()),
             'hash': hash_value}
 
+
 def create_metadata(input_args: dict,
                     video_path: pathlib.Path,
                     roi_path: pathlib.Path,

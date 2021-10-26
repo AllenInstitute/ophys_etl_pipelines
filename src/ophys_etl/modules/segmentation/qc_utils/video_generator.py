@@ -23,6 +23,10 @@ class VideoGenerator(object):
         A (ntime, nrows, ncols) array to directly use as video
         data.
 
+    quantiles: Tuple[float, float]
+        Quantiles used to clip video. Only used if video is specified
+        via video_path. Ignored if video is specified via video_data.
+
     tmp_dir: Optional[pathlib.Path]
         Parent of temporary directory where thumbnail videos
         will be written. If None, tempfile will be used to
@@ -37,6 +41,7 @@ class VideoGenerator(object):
     def __init__(self,
                  video_path: Union[str, pathlib.Path, None] = None,
                  video_data: Union[np.ndarray, None] = None,
+                 quantiles: Tuple[float, float] = (0.1, 0.999),
                  tmp_dir: Optional[pathlib.Path] = None):
 
         if video_path is None and video_data is None:
@@ -65,9 +70,6 @@ class VideoGenerator(object):
         self.use_video_data = False
 
         if video_path is not None:
-            # quantiles used to normalize the thumbnail video
-            quantiles = (0.1, 0.999)
-
             # read in the video data to learn the shape of the field
             # of view and the minimum/maximum values for normalization
             with h5py.File(video_path, 'r') as in_file:

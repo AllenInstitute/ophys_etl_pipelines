@@ -20,7 +20,7 @@ class VideoGenerator(object):
         Path to the HDF5 file containing the full video data
 
     video_data: Union[np.ndarray, None]
-        A (ntime, nrows, ncols) array of to directly use as video
+        A (ntime, nrows, ncols) array to directly use as video
         data.
 
     tmp_dir: Optional[pathlib.Path]

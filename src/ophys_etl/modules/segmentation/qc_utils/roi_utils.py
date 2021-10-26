@@ -175,7 +175,7 @@ def add_labels_to_axes(axis: matplotlib.axes.Axes,
                        roi_list: Union[List[OphysROI], List[Dict]],
                        colors: Union[Tuple[int], List[Tuple[int]]],
                        fontsize: int = 15,
-                       origin: Optional[Tuple[int, int]] = None,
+                       origin: Tuple[int, int] = (0, 0),
                        frame_shape: Optional[Tuple[int, int]] = None):
     """
     Add labels to a plot of ROIs
@@ -199,8 +199,6 @@ def add_labels_to_axes(axis: matplotlib.axes.Axes,
     matplotlib.axes.Axes
         The input axis with the figure added
     """
-    if origin is None:
-        origin = (0, 0)
 
     if frame_shape is not None:
         rowmax = origin[0]+frame_shape[0]

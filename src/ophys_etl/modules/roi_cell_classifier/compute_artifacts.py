@@ -1,13 +1,9 @@
-from typing import Dict, Tuple
 import h5py
 import json
 from marshmallow import post_load
-import copy
 import argschema
 import logging
-import PIL.Image
 import pathlib
-import numpy as np
 
 from ophys_etl.modules.segmentation.utils.roi_utils import (
     sanitize_extract_roi_list,
@@ -16,14 +12,11 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
     get_roi_color_map)
 
-from ophys_etl.modules.segmentation.graph_utils.conversion import (
-    graph_to_img)
-
 from ophys_etl.modules.roi_cell_classifier.utils import (
-    clip_img_to_quantiles,
-    scale_img_to_uint8,
-    get_traces,
-    file_hash_from_path)
+    create_metadata,
+    create_max_and_avg_projections,
+    create_correlation_projection,
+    get_traces)
 
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     read_and_scale)
@@ -100,135 +93,6 @@ class ArtifactFileSchema(argschema.ArgSchema):
             raise RuntimeError(msg)
 
         return data
-
-
-def create_metadata_entry(
-        file_path: pathlib.Path) -> Dict[str, str]:
-    """
-    Create the metadata entry for a file path
-
-    Parameters
-    ----------
-    file_path: pathlib.Path
-        Path to the file whose metadata you want
-
-    Returns
-    -------
-    metadata: Dict[str, str]
-        'path' : absolute path to the file
-        'hash' : hexadecimal hash of the file
-    """
-    hash_value = file_hash_from_path(file_path)
-    return {'path': str(file_path.resolve().absolute()),
-            'hash': hash_value}
-
-
-def create_metadata(input_args: dict,
-                    video_path: pathlib.Path,
-                    roi_path: pathlib.Path,
-                    correlation_path: pathlib.Path) -> dict:
-    """
-    Create the metadata dict for an artifact file
-
-    Parameters
-    ----------
-    input_args: dict
-        The arguments passed to the ArtifactGenerator
-
-    video_path: pathlib.Path
-        path to the video file
-
-    roi_path: pathlib.Path
-        path to the serialized ROIs
-
-    correlation_path: pathlib.Path
-        path to the correlation projection data
-
-    Returns
-    -------
-    metadata: dict
-        The complete metadata for the artifac file
-    """
-    metadata = dict()
-    metadata['generator_args'] = copy.deepcopy(input_args)
-
-    metadata['video'] = create_metadata_entry(video_path)
-    metadata['rois'] = create_metadata_entry(roi_path)
-    metadata['correlation'] = create_metadata_entry(correlation_path)
-
-    return metadata
-
-
-def create_max_and_avg_projections(
-        video_path: pathlib.Path,
-        lower_quantile: float,
-        upper_quantile: float) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Compute maximum and average projection images for a video
-
-    Parameters
-    ----------
-    video_path: pathlib.Path
-        path to video file
-
-    lower_quantile: float
-        lower quantile to clip the projections to
-
-    upper_quantile: float
-        upper quantile to clip the projections to
-
-    Returns
-    -------
-    average_projection: np.ndarray
-
-    max_projection: np.ndarray
-        Both arrays of np.uint8
-    """
-    with h5py.File(video_path, 'r') as in_file:
-        raw_video_data = in_file['data'][()]
-    max_img_data = np.max(raw_video_data, axis=0)
-    avg_img_data = np.mean(raw_video_data, axis=0)
-
-    max_img_data = clip_img_to_quantiles(
-                       max_img_data,
-                       (lower_quantile,
-                        upper_quantile))
-
-    max_img_data = scale_img_to_uint8(max_img_data)
-
-    avg_img_data = clip_img_to_quantiles(
-                       avg_img_data,
-                       (lower_quantile,
-                        upper_quantile))
-
-    avg_img_data = scale_img_to_uint8(avg_img_data)
-
-    return avg_img_data, max_img_data
-
-
-def create_correlation_projection(
-        file_path: pathlib.Path) -> np.ndarray:
-    """
-    Parameters
-    ----------
-    file_path: pathlib.Path
-        Path to correlation projection data (either pkl data
-        containing a graph or png file containing an image)
-
-    Returns
-    -------
-    correlation_projection: np.ndarray
-        Scaled to np.uint8
-    """
-    if str(file_path).endswith('png'):
-        correlation_img_data = np.array(
-                                   PIL.Image.open(
-                                       file_path, 'r'))
-    else:
-        correlation_img_data = graph_to_img(file_path)
-
-    correlation_img_data = scale_img_to_uint8(correlation_img_data)
-    return correlation_img_data
 
 
 class ArtifactGenerator(argschema.ArgSchemaParser):

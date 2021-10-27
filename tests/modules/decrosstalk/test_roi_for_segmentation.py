@@ -4,7 +4,7 @@ from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 
 @pytest.fixture
-def roi_boundary_data():
+def roi_contour_data():
     """
     Mask matrices and their expected boundaries
     """
@@ -135,11 +135,11 @@ def roi_boundary_data():
     return output
 
 
-def test_roi_boundary(roi_boundary_data):
+def test_roi_contour(roi_contour_data):
     """
-    Test that ROI boundary is correctly found
+    Test that ROI contour is correctly found
     """
-    for pair in roi_boundary_data:
+    for pair in roi_contour_data:
         mask_matrix = pair['mask_matrix']
         expected = pair['expected']
         roi = OphysROI(roi_id=0,
@@ -150,5 +150,5 @@ def test_roi_boundary(roi_boundary_data):
                        valid_roi=True,
                        mask_matrix=mask_matrix)
 
-        np.testing.assert_array_equal(roi.boundary_mask,
+        np.testing.assert_array_equal(roi.contour_mask,
                                       expected)

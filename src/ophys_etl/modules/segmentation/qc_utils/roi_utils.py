@@ -66,13 +66,13 @@ def add_roi_mask_to_img(
     return img
 
 
-def add_roi_boundary_to_img(
+def add_roi_contour_to_img(
         img: np.ndarray,
         roi: OphysROI,
         color: Tuple[int, int, int],
         alpha: float) -> np.ndarray:
     """
-    Add colored ROI boundary to an image
+    Add colored ROI contour to an image
 
     Parameters
     ----------
@@ -95,7 +95,7 @@ def add_roi_boundary_to_img(
     While this function does return an image, it also operates
     on img in place
     """
-    bdry = roi.boundary_mask
+    bdry = roi.contour_mask
     valid = np.argwhere(bdry)
     rows = np.array([r+roi.y0 for r in valid[:, 0]])
     cols = np.array([c+roi.x0 for c in valid[:, 1]])
@@ -107,14 +107,14 @@ def add_roi_boundary_to_img(
     return img
 
 
-def add_list_of_roi_boundaries_to_img(
+def add_list_of_roi_contours_to_img(
         img: np.ndarray,
         roi_list: Union[List[OphysROI], List[Dict]],
         multicolor=True,
         color: Optional[Tuple[int, int, int]] = None,
         alpha: float = 0.25) -> np.ndarray:
     """
-    Add colored ROI boundaries to an image
+    Add colored ROI contours to an image
 
     Parameters
     ----------
@@ -163,7 +163,7 @@ def add_list_of_roi_boundaries_to_img(
         color_map = {roi.roi_id: color for roi in roi_list}
 
     for roi in roi_list:
-        new_img = add_roi_boundary_to_img(
+        new_img = add_roi_contour_to_img(
                       new_img,
                       roi,
                       color_map[roi.roi_id],
@@ -174,7 +174,9 @@ def add_list_of_roi_boundaries_to_img(
 def add_labels_to_axes(axis: matplotlib.axes.Axes,
                        roi_list: Union[List[OphysROI], List[Dict]],
                        colors: Union[Tuple[int], List[Tuple[int]]],
-                       fontsize: int = 15):
+                       fontsize: int = 15,
+                       origin: Tuple[int, int] = (0, 0),
+                       frame_shape: Optional[Tuple[int, int]] = None):
     """
     Add labels to a plot of ROIs
 
@@ -183,14 +185,28 @@ def add_labels_to_axes(axis: matplotlib.axes.Axes,
     axis: matplotlib.axes.Axes
     rois: List[OphysROI]:
         the ROIs
-    colors: List[Tuple[int]]
+    colors: Union[Tuple[int], List[Tuple[int]]]
         if not a list, all ROIs will get same color
+    fontsize: int
+        size of font used when putting labels on ROIs
+    origin: Optional[Tuple[int, int]]
+        origin of the image in the original image
+    frame_shape: Optional[Tuple[int, int]]
+        shape of the field of view (rows, cols)
 
     Returns
     -------
     matplotlib.axes.Axes
         The input axis with the figure added
     """
+
+    if frame_shape is not None:
+        rowmax = origin[0]+frame_shape[0]
+        colmax = origin[1]+frame_shape[1]
+    else:
+        rowmax = None
+        colmax = None
+
     n_roi = len(roi_list)
 
     if not isinstance(colors, list):
@@ -207,14 +223,16 @@ def add_labels_to_axes(axis: matplotlib.axes.Axes,
     rng = np.random.RandomState(44)
     for color, roi in zip(colors, roi_list):
         color_hex = '#%02x%02x%02x' % color
-        xx = roi.centroid_x
-        yy = roi.centroid_y
+        xx = roi.centroid_x-origin[1]
+        yy = roi.centroid_y-origin[0]
         dd = None
         n_iter = 0
 
         # add random salt in case two labels would
         # be right on top of each other
-        while (dd is None or dd < 100) and n_iter < 20:
+        keep_going = True
+        while keep_going:
+            keep_going = False
             if n_iter > 0:
                 _x = rng.normal()
                 _y = rng.normal()
@@ -227,6 +245,13 @@ def add_labels_to_axes(axis: matplotlib.axes.Axes,
 
             dd = np.min((xx-nx)**2+(yy-ny)**2)
             n_iter += 1
+            if n_iter > 20:
+                if rowmax is not None and yy > rowmax:
+                    keep_going = True
+                elif colmax is not None and xx > colmax:
+                    keep_going = True
+                elif (dd is None or dd < 100):
+                    keep_going = True
 
         nx[roi_ct] = xx
         ny[roi_ct] = yy
@@ -330,7 +355,7 @@ def roi_thumbnail(movie: OphysMovie,
                        valid_roi=True,
                        roi_id=-999)
 
-    thumbnail = add_list_of_roi_boundaries_to_img(
+    thumbnail = add_list_of_roi_contours_to_img(
                                           thumbnail,
                                           roi_list=[new_roi],
                                           color=roi_color,
@@ -449,7 +474,7 @@ class ROIExaminer(object):
         """
         output_img = self.ophys_movie.get_max_rgb()
         for obj in rois_and_colors:
-            output_img = add_list_of_roi_boundaries_to_img(
+            output_img = add_list_of_roi_contours_to_img(
                                                    output_img,
                                                    roi_list=obj['rois'],
                                                    alpha=alpha)
@@ -778,7 +803,7 @@ def add_rois_to_axes(
                         valid_roi=False,
                         mask_matrix=roi['mask'])
 
-        bdry = ophys_roi.boundary_mask
+        bdry = ophys_roi.contour_mask
         for ir in range(ophys_roi.height):
             for ic in range(ophys_roi.width):
                 if bdry[ir, ic]:
@@ -910,7 +935,7 @@ def get_roi_color_map(
     # create a list of colors based on the matplotlib color map
     raw_color_list = []
     for ii in range(n_colors):
-        color = mplt_color_map((1.0+ii)/(n_colors+1.0))
+        color = mplt_color_map(0.8*(1.0+ii)/(n_colors+1.0))
         color = (int(color[0]*255), int(color[1]*255), int(color[2]*255))
         raw_color_list.append(color)
 

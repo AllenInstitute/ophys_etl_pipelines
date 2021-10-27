@@ -78,6 +78,41 @@ def deserialize_extract_roi_list(serialized: bytes) -> List[ExtractROI]:
     return rois
 
 
+def sanitize_extract_roi_list(
+        input_roi_list: List[Dict]) -> List[ExtractROI]:
+    """
+    There are, unfortunately, two ROI serialization schemes floating
+    around in our code base. This method converts the one that is
+    incompatible with ExtractROI to a list of ExtractROI. Specifically,
+    it converts
+
+    valid_roi -> valid
+    mask_matrix -> mask
+    roi_id - > id
+
+    Parameters
+    ----------
+    input_roi_list: List[Dict]
+        List of ROIs represented as dicts which ar inconsistent
+        with ExtractROI
+
+    Returns
+    -------
+    output_roi_list: List[ExtractROI]
+    """
+    output_roi_list = []
+    for roi in input_roi_list:
+        new_roi = copy.deepcopy(roi)
+        if 'valid_roi' in new_roi:
+            new_roi['valid'] = new_roi.pop('valid_roi')
+        if 'mask_matrix' in new_roi:
+            new_roi['mask'] = new_roi.pop('mask_matrix')
+        if 'roi_id' in new_roi:
+            new_roi['id'] = new_roi.pop('roi_id')
+        output_roi_list.append(new_roi)
+    return output_roi_list
+
+
 def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:
     """
     Convert an ExtractROI to an equivalent OphysROI
@@ -634,3 +669,50 @@ def median_metric_from_roi(
     rows = roi.global_pixel_array[:, 0]
     cols = roi.global_pixel_array[:, 1]
     return np.median(img[rows, cols])
+
+
+def get_roi_list_in_fov(
+        roi_list: List[ExtractROI],
+        origin: Tuple[int, int],
+        frame_shape: Tuple[int, int]) -> List[ExtractROI]:
+    """
+    Select only the ROIs whose thumbnails intersect
+    with a specified field of view
+
+    Parameters
+    ----------
+    roi_list: List[ExtractROI]
+
+    origin: Tuple[int, int]
+        The origin in row, col coordinates of the field of view
+
+    frame_shape: Tuple[int, int]
+        (height, width) of the field of view
+
+    Returns
+    -------
+    List[ExtractROI]
+    """
+
+    global_r0 = origin[0]
+    global_r1 = global_r0 + frame_shape[0]
+    global_c0 = origin[1]
+    global_c1 = global_c0 + frame_shape[1]
+
+    output = []
+    for roi in roi_list:
+        r0 = roi['y']
+        r1 = r0+roi['height']
+        c0 = roi['x']
+        c1 = c0+roi['width']
+        if r1 < global_r0:
+            continue
+        elif r0 >= global_r1:
+            continue
+        elif c1 < global_c0:
+            continue
+        elif c0 >= global_c1:
+            continue
+
+        output.append(roi)
+    return output

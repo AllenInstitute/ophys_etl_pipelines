@@ -11,7 +11,7 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
-    add_roi_boundary_to_img, get_roi_color_map)
+    add_roi_contour_to_img, get_roi_color_map)
 
 from ophys_etl.modules.segmentation.qc_utils.video_utils import (
     scale_video_to_uint8)
@@ -203,7 +203,7 @@ def create_roi_v_background_grid(
 
             valid_img = np.copy(background_array)
             for roi in valid_roi_list:
-                valid_img = add_roi_boundary_to_img(
+                valid_img = add_roi_contour_to_img(
                                 valid_img,
                                 roi,
                                 this_color_map[roi.roi_id],
@@ -211,7 +211,7 @@ def create_roi_v_background_grid(
             invalid_img = np.copy(background_array)
 
             for roi in invalid_roi_list:
-                invalid_img = add_roi_boundary_to_img(
+                invalid_img = add_roi_contour_to_img(
                                  invalid_img,
                                  roi,
                                  this_color_map[roi.roi_id],

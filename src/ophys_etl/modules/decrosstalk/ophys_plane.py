@@ -82,7 +82,7 @@ class OphysROI(object):
         self._height = height
         self._valid_roi = valid_roi
         self._mask_matrix = np.array(mask_matrix, dtype=bool)
-        self._boundary_mask = None
+        self._contour_mask = None
         self._area = None
         self._global_pixel_set = None
         self._global_pixel_array = None
@@ -212,14 +212,14 @@ class OphysROI(object):
     def mask_matrix(self) -> np.ndarray:
         return copy.deepcopy(self._mask_matrix)
 
-    def _construct_boundary_mask(self):
+    def _construct_contour_mask(self):
         """
-        Construct a mask of boundary pixels
+        Construct a mask of contour pixels
         """
-        self._boundary_mask = np.zeros(self._mask_matrix.shape,
-                                       dtype=bool)
-        nr = self._boundary_mask.shape[0]
-        nc = self._boundary_mask.shape[1]
+        self._contour_mask = np.zeros(self._mask_matrix.shape,
+                                      dtype=bool)
+        nr = self._contour_mask.shape[0]
+        nc = self._contour_mask.shape[1]
         for irow in range(nr):
             ir0 = irow - 1
             ir1 = irow + 1
@@ -235,7 +235,7 @@ class OphysROI(object):
                 if ic1 < nc and self._mask_matrix[irow, ic1]:
                     right = True
                 if not (left and right):
-                    self._boundary_mask[irow, icol] = True
+                    self._contour_mask[irow, icol] = True
                     continue
 
                 above = False
@@ -245,13 +245,13 @@ class OphysROI(object):
                 if ir1 < nr and self._mask_matrix[ir1, icol]:
                     above = True
                 if not (above and below):
-                    self._boundary_mask[irow, icol] = True
+                    self._contour_mask[irow, icol] = True
 
     @property
-    def boundary_mask(self) -> np.ndarray:
-        if self._boundary_mask is None:
-            self._construct_boundary_mask()
-        return np.copy(self._boundary_mask)
+    def contour_mask(self) -> np.ndarray:
+        if self._contour_mask is None:
+            self._construct_contour_mask()
+        return np.copy(self._contour_mask)
 
 
 class OphysMovie(object):

@@ -64,6 +64,13 @@ class VideoDisplayGenerator(object):
                 continue
             if dirname.is_dir():
                 sub_contents = [fname for fname in dirname.iterdir()]
+                # check for broken symlinks and clean them up
+                for ii in range(len(sub_contents)-1, -1, -1):
+                    this_path = sub_contents[ii]
+                    if this_path.is_symlink():
+                        if not this_path.resolve().exists():
+                            this_path.unlink()
+                            sub_contents.pop(ii)
                 if len(sub_contents) == 0:
                     dirname.rmdir()
 
@@ -74,6 +81,7 @@ class VideoDisplayGenerator(object):
         for f_path in self.files_written:
             if f_path.exists():
                 f_path.unlink()
+        self.clean_tmp()
 
     def display_video(self,
                       thumbnail: video_utils.ThumbnailVideo,

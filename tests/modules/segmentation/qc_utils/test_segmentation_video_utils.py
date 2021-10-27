@@ -280,7 +280,7 @@ def test_thumbnail_from_array(tmpdir, example_video, timesteps):
 
     # shape gets automatically upscaled when
     # written to temporary video file
-    assert read_data[0].shape == (64, 128, 3)
+    assert read_data[0].shape == (32, 64, 3)
 
     # cannot to bitwise comparison of input to read data;
     # mp4 compression leads to slight differences
@@ -321,7 +321,7 @@ def test_thumbnail_from_rgb_array(tmpdir, example_rgb_video, timesteps):
 
     # shape gets automatically upscaled by factor of 4
     # when written to temporary video file
-    assert read_data[0].shape == (64, 128, 3)
+    assert read_data[0].shape == (32, 64, 3)
 
     # cannot to bitwise comparison of input to read data;
     # mp4 compression leads to slight differences
@@ -335,12 +335,17 @@ def test_thumbnail_from_rgb_array(tmpdir, example_rgb_video, timesteps):
     assert not file_path.exists()
 
 
-@pytest.mark.parametrize("timesteps, padding",
-                         [(None, 10),
-                          (None, 0),
-                          (np.arange(22, 56), 10),
-                          (np.arange(22, 56), 0)])
-def test_thumbnail_from_roi(tmpdir, example_video, timesteps, padding):
+@pytest.mark.parametrize("timesteps, padding, with_others, roi_color",
+                         product((None, np.arange(22, 56)),
+                                 (10, 0),
+                                 (True, False),
+                                 (None, (0, 255, 0), 'a_dict')))
+def test_thumbnail_from_roi(tmpdir,
+                            example_video,
+                            timesteps,
+                            padding,
+                            with_others,
+                            roi_color):
 
     if timesteps is None:
         n_t = example_video.shape[0]
@@ -355,24 +360,45 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps, padding):
     x0 = 10
     width = 8
 
-    bdry_pix = []
-    for row in (3, 4):
-        for col in range(1, 6):
-            bdry_pix.append((row+y0, col+x0))
-    for row in range(3, 5):
-        for col in (1, 5):
-            bdry_pix.append((row+y0, col+x0))
-
-    roi = ExtractROI(y=y0,
+    roi = ExtractROI(id=0,
+                     y=y0,
                      height=height,
                      x=x0,
                      width=width,
                      valid=True,
                      mask=[list(row) for row in mask])
 
+    if with_others:
+        other_roi = []
+        ct = 0
+        for dx, dy in product((1, 2), (-1, 0, 1)):
+            ct += 1
+            other_roi.append(ExtractROI(
+                                id=ct,
+                                y=y0+dy,
+                                x=x0+dx,
+                                height=height,
+                                width=width,
+                                valid=True,
+                                mask=[list(row) for row in mask]))
+
+    else:
+        other_roi = None
+
+    if isinstance(roi_color, str):
+        roi_color = dict()
+        roi_color[0] = (255, 0, 0)
+        if other_roi is not None:
+            rng = np.random.default_rng(111)
+            for roi in other_roi:
+                color = tuple(rng.integers(0, 255, size=3))
+                roi_color[roi['id']] = color
+
     thumbnail = _thumbnail_video_from_ROI_array(
                     example_video,
                     roi,
+                    other_roi=other_roi,
+                    roi_color=roi_color,
                     padding=padding,
                     tmp_dir=pathlib.Path(tmpdir),
                     quality=9,
@@ -400,38 +426,15 @@ def test_thumbnail_from_roi(tmpdir, example_video, timesteps, padding):
     assert len(read_data) == n_t
 
     # factor of 4 reflects the upscaling of video frame sizes
-    if thumbnail.frame_shape[0] < 128:
-        assert read_data[0].shape == (4*thumbnail.frame_shape[0],
-                                      4*thumbnail.frame_shape[1],
+    frame_shape = thumbnail.frame_shape
+    if frame_shape[0] < 128 or frame_shape[1] < 128:
+        assert read_data[0].shape == (2*thumbnail.frame_shape[0],
+                                      2*thumbnail.frame_shape[1],
                                       3)
     else:
         assert read_data[0].shape == (thumbnail.frame_shape[0],
                                       thumbnail.frame_shape[1],
                                       3)
-    # now with color
-    example_video[:, :, :] = 0
-    thumbnail = _thumbnail_video_from_ROI_array(
-                    example_video,
-                    roi,
-                    padding=padding,
-                    roi_color=(0, 255, 0),
-                    tmp_dir=pathlib.Path(tmpdir),
-                    quality=7,
-                    timesteps=timesteps)
-
-    rowmin = thumbnail.origin[0]
-    rowmax = thumbnail.origin[0]+thumbnail.frame_shape[0]
-    colmin = thumbnail.origin[1]
-    colmax = thumbnail.origin[1]+thumbnail.frame_shape[1]
-    assert rowmin <= 20
-    assert rowmax >= 27
-    assert colmin <= 10
-    assert colmax >= 18
-
-    assert thumbnail.video_path.is_file()
-
-    read_data = imageio.mimread(thumbnail.video_path)
-    assert len(read_data) == n_t
 
 
 @pytest.mark.parametrize("min_max, quantiles, timesteps",
@@ -498,30 +501,14 @@ def test_thumbnail_from_path(tmpdir,
         np.testing.assert_array_equal(control_data[ii], test_data[ii])
 
 
-@pytest.mark.parametrize("quantiles,min_max,roi_color,timesteps,padding",
-                         [((0.1, 0.9), None, None, None, 0),
-                          ((0.1, 0.9), None, None,
-                           np.arange(22, 76), 0),
-                          ((0.1, 0.9), None, (255, 0, 0), None, 0),
-                          ((0.1, 0.9), None, (255, 0, 0),
-                           np.arange(22, 76), 0),
-                          (None, (250, 600), None, None, 0),
-                          (None, (250, 600), None,
-                           np.arange(22, 76), 0),
-                          (None, (250, 600), (255, 0, 0), None, 0),
-                          (None, (250, 600), (255, 0, 0),
-                           np.arange(22, 76), 0),
-                          ((0.1, 0.9), None, None, None, 10),
-                          ((0.1, 0.9), None, None, np.arange(22, 76), 10),
-                          ((0.1, 0.9), None, (255, 0, 0), None, 10),
-                          ((0.1, 0.9), None, (255, 0, 0),
-                           np.arange(22, 76), 10),
-                          (None, (250, 600), None, None, 10),
-                          (None, (250, 600), None, np.arange(22, 76), 10),
-                          (None, (250, 600), (255, 0, 0), None, 10),
-                          (None, (250, 600), (255, 0, 0),
-                           np.arange(22, 76), 10),
-                          ])
+@pytest.mark.parametrize("quantiles,min_max,roi_color,timesteps,padding,"
+                         "with_others",
+                         product(((0.1, 0.9), None),
+                                 ((250, 600), None),
+                                 ((255, 0, 0), None, 'a_dict'),
+                                 (np.arange(22, 76), None),
+                                 (0, 10),
+                                 (True, False)))
 def test_thumbnail_from_roi_and_path(tmpdir,
                                      example_unnormalized_rgb_video,
                                      example_unnormalized_rgb_video_path,
@@ -529,11 +516,17 @@ def test_thumbnail_from_roi_and_path(tmpdir,
                                      min_max,
                                      roi_color,
                                      timesteps,
-                                     padding):
+                                     padding,
+                                     with_others):
     """
     Test _thumbnail_from_ROI_path by comparing output to result
     from _thumbnail_from_ROI_array
     """
+
+    if min_max is not None and quantiles is not None:
+        return
+    if min_max is None and quantiles is None:
+        return
 
     if timesteps is None:
         n_t = example_unnormalized_rgb_video.shape[0]
@@ -543,9 +536,40 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     mask = np.zeros((12, 15), dtype=bool)
     mask[2:10, 3:13] = True
 
-    roi = ExtractROI(x=14, width=15,
-                     y=18, height=12,
-                     mask=[list(i) for i in mask])
+    x0 = 14
+    y0 = 18
+    width = 15
+    height = 12
+
+    roi = ExtractROI(x=x0, width=width,
+                     y=y0, height=height,
+                     mask=[list(i) for i in mask],
+                     id=0)
+
+    if with_others:
+        other_roi = []
+        ct = 0
+        for dx, dy in product((1, 2), (-1, 0, 1)):
+            ct += 1
+            other_roi.append(ExtractROI(
+                                id=ct,
+                                y=y0+dy,
+                                x=x0+dx,
+                                height=height,
+                                width=width,
+                                valid=True,
+                                mask=[list(row) for row in mask]))
+    else:
+        other_roi = None
+
+    if isinstance(roi_color, str):
+        roi_color = dict()
+        roi_color[0] = (255, 0, 0)
+        if with_others:
+            rng = np.random.default_rng(2823)
+            for roi in other_roi:
+                color = rng.integers(0, 255, size=3)
+                roi_color[roi['id']] = tuple(color)
 
     h5_fname = example_unnormalized_rgb_video_path
 
@@ -563,6 +587,7 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     control_video = _thumbnail_video_from_ROI_array(
                        normalized_video,
                        roi,
+                       other_roi=other_roi,
                        padding=padding,
                        roi_color=roi_color,
                        tmp_dir=pathlib.Path(tmpdir),
@@ -571,6 +596,7 @@ def test_thumbnail_from_roi_and_path(tmpdir,
     test_video = _thumbnail_video_from_ROI_path(
                      h5_fname,
                      roi,
+                     other_roi=other_roi,
                      padding=padding,
                      roi_color=roi_color,
                      tmp_dir=pathlib.Path(tmpdir),

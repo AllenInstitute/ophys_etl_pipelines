@@ -16,26 +16,45 @@ class VideoGenerator(object):
 
     Parameters
     ----------
-    video_path: Union[str, pathlib.Path]
+    video_path: Union[str, pathlib.Path, None]
         Path to the HDF5 file containing the full video data
+
+    video_data: Union[np.ndarray, None]
+        A (ntime, nrows, ncols) array to directly use as video
+        data.
+
+    quantiles: Tuple[float, float]
+        Quantiles used to clip video. Only used if video is specified
+        via video_path. Ignored if video is specified via video_data.
 
     tmp_dir: Optional[pathlib.Path]
         Parent of temporary directory where thumbnail videos
         will be written. If None, tempfile will be used to
         create a temporary directory in /tmp/ (default: None)
+
+    Raises
+    ------
+    RuntimeError if both or neither video_path and video_data are
+    not None (i.e. you must specify one and only one of them).
     """
 
     def __init__(self,
-                 video_path: Union[str, pathlib.Path],
+                 video_path: Union[str, pathlib.Path, None] = None,
+                 video_data: Union[np.ndarray, None] = None,
+                 quantiles: Tuple[float, float] = (0.1, 0.999),
                  tmp_dir: Optional[pathlib.Path] = None):
 
-        if not isinstance(video_path, pathlib.Path):
-            video_path = pathlib.Path(video_path)
-        if not video_path.is_file():
-            raise RuntimeError(f'{video_path} is not a file')
+        if video_path is None and video_data is None:
+            raise RuntimeError("must specify either video_path or video_data")
 
-        # quantiles used to normalize the thumbnail video
-        quantiles = (0.1, 0.999)
+        if video_path is not None and video_data is not None:
+            raise RuntimeError("cannot specify both video_path and video_data")
+
+        if video_path is not None:
+            if not isinstance(video_path, pathlib.Path):
+                video_path = pathlib.Path(video_path)
+            if not video_path.is_file():
+                raise RuntimeError(f'{video_path} is not a file')
 
         if tmp_dir is not None:
             if not tmp_dir.exists():
@@ -44,13 +63,46 @@ class VideoGenerator(object):
         self.tmp_dir = pathlib.Path(tempfile.mkdtemp(dir=tmp_dir,
                                                      prefix='temp_dir_'))
 
-        # read in the video data to learn the shape of the field
-        # of view and the minimum/maximum values for normalization
-        with h5py.File(video_path, 'r') as in_file:
-            self.min_max = np.quantile(in_file['data'][()], quantiles)
-            self.video_shape = in_file['data'].shape
+        self._video_data = None
+        self._video_path = None
+        self._video_shape = None
+        self._min_max = None
+        self._use_video_data = False
 
-        self.video_path = video_path
+        if video_path is not None:
+            # read in the video data to learn the shape of the field
+            # of view and the minimum/maximum values for normalization
+            with h5py.File(video_path, 'r') as in_file:
+                self._min_max = np.quantile(in_file['data'][()], quantiles)
+                self._video_shape = in_file['data'].shape
+
+            self._video_path = video_path
+        else:
+            self._use_video_data = True
+            self._video_data = video_data
+            self._video_shape = self._video_data.shape
+
+    @property
+    def video_path(self):
+        if self._video_path is None:
+            raise RuntimeError("cannot access video_path; it is None")
+        return self._video_path
+
+    @property
+    def video_data(self):
+        if self._video_data is None:
+            raise RuntimeError("cannot access video_data; it is None")
+        return self._video_data
+
+    @property
+    def min_max(self):
+        if self._min_max is None:
+            raise RuntimeError("cannot access min_max; it is None")
+        return self._min_max
+
+    @property
+    def video_shape(self):
+        return self._video_shape
 
     def get_thumbnail_video(
             self,
@@ -143,24 +195,39 @@ class VideoGenerator(object):
             if len(roi_list) == 0:
                 roi_list = None
 
-        thumbnail = video_utils.thumbnail_video_from_path(
-                        self.video_path,
-                        origin,
-                        frame_shape,
-                        timesteps=timesteps,
-                        tmp_dir=self.tmp_dir,
-                        fps=fps,
-                        quality=quality,
-                        min_max=self.min_max,
-                        roi_list=roi_list,
-                        roi_color=roi_color)
+        if self._use_video_data:
+            thumbnail = video_utils.thumbnail_video_from_array(
+                            self.video_data,
+                            origin,
+                            frame_shape,
+                            timesteps=timesteps,
+                            tmp_dir=self.tmp_dir,
+                            fps=fps,
+                            quality=quality,
+                            roi_list=roi_list,
+                            roi_color=roi_color)
+        else:
+            thumbnail = video_utils.thumbnail_video_from_path(
+                            self.video_path,
+                            origin,
+                            frame_shape,
+                            timesteps=timesteps,
+                            tmp_dir=self.tmp_dir,
+                            fps=fps,
+                            quality=quality,
+                            min_max=self.min_max,
+                            roi_list=roi_list,
+                            roi_color=roi_color)
         return thumbnail
 
     def get_thumbnail_video_from_roi(
                  self,
                  roi: ExtractROI,
                  padding: int = 0,
-                 roi_color: Optional[Tuple[int, int, int]] = None,
+                 other_roi: Union[None, List[ExtractROI]] = None,
+                 roi_color: Union[None,
+                                  Tuple[int, int, int],
+                                  Dict[int, Tuple[int, int, int]]] = None,
                  timesteps: Optional[np.ndarray] = None,
                  quality: int = 5,
                  fps: int = 31):
@@ -175,9 +242,15 @@ class VideoGenerator(object):
             The number of pixels to either side of the ROI to
             include in the field of view (if possible; default=0)
 
-        roi_color: Optional[Tuple[int, int, int]]
+        other_roi: Union[None, List[ExtractROI]]
+            Other ROI to display
+
+        roi_color: Union[None,
+                         Tuple[int, int, int],
+                         Dict[int, Tuple[int, int, int]]]
             If not None, the RGB color in which to plot the ROI's
-            boundary. If None, ROI is not plotted in thumbnail.
+            contour (or dict mapping ROI ID to RGB color).
+            If None, ROI is not plotted in thumbnail.
             (default: None)
 
         timesteps: Optional[np.ndarray]
@@ -195,14 +268,22 @@ class VideoGenerator(object):
         -------
         video_utils.ThumbnailVideo
         """
+        if self._use_video_data:
+            video_arg = self.video_data
+            min_max = None
+        else:
+            video_arg = self.video_path
+            min_max = self.min_max
+
         thumbnail = video_utils.thumbnail_video_from_ROI(
-                        self.video_path,
+                        video_arg,
                         roi,
                         padding=padding,
+                        other_roi=other_roi,
                         roi_color=roi_color,
                         timesteps=timesteps,
                         tmp_dir=self.tmp_dir,
                         fps=fps,
                         quality=quality,
-                        min_max=self.min_max)
+                        min_max=min_max)
         return thumbnail

@@ -19,7 +19,7 @@ from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
-from ophys_etl.modules.classifier2021.utils import (
+from ophys_etl.modules.roi_cell_classifier.utils import (
     clip_img_to_quantiles,
     scale_img_to_uint8,
     get_traces,

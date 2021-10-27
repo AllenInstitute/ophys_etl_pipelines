@@ -8,7 +8,7 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     sanitize_extract_roi_list,
     extract_roi_to_ophys_roi)
 
-from ophys_etl.modules.classifier2021.utils import (
+from ophys_etl.modules.roi_cell_classifier.utils import (
     get_traces,
     clip_img_to_quantiles,
     scale_img_to_uint8)

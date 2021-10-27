@@ -12,7 +12,7 @@ from itertools import combinations, product
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
-from ophys_etl.modules.classifier2021.utils import (
+from ophys_etl.modules.roi_cell_classifier.utils import (
     scale_img_to_uint8)
 
 

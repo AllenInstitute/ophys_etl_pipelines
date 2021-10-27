@@ -11,10 +11,10 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     sanitize_extract_roi_list,
     extract_roi_to_ophys_roi)
 
-from ophys_etl.modules.classifier2021.compute_artifacts import (
+from ophys_etl.modules.roi_cell_classifier.compute_artifacts import (
     ArtifactGenerator)
 
-from ophys_etl.modules.classifier2021.utils import (
+from ophys_etl.modules.roi_cell_classifier.utils import (
     scale_img_to_uint8,
     get_traces)
 

@@ -138,6 +138,7 @@ if __name__ == "__main__":
     parser.add_argument('--stat_name', type=str, default='dmedian')
     parser.add_argument('--min_stat', type=float, default=0.25)
     parser.add_argument('--output_root', type=str, default=None)
+    parser.add_argument('--n_roi', type=int, default=None)
 
     args = parser.parse_args()
     assert args.output_root is not None
@@ -174,6 +175,10 @@ if __name__ == "__main__":
 
     t0 = time.time()
     ct = 0
+
+    if args.n_roi is not None:
+        labeled_fname_list = labeled_fname_list[:args.n_roi]
+
     with PdfPages(output_path, 'w') as pdf_handle:
         for labeled_path in labeled_fname_list:
             exp_id = exp_id_pattern.findall(str(labeled_path.name))[0]

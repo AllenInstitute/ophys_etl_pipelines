@@ -287,6 +287,13 @@ def diff_worker(roi,
         new_k = f'avgimg_{k}'
         this_roi[new_k] = avg_result[k]
 
+    if 'mask' in roi:
+        mask_key = 'mask'
+    else:
+        mask_key = 'mask_matrix'
+
+    this_roi['area'] = int(np.sum(roi[mask_key]))
+
     output_dict[roi_id] = this_roi
 
 

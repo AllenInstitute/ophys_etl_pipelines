@@ -3,6 +3,7 @@ import json
 import PIL.Image
 import copy
 import re
+import numpy as np
 from matplotlib.backends.backend_pdf import PdfPages
 
 from ophys_etl.modules.segmentation.qc_utils.roi_utils import (
@@ -14,6 +15,7 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
 import argparse
 import multiprocessing
 import pathlib
+import time
 
 
 def plot_rois(extract_list, background_img, color_map, axis):
@@ -22,7 +24,7 @@ def plot_rois(extract_list, background_img, color_map, axis):
         background_img = add_roi_boundary_to_img(
                     background_img,
                     ophys,
-                    color_map[ophys.roi_id],
+                    color_map[str(ophys.roi_id)],
                     1.0)
     axis.imshow(background_img)
     return axis
@@ -35,7 +37,7 @@ def filter_rois(raw_roi_list,
 
     output = []
     for roi in raw_roi_list:
-        scores = roi['clasifier_scores']
+        scores = roi['classifier_scores']
         if scores['area'] < min_area:
             continue
         stat = max(scores[f'corr_{stat_name}'],
@@ -66,7 +68,7 @@ def generate_page(
         fontsize=15):
 
     n_rows = 2
-    ncols = 3
+    n_cols = 3
 
     raw_extract_list = []
     for roi in raw_roi_list:
@@ -88,18 +90,18 @@ def generate_page(
     background_list += [max_img]*n_cols
 
     title_list = [f'{experiment_id} correlation projection']
-    title_list += [None, 'all ROIs',
+    title_list += ['all ROIs',
                    f'area>{min_area}; {stat_name}>{min_stat:.2f}']
     title_list += [f'{experiment_id} max projection']
     title_list += [None]*(n_cols-1)
 
     roi_set_list = [None, raw_extract_list, valid_roi_list]*n_rows
 
-    fig = mplt_fig.figure(figsize=(5*n_cols, 5*n_rows))
+    fig = mplt_fig.Figure(figsize=(5*n_cols, 5*n_rows))
     axis_list = [fig.add_subplot(n_rows, n_cols, ii+1)
                  for ii in range(n_rows*n_cols)]
 
-    for i_axis in range(axis_list):
+    for i_axis in range(len(axis_list)):
         background = np.copy(background_list[i_axis])
         title = title_list[i_axis]
         roi_set = roi_set_list[i_axis]
@@ -119,15 +121,15 @@ def generate_page(
 
 def path_to_rgb(file_path):
     img = np.array(PIL.Image.open(file_path, 'r'))
-    mn = img.min()
-    img = img-mn
-    mx = img.max()
-    img = np.round(255.0*img.astype(float)/mx).astype(np.uint8)
-    output = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
-    for ic in range(3):
-        output[:, :, ic] = img
-    return output
-
+    if len(img.shape) == 3:
+        assert img.shape[2] >= 3
+        return img[:, :, :3]
+    else:
+        out = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
+        for ic in range(3):
+            out[:,:,ic] = img
+        return out
+    assert False
 
 if __name__ == "__main__":
 
@@ -139,7 +141,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     assert args.output_root is not None
-    output_path = f'{output_root}_area_{args.min_area}'
+    output_path = f'{args.output_root}_area_{args.min_area}'
     output_path += f'_{args.stat_name}_{args.min_stat:.2f}'
     output_path += '.pdf'
 
@@ -168,12 +170,12 @@ if __name__ == "__main__":
     with open(color_map_path, 'rb') as in_file:
         global_color_map = json.load(in_file)
 
-    exp_id_pattern = re.compile('0-9]+')
+    exp_id_pattern = re.compile('[0-9]+')
 
     t0 = time.time()
     ct = 0
-    with PdfPages(out_path, 'w') as pdf_handle:
-        for labeled_path in labeled_fname_list:
+    with PdfPages(output_path, 'w') as pdf_handle:
+        for labeled_path in labeled_fname_list[:5]:
             exp_id = exp_id_pattern.findall(str(labeled_path.name))[0]
             max_img_path = max_dir / f'{exp_id}_max_proj.png'
             if not max_img_path.is_file():
@@ -184,7 +186,8 @@ if __name__ == "__main__":
 
             max_img = path_to_rgb(max_img_path)
             corr_img = path_to_rgb(corr_img_path)
-            color_map = global_color_map[str(exp_id)]
+            k = f'{exp_id}_suite2p_rois.json'
+            color_map = global_color_map[k]
             with open(labeled_path, 'rb') as in_file:
                 raw_roi_list = json.load(in_file)
             fig = generate_page(
@@ -199,4 +202,4 @@ if __name__ == "__main__":
             pdf_handle.savefig(fig)
             ct += 1
             print(f'{ct} in {time.time()-t0}')
-    print(f'wrote {out_path}')
+    print(f'wrote {output_path}')

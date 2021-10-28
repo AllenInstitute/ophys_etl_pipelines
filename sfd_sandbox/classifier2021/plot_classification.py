@@ -175,7 +175,7 @@ if __name__ == "__main__":
     t0 = time.time()
     ct = 0
     with PdfPages(output_path, 'w') as pdf_handle:
-        for labeled_path in labeled_fname_list[:5]:
+        for labeled_path in labeled_fname_list:
             exp_id = exp_id_pattern.findall(str(labeled_path.name))[0]
             max_img_path = max_dir / f'{exp_id}_max_proj.png'
             if not max_img_path.is_file():

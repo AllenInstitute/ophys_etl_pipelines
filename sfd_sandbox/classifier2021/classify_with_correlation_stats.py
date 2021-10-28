@@ -24,6 +24,20 @@ def z_score_of_data(
     z_score = np.median(z_score)
     return z_score
 
+def get_all_stats(roi_data, background_data):
+    z_score = z_score_of_data(roi_data, background_data)
+    d_mean = np.mean(roi_data)-np.mean(background_data)
+    d_median = np.median(roi_data)-np.median(background_data)
+    r25, r75 = np.quantile(roi_data, (0.25, 0.75))
+    b25, b75 = np.quantile(background_data, (0.25, 0.75))
+    d25 = r25-b25
+    d75 = r75-b75
+    return {'z_score': z_score,
+            'dmean': d_mean,
+            'dmedian': d_median,
+            'd25': d25,
+            'd75': d75}
+
 
 def corr_from_traces(
     raw_trace0,
@@ -110,55 +124,7 @@ def get_roi_v_background_correlation(
     assert ct_roi_to_roi == n_roi*(n_roi-1)//2
     assert ct_roi_to_bckgd == n_roi*n_bckgd
 
-    rr25, rr75 = np.quantile(roi_to_roi, (0.25, 0.75))
-    rb25, rb75 = np.quantile(roi_to_bckgd, (0.25, 0.75))
-
-    z_score = z_score_of_data(
-                 roi_data=roi_to_roi,
-                 background_data=roi_to_bckgd)
-
-    return {'mean_dcorr_score': np.mean(roi_to_roi)-np.mean(roi_to_bckgd),
-            'median_dcorr_score': np.median(roi_to_roi)-np.median(roi_to_bckgd),
-            'quantile0.25_dcorr_score': rr25-rb25,
-            'quantile0.75_dcorr_score': rr75-rb75,
-            'corr_z_score': z_score}
-
-
-def get_pixel_to_pixel_correlation(
-        trace_array,
-        filter_fraction):
-
-    trace_lookup = dict()
-
-    n_traces = trace_array.shape[0]
-    n_correlations = n_traces*(n_traces-1)//2
-    correlations = np.zeros(n_correlations)
-
-    corr_index = 0
-    for ii in range(n_traces):
-        raw_trace0 = trace_array[ii,:]
-        for jj in range(ii+1, n_traces, 1):
-            raw_trace1 = trace_array[jj, :]
-            (val,
-             trace_lookup) = corr_from_traces(
-                                 raw_trace0,
-                                 ii,
-                                 raw_trace1,
-                                 jj,
-                                 filter_fraction,
-                                 trace_lookup)
-            correlations[corr_index] = val
-            corr_index += 1
-
-    assert corr_index == n_correlations
-
-    c25, c75 = np.quantile(correlations, (0.25, 0.75))
-
-    return {'mean': np.mean(correlations),
-            'median': np.median(correlations),
-            'quantile0.25': c25,
-            'quantile0.75': c75,
-            'max': np.max(correlations)}
+    return get_all_stats(roi_to_roi, roi_to_bckgd)
 
 
 def get_trace_array_from_roi(video_data, roi):
@@ -296,7 +262,7 @@ def diff_worker(roi,
     roi_id = roi['id']
     assert roi_id not in output_dict
 
-    result = get_roi_v_background_correlation(
+    corr_result = get_roi_v_background_correlation(
                     roi_trace_array,
                     bckgd_trace_array,
                     filter_fraction)
@@ -304,24 +270,24 @@ def diff_worker(roi,
 
     roi_max = get_roi_fluxes(max_img, roi)
     bckgd_max = get_background_fluxes(max_img, background_pixels)
-
-    max_img_z_score = z_score_of_data(
-                            roi_data=roi_max,
-                            background_data=bckgd_max)
+    max_result = get_all_stats(roi_max, bckgd_max)
 
     roi_avg = get_roi_fluxes(avg_img, roi)
     bckgd_avg = get_background_fluxes(avg_img, background_pixels)
+    avg_result = get_all_stats(roi_avg, bckgd_avg)
 
-    avg_img_z_score = z_score_of_data(
-                            roi_data=roi_avg,
-                            background_data=bckgd_avg)
+    this_roi = dict()
+    for k in corr_result:
+        new_k = f'corr_{k}'
+        this_roi[new_k] = corr_result[k]
+    for k in max_result:
+        new_k = f'maximg_{k}'
+        this_roi[new_k] = max_result[k]
+    for k in avg_result:
+        new_k = f'avgimg_{k}'
+        this_roi[new_k] = avg_result[k]
 
-
-    result['max_img_z_score'] = max_img_z_score
-    result['avg_img_z_score'] = avg_img_z_score
-
-    output_dict[roi_id] = result
-
+    output_dict[roi_id] = this_roi
 
 
 if __name__ == "__main__":

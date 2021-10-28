@@ -43,6 +43,7 @@ def filter_rois(raw_roi_list,
         stat = max(scores[f'corr_{stat_name}'],
                    scores[f'maximg_{stat_name}'],
                    scores[f'avgimg_{stat_name}'])
+        stat = scores[f'corr_{stat_name}']
         if stat < min_stat:
             continue
         new_roi = copy.deepcopy(roi)

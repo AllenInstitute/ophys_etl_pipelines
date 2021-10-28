@@ -90,8 +90,8 @@ def generate_page(
     background_list += [max_img]*n_cols
 
     title_list = [f'{experiment_id} correlation projection']
-    title_list += ['all ROIs',
-                   f'area>{min_area}; {stat_name}>{min_stat:.2f}']
+    title_list += [f'all ROIs ({len(raw_extract_list)})',
+       f'area>{min_area}; {stat_name}>{min_stat:.2f} ({len(valid_roi_list)})']
     title_list += [f'{experiment_id} max projection']
     title_list += [None]*(n_cols-1)
 
@@ -198,7 +198,8 @@ if __name__ == "__main__":
                     color_map=color_map,
                     corr_img=corr_img,
                     max_img=max_img,
-                    experiment_id=exp_id)
+                    experiment_id=exp_id,
+                    fontsize=10)
             pdf_handle.savefig(fig)
             ct += 1
             print(f'{ct} in {time.time()-t0}')

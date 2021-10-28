@@ -199,3 +199,4 @@ if __name__ == "__main__":
             pdf_handle.savefig(fig)
             ct += 1
             print(f'{ct} in {time.time()-t0}')
+    print(f'wrote {out_path}')

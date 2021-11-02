@@ -202,14 +202,10 @@ def create_max_and_avg_projections(
                        (lower_quantile,
                         upper_quantile))
 
-    max_img_data = scale_img_to_uint8(max_img_data)
-
     avg_img_data = clip_img_to_quantiles(
                        avg_img_data,
                        (lower_quantile,
                         upper_quantile))
-
-    avg_img_data = scale_img_to_uint8(avg_img_data)
 
     return avg_img_data, max_img_data
 

@@ -135,10 +135,7 @@ def test_with_graph(
                                   projection_upper_quantile))
             raw_img = np.where(raw_img > mn, raw_img, mn)
             raw_img = np.where(raw_img < mx, raw_img, mx)
-            delta = mx-mn
-            raw_img = raw_img-mn
             raw_img = raw_img.astype(float)
-            raw_img = np.round(255.0*raw_img/delta).astype(np.uint8)
             np.testing.assert_array_equal(raw_img, artifact_img)
 
         artifact_corr = artifact_file['correlation_projection'][()]

@@ -13,7 +13,6 @@ from ophys_etl.modules.segmentation.utils.roi_utils import (
     extract_roi_to_ophys_roi)
 
 import argparse
-import multiprocessing
 import pathlib
 import time
 
@@ -91,7 +90,8 @@ def generate_page(
 
     title_list = [f'{experiment_id} correlation projection']
     title_list += [f'all ROIs ({len(raw_extract_list)})',
-       f'area>{min_area}; {stat_name}>{min_stat:.2f} ({len(valid_roi_list)})']
+                   f'area>{min_area}; {stat_name}>{min_stat:.2f} '
+                   '({len(valid_roi_list)})']
     title_list += [f'{experiment_id} max projection']
     title_list += [None]*(n_cols-1)
 
@@ -127,9 +127,10 @@ def path_to_rgb(file_path):
     else:
         out = np.zeros((img.shape[0], img.shape[1], 3), dtype=np.uint8)
         for ic in range(3):
-            out[:,:,ic] = img
+            out[:, :, ic] = img
         return out
     assert False
+
 
 if __name__ == "__main__":
 

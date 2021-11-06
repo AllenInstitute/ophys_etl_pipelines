@@ -5,13 +5,60 @@ import pathlib
 import time
 import copy
 
-import argparse
+import argschema
+from marshmallow import post_load
 
 import multiprocessing
 from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
     _winnow_process_list)
 from ophys_etl.modules.segmentation.utils.stats_utils import (
     estimate_std_from_interquartile_range)
+
+
+class SecularClassifierSchema(argschema.ArgSchema):
+
+    video_path = argschema.fields.InputFile(
+            required=True,
+            default=None,
+            allow_none=False)
+
+    roi_path = argschema.fields.InputFile(
+            required=True,
+            default=None,
+            allow_none=False)
+
+    output_path = argschema.fields.OutputFile(
+            required=True,
+            default=None,
+            allow_none=False)
+
+    n_processors = argschema.fields.Integer(
+            required=False,
+            default=8,
+            allow_none=False)
+
+    filter_fraction = argschema.fields.Float(
+            required=False,
+            default=0.05,
+            allow_none=False)
+
+    clobber = argschema.fields.Boolean(
+            required=False,
+            default=False,
+            allow_none=False)
+
+    n_roi = argschema.fields.Integer(
+            required=False,
+            default=-1,
+            allow_none=False)
+
+    @post_load
+    def check_clobber(self, data, **kwargs):
+        path = pathlib.Path(data['output_path'])
+        if path.exists():
+            assert path.is_file()
+            assert data['clobber']
+        return data
 
 
 def z_score_of_data(
@@ -23,6 +70,7 @@ def z_score_of_data(
     z_score = (roi_data-med)/std
     z_score = np.median(z_score)
     return z_score
+
 
 def get_all_stats(roi_data, background_data):
     z_score = z_score_of_data(roi_data, background_data)
@@ -40,12 +88,12 @@ def get_all_stats(roi_data, background_data):
 
 
 def corr_from_traces(
-    raw_trace0,
-    i_trace0,
-    raw_trace1,
-    i_trace1,
-    filter_fraction,
-    trace_lookup):
+        raw_trace0,
+        i_trace0,
+        raw_trace1,
+        i_trace1,
+        filter_fraction,
+        trace_lookup):
 
     if i_trace0 not in trace_lookup:
         th = np.quantile(raw_trace0, 1.0-filter_fraction)
@@ -148,6 +196,7 @@ def get_trace_array_from_roi(video_data, roi):
 
     return traces
 
+
 def get_background_pixels(roi, img_shape):
     if 'mask' in roi:
         mask = roi['mask']
@@ -173,9 +222,9 @@ def get_background_pixels(roi, img_shape):
     n_bckgd = 0
     while n_bckgd < n_pixels:
         bckgd_pixels = []
-        row0 = max(0,center_row-buff)
+        row0 = max(0, center_row-buff)
         row1 = min(img_shape[0], center_row+buff)
-        col0 = max(0,center_col-buff)
+        col0 = max(0, center_col-buff)
         col1 = min(img_shape[1], center_col+buff)
         n_bckgd = 0
         for r in range(row0, row1, 1):
@@ -183,9 +232,9 @@ def get_background_pixels(roi, img_shape):
             for c in range(col0, col1, 1):
                 col = c-roi['x']
                 is_bckgd = False
-                if row<0 or row>=mask.shape[0]:
+                if row < 0 or row >= mask.shape[0]:
                     is_bckgd = True
-                elif col<0 or col>=mask.shape[1]:
+                elif col < 0 or col >= mask.shape[1]:
                     is_bckgd = True
                 elif not mask[row, col]:
                     is_bckgd = True
@@ -219,6 +268,7 @@ def get_background_fluxes(img_data, background_pixels):
         fluxes[ii] = img_data[pixel[0], pixel[1]]
     return fluxes
 
+
 def get_roi_fluxes(img_data, roi):
     if 'mask' in roi:
         mask = roi['mask']
@@ -240,15 +290,6 @@ def get_roi_fluxes(img_data, roi):
     return fluxes
 
 
-
-def roi_worker(roi_id, trace_array, filter_fraction, output_dict):
-    result = get_pixel_to_pixel_correlation(
-                    trace_array,
-                    filter_fraction)
-
-    output_dict[roi_id] = result
-
-
 def diff_worker(roi,
                 roi_trace_array,
                 bckgd_trace_array,
@@ -258,7 +299,6 @@ def diff_worker(roi,
                 background_pixels,
                 output_dict):
 
-
     roi_id = roi['id']
     assert roi_id not in output_dict
 
@@ -266,7 +306,6 @@ def diff_worker(roi,
                     roi_trace_array,
                     bckgd_trace_array,
                     filter_fraction)
-
 
     roi_max = get_roi_fluxes(max_img, roi)
     bckgd_max = get_background_fluxes(max_img, background_pixels)
@@ -297,103 +336,97 @@ def diff_worker(roi,
     output_dict[roi_id] = this_roi
 
 
+class SecularClassifier(argschema.ArgSchemaParser):
+    default_schema = SecularClassifierSchema
+
+    def run(self):
+
+        video_path = pathlib.Path(self.args['video_path'])
+        roi_path = pathlib.Path(self.args['roi_path'])
+        output_path = pathlib.Path(self.args['output_path'])
+        n_processors = self.args['n_processors']
+
+        with open(roi_path, 'rb') as in_file:
+            roi_list = [roi for roi in json.load(in_file)]
+
+        with h5py.File(video_path, 'r') as in_file:
+            video_data = in_file['data'][()]
+
+        max_img = np.max(video_data, axis=0)
+        avg_img = np.mean(video_data, axis=0)
+
+        mgr = multiprocessing.Manager()
+        roi_corr_dict = mgr.dict()
+
+        if self.args['n_roi'] > 0:
+            raw_roi_list = copy.deepcopy(roi_list)
+            roi_list = [r for r in raw_roi_list[:self.args['n_roi']//2]]
+            roi_list += [r for r in raw_roi_list[-1*self.args['n_roi']//2:]]
+
+        # signals
+        n_roi = len(roi_list)
+        t0 = time.time()
+        p_list = []
+        for i_roi in range(len(roi_list)):
+            roi = roi_list[i_roi]
+            roi_traces = get_trace_array_from_roi(video_data, roi)
+
+            background_pixels = get_background_pixels(
+                                    roi,
+                                    video_data.shape[1:])
+
+            background_traces = get_background_trace_array(
+                                        video_data,
+                                        background_pixels)
+
+            p = multiprocessing.Process(
+                    target=diff_worker,
+                    args=(roi,
+                          roi_traces,
+                          background_traces,
+                          self.args['filter_fraction'],
+                          max_img,
+                          avg_img,
+                          background_pixels,
+                          roi_corr_dict))
+
+            p.start()
+            p_list.append(p)
+            while len(p_list) > 0 and len(p_list) >= n_processors:
+                p_list = _winnow_process_list(p_list)
+
+            if i_roi > 0:
+                if (i_roi % (2*n_processors)) == 0:
+                    if len(roi_corr_dict) > 0:
+                        duration = time.time()-t0
+                        done = len(roi_corr_dict)
+                        per = duration/done
+                        pred = per*n_roi
+                        remaining = pred-duration
+                        self.logger.info(
+                              f'{done} of {n_roi} signals in {duration:.2e} '
+                              f'-- {remaining:.2e} remains '
+                              f'of {pred:.2e}')
+
+        self.logger.info('running final batch of signal processes')
+        for p in p_list:
+            p.join()
+        self.logger.info(f'took {time.time()-t0:.2e} total')
+
+        roi_lookup = {roi['id']: roi
+                      for roi in roi_list}
+
+        labeled_rois = []
+        for roi_id in roi_lookup:
+            stats = roi_corr_dict[roi_id]
+            roi = roi_lookup[roi_id]
+            roi['classifier_scores'] = stats
+            labeled_rois.append(roi)
+
+        with open(output_path, 'w') as out_file:
+            out_file.write(json.dumps(labeled_rois, indent=2))
+
+
 if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--video_path', type=str, default=None)
-    parser.add_argument('--roi_path', type=str, default=None)
-    parser.add_argument('--out_path', type=str, default=None)
-    parser.add_argument('--filter_fraction', type=float, default=0.05)
-    parser.add_argument('--n_processors', type=int, default=8)
-    parser.add_argument('--n_roi', type=int, default=-1)
-    args = parser.parse_args()
-
-    fontsize=15
-
-    assert args.out_path is not None
-
-    video_path = pathlib.Path(args.video_path)
-    roi_path = pathlib.Path(args.roi_path)
-    out_path = pathlib.Path(args.out_path)
-
-    assert video_path.is_file()
-    assert roi_path.is_file()
-
-    with open(roi_path, 'rb') as in_file:
-        roi_list = [roi for roi in json.load(in_file)]
-
-    with h5py.File(video_path, 'r') as in_file:
-        video_data = in_file['data'][()]
-
-    max_img = np.max(video_data, axis=0)
-    avg_img = np.mean(video_data, axis=0)
-
-    mgr = multiprocessing.Manager()
-    roi_corr_dict = mgr.dict()
-
-    if args.n_roi > 0:
-        raw_roi_list = copy.deepcopy(roi_list)
-        roi_list = [r for r in raw_roi_list[:args.n_roi//2]]
-        roi_list += [r for r in raw_roi_list[-1*args.n_roi//2:]]
-
-    n_roi = len(roi_list)
-    print(f'n_roi {n_roi}')
-
-    #signals
-    t0 = time.time()
-    process_list = []
-    for i_roi in range(len(roi_list)):
-        roi = roi_list[i_roi]
-        roi_traces = get_trace_array_from_roi(video_data, roi)
-
-        background_pixels = get_background_pixels(roi, video_data.shape[1:])
-
-        background_traces = get_background_trace_array(
-                                    video_data,
-                                    background_pixels)
-
-        p = multiprocessing.Process(
-                target=diff_worker,
-                args=(roi,
-                      roi_traces,
-                      background_traces,
-                      args.filter_fraction,
-                      max_img,
-                      avg_img,
-                      background_pixels,
-                      roi_corr_dict))
-
-        p.start()
-        process_list.append(p)
-        while len(process_list) > 0 and len(process_list) >= args.n_processors:
-            process_list = _winnow_process_list(process_list)
-
-        if i_roi > 0 and (i_roi % (2*args.n_processors) == 0) and len(roi_corr_dict) > 0:
-            duration = time.time()-t0
-            done = len(roi_corr_dict)
-            per = duration/done
-            pred = per*n_roi
-            remaining = pred-duration
-            print(f'{done} of {n_roi} signals in {duration:.2e} '
-                  f'-- {remaining:.2e} remains '
-                  f'of {pred:.2e}')
-
-    print('final batch of signal processes')
-    for p in process_list:
-        p.join()
-    print(f'took {time.time()-t0:.2e} total')
-    print(len(roi_corr_dict))
-    assert len(roi_corr_dict) == len(roi_list)
-
-    roi_lookup = {roi['id']: roi
-                  for roi in roi_list}
-
-    labeled_rois = []
-    for roi_id in roi_lookup:
-        stats = roi_corr_dict[roi_id]
-        roi = roi_lookup[roi_id]
-        roi['classifier_scores'] = stats
-        labeled_rois.append(roi)
-
-    with open(args.out_path, 'w') as out_file:
-        out_file.write(json.dumps(labeled_rois, indent=2))
+    classifier = SecularClassifier()
+    classifier.run()

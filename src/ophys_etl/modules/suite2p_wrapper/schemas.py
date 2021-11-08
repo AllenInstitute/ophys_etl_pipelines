@@ -65,6 +65,10 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
                      "used to smooth the data before phase correlation is "
                      "computed. Might need this to be set to 1 or 2 for "
                      "low SNR data."))
+    nonrigid = argschema.fields.Boolean(
+        default=False,
+        required=False,
+        description=("Turns on Suite2P's non-rigid registration algorithm"))
     # s2p cell detection settings
     roidetect = argschema.fields.Bool(
             default=True,

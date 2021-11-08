@@ -113,7 +113,11 @@ def thumbnail_bounds_from_ROI(
     return (rowmin, colmin), new_shape, padding
 
 
-def get_artifacts(roi, max_projection, avg_projection):
+def get_artifacts(
+        roi: ExtractROI,
+        max_projection: np.ndarray,
+        avg_projection: np.ndarray,
+        correlation_projection=None):
     (origin,
      shape,
      padding) = thumbnail_bounds_from_ROI(roi,
@@ -127,6 +131,11 @@ def get_artifacts(roi, max_projection, avg_projection):
 
     max_thumbnail = max_projection[row0:row1, col0:col1]
     avg_thumbnail = avg_projection[row0:row1, col0:col1]
+    if correlation_projection is not None:
+        corr_thumbnail = correlation_projection[row0:row1, col0:col1]
+    else:
+        corr_thumbnail = None
+
     mask = np.zeros((row1-row0, col1-col0), dtype=np.uint8)
     for irow in range(roi['height']):
         row = irow + roi['y'] - origin[0]
@@ -147,15 +156,21 @@ def get_artifacts(roi, max_projection, avg_projection):
     if padding is not None:
         max_thumbnail = np.pad(max_thumbnail, padding)
         avg_thumbnail = np.pad(avg_thumbnail, padding)
+        if corr_thumbnail is not None:
+            corr_thumbnail = np.pad(corr_thumbnail, padding)
         mask = np.pad(mask, padding)
 
     assert max_thumbnail.shape == (128, 128)
     assert avg_thumbnail.shape == (128, 128)
     assert mask.shape == (128, 128)
 
+    if corr_thumbnail is not None:
+        assert corr_thumbnail.shape == (128, 128)
+
     return {'max': max_thumbnail,
             'avg': avg_thumbnail,
-            'mask': mask}
+            'mask': mask,
+            'corr': corr_thumbnail}
 
 def run_artifacts(roi_path=None, video_path=None, out_dir=None, n_roi=10):
 

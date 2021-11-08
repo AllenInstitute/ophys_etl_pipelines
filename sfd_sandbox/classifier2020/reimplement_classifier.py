@@ -28,7 +28,8 @@ import random
 import time
 import tempfile
 
-from generate_artifacts import run_artifacts
+from ophys_etl.modules.cell_classifier_2020.generate_artifacts import (
+    run_artifacts)
 
 
 random.seed(1234)

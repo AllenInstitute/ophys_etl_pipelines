@@ -898,7 +898,8 @@ def hnc_roi_to_extract_roi(hnc_roi: HNC_ROI, id: int) -> ExtractROI:
 
 
 def get_roi_color_map(
-        roi_list: List[OphysROI]) -> Dict[int, Tuple[int, int, int]]:
+        roi_list: List[OphysROI],
+        color_adjustment: float = 0.8) -> Dict[int, Tuple[int, int, int]]:
     """
     Take a list of OphysROI and return a dict mapping ROI ID
     to RGB color so that no ROIs that touch have the same color
@@ -906,6 +907,10 @@ def get_roi_color_map(
     Parametrs
     ---------
     roi_list: List[OphysROI]
+
+    color_adjustment: float
+        Factor by which to truncate color range.
+        0.8 excludes red from ROI colors.
 
     Returns
     -------
@@ -935,7 +940,7 @@ def get_roi_color_map(
     # create a list of colors based on the matplotlib color map
     raw_color_list = []
     for ii in range(n_colors):
-        color = mplt_color_map(0.8*(1.0+ii)/(n_colors+1.0))
+        color = mplt_color_map(color_adjustment*(1.0+ii)/(n_colors+1.0))
         color = (int(color[0]*255), int(color[1]*255), int(color[2]*255))
         raw_color_list.append(color)
 

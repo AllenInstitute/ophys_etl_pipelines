@@ -135,6 +135,7 @@ def get_roi_v_background_correlation(
 
     roi_to_roi = np.zeros(n_roi*(n_roi-1)//2, dtype=float)
     roi_to_bckgd = np.zeros(n_roi*n_bckgd, dtype=float)
+    bckgd_to_bckgd = np.zeros(n_bckgd*(n_bckgd-1)//2, dtype=float)
 
     trace_lookup = dict()
 
@@ -169,10 +170,28 @@ def get_roi_v_background_correlation(
             roi_to_bckgd[ct_roi_to_bckgd] = val
             ct_roi_to_bckgd += 1
 
+    ct_bb = 0
+    for ii in range(n_bckgd):
+        b0_lookup = -1*ii-1
+        raw_b0 = background_trace_array[ii, :]
+        for jj in range(ii+1, n_bckgd, 1):
+            b1_lookup = -1*jj-1
+            raw_b1 = background_trace_array[jj, :]
+            (val,
+             trace_lookup) = corr_from_traces(
+                                 raw_b0, b0_lookup,
+                                 raw_b1, b1_lookup,
+                                 filter_fraction,
+                                 trace_lookup)
+            bckgd_to_bckgd[ct_bb] = val
+            ct_bb += 1
+
     assert ct_roi_to_roi == n_roi*(n_roi-1)//2
     assert ct_roi_to_bckgd == n_roi*n_bckgd
+    assert ct_bb == n_bckgd*(n_bckgd-1)//2
 
-    return get_all_stats(roi_to_roi, roi_to_bckgd)
+    return (get_all_stats(roi_to_roi, roi_to_bckgd),
+            get_all_stats(roi_to_roi, bckgd_to_bckgd))
 
 
 def get_trace_array_from_roi(video_data, roi):
@@ -302,10 +321,11 @@ def diff_worker(roi,
     roi_id = roi['id']
     assert roi_id not in output_dict
 
-    corr_result = get_roi_v_background_correlation(
-                    roi_trace_array,
-                    bckgd_trace_array,
-                    filter_fraction)
+    (corr_result,
+     corr_bb_result) = get_roi_v_background_correlation(
+                            roi_trace_array,
+                            bckgd_trace_array,
+                            filter_fraction)
 
     roi_max = get_roi_fluxes(max_img, roi)
     bckgd_max = get_background_fluxes(max_img, background_pixels)
@@ -319,6 +339,9 @@ def diff_worker(roi,
     for k in corr_result:
         new_k = f'corr_{k}'
         this_roi[new_k] = corr_result[k]
+    for k in corr_bb_result:
+        new_k = f'corr_bb_{k}'
+        this_roi[new_k] = corr_bb_result[k]
     for k in max_result:
         new_k = f'maximg_{k}'
         this_roi[new_k] = max_result[k]

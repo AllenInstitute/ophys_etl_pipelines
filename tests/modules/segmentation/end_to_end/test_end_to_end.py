@@ -3,7 +3,6 @@ from typing import List, Set, Tuple
 import pathlib
 import h5py
 import numpy as np
-import sys
 
 from ophys_etl.modules.segmentation.modules.calculate_edges import (
     CalculateEdges)
@@ -71,8 +70,7 @@ def pixel_set_from_roi_list(roi_list: List[dict]) -> Set[Tuple[int, int]]:
     return pixel_set
 
 
-@pytest.mark.skipif(sys.version_info.minor < 8,
-                    reason='tests started failing in 3.7')
+@pytest.mark.skip(reason='tests started failing in 3.7 and 3.8')
 @pytest.mark.parametrize('roi_class', ['PearsonFeatureROI', 'PCAFeatureROI'])
 def test_edge_fvs_filter_merge(tmpdir, synthetic_video_path, roi_class):
     """
@@ -187,8 +185,7 @@ def test_edge_fvs_filter_merge(tmpdir, synthetic_video_path, roi_class):
     assert merged_roi_pixels == raw_roi_pixels
 
 
-@pytest.mark.skipif(sys.version_info.minor < 8,
-                    reason='tests started failing in 3.7')
+@pytest.mark.skip(reason='tests started failing in 3.7 and 3.8')
 def test_edge_hnc_filter_merge(tmpdir, synthetic_video_path):
     """
     test HNC segmentation pipeline

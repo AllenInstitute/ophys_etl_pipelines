@@ -4,7 +4,8 @@ from itertools import product
 
 from ophys_etl.modules.maximum_projection.utils import (
     filter_chunk_of_frames,
-    decimate_video)
+    decimate_video,
+    generate_max_projection)
 
 
 @pytest.mark.parametrize('kernel_size', [3, 5, 7])
@@ -64,3 +65,41 @@ def test_decimate_video(frames_to_group):
 
     actual = decimate_video(video, frames_to_group)
     np.testing.assert_array_equal(expected, actual)
+
+
+@pytest.mark.parametrize('n_processors, input_frame_rate, kernel_size',
+                         product((2, 3, 4),
+                                 (3.0, 6.0, 11.0, 31.0),
+                                 (2, 3, 4)))
+def test_generate_max_projection(
+        n_processors,
+        input_frame_rate,
+        kernel_size):
+
+    rng = np.random.default_rng(77123)
+    video = rng.random((1000, 40, 47))
+
+    downsampled_frame_rate = 4.0
+
+    if input_frame_rate < 4.0:
+        frames_to_group = 1
+        decimated_video = video
+    else:
+        frames_to_group = np.round(input_frame_rate/downsampled_frame_rate)
+        frames_to_group = frames_to_group.astype(int)
+        decimated_video = decimate_video(video, frames_to_group)
+
+    filtered_video = filter_chunk_of_frames(decimated_video,
+                                            kernel_size)
+
+    expected = np.max(filtered_video, axis=0)
+    assert expected.shape == (40, 47)
+
+    actual = generate_max_projection(
+                video,
+                input_frame_rate,
+                downsampled_frame_rate,
+                kernel_size,
+                n_processors)
+
+    np.testing.assert_array_equal(actual, expected)

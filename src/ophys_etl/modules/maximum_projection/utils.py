@@ -1,4 +1,6 @@
 import numpy as np
+import multiprocessing
+import multiprocessing.managers
 import scipy.ndimage as scipy_ndimage
 
 
@@ -70,3 +72,95 @@ def decimate_video(
         decimated_video[i_out, :, :] = np.mean(video[i0:i1, :, :], axis=0)
 
     return decimated_video
+
+
+def filter_worker(video: np.ndarray,
+                  kernel_size: int,
+                  output_list: multiprocessing.managers.ListProxy) -> None:
+    """
+    Worker method to apply filter_chunk_of_frames to a subset of
+    video frames from decimated video
+
+    Parameters
+    ----------
+    video: np.ndarray
+        (ntime, nrows, ncolumns)
+
+    kernel_size: int
+
+    output_list: multiprocessing.managers.ListProxy
+        List (shared across processes) where median filtered
+        frames will be kept. Because it does not matter the order of
+        frames when they are cast into a maximum projection image,
+        the order of the frames does not need to be preserved here.
+    """
+    local_result = filter_chunk_of_frames(video, kernel_size)
+    output_list.append(local_result)
+
+
+def generate_max_projection(
+        video: np.ndarray,
+        input_frame_rate: float,
+        downsampled_frame_rate: float,
+        median_filter_kernel_size: int,
+        n_processors: int) -> np.ndarray:
+    """
+    Generate a maximum projection from an image by
+    1) downsampling the movie from input_frame_rate to downsampled_frame_rate
+    2) applying a median filter to every frame of the downsampled video
+    3) taking the maximum of the downsampled, filtered video at each pixel
+
+    Parameters
+    ----------
+    video: np.ndarray
+        (ntime, nrows, ncols)
+
+    input_frame_rate: float
+
+    downsampled_frame_rate: float
+        In the same units as input_frame_rate (ratio is all that matters)
+
+    median_filter_kernel_size: int
+        The side length of the square kernel used when applying the median
+        filter.
+
+    n_processors:
+        The number of parallel processes available (used when applying
+        the median filter)
+
+    Returns
+    -------
+    maximum_projection: np.ndarray
+        (nrows, ncols)
+    """
+
+    frames_to_group = np.round(input_frame_rate/downsampled_frame_rate)
+    frames_to_group = frames_to_group.astype(int)
+    if frames_to_group > 1:
+        video = decimate_video(video, frames_to_group)
+
+    n_frames_per_chunk = np.ceil(video.shape[0]/n_processors).astype(int)
+    process_list = []
+    mgr = multiprocessing.Manager()
+    output_list = mgr.list()
+    ntime0 = video.shape[0]
+    for i0 in range(0, ntime0, n_frames_per_chunk):
+
+        # in order to avoid holding too many copies of the
+        # (large) video in memory at once, "destroy" video
+        # as it is processed
+        input_chunk = video[:n_frames_per_chunk, :, :]
+        video = video[n_frames_per_chunk:, :, :]
+
+        p = multiprocessing.Process(
+                    target=filter_worker,
+                    args=(input_chunk,
+                          median_filter_kernel_size,
+                          output_list))
+        p.start()
+        process_list.append(p)
+
+    for p in process_list:
+        p.join()
+
+    return np.vstack(output_list).max(axis=0)

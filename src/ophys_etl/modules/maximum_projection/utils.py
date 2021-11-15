@@ -1,4 +1,5 @@
 import numpy as np
+from itertools import product
 
 
 def reflect_indexes(
@@ -59,4 +60,28 @@ def median_filter(
     -------
     filtered_img: np.ndarray
     """
-    pass
+    img_shape = img.shape
+    img = img.flatten()
+
+    pixel_indexes_1d = np.arange(len(img), dtype=int)
+    pixel_indexes_2d = np.unravel_index(pixel_indexes_1d,
+                                        img_shape)
+
+    k0 = -kernel_size//2
+    kernel_1d = np.arange(k0, k0+kernel_size, 1)
+
+    neighbor_array = np.zeros((len(pixel_indexes_1d), kernel_size**2),
+                              dtype=float)
+
+    for i_neighbor, (drow, dcol) in enumerate(product(kernel_1d, kernel_1d)):
+        neighbor_row = reflect_indexes(pixel_indexes_2d[0]+drow,
+                                       img_shape[0])
+        neighbor_col = reflect_indexes(pixel_indexes_2d[1]+dcol,
+                                       img_shape[1])
+
+        neighbor_1d = np.ravel_multi_index([neighbor_row,
+                                            neighbor_col],
+                                           img_shape)
+
+        neighbor_array[:, i_neighbor] = img[neighbor_1d]
+    return np.median(neighbor_array, axis=1).reshape(img_shape)

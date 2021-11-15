@@ -3,7 +3,8 @@ import numpy as np
 from itertools import product
 
 from ophys_etl.modules.maximum_projection.utils import (
-    filter_chunk_of_frames)
+    filter_chunk_of_frames,
+    decimate_video)
 
 
 @pytest.mark.parametrize('kernel_size', [3, 5, 7])
@@ -47,3 +48,19 @@ def test_chunk_of_frames(kernel_size):
 
     actual = filter_chunk_of_frames(chunk_of_frames, kernel_size)
     np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.parametrize('frames_to_group', [3, 4, 5])
+def test_decimate_video(frames_to_group):
+    rng = np.random.default_rng(62134)
+    video = rng.random((71, 40, 40))
+
+    expected = []
+    for i0 in range(0, 71, frames_to_group):
+        frame = np.mean(video[i0:i0+frames_to_group, :, :],
+                        axis=0)
+        expected.append(frame)
+    expected = np.array(expected)
+
+    actual = decimate_video(video, frames_to_group)
+    np.testing.assert_array_equal(expected, actual)

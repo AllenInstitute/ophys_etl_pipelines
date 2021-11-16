@@ -98,6 +98,14 @@ def filter_worker(video: np.ndarray,
     output_list.append(local_result)
 
 
+def n_frames_from_hz(
+        input_frame_rate: float,
+        downsampled_frame_rate: float) -> int:
+    frames_to_group = np.round(input_frame_rate/downsampled_frame_rate)
+    frames_to_group = frames_to_group.astype(int)
+    return frames_to_group
+
+
 def generate_max_projection(
         video: np.ndarray,
         input_frame_rate: float,
@@ -134,8 +142,10 @@ def generate_max_projection(
         (nrows, ncols)
     """
 
-    frames_to_group = np.round(input_frame_rate/downsampled_frame_rate)
-    frames_to_group = frames_to_group.astype(int)
+    frames_to_group = n_frames_from_hz(
+                            input_frame_rate,
+                            downsampled_frame_rate)
+
     if frames_to_group > 1:
         video = decimate_video(video, frames_to_group)
 

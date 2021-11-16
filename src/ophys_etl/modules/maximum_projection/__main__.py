@@ -5,7 +5,8 @@ from marshmallow import post_load
 
 from ophys_etl.modules.maximum_projection.utils import (
     generate_max_projection,
-    scale_to_uint8)
+    scale_to_uint8,
+    n_frames_from_hz)
 
 
 class MaximumProjectionSchema(argschema.ArgSchema):
@@ -61,14 +62,32 @@ class MaximumProjectionRunner(argschema.ArgSchemaParser):
 
     def run(self):
         with h5py.File(self.args['video_path'], 'r') as in_file:
-            video_data = in_file['data'][()]
-        img = generate_max_projection(
+            n_total_frames = in_file['data'].shape[0]
+
+        frames_to_group = n_frames_from_hz(
+                                self.args['input_frame_rate'],
+                                self.args['downsampled_frame_rate'])
+
+        n_frames_at_once = 5000
+        n = np.round(n_frames_at_once/frames_to_group).astype(int)
+        n_frames_at_once = n*frames_to_group
+
+        sub_img_list = []
+        for frame0 in range(0, n_total_frames, n_frames_at_once):
+            frame1 = min(n_total_frames, frame0+n_frame_at_once)
+            with h5py.File(self.args['video_path'], 'r') as in_file:
+                video_data = in_file['data'][frame0:frame1, :, :]
+
+            img = generate_max_projection(
                     video_data,
                     self.args['input_frame_rate'],
                     self.args['downsampled_frame_rate'],
                     self.args['median_filter_kernel_size'],
                     self.args['n_parallel_workers'])
 
+            sub_img_list.append(img)
+
+        img = np.stack(sub_img_list).max(axis=0)
         img = PIL.Image.fromarray(scale_to_uint8(img))
         img.save(self.args['image_path'])
 

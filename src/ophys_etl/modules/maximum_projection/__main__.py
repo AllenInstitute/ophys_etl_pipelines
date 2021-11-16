@@ -69,7 +69,7 @@ class MaximumProjectionRunner(argschema.ArgSchemaParser):
                                 self.args['input_frame_rate'],
                                 self.args['downsampled_frame_rate'])
 
-        n_frames_at_once = 5000
+        n_frames_at_once = 10000
         n = np.round(n_frames_at_once/frames_to_group).astype(int)
         n_frames_at_once = n*frames_to_group
 

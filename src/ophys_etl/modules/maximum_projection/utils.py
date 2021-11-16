@@ -83,8 +83,9 @@ def decimated_video_from_path(
         frames_to_group: int,
         video_lock):
 
-    with h5py.File(video_path, 'r') as in_file:
-        video = in_file['data'][frame0:frame1, :, :]
+    with video_lock:
+        with h5py.File(video_path, 'r') as in_file:
+            video = in_file['data'][frame0:frame1, :, :]
 
     if frames_to_group > 1:
         return decimate_video(video, frames_to_group)

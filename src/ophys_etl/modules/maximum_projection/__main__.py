@@ -1,13 +1,11 @@
 import h5py
-import numpy as np
 import PIL.Image
 import argschema
 from marshmallow import post_load
 
 from ophys_etl.modules.maximum_projection.utils import (
-    generate_max_projection,
-    scale_to_uint8,
-    n_frames_from_hz)
+    maximum_projection_from_path,
+    scale_to_uint8)
 
 
 class MaximumProjectionSchema(argschema.ArgSchema):
@@ -55,6 +53,16 @@ class MaximumProjectionSchema(argschema.ArgSchema):
             allow_none=False,
             description=("Number of processes to use when divvying up work"))
 
+    n_frames_at_once = argschema.fields.Integer(
+            required=False,
+            default=-1,
+            allow_none=False,
+            description=("Number of frames to read in from the video "
+                         "at a time. If negative, read in all of the "
+                         "frames at once. May need to be positive to "
+                         "prevent the process from using up all available "
+                         "memory in the case of large movies."))
+
     @post_load
     def check_png_path(self, data, **kwargs):
         if not data['image_path'].endswith('png'):
@@ -74,33 +82,15 @@ class MaximumProjectionRunner(argschema.ArgSchemaParser):
     default_schema = MaximumProjectionSchema
 
     def run(self):
-        with h5py.File(self.args['video_path'], 'r') as in_file:
-            n_total_frames = in_file['data'].shape[0]
 
-        frames_to_group = n_frames_from_hz(
-                                self.args['input_frame_rate'],
-                                self.args['downsampled_frame_rate'])
-
-        n_frames_at_once = 10000
-        n = np.round(n_frames_at_once/frames_to_group).astype(int)
-        n_frames_at_once = n*frames_to_group
-
-        sub_img_list = []
-        for frame0 in range(0, n_total_frames, n_frames_at_once):
-            frame1 = min(n_total_frames, frame0+n_frames_at_once)
-            with h5py.File(self.args['video_path'], 'r') as in_file:
-                video_data = in_file['data'][frame0:frame1, :, :]
-
-            img = generate_max_projection(
-                    video_data,
+        img = maximum_projection_from_path(
+                    self.args['video_path'],
                     self.args['input_frame_rate'],
                     self.args['downsampled_frame_rate'],
                     self.args['median_filter_kernel_size'],
-                    self.args['n_parallel_workers'])
+                    self.args['n_parallel_workers'],
+                    n_frames_at_once=self.args['n_frames_at_once'])
 
-            sub_img_list.append(img)
-
-        img = np.stack(sub_img_list).max(axis=0)
         with h5py.File(self.args['full_output_path'], 'w') as out_file:
             out_file.create_dataset('max_projection', data=img)
 

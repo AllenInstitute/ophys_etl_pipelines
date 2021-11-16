@@ -1,3 +1,5 @@
+import pathlib
+import h5py
 import numpy as np
 import multiprocessing
 import multiprocessing.managers
@@ -197,3 +199,43 @@ def scale_to_uint8(img: np.ndarray) -> np.ndarray:
     mn = img.min()
     img = img-mn
     return np.round(255.0*img.astype(float)/img.max()).astype(np.uint8)
+
+
+def maximum_projection_from_path(
+        video_path: pathlib.Path,
+        input_frame_rate: float,
+        downsampled_frame_rate: float,
+        median_filter_kernel_size: int,
+        n_processors: int,
+        n_frames_at_once: int = 10000) -> np.ndarray:
+
+    with h5py.File(video_path, 'r') as in_file:
+        n_total_frames = in_file['data'].shape[0]
+
+    if n_frames_at_once < 0:
+        n_frames_at_once = n_total_frames
+    else:
+        frames_to_group = n_frames_from_hz(
+                                input_frame_rate,
+                                downsampled_frame_rate)
+
+        n = np.round(n_frames_at_once/frames_to_group).astype(int)
+        n_frames_at_once = n*frames_to_group
+
+    sub_img_list = []
+    for frame0 in range(0, n_total_frames, n_frames_at_once):
+        frame1 = min(n_total_frames, frame0+n_frames_at_once)
+        with h5py.File(video_path, 'r') as in_file:
+            video_data = in_file['data'][frame0:frame1, :, :]
+
+        img = generate_max_projection(
+                video_data,
+                input_frame_rate,
+                downsampled_frame_rate,
+                median_filter_kernel_size,
+                n_processors)
+
+        sub_img_list.append(img)
+
+    img = np.stack(sub_img_list).max(axis=0)
+    return img

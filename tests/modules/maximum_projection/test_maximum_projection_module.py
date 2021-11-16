@@ -32,7 +32,11 @@ def video_path_fixture(video_data_fixture, tmpdir_factory):
     yield video_path
 
 
-def test_runner(tmpdir, video_data_fixture, video_path_fixture):
+@pytest.mark.parametrize('n_frames_at_once', [-1, 150])
+def test_runner(tmpdir,
+               video_data_fixture,
+               video_path_fixture,
+               n_frames_at_once):
 
     input_frame_rate = 6.0
     downsampled_frame_rate = 4.0
@@ -51,6 +55,7 @@ def test_runner(tmpdir, video_data_fixture, video_path_fixture):
     args['downsampled_frame_rate'] = downsampled_frame_rate
     args['n_parallel_workers'] = n_processors
     args['median_filter_kernel_size'] = median_kernel_size
+    args['n_frames_at_once'] = n_frames_at_once
 
     image_path = tempfile.mkstemp(dir=tmpdir,
                                   prefix='image_',

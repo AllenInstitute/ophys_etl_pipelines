@@ -28,7 +28,7 @@ class MaximumProjectionSchema(argschema.ArgSchema):
             allow_none=False,
             description=("frame rate (in Hz) of video"))
 
-    donwsampled_frame_rate = argschema.fields.Float(
+    downsampled_frame_rate = argschema.fields.Float(
             required=False,
             default=4.0,
             allow_none=False,

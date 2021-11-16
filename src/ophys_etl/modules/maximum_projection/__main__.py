@@ -21,8 +21,14 @@ class MaximumProjectionSchema(argschema.ArgSchema):
     image_path = argschema.fields.OutputFile(
             required=True,
             default=None,
-            allow_nonw=False,
+            allow_none=False,
             description=("Path to png file where image will be stored"))
+
+    full_output_path = argschema.fields.OutputFile(
+            required=True,
+            default=None,
+            allow_none=False,
+            description=("Path to hdf5 file where we will store full output"))
 
     input_frame_rate = argschema.fields.Float(
             required=True,
@@ -55,6 +61,12 @@ class MaximumProjectionSchema(argschema.ArgSchema):
             msg = f"You gave image_path={data['image_path']}\n"
             msg += "must be a path to a .png file"
             raise ValueError(msg)
+
+        if not data['full_output_path'].endswith('h5'):
+            msg = f"You gave image_path={data['full_output_path']}\n"
+            msg += "must be a path to a .h5 file"
+            raise ValueError(msg)
+
         return data
 
 
@@ -89,6 +101,9 @@ class MaximumProjectionRunner(argschema.ArgSchemaParser):
             sub_img_list.append(img)
 
         img = np.stack(sub_img_list).max(axis=0)
+        with h5py.File(self.args['full_output_path'], 'w') as out_file:
+            out_file.create_dataset('max_projection', data=img)
+
         img = PIL.Image.fromarray(scale_to_uint8(img))
         img.save(self.args['image_path'])
 

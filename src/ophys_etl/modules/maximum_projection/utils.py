@@ -103,7 +103,7 @@ def n_frames_from_hz(
         downsampled_frame_rate: float) -> int:
     frames_to_group = np.round(input_frame_rate/downsampled_frame_rate)
     frames_to_group = frames_to_group.astype(int)
-    return frames_to_group
+    return max(1, frames_to_group)
 
 
 def generate_max_projection(

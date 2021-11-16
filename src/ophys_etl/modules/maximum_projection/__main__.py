@@ -1,4 +1,5 @@
 import h5py
+import numpy as np
 import PIL.Image
 import argschema
 from marshmallow import post_load

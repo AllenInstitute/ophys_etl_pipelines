@@ -75,7 +75,7 @@ class MaximumProjectionRunner(argschema.ArgSchemaParser):
 
         sub_img_list = []
         for frame0 in range(0, n_total_frames, n_frames_at_once):
-            frame1 = min(n_total_frames, frame0+n_frame_at_once)
+            frame1 = min(n_total_frames, frame0+n_frames_at_once)
             with h5py.File(self.args['video_path'], 'r') as in_file:
                 video_data = in_file['data'][frame0:frame1, :, :]
 

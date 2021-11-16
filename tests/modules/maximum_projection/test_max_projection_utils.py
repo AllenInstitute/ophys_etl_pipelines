@@ -1,7 +1,4 @@
 import pytest
-import pathlib
-import h5py
-import tempfile
 import numpy as np
 from itertools import product
 
@@ -77,18 +74,10 @@ def test_decimate_video(frames_to_group):
 def test_generate_max_projection(
         n_processors,
         input_frame_rate,
-        kernel_size,
-        tmpdir):
-
-    h5_path = tempfile.mkstemp(
-                   dir=str(tmpdir),
-                   prefix='max_gen',
-                   suffix='.h5')[1]
+        kernel_size):
 
     rng = np.random.default_rng(77123)
     video = rng.random((1000, 40, 47))
-    with h5py.File(h5_path, 'w') as out_file:
-        out_file.create_dataset('data', data=video)
 
     downsampled_frame_rate = 4.0
 
@@ -107,7 +96,7 @@ def test_generate_max_projection(
     assert expected.shape == (40, 47)
 
     actual = generate_max_projection(
-                h5_path,
+                video,
                 input_frame_rate,
                 downsampled_frame_rate,
                 kernel_size,

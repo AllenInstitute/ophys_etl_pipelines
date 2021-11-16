@@ -1,5 +1,3 @@
-import pathlib
-import h5py
 import numpy as np
 import multiprocessing
 import multiprocessing.managers
@@ -76,29 +74,9 @@ def decimate_video(
     return decimated_video
 
 
-def decimated_video_from_path(
-        video_path: pathlib.Path,
-        frame0: int,
-        frame1: int,
-        frames_to_group: int,
-        video_lock):
-
-    with video_lock:
-        with h5py.File(video_path, 'r') as in_file:
-            video = in_file['data'][frame0:frame1, :, :]
-
-    if frames_to_group > 1:
-        return decimate_video(video, frames_to_group)
-    return video
-
-
-def filter_worker(video_path: pathlib.Path,
-                  frame0: int,
-                  frame1: int,
-                  frames_to_group: int,
+def filter_worker(video: np.ndarray,
                   kernel_size: int,
-                  output_list: multiprocessing.managers.ListProxy,
-                  video_lock) -> None:
+                  output_list: multiprocessing.managers.ListProxy) -> None:
     """
     Worker method to apply filter_chunk_of_frames to a subset of
     video frames from decimated video
@@ -116,20 +94,12 @@ def filter_worker(video_path: pathlib.Path,
         frames when they are cast into a maximum projection image,
         the order of the frames does not need to be preserved here.
     """
-    video = decimated_video_from_path(
-                video_path,
-                frame0,
-                frame1,
-                frames_to_group,
-                video_lock)
-
     local_result = filter_chunk_of_frames(video, kernel_size)
-    local_result = np.max(local_result, axis=0)
     output_list.append(local_result)
 
 
 def generate_max_projection(
-        video_path: pathlib.Path,
+        video: np.ndarray,
         input_frame_rate: float,
         downsampled_frame_rate: float,
         median_filter_kernel_size: int,
@@ -142,7 +112,8 @@ def generate_max_projection(
 
     Parameters
     ----------
-    video_path: pathlib.Path
+    video: np.ndarray
+        (ntime, nrows, ncols)
 
     input_frame_rate: float
 
@@ -162,40 +133,37 @@ def generate_max_projection(
     maximum_projection: np.ndarray
         (nrows, ncols)
     """
-    with h5py.File(video_path, 'r') as in_file:
-        n_frames_total = in_file['data'].shape[0]
 
     frames_to_group = np.round(input_frame_rate/downsampled_frame_rate)
     frames_to_group = frames_to_group.astype(int)
+    if frames_to_group > 1:
+        video = decimate_video(video, frames_to_group)
 
-    n_frames_per_chunk = np.ceil(n_frames_total/n_processors).astype(int)
-    # set n_frames_per_chunk to a multiple of frames_to_group
-    n = np.ceil(n_frames_per_chunk/frames_to_group).astype(int)
-    n_frames_per_chunk = frames_to_group*n
-
+    n_frames_per_chunk = np.ceil(video.shape[0]/n_processors).astype(int)
     process_list = []
     mgr = multiprocessing.Manager()
     output_list = mgr.list()
-    video_lock = mgr.Lock()
-    for frame0 in range(0, n_frames_total, n_frames_per_chunk):
-        frame1 = min(n_frames_total, frame0+n_frames_per_chunk)
+    ntime0 = video.shape[0]
+    for i0 in range(0, ntime0, n_frames_per_chunk):
+
+        # in order to avoid holding too many copies of the
+        # (large) video in memory at once, "destroy" video
+        # as it is processed
+        input_chunk = video[:n_frames_per_chunk, :, :]
+        video = video[n_frames_per_chunk:, :, :]
 
         p = multiprocessing.Process(
                     target=filter_worker,
-                    args=(video_path,
-                          frame0,
-                          frame1,
-                          frames_to_group,
+                    args=(input_chunk,
                           median_filter_kernel_size,
-                          output_list,
-                          video_lock))
+                          output_list))
         p.start()
         process_list.append(p)
 
     for p in process_list:
         p.join()
 
-    return np.stack(output_list).max(axis=0)
+    return np.vstack(output_list).max(axis=0)
 
 
 def scale_to_uint8(img: np.ndarray) -> np.ndarray:

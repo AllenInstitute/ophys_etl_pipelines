@@ -60,9 +60,10 @@ class MaximumProjectionRunner(argschema.ArgSchemaParser):
     default_schema = MaximumProjectionSchema
 
     def run(self):
-
+        with h5py.File(self.args['video_path'], 'r') as in_file:
+            video_data = in_file['data'][()]
         img = generate_max_projection(
-                    self.args['video_path'],
+                    video_data,
                     self.args['input_frame_rate'],
                     self.args['downsampled_frame_rate'],
                     self.args['median_filter_kernel_size'],

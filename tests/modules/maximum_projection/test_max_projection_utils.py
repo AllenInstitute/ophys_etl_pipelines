@@ -6,7 +6,8 @@ from ophys_etl.modules.maximum_projection.utils import (
     apply_median_filter_to_video,
     decimate_video,
     generate_max_projection,
-    scale_to_uint8)
+    scale_to_uint8,
+    n_frames_from_hz)
 
 
 @pytest.mark.parametrize(
@@ -20,6 +21,19 @@ from ophys_etl.modules.maximum_projection.utils import (
 def test_scale_to_uint8(input_array, expected_array):
     actual = scale_to_uint8(input_array)
     np.testing.assert_array_equal(actual, expected_array)
+
+
+@pytest.mark.parametrize(
+        "input_frame_rate, downsampled_frame_rate, expected",
+        [(22.0, 50.0, 1),
+         (100.0, 25.0, 4),
+         (100.0, 7.0, 14),
+         (100.0, 8.0, 12),
+         (100.0, 7.9, 13)])
+def test_n_frames_from_hz(
+        input_frame_rate, downsampled_frame_rate, expected):
+    actual = n_frames_from_hz(input_frame_rate, downsampled_frame_rate)
+    assert actual == expected
 
 
 @pytest.mark.parametrize('kernel_size', [3, 5, 7])

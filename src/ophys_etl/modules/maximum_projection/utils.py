@@ -29,6 +29,33 @@ def scale_to_uint8(img: np.ndarray) -> np.ndarray:
     return np.round(255.0*img.astype(float)/img.max()).astype(np.uint8)
 
 
+def n_frames_from_hz(
+        input_frame_rate: float,
+        downsampled_frame_rate: float) -> int:
+    """
+    Find the number of frames to group together to downsample
+    a video from input_frame_rate to downsampled_frame_rate
+
+    Parameters
+    ----------
+    input_frame_rate: float
+
+    downsampled_frame_rate: float
+
+    Returns
+    -------
+    frames_to_group: int
+
+    Notes
+    -----
+    If input_frame_rate/downsampled_frame_rate < 1, will return 1
+    """
+
+    frames_to_group = np.round(input_frame_rate/downsampled_frame_rate)
+    frames_to_group = frames_to_group.astype(int)
+    return max(1, frames_to_group)
+
+
 def apply_median_filter_to_video(
         video: np.ndarray,
         kernel_size: int) -> np.ndarray:
@@ -121,33 +148,6 @@ def filter_worker(video: np.ndarray,
     """
     local_result = apply_median_filter_to_video(video, kernel_size)
     output_list.append(local_result)
-
-
-def n_frames_from_hz(
-        input_frame_rate: float,
-        downsampled_frame_rate: float) -> int:
-    """
-    Find the number of frames to group together to downsample
-    a video from input_frame_rate to downsampled_frame_rate
-
-    Parameters
-    ----------
-    input_frame_rate: float
-
-    downsampled_frame_rate: float
-
-    Returns
-    -------
-    frames_to_group: int
-
-    Notes
-    -----
-    If input_frame_rate/downsampled_frame_rate < 1, will return 1
-    """
-
-    frames_to_group = np.round(input_frame_rate/downsampled_frame_rate)
-    frames_to_group = frames_to_group.astype(int)
-    return max(1, frames_to_group)
 
 
 def generate_max_projection(

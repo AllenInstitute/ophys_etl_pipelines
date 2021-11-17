@@ -79,6 +79,15 @@ class MaximumProjectionSchema(argschema.ArgSchema):
 
 
 class MaximumProjectionRunner(argschema.ArgSchemaParser):
+    """
+    This class generates the 'legacy' maximum projection image
+    from a 2-Photon movie.
+
+    The image is produced by
+    1) Downsampling the video to a specified frame rate
+    2) Applying a median filter to every frame in teh downsampled video
+    3) Take a direct maximum projection of the downsampled, filtered video
+    """
     default_schema = MaximumProjectionSchema
 
     def run(self):

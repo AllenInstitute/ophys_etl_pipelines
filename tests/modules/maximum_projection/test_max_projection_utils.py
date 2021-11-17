@@ -5,7 +5,21 @@ from itertools import product
 from ophys_etl.modules.maximum_projection.utils import (
     apply_median_filter_to_video,
     decimate_video,
-    generate_max_projection)
+    generate_max_projection,
+    scale_to_uint8)
+
+
+@pytest.mark.parametrize(
+        "input_array, expected_array",
+        [(np.array([0, 1, 2, 3, 4, 5]).astype(int),
+          np.array([0, 51, 102, 153, 204, 255]).astype(np.uint8)),
+         (np.array([-1, 0, 1, 2, 4]).astype(int),
+          np.array([0, 51, 102, 153, 255]).astype(np.uint8)),
+         (np.array([-1.0, 1.5, 2, 3, 4]).astype(float),
+          np.array([0, 128, 153, 204, 255]).astype(np.uint8))])
+def test_scale_to_uint8(input_array, expected_array):
+    actual = scale_to_uint8(input_array)
+    np.testing.assert_array_equal(actual, expected_array)
 
 
 @pytest.mark.parametrize('kernel_size', [3, 5, 7])

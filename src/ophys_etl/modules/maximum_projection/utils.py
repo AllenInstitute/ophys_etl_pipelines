@@ -6,15 +6,15 @@ import multiprocessing.managers
 import scipy.ndimage as scipy_ndimage
 
 
-def filter_chunk_of_frames(
-        chunk_of_frames: np.ndarray,
+def apply_median_filter_to_video(
+        video: np.ndarray,
         kernel_size: int) -> np.ndarray:
     """
     Apply a median filter to a subset of frames
 
     Parameters
     ----------
-    chunk_of_frames: np.ndarray
+    video: np.ndarray
         array of shape (ntime, nrows, ncols)
 
     kernel_size: int
@@ -27,12 +27,12 @@ def filter_chunk_of_frames(
         the median filter
     """
 
-    filtered_frames = np.zeros(chunk_of_frames.shape,
+    filtered_frames = np.zeros(video.shape,
                                dtype=float)
 
     for i_frame in range(filtered_frames.shape[0]):
         filtered_frames[i_frame, :, :] = scipy_ndimage.median_filter(
-                                             chunk_of_frames[i_frame, :, :],
+                                             video[i_frame, :, :],
                                              size=kernel_size,
                                              mode='reflect')
     return filtered_frames
@@ -80,7 +80,7 @@ def filter_worker(video: np.ndarray,
                   kernel_size: int,
                   output_list: multiprocessing.managers.ListProxy) -> None:
     """
-    Worker method to apply filter_chunk_of_frames to a subset of
+    Worker method to apply apply_median_filter_to_video to a subset of
     video frames from decimated video
 
     Parameters
@@ -96,7 +96,7 @@ def filter_worker(video: np.ndarray,
         frames when they are cast into a maximum projection image,
         the order of the frames does not need to be preserved here.
     """
-    local_result = filter_chunk_of_frames(video, kernel_size)
+    local_result = apply_median_filter_to_video(video, kernel_size)
     output_list.append(local_result)
 
 

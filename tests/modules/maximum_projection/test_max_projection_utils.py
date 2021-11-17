@@ -3,13 +3,13 @@ import numpy as np
 from itertools import product
 
 from ophys_etl.modules.maximum_projection.utils import (
-    filter_chunk_of_frames,
+    apply_median_filter_to_video,
     decimate_video,
     generate_max_projection)
 
 
 @pytest.mark.parametrize('kernel_size', [3, 5, 7])
-def test_chunk_of_frames(kernel_size):
+def test_median_filter_to_video(kernel_size):
     # test will fail on even number kernel sizes;
     # not entirely sure how ndimage handles kernels that don't
     # have a center pixel
@@ -47,7 +47,7 @@ def test_chunk_of_frames(kernel_size):
                     neighbors[ineigh] = chunk_of_frames[i_frame, r, c]
                 expected[i_frame, irow, icol] = np.median(neighbors)
 
-    actual = filter_chunk_of_frames(chunk_of_frames, kernel_size)
+    actual = apply_median_filter_to_video(chunk_of_frames, kernel_size)
     np.testing.assert_array_equal(actual, expected)
 
 
@@ -89,8 +89,8 @@ def test_generate_max_projection(
         frames_to_group = frames_to_group.astype(int)
         decimated_video = decimate_video(video, frames_to_group)
 
-    filtered_video = filter_chunk_of_frames(decimated_video,
-                                            kernel_size)
+    filtered_video = apply_median_filter_to_video(decimated_video,
+                                                  kernel_size)
 
     expected = np.max(filtered_video, axis=0)
     assert expected.shape == (40, 47)

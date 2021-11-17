@@ -1,7 +1,5 @@
 import pytest
 import numpy as np
-import h5py
-import tempfile
 from itertools import product
 
 from ophys_etl.modules.maximum_projection.utils import (
@@ -162,3 +160,5 @@ def test_maximum_projection_from_path(
                     median_filter_kernel_size,
                     3,
                     n_frames_at_once=n_frames_at_once)
+
+    np.testing.assert_array_equal(actual, expected)

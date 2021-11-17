@@ -14,7 +14,6 @@ from ophys_etl.modules.maximum_projection.__main__ import (
     MaximumProjectionRunner)
 
 
-
 @pytest.mark.parametrize('n_frames_at_once', [-1, 150])
 def test_runner(tmpdir,
                 video_data_fixture,
@@ -63,3 +62,46 @@ def test_runner(tmpdir,
     expected = scale_to_uint8(expected)
     actual = np.array(PIL.Image.open(image_path, 'r'))
     np.testing.assert_array_equal(expected, actual)
+
+
+def test_maximum_runner_exceptions(video_path_fixture, tmpdir):
+    input_frame_rate = 6.0
+    downsampled_frame_rate = 4.0
+    median_kernel_size = 3
+    n_processors = 3
+
+    args = dict()
+    args['video_path'] = video_path_fixture
+    args['input_frame_rate'] = input_frame_rate
+    args['downsampled_frame_rate'] = downsampled_frame_rate
+    args['n_parallel_workers'] = n_processors
+    args['median_filter_kernel_size'] = median_kernel_size
+    args['n_frames_at_once'] = -1
+
+    image_path = tempfile.mkstemp(dir=tmpdir,
+                                  prefix='image_',
+                                  suffix='.jpg')[1]
+
+    full_path = tempfile.mkstemp(dir=tmpdir,
+                                 prefix='data_',
+                                 suffix='.h5')[1]
+
+    args['image_path'] = image_path
+    args['full_output_path'] = full_path
+
+    with pytest.raises(ValueError, match="path to a .png file"):
+        MaximumProjectionRunner(args=[], input_data=args)
+
+    image_path = tempfile.mkstemp(dir=tmpdir,
+                                  prefix='image_',
+                                  suffix='.png')[1]
+
+    full_path = tempfile.mkstemp(dir=tmpdir,
+                                 prefix='data_',
+                                 suffix='.txt')[1]
+
+    args['image_path'] = image_path
+    args['full_output_path'] = full_path
+
+    with pytest.raises(ValueError, match="path to a .h5 file"):
+        MaximumProjectionRunner(args=[], input_data=args)

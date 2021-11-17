@@ -34,9 +34,9 @@ def video_path_fixture(video_data_fixture, tmpdir_factory):
 
 @pytest.mark.parametrize('n_frames_at_once', [-1, 150])
 def test_runner(tmpdir,
-               video_data_fixture,
-               video_path_fixture,
-               n_frames_at_once):
+                video_data_fixture,
+                video_path_fixture,
+                n_frames_at_once):
 
     input_frame_rate = 6.0
     downsampled_frame_rate = 4.0

@@ -26,7 +26,8 @@ class MaximumProjectionSchema(argschema.ArgSchema):
             required=True,
             default=None,
             allow_none=False,
-            description=("Path to hdf5 file where we will store full output"))
+            description=("Path to HDF5 file where we will store full output "
+                         "(i.e. output not cast into an np.uint8)"))
 
     input_frame_rate = argschema.fields.Float(
             required=True,
@@ -58,7 +59,7 @@ class MaximumProjectionSchema(argschema.ArgSchema):
             default=-1,
             allow_none=False,
             description=("Number of frames to read in from the video "
-                         "at a time. If negative, read in all of the "
+                         "at a time. If <=0, read in all of the "
                          "frames at once. May need to be positive to "
                          "prevent the process from using up all available "
                          "memory in the case of large movies."))

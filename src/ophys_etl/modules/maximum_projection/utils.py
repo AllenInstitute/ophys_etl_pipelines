@@ -44,7 +44,7 @@ def decimate_video(
     """
     Take a video, sum every frames_to_group together
     and take the mean. Return a video representing
-    the mean of every frames_to_avg chunk (i.e. if the input
+    the mean of every frames_to_group chunk (i.e. if the input
     chunk of frames contains 100 frames and frames_to_group=20,
     the output video will contain 5 frames
 
@@ -81,7 +81,7 @@ def filter_worker(video: np.ndarray,
                   output_list: multiprocessing.managers.ListProxy) -> None:
     """
     Worker method to apply apply_median_filter_to_video to a subset of
-    video frames from decimated video
+    video frames from a video
 
     Parameters
     ----------
@@ -103,6 +103,25 @@ def filter_worker(video: np.ndarray,
 def n_frames_from_hz(
         input_frame_rate: float,
         downsampled_frame_rate: float) -> int:
+    """
+    Find the number of frames to group together to downsample
+    a video from input_frame_rate to downsampled_frame_rate
+
+    Parameters
+    ----------
+    input_frame_rate: float
+
+    downsampled_frame_rate: float
+
+    Returns
+    -------
+    frames_to_group: int
+
+    Notes
+    -----
+    If input_frame_rate/downsampled_frame_rate < 1, will return 1
+    """
+
     frames_to_group = np.round(input_frame_rate/downsampled_frame_rate)
     frames_to_group = frames_to_group.astype(int)
     return max(1, frames_to_group)
@@ -115,7 +134,7 @@ def generate_max_projection(
         median_filter_kernel_size: int,
         n_processors: int) -> np.ndarray:
     """
-    Generate a maximum projection from an image by
+    Generate a maximum projection from a video by
     1) downsampling the movie from input_frame_rate to downsampled_frame_rate
     2) applying a median filter to every frame of the downsampled video
     3) taking the maximum of the downsampled, filtered video at each pixel
@@ -208,11 +227,45 @@ def maximum_projection_from_path(
         median_filter_kernel_size: int,
         n_processors: int,
         n_frames_at_once: int = 10000) -> np.ndarray:
+    """
+    Generate a maximum projection from an image by
+    1) downsampling the movie from input_frame_rate to downsampled_frame_rate
+    2) applying a median filter to every frame of the downsampled video
+    3) taking the maximum of the downsampled, filtered video at each pixel
+
+    Parameters
+    ----------
+    video_path: pathlib.Path
+        Path to HDF5 file containing vidoe data (data must be keyed to 'data')
+
+    input_frame_rate: float
+
+    downsampled_frame_rate: float
+        In the same units as input_frame_rate (ratio is all that matters)
+
+    median_filter_kernel_size: int
+        The side length of the square kernel used when applying the median
+        filter.
+
+    n_processors:
+        The number of parallel processes available (used when applying
+        the median filter)
+
+    n_frames_at_once: int
+        The decimation and median filter steps can indirectly cause
+        multiple copies of the video to be held in memory at once.
+        This parameter limits the number of frames that are loaded
+        from the HDF5 file at one time (if <1, load all frames at once)
+
+    Returns
+    -------
+    max_projection_image: np.ndarray
+    """
 
     with h5py.File(video_path, 'r') as in_file:
         n_total_frames = in_file['data'].shape[0]
 
-    if n_frames_at_once < 0:
+    if n_frames_at_once <= 0:
         n_frames_at_once = n_total_frames
     else:
         frames_to_group = n_frames_from_hz(

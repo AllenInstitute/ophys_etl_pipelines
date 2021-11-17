@@ -1,5 +1,7 @@
 import pytest
 import numpy as np
+import h5py
+import tempfile
 from itertools import product
 
 from ophys_etl.modules.maximum_projection.utils import (
@@ -7,7 +9,8 @@ from ophys_etl.modules.maximum_projection.utils import (
     decimate_video,
     generate_max_projection,
     scale_to_uint8,
-    n_frames_from_hz)
+    n_frames_from_hz,
+    maximum_projection_from_path)
 
 
 @pytest.mark.parametrize(
@@ -131,3 +134,31 @@ def test_generate_max_projection(
                 n_processors)
 
     np.testing.assert_array_equal(actual, expected)
+
+
+@pytest.mark.parametrize(
+        "input_frame_rate, downsampled_frame_rate, median_filter_kernel_size, "
+        "n_frames_at_once",
+        product((31.0, 11.0), (7.0, 4.0), (3, 4), (100, 52, -1, 0)))
+def test_maximum_projection_from_path(
+        video_path_fixture,
+        video_data_fixture,
+        input_frame_rate,
+        downsampled_frame_rate,
+        median_filter_kernel_size,
+        n_frames_at_once):
+
+    expected = generate_max_projection(
+                    video_data_fixture,
+                    input_frame_rate,
+                    downsampled_frame_rate,
+                    median_filter_kernel_size,
+                    3)
+
+    actual = maximum_projection_from_path(
+                    video_path_fixture,
+                    input_frame_rate,
+                    downsampled_frame_rate,
+                    median_filter_kernel_size,
+                    3,
+                    n_frames_at_once=n_frames_at_once)

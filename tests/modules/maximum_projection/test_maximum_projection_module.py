@@ -14,23 +14,6 @@ from ophys_etl.modules.maximum_projection.__main__ import (
     MaximumProjectionRunner)
 
 
-@pytest.fixture(scope='session')
-def video_data_fixture():
-    rng = np.random.default_rng(55123)
-    data = rng.random((417, 22, 27))
-    return data
-
-
-@pytest.fixture(scope='session')
-def video_path_fixture(video_data_fixture, tmpdir_factory):
-    tmpdir = tmpdir_factory.mktemp('maximum_projection_runner')
-    video_path = tempfile.mkstemp(dir=tmpdir,
-                                  suffix='.h5',
-                                  prefix='video_')[1]
-    with h5py.File(video_path, 'w') as out_file:
-        out_file.create_dataset('data', data=video_data_fixture)
-    yield video_path
-
 
 @pytest.mark.parametrize('n_frames_at_once', [-1, 150])
 def test_runner(tmpdir,

@@ -86,7 +86,7 @@ class MedianFilteredMaxProjectionRunner(argschema.ArgSchemaParser):
 
     The image is produced by
     1) Downsampling the video to a specified frame rate
-    2) Applying a median filter to every frame in teh downsampled video
+    2) Applying a median filter to every frame in the downsampled video
     3) Take a direct maximum projection of the downsampled, filtered video
     """
     default_schema = MedianFilteredMaxProjectionSchema

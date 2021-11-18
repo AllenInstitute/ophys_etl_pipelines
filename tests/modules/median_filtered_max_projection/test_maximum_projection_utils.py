@@ -2,25 +2,12 @@ import pytest
 import numpy as np
 from itertools import product
 
+from ophys_etl.utils.array_utils import downsample_array
+
 from ophys_etl.modules.median_filtered_max_projection.utils import (
     apply_median_filter_to_video,
-    decimate_video,
     median_filtered_max_projection_from_array,
-    n_frames_from_hz,
     median_filtered_max_projection_from_path)
-
-
-@pytest.mark.parametrize(
-        "input_frame_rate, downsampled_frame_rate, expected",
-        [(22.0, 50.0, 1),
-         (100.0, 25.0, 4),
-         (100.0, 7.0, 14),
-         (100.0, 8.0, 12),
-         (100.0, 7.9, 13)])
-def test_n_frames_from_hz(
-        input_frame_rate, downsampled_frame_rate, expected):
-    actual = n_frames_from_hz(input_frame_rate, downsampled_frame_rate)
-    assert actual == expected
 
 
 @pytest.mark.parametrize('kernel_size', [3, 5, 7])
@@ -66,22 +53,6 @@ def test_median_filter_to_video(kernel_size):
     np.testing.assert_array_equal(actual, expected)
 
 
-@pytest.mark.parametrize('frames_to_group', [3, 4, 5])
-def test_decimate_video(frames_to_group):
-    rng = np.random.default_rng(62134)
-    video = rng.random((71, 40, 40))
-
-    expected = []
-    for i0 in range(0, 71, frames_to_group):
-        frame = np.mean(video[i0:i0+frames_to_group, :, :],
-                        axis=0)
-        expected.append(frame)
-    expected = np.array(expected)
-
-    actual = decimate_video(video, frames_to_group)
-    np.testing.assert_array_equal(expected, actual)
-
-
 @pytest.mark.parametrize('n_processors, input_frame_rate, kernel_size',
                          product((2, 3, 4),
                                  (3.0, 6.0, 11.0, 31.0),
@@ -97,12 +68,13 @@ def test_median_filtered_max_projection_from_array(
     downsampled_frame_rate = 4.0
 
     if input_frame_rate < 4.0:
-        frames_to_group = 1
         decimated_video = video
     else:
-        frames_to_group = np.round(input_frame_rate/downsampled_frame_rate)
-        frames_to_group = frames_to_group.astype(int)
-        decimated_video = decimate_video(video, frames_to_group)
+        decimated_video = downsample_array(
+                             video,
+                             input_fps=input_frame_rate,
+                             output_fps=downsampled_frame_rate,
+                             strategy='average')
 
     filtered_video = apply_median_filter_to_video(decimated_video,
                                                   kernel_size)

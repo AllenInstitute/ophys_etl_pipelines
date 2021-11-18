@@ -4,33 +4,9 @@ import numpy as np
 import multiprocessing
 import multiprocessing.managers
 import scipy.ndimage as scipy_ndimage
-
-
-def n_frames_from_hz(
-        input_frame_rate: float,
-        downsampled_frame_rate: float) -> int:
-    """
-    Find the number of frames to group together to downsample
-    a video from input_frame_rate to downsampled_frame_rate
-
-    Parameters
-    ----------
-    input_frame_rate: float
-
-    downsampled_frame_rate: float
-
-    Returns
-    -------
-    frames_to_group: int
-
-    Notes
-    -----
-    If input_frame_rate/downsampled_frame_rate < 1, will return 1
-    """
-
-    frames_to_group = np.round(input_frame_rate/downsampled_frame_rate)
-    frames_to_group = frames_to_group.astype(int)
-    return max(1, frames_to_group)
+from ophys_etl.utils.array_utils import (
+    downsample_array,
+    n_frames_from_hz)
 
 
 def apply_median_filter_to_video(
@@ -63,44 +39,6 @@ def apply_median_filter_to_video(
                                              size=kernel_size,
                                              mode='reflect')
     return filtered_frames
-
-
-def decimate_video(
-        video: np.ndarray,
-        frames_to_group: int) -> np.ndarray:
-    """
-    Take a video, sum every frames_to_group together
-    and take the mean. Return a video representing
-    the mean of every frames_to_group chunk (i.e. if the input
-    chunk of frames contains 100 frames and frames_to_group=20,
-    the output video will contain 5 frames
-
-    Parameters
-    ----------
-    video: np.ndarray
-        (ntime, nrows, ncols)
-
-    frames_to_avg: int
-        Number of frames to group together and mean when decimating
-
-    Returns
-    -------
-    decimated_video: np.ndarray
-    """
-
-    ntime_in = video.shape[0]
-    ntime_out = np.ceil(ntime_in/frames_to_group).astype(int)
-
-    decimated_video = np.zeros((ntime_out,
-                                video.shape[1],
-                                video.shape[2]),
-                               dtype=float)
-
-    for i_out, i0 in enumerate(range(0, ntime_in, frames_to_group)):
-        i1 = min(ntime_in, i0+frames_to_group)
-        decimated_video[i_out, :, :] = np.mean(video[i0:i1, :, :], axis=0)
-
-    return decimated_video
 
 
 def filter_worker(video: np.ndarray,
@@ -168,7 +106,10 @@ def median_filtered_max_projection_from_array(
                             downsampled_frame_rate)
 
     if frames_to_group > 1:
-        video = decimate_video(video, frames_to_group)
+        video = downsample_array(video,
+                                 input_fps=input_frame_rate,
+                                 output_fps=downsampled_frame_rate,
+                                 strategy='average')
 
     n_frames_per_chunk = np.ceil(video.shape[0]/n_processors).astype(int)
     n_frames_per_chunk = max(1, n_frames_per_chunk)

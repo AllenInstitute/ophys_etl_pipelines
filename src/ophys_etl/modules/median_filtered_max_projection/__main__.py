@@ -3,9 +3,11 @@ import PIL.Image
 import argschema
 from marshmallow import post_load
 
+from ophys_etl.utils.array_utils import (
+    normalize_array)
+
 from ophys_etl.modules.median_filtered_max_projection.utils import (
-    median_filtered_max_projection_from_path,
-    scale_to_uint8)
+    median_filtered_max_projection_from_path)
 
 
 class MedianFilteredMaxProjectionSchema(argschema.ArgSchema):
@@ -104,7 +106,7 @@ class MedianFilteredMaxProjectionRunner(argschema.ArgSchemaParser):
         with h5py.File(self.args['full_output_path'], 'w') as out_file:
             out_file.create_dataset('max_projection', data=img)
 
-        img = PIL.Image.fromarray(scale_to_uint8(img))
+        img = PIL.Image.fromarray(normalize_array(img))
         img.save(self.args['image_path'])
 
 

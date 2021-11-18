@@ -155,7 +155,9 @@ def downsample_normalize(movie_path: Path, frame_rate: float,
     avg_projection = ds.mean(axis=0)
     lower_cutoff, upper_cutoff = np.quantile(
                 avg_projection.flatten(), (lower_quantile, upper_quantile))
-    ds = normalize_array(ds, lower_cutoff, upper_cutoff)
+    ds = normalize_array(ds,
+                         lower_cutoff=lower_cutoff,
+                         upper_cutoff=upper_cutoff)
     return ds
 
 

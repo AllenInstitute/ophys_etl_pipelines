@@ -110,10 +110,28 @@ def test_downsample_exceptions(array, input_fps, output_fps, random_seed,
                 250, 650,
                 np.uint8([
                     [0, 0, 0],
-                    [31, 95, 159],
+                    [32, 96, 159],
                     [223, 255, 255]]))
                 ]
         )
 def test_normalize_array(array, lower_cutoff, upper_cutoff, expected):
-    normalized = au.normalize_array(array, lower_cutoff, upper_cutoff)
+    normalized = au.normalize_array(array,
+                                    lower_cutoff=lower_cutoff,
+                                    upper_cutoff=upper_cutoff)
     np.testing.assert_array_equal(normalized, expected)
+
+
+@pytest.mark.parametrize(
+        "input_array, expected_array",
+        [(np.array([0, 1, 2, 3, 4, 5]).astype(int),
+          np.array([0, 51, 102, 153, 204, 255]).astype(np.uint8)),
+         (np.array([-1, 0, 1, 2, 4]).astype(int),
+          np.array([0, 51, 102, 153, 255]).astype(np.uint8)),
+         (np.array([-1.0, 1.5, 2, 3, 4]).astype(float),
+          np.array([0, 128, 153, 204, 255]).astype(np.uint8))])
+def test_scale_to_uint8(input_array, expected_array):
+    """
+    Test normalize_array when cutoffs are not specified
+    """
+    actual = au.normalize_array(input_array)
+    np.testing.assert_array_equal(actual, expected_array)

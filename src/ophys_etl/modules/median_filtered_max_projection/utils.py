@@ -6,29 +6,6 @@ import multiprocessing.managers
 import scipy.ndimage as scipy_ndimage
 
 
-def scale_to_uint8(img: np.ndarray) -> np.ndarray:
-    """
-    Scale an image of arbitrary type to uint8
-
-    Parameters
-    ----------
-    img: np.ndarray
-
-    Returns
-    -------
-    scaled_img: np.ndarray
-
-    Notes:
-    ------
-    Image will have the minimum subtracted and then the full
-    dynamic range will be scaled into the range [0, 255]
-    """
-
-    mn = img.min()
-    img = img-mn
-    return np.round(255.0*img.astype(float)/img.max()).astype(np.uint8)
-
-
 def n_frames_from_hz(
         input_frame_rate: float,
         downsampled_frame_rate: float) -> int:

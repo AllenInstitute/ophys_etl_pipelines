@@ -1,3 +1,4 @@
+from typing import Optional
 import h5py
 import numpy as np
 from typing import Union
@@ -60,18 +61,21 @@ def downsample_array(
 
 
 def normalize_array(
-        array: np.ndarray, lower_cutoff: float,
-        upper_cutoff: float) -> np.ndarray:
+        array: np.ndarray,
+        lower_cutoff: Optional[float] = None,
+        upper_cutoff: Optional[float] = None) -> np.ndarray:
     """Normalize an array into uint8 with cutoff values
 
     Parameters
     ----------
     array: numpy.ndarray (float)
         array to be normalized
-    lower_cutoff: float
+    lower_cutoff: Optional[float]
         threshold, below which will be = 0
-    upper_cutoff: float
+        (if None, do not clip the array)
+    upper_cutoff: Optional[float]
         threshold, abovewhich will be = 255
+        (if None, do not clip the array)
 
     Returns
     -------
@@ -80,8 +84,20 @@ def normalize_array(
 
     """
     normalized = np.copy(array)
-    normalized[array < lower_cutoff] = lower_cutoff
-    normalized[array > upper_cutoff] = upper_cutoff
+    if lower_cutoff is not None:
+        normalized[array < lower_cutoff] = lower_cutoff
+    else:
+        lower_cutoff = normalized.min()
+
+    if upper_cutoff is not None:
+        normalized[array > upper_cutoff] = upper_cutoff
+    else:
+        upper_cutoff = normalized.max()
+
     normalized -= lower_cutoff
-    normalized = np.uint8(normalized * 255 / (upper_cutoff - lower_cutoff))
+
+    delta = upper_cutoff-lower_cutoff
+
+    normalized = np.round(normalized.astype(float) * 255 / delta)
+    normalized = normalized.astype(np.uint8)
     return normalized

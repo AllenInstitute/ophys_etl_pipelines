@@ -5,9 +5,10 @@ import pathlib
 import tempfile
 import PIL.Image
 
+from ophys_etl.utils.array_utils import normalize_array
+
 from ophys_etl.modules.median_filtered_max_projection.utils import (
-    median_filtered_max_projection_from_array,
-    scale_to_uint8)
+    median_filtered_max_projection_from_array)
 
 
 from ophys_etl.modules.median_filtered_max_projection.__main__ import (
@@ -59,7 +60,7 @@ def test_runner(tmpdir,
         actual = in_file['max_projection'][()]
     np.testing.assert_array_equal(actual, expected)
 
-    expected = scale_to_uint8(expected)
+    expected = normalize_array(expected)
     actual = np.array(PIL.Image.open(image_path, 'r'))
     np.testing.assert_array_equal(expected, actual)
 

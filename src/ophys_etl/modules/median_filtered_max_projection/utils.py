@@ -194,6 +194,7 @@ def median_filtered_max_projection_from_array(
         video = decimate_video(video, frames_to_group)
 
     n_frames_per_chunk = np.ceil(video.shape[0]/n_processors).astype(int)
+    n_frames_per_chunk = max(1, n_frames_per_chunk)
     process_list = []
     mgr = multiprocessing.Manager()
     output_list = mgr.list()

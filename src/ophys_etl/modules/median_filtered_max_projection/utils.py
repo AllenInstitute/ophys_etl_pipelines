@@ -150,7 +150,7 @@ def filter_worker(video: np.ndarray,
     output_list.append(local_result)
 
 
-def generate_max_projection(
+def median_filtered_max_projection_from_array(
         video: np.ndarray,
         input_frame_rate: float,
         downsampled_frame_rate: float,
@@ -220,7 +220,7 @@ def generate_max_projection(
     return np.vstack(output_list).max(axis=0)
 
 
-def maximum_projection_from_path(
+def median_filtered_max_projection_from_path(
         video_path: pathlib.Path,
         input_frame_rate: float,
         downsampled_frame_rate: float,
@@ -281,7 +281,7 @@ def maximum_projection_from_path(
         with h5py.File(video_path, 'r') as in_file:
             video_data = in_file['data'][frame0:frame1, :, :]
 
-        img = generate_max_projection(
+        img = median_filtered_max_projection_from_array(
                 video_data,
                 input_frame_rate,
                 downsampled_frame_rate,

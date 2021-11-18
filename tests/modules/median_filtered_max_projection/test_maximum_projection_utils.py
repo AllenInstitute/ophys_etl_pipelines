@@ -2,13 +2,13 @@ import pytest
 import numpy as np
 from itertools import product
 
-from ophys_etl.modules.maximum_projection.utils import (
+from ophys_etl.modules.median_filtered_max_projection.utils import (
     apply_median_filter_to_video,
     decimate_video,
-    generate_max_projection,
+    median_filtered_max_projection_from_array,
     scale_to_uint8,
     n_frames_from_hz,
-    maximum_projection_from_path)
+    median_filtered_max_projection_from_path)
 
 
 @pytest.mark.parametrize(
@@ -100,7 +100,7 @@ def test_decimate_video(frames_to_group):
                          product((2, 3, 4),
                                  (3.0, 6.0, 11.0, 31.0),
                                  (2, 3, 4)))
-def test_generate_max_projection(
+def test_median_filtered_max_projection_from_array(
         n_processors,
         input_frame_rate,
         kernel_size):
@@ -124,7 +124,7 @@ def test_generate_max_projection(
     expected = np.max(filtered_video, axis=0)
     assert expected.shape == (40, 47)
 
-    actual = generate_max_projection(
+    actual = median_filtered_max_projection_from_array(
                 video,
                 input_frame_rate,
                 downsampled_frame_rate,
@@ -146,14 +146,14 @@ def test_maximum_projection_from_path(
         median_filter_kernel_size,
         n_frames_at_once):
 
-    expected = generate_max_projection(
+    expected = median_filtered_max_projection_from_array(
                     video_data_fixture,
                     input_frame_rate,
                     downsampled_frame_rate,
                     median_filter_kernel_size,
                     3)
 
-    actual = maximum_projection_from_path(
+    actual = median_filtered_max_projection_from_path(
                     video_path_fixture,
                     input_frame_rate,
                     downsampled_frame_rate,

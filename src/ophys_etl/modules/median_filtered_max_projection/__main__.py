@@ -3,12 +3,12 @@ import PIL.Image
 import argschema
 from marshmallow import post_load
 
-from ophys_etl.modules.maximum_projection.utils import (
-    maximum_projection_from_path,
+from ophys_etl.modules.median_filtered_max_projection.utils import (
+    median_filtered_max_projection_from_path,
     scale_to_uint8)
 
 
-class MaximumProjectionSchema(argschema.ArgSchema):
+class MedianFilteredMaxProjectionSchema(argschema.ArgSchema):
 
     video_path = argschema.fields.InputFile(
             required=True,
@@ -79,7 +79,7 @@ class MaximumProjectionSchema(argschema.ArgSchema):
         return data
 
 
-class MaximumProjectionRunner(argschema.ArgSchemaParser):
+class MedianFilteredMaxProjectionRunner(argschema.ArgSchemaParser):
     """
     This class generates the 'legacy' maximum projection image
     from a 2-Photon movie.
@@ -89,11 +89,11 @@ class MaximumProjectionRunner(argschema.ArgSchemaParser):
     2) Applying a median filter to every frame in teh downsampled video
     3) Take a direct maximum projection of the downsampled, filtered video
     """
-    default_schema = MaximumProjectionSchema
+    default_schema = MedianFilteredMaxProjectionSchema
 
     def run(self):
 
-        img = maximum_projection_from_path(
+        img = median_filtered_max_projection_from_path(
                     self.args['video_path'],
                     self.args['input_frame_rate'],
                     self.args['downsampled_frame_rate'],
@@ -109,5 +109,5 @@ class MaximumProjectionRunner(argschema.ArgSchemaParser):
 
 
 if __name__ == "__main__":
-    runner = MaximumProjectionRunner()
+    runner = MedianFilteredMaxProjectionRunner()
     runner.run()

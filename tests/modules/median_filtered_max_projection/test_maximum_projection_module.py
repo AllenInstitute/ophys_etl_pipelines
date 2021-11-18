@@ -5,13 +5,13 @@ import pathlib
 import tempfile
 import PIL.Image
 
-from ophys_etl.modules.maximum_projection.utils import (
-    generate_max_projection,
+from ophys_etl.modules.median_filtered_max_projection.utils import (
+    median_filtered_max_projection_from_array,
     scale_to_uint8)
 
 
-from ophys_etl.modules.maximum_projection.__main__ import (
-    MaximumProjectionRunner)
+from ophys_etl.modules.median_filtered_max_projection.__main__ import (
+    MedianFilteredMaxProjectionRunner)
 
 
 @pytest.mark.parametrize('n_frames_at_once', [-1, 150])
@@ -24,7 +24,7 @@ def test_runner(tmpdir,
     downsampled_frame_rate = 4.0
     median_kernel_size = 3
     n_processors = 3
-    expected = generate_max_projection(
+    expected = median_filtered_max_projection_from_array(
                     video_data_fixture,
                     input_frame_rate,
                     downsampled_frame_rate,
@@ -50,7 +50,7 @@ def test_runner(tmpdir,
     args['image_path'] = image_path
     args['full_output_path'] = full_path
 
-    runner = MaximumProjectionRunner(args=[], input_data=args)
+    runner = MedianFilteredMaxProjectionRunner(args=[], input_data=args)
     runner.run()
 
     assert pathlib.Path(image_path).is_file()
@@ -90,7 +90,7 @@ def test_maximum_runner_exceptions(video_path_fixture, tmpdir):
     args['full_output_path'] = full_path
 
     with pytest.raises(ValueError, match="path to a .png file"):
-        MaximumProjectionRunner(args=[], input_data=args)
+        MedianFilteredMaxProjectionRunner(args=[], input_data=args)
 
     image_path = tempfile.mkstemp(dir=tmpdir,
                                   prefix='image_',
@@ -104,4 +104,4 @@ def test_maximum_runner_exceptions(video_path_fixture, tmpdir):
     args['full_output_path'] = full_path
 
     with pytest.raises(ValueError, match="path to a .h5 file"):
-        MaximumProjectionRunner(args=[], input_data=args)
+        MedianFilteredMaxProjectionRunner(args=[], input_data=args)

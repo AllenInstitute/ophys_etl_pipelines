@@ -81,17 +81,21 @@ class ModuleRunnerABC(ABC):
         #print('input_metadata')
         #print(json.dumps(input_metadata, indent=2))
         self._run()
-        for k in self.output_metadata:
-            if k in input_metadata:
-                input_metadata.pop(k)
-        print('input_metadata')
-        print(json.dumps(input_metadata, indent=2))
-        print('output_metadata')
-        print(json.dumps(self.output_metadata, indent=2))
 
+        output_paths = set([obj['path']
+                            for obj in self.output_metadata])
+        n = len(input_metadata)
+        for ii in range(n-1, -1, -1):
+            if input_metadata[ii]['path'] in output_paths:
+                input_metadata.pop(ii)
         environ = get_environment()
-        print('environment')
-        print(json.dumps(environ))
+
+        metadata = dict()
+        metadata['environment'] = environ
+        metadata['args'] = self.args
+        metadata['input_files'] = input_metadata
+        metadata['output_files'] = self.output_metadata
+        print(json.dumps(metadata, indent=2))
 
 
     def output(self, d, output_path=None, **json_dump_options):

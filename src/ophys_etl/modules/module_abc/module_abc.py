@@ -15,12 +15,15 @@ class OphysEtlBaseSchema(argschema.ArgSchema):
     metadata_field = argschema.fields.String(
             default=None,
             required=True,
-            allow_none=False,
+            allow_none=True,
             description=("Field point to file, either JSON or HDF5, "
                          "where metadata gets written"))
 
     @post_load
     def check_metadata_field(self, data, **kwargs):
+        if data['metadata_field'] is None:
+            return data
+
         if data['metadata_field'] not in data:
             msg = f"{data['metadata_field']} is not a field "
             msg += "in this schema"
@@ -118,50 +121,56 @@ class ModuleRunnerABC(ABC):
     def run(self):
         self.output_metadata = dict()
 
-        input_metadata = create_hashed_json(
-                                self.args,
-                                to_skip=set([self.metadata_fname]))
+        if self.args['metadata_field'] is not None:
+            input_metadata = create_hashed_json(
+                                    self.args,
+                                    to_skip=set([self.metadata_fname]))
 
         self._run()
 
-        output_paths = set([obj['path']
-                            for obj in self.output_metadata])
-        n = len(input_metadata)
-        for ii in range(n-1, -1, -1):
-            if input_metadata[ii]['path'] in output_paths:
-                input_metadata.pop(ii)
+        if self.args['metadata_field'] is not None:
+            output_paths = set([obj['path']
+                                 for obj in self.output_metadata])
+            n = len(input_metadata)
+            for ii in range(n-1, -1, -1):
+                if input_metadata[ii]['path'] in output_paths:
+                    input_metadata.pop(ii)
 
-        environ = get_environment()
+            environ = get_environment()
 
-        metadata = dict()
-        metadata['environment'] = environ
-        metadata['args'] = self.args
-        metadata['input_files'] = input_metadata
-        metadata['output_files'] = self.output_metadata
+            metadata = dict()
+            metadata['environment'] = environ
+            metadata['args'] = self.args
+            metadata['input_files'] = input_metadata
+            metadata['output_files'] = self.output_metadata
 
-        metadata_fname = self.args[self.args['metadata_field']]
-        if metadata_fname.endswith('h5'):
-            with h5py.File(metadata_fname, 'a') as out_file:
-                assert 'metadata' not in out_file.keys()
-                out_file.create_dataset(
-                        'metadata',
-                        data=json.dumps(metadata).encode('utf-8'))
-        elif metadata_fname.endswith('json'):
-            with open(metadata_fname, 'rb') as in_file:
-                data = json.load(in_file)
-            with open(metadata_fname, 'w') as out_file:
-                out_file.write(json.dumps({'metadata': metadata,
+            metadata_fname = self.args[self.args['metadata_field']]
+            if metadata_fname.endswith('h5'):
+                with h5py.File(metadata_fname, 'a') as out_file:
+                    assert 'metadata' not in out_file.keys()
+                    out_file.create_dataset(
+                            'metadata',
+                            data=json.dumps(metadata).encode('utf-8'))
+            elif metadata_fname.endswith('json'):
+                with open(metadata_fname, 'rb') as in_file:
+                    data = json.load(in_file)
+                with open(metadata_fname, 'w') as out_file:
+                    out_file.write(json.dumps({'metadata': metadata,
                                            'data': data}, indent=2))
-        else:
-            raise ValueError(f"Cannot handle metadata file {metadata_fname}")
+            else:
+                raise ValueError("Cannot handle metadata "
+                                 f"file {metadata_fname}")
 
 
     def output(self, d, output_path=None, **json_dump_options):
-        output_d = self.get_output_json(d)
-        output_metadata = create_hashed_json(
-                                d,
-                                to_skip=self.metadata_fname)
+        if self.args['metadata_field'] is not None:
+            output_d = self.get_output_json(d)
+            output_metadata = create_hashed_json(
+                                    output_d,
+                                    to_skip=self.metadata_fname)
 
         super().output(d, output_path=output_path, **json_dump_options)
-        self.output_metadata = output_metadata
+
+        if self.args['metadata_field'] is not None:
+            self.output_metadata = output_metadata
 

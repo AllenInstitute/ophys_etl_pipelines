@@ -32,13 +32,13 @@ def file_hash_from_path(file_path: Union[str, Path]) -> str:
 
 
 def create_hashed_json(parameter_dict):
-    output_dict = dict()
+    output_list = list()
     key_list = list(parameter_dict.keys())
     key_list.sort()
     for key in key_list:
         value = parameter_dict[key]
         if isinstance(value, dict):
-            output_dict.update(create_hashed_json(parameter_dict[key]))
+            output_list += create_hashed_json(parameter_dict[key])
         elif isinstance(value, str) or isinstance(value, Path):
             file_path = Path(value)
             local_dict = dict()
@@ -46,9 +46,10 @@ def create_hashed_json(parameter_dict):
             if file_path.is_file():
                 file_hash = file_hash_from_path(file_path)
                 local_dict['hash'] = file_hash
-                output_dict[key] = local_dict
+                output_list.append(local_dict)
 
-    return output_dict
+    return output_list
+
 
 
 def get_environment():

@@ -41,9 +41,9 @@ def apply_median_filter_to_video(
     return filtered_frames
 
 
-def filter_worker(video: np.ndarray,
-                  kernel_size: int,
-                  output_list: multiprocessing.managers.ListProxy) -> None:
+def _filter_worker(video: np.ndarray,
+                   kernel_size: int,
+                   output_list: multiprocessing.managers.ListProxy) -> None:
     """
     Worker method to apply apply_median_filter_to_video to a subset of
     video frames from a video
@@ -126,7 +126,7 @@ def median_filtered_max_projection_from_array(
         video = video[n_frames_per_chunk:, :, :]
 
         p = multiprocessing.Process(
-                    target=filter_worker,
+                    target=_filter_worker,
                     args=(input_chunk,
                           median_filter_kernel_size,
                           output_list))

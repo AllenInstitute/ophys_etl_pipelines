@@ -1,13 +1,40 @@
 from typing import Union
-from pathlib import Path
+import pathlib
 import hashlib
 import json
+import h5py
 import numpy as np
+import argschema
+from marshmallow import post_load
 import pkg_resources
 from abc import ABC, abstractmethod
 
 
-def file_hash_from_path(file_path: Union[str, Path]) -> str:
+class OphysEtlBaseSchema(argschema.ArgSchema):
+
+    metadata_field = argschema.fields.String(
+            default=None,
+            required=True,
+            allow_none=False,
+            description=("Field point to file, either JSON or HDF5, "
+                         "where metadata gets written"))
+
+    @post_load
+    def check_metadata_field(self, data, **kwargs):
+        if data['metadata_field'] not in data:
+            msg = f"{data['metadata_field']} is not a field "
+            msg += "in this schema"
+            raise ValueError(msg)
+        is_h5 = data[data['metadata_field']].endswith('.h5')
+        is_json = data[data['metadata_field']].endswith('.json')
+        if not is_h5 and not is_json:
+            msg = f"metadata file {data[data['metadata_field']]} "
+            msg += "is neither a .h5 or a .json"
+            raise ValueError(msg)
+        return data
+
+
+def file_hash_from_path(file_path: Union[str, pathlib.Path]) -> str:
     """
     Return the hexadecimal file hash for a file
 
@@ -31,16 +58,21 @@ def file_hash_from_path(file_path: Union[str, Path]) -> str:
 
 
 
-def create_hashed_json(parameter_dict):
+def create_hashed_json(parameter_dict, to_skip=None):
+    if to_skip is None:
+        to_skip = set()
     output_list = list()
     key_list = list(parameter_dict.keys())
     key_list.sort()
     for key in key_list:
         value = parameter_dict[key]
         if isinstance(value, dict):
-            output_list += create_hashed_json(parameter_dict[key])
-        elif isinstance(value, str) or isinstance(value, Path):
-            file_path = Path(value)
+            output_list += create_hashed_json(parameter_dict[key],
+                                              to_skip=to_skip)
+        elif isinstance(value, str) or isinstance(value, pathlib.Path):
+            file_path = pathlib.Path(value)
+            if str(file_path.resolve().absolute()) in to_skip:
+                continue
             local_dict = dict()
             local_dict['path'] = str(file_path.resolve().absolute())
             if file_path.is_file():
@@ -70,6 +102,15 @@ def get_environment():
 
 class ModuleRunnerABC(ABC):
 
+    @property
+    def metadata_fname(self):
+        if not hasattr(self, '_metadata_fname'):
+            fname = pathlib.Path(self.args[self.args['metadata_field']])
+            fname = str(fname.resolve().absolute())
+            self._metadata_fname = fname
+        return self._metadata_fname
+
+
     @abstractmethod
     def _run(self):
         raise NotImplementedError
@@ -77,7 +118,10 @@ class ModuleRunnerABC(ABC):
     def run(self):
         self.output_metadata = dict()
         print("SFD calling ABC.run")
-        input_metadata = create_hashed_json(self.args)
+
+        input_metadata = create_hashed_json(
+                                self.args,
+                                to_skip=set([self.metadata_fname]))
         #print('input_metadata')
         #print(json.dumps(input_metadata, indent=2))
         self._run()
@@ -95,14 +139,33 @@ class ModuleRunnerABC(ABC):
         metadata['args'] = self.args
         metadata['input_files'] = input_metadata
         metadata['output_files'] = self.output_metadata
-        print(json.dumps(metadata, indent=2))
+
+        metadata_fname = self.args[self.args['metadata_field']]
+        if metadata_fname.endswith('h5'):
+            with h5py.File(metadata_fname, 'a') as out_file:
+                assert 'metadata' not in out_file.keys()
+                out_file.create_dataset(
+                        'metadata',
+                        data=json.dumps(metadata).encode('utf-8'))
+        elif metadata_fname.endswith('json'):
+            with open(metadata_fname, 'rb') as in_file:
+                data = json.load(in_file)
+            with open(metadata_fname, 'w') as out_file:
+                out_file.write(json.dumps({'metadata': metadata,
+                                           'data': data}, indent=2))
+        else:
+            raise ValueError(f"Cannot handle metadata file {metadata_fname}")
 
 
     def output(self, d, output_path=None, **json_dump_options):
         output_d = self.get_output_json(d)
-        output_metadata = create_hashed_json(d)
+        output_metadata = create_hashed_json(
+                                d,
+                                to_skip=self.metadata_fname)
+
         #print('output_metadata')
         #print(json.dumps(output_metadata, indent=2))
+
         super().output(d, output_path=output_path, **json_dump_options)
         self.output_metadata = output_metadata
 

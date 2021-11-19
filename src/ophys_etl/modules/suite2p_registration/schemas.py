@@ -3,11 +3,13 @@ import marshmallow
 import tempfile
 from pathlib import Path
 
+from ophys_etl.modules.module_abc.module_abc import OphysEtlBaseSchema
+
 from ophys_etl.modules.suite2p_wrapper.schemas import Suite2PWrapperSchema
 from ophys_etl.schemas.fields import ExistingFile, ExistingH5File
 
 
-class Suite2PRegistrationInputSchema(argschema.ArgSchema):
+class Suite2PRegistrationInputSchema(OphysEtlBaseSchema):
     log_level = argschema.fields.Str(default="INFO")
     suite2p_args = argschema.fields.Nested(Suite2PWrapperSchema,
                                            required=True)

@@ -13,7 +13,7 @@ def apply_median_filter_to_video(
         video: np.ndarray,
         kernel_size: int) -> np.ndarray:
     """
-    Apply a median filter to a subset of frames
+    Apply a median filter to a video
 
     Parameters
     ----------

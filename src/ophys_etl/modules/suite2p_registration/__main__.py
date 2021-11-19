@@ -9,6 +9,7 @@ import pandas as pd
 import tifffile
 from PIL import Image
 
+from ophys_etl.modules.module_abc.module_abc import ModuleRunnerABC
 from ophys_etl.qc.registration_qc import RegistrationQC
 from ophys_etl.modules.suite2p_wrapper.__main__ import Suite2PWrapper
 from ophys_etl.modules.suite2p_registration import utils
@@ -17,11 +18,11 @@ from ophys_etl.modules.suite2p_registration.schemas import (
 from suite2p.registration.rigid import shift_frame
 
 
-class Suite2PRegistration(argschema.ArgSchemaParser):
+class Suite2PRegistration(ModuleRunnerABC, argschema.ArgSchemaParser):
     default_schema = Suite2PRegistrationInputSchema
     default_output_schema = Suite2PRegistrationOutputSchema
 
-    def run(self):
+    def _run(self):
         self.logger.name = type(self).__name__
         self.logger.setLevel(self.args['log_level'])
         ophys_etl_commit_sha = os.environ.get("OPHYS_ETL_COMMIT_SHA",

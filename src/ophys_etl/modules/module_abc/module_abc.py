@@ -2,6 +2,8 @@ from typing import Union
 from pathlib import Path
 import hashlib
 import json
+import numpy as np
+import pkg_resources
 from abc import ABC, abstractmethod
 
 
@@ -49,6 +51,21 @@ def create_hashed_json(parameter_dict):
     return output_dict
 
 
+def get_environment():
+    package_names = []
+    package_versions = []
+    for p in pkg_resources.working_set:
+        package_names.append(p.project_name)
+        package_versions.append(p.version)
+    package_names = np.array(package_names)
+    package_versions = np.array(package_versions)
+    sorted_dex = np.argsort(package_names)
+    package_names = package_names[sorted_dex]
+    package_versions = package_versions[sorted_dex]
+    return [{'name':n, 'version': v}
+            for n, v in zip(package_names, package_versions)]
+
+
 
 class ModuleRunnerABC(ABC):
 
@@ -71,6 +88,11 @@ class ModuleRunnerABC(ABC):
         print('output_metadata')
         print(json.dumps(self.output_metadata, indent=2))
 
+        environ = get_environment()
+        print('environment')
+        print(json.dumps(environ))
+
+
     def output(self, d, output_path=None, **json_dump_options):
         output_d = self.get_output_json(d)
         output_metadata = create_hashed_json(d)
@@ -78,4 +100,4 @@ class ModuleRunnerABC(ABC):
         #print(json.dumps(output_metadata, indent=2))
         super().output(d, output_path=output_path, **json_dump_options)
         self.output_metadata = output_metadata
-        
+

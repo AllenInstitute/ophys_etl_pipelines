@@ -117,13 +117,11 @@ class ModuleRunnerABC(ABC):
 
     def run(self):
         self.output_metadata = dict()
-        print("SFD calling ABC.run")
 
         input_metadata = create_hashed_json(
                                 self.args,
                                 to_skip=set([self.metadata_fname]))
-        #print('input_metadata')
-        #print(json.dumps(input_metadata, indent=2))
+
         self._run()
 
         output_paths = set([obj['path']
@@ -132,6 +130,7 @@ class ModuleRunnerABC(ABC):
         for ii in range(n-1, -1, -1):
             if input_metadata[ii]['path'] in output_paths:
                 input_metadata.pop(ii)
+
         environ = get_environment()
 
         metadata = dict()
@@ -162,9 +161,6 @@ class ModuleRunnerABC(ABC):
         output_metadata = create_hashed_json(
                                 d,
                                 to_skip=self.metadata_fname)
-
-        #print('output_metadata')
-        #print(json.dumps(output_metadata, indent=2))
 
         super().output(d, output_path=output_path, **json_dump_options)
         self.output_metadata = output_metadata

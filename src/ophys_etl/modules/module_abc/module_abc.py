@@ -190,10 +190,14 @@ class ModuleRunnerABC(ABC):
 
     @property
     def metadata_fname(self):
+        if self.args['metadata_field'] is None:
+            return None
+
         if not hasattr(self, '_metadata_fname'):
             fname = pathlib.Path(self.args[self.args['metadata_field']])
             fname = str(fname.resolve().absolute())
             self._metadata_fname = fname
+
         return self._metadata_fname
 
 
@@ -206,49 +210,46 @@ class ModuleRunnerABC(ABC):
 
         self.output_metadata = dict()
 
-        if self.args['metadata_field'] is not None:
-            input_metadata = create_hashed_json(
-                                    self.args,
-                                    to_skip=set([self.metadata_fname]))
+        input_metadata = create_hashed_json(
+                                self.args,
+                                to_skip=set([self.metadata_fname]))
 
         self._run()
 
+        output_paths = set([obj['path']
+                            for obj in self.output_metadata])
+        n = len(input_metadata)
+        for ii in range(n-1, -1, -1):
+            if input_metadata[ii]['path'] in output_paths:
+                input_metadata.pop(ii)
+
+        metadata = dict()
+        metadata['args'] = self.args
+        metadata['input_files'] = input_metadata
+        metadata['output_files'] = self.output_metadata
+        self.flow_logger.add_metadata(this_process_name, metadata)
+
         if self.args['metadata_field'] is not None:
-            output_paths = set([obj['path']
-                                 for obj in self.output_metadata])
-            n = len(input_metadata)
-            for ii in range(n-1, -1, -1):
-                if input_metadata[ii]['path'] in output_paths:
-                    input_metadata.pop(ii)
-
-            metadata = dict()
-            metadata['args'] = self.args
-            metadata['input_files'] = input_metadata
-            metadata['output_files'] = self.output_metadata
-
-            self.flow_logger.add_metadata(this_process_name, metadata)
-
-            if self.args['metadata_field'] is not None:
-                output_metadata = dict()
-                output_metadata['workflow'] = self.flow_logger.return_log()
-                environ = get_environment()
-                output_metadata['environment'] = environ
-                metadata_fname = self.args[self.args['metadata_field']]
-                if metadata_fname.endswith('h5'):
-                    with h5py.File(metadata_fname, 'a') as out_file:
-                        assert 'metadata' not in out_file.keys()
-                        out_file.create_dataset(
-                                'metadata',
-                                data=json.dumps(output_metadata).encode('utf-8'))
-                elif metadata_fname.endswith('json'):
-                    with open(metadata_fname, 'rb') as in_file:
-                        data = json.load(in_file)
-                    with open(metadata_fname, 'w') as out_file:
-                        out_file.write(json.dumps({'metadata': output_metadata,
-                                               'data': data}, indent=2))
-                else:
-                    raise ValueError("Cannot handle metadata "
-                                     f"file {metadata_fname}")
+            output_metadata = dict()
+            output_metadata['workflow'] = self.flow_logger.return_log()
+            environ = get_environment()
+            output_metadata['environment'] = environ
+            metadata_fname = self.args[self.args['metadata_field']]
+            if metadata_fname.endswith('h5'):
+                with h5py.File(metadata_fname, 'a') as out_file:
+                    assert 'metadata' not in out_file.keys()
+                    out_file.create_dataset(
+                            'metadata',
+                            data=json.dumps(output_metadata).encode('utf-8'))
+            elif metadata_fname.endswith('json'):
+                with open(metadata_fname, 'rb') as in_file:
+                    data = json.load(in_file)
+                with open(metadata_fname, 'w') as out_file:
+                    out_file.write(json.dumps({'metadata': output_metadata,
+                                           'data': data}, indent=2))
+            else:
+                raise ValueError("Cannot handle metadata "
+                                 f"file {metadata_fname}")
 
 
     def output(self, d, output_path=None, **json_dump_options):

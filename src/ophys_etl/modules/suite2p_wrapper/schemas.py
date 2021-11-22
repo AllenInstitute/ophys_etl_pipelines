@@ -1,10 +1,11 @@
 import argschema
 import marshmallow as mm
 
+from ophys_etl.modules.module_abc.module_abc import OphysEtlBaseSchema
 from ophys_etl.modules.suite2p_wrapper.utils import Suite2PWrapperException
 
 
-class Suite2PWrapperSchema(argschema.ArgSchema):
+class Suite2PWrapperSchema(OphysEtlBaseSchema):
     """
     s2p parameter names are copied from:
     https://github.com/MouseLand/suite2p/blob/master/suite2p/run_s2p.py

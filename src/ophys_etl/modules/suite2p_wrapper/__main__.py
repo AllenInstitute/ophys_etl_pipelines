@@ -5,19 +5,27 @@ import tempfile
 
 import argschema
 import h5py
+import copy
 import suite2p
 
+from ophys_etl.modules.module_abc.module_abc import ModuleRunnerABC
 from ophys_etl.modules.suite2p_wrapper import utils
 from ophys_etl.modules.suite2p_wrapper import schemas
 
 
-class Suite2PWrapper(argschema.ArgSchemaParser):
+class Suite2PWrapper(ModuleRunnerABC, argschema.ArgSchemaParser):
     default_schema = schemas.Suite2PWrapperSchema
     default_output_schema = schemas.Suite2PWrapperOutputSchema
 
-    def run(self):
+    def _run(self):
         self.logger.name = type(self).__name__
         self.logger.setLevel(self.args.pop('log_level'))
+
+        default_suite2p_args = copy.deepcopy(suite2p.default_ops())
+        default_suite2p_args.update(self.args)
+        self.args = default_suite2p_args
+        print('args are now ')
+        print(self.args)
 
         # Should always exist as either a valid SHA or "unknown build"
         # if running in docker container.

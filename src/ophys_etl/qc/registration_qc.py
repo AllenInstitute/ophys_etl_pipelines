@@ -4,6 +4,11 @@ import numpy as np
 from functools import partial
 from PIL import Image
 from pathlib import Path
+
+from ophys_etl.modules.module_abc.module_abc import (
+    ModuleRunnerABC,
+    OphysEtlBaseSchema)
+
 from ophys_etl.schemas.fields import H5InputFile
 from ophys_etl.utils.array_utils import normalize_array
 from ophys_etl.utils.video_utils import downsample_h5_video, encode_video
@@ -17,7 +22,7 @@ class RegistrationQCException(Exception):
     pass
 
 
-class RegistrationQCInputSchema(argschema.ArgSchema):
+class RegistrationQCInputSchema(OphysEtlBaseSchema):
     movie_frame_rate_hz = argschema.fields.Float(
         required=True,
         description="frame rate of movie, usually 31Hz or 11Hz")
@@ -159,10 +164,10 @@ def downsample_normalize(movie_path: Path, frame_rate: float,
     return ds
 
 
-class RegistrationQC(argschema.ArgSchemaParser):
+class RegistrationQC(ModuleRunnerABC, argschema.ArgSchemaParser):
     default_schema = RegistrationQCInputSchema
 
-    def run(self):
+    def _run(self):
         self.logger.name = type(self).__name__
         self.logger.setLevel(self.args['log_level'])
 

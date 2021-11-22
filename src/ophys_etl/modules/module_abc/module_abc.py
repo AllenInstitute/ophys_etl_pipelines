@@ -215,6 +215,7 @@ class ModuleRunnerABC(ABC):
                                 to_skip=set([self.metadata_fname]))
 
         self._run()
+        self.flow_logger.leave()
 
         output_paths = set([obj['path']
                             for obj in self.output_metadata])

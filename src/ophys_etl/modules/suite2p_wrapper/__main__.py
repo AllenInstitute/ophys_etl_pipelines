@@ -24,8 +24,6 @@ class Suite2PWrapper(ModuleRunnerABC, argschema.ArgSchemaParser):
         default_suite2p_args = copy.deepcopy(suite2p.default_ops())
         default_suite2p_args.update(self.args)
         self.args = default_suite2p_args
-        print('args are now ')
-        print(self.args)
 
         # Should always exist as either a valid SHA or "unknown build"
         # if running in docker container.

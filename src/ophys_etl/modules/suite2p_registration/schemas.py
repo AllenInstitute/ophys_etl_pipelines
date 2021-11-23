@@ -77,15 +77,12 @@ class Suite2PRegistrationInputSchema(OphysEtlBaseSchema):
                      "is typically clipping outliers to 512 * 0.05 = 25 "
                      "pixels above or below the median trend."))
 
-
     metadata_field = argschema.fields.String(
             default='motion_corrected_output',
             required=True,
             allow_none=False,
             description=("Field point to file, either JSON or HDF5, "
                          "where metadata gets written"))
-
-
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

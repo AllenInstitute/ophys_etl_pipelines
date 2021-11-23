@@ -1,4 +1,6 @@
-from typing import Union
+from __future__ import annotations
+
+from typing import Union, Optional
 import pathlib
 import hashlib
 import json
@@ -10,9 +12,33 @@ from marshmallow import post_load
 import pkg_resources
 from abc import ABC, abstractmethod
 
-class FlowElement(object):
+class WorkflowElement(object):
+    """
+    A class to represent a single element in a workflow.
+    It will keep track of the element that called it,
+    the elements that it calls, and any metadata (parameters,
+    input files, output files) associated with the current
+    module.
 
-    def __init__(self, name, salt, called_by):
+    Parameters
+    ----------
+    name: str
+        Representation of the name of the module
+        class calling this element
+
+    salt: Optional[str]
+        Optional suffix to be added to this element's
+        name to make it unique (in case the same module
+        is called more than once in a workflow)
+
+    called_by: Optional[WorkflowElement]
+        The element that called this element
+    """
+
+    def __init__(self,
+                 name: str,
+                 salt: Optional[str],
+                 called_by: Optional[WorkflowElement]):
         self.called_by = called_by
         if salt is not None:
             self.name = f'{name}_{salt}'
@@ -25,15 +51,25 @@ class FlowElement(object):
         self.called = None
         self.metadata = dict()
 
-    def call(self, other):
+    def call(self, other: WorkflowElement):
+        """
+        Record that the current WorkflowElement is calling
+        another WorkflowElement
+        """
         if self.called is None:
             self.called = list()
         self.called.append(other.name)
 
-    def add_metadata(self, metadata):
+    def add_metadata(self, metadata: dict):
+        """
+        Add a dict to the metadata for this WorkflowElement
+        """
         self.metadata.update(metadata)
 
-    def as_dict(self):
+    def as_dict(self) -> dict:
+        """
+        Return a dict representation of this WorkflowElement
+        """
         value = dict()
         value['name'] = self.name
         value['called_by'] = self.called_by
@@ -45,7 +81,15 @@ class FlowElement(object):
         return value
 
 
-class FlowLogger(object):
+class WorkflowLogger(object):
+    """
+    A class to keep track of a series of sequential
+    workflow elements.
+
+    Will not be able to handle workflow elements that run in parallel,
+    but can keep track of elements that call other elements that
+    themselves call other elements.
+    """
 
     def __init__(self):
         self.log = list()
@@ -53,7 +97,26 @@ class FlowLogger(object):
         self.name_to_process = dict()
 
 
-    def enter(self, name):
+    def enter(self, name: str) -> str:
+        """
+        Enter a processing module.Call this method before
+        executing the module's logic.
+
+        Parameters
+        ----------
+        name: str
+            A string representation of the name of the
+            processing module class we are entering
+
+        Returns
+        -------
+        new_name: str
+            String representation of the module name as it
+            was actually recorded in the log (in the event
+            that the same module is called more than once
+            in the workflow, a unique 'salt' is added to the
+            name to prevent collisions in the workflow.
+        """
         if str(name) not in self.name_to_process:
             salt = None
         else:
@@ -67,7 +130,7 @@ class FlowLogger(object):
             called_by = None
         else:
             called_by = self.currently_in[-1]
-        new_process = FlowElement(name, salt, called_by)
+        new_process = WorkflowElement(name, salt, called_by)
 
         if called_by is not None:
             self.name_to_process[called_by.name].call(new_process)
@@ -77,15 +140,36 @@ class FlowLogger(object):
         return new_process.name
 
 
-    def add_metadata(self, process_name, metadata):
+    def add_metadata(self, process_name: str, metadata: dict) -> None:
+        """
+        Add metadata to a recorded wordflow element.
+
+        Parameters
+        ----------
+        process_name: str
+            The name of the workflow element as it was recorded
+            in the log (i.e. as returned by self.enter())
+
+t        metadata: dict
+            The metadata to be added to the element's metadata
+        """
         self.name_to_process[process_name].add_metadata(metadata)
+        return None
 
 
-    def leave(self):
+    def leave(self) -> None:
+        """
+        Leave the workflow element. Call this method after
+        executing the module's logic
+        """
         if len(self.currently_in) > 0:
             self.currently_in.pop(-1)
+        return None
 
-    def return_log(self):
+    def return_log(self) -> list:
+        """
+        Return the contents of this workflow log as a list
+        """
         output = list()
         for process in self.log:
             output.append(process.as_dict())
@@ -186,7 +270,7 @@ def get_environment():
 
 
 class ModuleRunnerABC(ABC):
-    flow_logger = FlowLogger()
+    flow_logger = WorkflowLogger()
 
     @property
     def metadata_fname(self):

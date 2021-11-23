@@ -150,7 +150,7 @@ class WorkflowLogger(object):
             The name of the workflow element as it was recorded
             in the log (i.e. as returned by self.enter())
 
-t        metadata: dict
+        metadata: dict
             The metadata to be added to the element's metadata
         """
         self.name_to_process[process_name].add_metadata(metadata)

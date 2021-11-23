@@ -8,7 +8,7 @@ import h5py
 import numpy as np
 import argschema
 from marshmallow import post_load
-import importlib.metadata
+import pkg_resources
 from abc import ABC, abstractmethod
 
 
@@ -92,9 +92,9 @@ def get_environment() -> list:
     """
     package_names = []
     package_versions = []
-    for dist in importlib.metadata.distributions():
-        package_names.append(dist.metadata['Name'])
-        package_versions.append(dist.metadata['Version'])
+    for p in pkg_resources.working_set:
+        package_names.append(p.project_name)
+        package_versions.append(p.version)
     package_names = np.array(package_names)
     package_versions = np.array(package_versions)
     sorted_dex = np.argsort(package_names)

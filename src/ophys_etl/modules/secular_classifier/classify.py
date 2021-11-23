@@ -27,6 +27,11 @@ class SecularClassifierSchema(argschema.ArgSchema):
             default=None,
             allow_none=False)
 
+    max_path = argschema.fields.InputFile(
+            required=False,
+            default=None,
+            allow_none=True)
+
     output_path = argschema.fields.OutputFile(
             required=True,
             default=None,
@@ -58,6 +63,13 @@ class SecularClassifierSchema(argschema.ArgSchema):
         if path.exists():
             assert path.is_file()
             assert data['clobber']
+        return data
+
+    @post_load
+    def check_max_path(self, data, **kwargs):
+        if data['max_path'] is not None:
+            if not data['max_path'].endswith('.h5'):
+                raise ValueError(f"{data['max_path']} not an .h5 file")
         return data
 
 
@@ -375,8 +387,13 @@ class SecularClassifier(argschema.ArgSchemaParser):
         with h5py.File(video_path, 'r') as in_file:
             video_data = in_file['data'][()]
 
-        max_img = np.max(video_data, axis=0)
         avg_img = np.mean(video_data, axis=0)
+
+        if self.args['max_path'] is not None:
+            with h5py.File(self.args['max_path'], 'r') as in_file:
+                max_img = in_file['maximum_projection'][()]
+        else:
+            max_img = np.max(video_data, axis=0)
 
         mgr = multiprocessing.Manager()
         roi_corr_dict = mgr.dict()

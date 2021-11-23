@@ -68,6 +68,10 @@ def test_suite2p_wrapper(
     mock_suite2p.run_s2p = MagicMock()
     mock_suite2p.run_s2p.side_effect = suite2p_side_effect
 
+    def return_empty_dict():
+        return dict()
+    mock_suite2p.default_ops = return_empty_dict
+
     mpatcher = partial(monkeypatch.setattr, target=suite2p_wrapper)
     mpatcher(name="suite2p", value=mock_suite2p)
     if exception:

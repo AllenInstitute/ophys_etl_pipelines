@@ -13,6 +13,7 @@ from ophys_etl.modules.segmentation.utils.multiprocessing_utils import (
     _winnow_process_list)
 from ophys_etl.modules.segmentation.utils.stats_utils import (
     estimate_std_from_interquartile_range)
+from ophys_etl.utils.array_utils import pairwise_distances
 
 
 class SecularClassifierSchema(argschema.ArgSchema):
@@ -321,6 +322,55 @@ def get_roi_fluxes(img_data, roi):
     return fluxes
 
 
+def find_best_circle(
+        pixel_mask: np.ndarray,
+        area_threshold: float):
+
+    n_pixels = pixel_mask.shape[0]*pixel_mask.shape[1]
+
+    flat_mask = pixel_mask.flatten()
+    n_by_n_mask = np.array([flat_mask]*n_pixels)
+    assert n_by_n_mask.shape == (n_pixels, n_pixels)
+    del flat_mask
+
+    (pixel_rows,
+     pixel_cols) = np.meshgrid(np.arange(pixel_mask.shape[0]),
+                               np.arange(pixel_mask.shape[1]),
+                               indexing='ij')
+
+    pixel_rows = pixel_rows.flatten()
+    pixel_cols = pixel_cols.flatten()
+    coords = np.array([pixel_rows, pixel_cols]).transpose()
+    pixel_distances = pairwise_distances(coords)
+    del coords
+
+    # for each row, only keep the distances to valid pixels
+    pixel_distances = pixel_distances[n_by_n_mask].reshape(n_pixels, -1)
+    del n_by_n_mask
+    assert pixel_distances.shape == (n_pixels, pixel_mask.sum())
+
+    rmax = 0.5*(max(pixel_mask.shape[0], pixel_mask.shape[1])+1.0)
+    r_array = np.arange(1.0, rmax, 0.5)
+    area_array = np.pi*r_array**2
+
+    r_at_threshold = np.zeros(n_pixels, dtype=float)
+    area_at_threshold = np.zeros(n_pixels, dtype=float)
+
+    for radius, area in zip(r_array, area_array):
+        valid = (pixel_distances <= radius)
+        valid = valid.sum(axis=1).astype(float)
+        fraction = valid/area
+        flagging = fraction >= area_threshold
+        r_at_threshold[flagging] = radius
+        area_at_threshold[flagging] = valid[flagging]
+
+    max_dex = np.argmax(r_at_threshold)
+    center = (pixel_rows[max_dex], pixel_cols[max_dex])
+    return {'center': center,
+            'radius': r_at_threshold[max_dex],
+            'area': area_at_threshold[max_dex]}
+
+
 def diff_worker(roi,
                 roi_trace_array,
                 bckgd_trace_array,
@@ -366,7 +416,15 @@ def diff_worker(roi,
     else:
         mask_key = 'mask_matrix'
 
-    this_roi['area'] = int(np.sum(roi[mask_key]))
+    roi_mask = np.array(roi[mask_key])
+
+    this_roi['area'] = int(roi_mask.sum())
+
+    best_fit_circle = find_best_circle(
+                        roi_mask,
+                        0.9)
+
+    this_roi['circle_area'] = best_fit_circle['area']
 
     output_dict[roi_id] = this_roi
 

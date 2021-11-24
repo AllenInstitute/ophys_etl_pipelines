@@ -74,6 +74,13 @@ class SecularClassifierSchema(argschema.ArgSchema):
         return data
 
 
+def kurtosis_from_sample(sample):
+    mu = np.mean(sample)
+    var = np.sum((sample-mu)**2)/(len(sample)-1)
+    numerator = np.sum((sample-mu)**4)/len(sample)
+    return numerator/(var*var)
+
+
 def z_score_of_data(
        roi_data,
        background_data):
@@ -93,11 +100,15 @@ def get_all_stats(roi_data, background_data):
     b25, b75 = np.quantile(background_data, (0.25, 0.75))
     d25 = r25-b25
     d75 = r75-b75
+
+    kurtosis = kurtosis_from_sample(roi_data)
+
     return {'z_score': z_score,
             'dmean': d_mean,
             'dmedian': d_median,
             'd25': d25,
-            'd75': d75}
+            'd75': d75,
+            'kurtosis': kurtosis}
 
 
 def corr_from_traces(

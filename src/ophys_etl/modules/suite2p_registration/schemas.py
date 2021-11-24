@@ -74,6 +74,11 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
                      "allows for low-frequency drift. Default value of 0.05 "
                      "is typically clipping outliers to 512 * 0.05 = 25 "
                      "pixels above or below the median trend."))
+    clip_negative = argschema.fields.Boolean(
+        required=False,
+        default=True,
+        allow_none=False,
+        description=("Whether or not to clip negative pixel values in output"))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

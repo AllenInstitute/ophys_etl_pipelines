@@ -954,6 +954,8 @@ def get_roi_color_map(
             this_color = raw_color_list[ii]
             color_list.append(this_color)
 
+    color_list.reverse()
+
     color_map = {}
     for roi_id in nx_coloring:
         color_map[roi_id] = color_list[nx_coloring[roi_id]]

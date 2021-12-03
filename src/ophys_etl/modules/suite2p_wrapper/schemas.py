@@ -72,6 +72,7 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
         default=False,
         required=False,
         description=("Turns on Suite2P's non-rigid registration algorithm"))
+
     # s2p cell detection settings
     roidetect = argschema.fields.Bool(
             default=True,

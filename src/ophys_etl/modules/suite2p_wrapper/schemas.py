@@ -63,7 +63,7 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
                      "value of >4 is recommended for one-photon "
                      "recordings (with a 512x512 pixel FOV)."))
     smooth_sigma_time = argschema.fields.Float(
-        default=0,
+        default=4.0,
         description=("Standard deviation in time frames of the gaussian "
                      "used to smooth the data before phase correlation is "
                      "computed. Might need this to be set to 1 or 2 for "

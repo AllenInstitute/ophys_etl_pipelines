@@ -3,6 +3,8 @@ import os
 import pathlib
 import tempfile
 
+import copy
+import json
 import argschema
 import h5py
 import suite2p
@@ -18,6 +20,11 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
     def run(self):
         self.logger.name = type(self).__name__
         self.logger.setLevel(self.args.pop('log_level'))
+
+        # explicitly set default Suite2P args
+        default_suite2p_args = copy.deepcopy(suite2p.default_ops())
+        default_suite2p_args.update(self.args)
+        self.args = default_suite2p_args
 
         # Should always exist as either a valid SHA or "unknown build"
         # if running in docker container.
@@ -54,6 +61,11 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
             self.logger.info(f"Running Suite2P with output going to {tdir}")
             if 'movie_frame_rate' in self.args:
                 self.args['fs'] = self.args['movie_frame_rate']
+
+            msg = f'running Suite2P v{suite2p.version} with args\n'
+            msg += f'{json.dumps(self.args, indent=2, sort_keys=True)}\n'
+            self.logger.info(msg)
+
             suite2p.run_s2p(self.args)
 
             self.logger.info(f"Suite2P complete. Copying output from {tdir} "

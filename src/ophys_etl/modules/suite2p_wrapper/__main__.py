@@ -32,26 +32,28 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
                                               "local build")
         self.logger.info(f"OPHYS_ETL_COMMIT_SHA: {ophys_etl_commit_sha}")
 
-        # determine nbinned from bin_duration and movie_frame_rate
-        if 'nbinned' not in self.args:
+        # determine nbinned from bin_duration and movie_frame_rate_hz
+        if self.args['nbinned'] is None:
             with h5py.File(self.args['h5py'], 'r') as f:
                 nframes = f['data'].shape[0]
             bin_size = (self.args['bin_duration']
-                        * self.args['movie_frame_rate'])
+                        * self.args['movie_frame_rate_hz'])
 
             if bin_size > nframes:
                 raise utils.Suite2PWrapperException(
                     f"The desired frame bin duration "
                     f"({self.args['bin_duration']} "
                     f"seconds) and movie frame rate "
-                    f"({self.args['movie_frame_rate']} Hz) results in a bin "
+                    f"({self.args['movie_frame_rate_hz']} Hz) "
+                    "results in a bin "
                     f"size ({bin_size} frames) larger than the number of "
                     f"actual frames in the movie ({nframes})!")
 
             self.args['nbinned'] = int(nframes / bin_size)
             self.logger.info(f"Movie has {nframes} frames collected at "
-                             f"{self.args['movie_frame_rate']} Hz. To get a "
-                             f"bin duration of {self.args['bin_duration']} "
+                             f"{self.args['movie_frame_rate_hz']} Hz. "
+                             "To get a bin duration of "
+                             f"{self.args['bin_duration']} "
                              f"seconds, setting nbinned to "
                              f"{self.args['nbinned']}.")
 
@@ -59,8 +61,8 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
         with tempfile.TemporaryDirectory(prefix=self.args['tmp_dir']) as tdir:
             self.args['save_path0'] = tdir
             self.logger.info(f"Running Suite2P with output going to {tdir}")
-            if 'movie_frame_rate' in self.args:
-                self.args['fs'] = self.args['movie_frame_rate']
+            if self.args['movie_frame_rate_hz'] is not None:
+                self.args['fs'] = self.args['movie_frame_rate_hz']
 
             msg = f'running Suite2P v{suite2p.version} with args\n'
             msg += f'{json.dumps(self.args, indent=2, sort_keys=True)}\n'

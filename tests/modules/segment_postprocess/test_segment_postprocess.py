@@ -66,7 +66,7 @@ def test_segment_postprocess_pipeline(tmp_path):
 
     args = {"suite2p_args": {
                 "h5py": str(h5path),
-                "movie_frame_rate": 31.0,
+                "movie_frame_rate_hz": 31.0,
             },
             "postprocess_args": {
                 "motion_correction_values": str(mcvalues_path)},

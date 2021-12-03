@@ -1,5 +1,7 @@
 import argschema
 import marshmallow
+import numpy as np
+import json
 import tempfile
 from pathlib import Path
 
@@ -103,6 +105,27 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         # we are not doing registration here, but the wrapper schema wants
         # a value:
         data['suite2p_args']['nbinned'] = 1000
+        return data
+
+    @marshmallow.post_load
+    def check_movie_frame_rate(self, data, **kwargs):
+        """
+        Make sure that if movie_frame_rate_hz is specified in both
+        the parent set of args and in suite2p_args, the values agree.
+
+        If suite2p_args['movie_frame_rate_hz'] is not set, set it from
+        self.args['movie_frame_rate_hz']
+        """
+        parent_val = data['movie_frame_rate_hz']
+
+        if data['suite2p_args']['movie_frame_rate_hz'] is not None:
+            s2p_val = data['suite2p_args']['movie_frame_rate_hz']
+            if np.abs(s2p_val-parent_val) > 1.0e-10:
+                msg = 'Specified two values of movie_frame_rate_hz in\n'
+                msg += json.dumps(data, indent=2, sort_keys=True)
+                raise ValueError(msg)
+
+        data['suite2p_args']['movie_frame_rate_hz'] = parent_val
         return data
 
 

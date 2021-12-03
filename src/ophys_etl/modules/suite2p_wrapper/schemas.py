@@ -33,7 +33,10 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
     tmp_dir = argschema.fields.OutputDir(
                  required=False,
                  default=None,
-                 allow_none=True)
+                 allow_none=True,
+                 description=("Directory into which to write temporary files "
+                              "produced by Suite2P"))
+
     # s2p registration settings
     do_registration = argschema.fields.Int(
             default=0,

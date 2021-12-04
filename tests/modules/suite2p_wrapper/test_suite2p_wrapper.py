@@ -207,7 +207,7 @@ def compare_args(
         raise ValueError(msg)
 
 
-def s2p_input_result_args(nframes):
+def s2p_input_result_args(nframes, tmp_dir):
     """
     This function is a generator which yields
     (by_hand_args, expected_args)
@@ -222,6 +222,9 @@ def s2p_input_result_args(nframes):
     ---------
     nframes: int
         The number of frames in the movie that Suite2P will be processing
+
+    tmp_dir: str
+        The temporary directory that will be used in Suite2P wrapper
     """
     possibilities = dict()
     possibilities['h5py_key'] = 'junk'
@@ -246,6 +249,7 @@ def s2p_input_result_args(nframes):
     possibilities['min_neuropil_pixels'] = 662
     possibilities['allow_overlap'] = False
     possibilities['movie_frame_rate_hz'] = 5.3
+    possibilities['tmp_dir'] = tmp_dir
 
     k_list = list(possibilities.keys())
     k_list.sort()
@@ -280,7 +284,8 @@ def s2p_input_result_args(nframes):
     yield (by_hand, expected)
 
 
-def test_suite2p_default_args(tmp_path,
+def test_suite2p_default_args(tmpdir,
+                              tmp_path,
                               monkeypatch,
                               default_suite2p_args_fixture,
                               allen_default_args_fixture,
@@ -306,7 +311,9 @@ def test_suite2p_default_args(tmp_path,
     mpatcher(name="suite2p", value=mock_suite2p)
 
     nframes = input_movie_nframes_fixture
-    for by_hand_args, expected_args in s2p_input_result_args(nframes):
+    tmp_dir = str(Path(tmpdir).resolve().absolute())
+    for by_hand_args, expected_args in s2p_input_result_args(nframes,
+                                                             tmp_dir):
         args = dict()
         args['h5py'] = input_movie_path_fixture
         args['output_dir'] = str(tmp_path / 'output')

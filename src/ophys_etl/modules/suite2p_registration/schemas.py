@@ -96,7 +96,11 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         if "output_dir" not in data["suite2p_args"]:
             # send suite2p results to a temporary directory
             # the results of this pipeline will be formatted versions anyway
-            self.tmpdir = tempfile.TemporaryDirectory()
+            if 'tmp_dir' in data['suite2p_args']:
+                parent_dir = data['suite2p_args']['tmp_dir']
+            else:
+                parent_dir = None
+            self.tmpdir = tempfile.TemporaryDirectory(dir=parent_dir)
             data["suite2p_args"]["output_dir"] = self.tmpdir.name
         if "output_json" not in data["suite2p_args"]:
             Suite2p_output = (Path(data["suite2p_args"]["output_dir"])

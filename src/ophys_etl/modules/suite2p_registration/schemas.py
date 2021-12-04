@@ -102,9 +102,6 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
             Suite2p_output = (Path(data["suite2p_args"]["output_dir"])
                               / "Suite2P_output.json")
             data["suite2p_args"]["output_json"] = str(Suite2p_output)
-        # we are not doing registration here, but the wrapper schema wants
-        # a value:
-        data['suite2p_args']['nbinned'] = 1000
         return data
 
     @marshmallow.post_load

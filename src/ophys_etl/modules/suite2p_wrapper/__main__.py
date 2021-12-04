@@ -58,7 +58,7 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
                              f"{self.args['nbinned']}.")
 
         # make a tempdir for Suite2P's output
-        with tempfile.TemporaryDirectory(prefix=self.args['tmp_dir']) as tdir:
+        with tempfile.TemporaryDirectory(dir=self.args['tmp_dir']) as tdir:
             self.args['save_path0'] = tdir
             self.logger.info(f"Running Suite2P with output going to {tdir}")
             if self.args['movie_frame_rate_hz'] is not None:

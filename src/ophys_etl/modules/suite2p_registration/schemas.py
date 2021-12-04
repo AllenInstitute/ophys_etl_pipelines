@@ -104,7 +104,7 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
             data["suite2p_args"]["output_json"] = str(Suite2p_output)
         return data
 
-    @marshmallow.post_load
+    @marshmallow.pre_load
     def check_movie_frame_rate(self, data, **kwargs):
         """
         Make sure that if movie_frame_rate_hz is specified in both
@@ -115,12 +115,13 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         """
         parent_val = data['movie_frame_rate_hz']
 
-        if data['suite2p_args']['movie_frame_rate_hz'] is not None:
-            s2p_val = data['suite2p_args']['movie_frame_rate_hz']
-            if np.abs(s2p_val-parent_val) > 1.0e-10:
-                msg = 'Specified two values of movie_frame_rate_hz in\n'
-                msg += json.dumps(data, indent=2, sort_keys=True)
-                raise ValueError(msg)
+        if 'movie_frame_rate_hz' in data['suite2p_args']:
+            if data['suite2p_args']['movie_frame_rate_hz'] is not None:
+                s2p_val = data['suite2p_args']['movie_frame_rate_hz']
+                if np.abs(s2p_val-parent_val) > 1.0e-10:
+                    msg = 'Specified two values of movie_frame_rate_hz in\n'
+                    msg += json.dumps(data, indent=2, sort_keys=True)
+                    raise ValueError(msg)
 
         data['suite2p_args']['movie_frame_rate_hz'] = parent_val
         return data

@@ -7,7 +7,7 @@ import numpy as np
 
 has_suite2p = True
 try:
-    import suite2p  # noqa: F401
+    import suite2p.registration  # noqa: F401
 except ImportError:
     # need to get around the fact that Suite2P may not be defined
     # in the test environment. These tests should all be marked with

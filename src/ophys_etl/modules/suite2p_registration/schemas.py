@@ -78,7 +78,7 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
                      "pixels above or below the median trend."))
     clip_negative = argschema.fields.Boolean(
         required=False,
-        default=True,
+        default=False,
         allow_none=False,
         description=("Whether or not to clip negative pixel values in output"))
 

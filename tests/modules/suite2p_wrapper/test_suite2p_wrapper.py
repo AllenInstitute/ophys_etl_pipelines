@@ -92,6 +92,7 @@ def suite2p_side_effect(args):
             with open(outfile, "w") as f:
                 f.write('content')
 
+
 def suite2p_args_side_effect(args, dst_path):
     """write the args passed to suite2p to a JSON file specified by dst_path
     """

@@ -10,7 +10,19 @@ import copy
 import json
 
 import sys
-sys.modules['suite2p'] = Mock()
+
+has_suite2p = True
+try:
+    import suite2p.registration  # noqa: F401
+except ImportError:
+    # only mock Suite2P if necessary; otherwise, the mock
+    # makes it into the tests that actually rely on Suite2P
+    has_suite2p = False
+
+if not has_suite2p:
+    sys.modules['suite2p'] = Mock()
+    sys.modules['suite2p.registration.rigid'] = Mock()
+
 from ophys_etl.modules.suite2p_wrapper \
         import __main__ as suite2p_wrapper  # noqa: E402
 from ophys_etl.modules.suite2p_wrapper.utils \

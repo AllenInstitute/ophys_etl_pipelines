@@ -23,7 +23,10 @@ class PostProcessROIsInputSchema(ArgSchema):
                      "['framenumber','x','y','correlation','kalman_x',"
                      "'kalman_y']\n['framenumber','x','y','correlation',"
                      "'input_x','input_y','kalman_x',"
-                     "'kalman_y','algorithm','type']"))
+                     "'kalman_y','algorithm','type']\n"
+                     "If not specified, an empty motion border will be used "
+                     "(i.e. pixels all the way up to the edge of the field "
+                     "of view will be considered valid)"))
     output_json = OutputFile(
         required=True,
         description=("Path to a file to write output data."))

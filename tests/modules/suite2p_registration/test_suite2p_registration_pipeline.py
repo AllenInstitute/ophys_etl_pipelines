@@ -4,8 +4,16 @@ import pathlib
 import tempfile
 from itertools import product
 import numpy as np
-from ophys_etl.modules.suite2p_registration.__main__ import (
-    Suite2PRegistration)
+
+try:
+    from ophys_etl.modules.suite2p_registration.__main__ import (
+        Suite2PRegistration)
+except ImportError:
+    # need to get around the fact that Suite2P may not be defined
+    # in the test environment. These tests should all be marked with
+    # pytest.mark.suite2p_only, which means they will only be run in
+    # our CircleCI environments that contain Suite2P
+    pass
 
 
 @pytest.fixture(scope='session')

@@ -50,7 +50,6 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
         self.output(outj)
 
 
-@pytest.mark.suite2p_only
 @pytest.mark.parametrize("mock_ops_data", [
     {"Lx": 0, "Ly": 0, "nframes": 5, "xrange": 0, "yrange": 0,
      "xoff": [1, 2, 3, 4, 5], "yoff": [5, 4, 3, 2, 1],

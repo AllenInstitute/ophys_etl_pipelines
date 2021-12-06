@@ -4,7 +4,6 @@ from ophys_etl.modules.suite2p_registration.utils import \
         identify_and_clip_outliers
 
 
-@pytest.mark.suite2p_only
 @pytest.mark.parametrize(
         ("excess_indices", "deltas", "thresh", "expected_indices"), [
             ([], [], 10, []),

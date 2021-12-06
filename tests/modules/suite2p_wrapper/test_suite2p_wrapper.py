@@ -100,7 +100,6 @@ def suite2p_args_side_effect(args, dst_path):
         out_file.write(json.dumps(args, indent=2))
 
 
-@pytest.mark.suite2p_only
 @pytest.mark.parametrize(
         "retain_files, nbinned, movie_frame_rate_hz, exception",
         [

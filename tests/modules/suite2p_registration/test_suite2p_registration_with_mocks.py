@@ -50,11 +50,13 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
         self.output(outj)
 
 
-@pytest.mark.parametrize("mock_ops_data", [
-    {"Lx": 0, "Ly": 0, "nframes": 5, "xrange": 0, "yrange": 0,
-     "xoff": [1, 2, 3, 4, 5], "yoff": [5, 4, 3, 2, 1],
-     "corrXY": [6, 7, 8, 9, 10], "meanImg": 0}
-])
+@pytest.fixture
+def mock_ops_data():
+    return {"Lx": 0, "Ly": 0, "nframes": 5, "xrange": 0, "yrange": 0,
+            "xoff": [1, 2, 3, 4, 5], "yoff": [5, 4, 3, 2, 1],
+             "corrXY": [6, 7, 8, 9, 10], "meanImg": 0}
+
+
 def test_suite2p_registration(tmp_path, mock_ops_data):
     h5path = tmp_path / "mc_video.h5"
     with h5py.File(str(h5path), "w") as f:
@@ -115,11 +117,6 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
                        mock_ops_data['corrXY'])
 
 
-@pytest.mark.parametrize("mock_ops_data", [
-    {"Lx": 0, "Ly": 0, "nframes": 5, "xrange": 0, "yrange": 0,
-     "xoff": [1, 2, 3, 4, 5], "yoff": [5, 4, 3, 2, 1],
-     "corrXY": [6, 7, 8, 9, 10], "meanImg": 0}
-])
 def test_suite2p_frame_rate_consistency(tmp_path, mock_ops_data):
     """
     Test that, if suite2p_args and args specify different

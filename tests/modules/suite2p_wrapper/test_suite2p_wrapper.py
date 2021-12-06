@@ -2,6 +2,7 @@ import pytest
 from unittest.mock import MagicMock, Mock
 from pathlib import Path
 from functools import partial
+import tempfile
 import os
 import numpy as np
 import h5py
@@ -90,6 +91,12 @@ def suite2p_side_effect(args):
             outfile = bdir / suite2p_basenames[i]
             with open(outfile, "w") as f:
                 f.write('content')
+
+def suite2p_args_side_effect(args, dst_path):
+    """write the args passed to suite2p to a JSON file specified by dst_path
+    """
+    with open(dst_path, 'w') as out_file:
+        out_file.write(json.dumps(args, indent=2))
 
 
 @pytest.mark.suite2p_only
@@ -299,9 +306,11 @@ def test_suite2p_default_args(tmpdir,
     Also test that the default Suite2P parameters that have not been
     overwritten are saved in Suite2PWrapper.args after run() is called.
     """
+    suite2p_args_path = tempfile.mkstemp(dir=tmpdir, suffix='.json')[1]
     mock_suite2p = MagicMock()
     mock_suite2p.run_s2p = MagicMock()
-    mock_suite2p.run_s2p.side_effect = suite2p_side_effect
+    mock_suite2p.run_s2p.side_effect = partial(suite2p_args_side_effect,
+                                               dst_path=suite2p_args_path)
 
     def return_default_args():
         return copy.deepcopy(default_suite2p_args_fixture)
@@ -334,6 +343,15 @@ def test_suite2p_default_args(tmpdir,
         s = suite2p_wrapper.Suite2PWrapper(input_data=args, args=[])
         s.run()
 
-        compare_args(s.args,
+        # check the args that were actually passed to Suite2P
+        with open(suite2p_args_path, 'rb') as in_file:
+            actual_s2p_args = json.load(in_file)
+
+        compare_args(actual_s2p_args,
+                     default_suite2p_args_fixture,
+                     expected_output)
+
+        # check the args that were saved in Suite2PWrapper.args
+        compare_args(actual_s2p_args,
                      default_suite2p_args_fixture,
                      expected_output)

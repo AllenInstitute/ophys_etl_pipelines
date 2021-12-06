@@ -54,7 +54,7 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
 def mock_ops_data():
     return {"Lx": 0, "Ly": 0, "nframes": 5, "xrange": 0, "yrange": 0,
             "xoff": [1, 2, 3, 4, 5], "yoff": [5, 4, 3, 2, 1],
-             "corrXY": [6, 7, 8, 9, 10], "meanImg": 0}
+            "corrXY": [6, 7, 8, 9, 10], "meanImg": 0}
 
 
 def test_suite2p_registration(tmp_path, mock_ops_data):

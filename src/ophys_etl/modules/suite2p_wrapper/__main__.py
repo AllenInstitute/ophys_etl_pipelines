@@ -21,10 +21,10 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
         self.logger.name = type(self).__name__
         self.logger.setLevel(self.args.pop('log_level'))
 
-        # explicitly set default Suite2P args
-        default_suite2p_args = copy.deepcopy(suite2p.default_ops())
-        default_suite2p_args.update(self.args)
-        self.args = default_suite2p_args
+        # explicitly set default Suite2P args that are not
+        # already specified in self.args
+        self.args = {**copy.deepcopy(suite2p.default_ops()),
+                     **self.args}
 
         # Should always exist as either a valid SHA or "unknown build"
         # if running in docker container.

@@ -30,6 +30,13 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             description=("Allen production specifies h5py as the source of "
                          "the data, but Suite2P still wants this key in the "
                          "args."))
+    tmp_dir = argschema.fields.OutputDir(
+                 required=False,
+                 default=None,
+                 allow_none=True,
+                 description=("Directory into which to write temporary files "
+                              "produced by Suite2P"))
+
     # s2p registration settings
     do_registration = argschema.fields.Int(
             default=0,
@@ -56,11 +63,16 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
                      "value of >4 is recommended for one-photon "
                      "recordings (with a 512x512 pixel FOV)."))
     smooth_sigma_time = argschema.fields.Float(
-        default=0,
+        default=4.0,
         description=("Standard deviation in time frames of the gaussian "
                      "used to smooth the data before phase correlation is "
                      "computed. Might need this to be set to 1 or 2 for "
                      "low SNR data."))
+    nonrigid = argschema.fields.Boolean(
+        default=False,
+        required=False,
+        description=("Turns on Suite2P's non-rigid registration algorithm"))
+
     # s2p cell detection settings
     roidetect = argschema.fields.Bool(
             default=True,
@@ -85,6 +97,8 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
                          "Suite2P default."))
     nbinned = argschema.fields.Int(
             required=False,
+            default=None,
+            allow_none=True,
             description=("Max num of binned frames for cell detection. "
                          "Below are Allen-specific parameters "
                          "`bin_duration + movie_frame_rate` "
@@ -136,8 +150,10 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
                          "run a demixing step that should allow both ROIs "
                          "to share pixels."))
     # Allen-specific options
-    movie_frame_rate = argschema.fields.Float(
+    movie_frame_rate_hz = argschema.fields.Float(
             required=False,
+            default=None,
+            allow_none=True,
             description=("The frame rate (in Hz) of the optical physiology "
                          "movie to be Suite2P segmented. Used in conjunction "
                          "with 'bin_duration' to derive an 'nbinned' "
@@ -148,7 +164,7 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             description=("The duration of time (in seconds) that should be "
                          "considered 1 bin for Suite2P ROI detection "
                          "purposes. Requires a valid value for "
-                         "'movie_frame_rate' in order to derive an "
+                         "'movie_frame_rate_hz' in order to derive an "
                          "'nbinned' Suite2P value. This allows "
                          "consistent temporal downsampling across movies "
                          "with different lengths and/or frame rates. By "
@@ -172,9 +188,9 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
 
     @mm.post_load
     def check_args(self, data, **kwargs):
-        if ('nbinned' not in data) & ('movie_frame_rate' not in data):
+        if (data['nbinned'] is None) & (data['movie_frame_rate_hz'] is None):
             raise Suite2PWrapperException(
-                    "Must provide either `nbinned` or `movie_frame_rate`")
+                    "Must provide either `nbinned` or `movie_frame_rate_hz`")
         return data
 
     @mm.post_load

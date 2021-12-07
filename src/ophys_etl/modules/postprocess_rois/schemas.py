@@ -15,14 +15,18 @@ class PostProcessROIsInputSchema(ArgSchema):
         validate=lambda x: Path(x).exists(),
         description=("Path to motion corrected video file *.h5"))
     motion_correction_values = InputFile(
-        required=True,
+        default=None,
+        allow_none=True,
         description=("Path to motion correction values for each frame "
                      "stored in .csv format. This .csv file is expected to"
                      "have a header row of either:\n"
                      "['framenumber','x','y','correlation','kalman_x',"
                      "'kalman_y']\n['framenumber','x','y','correlation',"
                      "'input_x','input_y','kalman_x',"
-                     "'kalman_y','algorithm','type']"))
+                     "'kalman_y','algorithm','type']\n"
+                     "If not specified, an empty motion border will be used "
+                     "(i.e. pixels all the way up to the edge of the field "
+                     "of view will be considered valid)"))
     output_json = OutputFile(
         required=True,
         description=("Path to a file to write output data."))

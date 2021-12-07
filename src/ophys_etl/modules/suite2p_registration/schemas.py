@@ -1,5 +1,7 @@
 import argschema
 import marshmallow
+import numpy as np
+import json
 import tempfile
 from pathlib import Path
 
@@ -74,6 +76,19 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
                      "allows for low-frequency drift. Default value of 0.05 "
                      "is typically clipping outliers to 512 * 0.05 = 25 "
                      "pixels above or below the median trend."))
+    clip_negative = argschema.fields.Boolean(
+        required=False,
+        default=False,
+        allow_none=False,
+        description=("Whether or not to clip negative pixel "
+                     "values in output. Because the pixel values "
+                     "in the raw  movies are set by the current "
+                     "coming off a photomultiplier tube, there can "
+                     "be pixels with negative values (current has a "
+                     "sign), possibly due to noise in the rig. "
+                     "Some segmentation algorithms cannot handle "
+                     "negative values in the movie, so we have this "
+                     "option to artificially set those pixels to zero."))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -89,15 +104,38 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         if "output_dir" not in data["suite2p_args"]:
             # send suite2p results to a temporary directory
             # the results of this pipeline will be formatted versions anyway
-            self.tmpdir = tempfile.TemporaryDirectory()
+            if 'tmp_dir' in data['suite2p_args']:
+                parent_dir = data['suite2p_args']['tmp_dir']
+            else:
+                parent_dir = None
+            self.tmpdir = tempfile.TemporaryDirectory(dir=parent_dir)
             data["suite2p_args"]["output_dir"] = self.tmpdir.name
         if "output_json" not in data["suite2p_args"]:
             Suite2p_output = (Path(data["suite2p_args"]["output_dir"])
                               / "Suite2P_output.json")
             data["suite2p_args"]["output_json"] = str(Suite2p_output)
-        # we are not doing registration here, but the wrapper schema wants
-        # a value:
-        data['suite2p_args']['nbinned'] = 1000
+        return data
+
+    @marshmallow.pre_load
+    def check_movie_frame_rate(self, data, **kwargs):
+        """
+        Make sure that if movie_frame_rate_hz is specified in both
+        the parent set of args and in suite2p_args, the values agree.
+
+        If suite2p_args['movie_frame_rate_hz'] is not set, set it from
+        self.args['movie_frame_rate_hz']
+        """
+        parent_val = data['movie_frame_rate_hz']
+
+        if 'movie_frame_rate_hz' in data['suite2p_args']:
+            if data['suite2p_args']['movie_frame_rate_hz'] is not None:
+                s2p_val = data['suite2p_args']['movie_frame_rate_hz']
+                if np.abs(s2p_val-parent_val) > 1.0e-10:
+                    msg = 'Specified two values of movie_frame_rate_hz in\n'
+                    msg += json.dumps(data, indent=2, sort_keys=True)
+                    raise ValueError(msg)
+
+        data['suite2p_args']['movie_frame_rate_hz'] = parent_val
         return data
 
 

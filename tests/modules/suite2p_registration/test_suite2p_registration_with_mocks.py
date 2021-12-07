@@ -10,8 +10,18 @@ import pandas as pd
 import pytest
 import tifffile
 
-sys.modules['suite2p'] = Mock()
-sys.modules['suite2p.registration.rigid'] = Mock()
+has_suite2p = True
+try:
+    import suite2p.registration  # noqa: F401
+except ImportError:
+    # only mock Suite2P if necessary; otherwise, the mock
+    # makes it into the tests that actually rely on Suite2P
+    has_suite2p = False
+
+if not has_suite2p:
+    sys.modules['suite2p'] = Mock()
+    sys.modules['suite2p.registration.rigid'] = Mock()
+
 from ophys_etl.modules.suite2p_wrapper.schemas import \
         Suite2PWrapperSchema, Suite2PWrapperOutputSchema  # noqa: E402
 import ophys_etl.modules.suite2p_registration.__main__ as s2preg  # noqa
@@ -50,12 +60,13 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
         self.output(outj)
 
 
-@pytest.mark.suite2p_only
-@pytest.mark.parametrize("mock_ops_data", [
-    {"Lx": 0, "Ly": 0, "nframes": 5, "xrange": 0, "yrange": 0,
-     "xoff": [1, 2, 3, 4, 5], "yoff": [5, 4, 3, 2, 1],
-     "corrXY": [6, 7, 8, 9, 10], "meanImg": 0}
-])
+@pytest.fixture
+def mock_ops_data():
+    return {"Lx": 0, "Ly": 0, "nframes": 5, "xrange": 0, "yrange": 0,
+            "xoff": [1, 2, 3, 4, 5], "yoff": [5, 4, 3, 2, 1],
+            "corrXY": [6, 7, 8, 9, 10], "meanImg": 0}
+
+
 def test_suite2p_registration(tmp_path, mock_ops_data):
     h5path = tmp_path / "mc_video.h5"
     with h5py.File(str(h5path), "w") as f:
@@ -114,3 +125,55 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
     assert np.allclose(obt_motion_offset_df["y"], mock_ops_data['yoff'])
     assert np.allclose(obt_motion_offset_df["correlation"],
                        mock_ops_data['corrXY'])
+
+
+def test_suite2p_frame_rate_consistency(tmp_path, mock_ops_data):
+    """
+    Test that, if suite2p_args and args specify different
+    movie_frame_rate_hz, an exception is raised
+    """
+    h5path = tmp_path / "mc_video.h5"
+    with h5py.File(str(h5path), "w") as f:
+        f.create_dataset("data", data=np.zeros((1000, 32, 32)))
+
+    outj_path = tmp_path / "output.json"
+    args = {"suite2p_args": {
+                "h5py": str(h5path),
+                "movie_frame_rate_hz": 7.0
+            },
+            'movie_frame_rate_hz': 11.0,
+            'registration_summary_output': str(tmp_path / "summary.png"),
+            'motion_correction_preview_output': str(tmp_path / "preview.webm"),
+            "motion_corrected_output": str(tmp_path / "motion_output.h5"),
+            "motion_diagnostics_output": str(tmp_path / "motion_offset.csv"),
+            "max_projection_output": str(tmp_path / "max_proj.png"),
+            "avg_projection_output": str(tmp_path / "avg_proj.png"),
+            "output_json": str(outj_path)}
+
+    with pytest.raises(ValueError, match="two values of movie_frame_rate_hz"):
+        with patch.object(MockSuite2PWrapper, "mock_ops_data", mock_ops_data):
+            with patch(
+              'ophys_etl.modules.suite2p_registration.__main__.Suite2PWrapper',
+              MockSuite2PWrapper):
+                s2preg.Suite2PRegistration(input_data=args, args=[])
+
+    # now check that movie_frame_rate_hz gets propagated into suite2p_args
+    # correctly
+    args = {"suite2p_args": {
+                "h5py": str(h5path),
+            },
+            'movie_frame_rate_hz': 11.0,
+            'registration_summary_output': str(tmp_path / "summary.png"),
+            'motion_correction_preview_output': str(tmp_path / "preview.webm"),
+            "motion_corrected_output": str(tmp_path / "motion_output.h5"),
+            "motion_diagnostics_output": str(tmp_path / "motion_offset.csv"),
+            "max_projection_output": str(tmp_path / "max_proj.png"),
+            "avg_projection_output": str(tmp_path / "avg_proj.png"),
+            "output_json": str(outj_path)}
+
+    with patch.object(MockSuite2PWrapper, "mock_ops_data", mock_ops_data):
+        with patch(
+            'ophys_etl.modules.suite2p_registration.__main__.Suite2PWrapper',
+                MockSuite2PWrapper):
+            runner = s2preg.Suite2PRegistration(input_data=args, args=[])
+            assert runner.args['suite2p_args']['movie_frame_rate_hz'] == 11.0

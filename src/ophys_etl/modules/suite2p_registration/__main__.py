@@ -79,8 +79,9 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                                 np.zeros((nframes, *arr.shape), dtype='int16'))
                     data[-1][i] = arr
         data = np.concatenate(data, axis=0)
-        data[data < 0] = 0
-        data = np.uint16(data)
+        if self.args['clip_negative']:
+            data[data < 0] = 0
+            data = np.uint16(data)
 
         # anywhere we've clipped the offset, translate the frame
         # using Suite2P's shift_frame by the difference resulting

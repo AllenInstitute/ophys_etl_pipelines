@@ -80,7 +80,15 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         required=False,
         default=False,
         allow_none=False,
-        description=("Whether or not to clip negative pixel values in output"))
+        description=("Whether or not to clip negative pixel "
+                     "values in output. Because the pixel values "
+                     "in the raw  movies are set by the current "
+                     "coming off a photomultiplier tube, there can "
+                     "be pixels with negative values (current has a "
+                     "sign), possibly due to noise in the rig. "
+                     "Some segmentation algorithms cannot handle "
+                     "negative values in the movie, so we have this "
+                     "option to artificially set those pixels to zero."))
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

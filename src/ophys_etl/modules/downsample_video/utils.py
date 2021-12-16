@@ -143,12 +143,20 @@ def _video_from_h5(
     print('constructed video_as_uint')
 
     if reticle:
-        for ii in range(128, video_shape[1], 128):
-            video_as_uint[:, ii:ii+4, :, :] = 0
-            video_as_uint[:, ii:ii+4, :, 0] = 255
-        for ii in range(128, video_shape[2], 128):
-            video_as_uint[:, :, ii:ii+4, :] = 0
-            video_as_uint[:, :, ii:ii+4, 0] = 255
+        for ii in range(64, video_shape[1], 64):
+            old_vals = np.copy(video_as_uint[:, ii:ii+2, :, :])
+            new_vals = np.zeros(old_vals.shape, dtype=np.uint8)
+            new_vals[:, :, :, 0] = 255
+            new_vals = 2*(new_vals//3) + (old_vals//3)
+            new_vals = new_vals.astype(np.uint8)
+            video_as_uint[:, ii:ii+2, :, :] = new_vals
+        for ii in range(64, video_shape[2], 64):
+            old_vals = np.copy(video_as_uint[:, :, ii:ii+2, :])
+            new_vals = np.zeros(old_vals.shape, dtype=np.uint8)
+            new_vals[:, :, :, 0] = 255
+            new_vals = 2*(new_vals//3) + (old_vals//3)
+            new_vals = new_vals.astype(np.uint8)
+            video_as_uint[:, :, ii:ii+2, :] = new_vals
 
     print('added reticles')
 

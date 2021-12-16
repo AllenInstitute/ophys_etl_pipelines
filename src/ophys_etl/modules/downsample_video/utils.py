@@ -133,6 +133,9 @@ def _video_from_h5(
         for i0 in range(0, video_shape[0], dt):
             i1 = i0+dt
             data = in_file['data'][i0:i1, :, :].astype(float)
+            if quantiles:
+                data = np.where(data>q0, data, q0)
+                data = np.where(data<q1, data, q1)
             data = np.round(255.0*(data-q0)/(q1-q0)).astype(np.uint8)
             for ic in range(3):
                 video_as_uint[i0:i1, :, :, ic] = data

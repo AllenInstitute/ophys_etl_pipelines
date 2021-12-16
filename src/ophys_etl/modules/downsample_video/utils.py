@@ -196,7 +196,7 @@ def create_downsampled_video(
         _video_from_h5(
             tmp_h5,
             video_path,
-            31,
+            int(8*output_hz),
             quantiles=quantiles,
             quality=quality,
             reticle=reticle)

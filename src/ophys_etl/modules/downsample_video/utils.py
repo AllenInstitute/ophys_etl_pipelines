@@ -160,12 +160,19 @@ def _video_from_h5(
 
     print('added reticles')
 
+    if video_path.name.endswith('avi'):
+        pixelformat = 'yuvj420p'
+        codec=  'mjpeg'
+    else:
+        pixelformat = 'yuv420p'
+        codec = 'libx264'
+
     imageio.mimsave(video_path,
                     video_as_uint,
                     fps=output_hz,
                     quality=quality,
-                    pixelformat='yuv420p',
-                    codec='libx264')
+                    pixelformat=pixelformat,
+                    codec=codec)
     print(f'wrote {video_path}')
 
 

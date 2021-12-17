@@ -73,6 +73,18 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
         required=False,
         description=("Turns on Suite2P's non-rigid registration algorithm"))
 
+    keep_movie_raw = argschema.fields.Boolean(
+        default=False,
+        required=False,
+        description=("Suite2P param to preserve raw movie during processing. "
+                     "Must be True if two_step_registration is True."))
+
+    two_step_registration = argschema.fields.Boolean(
+        default=False,
+        required=False,
+        description=("If true, Suite2P runs motion correction twice "
+                     "(i.e. it iterates on a low SNR movie)"))
+
     # s2p cell detection settings
     roidetect = argschema.fields.Bool(
             default=True,
@@ -199,6 +211,15 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             data['retain_files'] = [
                     'ops1.npy', 'data.bin', 'Fneu.npy', 'F.npy', 'iscell.npy',
                     'ops.npy', 'spks.npy', 'stat.npy']
+        return data
+
+    @mm.post_load
+    def check_two_pass_motion(self, data, **kwargs):
+        if data['two_step_registration']:
+            if not data['keep_movie_raw']:
+                print('setting keep_movie_raw to True '
+                      'because two_step_registration is True')
+                data['keep_movie_raw'] = True
         return data
 
 

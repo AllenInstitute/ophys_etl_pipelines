@@ -107,6 +107,28 @@ def create_downsampled_video_h5(
         p.join()
 
 
+def _write_array_to_video(
+        video_path: pathlib.Path,
+        video_array: np.ndarray,
+        fps: int,
+        quality: int):
+
+    if video_path.name.endswith('avi'):
+        pixelformat = 'yuvj420p'
+        codec=  'mjpeg'
+    else:
+        pixelformat = 'yuv420p'
+        codec = 'libx264'
+
+    imageio.mimsave(video_path,
+                    video_array,
+                    fps=fps,
+                    quality=quality,
+                    pixelformat=pixelformat,
+                    codec=codec)
+
+    print(f'wrote {video_path}')
+
 
 def _video_from_h5(
         h5_path: pathlib.Path,
@@ -164,20 +186,11 @@ def _video_from_h5(
 
     print('added reticles')
 
-    if video_path.name.endswith('avi'):
-        pixelformat = 'yuvj420p'
-        codec=  'mjpeg'
-    else:
-        pixelformat = 'yuv420p'
-        codec = 'libx264'
-
-    imageio.mimsave(video_path,
-                    video_as_uint,
-                    fps=output_hz,
-                    quality=quality,
-                    pixelformat=pixelformat,
-                    codec=codec)
-    print(f'wrote {video_path}')
+    _write_array_to_video(
+        video_path,
+        video_as_uint,
+        output_hz,
+        quality)
 
 
 def create_downsampled_video(

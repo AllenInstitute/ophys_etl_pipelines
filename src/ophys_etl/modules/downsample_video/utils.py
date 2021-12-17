@@ -223,3 +223,94 @@ def create_downsampled_video(
             video_array,
             int(8*output_hz),
             quality)
+
+
+def create_side_by_side_video(
+    video_0_path: pathlib.Path,
+    video_1_path: pathlib.Path,
+    input_hz: float,
+    output_path: pathlib.Path,
+    output_hz: float,
+    kernel_size: Optional[int],
+    n_processors: int,
+    quality: int = 5,
+    quantiles: Tuple[float, float] = (0.1, 0.99),
+    reticle: bool = True,
+    tmp_dir: Optional[pathlib.Path] = None):
+
+    with h5py.File(video_0_path, 'r') as in_file:
+        video_0_shape = in_file['data'].shape
+    with h5py.File(video_1_path, 'r') as in_file:
+        video_1_shape = in_file['data'].shape
+
+    if video_0_shape != video_1_shape:
+        msg = 'Videos need to be the same shape\n'
+        msg += f'{video_0_path}: {video_0_shape}\n'
+        msg += f'{video_1_path}: {video_1_shape}'
+        raise RuntimeError(msg)
+
+    gap = 16
+
+    with tempfile.TemporaryDirectory(dir=tmp_dir) as this_tmp_dir:
+
+        tmp_0_h5 = tempfile.mkstemp(dir=this_tmp_dir, suffix='.h5')[1]
+        tmp_0_h5 = pathlib.Path(tmp_0_h5)
+
+        tmp_1_h5 = tempfile.mkstemp(dir=this_tmp_dir, suffix='.h5')[1]
+        tmp_1_h5 = pathlib.Path(tmp_1_h5)
+
+        create_downsampled_video_h5(
+            video_0_path, input_hz,
+            tmp_0_h5, output_hz,
+            kernel_size,
+            n_processors)
+
+        print(f'wrote {video_0_path} to {tmp_0_h5}')
+
+        create_downsampled_video_h5(
+            video_1_path, input_hz,
+            tmp_1_h5, output_hz,
+            kernel_size,
+            n_processors)
+
+        print(f'wrote {video_1_path} to {tmp_1_h5}')
+
+        video_array = np.zeros((video_0_shape[0],
+                                video_0_shape[1],
+                                gap+2*video_0_shape[2],
+                                3), dtype=np.uint8)
+
+        video_0_uint = _video_array_from_h5(tmp_0_h5,
+                                            quantiles,
+                                            reticle)
+
+        tmp_0_h5.unlink()
+
+        video_array = np.zeros((video_0_uint.shape[0],
+                                video_0_shape[1],
+                                gap+2*video_0_shape[2],
+                                3), dtype=np.uint8)
+
+        video_array[:, :,
+                    :video_0_shape[2], :] = video_0_uint
+
+        del video_0_uint
+
+        video_array[:, :,
+                    video_0_shape[2]:video_0_shape[2]+gap, :] = 125
+
+        video_array[:, :,
+                    video_0_shape[2]+gap:, :] = _video_array_from_h5(
+                                                      tmp_1_h5,
+                                                      quantiles,
+                                                      reticle)
+
+        tmp_1_h5.unlink()
+
+        print('created video array')
+
+        _write_array_to_video(
+            output_path,
+            video_array,
+            int(8*output_hz),
+            quality)

@@ -130,10 +130,9 @@ def _write_array_to_video(
     print(f'wrote {video_path}')
 
 
-def _video_array_from_h5(
+def _min_max_from_h5(
         h5_path: pathlib.Path,
-        quantiles: Optional[Tuple[float, float]] = None,
-        reticle: bool = True) -> np.ndarray:
+        quantiles: Optional[Tuple[float, float]]):
 
     with h5py.File(h5_path, 'r') as in_file:
         video_shape = in_file['data'].shape
@@ -146,8 +145,19 @@ def _video_array_from_h5(
         else:
             q0 = full_data.min()
             q1 = full_data.max()
-        del full_data
         print('got normalization')
+
+    return q0, q1
+
+
+def _video_array_from_h5(
+        h5_path: pathlib.Path,
+        min_val: float,
+        max_val: float,
+        reticle: bool = True) -> np.ndarray:
+
+    with h5py.File(h5_path, 'r') as in_file:
+        video_shape = in_file['data'].shape
 
         video_as_uint = np.zeros((video_shape[0],
                                   video_shape[1],
@@ -157,9 +167,10 @@ def _video_array_from_h5(
         for i0 in range(0, video_shape[0], dt):
             i1 = i0+dt
             data = in_file['data'][i0:i1, :, :].astype(float)
-            data = np.where(data>q0, data, q0)
-            data = np.where(data<q1, data, q1)
-            data = np.round(255.0*(data-q0)/(q1-q0)).astype(np.uint8)
+            data = np.where(data>min_val, data, min_val)
+            data = np.where(data<max_val, data, max_val)
+            delta = max_val-min_val
+            data = np.round(255.0*(data-min_val)/delta).astype(np.uint8)
             for ic in range(3):
                 video_as_uint[i0:i1, :, :, ic] = data
 
@@ -211,9 +222,13 @@ def create_downsampled_video(
 
         print(f'wrote temp h5py to {tmp_h5}')
 
+        (min_val,
+         max_val) = _min_max_from_h5(tmp_h5, quantiles)
+
         video_array = _video_array_from_h5(
                 tmp_h5,
-                quantiles,
+                min_val,
+                max_val,
                 reticle)
 
         tmp_h5.unlink()
@@ -265,6 +280,9 @@ def create_side_by_side_video(
             kernel_size,
             n_processors)
 
+        (min_0,
+         max_0) = _min_max_from_h5(tmp_0_h5, quantiles)
+
         print(f'wrote {video_0_path} to {tmp_0_h5}')
 
         create_downsampled_video_h5(
@@ -272,6 +290,9 @@ def create_side_by_side_video(
             tmp_1_h5, output_hz,
             kernel_size,
             n_processors)
+
+        (min_1,
+         max_1) = _min_max_from_h5(tmp_1_h5, quantiles)
 
         print(f'wrote {video_1_path} to {tmp_1_h5}')
 
@@ -281,7 +302,8 @@ def create_side_by_side_video(
                                 3), dtype=np.uint8)
 
         video_0_uint = _video_array_from_h5(tmp_0_h5,
-                                            quantiles,
+                                            min_0,
+                                            max_0,
                                             reticle)
 
         tmp_0_h5.unlink()
@@ -302,7 +324,8 @@ def create_side_by_side_video(
         video_array[:, :,
                     video_0_shape[2]+gap:, :] = _video_array_from_h5(
                                                       tmp_1_h5,
-                                                      quantiles,
+                                                      min_1,
+                                                      max_1,
                                                       reticle)
 
         tmp_1_h5.unlink()

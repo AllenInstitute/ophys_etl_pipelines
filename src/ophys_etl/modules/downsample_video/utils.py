@@ -130,13 +130,10 @@ def _write_array_to_video(
     print(f'wrote {video_path}')
 
 
-def _video_from_h5(
+def _video_array_from_h5(
         h5_path: pathlib.Path,
-        video_path: pathlib.Path,
-        output_hz: int,
         quantiles: Optional[Tuple[float, float]] = None,
-        reticle: bool = True,
-        quality: int = 5):
+        reticle: bool = True) -> np.ndarray:
 
     with h5py.File(h5_path, 'r') as in_file:
         video_shape = in_file['data'].shape
@@ -186,11 +183,7 @@ def _video_from_h5(
 
     print('added reticles')
 
-    _write_array_to_video(
-        video_path,
-        video_as_uint,
-        output_hz,
-        quality)
+    return video_as_uint
 
 
 def create_downsampled_video(
@@ -207,6 +200,7 @@ def create_downsampled_video(
 
     with tempfile.TemporaryDirectory(dir=tmp_dir) as this_tmp_dir:
         tmp_h5 = tempfile.mkstemp(dir=this_tmp_dir, suffix='.h5')[1]
+        tmp_h5 = pathlib.Path(tmp_h5)
         print(f'writing h5py to {tmp_h5}')
 
         create_downsampled_video_h5(
@@ -217,10 +211,15 @@ def create_downsampled_video(
 
         print(f'wrote temp h5py to {tmp_h5}')
 
-        _video_from_h5(
-            tmp_h5,
+        video_array = _video_array_from_h5(
+                tmp_h5,
+                quantiles,
+                reticle)
+
+        tmp_h5.unlink()
+
+        _write_array_to_video(
             video_path,
+            video_array,
             int(8*output_hz),
-            quantiles=quantiles,
-            quality=quality,
-            reticle=reticle)
+            quality)

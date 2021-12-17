@@ -23,7 +23,7 @@ def _video_worker(
         input_hz: float,
         output_path: pathlib.Path,
         output_hz: float,
-        kernel_size: int,
+        kernel_size: Optional[int],
         input_slice: Tuple[int, int],
         output_lock: multiprocessing.managers.AcquirerProxy):
     t0 = time.time()
@@ -40,7 +40,9 @@ def _video_worker(
                                       output_fps=output_hz,
                                       strategy='average')
 
-    video_data = apply_median_filter_to_video(video_data, kernel_size)
+    if kernel_size is not None:
+        video_data = apply_median_filter_to_video(video_data,
+                                                  kernel_size)
     start_index = input_slice[0] // frames_to_group
     end_index = start_index + video_data.shape[0]
     with output_lock:
@@ -54,7 +56,7 @@ def create_downsampled_video_h5(
         input_hz: float,
         output_path: pathlib.Path,
         output_hz: float,
-        kernel_size: int,
+        kernel_size: Optional[int],
         n_processors: int):
 
 
@@ -116,7 +118,10 @@ def _video_from_h5(
 
     with h5py.File(h5_path, 'r') as in_file:
         video_shape = in_file['data'].shape
-        full_data = in_file['data'][()]
+        # clip motion border, just in case
+        full_data = in_file['data'][:,
+                                    50:video_shape[1]-50,
+                                    50:video_shape[2]-50]
         if quantiles is not None:
             q0, q1 = np.quantile(full_data, quantiles)
         else:
@@ -133,9 +138,8 @@ def _video_from_h5(
         for i0 in range(0, video_shape[0], dt):
             i1 = i0+dt
             data = in_file['data'][i0:i1, :, :].astype(float)
-            if quantiles:
-                data = np.where(data>q0, data, q0)
-                data = np.where(data<q1, data, q1)
+            data = np.where(data>q0, data, q0)
+            data = np.where(data<q1, data, q1)
             data = np.round(255.0*(data-q0)/(q1-q0)).astype(np.uint8)
             for ic in range(3):
                 video_as_uint[i0:i1, :, :, ic] = data
@@ -181,7 +185,7 @@ def create_downsampled_video(
         input_hz: float,
         video_path: pathlib.Path,
         output_hz: float,
-        kernel_size: int,
+        kernel_size: Optional[int],
         n_processors: int,
         quality: int = 5,
         quantiles: Tuple[float, float] = (0.1, 0.99),

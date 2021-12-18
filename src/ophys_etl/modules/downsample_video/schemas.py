@@ -55,6 +55,10 @@ class DownsampleBaseSchema(argschema.ArgSchema):
             default=5,
             allow_none=False)
 
+    speed_up_factor = argschema.fields.Int(
+            required=False,
+            default=8,
+            allow_none=False)
 
 
     @post_load

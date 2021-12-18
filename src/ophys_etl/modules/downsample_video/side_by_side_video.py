@@ -44,6 +44,7 @@ class SideBySideDownsampler(argschema.ArgSchemaParser):
             quality=self.args['quality'],
             quantiles=quantiles,
             reticle=self.args['reticle'],
+            speed_up_factor=self.args['speed_up_factor'],
             tmp_dir=self.args['tmp_dir'])
 
 

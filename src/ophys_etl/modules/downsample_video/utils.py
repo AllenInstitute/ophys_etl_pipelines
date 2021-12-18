@@ -207,6 +207,7 @@ def create_downsampled_video(
         quality: int = 5,
         quantiles: Tuple[float, float] = (0.1, 0.99),
         reticle: bool = True,
+        speed_up_factor: int = 8,
         tmp_dir: Optional[pathlib.Path] = None):
 
     with tempfile.TemporaryDirectory(dir=tmp_dir) as this_tmp_dir:
@@ -236,7 +237,7 @@ def create_downsampled_video(
         _write_array_to_video(
             video_path,
             video_array,
-            int(8*output_hz),
+            int(speed_up_factor*output_hz),
             quality)
 
 
@@ -251,6 +252,7 @@ def create_side_by_side_video(
     quality: int = 5,
     quantiles: Tuple[float, float] = (0.1, 0.99),
     reticle: bool = True,
+    speed_up_factor: int = 8,
     tmp_dir: Optional[pathlib.Path] = None):
 
     with h5py.File(video_0_path, 'r') as in_file:
@@ -335,5 +337,5 @@ def create_side_by_side_video(
         _write_array_to_video(
             output_path,
             video_array,
-            int(8*output_hz),
+            int(speed_up_factor*output_hz),
             quality)

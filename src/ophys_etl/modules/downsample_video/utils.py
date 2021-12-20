@@ -40,7 +40,7 @@ def _video_worker(
                                       output_fps=output_hz,
                                       strategy='average')
 
-    if kernel_size is not None:
+    if kernel_size is not None and kernel_size > 0:
         video_data = apply_median_filter_to_video(video_data,
                                                   kernel_size)
     start_index = input_slice[0] // frames_to_group

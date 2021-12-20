@@ -76,7 +76,7 @@ class DownsampleBaseSchema(argschema.ArgSchema):
             raise ValueError(msg)
         if data['upper_quantile'] is not None:
             if data['upper_quantile'] <= data['lower_quantile']:
-                msg = 'upper_quantile must be < lower_quantile'
+                msg = 'upper_quantile must be > lower_quantile'
                 raise ValueError(msg)
         return data
 

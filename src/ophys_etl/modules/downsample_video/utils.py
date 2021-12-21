@@ -51,6 +51,7 @@ def _video_worker(
         duration = time.time()-t0
         print(f'completed chunk in {duration:.2e} seconds')
 
+
 def create_downsampled_video_h5(
         input_path: pathlib.Path,
         input_hz: float,
@@ -58,7 +59,6 @@ def create_downsampled_video_h5(
         output_hz: float,
         kernel_size: Optional[int],
         n_processors: int):
-
 
     with h5py.File(input_path, 'r') as in_file:
         input_video_shape = in_file['data'].shape
@@ -99,9 +99,6 @@ def create_downsampled_video_h5(
                       output_lock))
         p.start()
         process_list.append(p)
-        #_video_worker(input_path, input_hz, output_path, output_hz,
-        #              kernel_size, (i0, i0+n_frames_per_chunk),
-        #              None)
 
     for p in process_list:
         p.join()
@@ -115,7 +112,7 @@ def _write_array_to_video(
 
     if video_path.name.endswith('avi'):
         pixelformat = 'yuvj420p'
-        codec=  'mjpeg'
+        codec = 'mjpeg'
     else:
         pixelformat = 'yuv420p'
         codec = 'libx264'
@@ -167,8 +164,8 @@ def _video_array_from_h5(
         for i0 in range(0, video_shape[0], dt):
             i1 = i0+dt
             data = in_file['data'][i0:i1, :, :].astype(float)
-            data = np.where(data>min_val, data, min_val)
-            data = np.where(data<max_val, data, max_val)
+            data = np.where(data > min_val, data, min_val)
+            data = np.where(data < max_val, data, max_val)
             delta = max_val-min_val
             data = np.round(255.0*(data-min_val)/delta).astype(np.uint8)
             for ic in range(3):
@@ -242,18 +239,18 @@ def create_downsampled_video(
 
 
 def create_side_by_side_video(
-    video_0_path: pathlib.Path,
-    video_1_path: pathlib.Path,
-    input_hz: float,
-    output_path: pathlib.Path,
-    output_hz: float,
-    kernel_size: Optional[int],
-    n_processors: int,
-    quality: int = 5,
-    quantiles: Tuple[float, float] = (0.1, 0.99),
-    reticle: bool = True,
-    speed_up_factor: int = 8,
-    tmp_dir: Optional[pathlib.Path] = None):
+        video_0_path: pathlib.Path,
+        video_1_path: pathlib.Path,
+        input_hz: float,
+        output_path: pathlib.Path,
+        output_hz: float,
+        kernel_size: Optional[int],
+        n_processors: int,
+        quality: int = 5,
+        quantiles: Tuple[float, float] = (0.1, 0.99),
+        reticle: bool = True,
+        speed_up_factor: int = 8,
+        tmp_dir: Optional[pathlib.Path] = None):
 
     with h5py.File(video_0_path, 'r') as in_file:
         video_0_shape = in_file['data'].shape

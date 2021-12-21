@@ -25,7 +25,6 @@ class SideBySideDownsampler(argschema.ArgSchemaParser):
 
     default_schema = SideBySideDownsamplerSchema
 
-
     def run(self):
         if self.args['upper_quantile'] is not None:
             quantiles = (self.args['lower_quantile'],

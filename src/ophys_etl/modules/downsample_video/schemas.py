@@ -21,7 +21,6 @@ class DownsampleBaseSchema(argschema.ArgSchema):
             default=None,
             allow_none=False)
 
-
     output_frame_rate_hz = argschema.fields.Float(
             required=True,
             default=None,
@@ -59,7 +58,6 @@ class DownsampleBaseSchema(argschema.ArgSchema):
             required=False,
             default=8,
             allow_none=False)
-
 
     @post_load
     def check_quantiles(self, data, **kwargs):

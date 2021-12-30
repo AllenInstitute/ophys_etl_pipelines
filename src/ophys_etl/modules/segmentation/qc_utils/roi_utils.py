@@ -99,6 +99,12 @@ def add_roi_contour_to_img(
     valid = np.argwhere(bdry)
     rows = np.array([r+roi.y0 for r in valid[:, 0]])
     cols = np.array([c+roi.x0 for c in valid[:, 1]])
+
+    rows = np.where(rows>0, rows, 0)
+    rows = np.where(rows<img.shape[0], rows, img.shape[0]-1)
+    cols = np.where(cols>0, cols, 0)
+    cols = np.where(cols<img.shape[1], cols, img.shape[1]-1)
+
     for ic in range(3):
         old_vals = img[rows, cols, ic]
         new_vals = np.round(alpha*color[ic]+(1.0-alpha)*old_vals).astype(int)

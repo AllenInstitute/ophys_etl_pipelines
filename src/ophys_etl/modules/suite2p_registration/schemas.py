@@ -108,6 +108,7 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
                 parent_dir = data['suite2p_args']['tmp_dir']
             else:
                 parent_dir = None
+            raise RuntimeError("SFD about to set non-null tmpdir")
             self.tmpdir = tempfile.TemporaryDirectory(dir=parent_dir)
             data["suite2p_args"]["output_dir"] = self.tmpdir.name
         if "output_json" not in data["suite2p_args"]:

@@ -155,6 +155,8 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         # Clean up temporary directories and/or files created during
         # Schema invocation
         if self.schema.tmpdir is not None:
+            raise RuntimeError("SFD about to clean up tmpdir: "
+                               f"{self.schema.tmpdir}")
             self.schema.tmpdir.cleanup()
 
         outj = {k: self.args[k]

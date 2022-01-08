@@ -50,7 +50,9 @@ def copy_and_add_uid(
 
             dstfile = dstdir / dstbasename
 
-            shutil.copyfile(iresult, dstfile)
+            print(f'moving {iresult} -> {dstfile}')
+            shutil.move(iresult, dstfile)
+            #shutil.copyfile(iresult, dstfile)
 
             copied_files[basename].append(str(dstfile))
 

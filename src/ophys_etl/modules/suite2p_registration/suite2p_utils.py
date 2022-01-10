@@ -5,9 +5,9 @@ from suite2p.registration.rigid import (apply_masks, compute_masks, phasecorr,
                                         phasecorr_reference, shift_frame)
 
 
-def load_frames(file_path: str,
-                h5py_key: str,
-                nimg_init: int) -> np.ndarray:
+def load_initial_frames(file_path: str,
+                        h5py_key: str,
+                        nimg_init: int) -> np.ndarray:
     """Load a subset of frames from the data specified by file_path.
 
     Parameters

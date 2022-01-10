@@ -78,6 +78,7 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                         data.append(
                                 np.zeros((nframes, *arr.shape), dtype='int16'))
                     data[-1][i] = arr
+            fname.unlink()
         data = np.concatenate(data, axis=0)
         if self.args['clip_negative']:
             data[data < 0] = 0

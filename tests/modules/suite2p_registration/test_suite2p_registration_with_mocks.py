@@ -85,10 +85,16 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
             "avg_projection_output": str(tmp_path / "avg_proj.png"),
             "output_json": str(outj_path)}
 
+    def compute_reference_mock(**kwargs):
+        return np.zeros((1000, 32, 32))
+
     with patch.object(MockSuite2PWrapper, "mock_ops_data", mock_ops_data):
         with patch(
             'ophys_etl.modules.suite2p_registration.__main__.Suite2PWrapper',
-                MockSuite2PWrapper):
+                MockSuite2PWrapper), \
+             patch('ophys_etl.modules.suite2p_registration.__main__.'
+                   'compute_reference',
+                   compute_reference_mock):
             reg = s2preg.Suite2PRegistration(input_data=args, args=[])
             reg.run()
 

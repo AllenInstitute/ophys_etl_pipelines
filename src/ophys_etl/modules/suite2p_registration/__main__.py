@@ -14,6 +14,8 @@ from ophys_etl.modules.suite2p_wrapper.__main__ import Suite2PWrapper
 from ophys_etl.modules.suite2p_registration import utils
 from ophys_etl.modules.suite2p_registration.schemas import (
         Suite2PRegistrationInputSchema, Suite2PRegistrationOutputSchema)
+from ophys_etl.modules.suite2p_registration.suite2p_utils import (
+        load_initial_frames, compute_reference)
 from suite2p.registration.rigid import shift_frame
 
 
@@ -28,8 +30,29 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                                               "local build")
         self.logger.info(f"OPHYS_ETL_COMMIT_SHA: {ophys_etl_commit_sha}")
 
-        # register with Suite2P
+        # Get suite2p args.
         suite2p_args = self.args['suite2p_args']
+
+        if suite2p_args['force_refImg'] and len(suite2p_args['refImg']) == 0:
+            # Use our own version of compute_reference to create the initial
+            # reference image used by suite2p.
+            self.logger.info('Creating initial reference image from '
+                             f'{suite2p_args["nimg_init"]} frames...')
+            intial_frames = load_initial_frames(
+                file_path=suite2p_args['h5py'],
+                h5py_key=suite2p_args['h5py_key'],
+                n_frames=suite2p_args['nimg_init'],)
+            # Create the initial reference image and store it in the
+            # suite2p_args dictionary. 8 iterations is the current default in
+            # suite2p.
+            suite2p_args['refImg'] = compute_reference(
+                frames=intial_frames,
+                niter=self.args["max_reference_iterations"],
+                maxregshift=suite2p_args['maxregshift'],
+                smooth_sigma=suite2p_args['smooth_sigma'],
+                smooth_sigma_time=suite2p_args['smooth_sigma_time'],)
+
+        # register with Suite2P
         self.logger.info("attempting to motion correct "
                          f"{suite2p_args['h5py']}")
         register = Suite2PWrapper(input_data=suite2p_args, args=[])
@@ -95,7 +118,11 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
 
         # write the hdf5
         with h5py.File(self.args['motion_corrected_output'], "w") as f:
-            f.create_dataset("data", data=data, chunks=(1, *data.shape[1:]))
+            f.create_dataset('data', data=data, chunks=(1, *data.shape[1:]))
+            # Sort the reference image used to register. If we do not used
+            # our custom reference image creation code, this dataset will
+            # be empty.
+            f.create_dataset('ref_image', data=suite2p_args['refImg'])
         self.logger.info("concatenated Suite2P tiff output to "
                          f"{self.args['motion_corrected_output']}")
 

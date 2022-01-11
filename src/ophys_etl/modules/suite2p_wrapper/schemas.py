@@ -72,6 +72,20 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
         default=False,
         required=False,
         description=("Turns on Suite2P's non-rigid registration algorithm"))
+    refImg = argschema.fields.NumpyArray(
+        default=[],
+        required=False,
+        description="Reference image to use instead of suite2p's internal "
+                    "calculation. By default we compute our own reference "
+                    "image to feed into suite2p. This is done by leaving the "
+                    "default value here and setting force_refImg to True.")
+    force_refImg = argschema.fields.Bool(
+        default=True,
+        required=False,
+        description="Force suite2p to use a external reference image instead "
+                    "of computing one internally. To use automated reference "
+                    "image generation in ophys_etl, set this value to True and"
+                    "refImg to an empty list or array (Default).")
 
     # s2p cell detection settings
     roidetect = argschema.fields.Bool(

@@ -140,13 +140,19 @@ def test_suite2p_motion_correction(
     # check that rigid/nonrigid motion correction was applied as requested
     # (this is done by ordering the pixels in each frame and making sure,
     # for the case of rigid motion correction, that the sorted list of pixels
-    # did not change)
+    # did not change). The rigid motion correction should preserve all pixel
+    # values or all frames. nonrigid motion correction does not preserve all
+    # pixel values and thus some frames should have different pixel values.
+    n_non_rigid_different = 0
     for ii in range(input_video.shape[0]):
         in_pixels = np.sort(input_video[ii, :, :].flatten())
         out_pixels = np.sort(corrected_video[ii, :, :].flatten())
         if clip_negative:
             in_pixels = np.where(in_pixels > 0.0, in_pixels, 0.0)
-        if not nonrigid:
-            np.testing.assert_array_equal(in_pixels, out_pixels)
+        if nonrigid:
+            if not np.array_equal(in_pixels, out_pixels):
+                n_non_rigid_different += 1
         else:
-            assert not np.array_equal(in_pixels, out_pixels)
+            np.testing.assert_array_equal(in_pixels, out_pixels)
+    if nonrigid:
+        assert n_non_rigid_different > 0

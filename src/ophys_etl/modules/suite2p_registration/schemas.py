@@ -89,6 +89,11 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
                      "Some segmentation algorithms cannot handle "
                      "negative values in the movie, so we have this "
                      "option to artificially set those pixels to zero."))
+    max_reference_iterations = argschema.fields.Int(
+        required=False,
+        default=8,
+        description="Maximum number of iterations to preform when creating a "
+                    "reference image.")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

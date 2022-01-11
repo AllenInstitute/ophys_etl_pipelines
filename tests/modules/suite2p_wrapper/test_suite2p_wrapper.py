@@ -109,6 +109,12 @@ def suite2p_args_side_effect(args, dst_path):
     """write the args passed to suite2p to a JSON file specified by dst_path
     """
     with open(dst_path, 'w') as out_file:
+        # json cannot serialize numpy arrays so we need to convert this schema
+        # option to list before serializing. This is currently the only numpy
+        # array in the schema. If more are added it will be worth adding a
+        # to check if any schema arguments are of type numpy.ndarray and
+        # convert them to list.
+        args['refImg'] = args['refImg'].tolist()
         out_file.write(json.dumps(args, indent=2))
 
 

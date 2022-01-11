@@ -26,7 +26,7 @@
   "do_registration": 1,
   "fast_disk": [],
   "flow_threshold": 1.5,
-  "force_refImg": false,
+  "force_refImg": true,
   "force_sktiff": false,
   "frames_include": -1,
   "fs": 10.0,

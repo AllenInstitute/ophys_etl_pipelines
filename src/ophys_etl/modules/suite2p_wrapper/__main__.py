@@ -82,7 +82,8 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
                     pathlib.Path(tdir),
                     odir,
                     self.args['retain_files'],
-                    self.now)
+                    self.now,
+                    use_mv=True)
             for k, v in output_files.items():
                 self.logger.info(f"wrote {k} to {v}")
 

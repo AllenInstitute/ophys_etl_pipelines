@@ -9,9 +9,11 @@ class Suite2PWrapperException(Exception):
 
 def copy_and_add_uid(
         srcdir: pathlib.Path, dstdir: pathlib.Path,
-        basenames: List[str], uid: Optional[str] = None) -> Dict[str, str]:
+        basenames: List[str], uid: Optional[str] = None,
+        use_mv: bool = False) -> Dict[str, str]:
     """copy files matching basenames from a tree search of srcdir to
-    dstdir with an optional unique id inserted into the basename.
+    dstdir with an optional unique id inserted into the basename. Can
+    also move the input files if having two copies of each is not desirable.
 
     Parameters
     ----------
@@ -23,6 +25,10 @@ def copy_and_add_uid(
         list of basenames to copy
     uid : str
         uid to insert into basename (example a timestamp string)
+    use_mv: bool
+        If True, use shutil.move() instead of shutil.copyfile()
+        (i.e. delete the original file as it is copied to save space).
+        Default: False.
 
     Returns
     -------
@@ -50,7 +56,10 @@ def copy_and_add_uid(
 
             dstfile = dstdir / dstbasename
 
-            shutil.copyfile(iresult, dstfile)
+            if use_mv:
+                shutil.move(iresult, dstfile)
+            else:
+                shutil.copyfile(iresult, dstfile)
 
             copied_files[basename].append(str(dstfile))
 

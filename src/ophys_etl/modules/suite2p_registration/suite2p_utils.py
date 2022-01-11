@@ -8,12 +8,12 @@ from suite2p.registration.rigid import (apply_masks, compute_masks, phasecorr,
 def load_initial_frames(file_path: str,
                         h5py_key: str,
                         nimg_init: int) -> np.ndarray:
-    """Load a subset of frames from the data specified by file_path.
+    """Load a subset of frames from the hdf5 data specified by file_path.
 
     Parameters
     ----------
     file_path : str
-        Location of the raw 2Photo, HDF5 data to load.
+        Location of the raw 2Photon, HDF5 data to load.
     h5py_key : str
         Name of the dataset to load from the HDF5 file.
     nimg_init : int
@@ -42,26 +42,26 @@ def compute_reference(frames: np.ndarray,
                       maxregshift: float,
                       smooth_sigma: float,
                       smooth_sigma_time: float) -> np.ndarray:
-    """Computes a set of reference image from the input frames.
+    """Computes a stacked reference image from the input frames.
 
-    Modified version of Suite2P's compute_reference function with no updated
+    Modified version of Suite2P's compute_reference function with no updating
     of input frames. Picks initial reference then iteratively aligns frames to
-    create reference. Does not reproduce Suite2p 1Photo code path.
+    create reference. Does not reproduce the Suite2p 1Photon code path.
 
     Parameters
     ----------
     frames : array-like, (nimg_init, Ly, Lx)
-        Subset of frames to create a reference from.
+        Set of frames to create a reference from.
     niter : int
         Number of iterations to perform when creating the reference image.
     maxregshift : float
-        Maximum shift allowed as a fraction of the width or the height, which
+        Maximum shift allowed as a fraction of the image width or height, which
         ever is longer.
     smooth_sigma : float
         Width of the Gaussian used to smooth the phase correlation between the
         reference and the frame with which it is being registered.
     smooth_sigma_time : float
-        Width of the Gaussian used to smooth weight multiple frames by before
+        Width of the Gaussian used to smooth between multiple frames by before
         phase correlation.
 
     Returns
@@ -69,6 +69,7 @@ def compute_reference(frames: np.ndarray,
     refImg : array-like, (Ly, Lx)
         Reference image created from the input data.
     """
+    # Get initial reference image from suite2p.
     ref_image = pick_initial_reference(frames)
 
     for idx in range(niter):
@@ -96,12 +97,13 @@ def compute_reference(frames: np.ndarray,
         max_corr_frames = np.copy(frames[isort])
         max_corr_xmax = xmax[isort]
         max_corr_ymax = ymax[isort]
+        # Apply shift to the copy of the frames.
         for frame, dy, dx in zip(max_corr_frames,
                                  max_corr_ymax,
                                  max_corr_xmax):
             frame[:] = shift_frame(frame=frame, dy=dy, dx=dx)
 
-        # Reset reference image
+        # Create a new reference image from the highest correlated data.
         ref_image = max_corr_frames.mean(axis=0).astype(np.int16)
         # Shift reference image to position of mean shifts to remove any bulk
         # displacement.

@@ -31,7 +31,6 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
             / "792757260_test_data.h5"
         self.mock_data_loc = self.resource_loc \
             / "test_rand.npy"
-        print(self.h5_file_loc)
         with h5py.File(self.h5_file_loc, 'r') as h5_file:
             self.frames = h5_file["input_frames"][:]
             self.ops = json.loads(h5_file['ops'][()].decode('utf-8'))
@@ -51,7 +50,8 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                                         self.frames[expected_frames, :, :])))
 
     def test_compute_reference_with_mocks(self):
-        """
+        """Test our version of compute_reference without relying on suite2p
+        by mocking key functions.
         """
         # Create random data with shape
         # (self.n_frames, self.n_frames, self.n_frames) and with random
@@ -64,7 +64,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
 
         # Mock function to return just the first frame as the reference. We
         # only specifically mock the functions we absolutely need to return
-        # data.
+        # data or those that prevent testing.
         def pick_initial_reference_mock(data):
             return data[0, :, :]
 
@@ -80,6 +80,9 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         def shift_frame(frame, dy, dx):
             return frame
 
+        # We want this test to always run on Mocks even when suit2p is
+        # present. Hence we mock functions to return data when needed and
+        # MagicMock certain functions that are called within the code.
         with patch("ophys_etl.modules.suite2p_registration.suite2p_utils."
                    "pick_initial_reference",
                    pick_initial_reference_mock), \
@@ -95,22 +98,28 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
              patch("ophys_etl.modules.suite2p_registration.suite2p_utils."
                    "compute_masks",
                    new=MagicMock()):
-            # Run the code with only two iterations.
+            # Run the code with only two iterations as there is no need for
+            # more. We are just testing that the data passes through,
+            # correctly.
             output = compute_reference(
                 frames=mock_frames,
                 niter=2,
                 maxregshift=self.ops["maxregshift"],
                 smooth_sigma=self.ops["smooth_sigma"],
                 smooth_sigma_time=self.ops["smooth_sigma_time"])
+
+        # Test that our output data is the correct shape and that it is
+        # identical to the expected output.
         self.assertEqual(output.shape[0], self.n_frames)
         self.assertEqual(output.shape[1], self.n_frames)
         self.assertTrue(np.all(np.equal(output, np.load(self.mock_data_loc))))
 
     @pytest.mark.suite2p_only
     def test_compute_reference(self):
-        """Test that method creates a reference image as expected."""
-        # These data were run with 8 iterations of the reference and is the
-        # current suite2p "magic number" setting.
+        """Test that the method creates a reference image as expected using
+        suite2p."""
+        # These test data were created with 8 iterations and is the current
+        # suite2p "magic number" setting.
         result_reference = compute_reference(
             frames=self.frames,
             niter=8,

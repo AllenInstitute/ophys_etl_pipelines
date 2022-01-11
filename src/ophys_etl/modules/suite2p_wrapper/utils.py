@@ -12,7 +12,8 @@ def copy_and_add_uid(
         basenames: List[str], uid: Optional[str] = None,
         use_mv: bool = False) -> Dict[str, str]:
     """copy files matching basenames from a tree search of srcdir to
-    dstdir with an optional unique id inserted into the basename.
+    dstdir with an optional unique id inserted into the basename. Can
+    also move the input files if having two copies of each is not desirable.
 
     Parameters
     ----------

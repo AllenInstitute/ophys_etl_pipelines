@@ -68,6 +68,10 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         def pick_initial_reference_mock(data):
             return data[0, :, :]
 
+        # Make compute_masks return a dummy iterable to mock the code behavior.
+        def compute_masks_mock(refImg, maskSlope):
+            return [1, 2, 3, 4]
+
         # Mock function to pretend that phase correlation ran and found
         # offsets. Return arrays with the correct types and a range of random
         # values.
@@ -97,7 +101,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                    new=MagicMock()), \
              patch("ophys_etl.modules.suite2p_registration.suite2p_utils."
                    "compute_masks",
-                   new=MagicMock()):
+                   new=compute_masks_mock):
             # Run the code with only two iterations as there is no need for
             # more. We are just testing that the data passes through,
             # correctly.

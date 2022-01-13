@@ -27,13 +27,16 @@ def load_initial_frames(file_path: str,
         tot_frames is returned.
     """
     with h5py.File(file_path, 'r') as hdf5_file:
-        # Get a set of linear spaced frames to load from disk.
-        tot_frames = hdf5_file[h5py_key].shape[0]
+        # Load all frames as fancy indexing is slower than loading the full
+        # data.
+        all_frames = hdf5_file[h5py_key][:]
+        # Total number of frames in the movie.
+        tot_frames = all_frames.shape[0]
         requested_frames = np.linspace(0,
                                        tot_frames,
                                        1 + min(n_frames, tot_frames),
                                        dtype=int)[:-1]
-        frames = hdf5_file[h5py_key][requested_frames]
+        frames = all_frames[requested_frames]
     return frames
 
 
@@ -99,7 +102,7 @@ def compute_reference(frames: np.ndarray,
 
         # Find the indexes of the frames that are the most correlated and
         # select the first nmax.
-        isort = np.argsort(-cmax)[1:nmax]
+        isort = np.argsort(-cmax)[:nmax]
 
         # Copy the most correlated frames so we don't shift the original data.
         max_corr_frames = np.copy(frames[isort])

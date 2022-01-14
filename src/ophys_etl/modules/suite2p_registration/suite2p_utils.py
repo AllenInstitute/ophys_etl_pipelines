@@ -81,7 +81,7 @@ def compute_reference(frames: np.ndarray,
     # Get initial reference image from suite2p.
     ref_image = pick_initial_reference(frames)
 
-    previous_value = 0
+    previous_value = 1e-16
     for idx in range(niter):
         # rigid Suite2P phase registration.
         ymax, xmax, cmax = phasecorr(
@@ -96,7 +96,7 @@ def compute_reference(frames: np.ndarray,
         )
         cmax_mean = cmax.mean()
         cmax_std = cmax.std(ddof=1)
-        cmax_mask = cmax > cmax_mean - cmax_std
+        cmax_mask = cmax > np.percentile(cmax, 16)
 
         # Copy the most correlated frames so we don't shift the original data.
         max_corr_frames = np.copy(frames[cmax_mask])
@@ -112,11 +112,10 @@ def compute_reference(frames: np.ndarray,
         # Create a new reference image from the weighted average of the most
         # correlated frames weighted by their correlation^2.
         ref_image = np.average(max_corr_frames,
-                               weights=max_corr_cmax ** 2).astype(np.int16)
+                               weights=max_corr_cmax ** 2,
+                               axis=0).astype(np.int16)
         # Shift reference image to position of mean shifts to remove any bulk
         # displacement.
-        ymean = np.average(max_corr_ymax, weights=max_corr_cmax ** 2)
-
         ref_image = shift_frame(
             frame=ref_image,
             dy=int(np.round(-np.average(max_corr_ymax,
@@ -126,17 +125,20 @@ def compute_reference(frames: np.ndarray,
         )
 
         # Compute our stopping criteria.
-        max_y_shift = np.fabs(max_corr_ymax).max()
-        max_x_shift = np.fabs(max_corr_xmax).max()
+        max_y_shift = int(np.fabs(max_corr_ymax).max())
+        max_x_shift = int(np.fabs(max_corr_xmax).max())
         # Compute the gradient over our image outside of the motion boarder.
         grady, gradx = np.gradient(
             ref_image[max_y_shift:-max_y_shift, max_x_shift:-max_x_shift])
         grad_magnitude = np.sqrt(grady ** 2 + gradx ** 2)
         # Current convergence criteria: Difference between the median and the
         # 95th percentile.
-        current_quality = np.percentile(grad_magnitude, 95) \
-                          - np.median(grad_magnitude)
-        if fabs(current_quality - previous_value) / previous_value < rtol:
+        percentiles = np.percentile(grad_magnitude, [16, 50, 84, 95])
+        current_quality = 2 * (percentiles[3] - percentiles[1]) / (percentiles[2] - percentiles[0])
+        print("percentiles [16, 50, 84, 95]:", percentiles)
+        print("current quality", current_quality)
+        print("cmax percentiles:", np.percentile(cmax, [5, 25, 50, 75, 95]))
+        if abs(current_quality - previous_value) / previous_value < rtol:
             break
         else:
             previous_value = current_quality

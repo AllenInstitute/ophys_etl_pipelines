@@ -85,8 +85,8 @@ def compute_reference(frames: np.ndarray,
 
     grady, gradx = np.gradient(ref_image)
     image_data = pd.DataFrame(
-        data={"start_image": initial_image.flatten(),
-              "start_gradient": np.sqrt(grady ** 2 + gradx ** 2)})
+        data={"start_image": ref_image.flatten(),
+              "start_gradient": (grady ** 2 + gradx ** 2).flatten()})
     corr_data = pd.DataFrame()
 
     previous_value = 1e-16
@@ -106,7 +106,7 @@ def compute_reference(frames: np.ndarray,
         corr_data[f"xmax{idx}"] = xmax
         corr_data[f"cmax{idx}"] = cmax
 
-        cmax_mask = cmax > np.percentile(cmax, 16)
+        cmax_mask = cmax > cmax.mean()
         print(f"Using {cmax_mask.sum()} frames...")
 
         # Copy the most correlated frames so we don't shift the original data.
@@ -123,21 +123,22 @@ def compute_reference(frames: np.ndarray,
         # Create a new reference image from the weighted average of the most
         # correlated frames weighted by their correlation^2.
         ref_image = np.average(max_corr_frames,
-                               weights=max_corr_cmax ** 2,
+                               weights=max_corr_cmax,
                                axis=0).astype(np.int16)
         # Shift reference image to position of mean shifts to remove any bulk
         # displacement.
         ref_image = shift_frame(
             frame=ref_image,
             dy=int(np.round(-np.average(max_corr_ymax,
-                                        weights=max_corr_cmax ** 2))),
+                                        weights=max_corr_cmax))),
             dx=int(np.round(-np.average(max_corr_xmax,
-                                        weights=max_corr_cmax ** 2)))
+                                        weights=max_corr_cmax)))
         )
 
         # Compute our stopping criteria.
         max_y_shift = int(np.fabs(max_corr_ymax).max())
         max_x_shift = int(np.fabs(max_corr_xmax).max())
+        print("max trim:", max_x_shift, max_y_shift)
         # Compute the gradient over our image outside of the motion boarder.
         grady, gradx = np.gradient(ref_image, 2)
         grad_magnitude = grady ** 2 + gradx ** 2
@@ -146,10 +147,10 @@ def compute_reference(frames: np.ndarray,
 
         accutance = grad_magnitude[max_y_shift:-max_y_shift,
                                    max_x_shift:-max_x_shift].mean()
-        variance_sum = (
+        variance_sum = ((
             ref_image[max_y_shift:-max_y_shift, max_x_shift:-max_x_shift]
             - np.mean(ref_image[max_y_shift:-max_y_shift,
-                                max_x_shift:-max_x_shift])).sum()
+                                max_x_shift:-max_x_shift])) ** 2).sum()
         print("accutance:", accutance, "var_sum:", variance_sum)
         # Converge on the accutance of the non-motion boarder image.
         current_quality = accutance
@@ -206,8 +207,8 @@ def compute_reference_old(frames: np.ndarray,
 
     grady, gradx = np.gradient(ref_image)
     image_data = pd.DataFrame(
-        data={"start_image": initial_image.flatten(),
-              "start_gradient": np.sqrt(grady ** 2 + gradx ** 2)})
+        data={"start_image": ref_image.flatten(),
+              "start_gradient": (grady ** 2 + gradx ** 2).flatten()})
     corr_data = pd.DataFrame()
 
     for idx in range(niter):
@@ -253,7 +254,11 @@ def compute_reference_old(frames: np.ndarray,
             dy=int(np.round(-max_corr_ymax.mean())),
             dx=int(np.round(-max_corr_xmax.mean()))
         )
-        grady, gradx = np.gradient(ref_image)
+
+        # Compute our stopping criteria.
+        max_y_shift = int(np.fabs(max_corr_ymax).max())
+        max_x_shift = int(np.fabs(max_corr_xmax).max())
+        grady, gradx = np.gradient(ref_image, 2)
         grad_magnitude = grady ** 2 + gradx ** 2
         image_data[f"ref_image{idx}"] = ref_image.flatten()
         image_data[f"grad2_ref{idx}"] = grad_magnitude.flatten()
@@ -261,9 +266,9 @@ def compute_reference_old(frames: np.ndarray,
         accutance = grad_magnitude[max_y_shift:-max_y_shift,
                                    max_x_shift:-max_x_shift].mean()
         variance_sum = (
-            ref_image[max_y_shift:-max_y_shift, max_x_shift:-max_x_shift]
-            - np.mean(ref_image[max_y_shift:-max_y_shift,
-                                max_x_shift:-max_x_shift])).sum()
+            (ref_image[max_y_shift:-max_y_shift, max_x_shift:-max_x_shift]
+             - np.mean(ref_image[max_y_shift:-max_y_shift,
+                                 max_x_shift:-max_x_shift])) ** 2).sum()
         print("accutance:", accutance, "var_sum:", variance_sum)
 
     image_data.to_parquet(f"{output_prefix}_image_data_old.parq")

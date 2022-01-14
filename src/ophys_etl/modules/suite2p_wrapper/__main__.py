@@ -64,9 +64,21 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
             if self.args['movie_frame_rate_hz'] is not None:
                 self.args['fs'] = self.args['movie_frame_rate_hz']
 
+            # Make a copy of the args to remove the NumpyArray, refImg, as
+            # numpy.ndarray can't be serialized with json. Converting to list
+            # and writing to the logger causes the output to be unreadable.
+            copy_of_args = copy.deepcopy(self.args)
+            copy_of_args.pop('refImg')
+
             msg = f'running Suite2P v{suite2p.version} with args\n'
-            msg += f'{json.dumps(self.args, indent=2, sort_keys=True)}\n'
+            msg += f'{json.dumps(copy_of_args, indent=2, sort_keys=True)}\n'
             self.logger.info(msg)
+
+            # If we are using a external reference image (including our own
+            # produced by compute_referece) communicate this in the log.
+            if self.args['force_refImg']:
+                self.logger.info('\tUsing custom reference image: '
+                                 f'{self.args["refImg"]}')
 
             suite2p.run_s2p(self.args)
 

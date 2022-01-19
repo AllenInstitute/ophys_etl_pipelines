@@ -14,3 +14,4 @@ typing_extensions
 tifffile
 scikit-image
 networkx
+suite2p==0.10.2

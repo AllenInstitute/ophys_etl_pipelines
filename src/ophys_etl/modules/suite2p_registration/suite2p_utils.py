@@ -1,6 +1,5 @@
 import h5py
 import numpy as np
-import pandas as pd
 from suite2p.registration.register import pick_initial_reference
 from suite2p.registration.rigid import (apply_masks, compute_masks, phasecorr,
                                         phasecorr_reference, shift_frame)
@@ -29,7 +28,7 @@ def load_initial_frames(file_path: str,
     """
     with h5py.File(file_path, 'r') as hdf5_file:
         # Get a set of linear spaced frames to load from disk.
-        tot_frames = hdf5_file[h5py_key].shape[0]
+        tot_frames = hdf5_file[h5py_key]
         requested_frames = np.linspace(0,
                                        tot_frames,
                                        1 + min(n_frames, tot_frames),
@@ -68,7 +67,10 @@ def compute_reference(frames: np.ndarray,
         Width of the Gaussian used to smooth between multiple frames by before
         phase correlation.
     niter : int
-        Number of iterations to perform when creating the reference image.
+        Max number of iterations to perform when creating the reference image.
+        Exit if niter is reached.
+    rtol : float
+        Relative tolerance to declare convergence.
     mask_slope_factor : int
         Factor to multiply ``smooth_sigma`` by when creating masks for the
         reference image during suite2p phase correlation. These masks down
@@ -83,12 +85,6 @@ def compute_reference(frames: np.ndarray,
     # Get initial reference image from suite2p.
     ref_image = pick_initial_reference(frames)
 
-    grady, gradx = np.gradient(ref_image)
-    image_data = pd.DataFrame(
-        data={"start_image": ref_image.flatten(),
-              "start_gradient": (grady ** 2 + gradx ** 2).flatten()})
-    corr_data = pd.DataFrame()
-
     previous_value = 1e-16
     for idx in range(niter):
         # rigid Suite2P phase registration.
@@ -102,11 +98,9 @@ def compute_reference(frames: np.ndarray,
             maxregshift=maxregshift,
             smooth_sigma_time=smooth_sigma_time,
         )
-        corr_data[f"ymax{idx}"] = ymax
-        corr_data[f"xmax{idx}"] = xmax
-        corr_data[f"cmax{idx}"] = cmax
-
-        cmax_mask = cmax > cmax.mean()
+        # Quality cut on cmax. Currently we use the top half of the input
+        # frames based on correlation amplitude.
+        cmax_mask = cmax > cmax.median()
         print(f"Using {cmax_mask.sum()} frames...")
 
         # Copy the most correlated frames so we don't shift the original data.
@@ -123,44 +117,43 @@ def compute_reference(frames: np.ndarray,
         # Create a new reference image from the weighted average of the most
         # correlated frames weighted by their correlation^2.
         ref_image = np.average(max_corr_frames,
-                               weights=max_corr_cmax,
+                               weights=max_corr_cmax ** 2,
                                axis=0).astype(np.int16)
         # Shift reference image to position of mean shifts to remove any bulk
         # displacement.
         ref_image = shift_frame(
             frame=ref_image,
             dy=int(np.round(-np.average(max_corr_ymax,
-                                        weights=max_corr_cmax))),
+                                        weights=max_corr_cmax ** 2))),
             dx=int(np.round(-np.average(max_corr_xmax,
-                                        weights=max_corr_cmax)))
+                                        weights=max_corr_cmax ** 2)))
         )
 
+        # Board cut in case there are large shifts.
+        min_y_shift = int(np.fabs(max_corr_ymax).max())
+        min_x_shift = int(np.fabs(max_corr_xmax).max())
+        max_y_shift = -min_y_shift if min_y_shift > 0 else -1
+        max_x_shift = -min_y_shift if min_y_shift > 0 else -1
+
         # Compute our stopping criteria.
-        max_y_shift = int(np.fabs(max_corr_ymax).max())
-        max_x_shift = int(np.fabs(max_corr_xmax).max())
-        print("max trim:", max_x_shift, max_y_shift)
         # Compute the gradient over our image outside of the motion boarder.
+        # We use a gradient over 2 pixels to get slightly more stable results.
         grady, gradx = np.gradient(ref_image, 2)
         grad_magnitude = grady ** 2 + gradx ** 2
-        image_data[f"ref_image{idx}"] = ref_image.flatten()
-        image_data[f"grad2_ref{idx}"] = grad_magnitude.flatten()
+        acutance = grad_magnitude[min_y_shift:max_y_shift,
+                                  min_x_shift:max_x_shift].mean()
 
-        accutance = grad_magnitude[max_y_shift:-max_y_shift,
-                                   max_x_shift:-max_x_shift].mean()
-        variance_sum = ((
-            ref_image[max_y_shift:-max_y_shift, max_x_shift:-max_x_shift]
-            - np.mean(ref_image[max_y_shift:-max_y_shift,
-                                max_x_shift:-max_x_shift])) ** 2).sum()
-        print("accutance:", accutance, "var_sum:", variance_sum)
-        # Converge on the accutance of the non-motion boarder image.
-        current_quality = accutance
+        # Potential other option for convergence is the variance of the image.
+        var= ref_image[max_y_shift:max_y_shift,
+                       max_x_shift:max_x_shift].var(ddof=1)
+
+        # Converge on the acutance of the non-motion boarder cut image.
+        current_quality = acutance
         if abs(current_quality - previous_value) / previous_value < rtol:
             break
         else:
             previous_value = current_quality
     print(f"Created reference image in {idx + 1} iterations...")
-    image_data.to_parquet(f"{output_prefix}_image_data.parq")
-    corr_data.to_parquet(f"{output_prefix}_corr_data.parq")
     return ref_image
 
 
@@ -269,9 +262,5 @@ def compute_reference_old(frames: np.ndarray,
             (ref_image[max_y_shift:-max_y_shift, max_x_shift:-max_x_shift]
              - np.mean(ref_image[max_y_shift:-max_y_shift,
                                  max_x_shift:-max_x_shift])) ** 2).sum()
-        print("accutance:", accutance, "var_sum:", variance_sum)
-
-    image_data.to_parquet(f"{output_prefix}_image_data_old.parq")
-    corr_data.to_parquet(f"{output_prefix}_corr_data_old.parq")
 
     return ref_image

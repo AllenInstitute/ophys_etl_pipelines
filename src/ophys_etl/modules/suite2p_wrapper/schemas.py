@@ -72,6 +72,16 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
         default=False,
         required=False,
         description=("Turns on Suite2P's non-rigid registration algorithm"))
+    keep_movie_raw = argschema.fields.Boolean(
+        default=False,
+        required=False,
+        description=("Suite2P param to preserve raw movie during processing. "
+                     "Must be True if two_step_registration is True."))
+    two_step_registration = argschema.fields.Boolean(
+        default=False,
+        required=False,
+        description=("If true, Suite2P runs motion correction twice "
+                     "(i.e. it iterates on a low SNR movie)"))
     refImg = argschema.fields.NumpyArray(
         default=[],
         required=False,
@@ -205,6 +215,15 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
         if (data['nbinned'] is None) & (data['movie_frame_rate_hz'] is None):
             raise Suite2PWrapperException(
                     "Must provide either `nbinned` or `movie_frame_rate_hz`")
+        return data
+
+    @mm.post_load
+    def check_two_pass_motion(self, data, **kwargs):
+        if data['two_step_registration']:
+            if not data['keep_movie_raw']:
+                print('setting keep_movie_raw to True '
+                      'because two_step_registration is True')
+                data['keep_movie_raw'] = True
         return data
 
     @mm.post_load

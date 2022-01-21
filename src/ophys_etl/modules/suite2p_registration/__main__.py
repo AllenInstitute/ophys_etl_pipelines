@@ -64,7 +64,7 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         # get paths to Suite2P outputs
         with open(suite2p_args["output_json"], "r") as f:
             outj = json.load(f)
-        tif_paths = [Path(i) for i in outj['output_files']["*.tif"]]
+        tif_paths = np.sort([Path(i) for i in outj['output_files']["*.tif"]])
         ops_path = Path(outj['output_files']['ops.npy'][0])
 
         # Suite2P ops file contains at least the following keys:
@@ -102,6 +102,24 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                                 np.zeros((nframes, *arr.shape), dtype='int16'))
                     data[-1][i] = arr
         data = np.concatenate(data, axis=0)
+
+        # Motion correction in suite2p should conserve flux and ordering
+        # of the frames in the movie. This check makes sure the output
+        # movie is correctly ordered and has it's flux preserved.
+        if suite2p_args['nonrigid']:
+            self.logger.info('nonrigid motion correction is enabled in '
+                             'suite2p. Skipping test of corrected movie '
+                             'against raw as nonrigid does not conserve '
+                             'flux.')
+        else:
+            self.logger.info('Testing raw frames against motion corrected '
+                             'frames.')
+            utils.check_movie_against_raw(data,
+                                          suite2p_args['h5py'],
+                                          suite2p_args['h5py_key'])
+            self.logger.info('\tSuccessfully finished comparing motion '
+                             'corrected to raw frames.')
+
         if self.args['clip_negative']:
             data[data < 0] = 0
             data = np.uint16(data)

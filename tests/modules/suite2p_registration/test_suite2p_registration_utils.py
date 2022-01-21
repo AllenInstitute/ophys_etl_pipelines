@@ -1,7 +1,9 @@
+import h5py
 import pytest
 import numpy as np
+from pathlib import Path
 from ophys_etl.modules.suite2p_registration.utils import \
-        identify_and_clip_outliers
+        identify_and_clip_outliers, check_movie_against_raw
 
 
 @pytest.mark.parametrize(
@@ -36,3 +38,42 @@ def test_identify_and_clip_outliers(excess_indices, deltas,
     deltas = np.abs(data[expected_indices] - baseline[expected_indices])
     small_delta = 1.0
     assert np.all(deltas < thresh + small_delta)
+
+
+def test_check_movie_against_raw():
+    """Test that we can recognize an unordered or non flux conserving motion
+    corrected movie as expected.
+    """
+    rng = np.random.default_rng(1234)
+
+    file_loc = Path(__file__)
+    resource_loc = file_loc.parent / 'resources'
+    h5_file_loc = resource_loc / '792757260_test_data.h5'
+    h5_key = 'input_frames'
+
+    with h5py.File(h5_file_loc) as data_file:
+        corr_data = data_file[h5_key][:]
+
+    #  This should pass without a raise.
+    check_movie_against_raw(corr_data=corr_data,
+                            raw_hdf5=h5_file_loc,
+                            h5py_key=h5_key)
+
+    # Test that the check fails if we put in a movie of different length
+    # than the raw.
+    rand_data = rng.integers(0,
+                             corr_data.shape[0],
+                             size=(corr_data.shape[0] + 1,
+                                   corr_data.shape[1],
+                                   corr_data.shape[2]))
+    with pytest.raises(ValueError, match=r'Length of motion .*'):
+        check_movie_against_raw(corr_data=rand_data,
+                                raw_hdf5=h5_file_loc,
+                                h5py_key=h5_key)
+
+    # Test that the code finds shuffled frames.
+    rand_index = rng.integers(0, corr_data.shape[0], size=corr_data.shape[0])
+    with pytest.raises(ValueError, match=r"The distribution of pixel .*"):
+        check_movie_against_raw(corr_data=corr_data[rand_index],
+                                raw_hdf5=h5_file_loc,
+                                h5py_key=h5_key)

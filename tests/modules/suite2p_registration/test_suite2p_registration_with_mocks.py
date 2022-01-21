@@ -88,13 +88,18 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
     def compute_reference_mock(**kwargs):
         return np.zeros((1000, 32, 32))
 
+    # Mock out subtasks that expect real data or data not provied
+    # in this test. These methods have their own unitests.
     with patch.object(MockSuite2PWrapper, "mock_ops_data", mock_ops_data):
         with patch(
             'ophys_etl.modules.suite2p_registration.__main__.Suite2PWrapper',
                 MockSuite2PWrapper), \
              patch('ophys_etl.modules.suite2p_registration.__main__.'
                    'compute_reference',
-                   compute_reference_mock):
+                   compute_reference_mock), \
+             patch('ophys_etl.modules.suite2p_registration.__main__.utils.'
+                   'check_movie_against_raw',
+                   Mock):
             reg = s2preg.Suite2PRegistration(input_data=args, args=[])
             reg.run()
 

@@ -300,7 +300,8 @@ def _video_array_from_h5(
         h5_path: pathlib.Path,
         min_val: float,
         max_val: float,
-        reticle: bool = True) -> np.ndarray:
+        reticle: bool = True,
+        d_reticle: int = 64) -> np.ndarray:
     """
     Read in an HDF5 file and convert it into a numpy array that
     can be passed to _write_array_to_video
@@ -319,6 +320,9 @@ def _video_array_from_h5(
     reticle: bool
         If True, add a grid of red lines to the video, to help guide
         the eye
+
+    d_reticle: int
+        Spacing between reticles
 
     Returns
     -------
@@ -348,14 +352,14 @@ def _video_array_from_h5(
     print('constructed video_as_uint')
 
     if reticle:
-        for ii in range(64, video_shape[1], 64):
+        for ii in range(d_reticle, video_shape[1], d_reticle):
             old_vals = np.copy(video_as_uint[:, ii:ii+2, :, :])
             new_vals = np.zeros(old_vals.shape, dtype=np.uint8)
             new_vals[:, :, :, 0] = 255
             new_vals = (new_vals//2) + (old_vals//2)
             new_vals = new_vals.astype(np.uint8)
             video_as_uint[:, ii:ii+2, :, :] = new_vals
-        for ii in range(64, video_shape[2], 64):
+        for ii in range(d_reticle, video_shape[2], d_reticle):
             old_vals = np.copy(video_as_uint[:, :, ii:ii+2, :])
             new_vals = np.zeros(old_vals.shape, dtype=np.uint8)
             new_vals[:, :, :, 0] = 255

@@ -16,7 +16,8 @@ from ophys_etl.modules.downsample_video.utils import (
     _video_worker,
     create_downsampled_video_h5,
     _write_array_to_video,
-    _min_max_from_h5)
+    _min_max_from_h5,
+    _video_array_from_h5)
 
 
 class DummyContextManager(object):
@@ -235,3 +236,76 @@ def test_min_max_from_h5_with_quantiles(
 
     assert np.abs(actual[0]-expected_min) < 1.0e-20
     assert np.abs(actual[1]-expected_max) < 1.0e-20
+
+
+@pytest.mark.parametrize(
+    "min_val, max_val",
+    product((50.0, 100.0, 250.0),
+            (1900.0, 1500.0, 1000.0)))
+def test_ds_video_array_from_h5_no_reticle(
+        ds_video_path_fixture,
+        ds_video_array_fixture,
+        min_val,
+        max_val):
+
+    video_array = _video_array_from_h5(
+                        ds_video_path_fixture,
+                        min_val,
+                        max_val,
+                        reticle=False)
+
+    assert video_array.dtype == np.uint8
+    assert len(video_array.shape) == 4
+    assert video_array.shape == (ds_video_array_fixture.shape[0],
+                                 ds_video_array_fixture.shape[1],
+                                 ds_video_array_fixture.shape[2],
+                                 3)
+
+    below_min = np.where(ds_video_array_fixture < min_val)
+    assert len(below_min[0]) > 0
+    assert (video_array[below_min] == 0).all()
+    above_max = np.where(ds_video_array_fixture > max_val)
+    assert len(above_max[0]) > 0
+    assert (video_array[above_max] == 255).all()
+    assert video_array.min() == 0
+    assert video_array.max() == 255
+
+
+@pytest.mark.parametrize("d_reticle", [5, 7, 9])
+def test_ds_video_array_from_h5_with_reticle(
+        ds_video_path_fixture,
+        ds_video_array_fixture,
+        d_reticle):
+
+    min_val = 500.0
+    max_val = 1500.0
+    video_shape = ds_video_array_fixture.shape
+
+    no_reticle = _video_array_from_h5(
+                        ds_video_path_fixture,
+                        min_val,
+                        max_val,
+                        reticle=False,
+                        d_reticle=d_reticle)
+
+    yes_reticle = _video_array_from_h5(
+                        ds_video_path_fixture,
+                        min_val,
+                        max_val,
+                        reticle=True,
+                        d_reticle=d_reticle)
+
+    reticle_mask = np.zeros(no_reticle.shape, dtype=bool)
+    for ii in range(d_reticle, video_shape[1], d_reticle):
+        reticle_mask[:, ii:ii+2, :, :] = True
+    for ii in range(d_reticle, video_shape[2], d_reticle):
+        reticle_mask[:, :, ii:ii+2, :] = True
+
+    assert reticle_mask.sum() > 0
+
+    np.testing.assert_array_equal(
+            no_reticle[np.logical_not(reticle_mask)],
+            yes_reticle[np.logical_not(reticle_mask)])
+
+    assert not np.array_equal(no_reticle[reticle_mask],
+                              yes_reticle[reticle_mask])

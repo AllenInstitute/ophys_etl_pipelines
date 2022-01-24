@@ -25,6 +25,7 @@ def _video_worker(
         output_hz: float,
         kernel_size: Optional[int],
         input_slice: Tuple[int, int],
+        chunk_validity: dict,
         output_lock: multiprocessing.managers.AcquirerProxy) -> None:
     """
     A worker that can be called by multiprocessing to read a chunk of the
@@ -55,6 +56,11 @@ def _video_worker(
         The first (inclusive) and last (exclusive) frame of the
         input movie to be processed by this worker.
 
+    chunk_validity: dict
+        A multiprocessing manager dict to map input_slice[0] to
+        a boolean indicating whether or not the chunk was successfully
+        written and a message explaining why.
+
     output_lock: multiprocessing.managers.AcquirerProxy
         A multiprocessing lock to prevent multiple processes from
         trying to write to the output file at the same time.
@@ -75,6 +81,7 @@ def _video_worker(
         msg += "n_frame_from_hz(input_hz, output_hz)\n"
         msg += f"input_slice[0]: {input_slice[0]}\n"
         msg += f"n_frames_from_hz: {frames_to_group}\n"
+        chunk_validity[input_slice[0]] = (False, msg)
         raise RuntimeError(msg)
 
     with h5py.File(input_path, 'r') as in_file:
@@ -96,6 +103,7 @@ def _video_worker(
             out_file['data'][start_index:end_index, :, :] = video_data
         duration = time.time()-t0
         print(f'completed chunk in {duration:.2e} seconds')
+        chunk_validity[input_slice[0]] = (True, '')
 
 
 def create_downsampled_video_h5(
@@ -142,10 +150,13 @@ def create_downsampled_video_h5(
     with h5py.File(input_path, 'r') as in_file:
         input_video_shape = in_file['data'].shape
 
+    # determine how many frames are going to be grouped together
+    # by downsampling
     frames_to_group = n_frames_from_hz(
                             input_hz,
                             output_hz)
 
+    # determine how many frames to pass to each parallel process
     n_frames_per_chunk = np.ceil(input_video_shape[0]/n_processors).astype(int)
     remainder = n_frames_per_chunk % frames_to_group
     n_frames_per_chunk += (frames_to_group-remainder)
@@ -164,6 +175,7 @@ def create_downsampled_video_h5(
 
     mgr = multiprocessing.Manager()
     output_lock = mgr.Lock()
+    validity_dict = mgr.dict()
     process_list = []
     for i0 in range(0, input_video_shape[0], n_frames_per_chunk):
         print(f'starting {i0} -> {input_video_shape[0]}')
@@ -175,12 +187,22 @@ def create_downsampled_video_h5(
                       output_hz,
                       kernel_size,
                       (i0, i0+n_frames_per_chunk),
+                      validity_dict,
                       output_lock))
         p.start()
         process_list.append(p)
 
     for p in process_list:
         p.join()
+
+    msg = ''
+    for k in validity_dict:
+        if validity_dict[k][0]:
+            continue
+        msg += '\n'
+        msg += validity_dict[k][1]
+    if len(msg) > 0:
+        raise RuntimeError(msg)
 
 
 def _write_array_to_video(

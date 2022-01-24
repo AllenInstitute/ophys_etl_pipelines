@@ -13,7 +13,8 @@ from ophys_etl.modules.median_filtered_max_projection.utils import (
     apply_median_filter_to_video)
 
 from ophys_etl.modules.downsample_video.utils import (
-    _video_worker)
+    _video_worker,
+    create_downsampled_video_h5)
 
 
 class DummyContextManager(object):
@@ -83,6 +84,7 @@ def test_ds_video_worker(
             output_hz,
             kernel_size,
             input_slice,
+            dict(),
             lock)
 
     with h5py.File(output_path, 'r') as in_file:
@@ -113,6 +115,7 @@ def test_ds_video_worker_exception(
 
     with pytest.raises(RuntimeError, match="integer multiple"):
         lock = DummyContextManager()
+        validity_dict = dict()
         _video_worker(
                 ds_video_path_fixture,
                 input_hz,
@@ -120,4 +123,33 @@ def test_ds_video_worker_exception(
                 output_hz,
                 kernel_size,
                 input_slice,
+                validity_dict,
                 lock)
+    assert len(validity_dict) == 1
+    for k in validity_dict:
+        assert not validity_dict[k][0]
+        assert "integer multiple" in validity_dict[k][1]
+
+
+@pytest.mark.parametrize(
+    "output_hz, kernel_size",
+    product((12.0, 5.0, 3.0), (None, 2, 3)))
+def test_create_ds_video_h5(
+        tmpdir,
+        ds_video_path_fixture,
+        output_hz,
+        kernel_size):
+    """
+    This is really just a smoke test
+    """
+    output_path = pathlib.Path(tempfile.mkstemp(
+                                   dir=tmpdir,
+                                   prefix="create_ds_vidoe_smoke_test_",
+                                   suffix=".h5")[1])
+    create_downsampled_video_h5(
+        ds_video_path_fixture,
+        12.0,
+        output_path,
+        output_hz,
+        kernel_size,
+        3)

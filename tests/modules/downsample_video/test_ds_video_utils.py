@@ -3,6 +3,7 @@ import numpy as np
 import h5py
 import tempfile
 import pathlib
+import hashlib
 from itertools import product
 
 from ophys_etl.utils.array_utils import (
@@ -17,7 +18,8 @@ from ophys_etl.modules.downsample_video.utils import (
     create_downsampled_video_h5,
     _write_array_to_video,
     _min_max_from_h5,
-    _video_array_from_h5)
+    _video_array_from_h5,
+    create_downsampled_video)
 
 
 class DummyContextManager(object):
@@ -188,7 +190,7 @@ def test_ds_write_array_to_video(
     assert video_path.is_file()
 
 
-@pytest.mark.parametrize("border", (1, 2, 3))
+@pytest.mark.parametrize("border", (1, 2, 3, 100))
 def test_min_max_from_h5_no_quantiles(
         ds_video_path_fixture,
         ds_video_array_fixture,
@@ -196,9 +198,13 @@ def test_min_max_from_h5_no_quantiles(
 
     nrows = ds_video_array_fixture.shape[1]
     ncols = ds_video_array_fixture.shape[2]
-    this_array = ds_video_array_fixture[:,
-                                        border:nrows-border,
-                                        border:ncols-border]
+
+    if border < 8:
+        this_array = ds_video_array_fixture[:,
+                                            border:nrows-border,
+                                            border:ncols-border]
+    else:
+        this_array = np.copy(ds_video_array_fixture)
 
     expected_min = this_array.min()
     expected_max = this_array.max()
@@ -309,3 +315,134 @@ def test_ds_video_array_from_h5_with_reticle(
 
     assert not np.array_equal(no_reticle[reticle_mask],
                               yes_reticle[reticle_mask])
+
+
+@pytest.mark.parametrize(
+    "output_suffix, output_hz, kernel_size, quantiles, reticle, "
+    "speed_up_factor, quality",
+    product((".avi", ".mp4"),
+            (3.0, 5.0),
+            (2, 5),
+            (None, (0.3, 0.9)),
+            (True, False),
+            (1, 4),
+            (5, 7)))
+def test_ds_create_downsampled_video(
+        tmpdir,
+        ds_video_path_fixture,
+        ds_video_array_fixture,
+        output_suffix,
+        output_hz,
+        kernel_size,
+        quantiles,
+        reticle,
+        speed_up_factor,
+        quality):
+    """
+    This is just going to be a smoke test, as it's hard to verify
+    the contents of an mp4
+    """
+
+    input_hz = 12.0
+    d_reticle = 64  # because we haven't exposed this to the user, yet
+    expected_file = pathlib.Path(
+                        tempfile.mkstemp(dir=tmpdir,
+                                         prefix='ds_expected_',
+                                         suffix=output_suffix)[1])
+
+    downsampled_video = downsample_array(
+                            ds_video_array_fixture,
+                            input_fps=input_hz,
+                            output_fps=output_hz,
+                            strategy='average')
+
+    if kernel_size is not None:
+        downsampled_video = apply_median_filter_to_video(
+                                    downsampled_video,
+                                    kernel_size)
+
+    if quantiles is None:
+        min_val = downsampled_video.min()
+        max_val = downsampled_video.max()
+    else:
+        (min_val,
+         max_val) = np.quantile(downsampled_video, quantiles)
+
+    downsampled_video = downsampled_video.astype(float)
+    downsampled_video = np.where(downsampled_video > min_val,
+                                 downsampled_video, min_val)
+    downsampled_video = np.where(downsampled_video < max_val,
+                                 downsampled_video, max_val)
+
+    delta = max_val-min_val
+    downsampled_video = np.round(255.0*(downsampled_video-min_val)/delta)
+    video_as_uint = np.zeros((downsampled_video.shape[0],
+                              downsampled_video.shape[1],
+                              downsampled_video.shape[2],
+                              3), dtype=np.uint8)
+
+    for ic in range(3):
+        video_as_uint[:, :, :, ic] = downsampled_video
+
+    video_shape = video_as_uint.shape
+    del downsampled_video
+
+    if reticle:
+        for ii in range(d_reticle, video_shape[1], d_reticle):
+            old_vals = np.copy(video_as_uint[:, ii:ii+2, :, :])
+            new_vals = np.zeros(old_vals.shape, dtype=np.uint8)
+            new_vals[:, :, :, 0] = 255
+            new_vals = (new_vals//2) + (old_vals//2)
+            new_vals = new_vals.astype(np.uint8)
+            video_as_uint[:, ii:ii+2, :, :] = new_vals
+        for ii in range(d_reticle, video_shape[2], d_reticle):
+            old_vals = np.copy(video_as_uint[:, :, ii:ii+2, :])
+            new_vals = np.zeros(old_vals.shape, dtype=np.uint8)
+            new_vals[:, :, :, 0] = 255
+            new_vals = (new_vals//2) + (old_vals//2)
+            new_vals = new_vals.astype(np.uint8)
+            video_as_uint[:, :, ii:ii+2, :] = new_vals
+
+    _write_array_to_video(
+            expected_file,
+            video_as_uint,
+            int(speed_up_factor*output_hz),
+            quality)
+
+    assert expected_file.is_file()
+
+    actual_file = pathlib.Path(
+                        tempfile.mkstemp(dir=tmpdir,
+                                         prefix='ds_actual_',
+                                         suffix=output_suffix)[1])
+
+    create_downsampled_video(
+            ds_video_path_fixture,
+            input_hz,
+            actual_file,
+            output_hz,
+            kernel_size,
+            3,
+            quality=quality,
+            quantiles=quantiles,
+            reticle=reticle,
+            speed_up_factor=speed_up_factor,
+            tmp_dir=tmpdir)
+
+    assert actual_file.is_file()
+
+    md5_expected = hashlib.md5()
+    with open(expected_file, 'rb') as in_file:
+        chunk = in_file.read(100000)
+        while len(chunk) > 0:
+            md5_expected.update(chunk)
+            chunk = in_file.read(100000)
+
+    md5_actual = hashlib.md5()
+    with open(actual_file, 'rb') as in_file:
+        chunk = in_file.read(100000)
+        while len(chunk) > 0:
+            md5_actual.update(chunk)
+            chunk = in_file.read(100000)
+
+    assert md5_actual.hexdigest() == md5_expected.hexdigest()

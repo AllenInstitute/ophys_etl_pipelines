@@ -15,7 +15,8 @@ from ophys_etl.modules.median_filtered_max_projection.utils import (
 from ophys_etl.modules.downsample_video.utils import (
     _video_worker,
     create_downsampled_video_h5,
-    _write_array_to_video)
+    _write_array_to_video,
+    _min_max_from_h5)
 
 
 class DummyContextManager(object):
@@ -184,3 +185,53 @@ def test_ds_write_array_to_video(
         quality)
 
     assert video_path.is_file()
+
+
+@pytest.mark.parametrize("border", (1, 2, 3))
+def test_min_max_from_h5_no_quantiles(
+        ds_video_path_fixture,
+        ds_video_array_fixture,
+        border):
+
+    nrows = ds_video_array_fixture.shape[1]
+    ncols = ds_video_array_fixture.shape[2]
+    this_array = ds_video_array_fixture[:,
+                                        border:nrows-border,
+                                        border:ncols-border]
+
+    expected_min = this_array.min()
+    expected_max = this_array.max()
+
+    actual = _min_max_from_h5(
+                    ds_video_path_fixture,
+                    None,
+                    border)
+
+    assert np.abs(actual[0]-expected_min) < 1.0e-20
+    assert np.abs(actual[1]-expected_max) < 1.0e-20
+
+
+@pytest.mark.parametrize("border, quantiles",
+                         product((1, 2, 3), ((0.1, 0.9), (0.2, 0.8))))
+def test_min_max_from_h5_with_quantiles(
+        ds_video_path_fixture,
+        ds_video_array_fixture,
+        border,
+        quantiles):
+
+    nrows = ds_video_array_fixture.shape[1]
+    ncols = ds_video_array_fixture.shape[2]
+    this_array = ds_video_array_fixture[:,
+                                        border:nrows-border,
+                                        border:ncols-border]
+
+    (expected_min,
+     expected_max) = np.quantile(this_array, quantiles)
+
+    actual = _min_max_from_h5(
+                    ds_video_path_fixture,
+                    quantiles,
+                    border)
+
+    assert np.abs(actual[0]-expected_min) < 1.0e-20
+    assert np.abs(actual[1]-expected_max) < 1.0e-20

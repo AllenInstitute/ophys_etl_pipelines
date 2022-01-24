@@ -25,7 +25,46 @@ def _video_worker(
         output_hz: float,
         kernel_size: Optional[int],
         input_slice: Tuple[int, int],
-        output_lock: multiprocessing.managers.AcquirerProxy):
+        output_lock: multiprocessing.managers.AcquirerProxy) -> None:
+    """
+    A worker that can be called by multiprocessing to read a chunk of the
+    input video from an HDF5 file, downsample and median filter it, and
+    write it to an output HDF5 file (presumably in scratch space).
+
+    Parameters
+    ----------
+    input_path: pathlib.Path
+        Path to the input movie
+
+    input_hz: float
+        Frame rate of the input movie in Hz
+
+    output_path: pathlib.Path
+         Path to the HDF5 file where the processed movie will be stored
+
+    output_hz: float
+        Frame rate of the output movie in Hz (in case it is downsampled
+        relative to the input movie)
+
+    kernel_size: Optional[int]
+        The size of the median filter kernel. This filter is applied to
+        the frames of the output movie after downsampling. If None,
+        no median filter is applied.
+
+    input_slice: Tuple[int, int]
+        The first (inclusive) and last (exclusive) frame of the
+        input movie to be processed by this worker.
+
+    output_lock: multiprocessing.managers.AcquirerProxy
+        A multiprocessing lock to prevent multiple processes from
+        trying to write to the output file at the same time.
+
+    Returns
+    -------
+    None
+        Output is written to the HDF5 file at output_path
+    """
+
     t0 = time.time()
     frames_to_group = n_frames_from_hz(
             input_hz,
@@ -58,7 +97,40 @@ def create_downsampled_video_h5(
         output_path: pathlib.Path,
         output_hz: float,
         kernel_size: Optional[int],
-        n_processors: int):
+        n_processors: int) -> None:
+    """
+    Use multiprocessing to read a movie from an HDF5 file, downsample
+    and median filter it, and write it to another HDF5 file (presumably
+    in scratch)
+
+    Parameters
+    ----------
+    input_path: pathlib.Path
+        Path to the input movie
+
+    input_hz:
+        frame rate of the input movie in Hz
+
+    output_path: pathlib.Path
+        Path to the HDF5 file where the processed movie will be written
+
+    output_hz:
+        frame rate of the output movie in Hz (in case it is downsampled)
+
+    kernel_size: Optional[int]
+        The size of the median filter kernel. This filter is applied to
+        the frames of the output movie after downsampling. If None,
+        no median filter is applied.
+
+    n_processors: int
+        Number of parallel worker processes to invoke when processing the
+        movie.
+
+    Returns
+    -------
+    None
+        Output is written to the HDF5 file specified at output_path
+    """
 
     with h5py.File(input_path, 'r') as in_file:
         input_video_shape = in_file['data'].shape
@@ -109,6 +181,31 @@ def _write_array_to_video(
         video_array: np.ndarray,
         fps: int,
         quality: int):
+    """
+    Write a video array to a video file (mp4, avi, etc.) using
+    imageio.
+
+    Parameters
+    ----------
+    video_path: pathlib.Path
+        Path to the putput file
+
+    video_array: np.ndarray
+        Numpy array containing video data. Probably of shape
+        (ntime, nrows, ncols, 3)
+
+    fps: int
+        Frames per second to write with imageio
+
+    quality: int
+        An integer from 0-9 (inclusive) denoting the quality of the
+        video to be written
+
+    Returns
+    -------
+    None
+        Output is written to the specified file path
+    """
 
     if video_path.name.endswith('avi'):
         pixelformat = 'yuvj420p'
@@ -129,14 +226,37 @@ def _write_array_to_video(
 
 def _min_max_from_h5(
         h5_path: pathlib.Path,
-        quantiles: Optional[Tuple[float, float]]):
+        quantiles: Optional[Tuple[float, float]],
+        border: int = 50) -> Tuple[float, float]:
+    """
+    Get the normalizing minimum and maximum pixel values from
+    a movie, ignoring pixels at the border.
+
+    Parameters
+    ----------
+    h5_path: pathlib.Path
+        Path to the movie
+
+    quantiles: Optional[Tuple[float, float]]
+        Quantiles to use for normalization (if None, get
+        minimum and maximum values)
+
+    border: int
+        Number of pixels to ignore at the border of the field of view
+
+    Returns
+    -------
+    norm_min, norm_max: Tuple[float, float]
+        The minimum and maximum (or specified quantiles)
+        of the pixel values from the movie.
+    """
 
     with h5py.File(h5_path, 'r') as in_file:
         video_shape = in_file['data'].shape
         # clip motion border, just in case
         full_data = in_file['data'][:,
-                                    50:video_shape[1]-50,
-                                    50:video_shape[2]-50]
+                                    border:video_shape[1]-border,
+                                    border:video_shape[2]-border]
         if quantiles is not None:
             q0, q1 = np.quantile(full_data, quantiles)
         else:
@@ -152,6 +272,31 @@ def _video_array_from_h5(
         min_val: float,
         max_val: float,
         reticle: bool = True) -> np.ndarray:
+    """
+    Read in an HDF5 file and convert it into a numpy array that
+    can be passed to _write_array_to_video
+
+    Parameters
+    ----------
+    h5_path: pathlib.Path
+        Path to the HDF5 file containing the video data
+
+    min_val: float
+        The minimum value at which to clip the video
+
+    max_val: float
+        The maximum value at which to clip the video
+
+    reticle: bool
+        If True, add a grid of red lines to the video, to help guide
+        the eye
+
+    Returns
+    -------
+    video_as_uint: np.ndarray
+        A (ntime, nrows, ncols, 3) array of uints representing the
+        RGB video.
+    """
 
     with h5py.File(h5_path, 'r') as in_file:
         video_shape = in_file['data'].shape
@@ -205,7 +350,61 @@ def create_downsampled_video(
         quantiles: Tuple[float, float] = (0.1, 0.99),
         reticle: bool = True,
         speed_up_factor: int = 8,
-        tmp_dir: Optional[pathlib.Path] = None):
+        tmp_dir: Optional[pathlib.Path] = None) -> None:
+    """
+    Create a video file (mp4, avi, etc.) from an HDF5 file, applying
+    downsampling and a median filter if desired.
+
+    Parameters
+    ----------
+    input_path: pathlib.Path
+        Path to the HDF5 file containing the movie data
+
+    input_hz:
+        Frame rate of the input movie in Hz
+
+    video_path: Pathlib.path
+        Path to the video file to be written
+
+    output_hz: float
+        Frame rate of the output movie in Hz (set lower than input_hz
+        if you want to apply downsampling to the movie)
+
+    kernel_size: Optional[int]
+        Size of the median filter kernel to be applied to the downsampled
+        movie (if None, no median filter will be applied)
+
+    n_processors: int
+        Number of parallel processes to be used when processing the movie
+
+    quality: int
+        A value between 0-9 (inclusive) denoting the quality of the movie
+        to be written (higher number means better quality)
+
+    quantiles: Tuple[float, float]
+        The quantiles to which to clip the movie before writing it to video
+
+    reticle: bool
+        If True, add a grid of red lines to the movie to guide the eye
+
+    speed_up_factor: int
+        Factor by which to speed up the movie *after downsampling* when writing
+        to video (in case you want a smaller file that can be played back
+        faster)
+
+    tmp_dir: Optional[pathlib.Path]
+        Scratch directory to use during processing. When applying the median
+        filter, the code writes the filtered movie to disk, rather than try
+        to keep two copies of the movie in memory. This gives the user the
+        option to specify where the scratch copy of the movie is written.
+        If None, the scratch movie will be written to the system's default
+        scratch space.
+
+    Returns
+    -------
+    None
+        Output is written to the specified movie file
+    """
 
     with tempfile.TemporaryDirectory(dir=tmp_dir) as this_tmp_dir:
         tmp_h5 = tempfile.mkstemp(dir=this_tmp_dir, suffix='.h5')[1]
@@ -251,6 +450,66 @@ def create_side_by_side_video(
         reticle: bool = True,
         speed_up_factor: int = 8,
         tmp_dir: Optional[pathlib.Path] = None):
+    """
+    Create a video file (mp4, avi, etc.) from two HDF5 files, showing the
+    movies side by side for easy comparison, applying downsampling and a
+    median filter if desired.
+
+    Parameters
+    ----------
+    video_0_path: pathlib.Path
+        Path to the HDF5 file containing the movie to be shown on the left
+
+    video_1_path: pathlib.Path
+        Path to the HDF5 file containing the movie to be shown on the right
+
+    input_hz:
+        Frame rate of the input movie in Hz (assume it is the same for
+        video_0 and video_1, since they are presumably the same movie
+        in different states of motion correction)
+
+    video_path: Pathlib.path
+        Path to the video file to be written
+
+    output_hz: float
+        Frame rate of the output movie in Hz (set lower than input_hz
+        if you want to apply downsampling to the movie)
+
+    kernel_size: Optional[int]
+        Size of the median filter kernel to be applied to the downsampled
+        movie (if None, no median filter will be applied)
+
+    n_processors: int
+        Number of parallel processes to be used when processing the movie
+
+    quality: int
+        A value between 0-9 (inclusive) denoting the quality of the movie
+        to be written (higher number means better quality)
+
+    quantiles: Tuple[float, float]
+        The quantiles to which to clip the movie before writing it to video
+
+    reticle: bool
+        If True, add a grid of red lines to the movie to guide the eye
+
+    speed_up_factor: int
+        Factor by which to speed up the movie *after downsampling* when writing
+        to video (in case you want a smaller file that can be played back
+        faster)
+
+    tmp_dir: Optional[pathlib.Path]
+        Scratch directory to use during processing. When applying the median
+        filter, the code writes the filtered movie to disk, rather than try
+        to keep two copies of the movie in memory. This gives the user the
+        option to specify where the scratch copy of the movie is written.
+        If None, the scratch movie will be written to the system's default
+        scratch space.
+
+    Returns
+    -------
+    None
+        Output is written to the specified movie file
+    """
 
     with h5py.File(video_0_path, 'r') as in_file:
         video_0_shape = in_file['data'].shape
@@ -263,6 +522,7 @@ def create_side_by_side_video(
         msg += f'{video_1_path}: {video_1_shape}'
         raise RuntimeError(msg)
 
+    # number of pixels in a blank column between the movies
     gap = 16
 
     with tempfile.TemporaryDirectory(dir=tmp_dir) as this_tmp_dir:

@@ -70,6 +70,13 @@ def _video_worker(
             input_hz,
             output_hz)
 
+    if input_slice[0] % frames_to_group:
+        msg = "input_slice[0] must be an integer multiple of "
+        msg += "n_frame_from_hz(input_hz, output_hz)\n"
+        msg += f"input_slice[0]: {input_slice[0]}\n"
+        msg += f"n_frames_from_hz: {frames_to_group}\n"
+        raise RuntimeError(msg)
+
     with h5py.File(input_path, 'r') as in_file:
         video_data = in_file['data'][input_slice[0]:input_slice[1], :, :]
 

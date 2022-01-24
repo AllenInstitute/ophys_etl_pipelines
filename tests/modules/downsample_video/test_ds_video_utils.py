@@ -96,3 +96,28 @@ def test_ds_video_worker(
     other_values = np.unique(full_data[other_mask])
     assert len(other_values) == 1
     assert np.abs(other_values[0]) < 1.0e-20
+
+
+def test_ds_video_worker_exception(
+        ds_video_path_fixture):
+    """
+    Test that exception is raised by _video_worker when input_slice[0]
+    is not an integer multiple of the chunk size of frames used in
+    downsampling
+    """
+    input_hz = 12.0
+    output_hz = 6.0
+    input_slice = [5, 19]
+    kernel_size = 3
+    output_path = pathlib.Path('silly.h5')
+
+    with pytest.raises(RuntimeError, match="integer multiple"):
+        lock = DummyContextManager()
+        _video_worker(
+                ds_video_path_fixture,
+                input_hz,
+                output_path,
+                output_hz,
+                kernel_size,
+                input_slice,
+                lock)

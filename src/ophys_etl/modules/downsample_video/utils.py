@@ -70,7 +70,7 @@ def _video_worker(
             input_hz,
             output_hz)
 
-    if input_slice[0] % frames_to_group:
+    if input_slice[0] % frames_to_group != 0:
         msg = "input_slice[0] must be an integer multiple of "
         msg += "n_frame_from_hz(input_hz, output_hz)\n"
         msg += f"input_slice[0]: {input_slice[0]}\n"

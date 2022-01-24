@@ -2,6 +2,7 @@ import pytest
 import numpy as np
 import h5py
 import tempfile
+import pathlib
 from itertools import product
 
 from ophys_etl.utils.array_utils import (
@@ -53,6 +54,7 @@ def test_ds_video_worker(
     output_path = tempfile.mkstemp(dir=tmpdir,
                                    prefix='ds_worker_test_',
                                    suffix='.h5')[1]
+    output_path = pathlib.Path(output_path)
 
     with h5py.File(output_path, 'w') as out_file:
         dummy_data = np.zeros(ds_video_array_fixture.shape,

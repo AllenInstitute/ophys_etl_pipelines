@@ -14,7 +14,8 @@ from ophys_etl.modules.median_filtered_max_projection.utils import (
 
 from ophys_etl.modules.downsample_video.utils import (
     _video_worker,
-    create_downsampled_video_h5)
+    create_downsampled_video_h5,
+    _write_array_to_video)
 
 
 class DummyContextManager(object):
@@ -153,3 +154,33 @@ def test_create_ds_video_h5(
         output_hz,
         kernel_size,
         3)
+
+
+@pytest.mark.parametrize(
+    "video_suffix, fps, quality",
+    product((".mp4", ".avi"),
+            (5, 10),
+            (3, 5, 8)))
+def test_ds_write_array_to_video(
+        tmpdir,
+        ds_video_array_fixture,
+        video_suffix,
+        fps,
+        quality):
+    """
+    This is just a smoke test of code that calls
+    imageio to write the video files.
+    """
+
+    video_path = pathlib.Path(
+                     tempfile.mkstemp(dir=tmpdir,
+                                      prefix="dummy_",
+                                      suffix=video_suffix)[1])
+
+    _write_array_to_video(
+        video_path,
+        ds_video_array_fixture,
+        fps,
+        quality)
+
+    assert video_path.is_file()

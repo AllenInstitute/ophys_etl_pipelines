@@ -271,7 +271,9 @@ def _min_max_from_h5(
         minimum and maximum values)
 
     border: int
-        Number of pixels to ignore at the border of the field of view
+        Number of pixels to ignore at the border of the field of view.
+        Note: if border would exclude all pixels in the frame, border is
+        set to zero.
 
     Returns
     -------
@@ -282,6 +284,10 @@ def _min_max_from_h5(
 
     with h5py.File(h5_path, 'r') as in_file:
         video_shape = in_file['data'].shape
+
+        if 2*border > video_shape[1] or 2*border > video_shape[2]:
+            border = 0
+
         # clip motion border, just in case
         full_data = in_file['data'][:,
                                     border:video_shape[1]-border,

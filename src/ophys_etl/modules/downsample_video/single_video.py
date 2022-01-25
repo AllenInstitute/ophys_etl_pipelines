@@ -13,7 +13,8 @@ class VideoDownsamplerSchema(DownsampleBaseSchema):
     video_path = argschema.fields.InputFile(
            required=True,
            default=None,
-           allow_none=False)
+           allow_none=False,
+           description="Path to the input video file")
 
 
 class VideoDownsampler(argschema.ArgSchemaParser):

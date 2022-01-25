@@ -13,12 +13,16 @@ class SideBySideDownsamplerSchema(DownsampleBaseSchema):
     left_video_path = argschema.fields.InputFile(
            required=True,
            default=None,
-           allow_none=False)
+           allow_none=False,
+           description=("Path to the input video to be displayed "
+                        "in the left panel of the output video"))
 
     right_video_path = argschema.fields.InputFile(
             required=True,
             default=None,
-            allow_none=False)
+            allow_none=False,
+            description=("Path to the input video to be displayed "
+                         "in the right panel of the output video"))
 
 
 class SideBySideDownsampler(argschema.ArgSchemaParser):

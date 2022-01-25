@@ -17,6 +17,13 @@ import time
 import imageio
 import tempfile
 
+import logging
+
+
+logger = logging.getLogger(__name__)
+logging.captureWarnings(True)
+logger.setLevel(logging.INFO)
+
 
 def create_downsampled_video(
         input_path: pathlib.Path,
@@ -87,7 +94,7 @@ def create_downsampled_video(
     with tempfile.TemporaryDirectory(dir=tmp_dir) as this_tmp_dir:
         tmp_h5 = tempfile.mkstemp(dir=this_tmp_dir, suffix='.h5')[1]
         tmp_h5 = pathlib.Path(tmp_h5)
-        print(f'writing h5py to {tmp_h5}')
+        logger.info(f'writing h5py to {tmp_h5}')
 
         create_downsampled_video_h5(
             input_path, input_hz,
@@ -95,7 +102,7 @@ def create_downsampled_video(
             kernel_size,
             n_processors)
 
-        print(f'wrote temp h5py to {tmp_h5}')
+        logger.info(f'wrote temp h5py to {tmp_h5}')
 
         (min_val,
          max_val) = _min_max_from_h5(tmp_h5, quantiles)
@@ -220,7 +227,7 @@ def create_side_by_side_video(
         (min_0,
          max_0) = _min_max_from_h5(tmp_0_h5, quantiles)
 
-        print(f'wrote {video_0_path} to {tmp_0_h5}')
+        logger.info(f'wrote {video_0_path} to {tmp_0_h5}')
 
         create_downsampled_video_h5(
             video_1_path, input_hz,
@@ -231,7 +238,7 @@ def create_side_by_side_video(
         (min_1,
          max_1) = _min_max_from_h5(tmp_1_h5, quantiles)
 
-        print(f'wrote {video_1_path} to {tmp_1_h5}')
+        logger.info(f'wrote {video_1_path} to {tmp_1_h5}')
 
         video_array = np.zeros((video_0_shape[0],
                                 video_0_shape[1],
@@ -267,7 +274,7 @@ def create_side_by_side_video(
 
         tmp_1_h5.unlink()
 
-        print('created video array')
+        logger.info('created video array')
 
         _write_array_to_video(
             output_path,
@@ -360,7 +367,7 @@ def _video_worker(
         with h5py.File(output_path, 'a') as out_file:
             out_file['data'][start_index:end_index, :, :] = video_data
         duration = time.time()-t0
-        print(f'completed chunk in {duration:.2e} seconds')
+        logger.info(f'completed chunk in {duration:.2e} seconds')
         chunk_validity[input_slice[0]] = (True, '')
 
 
@@ -436,7 +443,7 @@ def create_downsampled_video_h5(
     validity_dict = mgr.dict()
     process_list = []
     for i0 in range(0, input_video_shape[0], n_frames_per_chunk):
-        print(f'starting {i0} -> {input_video_shape[0]}')
+        logger.info(f'starting {i0} -> {input_video_shape[0]}')
         p = multiprocessing.Process(
                 target=_video_worker,
                 args=(input_path,
@@ -508,7 +515,7 @@ def _write_array_to_video(
                     pixelformat=pixelformat,
                     codec=codec)
 
-    print(f'wrote {video_path}')
+    logger.info(f'wrote {video_path}')
 
 
 def _min_max_from_h5(
@@ -555,7 +562,7 @@ def _min_max_from_h5(
         else:
             q0 = full_data.min()
             q1 = full_data.max()
-        print('got normalization')
+        logger.info('got normalization')
 
     return q0, q1
 
@@ -612,7 +619,7 @@ def _video_array_from_h5(
             for ic in range(3):
                 video_as_uint[i0:i1, :, :, ic] = data
 
-    print('constructed video_as_uint')
+    logger.info('constructed video_as_uint')
 
     if reticle:
         for ii in range(d_reticle, video_shape[1], d_reticle):
@@ -630,6 +637,6 @@ def _video_array_from_h5(
             new_vals = new_vals.astype(np.uint8)
             video_as_uint[:, :, ii:ii+2, :] = new_vals
 
-    print('added reticles')
+        logger.info('added reticles')
 
     return video_as_uint

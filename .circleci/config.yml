@@ -49,6 +49,7 @@ jobs:
     steps:
       - checkout
       - run:
+          no_output_timeout: 20m
           command: |
             # uses the latest pip with more strict dependency resolution
             pip install --upgrade pip
@@ -68,6 +69,7 @@ jobs:
     steps:
       - checkout
       - run:
+          no_output_timeout: 20m
           command: |
             pip install flake8
             # `|| true` to force exit code 0 even if no files found

@@ -13,7 +13,7 @@ from ophys_etl.utils.array_utils import (
 from ophys_etl.modules.median_filtered_max_projection.utils import (
     apply_median_filter_to_video)
 
-from ophys_etl.modules.downsample_video.utils import (
+from ophys_etl.modules.video.utils import (
     _video_worker,
     create_downsampled_video_h5,
     _write_array_to_video,
@@ -36,10 +36,10 @@ class DummyContextManager(object):
     product((12.0, 6.0, 4.0),
             ((6, 36), (12, 42), (30, 53)),
             (None, 2, 3)))
-def test_ds_video_worker(
+def test_video_module_worker(
         tmpdir,
-        ds_video_path_fixture,
-        ds_video_array_fixture,
+        video_path_fixture,
+        video_array_fixture,
         output_hz,
         input_slice,
         kernel_size):
@@ -59,17 +59,17 @@ def test_ds_video_worker(
     output_end = output_start + np.ceil(d_slice/frames_to_group).astype(int)
 
     output_path = tempfile.mkstemp(dir=tmpdir,
-                                   prefix='ds_worker_test_',
+                                   prefix='video_worker_test_',
                                    suffix='.h5')[1]
     output_path = pathlib.Path(output_path)
 
     with h5py.File(output_path, 'w') as out_file:
-        dummy_data = np.zeros(ds_video_array_fixture.shape,
-                              dtype=ds_video_array_fixture.dtype)
+        dummy_data = np.zeros(video_array_fixture.shape,
+                              dtype=video_array_fixture.dtype)
         out_file.create_dataset('data',
                                 data=dummy_data)
 
-    this_slice = ds_video_array_fixture[input_slice[0]:input_slice[1], :, :]
+    this_slice = video_array_fixture[input_slice[0]:input_slice[1], :, :]
 
     if output_hz < input_hz:
         expected = downsample_array(this_slice,
@@ -84,7 +84,7 @@ def test_ds_video_worker(
 
     lock = DummyContextManager()
     _video_worker(
-            ds_video_path_fixture,
+            video_path_fixture,
             input_hz,
             output_path,
             output_hz,
@@ -106,8 +106,8 @@ def test_ds_video_worker(
     assert np.abs(other_values[0]) < 1.0e-20
 
 
-def test_ds_video_worker_exception(
-        ds_video_path_fixture):
+def test_video_module_worker_exception(
+        video_path_fixture):
     """
     Test that exception is raised by _video_worker when input_slice[0]
     is not an integer multiple of the chunk size of frames used in
@@ -123,7 +123,7 @@ def test_ds_video_worker_exception(
         lock = DummyContextManager()
         validity_dict = dict()
         _video_worker(
-                ds_video_path_fixture,
+                video_path_fixture,
                 input_hz,
                 output_path,
                 output_hz,
@@ -140,9 +140,9 @@ def test_ds_video_worker_exception(
 @pytest.mark.parametrize(
     "output_hz, kernel_size",
     product((12.0, 5.0, 3.0), (None, 2, 3)))
-def test_create_ds_video_h5(
+def test_module_create_video_h5(
         tmpdir,
-        ds_video_path_fixture,
+        video_path_fixture,
         output_hz,
         kernel_size):
     """
@@ -150,10 +150,10 @@ def test_create_ds_video_h5(
     """
     output_path = pathlib.Path(tempfile.mkstemp(
                                    dir=tmpdir,
-                                   prefix="create_ds_vidoe_smoke_test_",
+                                   prefix="create_ideo_smoke_test_",
                                    suffix=".h5")[1])
     create_downsampled_video_h5(
-        ds_video_path_fixture,
+        video_path_fixture,
         12.0,
         output_path,
         output_hz,
@@ -166,9 +166,9 @@ def test_create_ds_video_h5(
     product((".mp4", ".avi"),
             (5, 10),
             (3, 5, 8)))
-def test_ds_write_array_to_video(
+def test_module_write_array_to_video(
         tmpdir,
-        ds_video_array_fixture,
+        video_array_fixture,
         video_suffix,
         fps,
         quality):
@@ -184,7 +184,7 @@ def test_ds_write_array_to_video(
 
     _write_array_to_video(
         video_path,
-        ds_video_array_fixture,
+        video_array_fixture,
         fps,
         quality)
 
@@ -193,25 +193,25 @@ def test_ds_write_array_to_video(
 
 @pytest.mark.parametrize("border", (1, 2, 3, 100))
 def test_min_max_from_h5_no_quantiles(
-        ds_video_path_fixture,
-        ds_video_array_fixture,
+        video_path_fixture,
+        video_array_fixture,
         border):
 
-    nrows = ds_video_array_fixture.shape[1]
-    ncols = ds_video_array_fixture.shape[2]
+    nrows = video_array_fixture.shape[1]
+    ncols = video_array_fixture.shape[2]
 
     if border < 8:
-        this_array = ds_video_array_fixture[:,
-                                            border:nrows-border,
-                                            border:ncols-border]
+        this_array = video_array_fixture[:,
+                                         border:nrows-border,
+                                         border:ncols-border]
     else:
-        this_array = np.copy(ds_video_array_fixture)
+        this_array = np.copy(video_array_fixture)
 
     expected_min = this_array.min()
     expected_max = this_array.max()
 
     actual = _min_max_from_h5(
-                    ds_video_path_fixture,
+                    video_path_fixture,
                     None,
                     border)
 
@@ -222,22 +222,22 @@ def test_min_max_from_h5_no_quantiles(
 @pytest.mark.parametrize("border, quantiles",
                          product((1, 2, 3), ((0.1, 0.9), (0.2, 0.8))))
 def test_min_max_from_h5_with_quantiles(
-        ds_video_path_fixture,
-        ds_video_array_fixture,
+        video_path_fixture,
+        video_array_fixture,
         border,
         quantiles):
 
-    nrows = ds_video_array_fixture.shape[1]
-    ncols = ds_video_array_fixture.shape[2]
-    this_array = ds_video_array_fixture[:,
-                                        border:nrows-border,
-                                        border:ncols-border]
+    nrows = video_array_fixture.shape[1]
+    ncols = video_array_fixture.shape[2]
+    this_array = video_array_fixture[:,
+                                     border:nrows-border,
+                                     border:ncols-border]
 
     (expected_min,
      expected_max) = np.quantile(this_array, quantiles)
 
     actual = _min_max_from_h5(
-                    ds_video_path_fixture,
+                    video_path_fixture,
                     quantiles,
                     border)
 
@@ -249,29 +249,29 @@ def test_min_max_from_h5_with_quantiles(
     "min_val, max_val",
     product((50.0, 100.0, 250.0),
             (1900.0, 1500.0, 1000.0)))
-def test_ds_video_array_from_h5_no_reticle(
-        ds_video_path_fixture,
-        ds_video_array_fixture,
+def test_module_video_array_from_h5_no_reticle(
+        video_path_fixture,
+        video_array_fixture,
         min_val,
         max_val):
 
     video_array = _video_array_from_h5(
-                        ds_video_path_fixture,
+                        video_path_fixture,
                         min_val,
                         max_val,
                         reticle=False)
 
     assert video_array.dtype == np.uint8
     assert len(video_array.shape) == 4
-    assert video_array.shape == (ds_video_array_fixture.shape[0],
-                                 ds_video_array_fixture.shape[1],
-                                 ds_video_array_fixture.shape[2],
+    assert video_array.shape == (video_array_fixture.shape[0],
+                                 video_array_fixture.shape[1],
+                                 video_array_fixture.shape[2],
                                  3)
 
-    below_min = np.where(ds_video_array_fixture < min_val)
+    below_min = np.where(video_array_fixture < min_val)
     assert len(below_min[0]) > 0
     assert (video_array[below_min] == 0).all()
-    above_max = np.where(ds_video_array_fixture > max_val)
+    above_max = np.where(video_array_fixture > max_val)
     assert len(above_max[0]) > 0
     assert (video_array[above_max] == 255).all()
     assert video_array.min() == 0
@@ -279,24 +279,24 @@ def test_ds_video_array_from_h5_no_reticle(
 
 
 @pytest.mark.parametrize("d_reticle", [5, 7, 9])
-def test_ds_video_array_from_h5_with_reticle(
-        ds_video_path_fixture,
-        ds_video_array_fixture,
+def test_video_array_from_h5_with_reticle(
+        video_path_fixture,
+        video_array_fixture,
         d_reticle):
 
     min_val = 500.0
     max_val = 1500.0
-    video_shape = ds_video_array_fixture.shape
+    video_shape = video_array_fixture.shape
 
     no_reticle = _video_array_from_h5(
-                        ds_video_path_fixture,
+                        video_path_fixture,
                         min_val,
                         max_val,
                         reticle=False,
                         d_reticle=d_reticle)
 
     yes_reticle = _video_array_from_h5(
-                        ds_video_path_fixture,
+                        video_path_fixture,
                         min_val,
                         max_val,
                         reticle=True,
@@ -328,10 +328,10 @@ def test_ds_video_array_from_h5_with_reticle(
             (True, False),
             (1, 4),
             (5, 7)))
-def test_ds_create_downsampled_video(
+def test_module_create_downsampled_video(
         tmpdir,
-        ds_video_path_fixture,
-        ds_video_array_fixture,
+        video_path_fixture,
+        video_array_fixture,
         output_suffix,
         output_hz,
         kernel_size,
@@ -352,11 +352,11 @@ def test_ds_create_downsampled_video(
     d_reticle = 64  # because we haven't exposed this to the user, yet
     expected_file = pathlib.Path(
                         tempfile.mkstemp(dir=tmpdir,
-                                         prefix='ds_expected_',
+                                         prefix='video_expected_',
                                          suffix=output_suffix)[1])
 
     downsampled_video = downsample_array(
-                            ds_video_array_fixture,
+                            video_array_fixture,
                             input_fps=input_hz,
                             output_fps=output_hz,
                             strategy='average')
@@ -418,11 +418,11 @@ def test_ds_create_downsampled_video(
 
     actual_file = pathlib.Path(
                         tempfile.mkstemp(dir=tmpdir,
-                                         prefix='ds_actual_',
+                                         prefix='video_actual_',
                                          suffix=output_suffix)[1])
 
     create_downsampled_video(
-            ds_video_path_fixture,
+            video_path_fixture,
             input_hz,
             actual_file,
             output_hz,
@@ -463,10 +463,10 @@ def test_ds_create_downsampled_video(
             (True, False),
             (1, 4),
             (5, 7)))
-def test_ds_create_side_by_side_video(
+def test_module_create_side_by_side_video(
         tmpdir,
-        ds_video_path_fixture,
-        ds_video_array_fixture,
+        video_path_fixture,
+        video_array_fixture,
         output_suffix,
         output_hz,
         kernel_size,
@@ -481,13 +481,13 @@ def test_ds_create_side_by_side_video(
 
     actual_file = pathlib.Path(
                         tempfile.mkstemp(dir=tmpdir,
-                                         prefix='ds_side_by_side_actual_',
+                                         prefix='side_by_side_actual_',
                                          suffix=output_suffix)[1])
 
     input_hz = 12.0
     create_side_by_side_video(
-            ds_video_path_fixture,
-            ds_video_path_fixture,
+            video_path_fixture,
+            video_path_fixture,
             input_hz,
             actual_file,
             output_hz,

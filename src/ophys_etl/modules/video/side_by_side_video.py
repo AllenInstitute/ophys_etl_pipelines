@@ -1,8 +1,8 @@
-from ophys_etl.modules.downsample_video.utils import (
+from ophys_etl.modules.video.utils import (
     create_side_by_side_video)
 
-from ophys_etl.modules.downsample_video.schemas import (
-    DownsampleBaseSchema)
+from ophys_etl.modules.video.schemas import (
+    VideoBaseSchema)
 
 import argschema
 import pathlib

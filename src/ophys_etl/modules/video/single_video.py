@@ -8,7 +8,7 @@ import argschema
 import pathlib
 
 
-class VideoDownsamplerSchema(DownsampleBaseSchema):
+class VideoSchema(VideoBaseSchema):
 
     video_path = argschema.fields.InputFile(
            required=True,
@@ -17,9 +17,9 @@ class VideoDownsamplerSchema(DownsampleBaseSchema):
            description="Path to the input video file")
 
 
-class VideoDownsampler(argschema.ArgSchemaParser):
+class VideoGenerator(argschema.ArgSchemaParser):
 
-    default_schema = VideoDownsamplerSchema
+    default_schema = VideoSchema
 
     def run(self):
         if self.args['upper_quantile'] is not None:
@@ -43,5 +43,5 @@ class VideoDownsampler(argschema.ArgSchemaParser):
 
 
 if __name__ == "__main__":
-    downsampler = VideoDownsampler()
+    downsampler = VideoGenerator()
     downsampler.run()

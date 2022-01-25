@@ -2,10 +2,10 @@ import pytest
 import pathlib
 import tempfile
 from ophys_etl.modules.video.single_video import (
-    VideoDownsampler)
+    VideoGenerator)
 
 from ophys_etl.modules.video.side_by_side_video import (
-    SideBySideDownsampler)
+    SideBySideVideoGenerator)
 
 
 @pytest.mark.parametrize('output_suffix', ('.avi', '.mp4'))
@@ -32,7 +32,7 @@ def test_single_video_downsampling(
                   'quality': 6,
                   'speed_up_factor': 2,
                   'n_parallel_workers': 3}
-    runner = VideoDownsampler(input_data=input_args, args=[])
+    runner = VideoGenerator(input_data=input_args, args=[])
     runner.run()
     assert output_path.is_file()
 
@@ -62,6 +62,6 @@ def test_side_by_side_video_downsampling(
                   'quality': 6,
                   'speed_up_factor': 2,
                   'n_parallel_workers': 3}
-    runner = SideBySideDownsampler(input_data=input_args, args=[])
+    runner = SideBySideVideoGenerator(input_data=input_args, args=[])
     runner.run()
     assert output_path.is_file()

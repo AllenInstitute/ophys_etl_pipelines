@@ -3,7 +3,7 @@ import pathlib
 from marshmallow import post_load
 
 
-class DownsampleBaseSchema(argschema.ArgSchema):
+class VideoBaseSchema(argschema.ArgSchema):
 
     output_path = argschema.fields.OutputFile(
             required=True,

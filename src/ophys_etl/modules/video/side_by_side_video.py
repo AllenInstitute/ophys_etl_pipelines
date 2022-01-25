@@ -8,7 +8,7 @@ import argschema
 import pathlib
 
 
-class SideBySideDownsamplerSchema(DownsampleBaseSchema):
+class SideBySideVideoSchema(VideoBaseSchema):
 
     left_video_path = argschema.fields.InputFile(
            required=True,
@@ -25,9 +25,9 @@ class SideBySideDownsamplerSchema(DownsampleBaseSchema):
                          "in the right panel of the output video"))
 
 
-class SideBySideDownsampler(argschema.ArgSchemaParser):
+class SideBySideVideoGenerator(argschema.ArgSchemaParser):
 
-    default_schema = SideBySideDownsamplerSchema
+    default_schema = SideBySideVideoSchema
 
     def run(self):
         if self.args['upper_quantile'] is not None:
@@ -52,5 +52,5 @@ class SideBySideDownsampler(argschema.ArgSchemaParser):
 
 
 if __name__ == "__main__":
-    runner = SideBySideDownsampler()
+    runner = SideBySideVideoGenerator()
     runner.run()

@@ -28,7 +28,11 @@ def projection_process(data: np.ndarray,
     else:
         raise ValueError("projection can be \"max\" or \"avg\" not "
                          f"{projection}")
-    proj = np.uint8(proj * 255.0 / proj.max())
+
+    mn = proj.min()
+    mx = proj.max()
+    delta = mx-mn
+    proj = np.round((proj.astype(float)-mn) * 255.0 / delta).astype(np.uint8)
     return proj
 
 

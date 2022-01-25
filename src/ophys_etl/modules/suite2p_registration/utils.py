@@ -2,6 +2,7 @@ import h5py
 import numpy as np
 from typing import Tuple, List
 from scipy.ndimage.filters import median_filter
+from ophys_etl.utils.array_utils import normalize_array
 
 
 def projection_process(data: np.ndarray,
@@ -28,12 +29,7 @@ def projection_process(data: np.ndarray,
     else:
         raise ValueError("projection can be \"max\" or \"avg\" not "
                          f"{projection}")
-
-    mn = proj.min()
-    mx = proj.max()
-    delta = mx-mn
-    proj = np.round((proj.astype(float)-mn) * 255.0 / delta).astype(np.uint8)
-    return proj
+    return normalize_array(proj)
 
 
 def identify_and_clip_outliers(data: np.ndarray,

@@ -348,8 +348,7 @@ def _video_array_from_h5(
         for i0 in range(0, video_shape[0], dt):
             i1 = i0+dt
             data = in_file['data'][i0:i1, :, :].astype(float)
-            data = np.where(data > min_val, data, min_val)
-            data = np.where(data < max_val, data, max_val)
+            data = np.clip(data, min_val, max_val)
             delta = max_val-min_val
             data = np.round(255.0*(data-min_val)/delta).astype(np.uint8)
             for ic in range(3):

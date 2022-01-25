@@ -428,8 +428,7 @@ def create_downsampled_video(
 
     speed_up_factor: int
         Factor by which to speed up the movie *after downsampling* when writing
-        to video (in case you want a smaller file that can be played back
-        faster)
+        to video (in case you want a file that plays back faster)
 
     tmp_dir: Optional[pathlib.Path]
         Scratch directory to use during processing. When applying the median

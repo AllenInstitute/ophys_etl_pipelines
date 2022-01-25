@@ -79,7 +79,10 @@ class VideoBaseSchema(argschema.ArgSchema):
             required=False,
             default=8,
             allow_none=False,
-            description=("Factor by which to speed up output movie"))
+            description=("Factor by which to speed up the movie "
+                         "*after downsampling* when writing "
+                         "to video (in case you want a "
+                         "file that plays back faster)"))
 
     @post_load
     def check_quantiles(self, data, **kwargs):

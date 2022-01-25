@@ -19,7 +19,8 @@ from ophys_etl.modules.downsample_video.utils import (
     _write_array_to_video,
     _min_max_from_h5,
     _video_array_from_h5,
-    create_downsampled_video)
+    create_downsampled_video,
+    create_side_by_side_video)
 
 
 class DummyContextManager(object):
@@ -446,3 +447,52 @@ def test_ds_create_downsampled_video(
             chunk = in_file.read(100000)
 
     assert md5_actual.hexdigest() == md5_expected.hexdigest()
+
+
+@pytest.mark.parametrize(
+    "output_suffix, output_hz, kernel_size, quantiles, reticle, "
+    "speed_up_factor, quality",
+    product((".avi", ".mp4"),
+            (3.0, 5.0),
+            (2, 5),
+            (None, (0.3, 0.9)),
+            (True, False),
+            (1, 4),
+            (5, 7)))
+def test_ds_create_side_by_side_video(
+        tmpdir,
+        ds_video_path_fixture,
+        ds_video_array_fixture,
+        output_suffix,
+        output_hz,
+        kernel_size,
+        quantiles,
+        reticle,
+        speed_up_factor,
+        quality):
+    """
+    This is just going to be a smoke test, as it's hard to verify
+    the contents of an mp4
+    """
+
+    actual_file = pathlib.Path(
+                        tempfile.mkstemp(dir=tmpdir,
+                                         prefix='ds_side_by_side_actual_',
+                                         suffix=output_suffix)[1])
+
+    input_hz = 12.0
+    create_side_by_side_video(
+            ds_video_path_fixture,
+            ds_video_path_fixture,
+            input_hz,
+            actual_file,
+            output_hz,
+            kernel_size,
+            3,
+            quality,
+            quantiles,
+            reticle,
+            speed_up_factor,
+            tmpdir)
+
+    assert actual_file.is_file()

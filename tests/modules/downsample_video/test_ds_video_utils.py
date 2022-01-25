@@ -340,8 +340,12 @@ def test_ds_create_downsampled_video(
         speed_up_factor,
         quality):
     """
-    This is just going to be a smoke test, as it's hard to verify
-    the contents of an mp4
+    This will test create_downsampled_video by calling all of the
+    constituent parts by hand and verifying that the md5checksum
+    of the file produced that way matches the md5checksum of the file
+    produced by calling create_downsampled_video. It's a little
+    tautological, but it will tell us if any part of our pipeline is
+    no longer self-consistent.
     """
 
     input_hz = 12.0

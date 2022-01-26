@@ -64,12 +64,15 @@ def video_path_fixture(tmpdir_factory):
 
 @pytest.mark.suite2p_only
 @pytest.mark.parametrize(
-        "nonrigid, clip_negative",
-        product((True, False), (True, False)))
+    "nonrigid, clip_negative, "
+    "do_optimize_motion_params, use_ave_image_as_reference",
+    product((True, False), (True, False), (True, False), (True, False)))
 def test_suite2p_motion_correction(
         tmpdir,
         nonrigid,
         clip_negative,
+        do_optimize_motion_params,
+        use_ave_image_as_reference,
         video_path_fixture):
 
     corr_video_path = tempfile.mkstemp(
@@ -112,6 +115,14 @@ def test_suite2p_motion_correction(
     args = {'suite2p_args': s2p_args,
             'movie_frame_rate_hz': 6.1,
             'clip_negative': clip_negative,
+            'do_optimize_motion_params': do_optimize_motion_params,
+            'use_ave_image_as_reference': use_ave_image_as_reference,
+            'smooth_sigma_min': 0.65,
+            'smooth_sigma_max': 1.15,
+            'smooth_sigma_steps': 2,
+            'smooth_sigma_time_min': 0.0,
+            'smooth_sigma_time_max': 2.0,
+            'smooth_sigma_time_steps': 2,
             'motion_corrected_output': corr_video_path,
             'motion_diagnostics_output': diagnostics_path,
             'max_projection_output': max_projection_path,

@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 from pathlib import Path
@@ -13,9 +14,9 @@ from ophys_etl.qc.registration_qc import RegistrationQC
 from ophys_etl.modules.suite2p_wrapper.__main__ import Suite2PWrapper
 from ophys_etl.modules.suite2p_registration import utils
 from ophys_etl.modules.suite2p_registration.schemas import (
-        Suite2PRegistrationInputSchema, Suite2PRegistrationOutputSchema)
+    Suite2PRegistrationInputSchema, Suite2PRegistrationOutputSchema)
 from ophys_etl.modules.suite2p_registration.suite2p_utils import (
-        load_initial_frames, compute_reference)
+    load_initial_frames, compute_reference, optimize_motion_parameters)
 from suite2p.registration.rigid import shift_frame
 
 
@@ -36,21 +37,63 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         if suite2p_args['force_refImg'] and len(suite2p_args['refImg']) == 0:
             # Use our own version of compute_reference to create the initial
             # reference image used by suite2p.
-            self.logger.info('Creating initial reference image from '
-                             f'{suite2p_args["nimg_init"]} frames...')
+            self.logger.info(f'Loading {suite2p_args["nimg_init"]} frames '
+                             'for reference image creation.')
             intial_frames = load_initial_frames(
                 file_path=suite2p_args['h5py'],
                 h5py_key=suite2p_args['h5py_key'],
                 n_frames=suite2p_args['nimg_init'],)
-            # Create the initial reference image and store it in the
-            # suite2p_args dictionary. 8 iterations is the current default in
-            # suite2p.
-            suite2p_args['refImg'] = compute_reference(
-                frames=intial_frames,
-                niter=self.args["max_reference_iterations"],
-                maxregshift=suite2p_args['maxregshift'],
-                smooth_sigma=suite2p_args['smooth_sigma'],
-                smooth_sigma_time=suite2p_args['smooth_sigma_time'],)
+            # Optimizing motion parameters is only available for nonrigid
+            # settings.
+            if self.args['do_optimize_motion_params'] and \
+               not suite2p_args['nonrigid']:
+                self.logger.info("Attempting to optimize registration "
+                                 "parameters Using:")
+                self.logger.info(
+                    '\tsmooth_sigma range: '
+                    f'{self.args["smooth_sigma_min"]} - '
+                    f'{self.args["smooth_sigma_max"]}, '
+                    f'steps: {self.args["smooth_sigma_steps"]}')
+                self.logger.info(
+                    '\tsmooth_sigma_time range: '
+                    f'{self.args["smooth_sigma_time_min"]} - '
+                    f'{self.args["smooth_sigma_time_max"]}, '
+                    f'steps: {self.args["smooth_sigma_time_steps"]}')
+
+                # Create linear spaced arrays for the range of smooth
+                # parameters to try.
+                smooth_sigmas = np.linspace(self.args['smooth_sigma_min'],
+                                            self.args['smooth_sigma_max'],
+                                            self.args['smooth_sigma_steps'])
+                smooth_sigma_times = np.linspace(
+                    self.args['smooth_sigma_time_min'],
+                    self.args['smooth_sigma_time_max'],
+                    self.args['smooth_sigma_time_steps'])
+
+                optimize_result = optimize_motion_parameters(
+                    intial_frames,
+                    smooth_sigmas,
+                    smooth_sigma_times,
+                    suite2p_args,
+                    self.logger.info)
+                if self.args['use_ave_image_as_reference']:
+                    suite2p_args['refImg'] = optimize_result['ave_image']
+                else:
+                    suite2p_args['refImg'] = optimize_result['ref_image']
+                suite2p_args['smooth_sigma'] = optimize_result['smooth_sigma']
+                suite2p_args['smooth_sigma_time'] = \
+                    optimize_result['smooth_sigma_time']
+            else:
+                # Create the initial reference image and store it in the
+                # suite2p_args dictionary. 8 iterations is the current default
+                # in suite2p.
+                self.logger.info('Creating custom reference image...')
+                suite2p_args['refImg'] = compute_reference(
+                    frames=intial_frames,
+                    niter=self.args["max_reference_iterations"],
+                    maxregshift=suite2p_args['maxregshift'],
+                    smooth_sigma=suite2p_args['smooth_sigma'],
+                    smooth_sigma_time=suite2p_args['smooth_sigma_time'],)
 
         # register with Suite2P
         self.logger.info("attempting to motion correct "
@@ -81,9 +124,9 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                          "offsets exceed (x,y) limits of "
                          f"({xlimit},{ylimit}) [pixels]")
         delta_x, x_clipped = utils.identify_and_clip_outliers(
-                np.array(ops.item()["xoff"]), detrend_size, xlimit)
+            np.array(ops.item()["xoff"]), detrend_size, xlimit)
         delta_y, y_clipped = utils.identify_and_clip_outliers(
-                np.array(ops.item()["yoff"]), detrend_size, ylimit)
+            np.array(ops.item()["yoff"]), detrend_size, ylimit)
         clipped_indices = list(set(x_clipped).union(set(y_clipped)))
         self.logger.info(f"{len(x_clipped)} frames clipped in x")
         self.logger.info(f"{len(y_clipped)} frames clipped in y")
@@ -99,7 +142,7 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                     arr = page.asarray()
                     if i == 0:
                         data.append(
-                                np.zeros((nframes, *arr.shape), dtype='int16'))
+                            np.zeros((nframes, *arr.shape), dtype='int16'))
                     data[-1][i] = arr
         data = np.concatenate(data, axis=0)
 
@@ -141,6 +184,17 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
             # our custom reference image creation code, this dataset will
             # be empty.
             f.create_dataset('ref_image', data=suite2p_args['refImg'])
+            # Write a copy of the configuration output of this dataset into the
+            # HDF5 file.
+            args_copy = copy.deepcopy(self.args)
+            suite_args_copy = copy.deepcopy(suite2p_args)
+            # We have to pop the ref image out as numpy arrays can't be
+            # serialized into json. The reference image is instead stored in
+            # the 'ref_image' dataset.
+            suite_args_copy.pop('refImg')
+            args_copy['suite2p_args'] = suite_args_copy
+            f.create_dataset(name='metadata',
+                             data=json.dumps(args_copy).encode('utf-8'))
         self.logger.info("concatenated Suite2P tiff output to "
                          f"{self.args['motion_corrected_output']}")
 
@@ -178,10 +232,10 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
             f"csv file to: {self.args['motion_diagnostics_output']}")
         if len(clipped_indices) != 0:
             self.logger.warning(
-                    "some offsets have been clipped and the values "
-                    "for 'correlation' in "
-                    "{self.args['motion_diagnostics_output']} "
-                    "where (x_clipped OR y_clipped) = True are not valid")
+                "some offsets have been clipped and the values "
+                "for 'correlation' in "
+                "{self.args['motion_diagnostics_output']} "
+                "where (x_clipped OR y_clipped) = True are not valid")
 
         qc_args = {k: self.args[k]
                    for k in ['movie_frame_rate_hz',
@@ -193,7 +247,7 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                              'registration_summary_output',
                              'log_level']}
         qc_args.update({
-                'uncorrected_path': self.args['suite2p_args']['h5py']})
+            'uncorrected_path': self.args['suite2p_args']['h5py']})
         rqc = RegistrationQC(input_data=qc_args, args=[])
         rqc.run()
 

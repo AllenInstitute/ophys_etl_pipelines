@@ -19,7 +19,8 @@ except ImportError:
 
 
 from ophys_etl.modules.suite2p_registration.suite2p_utils import (  # noqa: E402, E501
-    compute_reference, load_initial_frames)
+    compute_reference, load_initial_frames, compute_acutance,
+    add_required_parameters, create_ave_image, optimize_motion_parameters)
 
 
 class TestRegistrationSuite2pUtils(unittest.TestCase):
@@ -35,7 +36,9 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
             self.frames = h5_file['input_frames'][:]
             self.ops = json.loads(h5_file['ops'][()].decode('utf-8'))
             self.original_reference = h5_file['reference_img'][:]
+            self.org_ave_image = h5_file['ave_image'][:]
         self.n_frames = self.frames.shape[0]
+        self.xy_shape = self.frames.shape[1]
         self.rng = np.random.default_rng(1234)
 
     def test_load_initial_frames(self):
@@ -59,13 +62,13 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         to have to update the data in "test_rand.npy".
         """
         # Create random data with shape
-        # (self.n_frames, self.n_frames, self.n_frames) and with random
+        # (self.n_frames, self.xy_shape, self.xy_shape) and with random
         # fluctuations from -self.n_frames to self.n_frames.
         mock_frames = self.rng.integers(-self.n_frames,
                                         self.n_frames,
                                         size=(self.n_frames,
-                                              self.n_frames,
-                                              self.n_frames))
+                                              self.xy_shape,
+                                              self.xy_shape))
 
         # Mock function to return just the first frame as the reference. We
         # only specifically mock the functions we absolutely need to return
@@ -147,3 +150,146 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         # These are integer arrays so they should be identical in value.
         self.assertTrue(np.all(np.equal(self.original_reference,
                                         result_reference)))
+
+    def test_optimize_motion_parameters(self):
+        """
+        """
+        # Set parameters for the pipeline.
+        suite2p_args = {'h5py': self.h5_file_loc,
+                        'h5py_key': 'input_frames',
+                        'maxregshift': 0.2,
+                        'smooth_sigma_min': 0.65,
+                        'smooth_sigma_max': 1.15,
+                        'smooth_sigma_steps': 2,
+                        'smooth_sigma_time_min': 0.0,
+                        'smooth_sigma_time_max': 1.0,
+                        'smooth_sigma_time_steps': 2}
+        smooth_sigmas = np.linspace(suite2p_args['smooth_sigma_min'],
+                                    suite2p_args['smooth_sigma_max'],
+                                    suite2p_args['smooth_sigma_steps'])
+        smooth_sigma_times = np.linspace(
+            suite2p_args['smooth_sigma_time_min'],
+            suite2p_args['smooth_sigma_time_max'],
+            suite2p_args['smooth_sigma_time_steps'])
+
+        def create_ave_image_mock(ref_image, suite2p_args, batch_size=500):
+            image = np.zeros((self.xy_shape, self.xy_shape), dtype=int)
+            if suite2p_args['smooth_sigma'] > 0.65 and \
+               suite2p_args['smooth_sigma_time'] > 0.0:
+                image[:50, :] = 10
+                return {'ave_image': image,
+                        'dy_max': 0,
+                        'dx_max': 0}
+            else:
+                return {'ave_image': image,
+                        'dy_max': 10,
+                        'dx_max': 10}
+
+        with patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
+                   'compute_reference', Mock), \
+             patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
+                   'create_ave_image', create_ave_image_mock):
+            best_result = optimize_motion_parameters(
+                initial_frames=self.frames,
+                smooth_sigmas=smooth_sigmas,
+                smooth_sigma_times=smooth_sigma_times,
+                suite2p_args=suite2p_args,
+                logger=print)
+        self.assertAlmostEqual(best_result['acutance'], 1.0)
+        self.assertAlmostEqual(best_result['smooth_sigma'], 1.15)
+        self.assertAlmostEqual(best_result['smooth_sigma_time'], 1.0)
+
+    def test_create_ave_image_mock(self):
+        """Run test data through to assert that the average image is
+        created as expected.
+        """
+        suite2p_args = {'h5py': self.h5_file_loc,
+                        'h5py_key': 'input_frames',
+                        'smooth_sigma': 1.15,
+                        'smooth_sigma_time': 1.0}
+        add_required_parameters(suite2p_args)
+        mock_frames = np.ones((self.n_frames,
+                               self.xy_shape,
+                               self.xy_shape),
+                              dtype=int)
+        max_shfit = 10
+
+        def register_frames_mock(refAndMasks, frames, ops):
+            return (mock_frames,
+                    self.rng.integers(-max_shfit,
+                                      max_shfit,
+                                      size=self.n_frames),
+                    self.rng.integers(-max_shfit,
+                                      max_shfit,
+                                      size=self.n_frames),
+                    np.arange(self.n_frames),
+                    np.arange(self.n_frames),
+                    np.arange(self.n_frames),
+                    np.arange(self.n_frames))
+
+        with patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
+                   'register_frames', register_frames_mock):
+            result = create_ave_image(self.original_reference, suite2p_args)
+        self.assertTrue(np.allclose(result['ave_image'],
+                                    np.ones((self.xy_shape,
+                                             self.xy_shape))))
+        self.assertEqual(result['dy_max'], 10)
+        self.assertEqual(result['dx_max'], 10)
+
+    def test_create_ave_image(self):
+        """Run test data through to assert that the average image is
+        created as expected.
+        """
+        suite2p_args = {'h5py': self.h5_file_loc,
+                        'h5py_key': 'input_frames',
+                        'maxregshift': 0.2,
+                        'smooth_sigma': 1.15,
+                        'smooth_sigma_time': 1.0}
+        add_required_parameters(suite2p_args)
+        result = create_ave_image(self.original_reference,
+                                  suite2p_args)
+        np.testing.assert_allclose(result['ave_image'], self.org_ave_image)
+        self.assertEqual(result['dy_max'], 20)
+        self.assertEqual(result['dx_max'], 20)
+
+    @pytest.mark.suite2p_only
+    def test_add_required_parameters(self):
+        """Test adding to config parameters to the dict.
+        """
+        suite2p_args = {'smooth_sigma': 1.15}
+        # Test that parameters are added correct.
+        add_required_parameters(suite2p_args)
+        self.assertFalse(suite2p_args['1Preg'])
+        self.assertFalse(suite2p_args['bidiphase'])
+        self.assertFalse(suite2p_args['nonrigid'])
+        self.assertTrue(suite2p_args['norm_frames'])
+
+        # Test that the code doesn't change values already there.
+        suite2p_args['1Preg'] = True
+        suite2p_args['bidiphase'] = True
+        suite2p_args['nonrigid'] = True
+        suite2p_args['norm_frames'] = False
+        add_required_parameters(suite2p_args)
+        self.assertTrue(suite2p_args['1Preg'])
+        self.assertTrue(suite2p_args['bidiphase'])
+        self.assertTrue(suite2p_args['nonrigid'])
+        self.assertFalse(suite2p_args['norm_frames'])
+
+    def test_acutance_calculation(self):
+        """Test for consistent results from the acutance calculation.
+        """
+        # Fill an image with half zeros and half the value of 10 to give an
+        # image with a strong edge.
+        mock_image = np.zeros((100, 100), dtype=int)
+        mock_image[:50, :] = 10
+        acut = compute_acutance(mock_image)
+        self.assertAlmostEqual(acut, 1.0)
+
+        acut = compute_acutance(mock_image, 0, 10)
+        self.assertAlmostEqual(acut, 1.0)
+
+        acut = compute_acutance(mock_image, 10, 0)
+        self.assertAlmostEqual(acut, 1.25)
+
+        acut = compute_acutance(mock_image, 10, 10)
+        self.assertAlmostEqual(acut, 1.25)

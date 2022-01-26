@@ -436,6 +436,7 @@ def diff_worker(roi,
                         0.9)
 
     this_roi['circle_area'] = best_fit_circle['area']
+    this_roi['circle_radius'] = best_fit_circle['radius']
 
     output_dict[roi_id] = this_roi
 

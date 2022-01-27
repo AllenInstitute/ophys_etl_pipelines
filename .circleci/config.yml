@@ -43,6 +43,7 @@ jobs:
             docker push alleninstitutepika/ophys_etl_pipelines
 
   build377: &test-template
+    resource_class: large
     executor:
       name: python/default
       tag: "3.7.7"

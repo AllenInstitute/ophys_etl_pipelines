@@ -29,7 +29,8 @@ def test_sine_dewarp_end_to_end(input_h5, tmpdir):
             "bL": "85.0",
             "bR": "90.0",
             "chunk_size": 2,
-            "output_json": output_json}
+            "output_json": output_json,
+            "n_parallel_workers": 1}
     smod = SineDewarp(input_data=args, args=[])
     smod.run()
 

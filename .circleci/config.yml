@@ -50,6 +50,7 @@ jobs:
       - checkout
       - run:
           command: |
+            export PYTHONUNBUFFERED=1
             # uses the latest pip with more strict dependency resolution
             pip install --upgrade pip
             pip install .

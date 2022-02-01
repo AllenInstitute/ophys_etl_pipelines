@@ -1,10 +1,12 @@
 import h5py
+import logging
 import numpy as np
 from time import time
 from suite2p.registration.register import (pick_initial_reference,
                                            register_frames)
 from suite2p.registration.rigid import (apply_masks, compute_masks, phasecorr,
                                         phasecorr_reference, shift_frame)
+import warnings
 
 
 def load_initial_frames(file_path: str,
@@ -82,8 +84,17 @@ def compute_reference(frames: np.ndarray,
     refImg : array-like, (nrows, ncols)
         Reference image created from the input data.
     """
+    # Get the dtype of the input frames to properly cast the final reference
+    # image as the same type.
+    frames_dtype = frames.dtype
+
     # Get initial reference image from suite2p.
     ref_image = pick_initial_reference(frames)
+
+    # Determine how much to pad our frames by before shifting to prevent
+    # wraps.
+    pad_y = int(np.ceil(maxregshift * ref_image.shape[0]))
+    pad_x = int(np.ceil(maxregshift * ref_image.shape[1]))
 
     for idx in range(niter):
         # Compute the number of frames to select in creating the reference
@@ -107,7 +118,13 @@ def compute_reference(frames: np.ndarray,
         isort = np.argsort(-cmax)[:nmax]
 
         # Copy the most correlated frames so we don't shift the original data.
-        max_corr_frames = np.copy(frames[isort])
+        # We pad this data to prevent wraps from showing up in the reference
+        # image. We pad with NaN values to enable us to use nanmean and only
+        # average those pixels that contain data in the average.
+        max_corr_frames = np.pad(
+            array=frames[isort].astype(float),
+            pad_width=((0, 0), (pad_y, pad_y), (pad_x, pad_x)),
+            constant_values=np.nan)
         max_corr_xmax = xmax[isort]
         max_corr_ymax = ymax[isort]
         # Apply shift to the copy of the frames.
@@ -117,7 +134,12 @@ def compute_reference(frames: np.ndarray,
             frame[:] = shift_frame(frame=frame, dy=dy, dx=dx)
 
         # Create a new reference image from the highest correlated data.
-        ref_image = max_corr_frames.mean(axis=0).astype(np.int16)
+        with warnings.catch_warnings():
+            # Assuming the motion correction went well, there should be a lot
+            # of empty values in the padded area around the frames. We suppress
+            # warnings for these "Empty Slices" as they are expected.
+            warnings.filterwarnings('ignore', 'Mean of empty slice')
+            ref_image = np.nanmean(max_corr_frames, axis=0)
         # Shift reference image to position of mean shifts to remove any bulk
         # displacement.
         ref_image = shift_frame(
@@ -125,6 +147,19 @@ def compute_reference(frames: np.ndarray,
             dy=int(np.round(-max_corr_ymax.mean())),
             dx=int(np.round(-max_corr_xmax.mean()))
         )
+        # Clip the reference image back down to the original size and remove
+        # any NaNs remaining. Throw warning if a NaN is found.
+        ref_image = ref_image[pad_y:-pad_y, pad_x:-pad_x]
+        if np.any(np.isnan(ref_image)):
+            logging.warning(
+                f"Warning: {np.isnan(ref_image).sum()} NaN pixels found in "
+                "reference image after removing padded values during "
+                f"iteration {idx}. Likely the image quality is low and "
+                " shifting frames failed. Setting NaN values to image mean.")
+            ref_image = np.nan_to_num(ref_image,
+                                      nan=np.nanmean(ref_image),
+                                      copy=False)
+        ref_image = ref_image.astype(frames_dtype)
 
     return ref_image
 

@@ -1,9 +1,12 @@
 import base64
 from pathlib import Path
+from typing import Tuple
 
 import boto3
 import docker
 import logging
+
+from ophys_etl.modules.denoising.cloud.aws_utils import get_account_id
 
 
 class ECRUploader:
@@ -27,8 +30,9 @@ class ECRUploader:
         self._logger = logging.getLogger(__name__)
         self._logger.setLevel(logging.INFO)
 
-        self._boto_session = boto3.session.Session(profile_name=profile_name,
-                                                   region_name=region_name)
+        self._boto_session = boto3.session.Session(
+                profile_name=profile_name,
+                region_name=region_name)
         self._region_name = region_name
         self._repository_host = self._get_repository_host()
         self._repository_name = repository_name
@@ -61,13 +65,8 @@ class ECRUploader:
         self._docker_push()
 
     def _get_repository_host(self):
-        account = self._get_account()
+        account = get_account_id(boto_session=self._boto_session)
         return f'{account}.dkr.ecr.{self._region_name}.amazonaws.com'
-
-    def _get_account(self):
-        sts = self._boto_session.client('sts')
-        id = sts.get_caller_identity()
-        return id['Account']
 
     def _create_repository(self):
         ecr = self._boto_session.client('ecr', region_name=self._region_name)
@@ -80,16 +79,11 @@ class ECRUploader:
         ecr.create_repository(repositoryName=self._repository_name)
 
     def _docker_login(self):
-        ecr = self._boto_session.client('ecr', region_name=self._region_name)
-        auth = ecr.get_authorization_token()
-        auth = auth['authorizationData'][0]
-        password = base64.b64decode(auth['authorizationToken'])
-        password = bytes.decode(password)
-        password = password.replace('AWS:', '')
+        username, password = self._get_ecr_credentials()
         client = docker.APIClient()
-        client.login(username='AWS', password=password,
+        client.login(username=username, password=password,
                      registry=self._repository_host)
-        return 'AWS', password
+        return username, password
 
     def _build_docker(self, path_to_dockerfile: Path):
         docker_client = docker.APIClient()
@@ -126,3 +120,15 @@ class ECRUploader:
             self._logger.info(line)
             if 'errorDetail' in line:
                 raise RuntimeError(res['errorDetail']['message'])
+
+    def _get_ecr_credentials(self) -> Tuple[str, str]:
+        """
+        Gets the login credentials for ECR
+        """
+        ecr = self._boto_session.client('ecr', region_name=self._region_name)
+        auth = ecr.get_authorization_token()
+        auth = auth['authorizationData'][0]
+        password = base64.b64decode(auth['authorizationToken'])
+        password = bytes.decode(password)
+        password = password.replace('AWS:', '')
+        return 'AWS', password

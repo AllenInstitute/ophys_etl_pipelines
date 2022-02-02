@@ -14,7 +14,7 @@ from ophys_etl.modules.denoising.cloud.container.ecr import ECRUploader
 @patch.object(sagemaker.estimator.Estimator, 'fit')
 @patch.object(ECRUploader, '_get_ecr_credentials', return_value=('', ''))
 @pytest.mark.parametrize('local_mode', [True, False])
-def test_cli(mock_session, docker_client, estimator, ecr_uploader, local_mode):
+def test_cli(_, __, ___, ____, local_mode):
     """Smoke tests the CLI"""
     if local_mode:
         instance_type = None

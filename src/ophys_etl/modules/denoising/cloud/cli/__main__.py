@@ -2,7 +2,7 @@ from pathlib import Path
 
 import argschema
 
-from ophys_etl.modules.denoising.cloud.container.ecr import ECRUploader
+from ophys_etl.modules.denoising.cloud.ecr import ECRUploader
 from ophys_etl.modules.denoising.cloud.trainer import Trainer
 from ophys_etl.modules.denoising.cloud.cli.schemas import \
     CloudDenoisingTrainerSchema

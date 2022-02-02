@@ -6,7 +6,7 @@ import sagemaker
 
 from ophys_etl.modules.denoising.cloud.cli.__main__ import \
     CloudDenoisingTrainerModule
-from ophys_etl.modules.denoising.cloud.container.ecr import ECRUploader
+from ophys_etl.modules.denoising.cloud.ecr import ECRUploader
 
 
 @patch("boto3.session")

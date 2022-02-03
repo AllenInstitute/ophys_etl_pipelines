@@ -451,8 +451,10 @@ def create_downsampled_video_h5(
     else:
         spatial_filter = None
 
+    input_chunks = []
     for i0 in range(0, input_video_shape[0], n_frames_per_chunk):
         logger.info(f'starting {i0} -> {input_video_shape[0]}')
+        input_chunks.append(i0)
         p = multiprocessing.Process(
                 target=_video_worker,
                 args=(input_path,
@@ -470,7 +472,11 @@ def create_downsampled_video_h5(
         p.join()
 
     msg = ''
-    for k in validity_dict:
+    for k in input_chunks:
+        if k not in validity_dict:
+            msg += f'\nchunk {k} was not completed'
+            continue
+
         if validity_dict[k][0]:
             continue
         msg += '\n'

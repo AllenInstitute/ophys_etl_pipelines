@@ -498,11 +498,11 @@ def _write_array_to_video(
         (ntime, nrows, ncols, 3)
 
     fps: int
-        Frames per second to write with imageio
+        Frames per second to write with imageio (ignored if writing TIFF)
 
     quality: int
         An integer from 0-9 (inclusive) denoting the quality of the
-        video to be written
+        video to be written (ignored if writing TIFF)
 
     Returns
     -------
@@ -510,19 +510,22 @@ def _write_array_to_video(
         Output is written to the specified file path
     """
 
-    if video_path.name.endswith('avi'):
-        pixelformat = 'yuvj420p'
-        codec = 'mjpeg'
+    if video_path.name.endswith('tiff') or video_path.name.endswith('tif'):
+        imageio.mimsave(video_path, video_array)
     else:
-        pixelformat = 'yuv420p'
-        codec = 'libx264'
+        if video_path.name.endswith('avi'):
+            pixelformat = 'yuvj420p'
+            codec = 'mjpeg'
+        else:
+            pixelformat = 'yuv420p'
+            codec = 'libx264'
 
-    imageio.mimsave(video_path,
-                    video_array,
-                    fps=fps,
-                    quality=quality,
-                    pixelformat=pixelformat,
-                    codec=codec)
+        imageio.mimsave(video_path,
+                        video_array,
+                        fps=fps,
+                        quality=quality,
+                        pixelformat=pixelformat,
+                        codec=codec)
 
     logger.info(f'wrote {video_path}')
 

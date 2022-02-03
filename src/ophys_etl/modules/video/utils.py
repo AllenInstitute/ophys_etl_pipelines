@@ -2,6 +2,7 @@ from typing import Tuple, Optional, Callable
 import pathlib
 import h5py
 import numpy as np
+import skimage.measure as skimage_measure
 from functools import partial
 
 from ophys_etl.utils.array_utils import (
@@ -648,3 +649,38 @@ def _video_array_from_h5(
         logger.info('added reticles')
 
     return video_as_uint
+
+
+def apply_mean_filter_to_video(
+        video: np.ndarray,
+        kernel_size: int) -> np.ndarray:
+    """
+    Use skimage.measure.block_reduce to downsample a video
+    spatially by taking the mean of (kernel_size, kernel_size)
+    blocks
+
+    Parameters
+    ----------
+    video: np.ndarray
+        (ntime, nrows, ncols)
+
+    kernel_size: int
+
+    Returns
+    -------
+    downsampled_video: np.ndarray
+        (ntime, nrows//kernel_size, n_cols//kernel_size)
+
+    Notes
+    -----
+    If spatial dimensions are not exactly divisible by kernel_size,
+    the input array will be padded by zeros before the mean is taken
+    """
+
+    downsampled_video = skimage_measure.block_reduce(
+                            video,
+                            block_size=(1, kernel_size, kernel_size),
+                            func=np.mean,
+                            cval=0.0,
+                            func_kwargs=None)
+    return downsampled_video

@@ -689,17 +689,17 @@ def _video_array_from_h5(
     if reticle:
         for ii in range(d_reticle, video_shape[1], d_reticle):
             old_vals = np.copy(video_as_uint[:, ii:ii+2, :, :])
-            new_vals = np.zeros(old_vals.shape, dtype=np.uint8)
+            new_vals = np.zeros(old_vals.shape, dtype=video_dtype)
             new_vals[:, :, :, 0] = max_cast_value
-            new_vals = (new_vals//2) + (old_vals//2)
-            new_vals = new_vals.astype(np.uint8)
+            new_vals = (new_vals//4) + (3*old_vals//4)
+            new_vals = new_vals.astype(video_dtype)
             video_as_uint[:, ii:ii+2, :, :] = new_vals
         for ii in range(d_reticle, video_shape[2], d_reticle):
             old_vals = np.copy(video_as_uint[:, :, ii:ii+2, :])
-            new_vals = np.zeros(old_vals.shape, dtype=np.uint8)
+            new_vals = np.zeros(old_vals.shape, dtype=video_dtype)
             new_vals[:, :, :, 0] = max_cast_value
-            new_vals = (new_vals//2) + (old_vals//2)
-            new_vals = new_vals.astype(np.uint8)
+            new_vals = (new_vals//4) + (3*old_vals//4)
+            new_vals = new_vals.astype(video_dtype)
             video_as_uint[:, :, ii:ii+2, :] = new_vals
 
         logger.info('added reticles')

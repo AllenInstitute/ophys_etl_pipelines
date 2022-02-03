@@ -330,6 +330,18 @@ def test_module_video_array_from_h5_no_reticle(
         assert video_array.dtype == np.uint16
 
 
+def test_module_video_array_from_h5_exception(
+        video_path_fixture):
+
+    with pytest.raises(ValueError, match="either 255 or 65535"):
+        _ = _video_array_from_h5(
+                        video_path_fixture,
+                        min_val=0.0,
+                        max_val=100.0,
+                        reticle=False,
+                        max_cast_value=999)
+
+
 @pytest.mark.parametrize("d_reticle, max_cast",
                          product((5, 7, 9), (255, 65535)))
 def test_video_array_from_h5_with_reticle(

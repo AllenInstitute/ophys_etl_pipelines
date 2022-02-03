@@ -108,9 +108,9 @@ def create_downsampled_video(
 
         video_array = _video_array_from_h5(
                 tmp_h5,
-                min_val,
-                max_val,
-                reticle)
+                min_val=min_val,
+                max_val=max_val,
+                reticle=reticle)
 
         tmp_h5.unlink()
 
@@ -246,9 +246,9 @@ def create_side_by_side_video(
                                 3), dtype=np.uint8)
 
         video_0_uint = _video_array_from_h5(tmp_0_h5,
-                                            min_0,
-                                            max_0,
-                                            reticle)
+                                            min_val=min_0,
+                                            max_val=max_0,
+                                            reticle=reticle)
 
         tmp_0_h5.unlink()
 
@@ -268,9 +268,9 @@ def create_side_by_side_video(
         video_array[:, :,
                     video_0_shape[2]+gap:, :] = _video_array_from_h5(
                                                       tmp_1_h5,
-                                                      min_1,
-                                                      max_1,
-                                                      reticle)
+                                                      min_val=min_1,
+                                                      max_val=max_1,
+                                                      reticle=reticle)
 
         tmp_1_h5.unlink()
 
@@ -578,8 +578,8 @@ def _min_max_from_h5(
 
 def _video_array_from_h5(
         h5_path: pathlib.Path,
-        min_val: float,
-        max_val: float,
+        min_val: float = -np.inf,
+        max_val: float = np.inf,
         reticle: bool = True,
         d_reticle: int = 64) -> np.ndarray:
     """

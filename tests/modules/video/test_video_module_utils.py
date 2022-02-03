@@ -302,8 +302,8 @@ def test_module_video_array_from_h5_no_reticle(
 
     video_array = _video_array_from_h5(
                         video_path_fixture,
-                        min_val,
-                        max_val,
+                        min_val=min_val,
+                        max_val=max_val,
                         reticle=False)
 
     assert video_array.dtype == np.uint8
@@ -335,15 +335,15 @@ def test_video_array_from_h5_with_reticle(
 
     no_reticle = _video_array_from_h5(
                         video_path_fixture,
-                        min_val,
-                        max_val,
+                        min_val=min_val,
+                        max_val=max_val,
                         reticle=False,
                         d_reticle=d_reticle)
 
     yes_reticle = _video_array_from_h5(
                         video_path_fixture,
-                        min_val,
-                        max_val,
+                        min_val=min_val,
+                        max_val=max_val,
                         reticle=True,
                         d_reticle=d_reticle)
 

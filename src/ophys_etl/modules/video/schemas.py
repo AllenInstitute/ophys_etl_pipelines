@@ -1,6 +1,7 @@
 import argschema
 import pathlib
 from marshmallow import post_load
+from marshmallow.validate import OneOf
 
 
 class VideoBaseSchema(argschema.ArgSchema):
@@ -18,6 +19,21 @@ class VideoBaseSchema(argschema.ArgSchema):
             default=3,
             description=("Radius of median filter kernel; "
                          "if None, no median filter applied"))
+
+    kernel_type = argschema.fields.String(
+            required=False,
+            allow_none=False,
+            default='median',
+            validation=OneOf(('median', 'mean')),
+            description=("Type of spatial smoothing kernel to be "
+                         "applied to the video after downsampling"))
+
+    video_dtype = argschema.fields.String(
+            required=False,
+            allow_none=False,
+            default='uint8',
+            validation=OneOf(('uint8', 'uint16')),
+            description=("Type to which the output video is cast"))
 
     input_frame_rate_hz = argschema.fields.Float(
             required=True,
@@ -113,8 +129,10 @@ class VideoBaseSchema(argschema.ArgSchema):
     def check_output_path(self, data, **kwargs):
         output_path = pathlib.Path(data['output_path'])
         output_suffix = output_path.suffix
-        if output_suffix not in ('.mp4', '.avi'):
-            msg = "output_path must be an .mp4 or .avi file\n"
+        allowed = ('.mp4', '.avi', '.tiff', '.tif')
+        if output_suffix not in allowed:
+            msg = "output_path must have one of these extensions:\n"
+            msg += f"{allowed}\n"
             msg += f"you gave {data['output_path']}"
             raise ValueError(msg)
         return data

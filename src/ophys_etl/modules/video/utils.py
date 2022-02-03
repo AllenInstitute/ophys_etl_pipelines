@@ -444,6 +444,13 @@ def create_downsampled_video_h5(
     with h5py.File(input_path, 'r') as in_file:
         input_video_shape = in_file['data'].shape
 
+        # quick test to determine the shape of spatial frames
+        # coming out of the spatial_filter
+        if spatial_filter is not None:
+            test_frame = spatial_filter(in_file['data'][:2, :, :])
+        else:
+            test_frame = in_file['data'][:2, :, :]
+
     # determine how many frames are going to be grouped together
     # by downsampling
     frames_to_group = n_frames_from_hz(
@@ -460,11 +467,11 @@ def create_downsampled_video_h5(
     with h5py.File(output_path, 'w') as out_file:
         out_file.create_dataset('data',
                                 shape=(n_frames_out,
-                                       input_video_shape[1],
-                                       input_video_shape[2]),
+                                       test_frame.shape[1],
+                                       test_frame.shape[2]),
                                 chunks=(max(1, n_frames_out//100),
-                                        input_video_shape[1],
-                                        input_video_shape[2]),
+                                        test_frame.shape[1],
+                                        test_frame.shape[2]),
                                 dtype=float)
 
     mgr = multiprocessing.Manager()

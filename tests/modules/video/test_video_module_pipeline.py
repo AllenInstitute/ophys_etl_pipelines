@@ -1,6 +1,7 @@
 import pytest
 import pathlib
 import tempfile
+from itertools import product
 from ophys_etl.modules.video.single_video import (
     VideoGenerator)
 
@@ -8,11 +9,17 @@ from ophys_etl.modules.video.side_by_side_video import (
     SideBySideVideoGenerator)
 
 
-@pytest.mark.parametrize('output_suffix', ('.avi', '.mp4'))
+@pytest.mark.parametrize(
+    'output_suffix, video_dtype, kernel_type',
+    product(('.avi', '.mp4', '.tiff'),
+            ('uint8', 'uint16'),
+            ('median', 'mean')))
 def test_single_video_downsampling(
         tmpdir,
         video_path_fixture,
-        output_suffix):
+        output_suffix,
+        video_dtype,
+        kernel_type):
     """
     This is just a smoke test
     """
@@ -31,17 +38,26 @@ def test_single_video_downsampling(
                   'tmp_dir': str(tmp_dir.resolve().absolute()),
                   'quality': 6,
                   'speed_up_factor': 2,
-                  'n_parallel_workers': 3}
+                  'n_parallel_workers': 3,
+                  'video_dtype': video_dtype,
+                  'kernel_type': kernel_type}
+
     runner = VideoGenerator(input_data=input_args, args=[])
     runner.run()
     assert output_path.is_file()
 
 
-@pytest.mark.parametrize('output_suffix', ('.avi', '.mp4'))
+@pytest.mark.parametrize(
+    'output_suffix, video_dtype, kernel_type',
+    product(('.avi', '.mp4', '.tiff'),
+            ('uint8', 'uint16'),
+            ('median', 'mean')))
 def test_side_by_side_video_downsampling(
         tmpdir,
         video_path_fixture,
-        output_suffix):
+        output_suffix,
+        video_dtype,
+        kernel_type):
     """
     This is just a smoke test
     """
@@ -61,7 +77,10 @@ def test_side_by_side_video_downsampling(
                   'tmp_dir': str(tmp_dir.resolve().absolute()),
                   'quality': 6,
                   'speed_up_factor': 2,
-                  'n_parallel_workers': 3}
+                  'n_parallel_workers': 3,
+                  'video_dtype': video_dtype,
+                  'kernel_type': kernel_type}
+
     runner = SideBySideVideoGenerator(input_data=input_args, args=[])
     runner.run()
     assert output_path.is_file()

@@ -34,7 +34,8 @@ def create_downsampled_video(
         quantiles: Tuple[float, float] = (0.1, 0.99),
         reticle: bool = True,
         speed_up_factor: int = 8,
-        tmp_dir: Optional[pathlib.Path] = None) -> None:
+        tmp_dir: Optional[pathlib.Path] = None,
+        video_dtype: type = np.uint8) -> None:
     """
     Create a video file (mp4, avi, etc.) from an HDF5 file, applying
     downsampling and a median filter if desired.
@@ -84,6 +85,10 @@ def create_downsampled_video(
         If None, the scratch movie will be written to the system's default
         scratch space.
 
+    video_dtype: type
+        Type to which the video will be cast (must be either
+        np.uint8 or np.uint16)
+
     Returns
     -------
     None
@@ -110,7 +115,8 @@ def create_downsampled_video(
                 tmp_h5,
                 min_val=min_val,
                 max_val=max_val,
-                reticle=reticle)
+                reticle=reticle,
+                video_dtype=video_dtype)
 
         tmp_h5.unlink()
 
@@ -133,7 +139,8 @@ def create_side_by_side_video(
         quantiles: Tuple[float, float] = (0.1, 0.99),
         reticle: bool = True,
         speed_up_factor: int = 8,
-        tmp_dir: Optional[pathlib.Path] = None):
+        tmp_dir: Optional[pathlib.Path] = None,
+        video_dtype: type = np.uint8):
     """
     Create a video file (mp4, avi, etc.) from two HDF5 files, showing the
     movies side by side for easy comparison, applying downsampling and a
@@ -190,6 +197,10 @@ def create_side_by_side_video(
         If None, the scratch movie will be written to the system's default
         scratch space.
 
+    video_dtype: type
+        Type to which the video will be cast (must be either
+        np.uint8 or np.uint16)
+
     Returns
     -------
     None
@@ -206,6 +217,12 @@ def create_side_by_side_video(
         msg += f'{video_0_path}: {video_0_shape}\n'
         msg += f'{video_1_path}: {video_1_shape}'
         raise RuntimeError(msg)
+
+    # so we do not use them again; output videos
+    # need to be the same shape as the smoothed
+    # uint arrays
+    del video_0_shape
+    del video_1_shape
 
     # number of pixels in a blank column between the movies
     gap = 16
@@ -240,37 +257,49 @@ def create_side_by_side_video(
 
         logger.info(f'wrote {video_1_path} to {tmp_1_h5}')
 
-        video_array = np.zeros((video_0_shape[0],
-                                video_0_shape[1],
-                                gap+2*video_0_shape[2],
-                                3), dtype=np.uint8)
-
         video_0_uint = _video_array_from_h5(tmp_0_h5,
                                             min_val=min_0,
                                             max_val=max_0,
-                                            reticle=reticle)
+                                            reticle=reticle,
+                                            video_dtype=video_dtype)
+
+        video_array = np.zeros((video_0_uint.shape[0],
+                                video_0_uint.shape[1],
+                                gap+2*video_0_uint.shape[2],
+                                3), dtype=video_dtype)
 
         tmp_0_h5.unlink()
 
         video_array = np.zeros((video_0_uint.shape[0],
-                                video_0_shape[1],
-                                gap+2*video_0_shape[2],
-                                3), dtype=np.uint8)
+                                video_0_uint.shape[1],
+                                gap+2*video_0_uint.shape[2],
+                                3), dtype=video_dtype)
 
         video_array[:, :,
-                    :video_0_shape[2], :] = video_0_uint
+                    :video_0_uint.shape[2], :] = video_0_uint
+
+        video_0_uint_shape = video_0_uint.shape
 
         del video_0_uint
 
-        video_array[:, :,
-                    video_0_shape[2]:video_0_shape[2]+gap, :] = 125
+        if video_dtype == np.uint8:
+            half_val = 125
+        else:
+            half_val = 32767
+
+        # make the gap between videos gray
+        video_array[:,
+                    :,
+                    video_0_uint_shape[2]:video_0_uint_shape[2]+gap,
+                    :] = half_val
 
         video_array[:, :,
-                    video_0_shape[2]+gap:, :] = _video_array_from_h5(
+                    video_0_uint_shape[2]+gap:, :] = _video_array_from_h5(
                                                       tmp_1_h5,
                                                       min_val=min_1,
                                                       max_val=max_1,
-                                                      reticle=reticle)
+                                                      reticle=reticle,
+                                                      video_dtype=video_dtype)
 
         tmp_1_h5.unlink()
 

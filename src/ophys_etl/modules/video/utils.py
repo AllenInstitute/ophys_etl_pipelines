@@ -585,7 +585,7 @@ def _video_array_from_h5(
         max_val: float = np.inf,
         reticle: bool = True,
         d_reticle: int = 64,
-        max_cast_value: int = 255) -> np.ndarray:
+        video_dtype: type = np.uint8) -> np.ndarray:
     """
     Read in an HDF5 file and convert it into a numpy array that
     can be passed to _write_array_to_video
@@ -608,11 +608,9 @@ def _video_array_from_h5(
     d_reticle: int
         Spacing between reticles
 
-    max_cast_value: int
-        Maximum value of of the array to which the video is cast.
-        Must be either 255 (in which case the video is cast as a
-        np.uint8) or 65535 (in which case the video is cast as a
-        np.uint16)
+    video_dtype: type
+        Type to which the video will be cast (must be either
+        np.uint8 or np.uint16)
 
     Returns
     -------
@@ -621,15 +619,15 @@ def _video_array_from_h5(
         RGB video.
     """
 
-    if max_cast_value not in (255, 65535):
-        msg = f'max_cast_value: {max_cast_value}\n'
-        msg += 'is not legal; must be either 255 or 65535'
+    if video_dtype not in (np.uint8, np.uint16):
+        msg = f'video_dtype: {video_dtype}\n'
+        msg += 'is not legal; must be either np.uint8 or np.uint16'
         raise ValueError(msg)
 
-    if max_cast_value == 255:
-        cast_dtype = np.uint8
+    if video_dtype == np.uint8:
+        max_cast_value = 255
     else:
-        cast_dtype = np.uint16
+        max_cast_value = 65535
 
     with h5py.File(h5_path, 'r') as in_file:
         video_shape = in_file['data'].shape
@@ -638,7 +636,7 @@ def _video_array_from_h5(
                                   video_shape[1],
                                   video_shape[2],
                                   3),
-                                 dtype=cast_dtype)
+                                 dtype=video_dtype)
         dt = 500
         for i0 in range(0, video_shape[0], dt):
             i1 = i0+dt
@@ -646,7 +644,7 @@ def _video_array_from_h5(
             data = np.clip(data, min_val, max_val)
             delta = max_val-min_val
             data -= min_val
-            data = np.round(max_cast_value*data/delta).astype(cast_dtype)
+            data = np.round(max_cast_value*data/delta).astype(video_dtype)
             for ic in range(3):
                 video_as_uint[i0:i1, :, :, ic] = data
 

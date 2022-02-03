@@ -291,23 +291,28 @@ def test_min_max_from_h5_with_quantiles(
 
 
 @pytest.mark.parametrize(
-    "min_val, max_val, max_cast",
+    "min_val, max_val, video_dtype",
     product((50.0, 100.0, 250.0),
             (1900.0, 1500.0, 1000.0),
-            (255, 65535)))
+            (np.uint8, np.uint16)))
 def test_module_video_array_from_h5_no_reticle(
         video_path_fixture,
         video_array_fixture,
         min_val,
         max_val,
-        max_cast):
+        video_dtype):
+
+    if video_dtype == np.uint8:
+        max_cast = 255
+    else:
+        max_cast = 65535
 
     video_array = _video_array_from_h5(
                         video_path_fixture,
                         min_val=min_val,
                         max_val=max_val,
                         reticle=False,
-                        max_cast_value=max_cast)
+                        video_dtype=video_dtype)
 
     assert len(video_array.shape) == 4
     assert video_array.shape == (video_array_fixture.shape[0],
@@ -323,32 +328,28 @@ def test_module_video_array_from_h5_no_reticle(
     assert (video_array[above_max] == max_cast).all()
     assert video_array.min() == 0
     assert video_array.max() == max_cast
-
-    if max_cast == 255:
-        assert video_array.dtype == np.uint8
-    else:
-        assert video_array.dtype == np.uint16
+    assert video_array.dtype == video_dtype
 
 
 def test_module_video_array_from_h5_exception(
         video_path_fixture):
 
-    with pytest.raises(ValueError, match="either 255 or 65535"):
+    with pytest.raises(ValueError, match="either np.uint8 or np.uint16"):
         _ = _video_array_from_h5(
                         video_path_fixture,
                         min_val=0.0,
                         max_val=100.0,
                         reticle=False,
-                        max_cast_value=999)
+                        video_dtype=float)
 
 
-@pytest.mark.parametrize("d_reticle, max_cast",
-                         product((5, 7, 9), (255, 65535)))
+@pytest.mark.parametrize("d_reticle, video_dtype",
+                         product((5, 7, 9), (np.uint8, np.uint16)))
 def test_video_array_from_h5_with_reticle(
         video_path_fixture,
         video_array_fixture,
         d_reticle,
-        max_cast):
+        video_dtype):
 
     min_val = 500.0
     max_val = 1500.0
@@ -360,7 +361,7 @@ def test_video_array_from_h5_with_reticle(
                         max_val=max_val,
                         reticle=False,
                         d_reticle=d_reticle,
-                        max_cast_value=max_cast)
+                        video_dtype=video_dtype)
 
     yes_reticle = _video_array_from_h5(
                         video_path_fixture,
@@ -368,7 +369,7 @@ def test_video_array_from_h5_with_reticle(
                         max_val=max_val,
                         reticle=True,
                         d_reticle=d_reticle,
-                        max_cast_value=max_cast)
+                        video_dtype=video_dtype)
 
     reticle_mask = np.zeros(no_reticle.shape, dtype=bool)
     for ii in range(d_reticle, video_shape[1], d_reticle):

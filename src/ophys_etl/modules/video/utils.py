@@ -581,7 +581,8 @@ def _video_array_from_h5(
         min_val: float = -np.inf,
         max_val: float = np.inf,
         reticle: bool = True,
-        d_reticle: int = 64) -> np.ndarray:
+        d_reticle: int = 64,
+        max_cast_value: int = 255) -> np.ndarray:
     """
     Read in an HDF5 file and convert it into a numpy array that
     can be passed to _write_array_to_video
@@ -604,6 +605,12 @@ def _video_array_from_h5(
     d_reticle: int
         Spacing between reticles
 
+    max_cast_value: int
+        Maximum value of of the array to which the video is cast.
+        Must be either 255 (in which case the video is cast as a
+        np.uint8) or 65535 (in which case the video is cast as a
+        np.uint16)
+
     Returns
     -------
     video_as_uint: np.ndarray
@@ -611,20 +618,32 @@ def _video_array_from_h5(
         RGB video.
     """
 
+    if max_cast_value not in (255, 65535):
+        msg = f'max_cast_value: {max_cast_value}\n'
+        msg += 'is not legal; must be either 255 or 65535'
+        raise ValueError(msg)
+
+    if max_cast_value == 255:
+        cast_dtype = np.uint8
+    else:
+        cast_dtype = np.uint16
+
     with h5py.File(h5_path, 'r') as in_file:
         video_shape = in_file['data'].shape
 
         video_as_uint = np.zeros((video_shape[0],
                                   video_shape[1],
                                   video_shape[2],
-                                  3), dtype=np.uint8)
+                                  3),
+                                 dtype=cast_dtype)
         dt = 500
         for i0 in range(0, video_shape[0], dt):
             i1 = i0+dt
             data = in_file['data'][i0:i1, :, :].astype(float)
             data = np.clip(data, min_val, max_val)
             delta = max_val-min_val
-            data = np.round(255.0*(data-min_val)/delta).astype(np.uint8)
+            data -= min_val
+            data = np.round(max_cast_value*data/delta).astype(cast_dtype)
             for ic in range(3):
                 video_as_uint[i0:i1, :, :, ic] = data
 
@@ -634,14 +653,14 @@ def _video_array_from_h5(
         for ii in range(d_reticle, video_shape[1], d_reticle):
             old_vals = np.copy(video_as_uint[:, ii:ii+2, :, :])
             new_vals = np.zeros(old_vals.shape, dtype=np.uint8)
-            new_vals[:, :, :, 0] = 255
+            new_vals[:, :, :, 0] = max_cast_value
             new_vals = (new_vals//2) + (old_vals//2)
             new_vals = new_vals.astype(np.uint8)
             video_as_uint[:, ii:ii+2, :, :] = new_vals
         for ii in range(d_reticle, video_shape[2], d_reticle):
             old_vals = np.copy(video_as_uint[:, :, ii:ii+2, :])
             new_vals = np.zeros(old_vals.shape, dtype=np.uint8)
-            new_vals[:, :, :, 0] = 255
+            new_vals[:, :, :, 0] = max_cast_value
             new_vals = (new_vals//2) + (old_vals//2)
             new_vals = new_vals.astype(np.uint8)
             video_as_uint[:, :, ii:ii+2, :] = new_vals

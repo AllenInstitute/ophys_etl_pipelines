@@ -1,6 +1,8 @@
 import pytest
 import pathlib
 import tempfile
+import tifffile
+import numpy as np
 from itertools import product
 from ophys_etl.modules.video.single_video import (
     VideoGenerator)
@@ -11,7 +13,7 @@ from ophys_etl.modules.video.side_by_side_video import (
 
 @pytest.mark.parametrize(
     'output_suffix, video_dtype, kernel_type',
-    product(('.avi', '.mp4', '.tiff'),
+    product(('.avi', '.mp4', '.tiff', '.tif'),
             ('uint8', 'uint16'),
             ('median', 'mean')))
 def test_single_video_downsampling(
@@ -46,10 +48,18 @@ def test_single_video_downsampling(
     runner.run()
     assert output_path.is_file()
 
+    if output_path.suffix in ('.tiff', '.tif'):
+        with tifffile.TiffFile(output_path, 'rb') as input_file:
+            arr = input_file.pages[0].asarray()
+            if video_dtype == 'uint8':
+                assert arr.dtype == np.uint8
+            else:
+                assert arr.dtype == np.uint16
+
 
 @pytest.mark.parametrize(
     'output_suffix, video_dtype, kernel_type',
-    product(('.avi', '.mp4', '.tiff'),
+    product(('.avi', '.mp4', '.tiff', '.tif'),
             ('uint8', 'uint16'),
             ('median', 'mean')))
 def test_side_by_side_video_downsampling(
@@ -84,3 +94,11 @@ def test_side_by_side_video_downsampling(
     runner = SideBySideVideoGenerator(input_data=input_args, args=[])
     runner.run()
     assert output_path.is_file()
+
+    if output_path.suffix in ('.tiff', '.tif'):
+        with tifffile.TiffFile(output_path, 'rb') as input_file:
+            arr = input_file.pages[0].asarray()
+            if video_dtype == 'uint8':
+                assert arr.dtype == np.uint8
+            else:
+                assert arr.dtype == np.uint16

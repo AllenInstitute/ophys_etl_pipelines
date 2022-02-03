@@ -579,3 +579,34 @@ def test_module_create_side_by_side_video(
             tmpdir)
 
     assert actual_file.is_file()
+
+
+def test_module_create_side_by_side_video_shape_error(
+        tmpdir,
+        video_path_fixture):
+    """
+    Test that create_side_by_side_video raises an error when the
+    two videos have different shapes
+    """
+    out_path = tempfile.mkstemp(dir=tmpdir, suffix='.avi')[1]
+    out_path = pathlib.Path(out_path)
+
+    other_path = tempfile.mkstemp(dir=tmpdir, suffix='.h5')[1]
+    other_path = pathlib.Path(other_path)
+    with h5py.File(other_path, 'w') as out_file:
+        out_file.create_dataset('data', data=np.zeros((2, 2, 2, 2)))
+
+    with pytest.raises(RuntimeError, match='Videos need to be the same shape'):
+        create_side_by_side_video(
+                video_0_path=video_path_fixture,
+                video_1_path=other_path,
+                input_hz=5.0,
+                output_path=out_path,
+                output_hz=1.0,
+                spatial_filter=None,
+                n_processors=3,
+                quality=5,
+                quantiles=(0.0, 1.0),
+                reticle=False,
+                speed_up_factor=2,
+                tmp_dir=tmpdir)

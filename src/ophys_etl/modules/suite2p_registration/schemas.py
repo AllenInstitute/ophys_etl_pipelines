@@ -94,6 +94,55 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         default=8,
         description="Maximum number of iterations to preform when creating a "
                     "reference image.")
+    do_optimize_motion_params = argschema.fields.Bool(
+        default=False,
+        required=False,
+        description="Do a search for best parameters of smooth_sigma and "
+                    "smooth_sigma_time. Adds significant runtime cost to "
+                    "motion correction and should only be run once per "
+                    "experiment with the resulting parameters being stored "
+                    "for later use.")
+    use_ave_image_as_reference = argschema.fields.Bool(
+        default=False,
+        required=False,
+        description="Only available if `do_optimize_motion_params` is set. "
+                    "After the a best set of smoothing parameters is found, "
+                    "use the resulting average image as the reference for the "
+                    "full registration. This can be used as two step "
+                    "registration by setting by setting "
+                    "smooth_sigma_min=smooth_sigma_max and "
+                    "smooth_sigma_time_min=smooth_sigma_time_max and "
+                    "steps=1.")
+    smooth_sigma_min = argschema.fields.Float(
+        default=0.65,
+        required=False,
+        description="Minimum value of the parameter search for smooth_sigma.")
+    smooth_sigma_max = argschema.fields.Float(
+        default=2.15,
+        required=False,
+        description="Maximum value of the parameter search for smooth_sigma.")
+    smooth_sigma_steps = argschema.fields.Int(
+        default=4,
+        required=False,
+        description="Number of steps to grid between smooth_sigma and "
+                    "smooth_sigma_max. Large values will add significant time "
+                    "motion correction.")
+    smooth_sigma_time_min = argschema.fields.Float(
+        default=0,
+        required=False,
+        description="Minimum value of the parameter search for "
+                    "smooth_sigma_time.")
+    smooth_sigma_time_max = argschema.fields.Float(
+        default=6,
+        required=False,
+        description="Maximum value of the parameter search for "
+                    "smooth_sigma_time.")
+    smooth_sigma_time_steps = argschema.fields.Int(
+        default=7,
+        required=False,
+        description="Number of steps to grid between smooth_sigma and "
+                    "smooth_sigma_time_max. Large values will add significant "
+                    "time motion correction.")
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

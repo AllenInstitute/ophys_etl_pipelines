@@ -5,6 +5,7 @@ import tempfile
 import pathlib
 import hashlib
 from itertools import product
+from functools import partial
 
 from ophys_etl.utils.array_utils import (
     downsample_array,
@@ -81,6 +82,10 @@ def test_video_module_worker(
 
     if kernel_size is not None:
         expected = apply_median_filter_to_video(expected, kernel_size)
+        spatial_filter = partial(apply_median_filter_to_video,
+                                 kernel_size=kernel_size)
+    else:
+        spatial_filter = None
 
     lock = DummyContextManager()
     _video_worker(
@@ -88,7 +93,7 @@ def test_video_module_worker(
             input_hz,
             output_path,
             output_hz,
-            kernel_size,
+            spatial_filter,
             input_slice,
             dict(),
             lock)
@@ -116,7 +121,8 @@ def test_video_module_worker_exception(
     input_hz = 12.0
     output_hz = 6.0
     input_slice = [5, 19]
-    kernel_size = 3
+    spatial_filter = partial(apply_median_filter_to_video,
+                             kernel_size=3)
     output_path = pathlib.Path('silly.h5')
 
     with pytest.raises(RuntimeError, match="integer multiple"):
@@ -127,7 +133,7 @@ def test_video_module_worker_exception(
                 input_hz,
                 output_path,
                 output_hz,
-                kernel_size,
+                spatial_filter,
                 input_slice,
                 validity_dict,
                 lock)

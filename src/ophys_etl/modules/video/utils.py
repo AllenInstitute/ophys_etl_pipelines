@@ -1,7 +1,8 @@
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Callable
 import pathlib
 import h5py
 import numpy as np
+from functools import partial
 
 from ophys_etl.utils.array_utils import (
     downsample_array,
@@ -288,7 +289,7 @@ def _video_worker(
         input_hz: float,
         output_path: pathlib.Path,
         output_hz: float,
-        kernel_size: Optional[int],
+        spatial_filter: Optional[Callable[np.ndarray, np.ndarray]],
         input_slice: Tuple[int, int],
         chunk_validity: dict,
         output_lock: multiprocessing.managers.AcquirerProxy) -> None:
@@ -312,10 +313,10 @@ def _video_worker(
         Frame rate of the output movie in Hz (in case it is downsampled
         relative to the input movie)
 
-    kernel_size: Optional[int]
-        The size of the median filter kernel. This filter is applied to
-        the frames of the output movie after downsampling. If None,
-        no median filter is applied.
+    spatial_filter: Optional[Callable[np.ndarray, np.ndarray]]
+        The function (if any) used to spatially filter frames after
+        downsampling. Accepts an np.ndarray that is the input video;
+        returns an np.ndarray that is the spatially filtered video.
 
     input_slice: Tuple[int, int]
         The first (inclusive) and last (exclusive) frame of the
@@ -358,9 +359,9 @@ def _video_worker(
                                       output_fps=output_hz,
                                       strategy='average')
 
-    if kernel_size is not None and kernel_size > 0:
-        video_data = apply_median_filter_to_video(video_data,
-                                                  kernel_size)
+    if spatial_filter is not None:
+        video_data = spatial_filter(video_data)
+
     start_index = input_slice[0] // frames_to_group
     end_index = start_index + video_data.shape[0]
     with output_lock:
@@ -442,6 +443,13 @@ def create_downsampled_video_h5(
     output_lock = mgr.Lock()
     validity_dict = mgr.dict()
     process_list = []
+
+    if kernel_size is not None and kernel_size > 0:
+        spatial_filter = partial(apply_median_filter_to_video,
+                                 kernel_size=kernel_size)
+    else:
+        spatial_filter = None
+
     for i0 in range(0, input_video_shape[0], n_frames_per_chunk):
         logger.info(f'starting {i0} -> {input_video_shape[0]}')
         p = multiprocessing.Process(
@@ -450,7 +458,7 @@ def create_downsampled_video_h5(
                       input_hz,
                       output_path,
                       output_hz,
-                      kernel_size,
+                      spatial_filter,
                       (i0, i0+n_frames_per_chunk),
                       validity_dict,
                       output_lock))

@@ -28,7 +28,7 @@ def create_downsampled_video(
         input_hz: float,
         video_path: pathlib.Path,
         output_hz: float,
-        spatial_filter: Optional[Callable[np.ndarray, np.ndarray]],
+        spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]],
         n_processors: int,
         quality: int = 5,
         quantiles: Tuple[float, float] = (0.1, 0.99),
@@ -55,7 +55,7 @@ def create_downsampled_video(
         Frame rate of the output movie in Hz (set lower than input_hz
         if you want to apply downsampling to the movie)
 
-    spatial_filter: Optional[Callable[np.ndarray, np.ndarray]]
+    spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]]
         The function (if any) used to spatially filter frames after
         downsampling. Accepts an np.ndarray that is the input video;
         returns an np.ndarray that is the spatially filtered video.
@@ -133,7 +133,7 @@ def create_side_by_side_video(
         input_hz: float,
         output_path: pathlib.Path,
         output_hz: float,
-        spatial_filter: Optional[Callable[np.ndarray, np.ndarray]],
+        spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]],
         n_processors: int,
         quality: int = 5,
         quantiles: Tuple[float, float] = (0.1, 0.99),
@@ -166,7 +166,7 @@ def create_side_by_side_video(
         Frame rate of the output movie in Hz (set lower than input_hz
         if you want to apply downsampling to the movie)
 
-    spatial_filter: Optional[Callable[np.ndarray, np.ndarray]]
+    spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]]
         The function (if any) used to spatially filter frames after
         downsampling. Accepts an np.ndarray that is the input video;
         returns an np.ndarray that is the spatially filtered video.
@@ -317,7 +317,7 @@ def _video_worker(
         input_hz: float,
         output_path: pathlib.Path,
         output_hz: float,
-        spatial_filter: Optional[Callable[np.ndarray, np.ndarray]],
+        spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]],
         input_slice: Tuple[int, int],
         chunk_validity: dict,
         output_lock: multiprocessing.managers.AcquirerProxy) -> None:
@@ -341,7 +341,7 @@ def _video_worker(
         Frame rate of the output movie in Hz (in case it is downsampled
         relative to the input movie)
 
-    spatial_filter: Optional[Callable[np.ndarray, np.ndarray]]
+    spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]]
         The function (if any) used to spatially filter frames after
         downsampling. Accepts an np.ndarray that is the input video;
         returns an np.ndarray that is the spatially filtered video.
@@ -405,7 +405,7 @@ def create_downsampled_video_h5(
         input_hz: float,
         output_path: pathlib.Path,
         output_hz: float,
-        spatial_filter: Optional[Callable[np.ndarray, np.ndarray]],
+        spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]],
         n_processors: int) -> None:
     """
     Use multiprocessing to read a movie from an HDF5 file, downsample
@@ -426,7 +426,7 @@ def create_downsampled_video_h5(
     output_hz:
         frame rate of the output movie in Hz (in case it is downsampled)
 
-    spatial_filter: Optional[Callable[np.ndarray, np.ndarray]]
+    spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]]
         The function (if any) used to spatially filter frames after
         downsampling. Accepts an np.ndarray that is the input video;
         returns an np.ndarray that is the spatially filtered video.

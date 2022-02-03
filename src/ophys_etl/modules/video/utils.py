@@ -543,7 +543,15 @@ def _write_array_to_video(
     Returns
     -------
     None
-        Output is written to the specified file path
+        Output is written to the specified file path.
+
+    Notes
+    -----
+    If writing a TIFF, data will be saved in grayscale, since TIFFs
+    are limited in size to 4 GB and our videos typically exceed this
+    size if all three colors channels are saved (this really only
+    impacts the reticles, which are red by default, but will be
+    white in the TIFFs).
     """
 
     logger.info(f"writing array of shape {video_array.shape}")

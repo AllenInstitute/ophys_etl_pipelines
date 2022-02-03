@@ -736,7 +736,7 @@ def apply_mean_filter_to_video(
     Returns
     -------
     downsampled_video: np.ndarray
-        (ntime, nrows//kernel_size, n_cols//kernel_size)
+        (ntime, ceil(nrows/kernel_size), ceil(n_cols/kernel_size))
 
     Notes
     -----

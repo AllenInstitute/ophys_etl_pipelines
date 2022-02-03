@@ -18,6 +18,7 @@ def input_h5(tmpdir):
 
 
 def test_sine_dewarp_end_to_end(input_h5, tmpdir):
+    raise RuntimeError("SFD says fail here")
     output_h5 = str(tmpdir / "output.h5")
     output_json = str(tmpdir / "output.json")
     args = {

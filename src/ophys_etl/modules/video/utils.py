@@ -3,14 +3,10 @@ import pathlib
 import h5py
 import numpy as np
 import skimage.measure as skimage_measure
-from functools import partial
 
 from ophys_etl.utils.array_utils import (
     downsample_array,
     n_frames_from_hz)
-
-from ophys_etl.modules.median_filtered_max_projection.utils import (
-    apply_median_filter_to_video)
 
 import multiprocessing
 import multiprocessing.managers
@@ -32,7 +28,7 @@ def create_downsampled_video(
         input_hz: float,
         video_path: pathlib.Path,
         output_hz: float,
-        kernel_size: Optional[int],
+        spatial_filter: Optional[Callable[np.ndarray, np.ndarray]],
         n_processors: int,
         quality: int = 5,
         quantiles: Tuple[float, float] = (0.1, 0.99),
@@ -58,9 +54,10 @@ def create_downsampled_video(
         Frame rate of the output movie in Hz (set lower than input_hz
         if you want to apply downsampling to the movie)
 
-    kernel_size: Optional[int]
-        Size of the median filter kernel to be applied to the downsampled
-        movie (if None, no median filter will be applied)
+    spatial_filter: Optional[Callable[np.ndarray, np.ndarray]]
+        The function (if any) used to spatially filter frames after
+        downsampling. Accepts an np.ndarray that is the input video;
+        returns an np.ndarray that is the spatially filtered video.
 
     n_processors: int
         Number of parallel processes to be used when processing the movie
@@ -101,7 +98,7 @@ def create_downsampled_video(
         create_downsampled_video_h5(
             input_path, input_hz,
             tmp_h5, output_hz,
-            kernel_size,
+            spatial_filter,
             n_processors)
 
         logger.info(f'wrote temp h5py to {tmp_h5}')
@@ -130,7 +127,7 @@ def create_side_by_side_video(
         input_hz: float,
         output_path: pathlib.Path,
         output_hz: float,
-        kernel_size: Optional[int],
+        spatial_filter: Optional[Callable[np.ndarray, np.ndarray]],
         n_processors: int,
         quality: int = 5,
         quantiles: Tuple[float, float] = (0.1, 0.99),
@@ -162,9 +159,10 @@ def create_side_by_side_video(
         Frame rate of the output movie in Hz (set lower than input_hz
         if you want to apply downsampling to the movie)
 
-    kernel_size: Optional[int]
-        Size of the median filter kernel to be applied to the downsampled
-        movie (if None, no median filter will be applied)
+    spatial_filter: Optional[Callable[np.ndarray, np.ndarray]]
+        The function (if any) used to spatially filter frames after
+        downsampling. Accepts an np.ndarray that is the input video;
+        returns an np.ndarray that is the spatially filtered video.
 
     n_processors: int
         Number of parallel processes to be used when processing the movie
@@ -223,7 +221,7 @@ def create_side_by_side_video(
         create_downsampled_video_h5(
             video_0_path, input_hz,
             tmp_0_h5, output_hz,
-            kernel_size,
+            spatial_filter,
             n_processors)
 
         (min_0,
@@ -234,7 +232,7 @@ def create_side_by_side_video(
         create_downsampled_video_h5(
             video_1_path, input_hz,
             tmp_1_h5, output_hz,
-            kernel_size,
+            spatial_filter,
             n_processors)
 
         (min_1,
@@ -378,7 +376,7 @@ def create_downsampled_video_h5(
         input_hz: float,
         output_path: pathlib.Path,
         output_hz: float,
-        kernel_size: Optional[int],
+        spatial_filter: Optional[Callable[np.ndarray, np.ndarray]],
         n_processors: int) -> None:
     """
     Use multiprocessing to read a movie from an HDF5 file, downsample
@@ -399,10 +397,10 @@ def create_downsampled_video_h5(
     output_hz:
         frame rate of the output movie in Hz (in case it is downsampled)
 
-    kernel_size: Optional[int]
-        The size of the median filter kernel. This filter is applied to
-        the frames of the output movie after downsampling. If None,
-        no median filter is applied.
+    spatial_filter: Optional[Callable[np.ndarray, np.ndarray]]
+        The function (if any) used to spatially filter frames after
+        downsampling. Accepts an np.ndarray that is the input video;
+        returns an np.ndarray that is the spatially filtered video.
 
     n_processors: int
         Number of parallel worker processes to invoke when processing the
@@ -445,11 +443,7 @@ def create_downsampled_video_h5(
     validity_dict = mgr.dict()
     process_list = []
 
-    if kernel_size is not None and kernel_size > 0:
-        spatial_filter = partial(apply_median_filter_to_video,
-                                 kernel_size=kernel_size)
-    else:
-        spatial_filter = None
+    print(f'spatial filter {spatial_filter}')
 
     input_chunks = []
     for i0 in range(0, input_video_shape[0], n_frames_per_chunk):

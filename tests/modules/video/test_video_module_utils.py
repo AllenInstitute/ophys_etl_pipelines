@@ -187,6 +187,12 @@ def test_module_create_video_h5(
     """
     This is really just a smoke test
     """
+    if kernel_size is not None:
+        spatial_filter = partial(apply_median_filter_to_video,
+                                 kernel_size=kernel_size)
+    else:
+        spatial_filter = None
+
     output_path = pathlib.Path(tempfile.mkstemp(
                                    dir=tmpdir,
                                    prefix="create_ideo_smoke_test_",
@@ -196,7 +202,7 @@ def test_module_create_video_h5(
         12.0,
         output_path,
         output_hz,
-        kernel_size,
+        spatial_filter,
         3)
 
 
@@ -404,6 +410,10 @@ def test_module_create_downsampled_video(
         downsampled_video = apply_median_filter_to_video(
                                     downsampled_video,
                                     kernel_size)
+        spatial_filter = partial(apply_median_filter_to_video,
+                                 kernel_size=kernel_size)
+    else:
+        spatial_filter = None
 
     if quantiles is None:
         min_val = downsampled_video.min()
@@ -465,7 +475,7 @@ def test_module_create_downsampled_video(
             input_hz,
             actual_file,
             output_hz,
-            kernel_size,
+            spatial_filter,
             3,
             quality=quality,
             quantiles=quantiles,
@@ -497,7 +507,7 @@ def test_module_create_downsampled_video(
     "speed_up_factor, quality",
     product((".avi", ".mp4"),
             (3.0, 5.0),
-            (2, 5),
+            (None, 2, 5),
             (None, (0.3, 0.9)),
             (True, False),
             (1, 4),
@@ -523,6 +533,12 @@ def test_module_create_side_by_side_video(
                                          prefix='side_by_side_actual_',
                                          suffix=output_suffix)[1])
 
+    if kernel_size is not None:
+        spatial_filter = partial(apply_median_filter_to_video,
+                                 kernel_size=kernel_size)
+    else:
+        spatial_filter = None
+
     input_hz = 12.0
     create_side_by_side_video(
             video_path_fixture,
@@ -530,7 +546,7 @@ def test_module_create_side_by_side_video(
             input_hz,
             actual_file,
             output_hz,
-            kernel_size,
+            spatial_filter,
             3,
             quality,
             quantiles,

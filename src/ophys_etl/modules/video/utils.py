@@ -548,11 +548,11 @@ def _write_array_to_video(
 
     logger.info(f"writing array of shape {video_array.shape}")
 
-    if video_path.name.endswith('tiff') or video_path.name.endswith('tif'):
+    if video_path.suffix in ('.tiff', '.tif'):
         imageio.mimsave(video_path,
                         video_array[:, :, :, 0])
     else:
-        if video_path.name.endswith('avi'):
+        if video_path.suffix == '.avi':
             pixelformat = 'yuvj420p'
             codec = 'mjpeg'
         else:

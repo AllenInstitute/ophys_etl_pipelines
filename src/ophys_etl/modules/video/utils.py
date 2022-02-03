@@ -159,7 +159,7 @@ def create_side_by_side_video(
         video_0 and video_1, since they are presumably the same movie
         in different states of motion correction)
 
-    video_path: Pathlib.path
+    output_path: Pathlib.path
         Path to the video file to be written
 
     output_hz: float

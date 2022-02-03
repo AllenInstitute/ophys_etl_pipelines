@@ -550,7 +550,7 @@ def _write_array_to_video(
 
     if video_path.name.endswith('tiff') or video_path.name.endswith('tif'):
         imageio.mimsave(video_path,
-                        video_array[:,:,:,0])
+                        video_array[:, :, :, 0])
     else:
         if video_path.name.endswith('avi'):
             pixelformat = 'yuvj420p'

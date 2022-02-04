@@ -435,6 +435,61 @@ def _check_exclusion(compatible_roi: DenseROI,
     return exclusion_labels
 
 
+def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:
+    """
+    Convert an ExtractROI to an equivalent OphysROI
+
+    Parameters
+    ----------
+    ExtractROI
+
+    Returns
+    -------
+    OphysROI
+    """
+    new_roi = OphysROI(x0=int(roi['x']),
+                       y0=int(roi['y']),
+                       width=int(roi['width']),
+                       height=int(roi['height']),
+                       mask_matrix=roi['mask'],
+                       roi_id=int(roi['id']),
+                       valid_roi=roi['valid'])
+
+    return new_roi
+
+
+def ophys_roi_to_extract_roi(roi: OphysROI) -> ExtractROI:
+    """
+    Convert at OphysROI to an equivalent ExtractROI
+
+    Parameters
+    ----------
+    OphysROI
+
+    Returns
+    -------
+    ExtractROI
+    """
+    mask = []
+    for roi_row in roi.mask_matrix:
+        row = []
+        for el in roi_row:
+            if el:
+                row.append(True)
+            else:
+                row.append(False)
+        mask.append(row)
+
+    new_roi = ExtractROI(x=roi.x0,
+                         y=roi.y0,
+                         width=roi.width,
+                         height=roi.height,
+                         mask=mask,
+                         valid=roi.valid_roi,
+                         id=roi.roi_id)
+    return new_roi
+
+
 def _do_rois_abut(array_0: np.ndarray,
                   array_1: np.ndarray,
                   pixel_distance: float = np.sqrt(2)) -> bool:

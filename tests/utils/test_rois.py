@@ -9,6 +9,26 @@ from ophys_etl.types import DenseROI, OphysROI
 from ophys_etl.schemas import DenseROISchema
 
 
+@pytest.fixture
+def example_roi_list_fixture():
+    rng = np.random.RandomState(6412439)
+    roi_list = []
+    for ii in range(30):
+        x0 = rng.randint(0, 25)
+        y0 = rng.randint(0, 25)
+        height = rng.randint(3, 7)
+        width = rng.randint(3, 7)
+        mask = rng.randint(0, 2, (height, width)).astype(bool)
+        roi = OphysROI(x0=x0, y0=y0,
+                       height=height, width=width,
+                       mask_matrix=mask,
+                       roi_id=ii,
+                       valid_roi=True)
+        roi_list.append(roi)
+
+    return roi_list
+
+
 @pytest.mark.parametrize(
     "np_mask_matrix, x, y, shape, expected, fail",
     [
@@ -588,3 +608,36 @@ def test_roi_abut():
                     valid_roi=True)
 
     assert not rois_utils.do_rois_abut(roi0, roi1, pixel_distance=2)
+
+
+def test_extract_roi_to_ophys_roi():
+    rng = np.random.RandomState(345)
+    mask = rng.randint(0, 2, (9, 7)).astype(bool)
+    roi = {'x': 5,
+           'y': 6,
+           'width': 7,
+           'height': 9,
+           'id': 991,
+           'valid': True,
+           'mask': [list(i) for i in mask]}
+
+    ophys_roi = rois_utils.extract_roi_to_ophys_roi(roi)
+    assert ophys_roi.x0 == roi['x']
+    assert ophys_roi.y0 == roi['y']
+    assert ophys_roi.height == roi['height']
+    assert ophys_roi.width == roi['width']
+    assert ophys_roi.roi_id == roi['id']
+    assert ophys_roi.valid_roi and roi['valid']
+    np.testing.assert_array_equal(ophys_roi.mask_matrix, mask)
+
+
+def test_ophys_roi_to_extract_roi(example_roi_list_fixture):
+    for roi_in in example_roi_list_fixture:
+        roi_out = rois_utils.ophys_roi_to_extract_roi(roi_in)
+        assert roi_out['x'] == roi_in.x0
+        assert roi_out['y'] == roi_in.y0
+        assert roi_out['width'] == roi_in.width
+        assert roi_out['height'] == roi_in.height
+        assert roi_out['id'] == roi_in.roi_id
+        np.testing.assert_array_equal(roi_in.mask_matrix,
+                                      roi_out['mask'])

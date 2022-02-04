@@ -1,6 +1,8 @@
+from matplotlib import cm as mplt_cm
 import math
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Dict
 import numpy as np
+import networkx
 from scipy.sparse import coo_matrix
 from scipy.spatial.distance import cdist
 from ophys_etl.utils.motion_border import MotionBorder
@@ -501,3 +503,65 @@ def do_rois_abut(roi0: OphysROI,
     return _do_rois_abut(roi0.global_pixel_array,
                          roi1.global_pixel_array,
                          pixel_distance=pixel_distance)
+
+
+def get_roi_color_map(
+        roi_list: List[OphysROI]) -> Dict[int, Tuple[int, int, int]]:
+    """
+    Take a list of OphysROI and return a dict mapping ROI ID
+    to RGB color so that no ROIs that touch have the same color
+
+    Parametrs
+    ---------
+    roi_list: List[OphysROI]
+
+    Returns
+    -------
+    color_map: Dict[int, Tuple[int, int, int]]
+    """
+    roi_graph = networkx.Graph()
+    for roi in roi_list:
+        roi_graph.add_node(roi.roi_id)
+    for ii in range(len(roi_list)):
+        roi0 = roi_list[ii]
+        for jj in range(ii+1, len(roi_list)):
+            roi1 = roi_list[jj]
+
+            # value of 5 is so that singleton ROIs that
+            # are near each other do not get assigned
+            # the same color
+            abut = do_rois_abut(roi0, roi1, 5.0)
+            if abut:
+                roi_graph.add_edge(roi0.roi_id, roi1.roi_id)
+                roi_graph.add_edge(roi1.roi_id, roi0.roi_id)
+
+    nx_coloring = networkx.greedy_color(roi_graph)
+    n_colors = len(set(nx_coloring.values()))
+
+    mplt_color_map = mplt_cm.jet
+
+    # create a list of colors based on the matplotlib color map
+    raw_color_list = []
+    for ii in range(n_colors):
+        color = mplt_color_map(0.8*(1.0+ii)/(n_colors+1.0))
+        color = (int(color[0]*255), int(color[1]*255), int(color[2]*255))
+        raw_color_list.append(color)
+
+    # re-order colors so that colors that are adjacent in index
+    # have higher contrast
+    step = max(n_colors//3, 1)
+    color_list = []
+    for i0 in range(step):
+        for ii in range(i0, n_colors, step):
+            this_color = raw_color_list[ii]
+            color_list.append(this_color)
+
+    # reverse color list, since matplotlib.cm.jet will
+    # assign a dark blue as color_list[0], which isn't
+    # great for contrast
+    color_list.reverse()
+
+    color_map = {}
+    for roi_id in nx_coloring:
+        color_map[roi_id] = color_list[nx_coloring[roi_id]]
+    return color_map

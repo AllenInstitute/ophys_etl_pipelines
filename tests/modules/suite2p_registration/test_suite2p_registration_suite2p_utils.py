@@ -20,7 +20,8 @@ except ImportError:
 
 from ophys_etl.modules.suite2p_registration.suite2p_utils import (  # noqa: E402, E501
     compute_reference, load_initial_frames, compute_acutance,
-    add_required_parameters, create_ave_image, optimize_motion_parameters)
+    add_required_parameters, create_ave_image, optimize_motion_parameters,
+    trim_frames)
 
 
 # Mock function to return just the first frame as the reference. We
@@ -119,7 +120,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
             # more. We are just testing that the data passes through,
             # correctly.
             output = compute_reference(
-                frames=mock_frames,
+                input_frames=mock_frames,
                 niter=2,
                 maxregshift=self.ops['maxregshift'],
                 smooth_sigma=self.ops['smooth_sigma'],
@@ -130,6 +131,27 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         self.assertEqual(output.shape[0], self.n_frames)
         self.assertEqual(output.shape[1], self.n_frames)
         self.assertTrue(np.all(np.equal(output, np.load(self.mock_data_loc))))
+
+    def test_trim_frames(self):
+        """Test that empty frames are properly removed from the data.
+        """
+        # Create a bunch of frames with the same values to have a high
+        # versus low mean comparison.
+        frame_value = 100
+        frame_scatter = 10
+        test_data = self.rng.integers(low=frame_value - frame_scatter,
+                                      high=frame_value + frame_scatter,
+                                      size=(self.n_frames,
+                                            self.xy_shape,
+                                            self.xy_shape))
+        # Create a well separated frame.
+        test_data[10, :, :] = test_data[10, :, :] // frame_value
+        frames = trim_frames(test_data)
+        # Test that our different frame is removed.
+        self.assertEqual(len(test_data) - 1, len(frames))
+        # Test that the frame we set to a value of 1 for each pixel is
+        # removed.
+        self.assertTrue(np.all(frames > frame_scatter))
 
     def test_compute_reference_replace_nans(self):
         """Test that the code properly replaces NaN values in a reference
@@ -171,7 +193,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                    'compute_masks',
                    new=MagicMock()):
             result_reference = compute_reference(
-                frames=frames,
+                input_frames=frames,
                 niter=1,
                 maxregshift=self.ops['maxregshift'],
                 smooth_sigma=self.ops['smooth_sigma'],
@@ -203,7 +225,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         # These test data were created with 8 iterations and is the current
         # suite2p "magic number" setting.
         result_reference = compute_reference(
-            frames=self.frames,
+            input_frames=self.frames,
             niter=8,
             maxregshift=self.ops['maxregshift'],
             smooth_sigma=self.ops['smooth_sigma'],

@@ -89,7 +89,7 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                 # in suite2p.
                 self.logger.info('Creating custom reference image...')
                 suite2p_args['refImg'] = compute_reference(
-                    frames=intial_frames,
+                    input_frames=intial_frames,
                     niter=self.args["max_reference_iterations"],
                     maxregshift=suite2p_args['maxregshift'],
                     smooth_sigma=suite2p_args['smooth_sigma'],

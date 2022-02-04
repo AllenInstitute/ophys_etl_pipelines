@@ -3,13 +3,62 @@ import numpy as np
 import h5py
 import pathlib
 import tempfile
+from typing import Union
 from itertools import product
 
 from ophys_etl.utils.video_utils import (
-    scale_video_to_uint8,
     _read_and_scale_all_at_once,
     _read_and_scale_by_chunks,
     read_and_scale)
+
+
+def scale_video_to_uint8(video: np.ndarray,
+                         min_value: Union[int, float],
+                         max_value: Union[int, float]) -> np.ndarray:
+    """
+    Convert a video (as a numpy.ndarray) to uint8 by dividing by the
+    array's maximum value and multiplying by 255
+
+    Parameters
+    ----------
+    video: np.ndarray
+
+    min_value: Optional[Union[int, float]]
+
+    max_value: Optional[Union[int, float]]
+        Video will be clipped at min_value and max_value and
+        then normalized to (max_value-min_value) before being
+        converted to uint8
+
+    Returns
+    -------
+    np.ndarray
+
+    Raises
+    ------
+    RuntimeError
+        If min_value > max_value
+
+    Notes
+    -----
+    Duplicate implementation of normalize_array taken from
+    staging/segmentation_dev branch. Copying it here just for
+    testing purposes.
+    """
+
+    if min_value > max_value:
+        raise RuntimeError("in scale_video_to_uint8 "
+                           f"min_value ({min_value}) > "
+                           f"max_value ({max_value})")
+
+    mask = video > max_value
+    video[mask] = max_value
+    mask = video < min_value
+    video[mask] = min_value
+
+    delta = (max_value-min_value)
+    video = video-min_value
+    return np.round(255*video.astype(float)/delta).astype(np.uint8)
 
 
 @pytest.fixture(scope='session')
@@ -55,42 +104,6 @@ def unchunked_video_path(tmpdir_factory):
     yield fname
     fname.unlink()
     tmpdir.rmdir()
-
-
-def test_scale_video():
-
-    data = np.array([[1.0, 2.0, 3.0, 4.0],
-                     [5.0, 6.0, 7.0, 8.0]])
-
-    scaled = scale_video_to_uint8(data,
-                                  0.0,
-                                  8.0)
-    assert scaled.dtype == np.uint8
-
-    expected = np.array([[32, 64, 96, 128],
-                         [159, 191, 223, 255]]).astype(np.uint8)
-
-    np.testing.assert_array_equal(expected, scaled)
-
-    scaled = scale_video_to_uint8(data,
-                                  0.0,
-                                  15.0)
-    expected = np.array([[17, 34, 51, 68],
-                         [85, 102, 119, 136]]).astype(np.uint8)
-
-    np.testing.assert_array_equal(expected, scaled)
-
-    scaled = scale_video_to_uint8(data,
-                                  2.0,
-                                  7.0)
-
-    expected = np.array([[0, 0, 51, 102],
-                         [153, 204, 255, 255]]).astype(np.uint8)
-
-    np.testing.assert_array_equal(expected, scaled)
-
-    with pytest.raises(RuntimeError, match="in scale_video_to_uint8"):
-        _ = scale_video_to_uint8(data, 1.0, 0.0)
 
 
 @pytest.mark.parametrize(

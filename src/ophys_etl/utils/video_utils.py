@@ -3,7 +3,7 @@ import h5py
 import numpy as np
 import imageio_ffmpeg as mpg
 from pathlib import Path
-from ophys_etl.utils.array_utils import downsample_array
+from ophys_etl.utils.array_utils import downsample_array, normalize_array
 
 
 def downsample_h5_video(
@@ -93,49 +93,6 @@ def encode_video(video: np.ndarray, output_path: str,
     return output_path
 
 
-def scale_video_to_uint8(video: np.ndarray,
-                         min_value: Union[int, float],
-                         max_value: Union[int, float]) -> np.ndarray:
-    """
-    Convert a video (as a numpy.ndarray) to uint8 by dividing by the
-    array's maximum value and multiplying by 255
-
-    Parameters
-    ----------
-    video: np.ndarray
-
-    min_value: Optional[Union[int, float]]
-
-    max_value: Optional[Union[int, float]]
-        Video will be clipped at min_value and max_value and
-        then normalized to (max_value-min_value) before being
-        converted to uint8
-
-    Returns
-    -------
-    np.ndarray
-
-    Raises
-    ------
-    RuntimeError
-        If min_value > max_value
-    """
-
-    if min_value > max_value:
-        raise RuntimeError("in scale_video_to_uint8 "
-                           f"min_value ({min_value}) > "
-                           f"max_value ({max_value})")
-
-    mask = video > max_value
-    video[mask] = max_value
-    mask = video < min_value
-    video[mask] = min_value
-
-    delta = (max_value-min_value)
-    video = video-min_value
-    return np.round(255*video.astype(float)/delta).astype(np.uint8)
-
-
 def _read_and_scale_all_at_once(
         full_video_path: Path,
         origin: Tuple[int, int],
@@ -202,7 +159,9 @@ def _read_and_scale_all_at_once(
                            "_read_and_scale_all_at_once; "
                            "order seems to be reversed")
 
-    data = scale_video_to_uint8(data, min_max[0], min_max[1])
+    data = normalize_array(data,
+                           lower_cutoff=min_max[0],
+                           upper_cutoff=min_max[1])
     return data
 
 
@@ -281,11 +240,11 @@ def _read_and_scale_by_chunks(
 
         for t0 in range(0, nt, time_chunk_size):
             t1 = min(t0+time_chunk_size, nt)
-            data_chunk = scale_video_to_uint8(dataset[t0:t1,
-                                                      rowmin:rowmax,
-                                                      colmin:colmax],
-                                              min_max[0],
-                                              min_max[1])
+            data_chunk = normalize_array(dataset[t0:t1,
+                                                 rowmin:rowmax,
+                                                 colmin:colmax],
+                                         lower_cutoff=min_max[0],
+                                         upper_cutoff=min_max[1])
 
             final_output[t0:t1, :, :] = data_chunk
 

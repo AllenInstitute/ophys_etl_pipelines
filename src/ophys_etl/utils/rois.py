@@ -656,3 +656,50 @@ def get_roi_color_map(
     for roi_id in nx_coloring:
         color_map[roi_id] = color_list[nx_coloring[roi_id]]
     return color_map
+
+
+def get_roi_list_in_fov(
+        roi_list: List[ExtractROI],
+        origin: Tuple[int, int],
+        frame_shape: Tuple[int, int]) -> List[ExtractROI]:
+    """
+    Select only the ROIs whose thumbnails intersect
+    with a specified field of view
+
+    Parameters
+    ----------
+    roi_list: List[ExtractROI]
+
+    origin: Tuple[int, int]
+        The origin in row, col coordinates of the field of view
+
+    frame_shape: Tuple[int, int]
+        (height, width) of the field of view
+
+    Returns
+    -------
+    List[ExtractROI]
+    """
+
+    global_r0 = origin[0]
+    global_r1 = global_r0 + frame_shape[0]
+    global_c0 = origin[1]
+    global_c1 = global_c0 + frame_shape[1]
+
+    output = []
+    for roi in roi_list:
+        r0 = roi['y']
+        r1 = r0+roi['height']
+        c0 = roi['x']
+        c1 = c0+roi['width']
+        if r1 < global_r0:
+            continue
+        elif r0 >= global_r1:
+            continue
+        elif c1 < global_c0:
+            continue
+        elif c0 >= global_c1:
+            continue
+
+        output.append(roi)
+    return output

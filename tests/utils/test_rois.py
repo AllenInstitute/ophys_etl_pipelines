@@ -5,6 +5,7 @@ import copy
 from itertools import product
 from scipy.sparse import coo_matrix
 
+from ophys_etl.types import ExtractROI
 from ophys_etl.utils.motion_border import MotionBorder
 from ophys_etl.utils import rois as rois_utils
 from ophys_etl.types import DenseROI, OphysROI
@@ -680,3 +681,63 @@ def test_sanitize_extract_roi_list(
     assert bad_roi_list != extract_roi_list
     cleaned_roi_list = rois_utils.sanitize_extract_roi_list(bad_roi_list)
     assert cleaned_roi_list == extract_roi_list
+
+
+def test_get_roi_list_in_fov():
+    input_rois = []
+    roi_lookup = dict()
+    roi_id_set = set()
+    for xx, yy in product(range(0, 10, 2),
+                          range(0, 10, 2)):
+        roi_id = 10*yy+xx
+        assert roi_id not in roi_id_set
+        roi_id_set.add(roi_id)
+        roi = ExtractROI(
+                id=roi_id,
+                width=2,
+                height=2,
+                mask=[[True, True], [True, True]],
+                valid=True,
+                x=xx,
+                y=yy)
+        input_rois.append(roi)
+        roi_lookup[roi_id] = roi
+
+    output_rois = rois_utils.get_roi_list_in_fov(
+                      input_rois,
+                      origin=(100, 100),
+                      frame_shape=(32, 32))
+    assert len(output_rois) == 0
+
+    output_rois = rois_utils.get_roi_list_in_fov(
+                       input_rois,
+                       origin=(3, 3),
+                       frame_shape=(2, 2))
+
+    expected_ids = set([22, 24, 42, 44])
+    found_ids = set([roi['id'] for roi in output_rois])
+    assert found_ids == expected_ids
+    for roi in output_rois:
+        assert roi == roi_lookup[roi['id']]
+
+    output_rois = rois_utils.get_roi_list_in_fov(
+                       input_rois,
+                       origin=(-5, 5),
+                       frame_shape=(8, 3))
+
+    expected_ids = set([4, 6, 24, 26])
+    found_ids = set([roi['id'] for roi in output_rois])
+    assert found_ids == expected_ids
+    for roi in output_rois:
+        assert roi == roi_lookup[roi['id']]
+
+    output_rois = rois_utils.get_roi_list_in_fov(
+                       input_rois,
+                       origin=(5, -5),
+                       frame_shape=(3, 8))
+
+    expected_ids = set([40, 60, 42, 62])
+    found_ids = set([roi['id'] for roi in output_rois])
+    assert found_ids == expected_ids
+    for roi in output_rois:
+        assert roi == roi_lookup[roi['id']]

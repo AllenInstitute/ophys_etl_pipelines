@@ -1,10 +1,8 @@
 import argschema
 import tempfile
 import os
-import json
+import copy
 import ophys_etl.modules.decrosstalk.decrosstalk_schema as decrosstalk_schema
-
-from .utils import get_data_dir
 
 
 class DummyDecrosstalkLoader(argschema.ArgSchemaParser):
@@ -45,14 +43,23 @@ class DummySchemaOutput(argschema.ArgSchemaParser):
         self.output(output)
 
 
-def get_schema_data(tmpdir):
-    data_dir = get_data_dir()
-    schema_fname = os.path.join(data_dir,
-                                'ophys_plane_instantiation_data.json')
+def get_schema_data(tmpdir: str,
+                    example_data: dict):
+    """
+    Update a dict representation of our schema for unit testing purposes
 
-    with open(schema_fname, 'rb') as in_file:
-        example_data = json.load(in_file)
+    Parameters
+    ----------
+    tmpdir: str
+        directory where test data products can be written
+    example_data: dict
+        dict representation of the Decrosstalk schema
 
+    Returns
+    -------
+    example_data updated with temporary output paths for testing
+    """
+    example_data = copy.deepcopy(example_data)
     # Because the input schema is going to verify that the
     # motion_corrected_stack and maximum_projection_image_file
     # actually exist, we must create it in tmp
@@ -77,13 +84,16 @@ def get_schema_data(tmpdir):
     return example_data
 
 
-def test_decrosstalk_schema(tmpdir):
-    schema_data = get_schema_data(tmpdir)
+def test_decrosstalk_schema(tmpdir, ophys_plane_data_fixture):
+    schema_data = get_schema_data(tmpdir,
+                                  ophys_plane_data_fixture)
     _ = DummyDecrosstalkLoader(input_data=schema_data, args=[])
 
 
-def test_output_schema(tmpdir):
-    schema_data = get_schema_data(tmpdir)
+def test_output_schema(tmpdir,
+                       ophys_plane_data_fixture):
+    schema_data = get_schema_data(tmpdir,
+                                  ophys_plane_data_fixture)
     test_output_schema._temp_files = []
     tmp_fname = tempfile.mkstemp(prefix='output_schema_test_',
                                  suffix='.json',

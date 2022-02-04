@@ -3,6 +3,7 @@ import h5py
 import numpy as np
 import imageio_ffmpeg as mpg
 from pathlib import Path
+from ophys_etl.types import ExtractROI
 from ophys_etl.utils.array_utils import downsample_array, normalize_array
 
 
@@ -317,3 +318,63 @@ def read_and_scale(
                    frame_shape,
                    quantiles=quantiles,
                    min_max=min_max)
+
+
+def video_bounds_from_ROI(
+        roi: ExtractROI,
+        fov_shape: Tuple[int, int],
+        padding: int):
+    """
+    Get the field of view bounds from an ROI
+
+    Parameters
+    ----------
+    roi: ExtractROI
+
+    fov_shape: Tuple[int, int]
+        The 2-D shape of the full field of view
+
+    padding: int
+        The number of pixels to be added to the FOV beyond
+        the ROI bounds (if possible)
+
+    Returns
+    -------
+    origin: Tuple[int, int]
+        The origin of a sub field of view containing
+        the ROI
+
+    shape: Tuple[int, int]
+        The shape of the sub field of view
+
+    Notes
+    -----
+    Will try to return a square that is a multiple of 16
+    on a side (this is what FFMPEG expects)
+    """
+
+    # make thumbnail a square about the ROI
+    max_dim = max(roi['width']+2*padding,
+                  roi['height']+2*padding)
+
+    # make dim multiple of 16
+    div16 = np.ceil(float(max_dim)/16.0).astype(int)
+    max_dim = 16*div16
+
+    # center the thumbnail on the ROI
+    row_center = int(roi['y'] + roi['height']//2)
+    col_center = int(roi['x'] + roi['width']//2)
+
+    rowmin = max(0, row_center - max_dim//2)
+    rowmax = rowmin + max_dim
+    colmin = max(0, col_center - max_dim//2)
+    colmax = colmin + max_dim
+
+    if rowmax >= fov_shape[0]:
+        rowmin = max(0, fov_shape[0]-max_dim)
+        rowmax = min(fov_shape[0], rowmin+max_dim)
+    if colmax >= fov_shape[1]:
+        colmin = max(0, fov_shape[1]-max_dim)
+        colmax = min(fov_shape[1], colmin+max_dim)
+
+    return (rowmin, colmin), (rowmax-rowmin, colmax-colmin)

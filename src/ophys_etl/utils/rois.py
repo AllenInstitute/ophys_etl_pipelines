@@ -2,8 +2,9 @@ import math
 from typing import List, Optional, Tuple, Union
 import numpy as np
 from scipy.sparse import coo_matrix
+from scipy.spatial.distance import cdist
 from ophys_etl.utils.motion_border import MotionBorder
-from ophys_etl.types import DenseROI, ExtractROI
+from ophys_etl.types import DenseROI, ExtractROI, OphysROI
 from skimage.morphology import binary_opening, binary_closing, disk
 
 
@@ -430,3 +431,73 @@ def _check_exclusion(compatible_roi: DenseROI,
         exclusion_labels.append('small_size')
 
     return exclusion_labels
+
+
+def _do_rois_abut(array_0: np.ndarray,
+                  array_1: np.ndarray,
+                  pixel_distance: float = np.sqrt(2)) -> bool:
+    """
+    Function that does the work behind user-facing do_rois_abut.
+
+    This function takes in two arrays of pixel coordinates
+    calculates the distance between every pair of pixels
+    across the two arrays. If the minimum distance is less
+    than or equal pixel_distance, it returns True. If not,
+    it returns False.
+
+    Parameters
+    ----------
+    array_0: np.ndarray
+        Array of the first set of pixels. Shape is (npix0, 2).
+        array_0[:, 0] are the row coodinates of the pixels
+        in array_0. array_0[:, 1] are the column coordinates.
+
+    array_1: np.ndarray
+        Same as array_0 for the second array of pixels
+
+    pixel_distance: float
+        Maximum distance two arrays can be from each other
+        at their closest point and still be considered
+        to abut (default: sqrt(2)).
+
+    Return
+    ------
+    boolean
+    """
+    distances = cdist(array_0, array_1, metric='euclidean')
+    if distances.min() <= pixel_distance:
+        return True
+    return False
+
+
+def do_rois_abut(roi0: OphysROI,
+                 roi1: OphysROI,
+                 pixel_distance: float = np.sqrt(2)) -> bool:
+    """
+    Returns True if ROIs are within pixel_distance of each other at any point.
+
+    Parameters
+    ----------
+    roi0: OphysROI
+
+    roi1: OphysROI
+
+    pixel_distance: float
+        The maximum distance from each other the ROIs can be at
+        their closest point and still be considered to abut.
+        (Default: np.sqrt(2))
+
+    Returns
+    -------
+    boolean
+
+    Notes
+    -----
+    pixel_distance is such that if two boundaries are next to each other,
+    that corresponds to pixel_distance=1; pixel_distance=2 corresponds
+    to 1 blank pixel between ROIs
+    """
+
+    return _do_rois_abut(roi0.global_pixel_array,
+                         roi1.global_pixel_array,
+                         pixel_distance=pixel_distance)

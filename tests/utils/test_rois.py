@@ -5,7 +5,7 @@ from scipy.sparse import coo_matrix
 
 from ophys_etl.utils.motion_border import MotionBorder
 from ophys_etl.utils import rois as rois_utils
-from ophys_etl.types import DenseROI
+from ophys_etl.types import DenseROI, OphysROI
 from ophys_etl.schemas import DenseROISchema
 
 
@@ -523,3 +523,68 @@ def test_coo_mask_to_compatible_format(coo_mask, expected):
     roi = rois_utils._coo_mask_to_LIMS_compatible_format(coo_mask)
     for k in expected:
         assert roi[k] == expected[k]
+
+
+def test_roi_abut():
+
+    height = 6
+    width = 7
+    mask = np.zeros((height, width), dtype=bool)
+    mask[1:5, 1:6] = True
+
+    # overlapping
+    roi0 = OphysROI(x0=22,
+                    y0=44,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=0,
+                    valid_roi=True)
+
+    roi1 = OphysROI(x0=23,
+                    y0=46,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=1,
+                    valid_roi=True)
+
+    assert rois_utils.do_rois_abut(roi0, roi1, pixel_distance=1.0)
+
+    # just touching
+    roi1 = OphysROI(x0=26,
+                    y0=48,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=1,
+                    valid_roi=True)
+
+    assert rois_utils.do_rois_abut(roi0, roi1, pixel_distance=1.0)
+
+    roi1 = OphysROI(x0=27,
+                    y0=48,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=1,
+                    valid_roi=True)
+
+    assert not rois_utils.do_rois_abut(roi0, roi1, pixel_distance=1.0)
+
+    # they are, however, just diagonally 1 pixel away
+    # from each other
+    assert rois_utils.do_rois_abut(roi0, roi1, pixel_distance=np.sqrt(2))
+
+    # gap of one pixel
+    assert rois_utils.do_rois_abut(roi0, roi1, pixel_distance=2)
+
+    roi1 = OphysROI(x0=28,
+                    y0=48,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=1,
+                    valid_roi=True)
+
+    assert not rois_utils.do_rois_abut(roi0, roi1, pixel_distance=2)

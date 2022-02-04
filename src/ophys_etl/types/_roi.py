@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Dict, Union, Set, Tuple
 import sys
 from typing import List
 import numpy as np
@@ -106,6 +106,10 @@ class OphysROI(object):
         self._height = height
         self._valid_roi = valid_roi
         self._mask_matrix = np.array(mask_matrix, dtype=bool)
+        self._contour_mask = None
+        self._area = None
+        self._global_pixel_set = None
+        self._global_pixel_array = None
 
         height_match = (self._mask_matrix.shape[0] == self._height)
         width_match = (self._mask_matrix.shape[1] == self._width)
@@ -114,6 +118,20 @@ class OphysROI(object):
             msg += f'mask_matrix.shape: {self._mask_matrix.shape}\n'
             msg += f'height: {self._height}\nwidth: {self._width}\n'
             raise RuntimeError(msg)
+
+        # calculate centroid
+        cr = 0
+        cc = 0
+        n = 0
+        for irow in range(self.height):
+            for icol in range(self.width):
+                if not self._mask_matrix[irow, icol]:
+                    continue
+                n += 1
+                cr += irow
+                cc += icol
+        self._centroid_row = self._y0 + cr/n
+        self._centroid_col = self._x0 + cc/n
 
     @classmethod
     def from_schema_dict(cls, schema_dict: Dict[str, Union[int, List]]):
@@ -140,6 +158,44 @@ class OphysROI(object):
                    valid_roi=schema_dict['valid_roi'],
                    mask_matrix=schema_dict['mask_matrix'])
 
+    def _create_global_pixel_set(self):
+        """
+        Create the set of (row, col) tuples in
+        global coordinates that make up this ROI
+        """
+        valid = np.argwhere(self._mask_matrix)
+        self._global_pixel_set = set([(r+self._y0, c+self._x0)
+                                      for r, c in valid])
+
+        self._global_pixel_array = np.array([[r+self._y0, c+self._x0]
+                                             for r, c in valid])
+
+    @property
+    def global_pixel_set(self) -> Set[Tuple[int, int]]:
+        """
+        Set of pixels in global (row, col) coordinates
+        that are set to True for this ROI
+        """
+        if self._global_pixel_set is None:
+            self._create_global_pixel_set()
+        return self._global_pixel_set
+
+    @property
+    def global_pixel_array(self) -> np.ndarray:
+        """
+        np.ndarray of pixels in global (row, col) coordinates
+        that are set to True for this ROI
+        """
+        if self._global_pixel_array is None:
+            self._create_global_pixel_set()
+        return self._global_pixel_array
+
+    @property
+    def area(self) -> int:
+        if self._area is None:
+            self._area = self._mask_matrix.sum()
+        return self._area
+
     @property
     def roi_id(self) -> int:
         return self._roi_id
@@ -153,6 +209,14 @@ class OphysROI(object):
         return self._y0
 
     @property
+    def centroid_y(self) -> float:
+        return self._centroid_row
+
+    @property
+    def centroid_x(self) -> float:
+        return self._centroid_col
+
+    @property
     def width(self) -> int:
         return self._width
 
@@ -164,6 +228,51 @@ class OphysROI(object):
     def valid_roi(self) -> bool:
         return self._valid_roi
 
+    @valid_roi.setter
+    def valid_roi(self, value):
+        self._valid_roi = value
+
     @property
     def mask_matrix(self) -> np.ndarray:
         return copy.deepcopy(self._mask_matrix)
+
+    def _construct_contour_mask(self):
+        """
+        Construct a mask of contour pixels
+        """
+        self._contour_mask = np.zeros(self._mask_matrix.shape,
+                                      dtype=bool)
+        nr = self._contour_mask.shape[0]
+        nc = self._contour_mask.shape[1]
+        for irow in range(nr):
+            ir0 = irow - 1
+            ir1 = irow + 1
+            for icol in range(nc):
+                if not self._mask_matrix[irow, icol]:
+                    continue
+                ic0 = icol - 1
+                ic1 = icol + 1
+                left = False
+                right = False
+                if ic0 >= 0 and self._mask_matrix[irow, ic0]:
+                    left = True
+                if ic1 < nc and self._mask_matrix[irow, ic1]:
+                    right = True
+                if not (left and right):
+                    self._contour_mask[irow, icol] = True
+                    continue
+
+                above = False
+                below = False
+                if ir0 >= 0 and self._mask_matrix[ir0, icol]:
+                    below = True
+                if ir1 < nr and self._mask_matrix[ir1, icol]:
+                    above = True
+                if not (above and below):
+                    self._contour_mask[irow, icol] = True
+
+    @property
+    def contour_mask(self) -> np.ndarray:
+        if self._contour_mask is None:
+            self._construct_contour_mask()
+        return np.copy(self._contour_mask)

@@ -11,6 +11,8 @@ from ophys_etl.types import (
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
+from ophys_etl.utils.array_utils import normalize_array
+
 import time
 import logging
 
@@ -96,18 +98,6 @@ def clip_img_to_quantiles(
     out_img = np.where(img_data > mn, img_data, mn)
     out_img = np.where(out_img < mx, out_img, mx)
     return out_img
-
-
-def scale_img_to_uint8(
-        img_data: np.ndarray) -> np.ndarray:
-    """
-    Scale an image to np.uint8
-    """
-    min_val = img_data.min()
-    max_val = img_data.max()
-    delta = max_val-min_val
-    out_img = np.round(255.0*(img_data.astype(float)-min_val)/delta)
-    return out_img.astype(np.uint8)
 
 
 def create_metadata_entry(
@@ -231,5 +221,5 @@ def create_correlation_projection(
     else:
         correlation_img_data = graph_to_img(file_path)
 
-    correlation_img_data = scale_img_to_uint8(correlation_img_data)
+    correlation_img_data = normalize_array(correlation_img_data)
     return correlation_img_data

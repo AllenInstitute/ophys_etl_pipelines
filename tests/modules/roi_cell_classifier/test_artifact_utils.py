@@ -10,8 +10,7 @@ from ophys_etl.utils.rois import (
 
 from ophys_etl.modules.roi_cell_classifier.utils import (
     get_traces,
-    clip_img_to_quantiles,
-    scale_img_to_uint8)
+    clip_img_to_quantiles)
 
 
 def test_sanitize_extract_roi_list(
@@ -108,30 +107,3 @@ def test_clip_img_to_quantiles(min_quantile, max_quantile):
                 assert np.abs(clipped_pixel-raw_pixel) < eps
                 preserved += 1
     assert preserved > 0
-
-
-@pytest.mark.parametrize(
-        "raw_img",
-        [np.random.default_rng(117324).integers(0, 2**16-1,
-                                                (75, 112)).astype(np.uint16),
-         np.random.default_rng(242).integers(-(2**16), 2**16, (99, 113)),
-         0.5-np.random.default_rng(3334).random((10, 200)),
-         20000.0*(0.5-np.random.default_rng(1723).random((100, 112)))])
-def test_scale_img_to_uint8(raw_img):
-    raw_min = raw_img.min()
-    raw_max = raw_img.max()
-
-    scaled_img = scale_img_to_uint8(raw_img)
-    assert scaled_img.dtype == np.uint8
-    assert scaled_img.shape == raw_img.shape
-
-    assert scaled_img.min() >= 0
-    assert scaled_img.max() <= 255
-
-    eps = 1.0e-6
-    for ii in range(raw_img.shape[0]):
-        for jj in range(raw_img.shape[1]):
-            raw_pixel = raw_img[ii, jj]
-            scaled_pixel = scaled_img[ii, jj]
-            shld_be = np.round(255.0*(raw_pixel-raw_min)/(raw_max-raw_min))
-            assert np.abs(scaled_pixel-shld_be) < eps

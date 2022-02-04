@@ -7,6 +7,8 @@ import numpy as np
 import PIL.Image
 from itertools import product
 
+from ophys_etl.utils.array_utils import normalize_array
+
 from ophys_etl.utils.rois import (
     sanitize_extract_roi_list,
     extract_roi_to_ophys_roi)
@@ -15,7 +17,6 @@ from ophys_etl.modules.roi_cell_classifier.compute_artifacts import (
     ArtifactGenerator)
 
 from ophys_etl.modules.roi_cell_classifier.utils import (
-    scale_img_to_uint8,
     get_traces)
 
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
@@ -140,12 +141,12 @@ def test_with_graph(
 
         artifact_corr = artifact_file['correlation_projection'][()]
         if use_graph:
-            expected_corr = scale_img_to_uint8(
+            expected_corr = normalize_array(
                               graph_to_img(
                                     corr_fixture,
                                     attribute_name='filtered_hnc_Gaussian'))
         else:
-            expected_corr = scale_img_to_uint8(
+            expected_corr = normalize_array(
                                 np.array(PIL.Image.open(corr_fixture, 'r')))
 
         np.testing.assert_array_equal(artifact_corr, expected_corr)

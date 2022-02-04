@@ -12,8 +12,7 @@ from itertools import combinations, product
 from ophys_etl.modules.segmentation.graph_utils.conversion import (
     graph_to_img)
 
-from ophys_etl.modules.roi_cell_classifier.utils import (
-    scale_img_to_uint8)
+from ophys_etl.utils.array_utils import normalize_array
 
 
 def fixture_hasher(file_path):
@@ -146,7 +145,7 @@ def classifier2021_corr_png_fixture(
                 classifier2021_corr_graph_fixture,
                 attribute_name='filtered_hnc_Gaussian')
 
-    img = scale_img_to_uint8(img)
+    img = normalize_array(img)
     img = PIL.Image.fromarray(img)
     img.save(png_path)
     yield pathlib.Path(png_path)

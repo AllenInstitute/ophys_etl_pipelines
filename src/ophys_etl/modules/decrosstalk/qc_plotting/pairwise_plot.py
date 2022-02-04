@@ -19,8 +19,8 @@ from typing import Tuple, List, Dict, Optional
 
 from matplotlib.colorbar import Colorbar
 
+from ophys_etl.types import OphysROI
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
-from ophys_etl.modules.decrosstalk.ophys_plane import OphysROI
 
 
 from ophys_etl.modules.decrosstalk.qc_plotting.utils import add_gridlines

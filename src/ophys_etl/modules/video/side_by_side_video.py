@@ -40,7 +40,7 @@ class SideBySideVideoGenerator(argschema.ArgSchemaParser):
             quantiles = (self.args['lower_quantile'],
                          self.args['upper_quantile'])
         else:
-            quantiles = None
+            quantiles = (0.0, 1.0)
 
         use_kernel = False
         if self.args['kernel_size'] is not None:

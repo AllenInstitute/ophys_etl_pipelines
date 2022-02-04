@@ -71,7 +71,7 @@ class ArtifactFileSchema(argschema.ArgSchema):
     projection_upper_quantile = argschema.fields.Float(
             required=False,
             default=0.99,
-            description=("upper quantil to use when scaling "
+            description=("upper quantile to use when scaling "
                          "max/avg projection"))
 
     @post_load

@@ -2,6 +2,7 @@ from matplotlib import cm as mplt_cm
 import math
 from typing import List, Optional, Tuple, Union, Dict
 import numpy as np
+import copy
 import networkx
 from scipy.sparse import coo_matrix
 from scipy.spatial.distance import cdist
@@ -488,6 +489,41 @@ def ophys_roi_to_extract_roi(roi: OphysROI) -> ExtractROI:
                          valid=roi.valid_roi,
                          id=roi.roi_id)
     return new_roi
+
+
+def sanitize_extract_roi_list(
+        input_roi_list: List[Dict]) -> List[ExtractROI]:
+    """
+    There are, unfortunately, two ROI serialization schemes floating
+    around in our code base. This method converts the one that is
+    incompatible with ExtractROI to a list of ExtractROI. Specifically,
+    it converts
+
+    valid_roi -> valid
+    mask_matrix -> mask
+    roi_id - > id
+
+    Parameters
+    ----------
+    input_roi_list: List[Dict]
+        List of ROIs represented as dicts which ar inconsistent
+        with ExtractROI
+
+    Returns
+    -------
+    output_roi_list: List[ExtractROI]
+    """
+    output_roi_list = []
+    for roi in input_roi_list:
+        new_roi = copy.deepcopy(roi)
+        if 'valid_roi' in new_roi:
+            new_roi['valid'] = new_roi.pop('valid_roi')
+        if 'mask_matrix' in new_roi:
+            new_roi['mask'] = new_roi.pop('mask_matrix')
+        if 'roi_id' in new_roi:
+            new_roi['id'] = new_roi.pop('roi_id')
+        output_roi_list.append(new_roi)
+    return output_roi_list
 
 
 def _do_rois_abut(array_0: np.ndarray,

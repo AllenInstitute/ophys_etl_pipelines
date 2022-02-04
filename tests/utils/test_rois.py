@@ -1,6 +1,8 @@
 import pytest
 
 import numpy as np
+import copy
+from itertools import product
 from scipy.sparse import coo_matrix
 
 from ophys_etl.utils.motion_border import MotionBorder
@@ -10,7 +12,7 @@ from ophys_etl.schemas import DenseROISchema
 
 
 @pytest.fixture
-def example_roi_list_fixture():
+def example_ophys_roi_list_fixture():
     rng = np.random.RandomState(6412439)
     roi_list = []
     for ii in range(30):
@@ -631,8 +633,8 @@ def test_extract_roi_to_ophys_roi():
     np.testing.assert_array_equal(ophys_roi.mask_matrix, mask)
 
 
-def test_ophys_roi_to_extract_roi(example_roi_list_fixture):
-    for roi_in in example_roi_list_fixture:
+def test_ophys_roi_to_extract_roi(example_ophys_roi_list_fixture):
+    for roi_in in example_ophys_roi_list_fixture:
         roi_out = rois_utils.ophys_roi_to_extract_roi(roi_in)
         assert roi_out['x'] == roi_in.x0
         assert roi_out['y'] == roi_in.y0
@@ -641,3 +643,40 @@ def test_ophys_roi_to_extract_roi(example_roi_list_fixture):
         assert roi_out['id'] == roi_in.roi_id
         np.testing.assert_array_equal(roi_in.mask_matrix,
                                       roi_out['mask'])
+
+
+@pytest.mark.parametrize(
+    "munge_mapping, extra_field",
+    product([{'valid': 'valid_roi'},
+             {'mask': 'mask_matrix'},
+             {'id': 'roi_id'},
+             {'valid': 'valid_roi', 'mask': 'mask_matrix'},
+             {'valid': 'valid_roi', 'id': 'roi_id'},
+             {'mask': 'mask_matrix', 'id': 'roi_id'},
+             {'valid': 'valid_roi', 'mask': 'mask_matrix', 'id': 'roi_id'}],
+            (True, False))
+)
+def test_sanitize_extract_roi_list(
+        example_ophys_roi_list_fixture,
+        munge_mapping,
+        extra_field):
+
+    extract_roi_list = [rois_utils.ophys_roi_to_extract_roi(roi)
+                        for roi in example_ophys_roi_list_fixture]
+
+    if extra_field:
+        for ii, roi in enumerate(extract_roi_list):
+            roi['nonsense'] = ii
+        for roi in extract_roi_list:
+            assert 'nonsense' in roi
+
+    bad_roi_list = []
+    for roi in extract_roi_list:
+        new_roi = copy.deepcopy(roi)
+        for k in munge_mapping:
+            new_roi[munge_mapping[k]] = new_roi.pop(k)
+        bad_roi_list.append(new_roi)
+
+    assert bad_roi_list != extract_roi_list
+    cleaned_roi_list = rois_utils.sanitize_extract_roi_list(bad_roi_list)
+    assert cleaned_roi_list == extract_roi_list

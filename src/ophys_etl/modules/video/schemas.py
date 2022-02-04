@@ -17,8 +17,8 @@ class VideoBaseSchema(argschema.ArgSchema):
             required=False,
             allow_none=True,
             default=3,
-            description=("Radius of median filter kernel; "
-                         "if None, no median filter applied"))
+            description=("Size of spatial filter kernel; "
+                         "if None or zero, no spatial filter applied"))
 
     kernel_type = argschema.fields.String(
             required=False,

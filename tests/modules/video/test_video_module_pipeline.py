@@ -168,3 +168,95 @@ def test_side_by_side_video_schema_error(
 
     with pytest.raises(ValueError, match='output_path must have'):
         _ = SideBySideVideoGenerator(input_data=input_args, args=[])
+
+
+@pytest.mark.parametrize(
+    'lower_quantile, upper_quantile, raises',
+    [(None, None, False),
+     (None, 0.9, True),
+     (0.1, None, True),
+     (0.9, 0.1, True),
+     (0.1, 0.9, False)])
+def test_single_video_quantiles(
+        tmpdir,
+        video_path_fixture,
+        lower_quantile,
+        upper_quantile,
+        raises):
+    """
+    This is just a smoke test
+    """
+    output_suffix = '.avi'
+    video_dtype = 'uint8'
+    kernel_type = 'mean'
+    tmp_dir = pathlib.Path(tmpdir)
+    video_path = str(video_path_fixture.resolve().absolute())
+    output_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir,
+                                                suffix=output_suffix)[1])
+    input_args = {'video_path': video_path,
+                  'output_path': str(output_path.resolve().absolute()),
+                  'kernel_size': 5,
+                  'input_frame_rate_hz': 12.0,
+                  'output_frame_rate_hz': 7.0,
+                  'reticle': True,
+                  'lower_quantile': lower_quantile,
+                  'upper_quantile': upper_quantile,
+                  'tmp_dir': str(tmp_dir.resolve().absolute()),
+                  'quality': 6,
+                  'speed_up_factor': 2,
+                  'n_parallel_workers': 3,
+                  'video_dtype': video_dtype,
+                  'kernel_type': kernel_type}
+
+    if raises:
+        with pytest.raises(ValueError, match='quantile'):
+            _ = VideoGenerator(input_data=input_args, args=[])
+    else:
+        gen = VideoGenerator(input_data=input_args, args=[])
+        gen.run()
+        assert output_path.is_file()
+
+
+@pytest.mark.parametrize(
+    'lower_quantile, upper_quantile, raises',
+    [(None, None, False),
+     (None, 0.9, True),
+     (0.1, None, True),
+     (0.9, 0.1, True),
+     (0.1, 0.9, False)])
+def test_side_by_side_video_quantiles(
+        tmpdir,
+        video_path_fixture,
+        lower_quantile,
+        upper_quantile,
+        raises):
+    output_suffix = '.avi'
+    video_dtype = 'uint8'
+    kernel_type = 'mean'
+    tmp_dir = pathlib.Path(tmpdir)
+    video_path = str(video_path_fixture.resolve().absolute())
+    output_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir,
+                                                suffix=output_suffix)[1])
+    input_args = {'left_video_path': video_path,
+                  'right_video_path': video_path,
+                  'output_path': str(output_path.resolve().absolute()),
+                  'kernel_size': 5,
+                  'input_frame_rate_hz': 12.0,
+                  'output_frame_rate_hz': 7.0,
+                  'reticle': True,
+                  'lower_quantile': lower_quantile,
+                  'upper_quantile': upper_quantile,
+                  'tmp_dir': str(tmp_dir.resolve().absolute()),
+                  'quality': 6,
+                  'speed_up_factor': 2,
+                  'n_parallel_workers': 3,
+                  'video_dtype': video_dtype,
+                  'kernel_type': kernel_type}
+
+    if raises:
+        with pytest.raises(ValueError, match='quantile'):
+            _ = SideBySideVideoGenerator(input_data=input_args, args=[])
+    else:
+        gen = SideBySideVideoGenerator(input_data=input_args, args=[])
+        gen.run()
+        assert output_path.is_file()

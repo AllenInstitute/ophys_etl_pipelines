@@ -1,4 +1,6 @@
 import pytest
+import tempfile
+import pathlib
 import numpy as np
 import networkx as nx
 
@@ -20,8 +22,17 @@ def graph_fixture(request):
             {"attribute_name": "some string"}
             ],
         indirect=["graph_fixture"])
-def test_graph_to_img(graph_fixture):
+def test_graph_to_img(graph_fixture, tmpdir):
     graph, name = graph_fixture
     img = conversion.graph_to_img(graph, attribute_name=name)
+    assert isinstance(img, np.ndarray)
+    assert img.shape == (100, 100)
+
+    # test reading from file
+    graph_path = tempfile.mkstemp(dir=tmpdir, suffix='.pkl')[1]
+    graph_path = pathlib.Path(graph_path)
+    nx.write_gpickle(graph, graph_path)
+    assert graph_path.is_file()
+    img = conversion.graph_to_img(graph_path, attribute_name=name)
     assert isinstance(img, np.ndarray)
     assert img.shape == (100, 100)

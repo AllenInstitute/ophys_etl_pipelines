@@ -138,4 +138,3 @@ class Trainer:
         else:
             path = None
         return path
-

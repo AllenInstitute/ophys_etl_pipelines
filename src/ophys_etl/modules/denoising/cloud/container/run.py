@@ -14,8 +14,8 @@ logger = logging.getLogger(__name__)
 def main():
     _update_paths_to_container_paths()
 
-    cmd = f'python -m deepinterpolation.cli.fine_tuning --input_json ' \
-          f'/opt/ml/input.json'
+    cmd = 'python -m deepinterpolation.cli.fine_tuning --input_json ' \
+          '/opt/ml/input.json'
     cmd = cmd.split(' ')
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                stderr=subprocess.PIPE,

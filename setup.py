@@ -16,6 +16,6 @@ setup(
       setup_requires=["setuptools_scm"],
       install_requires=required,
       package_data={
-            'ophys_etl/modules/denoising/cloud/container': ['*']
+            'ophys_etl/modules/denoising/cloud/container': ['Dockerfile']
       }
 )

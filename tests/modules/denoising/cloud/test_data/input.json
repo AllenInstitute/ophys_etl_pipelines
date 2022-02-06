@@ -6,7 +6,7 @@
     "learning_rate": 0.0001,
     "loss": "mean_squared_error",
     "model_source": {
-      "local_path": "2021_04_06_14_15_transfer_train__mean_squared_error_transfer_model.h5"
+      "local_path": "pretrained_model.h5"
     },
     "model_string": "",
     "multi_gpus": false,

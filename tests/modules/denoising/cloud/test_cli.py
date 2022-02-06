@@ -29,6 +29,11 @@ def test_cli(_, __, ___, ____, local_mode):
     with open((Path(__file__).parent / 'test_data' / 'input.json')) as f:
         input_json = json.load(f)
 
+    input_json['finetuning_params']['model_source']['local_path'] = \
+        str(Path(__file__).parent / 'test_data' /
+            Path(input_json['finetuning_params']['model_source']
+                 ['local_path']).name)
+
     for p in ('generator_params', 'test_generator_params'):
         cur_path = input_json[p]['train_path']
         new_path = str(Path(__file__).parent / 'test_data' /

@@ -1,6 +1,10 @@
 import base64
+import json
+import os
+import shutil
+import subprocess
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Optional
 
 import boto3
 import docker
@@ -8,10 +12,15 @@ import logging
 
 from ophys_etl.modules.denoising.cloud.aws_utils import get_account_id
 
+# https://github.com/aws/deep-learning-containers/blob/master/available_images.md   # noqa E501
+# Needed to authenticate against this host to pull the image
+AWS_DEEP_LEARNING_DOCKER_IMAGE_HOST = \
+    '763104351884.dkr.ecr.us-west-2.amazonaws.com'
+
 
 class ECRUploader:
-    """Class for handling upload of docker image to Elastic container
-    service"""
+    """Class for handling local build and upload of docker image to
+    Elastic container service"""
     def __init__(self, repository_name: str,
                  image_tag: str, profile_name='default',
                  region_name='us-west-2'):
@@ -38,7 +47,12 @@ class ECRUploader:
         self._repository_name = repository_name
         self._image_tag = image_tag
 
-    def build_and_push_container(self, dockerfile_dir: Path) -> None:
+    def build_and_push_container(
+            self,
+            dockerfile_dir: Path,
+            input_json_path: Path,
+            pretrained_model_path: Optional[Path] = None
+    ) -> None:
         """
         Builds docker image locally and pushes to ECR
 
@@ -46,6 +60,11 @@ class ECRUploader:
         ----------
         dockerfile_dir
             Directory containing dockerfile
+        input_json_path
+            Path to input json that will be passed to the program
+        pretrained_model_path
+            Optional path to pretrained model, which needs to be copied into
+            build context
 
         Notes
         ----------
@@ -55,6 +74,13 @@ class ECRUploader:
         self._logger.info('Creating ecr repository')
         self._create_repository()
 
+        self._logger.info('Copying inputs into build context')
+        self._copy_inputs_into_build_context(
+            input_json_path=input_json_path,
+            container_dir=dockerfile_dir,
+            pretrained_model_path=pretrained_model_path
+        )
+
         self._logger.info('Building docker image')
         self._build_docker(path_to_dockerfile=dockerfile_dir)
 
@@ -63,6 +89,13 @@ class ECRUploader:
 
         self._logger.info('Pushing image to ecr')
         self._docker_push()
+
+    @property
+    def image_uri(self):
+        host = self._get_repository_host()
+        name = self._repository_name
+        tag = self._image_tag
+        return f'{host}/{name}:{tag}'
 
     def _get_repository_host(self):
         account = get_account_id(boto_session=self._boto_session)
@@ -80,12 +113,30 @@ class ECRUploader:
 
     def _docker_login(self):
         username, password = self._get_ecr_credentials()
-        client = docker.APIClient()
+        client = docker.from_env()
         client.login(username=username, password=password,
                      registry=self._repository_host)
+
+        # authenticate against private aws deep learning docker repository
+        # in order to pull it
+        # Need to execute the cmd directly rather than use the docker api;
+        # docker api didn't work
+        cmd = f'aws ecr get-login-password --region us-west-2 | ' \
+              f'docker login --username AWS --password-stdin ' \
+              f'{AWS_DEEP_LEARNING_DOCKER_IMAGE_HOST}'
+        cmd = cmd.split(' ')
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE,
+                                   env=os.environ)
+        stdout, stderr = process.communicate()
+        self._logger.info(stdout)
+        if stderr:
+            self._logger.error(stderr)
+            raise RuntimeError(stderr)
         return username, password
 
     def _build_docker(self, path_to_dockerfile: Path):
+        self._docker_login()
         docker_client = docker.APIClient()
         image_tag = f'{self._repository_name}:{self._image_tag}'
         build_res = docker_client.build(path=str(path_to_dockerfile),
@@ -132,3 +183,22 @@ class ECRUploader:
         password = bytes.decode(password)
         password = password.replace('AWS:', '')
         return 'AWS', password
+
+    @staticmethod
+    def _copy_inputs_into_build_context(
+            input_json_path: Path,
+            container_dir: Path,
+            pretrained_model_path: Optional[Path] = None):
+        """Copies artifacts into container context"""
+        if pretrained_model_path is not None:
+            shutil.copy(pretrained_model_path, container_dir /
+                        'pretrained_model.h5')
+        shutil.copy(input_json_path,
+                    container_dir / 'input.json')
+        with open(container_dir / 'input.json') as f:
+            input_json = json.load(f)
+
+        for p in ('generator_params', 'test_generator_params'):
+            train_path = input_json[p]['train_path']
+            new_path = container_dir / Path(train_path).name
+            shutil.copy(train_path, new_path)

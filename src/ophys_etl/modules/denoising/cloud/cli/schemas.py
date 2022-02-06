@@ -3,8 +3,10 @@ import argschema
 
 class DockerSchema(argschema.ArgSchema):
     repository_name = argschema.fields.Str(
-        default='train_deepinterpolation',
-        description='Docker repository name that will be created'
+        default='train-deepinterpolation',
+        description='Docker repository name that will be created, and also '
+                    'the base name for the sagemaker training job (training '
+                    'job will be <repository name>-<timestamp>)'
     )
 
     image_tag = argschema.fields.Str(
@@ -47,18 +49,11 @@ class CloudDenoisingTrainerSchema(argschema.ArgSchema):
     )
 
     sagemaker_execution_role = argschema.fields.Str(
-        required=False,
-        default=None,
-        allow_none=True,
+        required=True,
         description='The role id with AmazonSageMakerFullAccess permissions. '
-                    'This role should already be created in AWS IAM'
-    )
-
-    local_data_dir = argschema.fields.InputDir(
-        default=None,
-        description='Directory containing local input data. The data here '
-                    'will either be used locally for training if in local '
-                    'mode or will be uploaded to S3 for cloud training'
+                    'This role should already be created in AWS IAM. '
+                    'Unfortunately still required to exist in AWS even in '
+                    'local mode'
     )
 
     docker_params = argschema.fields.Nested(
@@ -69,4 +64,15 @@ class CloudDenoisingTrainerSchema(argschema.ArgSchema):
     s3_params = argschema.fields.Nested(
         S3ParamsSchema,
         default={}
+    )
+
+    pretrained_model_path = argschema.fields.InputFile(
+        required=False,
+        description='Path to pretrained model to finetune'
+    )
+
+    input_json_path = argschema.fields.InputFile(
+        required=True,
+        description='The input json to pass along to the deepinterpolation '
+                    'CLI'
     )

@@ -1,3 +1,7 @@
+import json
+import logging
+import shutil
+import tempfile
 from pathlib import Path
 
 import argschema
@@ -10,6 +14,8 @@ from ophys_etl.modules.denoising.cloud.cli.schemas import \
 
 class CloudDenoisingTrainerModule(argschema.ArgSchemaParser):
     default_schema = CloudDenoisingTrainerSchema
+    _logger = logging.getLogger(__name__)
+    _container_path = (Path(__file__).parent.parent / 'container')
 
     def run(self):
         repository_name = self.args['docker_params']['repository_name']
@@ -21,22 +27,24 @@ class CloudDenoisingTrainerModule(argschema.ArgSchemaParser):
             profile_name=self.args['profile_name']
         )
         ecr_uploader.build_and_push_container(
-            dockerfile_dir=(Path(__file__).parent / 'container')
+            input_json_path=self.args['input_json_path'],
+            pretrained_model_path=self.args['pretrained_model_path'],
+            dockerfile_dir=self._container_path
         )
 
         trainer = Trainer(
+            input_json_path=self.args['input_json_path'],
             sagemaker_execution_role=self.args['sagemaker_execution_role'],
             bucket_name=self.args['s3_params']['bucket_name'],
-            image_uri=f'{repository_name}:{image_tag}',
+            image_uri=ecr_uploader.image_uri,
             profile_name=self.args['profile_name'],
             local_mode=self.args['local_mode'],
             instance_type=self.args['instance_type'],
             instance_count=self.args['instance_count'],
-            local_input_data_dir=self.args['local_data_dir']
         )
         trainer.run()
 
 
 if __name__ == "__main__":
-    train_mod = CloudDenoisingTrainerModule(input_data={'local_mode': True})
+    train_mod = CloudDenoisingTrainerModule()
     train_mod.run()

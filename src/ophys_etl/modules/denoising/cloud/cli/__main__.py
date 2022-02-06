@@ -26,7 +26,8 @@ class CloudDenoisingTrainerModule(argschema.ArgSchemaParser):
         ecr_uploader.build_and_push_container(
             input_json_path=self.args['input_json_path'],
             pretrained_model_path=self.args['pretrained_model_path'],
-            dockerfile_dir=self._container_path
+            dockerfile_path=self._container_path / 'Dockerfile',
+            entrypoint_script_path=self._container_path / 'run.py'
         )
 
         trainer = Trainer(

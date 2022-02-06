@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Tuple, Optional
 
@@ -49,8 +50,9 @@ class ECRUploader:
 
     def build_and_push_container(
             self,
-            dockerfile_dir: Path,
+            dockerfile_path: Path,
             input_json_path: Path,
+            entrypoint_script_path: Path,
             pretrained_model_path: Optional[Path] = None
     ) -> None:
         """
@@ -58,8 +60,10 @@ class ECRUploader:
 
         Parameters
         ----------
-        dockerfile_dir
-            Directory containing dockerfile
+        dockerfile_path
+            Path to the dockerfile
+        entrypoint_script_path
+            Path to the dockerfile entrypoint script
         input_json_path
             Path to input json that will be passed to the program
         pretrained_model_path
@@ -75,14 +79,17 @@ class ECRUploader:
         self._create_repository()
 
         self._logger.info('Copying inputs into build context')
-        self._copy_inputs_into_build_context(
-            input_json_path=input_json_path,
-            container_dir=dockerfile_dir,
-            pretrained_model_path=pretrained_model_path
-        )
+        with tempfile.TemporaryDirectory() as temp_docker_context:
+            self._copy_inputs_into_build_context(
+                input_json_path=input_json_path,
+                container_context_path=Path(temp_docker_context),
+                dockerfile_path=dockerfile_path,
+                pretrained_model_path=pretrained_model_path,
+                entrypoint_script_path=entrypoint_script_path
+            )
 
-        self._logger.info('Building docker image')
-        self._build_docker(path_to_dockerfile=dockerfile_dir)
+            self._logger.info('Building docker image')
+            self._build_docker(path_to_dockerfile=temp_docker_context)
 
         self._logger.info('Tagging locally')
         self._tag_docker()
@@ -121,14 +128,14 @@ class ECRUploader:
         # in order to pull it
         # Need to execute the cmd directly rather than use the docker api;
         # docker api didn't work
-        cmd = f'aws ecr get-login-password --region us-west-2 | ' \
-              f'docker login --username AWS --password-stdin ' \
+        cmd = f'docker login --username AWS --password-stdin ' \
               f'{AWS_DEEP_LEARNING_DOCKER_IMAGE_HOST}'
         cmd = cmd.split(' ')
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE,
+                                   stdin=subprocess.PIPE,
                                    env=os.environ)
-        stdout, stderr = process.communicate()
+        stdout, stderr = process.communicate(input=password.encode('utf-8'))
         self._logger.info(stdout)
         if stderr:
             self._logger.error(stderr)
@@ -187,18 +194,28 @@ class ECRUploader:
     @staticmethod
     def _copy_inputs_into_build_context(
             input_json_path: Path,
-            container_dir: Path,
+            dockerfile_path: Path,
+            entrypoint_script_path: Path,
+            container_context_path: Path,
             pretrained_model_path: Optional[Path] = None):
         """Copies artifacts into container context"""
         if pretrained_model_path is not None:
-            shutil.copy(pretrained_model_path, container_dir /
+            shutil.copy(pretrained_model_path, container_context_path /
                         'pretrained_model.h5')
         shutil.copy(input_json_path,
-                    container_dir / 'input.json')
-        with open(container_dir / 'input.json') as f:
+                    container_context_path / 'input.json')
+        with open(container_context_path / 'input.json') as f:
             input_json = json.load(f)
 
         for p in ('generator_params', 'test_generator_params'):
             train_path = input_json[p]['train_path']
-            new_path = container_dir / Path(train_path).name
+            new_path = container_context_path / Path(train_path).name
             shutil.copy(train_path, new_path)
+
+        # Copy the Dockerfile
+        shutil.copy(dockerfile_path, container_context_path)
+
+        # Copy the entrypoint script
+        shutil.copy(entrypoint_script_path, container_context_path)
+
+

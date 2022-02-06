@@ -217,5 +217,3 @@ class ECRUploader:
 
         # Copy the entrypoint script
         shutil.copy(entrypoint_script_path, container_context_path)
-
-

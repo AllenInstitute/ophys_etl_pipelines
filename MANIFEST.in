@@ -1,1 +1,1 @@
-include src/ophys_etl/modules/denoising/cloud/container/Dockerfile
+include src/ophys_etl/modules/denoising/cloud/container/*

@@ -13,10 +13,11 @@ from ophys_etl.modules.denoising.cloud.ecr import ECRUploader
 
 @patch("boto3.session")
 @patch('docker.APIClient')
+@patch.object(sagemaker.estimator.Estimator, '__init__', return_value=None)
 @patch.object(sagemaker.estimator.Estimator, 'fit')
 @patch.object(ECRUploader, '_docker_login', return_value=('', ''))
 @pytest.mark.parametrize('local_mode', [True, False])
-def test_cli(_, __, ___, ____, local_mode):
+def test_cli(_, __, ___, ____, _____, local_mode):
     """Smoke tests the CLI"""
     sagemaker_execution_role_name = 'mock_sm_execution_role_name'
 

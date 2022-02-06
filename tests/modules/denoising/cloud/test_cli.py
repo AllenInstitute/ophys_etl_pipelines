@@ -29,10 +29,12 @@ def test_cli(_, __, ___, ____, local_mode):
     with open((Path(__file__).parent / 'test_data' / 'input.json')) as f:
         input_json = json.load(f)
 
-    input_json['finetuning_params']['model_source']['local_path'] = \
+    dummy_pretrained_model_path = \
         str(Path(__file__).parent / 'test_data' /
             Path(input_json['finetuning_params']['model_source']
                  ['local_path']).name)
+    input_json['finetuning_params']['model_source']['local_path'] = \
+        dummy_pretrained_model_path
 
     for p in ('generator_params', 'test_generator_params'):
         cur_path = input_json[p]['train_path']
@@ -45,14 +47,13 @@ def test_cli(_, __, ___, ____, local_mode):
         with open(input_json_fd.name, 'w') as f:
             f.write(json.dumps(input_json))
 
-        with tempfile.NamedTemporaryFile() as pt_model_fd:
-            input_data = {
-                'local_mode': local_mode,
-                'input_json_path': input_json_fd.name,
-                'pretrained_model_path': pt_model_fd.name,
-                'instance_type': instance_type,
-                'sagemaker_execution_role': sagemaker_execution_role_name
-            }
-            train_mod = CloudDenoisingTrainerModule(
-                input_data=input_data, args=[])
-            train_mod.run()
+        input_data = {
+            'local_mode': local_mode,
+            'input_json_path': input_json_fd.name,
+            'pretrained_model_path': dummy_pretrained_model_path,
+            'instance_type': instance_type,
+            'sagemaker_execution_role': sagemaker_execution_role_name
+        }
+        train_mod = CloudDenoisingTrainerModule(
+            input_data=input_data, args=[])
+        train_mod.run()

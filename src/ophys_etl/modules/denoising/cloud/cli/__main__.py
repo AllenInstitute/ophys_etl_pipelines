@@ -9,10 +9,16 @@ from ophys_etl.modules.denoising.cloud.cli.schemas import \
     CloudDenoisingTrainerSchema
 
 
+def _get_dockerfile_dir():
+    import ophys_etl
+    p = Path(ophys_etl.__file__).parent
+    return p / 'modules' / 'denoising' / 'cloud' / 'container'
+
+
 class CloudDenoisingTrainerModule(argschema.ArgSchemaParser):
     default_schema = CloudDenoisingTrainerSchema
     _logger = logging.getLogger(__name__)
-    _container_path = (Path(__file__).parent.parent / 'container')
+    _container_path = _get_dockerfile_dir()
 
     def run(self):
         repository_name = self.args['docker_params']['repository_name']

@@ -236,10 +236,7 @@ def create_side_by_side_video(
 
     del left_uint
 
-    if video_dtype == np.uint8:
-        half_val = 125
-    else:
-        half_val = 32767
+    half_val = int(np.iinfo(video_dtype).max//2)
 
     # make the gap between videos gray
     video_array[:,
@@ -627,6 +624,8 @@ def _video_array_from_h5(
         msg = f'video_dtype: {video_dtype}\n'
         msg += 'is not legal; must be either np.uint8 or np.uint16'
         raise ValueError(msg)
+
+    max_cast_value = int(np.iinfo(video_dtype).max)
 
     if video_dtype == np.uint8:
         max_cast_value = 255

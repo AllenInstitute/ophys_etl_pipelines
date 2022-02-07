@@ -33,7 +33,6 @@ class CloudDenoisingTrainerModule(argschema.ArgSchemaParser):
 
         trainer = Trainer(
             input_json_path=self.args['input_json_path'],
-            sagemaker_execution_role=self.args['sagemaker_execution_role'],
             bucket_name=self.args['s3_params']['bucket_name'],
             image_uri=ecr_uploader.image_uri,
             profile_name=self.args['profile_name'],

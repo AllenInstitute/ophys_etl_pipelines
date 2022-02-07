@@ -7,9 +7,6 @@ import boto3.session
 import sagemaker
 from sagemaker.estimator import Estimator
 
-from ophys_etl.modules.denoising.cloud.aws_utils import \
-    get_account_id
-
 
 class Trainer:
     def __init__(self,
@@ -20,8 +17,7 @@ class Trainer:
                  region_name='us-west-2',
                  local_mode=False,
                  instance_type: Optional[str] = None,
-                 instance_count=1,
-                 sagemaker_execution_role: Optional[str] = None):
+                 instance_count=1):
         """
 
         Parameters
@@ -43,18 +39,13 @@ class Trainer:
             Instance type to use
         instance_count
             Instance count to use
-        sagemaker_execution_role
-            AWS role name with sagemaker full access privileges
         """
         if not local_mode:
             if instance_type is None:
                 raise ValueError('Must provide instance type if not using '
                                  'local mode')
-            if sagemaker_execution_role is None:
-                raise ValueError('Must provide sagemaker execution role name')
 
         self._input_json_path = input_json_path
-        self._sagemaker_execution_role = sagemaker_execution_role
         self._image_uri = image_uri
         self._local_mode = local_mode
         self._instance_type = instance_type
@@ -72,7 +63,7 @@ class Trainer:
         instance_type = 'local' if self._local_mode else self._instance_type
         sagemaker_session = None if self._local_mode else \
             self._sagemaker_session
-        sagemaker_role_arn = self._get_sagemaker_role_arn()
+        sagemaker_role_arn = self._get_sagemaker_execution_role_arn()
         output_path = self._get_output_path()
 
         estimator = Estimator(
@@ -97,10 +88,28 @@ class Trainer:
                 bucket=self._bucket_name)
         estimator.fit(data_path)
 
-    def _get_sagemaker_role_arn(self):
-        account_id = get_account_id(profile_name=self._profile_name)
-        role_id = self._sagemaker_execution_role
-        return f'arn:aws:iam::{account_id}:role/service-role/{role_id}'
+    def _get_sagemaker_execution_role_arn(self) -> str:
+        """
+        Gets the sagemaker execution role arn
+
+        Returns
+        -------
+        The sagemaker execution role arn
+
+        Raises
+        -------
+        RuntimeError if the role cannot be found
+        """
+        iam = self._sagemaker_session.boto_session.client('iam')
+        roles = iam.list_roles(PathPrefix='/service-role/')
+        sm_roles = [x for x in roles['Roles'] if
+                    x['RoleName'].startswith('AmazonSageMaker-ExecutionRole')]
+        if sm_roles:
+            sm_role = sm_roles[0]
+        else:
+            raise RuntimeError('Could not find the sagemaker execution role. '
+                               'It should have already been created in AWS')
+        return sm_role['Arn']
 
     def _get_data_directory(self) -> Path:
         """Validates that all data is in the same directory.

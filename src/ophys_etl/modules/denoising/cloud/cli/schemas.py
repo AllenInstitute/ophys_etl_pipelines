@@ -48,14 +48,6 @@ class CloudDenoisingTrainerSchema(argschema.ArgSchema):
         description='Number of EC2 instances to use'
     )
 
-    sagemaker_execution_role = argschema.fields.Str(
-        required=True,
-        description='The role id with AmazonSageMakerFullAccess permissions. '
-                    'This role should already be created in AWS IAM. '
-                    'Unfortunately still required to exist in AWS even in '
-                    'local mode'
-    )
-
     docker_params = argschema.fields.Nested(
         DockerSchema,
         default={}

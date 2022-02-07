@@ -4,7 +4,7 @@ from pathlib import Path
 import argschema
 
 from ophys_etl.modules.denoising.cloud.ecr import ECRUploader
-from ophys_etl.modules.denoising.cloud.trainer import Trainer
+from ophys_etl.modules.denoising.cloud.train import TrainingJobRunner
 from ophys_etl.modules.denoising.cloud.cli.schemas import \
     CloudDenoisingFinetuningSchema
 
@@ -30,7 +30,7 @@ class CloudDenoisingFinetuningModule(argschema.ArgSchemaParser):
             entrypoint_script_path=self._container_path / 'run_finetuning.py'
         )
 
-        trainer = Trainer(
+        runner = TrainingJobRunner(
             input_json_path=self.args['input_json_path'],
             bucket_name=self.args['s3_params']['bucket_name'],
             image_uri=ecr_uploader.image_uri,
@@ -41,7 +41,7 @@ class CloudDenoisingFinetuningModule(argschema.ArgSchemaParser):
             timeout=self.args['timeout'],
             volume_size=self.args['volume_size']
         )
-        trainer.run()
+        runner.run()
 
 
 if __name__ == "__main__":

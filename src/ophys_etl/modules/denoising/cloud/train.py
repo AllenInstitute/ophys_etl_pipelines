@@ -1,6 +1,5 @@
 import json
 import logging
-import os
 from pathlib import Path
 from typing import Optional
 
@@ -9,7 +8,7 @@ import sagemaker
 from sagemaker.estimator import Estimator
 
 
-class Trainer:
+class TrainingJobRunner:
     """
     A wrapper on sagemaker Estimator. Starts a training job using the docker
     image given by image_uri

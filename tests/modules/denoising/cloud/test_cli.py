@@ -9,12 +9,13 @@ import sagemaker
 from ophys_etl.modules.denoising.cloud.cli.__main__ import \
     CloudDenoisingFinetuningModule
 from ophys_etl.modules.denoising.cloud.ecr import ECRUploader
-from ophys_etl.modules.denoising.cloud.trainer import Trainer
+from ophys_etl.modules.denoising.cloud.train import TrainingJobRunner
 
 
 @patch("boto3.session")
 @patch('docker.APIClient')
-@patch.object(Trainer, '_get_sagemaker_execution_role_arn', return_value='')
+@patch.object(TrainingJobRunner, '_get_sagemaker_execution_role_arn',
+              return_value='')
 @patch.object(sagemaker.estimator.Estimator, '__init__', return_value=None)
 @patch.object(sagemaker.estimator.Estimator, 'fit')
 @patch.object(ECRUploader, '_docker_login', return_value=('', ''))

@@ -95,36 +95,22 @@ def create_downsampled_video(
         Output is written to the specified movie file
     """
 
-    with tempfile.TemporaryDirectory(dir=tmp_dir) as this_tmp_dir:
-        tmp_h5 = tempfile.mkstemp(dir=this_tmp_dir, suffix='.h5')[1]
-        tmp_h5 = pathlib.Path(tmp_h5)
-        logger.info(f'writing h5py to {tmp_h5}')
+    video_array = _downsampled_video_array_from_h5(
+                        input_path=input_path,
+                        input_hz=input_hz,
+                        output_hz=output_hz,
+                        spatial_filter=spatial_filter,
+                        n_processors=n_processors,
+                        quantiles=quantiles,
+                        reticle=reticle,
+                        tmp_dir=tmp_dir,
+                        video_dtype=video_dtype)
 
-        create_downsampled_video_h5(
-            input_path, input_hz,
-            tmp_h5, output_hz,
-            spatial_filter,
-            n_processors)
-
-        logger.info(f'wrote temp h5py to {tmp_h5}')
-
-        (min_val,
-         max_val) = _min_max_from_h5(tmp_h5, quantiles)
-
-        video_array = _video_array_from_h5(
-                tmp_h5,
-                min_val=min_val,
-                max_val=max_val,
-                reticle=reticle,
-                video_dtype=video_dtype)
-
-        tmp_h5.unlink()
-
-        _write_array_to_video(
-            video_path,
-            video_array,
-            int(speed_up_factor*output_hz),
-            quality)
+    _write_array_to_video(
+        video_path,
+        video_array,
+        int(speed_up_factor*output_hz),
+        quality)
 
 
 def create_side_by_side_video(
@@ -227,84 +213,60 @@ def create_side_by_side_video(
     # number of pixels in a blank column between the movies
     gap = 16
 
-    with tempfile.TemporaryDirectory(dir=tmp_dir) as this_tmp_dir:
+    video_0_uint = _downsampled_video_array_from_h5(
+                        input_path=video_0_path,
+                        input_hz=input_hz,
+                        output_hz=output_hz,
+                        spatial_filter=spatial_filter,
+                        n_processors=n_processors,
+                        quantiles=quantiles,
+                        reticle=reticle,
+                        tmp_dir=tmp_dir,
+                        video_dtype=video_dtype)
 
-        tmp_0_h5 = tempfile.mkstemp(dir=this_tmp_dir, suffix='.h5')[1]
-        tmp_0_h5 = pathlib.Path(tmp_0_h5)
+    video_array = np.zeros((video_0_uint.shape[0],
+                            video_0_uint.shape[1],
+                            gap+2*video_0_uint.shape[2],
+                            3), dtype=video_dtype)
 
-        tmp_1_h5 = tempfile.mkstemp(dir=this_tmp_dir, suffix='.h5')[1]
-        tmp_1_h5 = pathlib.Path(tmp_1_h5)
+    video_array[:, :,
+                :video_0_uint.shape[2], :] = video_0_uint
 
-        create_downsampled_video_h5(
-            video_0_path, input_hz,
-            tmp_0_h5, output_hz,
-            spatial_filter,
-            n_processors)
+    video_0_uint_shape = video_0_uint.shape
 
-        (min_0,
-         max_0) = _min_max_from_h5(tmp_0_h5, quantiles)
+    del video_0_uint
 
-        logger.info(f'wrote {video_0_path} to {tmp_0_h5}')
+    if video_dtype == np.uint8:
+        half_val = 125
+    else:
+        half_val = 32767
 
-        create_downsampled_video_h5(
-            video_1_path, input_hz,
-            tmp_1_h5, output_hz,
-            spatial_filter,
-            n_processors)
+    # make the gap between videos gray
+    video_array[:,
+                :,
+                video_0_uint_shape[2]:video_0_uint_shape[2]+gap,
+                :] = half_val
 
-        (min_1,
-         max_1) = _min_max_from_h5(tmp_1_h5, quantiles)
+    video_array[:, :,
+                video_0_uint_shape[2]+gap:,
+                :] = _downsampled_video_array_from_h5(
+                                             input_path=video_1_path,
+                                             input_hz=input_hz,
+                                             output_hz=output_hz,
+                                             spatial_filter=spatial_filter,
+                                             n_processors=n_processors,
+                                             quantiles=quantiles,
+                                             reticle=reticle,
+                                             tmp_dir=tmp_dir,
+                                             video_dtype=video_dtype)
 
-        logger.info(f'wrote {video_1_path} to {tmp_1_h5}')
+    logger.info('created video array')
 
-        video_0_uint = _video_array_from_h5(tmp_0_h5,
-                                            min_val=min_0,
-                                            max_val=max_0,
-                                            reticle=reticle,
-                                            video_dtype=video_dtype)
-
-        tmp_0_h5.unlink()
-
-        video_array = np.zeros((video_0_uint.shape[0],
-                                video_0_uint.shape[1],
-                                gap+2*video_0_uint.shape[2],
-                                3), dtype=video_dtype)
-
-        video_array[:, :,
-                    :video_0_uint.shape[2], :] = video_0_uint
-
-        video_0_uint_shape = video_0_uint.shape
-
-        del video_0_uint
-
-        if video_dtype == np.uint8:
-            half_val = 125
-        else:
-            half_val = 32767
-
-        # make the gap between videos gray
-        video_array[:,
-                    :,
-                    video_0_uint_shape[2]:video_0_uint_shape[2]+gap,
-                    :] = half_val
-
-        video_array[:, :,
-                    video_0_uint_shape[2]+gap:, :] = _video_array_from_h5(
-                                                      tmp_1_h5,
-                                                      min_val=min_1,
-                                                      max_val=max_1,
-                                                      reticle=reticle,
-                                                      video_dtype=video_dtype)
-
-        tmp_1_h5.unlink()
-
-        logger.info('created video array')
-
-        _write_array_to_video(
-            output_path,
-            video_array,
-            int(speed_up_factor*output_hz),
-            quality)
+    _write_array_to_video(
+        output_path,
+        video_array,
+        int(speed_up_factor*output_hz),
+        quality)
 
 
 def _video_worker(
@@ -711,6 +673,93 @@ def _video_array_from_h5(
         logger.info('added reticles')
 
     return video_as_uint
+
+
+def _downsampled_video_array_from_h5(
+        input_path: pathlib.Path,
+        input_hz: float,
+        output_hz: float,
+        spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]],
+        n_processors: int,
+        quantiles: Tuple[float, float] = (0.1, 0.99),
+        reticle: bool = True,
+        tmp_dir: Optional[pathlib.Path] = None,
+        video_dtype: type = np.uint8) -> np.ndarray:
+    """
+    Create a video array of uints from an HDF5 file, applying
+    downsampling and a median filter if desired.
+
+    Parameters
+    ----------
+    input_path: pathlib.Path
+        Path to the HDF5 file containing the movie data
+
+    input_hz:
+        Frame rate of the input movie in Hz
+
+    output_hz: float
+        Frame rate of the output movie in Hz (set lower than input_hz
+        if you want to apply downsampling to the movie)
+
+    spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]]
+        The function (if any) used to spatially filter frames after
+        downsampling. Accepts an np.ndarray that is the input video;
+        returns an np.ndarray that is the spatially filtered video.
+
+    n_processors: int
+        Number of parallel processes to be used when processing the movie
+
+    quantiles: Tuple[float, float]
+        The quantiles to which to clip the movie before writing it to video
+
+    reticle: bool
+        If True, add a grid of red lines to the movie to guide the eye
+
+    tmp_dir: Optional[pathlib.Path]
+        Scratch directory to use during processing. When applying the median
+        filter, the code writes the filtered movie to disk, rather than try
+        to keep two copies of the movie in memory. This gives the user the
+        option to specify where the scratch copy of the movie is written.
+        If None, the scratch movie will be written to the system's default
+        scratch space.
+
+    video_dtype: type
+        Type to which the video will be cast (must be either
+        np.uint8 or np.uint16)
+
+    Returns
+    -------
+    video_array: np.ndarray
+        array of uints representing the video with the appropriate
+        spatiotemporal smoothings applied
+    """
+
+    with tempfile.TemporaryDirectory(dir=tmp_dir) as this_tmp_dir:
+        tmp_h5 = tempfile.mkstemp(dir=this_tmp_dir, suffix='.h5')[1]
+        tmp_h5 = pathlib.Path(tmp_h5)
+        logger.info(f'writing h5py to {tmp_h5}')
+
+        create_downsampled_video_h5(
+            input_path, input_hz,
+            tmp_h5, output_hz,
+            spatial_filter,
+            n_processors)
+
+        logger.info(f'wrote temp h5py to {tmp_h5}')
+
+        (min_val,
+         max_val) = _min_max_from_h5(tmp_h5, quantiles)
+
+        video_array = _video_array_from_h5(
+                tmp_h5,
+                min_val=min_val,
+                max_val=max_val,
+                reticle=reticle,
+                video_dtype=video_dtype)
+
+        tmp_h5.unlink()
+
+        return video_array
 
 
 def apply_mean_filter_to_video(

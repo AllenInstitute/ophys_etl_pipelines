@@ -9,6 +9,10 @@ from sagemaker.estimator import Estimator
 
 
 class Trainer:
+    """
+    A wrapper on sagemaker Estimator. Starts a training job using the docker
+    image given by image_uri
+    """
     def __init__(self,
                  input_json_path: Path,
                  image_uri: str,
@@ -19,7 +23,6 @@ class Trainer:
                  instance_type: Optional[str] = None,
                  instance_count=1):
         """
-
         Parameters
         ----------
         input_json_path

@@ -1,3 +1,6 @@
+"""
+A module to execute the python executable.
+"""
 import json
 import logging
 import os
@@ -28,7 +31,14 @@ def main():
 
 
 def _update_paths_to_container_paths():
-    """Update paths from local paths to container paths"""
+    """Update paths from local paths to container paths.
+    The paths in the input json are expected to be local paths, but we need
+    them to be container paths.
+
+    Returns
+    --------
+    None, updates paths and overwrites input jsons with updated paths
+    """
 
     def update_input_json():
         data_metadata_paths = []

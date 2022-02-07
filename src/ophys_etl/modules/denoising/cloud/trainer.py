@@ -22,7 +22,8 @@ class Trainer:
                  region_name='us-west-2',
                  local_mode=False,
                  instance_type: Optional[str] = None,
-                 instance_count=1):
+                 instance_count=1,
+                 timeout=24 * 60 * 60):
         """
         Parameters
         ----------
@@ -43,6 +44,8 @@ class Trainer:
             Instance type to use
         instance_count
             Instance count to use
+        timeout
+            Training job timeout in seconds
         """
         if not local_mode:
             if instance_type is None:
@@ -56,6 +59,7 @@ class Trainer:
         self._instance_count = instance_count
         self._profile_name = profile_name
         self._bucket_name = bucket_name
+        self._timeout = timeout
         self._logger = logging.getLogger(__name__)
 
         boto_session = boto3.session.Session(profile_name=profile_name,
@@ -79,7 +83,8 @@ class Trainer:
             image_uri=self._image_uri,
             hyperparameters={},
             output_path=output_path,
-            volume_size=volume_size
+            volume_size=volume_size,
+            max_run=self._timeout
         )
 
         local_input_data_dir = self._get_data_directory()

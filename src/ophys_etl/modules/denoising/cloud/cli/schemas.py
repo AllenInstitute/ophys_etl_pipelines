@@ -70,3 +70,8 @@ class CloudDenoisingFinetuningSchema(argschema.ArgSchema):
         description='The input json to pass along to the deepinterpolation '
                     'CLI'
     )
+
+    timeout = argschema.fields.Int(
+        default=72 * 60 * 60,
+        description='Training job timeout in seconds'
+    )

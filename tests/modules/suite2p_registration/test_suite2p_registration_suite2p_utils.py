@@ -23,6 +23,13 @@ from ophys_etl.modules.suite2p_registration.suite2p_utils import (  # noqa: E402
     add_required_parameters, create_ave_image, optimize_motion_parameters)
 
 
+# Mock function to return just the first frame as the reference. We
+# only specifically mock the functions we absolutely need to return
+# data or those that prevent testing.
+def pick_initial_reference_mock(data):
+    return data[0, :, :]
+
+
 class TestRegistrationSuite2pUtils(unittest.TestCase):
 
     def setUp(self):
@@ -70,16 +77,6 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                                               self.xy_shape,
                                               self.xy_shape))
 
-        # Mock function to return just the first frame as the reference. We
-        # only specifically mock the functions we absolutely need to return
-        # data or those that prevent testing.
-        def pick_initial_reference_mock(data):
-            return data[0, :, :]
-
-        # Make compute_masks return a dummy iterable to mock the code behavior.
-        def compute_masks_mock(refImg, maskSlope):
-            return [1, 2, 3, 4]
-
         # Mock function to pretend that phase correlation ran and found
         # offsets. Return arrays with the correct types and a range of random
         # values.
@@ -88,8 +85,16 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                     self.rng.integers(-1, 1, size=self.n_frames),
                     self.rng.uniform(-1, 1, size=self.n_frames))
 
+        # Where to insert a NaN value in the reference image.
+        nan_insert = 12
+
         # Return the input frame with no shift.
-        def shift_frame(frame, dy, dx):
+        def shift_frame_mock(frame, dy, dx):
+            # If this is an unpadded frame (and therefore is the reference
+            # image) add in a NaN value to test the code's ablity to catch NaN.
+            if frame.shape[0] == self.xy_shape \
+               and frame.shape[1] == self.xy_shape:
+                frame[nan_insert, nan_insert] = np.nan
             return frame
 
         # We want this test to always run on Mocks even when suit2p is
@@ -103,13 +108,13 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                    new=phasecorr_mock), \
              patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
                    'shift_frame',
-                   new=shift_frame), \
+                   new=shift_frame_mock), \
              patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
                    'apply_masks',
                    new=MagicMock()), \
              patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
                    'compute_masks',
-                   new=compute_masks_mock):
+                   new=MagicMock()):
             # Run the code with only two iterations as there is no need for
             # more. We are just testing that the data passes through,
             # correctly.
@@ -125,6 +130,63 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         self.assertEqual(output.shape[0], self.n_frames)
         self.assertEqual(output.shape[1], self.n_frames)
         self.assertTrue(np.all(np.equal(output, np.load(self.mock_data_loc))))
+
+    def test_compute_reference_replace_nans(self):
+        """Test that the code properly replaces NaN values in a reference
+        image where frames have been pathologically shifted in such a way as to
+        not cover the full reference image area.
+        """
+        low_value = 0
+        high_value = 2
+        mean_value = 1
+        frames = np.zeros((4, 100, 100), dtype=np.int16)
+        frames[0, :, :] = np.full_like(frames[0], high_value)
+
+        # Mock function to create a reference image made of two frames
+        # that are shifted exactly opposite of one another by one pixel,
+        # creating an empty pixel in either corner of the reference image.
+        def phasecorr_mock(data, cfRefImg, maxregshift, smooth_sigma_time):
+            return (np.array([1, -1, 0, 0], dtype=int),
+                    np.array([1, -1, 0, 0], dtype=int),
+                    np.array([1, 1, 0, 0], dtype=float))
+
+        # Function to shift frames.
+        def shift_frame_mock(frame, dy, dx):
+            return np.roll(frame, (dy, dx), axis=(0, 1))
+
+        # Patch out all suite2p functions.
+        with patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
+                   'pick_initial_reference',
+                   pick_initial_reference_mock), \
+             patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
+                   'phasecorr',
+                   new=phasecorr_mock), \
+             patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
+                   'shift_frame',
+                   new=shift_frame_mock), \
+             patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
+                   'apply_masks',
+                   new=MagicMock()), \
+             patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
+                   'compute_masks',
+                   new=MagicMock()):
+            result_reference = compute_reference(
+                frames=frames,
+                niter=1,
+                maxregshift=self.ops['maxregshift'],
+                smooth_sigma=self.ops['smooth_sigma'],
+                smooth_sigma_time=self.ops['smooth_sigma_time'])
+        # Test that all the pixels in the overlapping region are the correct
+        # value.
+        np.testing.assert_equal(result_reference[1:-1, 1:-1], mean_value)
+        # Test that the non overlapping corners that have values retain the
+        # correct value.
+        self.assertEqual(result_reference[0, 0], low_value)
+        self.assertEqual(result_reference[-1, -1], high_value)
+        # Test that the empty corners of the image are correctly replaced
+        # with the mean.
+        self.assertEqual(result_reference[0, -1], mean_value)
+        self.assertEqual(result_reference[-1, 0], mean_value)
 
     @pytest.mark.suite2p_only
     def test_compute_reference(self):

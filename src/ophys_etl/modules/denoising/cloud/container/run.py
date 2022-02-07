@@ -21,10 +21,12 @@ def main():
                                stderr=subprocess.PIPE,
                                env=os.environ)
     stdout, stderr = process.communicate()
+    stderr = stderr.decode('utf-8')
+
+    logger.info(stderr)
     logger.info(stdout.decode('utf-8'))
 
     if process.returncode != 0:
-        stderr = stderr.decode('utf-8')
         with open(os.path.join('/opt/ml/model', 'failure'), 'w') as s:
             s.write(str(stderr))
 

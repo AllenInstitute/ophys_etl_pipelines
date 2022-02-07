@@ -114,8 +114,8 @@ def create_downsampled_video(
 
 
 def create_side_by_side_video(
-        video_0_path: pathlib.Path,
-        video_1_path: pathlib.Path,
+        left_video_path: pathlib.Path,
+        right_video_path: pathlib.Path,
         input_hz: float,
         output_path: pathlib.Path,
         output_hz: float,
@@ -134,16 +134,16 @@ def create_side_by_side_video(
 
     Parameters
     ----------
-    video_0_path: pathlib.Path
+    left_video_path: pathlib.Path
         Path to the HDF5 file containing the movie to be shown on the left
 
-    video_1_path: pathlib.Path
+    right_video_path: pathlib.Path
         Path to the HDF5 file containing the movie to be shown on the right
 
     input_hz:
         Frame rate of the input movie in Hz (assume it is the same for
-        video_0 and video_1, since they are presumably the same movie
-        in different states of motion correction)
+        right_video and left_video, since they are presumably the same
+        movie in different states of motion correction)
 
     output_path: Pathlib.path
         Path to the video file to be written
@@ -193,28 +193,28 @@ def create_side_by_side_video(
         Output is written to the specified movie file
     """
 
-    with h5py.File(video_0_path, 'r') as in_file:
-        video_0_shape = in_file['data'].shape
-    with h5py.File(video_1_path, 'r') as in_file:
-        video_1_shape = in_file['data'].shape
+    with h5py.File(left_video_path, 'r') as in_file:
+        left_shape = in_file['data'].shape
+    with h5py.File(right_video_path, 'r') as in_file:
+        right_shape = in_file['data'].shape
 
-    if video_0_shape != video_1_shape:
+    if left_shape != right_shape:
         msg = 'Videos need to be the same shape\n'
-        msg += f'{video_0_path}: {video_0_shape}\n'
-        msg += f'{video_1_path}: {video_1_shape}'
+        msg += f'{left_video_path}: {left_shape}\n'
+        msg += f'{right_video_path}: {right_shape}'
         raise RuntimeError(msg)
 
     # so we do not use them again; output videos
     # need to be the same shape as the smoothed
     # uint arrays
-    del video_0_shape
-    del video_1_shape
+    del left_shape
+    del right_shape
 
     # number of pixels in a blank column between the movies
     gap = 16
 
-    video_0_uint = _downsampled_video_array_from_h5(
-                        input_path=video_0_path,
+    left_uint = _downsampled_video_array_from_h5(
+                        input_path=left_video_path,
                         input_hz=input_hz,
                         output_hz=output_hz,
                         spatial_filter=spatial_filter,
@@ -224,17 +224,17 @@ def create_side_by_side_video(
                         tmp_dir=tmp_dir,
                         video_dtype=video_dtype)
 
-    video_array = np.zeros((video_0_uint.shape[0],
-                            video_0_uint.shape[1],
-                            gap+2*video_0_uint.shape[2],
+    video_array = np.zeros((left_uint.shape[0],
+                            left_uint.shape[1],
+                            gap+2*left_uint.shape[2],
                             3), dtype=video_dtype)
 
     video_array[:, :,
-                :video_0_uint.shape[2], :] = video_0_uint
+                :left_uint.shape[2], :] = left_uint
 
-    video_0_uint_shape = video_0_uint.shape
+    left_uint_shape = left_uint.shape
 
-    del video_0_uint
+    del left_uint
 
     if video_dtype == np.uint8:
         half_val = 125
@@ -244,13 +244,13 @@ def create_side_by_side_video(
     # make the gap between videos gray
     video_array[:,
                 :,
-                video_0_uint_shape[2]:video_0_uint_shape[2]+gap,
+                left_uint_shape[2]:left_uint_shape[2]+gap,
                 :] = half_val
 
     video_array[:, :,
-                video_0_uint_shape[2]+gap:,
+                left_uint_shape[2]+gap:,
                 :] = _downsampled_video_array_from_h5(
-                                             input_path=video_1_path,
+                                             input_path=right_video_path,
                                              input_hz=input_hz,
                                              output_hz=output_hz,
                                              spatial_filter=spatial_filter,

@@ -598,8 +598,8 @@ def test_module_create_side_by_side_video_shape_error(
 
     with pytest.raises(RuntimeError, match='Videos need to be the same shape'):
         create_side_by_side_video(
-                video_0_path=video_path_fixture,
-                video_1_path=other_path,
+                left_video_path=video_path_fixture,
+                right_video_path=other_path,
                 input_hz=5.0,
                 output_path=out_path,
                 output_hz=1.0,

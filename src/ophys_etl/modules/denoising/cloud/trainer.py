@@ -85,6 +85,7 @@ class Trainer:
             data_path = f'file://{local_input_data_dir}'
         else:
             self._logger.info('Uploading input data to S3')
+            self._create_bucket_if_not_exists()
             data_path = self._sagemaker_session.upload_data(
                 path=str(local_input_data_dir),
                 key_prefix='input_data',
@@ -153,3 +154,27 @@ class Trainer:
         else:
             path = None
         return path
+
+    def _create_bucket_if_not_exists(self):
+        """
+        Creates an s3 bucket with name self._bucket_name if it doesn't exist
+
+        Returns
+        -------
+        None, creates bucket
+        """
+        s3 = self._sagemaker_session.boto_session.client('s3')
+        buckets = s3.list_buckets()
+        buckets = buckets['Buckets']
+        buckets = [x for x in buckets if x['Name'] == self._bucket_name]
+
+        if len(buckets) == 0:
+            self._logger.info(f'Creating bucket {self._bucket_name}')
+            region_name = self._sagemaker_session.boto_session.region_name
+            s3.create_bucket(
+                ACL='private',
+                Bucket=self._bucket_name,
+                CreateBucketConfiguration={
+                    'LocationConstraint': region_name
+                }
+            )

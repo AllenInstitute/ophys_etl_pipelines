@@ -19,7 +19,9 @@ class S3ParamsSchema(argschema.ArgSchema):
     bucket_name = argschema.fields.Str(
         default='deepinterpolation',
         description='Bucket on S3 to use for storing input data, '
-                    'model outputs, logs'
+                    'model outputs. Will be created if it doesn\'t '
+                    'exist. Note that the bucket name must be unique across '
+                    'all AWS accounts'
     )
 
 

@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 from typing import Optional
 
@@ -60,6 +61,7 @@ class Trainer:
         self._instance_count = instance_count
         self._profile_name = profile_name
         self._bucket_name = bucket_name
+        self._logger = logging.getLogger(__name__)
 
         boto_session = boto3.session.Session(profile_name=profile_name,
                                              region_name=region_name)
@@ -88,6 +90,7 @@ class Trainer:
         if self._local_mode:
             data_path = f'file://{local_input_data_dir}'
         else:
+            self._logger.info('Uploading input data to S3')
             data_path = self._sagemaker_session.upload_data(
                 path=str(local_input_data_dir),
                 key_prefix='input_data',

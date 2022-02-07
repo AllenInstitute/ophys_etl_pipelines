@@ -263,11 +263,6 @@ def create_side_by_side_video(
                                             reticle=reticle,
                                             video_dtype=video_dtype)
 
-        video_array = np.zeros((video_0_uint.shape[0],
-                                video_0_uint.shape[1],
-                                gap+2*video_0_uint.shape[2],
-                                3), dtype=video_dtype)
-
         tmp_0_h5.unlink()
 
         video_array = np.zeros((video_0_uint.shape[0],

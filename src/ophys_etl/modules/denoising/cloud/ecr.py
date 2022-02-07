@@ -11,8 +11,6 @@ import boto3
 import docker
 import logging
 
-from ophys_etl.modules.denoising.cloud.aws_utils import get_account_id
-
 # https://github.com/aws/deep-learning-containers/blob/master/available_images.md   # noqa E501
 # Needed to authenticate against this host to pull the image
 AWS_DEEP_LEARNING_DOCKER_IMAGE_HOST = \
@@ -105,7 +103,8 @@ class ECRUploader:
         return f'{host}/{name}:{tag}'
 
     def _get_repository_host(self):
-        account = get_account_id(boto_session=self._boto_session)
+        account = \
+            self._boto_session.client('sts').get_caller_identity()['Account']
         return f'{account}.dkr.ecr.{self._region_name}.amazonaws.com'
 
     def _create_repository(self):

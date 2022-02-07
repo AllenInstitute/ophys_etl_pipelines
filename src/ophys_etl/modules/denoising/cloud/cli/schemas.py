@@ -71,6 +71,11 @@ class CloudDenoisingFinetuningSchema(argschema.ArgSchema):
                     'CLI'
     )
 
+    volume_size = argschema.fields.Int(
+        default=2000,
+        description='Volume size to allocate in GB'
+    )
+
     timeout = argschema.fields.Int(
         default=72 * 60 * 60,
         description='Training job timeout in seconds'

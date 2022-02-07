@@ -38,7 +38,8 @@ class CloudDenoisingFinetuningModule(argschema.ArgSchemaParser):
             local_mode=self.args['local_mode'],
             instance_type=self.args['instance_type'],
             instance_count=self.args['instance_count'],
-            timeout=self.args['timeout']
+            timeout=self.args['timeout'],
+            volume_size=self.args['volume_size']
         )
         trainer.run()
 

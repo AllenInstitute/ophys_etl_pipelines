@@ -23,7 +23,8 @@ class Trainer:
                  local_mode=False,
                  instance_type: Optional[str] = None,
                  instance_count=1,
-                 timeout=24 * 60 * 60):
+                 timeout=24 * 60 * 60,
+                 volume_size=30):
         """
         Parameters
         ----------
@@ -46,6 +47,8 @@ class Trainer:
             Instance count to use
         timeout
             Training job timeout in seconds
+        volume_size
+            Volume size to allocate
         """
         if not local_mode:
             if instance_type is None:
@@ -60,6 +63,7 @@ class Trainer:
         self._profile_name = profile_name
         self._bucket_name = bucket_name
         self._timeout = timeout
+        self._volume_size = volume_size
         self._logger = logging.getLogger(__name__)
 
         boto_session = boto3.session.Session(profile_name=profile_name,
@@ -73,7 +77,6 @@ class Trainer:
             self._sagemaker_session
         sagemaker_role_arn = self._get_sagemaker_execution_role_arn()
         output_path = self._get_output_path()
-        volume_size = self._get_volume_size()
 
         estimator = Estimator(
             sagemaker_session=sagemaker_session,
@@ -83,7 +86,7 @@ class Trainer:
             image_uri=self._image_uri,
             hyperparameters={},
             output_path=output_path,
-            volume_size=volume_size,
+            volume_size=self._volume_size,
             max_run=self._timeout
         )
 
@@ -186,20 +189,3 @@ class Trainer:
                     'LocationConstraint': region_name
                 }
             )
-
-    def _get_volume_size(self) -> int:
-        """Gets the needed volume size by calculating the size of all
-        input data"""
-        data_directory = self._get_data_directory()
-        size = sum(f.stat().st_size for f in data_directory.glob('**/*') if
-                   f.is_file())
-
-        # convert to GB
-        size /= 1e9
-        size = int(size)
-
-        # add 30 GB for good measure
-        size += 30
-
-        self._logger.info(f'Requesting volume size of {size} GB')
-        return size

@@ -16,7 +16,6 @@ class CloudDenoisingTrainerModule(argschema.ArgSchemaParser):
     _container_path = Path(__file__).parent.parent / 'container'
 
     def run(self):
-        print(os.listdir(self._container_path))
         repository_name = self.args['docker_params']['repository_name']
         image_tag = self.args['docker_params']['image_tag']
 

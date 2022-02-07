@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Optional
 
@@ -68,6 +69,7 @@ class Trainer:
             self._sagemaker_session
         sagemaker_role_arn = self._get_sagemaker_execution_role_arn()
         output_path = self._get_output_path()
+        volume_size = self._get_volume_size()
 
         estimator = Estimator(
             sagemaker_session=sagemaker_session,
@@ -76,7 +78,8 @@ class Trainer:
             instance_type=instance_type,
             image_uri=self._image_uri,
             hyperparameters={},
-            output_path=output_path
+            output_path=output_path,
+            volume_size=volume_size
         )
 
         local_input_data_dir = self._get_data_directory()
@@ -178,3 +181,20 @@ class Trainer:
                     'LocationConstraint': region_name
                 }
             )
+
+    def _get_volume_size(self) -> int:
+        """Gets the needed volume size by calculating the size of all
+        input data"""
+        data_directory = self._get_data_directory()
+        size = sum(f.stat().st_size for f in data_directory.glob('**/*') if
+                   f.is_file())
+
+        # convert to GB
+        size /= 1e9
+        size = int(size)
+
+        # add 30 GB for good measure
+        size += 30
+
+        self._logger.info(f'Requesting volume size of {size} GB')
+        return size

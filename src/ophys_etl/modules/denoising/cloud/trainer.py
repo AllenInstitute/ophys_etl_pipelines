@@ -48,7 +48,7 @@ class Trainer:
         timeout
             Training job timeout in seconds
         volume_size
-            Volume size to allocate
+            Volume size to allocate in GB
         """
         if not local_mode:
             if instance_type is None:

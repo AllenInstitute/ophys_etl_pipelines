@@ -627,11 +627,6 @@ def _video_array_from_h5(
 
     max_cast_value = int(np.iinfo(video_dtype).max)
 
-    if video_dtype == np.uint8:
-        max_cast_value = 255
-    else:
-        max_cast_value = 65535
-
     with h5py.File(h5_path, 'r') as in_file:
         video_shape = in_file['data'].shape
 

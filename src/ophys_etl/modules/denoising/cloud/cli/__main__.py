@@ -1,5 +1,4 @@
 import logging
-import os
 from pathlib import Path
 
 import argschema
@@ -7,11 +6,11 @@ import argschema
 from ophys_etl.modules.denoising.cloud.ecr import ECRUploader
 from ophys_etl.modules.denoising.cloud.trainer import Trainer
 from ophys_etl.modules.denoising.cloud.cli.schemas import \
-    CloudDenoisingTrainerSchema
+    CloudDenoisingFinetuningSchema
 
 
-class CloudDenoisingTrainerModule(argschema.ArgSchemaParser):
-    default_schema = CloudDenoisingTrainerSchema
+class CloudDenoisingFinetuningModule(argschema.ArgSchemaParser):
+    default_schema = CloudDenoisingFinetuningSchema
     _logger = logging.getLogger(__name__)
     _container_path = Path(__file__).parent.parent / 'container'
 
@@ -28,7 +27,7 @@ class CloudDenoisingTrainerModule(argschema.ArgSchemaParser):
             input_json_path=self.args['input_json_path'],
             pretrained_model_path=self.args['pretrained_model_path'],
             dockerfile_path=self._container_path / 'Dockerfile',
-            entrypoint_script_path=self._container_path / 'run.py'
+            entrypoint_script_path=self._container_path / 'run_finetuning.py'
         )
 
         trainer = Trainer(
@@ -44,5 +43,5 @@ class CloudDenoisingTrainerModule(argschema.ArgSchemaParser):
 
 
 if __name__ == "__main__":
-    train_mod = CloudDenoisingTrainerModule()
+    train_mod = CloudDenoisingFinetuningModule()
     train_mod.run()

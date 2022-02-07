@@ -7,7 +7,7 @@ import pytest
 import sagemaker
 
 from ophys_etl.modules.denoising.cloud.cli.__main__ import \
-    CloudDenoisingTrainerModule
+    CloudDenoisingFinetuningModule
 from ophys_etl.modules.denoising.cloud.ecr import ECRUploader
 from ophys_etl.modules.denoising.cloud.trainer import Trainer
 
@@ -54,6 +54,6 @@ def test_cli(_, __, ___, ____, _____, ______, local_mode):
             'pretrained_model_path': dummy_pretrained_model_path,
             'instance_type': instance_type
         }
-        train_mod = CloudDenoisingTrainerModule(
+        train_mod = CloudDenoisingFinetuningModule(
             input_data=input_data, args=[])
         train_mod.run()

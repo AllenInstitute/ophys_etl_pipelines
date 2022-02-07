@@ -1,5 +1,5 @@
 """
-A module to execute the python executable.
+A module to execute the python executable deepinterpolation.cli.fine_tuning.
 """
 import json
 import logging

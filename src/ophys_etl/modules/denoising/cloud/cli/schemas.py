@@ -23,7 +23,7 @@ class S3ParamsSchema(argschema.ArgSchema):
     )
 
 
-class CloudDenoisingTrainerSchema(argschema.ArgSchema):
+class CloudDenoisingFinetuningSchema(argschema.ArgSchema):
     local_mode = argschema.fields.Bool(
         default=False,
         description='Whether to run estimator in local mode. Useful for '
@@ -59,7 +59,7 @@ class CloudDenoisingTrainerSchema(argschema.ArgSchema):
     )
 
     pretrained_model_path = argschema.fields.InputFile(
-        required=False,
+        required=True,
         description='Path to pretrained model to finetune'
     )
 

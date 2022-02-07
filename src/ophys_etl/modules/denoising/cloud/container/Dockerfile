@@ -6,11 +6,11 @@ RUN pip install git+https://github.com/danielsf/deepinterpolation.git@bb061ab7fd
 ENV PATH="/opt/ml/code:${PATH}"
 
 RUN mkdir -p /opt/ml/code
-COPY /run.py /opt/ml/code
+COPY /run_finetuning.py /opt/ml/code
 COPY /input.json /opt/ml/
 COPY /training.json /opt/ml
 COPY /validation.json /opt/ml
 COPY /pretrained_model.h5 /opt/ml/
 WORKDIR /opt/ml/code
 
-ENTRYPOINT ["python", "run.py"]
+ENTRYPOINT ["python", "run_finetuning.py"]

@@ -26,7 +26,7 @@ logger.setLevel(logging.INFO)
 def create_downsampled_video(
         input_path: pathlib.Path,
         input_hz: float,
-        video_path: pathlib.Path,
+        output_path: pathlib.Path,
         output_hz: float,
         spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]],
         n_processors: int,
@@ -48,7 +48,7 @@ def create_downsampled_video(
     input_hz:
         Frame rate of the input movie in Hz
 
-    video_path: Pathlib.path
+    output_path: Pathlib.path
         Path to the video file to be written
 
     output_hz: float
@@ -107,7 +107,7 @@ def create_downsampled_video(
                         video_dtype=video_dtype)
 
     _write_array_to_video(
-        video_path,
+        output_path,
         video_array,
         int(speed_up_factor*output_hz),
         quality)

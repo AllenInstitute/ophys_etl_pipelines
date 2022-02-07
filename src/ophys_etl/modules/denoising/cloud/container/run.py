@@ -17,22 +17,12 @@ def main():
     cmd = 'python -m deepinterpolation.cli.fine_tuning --input_json ' \
           '/opt/ml/input.json'
     cmd = cmd.split(' ')
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                               stderr=subprocess.PIPE,
+    process = subprocess.Popen(cmd, stdout=sys.stdout,
+                               stderr=sys.stderr,
                                env=os.environ)
-    stdout, stderr = process.communicate()
-    stderr = stderr.decode('utf-8')
-
-    logger.info(stderr)
-    logger.info(stdout.decode('utf-8'))
+    process.communicate()
 
     if process.returncode != 0:
-        with open(os.path.join('/opt/ml/model', 'failure'), 'w') as s:
-            s.write(str(stderr))
-
-        # Also log
-        logger.error(stderr)
-
         # Cause the training job to fail
         sys.exit(255)
 

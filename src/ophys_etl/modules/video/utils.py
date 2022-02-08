@@ -649,24 +649,58 @@ def _video_array_from_h5(
     logger.info('constructed video_as_uint')
 
     if reticle:
-        for ii in range(d_reticle, video_shape[1], d_reticle):
-            old_vals = np.copy(video_as_uint[:, ii:ii+2, :, :])
-            new_vals = np.zeros(old_vals.shape, dtype=video_dtype)
-            new_vals[:, :, :, 0] = max_cast_value
-            new_vals = (new_vals//4) + (3*old_vals//4)
-            new_vals = new_vals.astype(video_dtype)
-            video_as_uint[:, ii:ii+2, :, :] = new_vals
-        for ii in range(d_reticle, video_shape[2], d_reticle):
-            old_vals = np.copy(video_as_uint[:, :, ii:ii+2, :])
-            new_vals = np.zeros(old_vals.shape, dtype=video_dtype)
-            new_vals[:, :, :, 0] = max_cast_value
-            new_vals = (new_vals//4) + (3*old_vals//4)
-            new_vals = new_vals.astype(video_dtype)
-            video_as_uint[:, :, ii:ii+2, :] = new_vals
+        video_as_uint = add_reticle(
+                            video_array=video_as_uint,
+                            d_reticle=d_reticle)
 
         logger.info('added reticles')
 
     return video_as_uint
+
+
+def add_reticle(
+        video_array: np.ndarray,
+        d_reticle: int) -> np.ndarray:
+    """
+    Add reticles to video array
+
+    Parameters
+    ----------
+    video_array: np.ndarray
+        (ntime, nrows, ncols, 3) an RGB representation of a video
+
+    d_reticle: int
+        The number of pixels between grid lines
+
+    Returns
+    -------
+    video_array: np.ndarray
+        The same video array with a grid of red lines of the specified
+        spacing. The gridline will be applied with alpha=0.25.
+
+    Note
+    -----
+    Alters video_array in place
+    """
+    video_dtype = video_array.dtype
+    max_cast_value = int(np.iinfo(video_dtype).max)
+    video_shape = video_array.shape
+
+    for ii in range(d_reticle, video_shape[1], d_reticle):
+        old_vals = np.copy(video_array[:, ii:ii+2, :, :])
+        new_vals = np.zeros(old_vals.shape, dtype=video_dtype)
+        new_vals[:, :, :, 0] = max_cast_value
+        new_vals = (new_vals//4) + (3*(old_vals//4))
+        new_vals = new_vals.astype(video_dtype)
+        video_array[:, ii:ii+2, :, :] = new_vals
+    for ii in range(d_reticle, video_shape[2], d_reticle):
+        old_vals = np.copy(video_array[:, :, ii:ii+2, :])
+        new_vals = np.zeros(old_vals.shape, dtype=video_dtype)
+        new_vals[:, :, :, 0] = max_cast_value
+        new_vals = (new_vals//4) + (3*(old_vals//4))
+        new_vals = new_vals.astype(video_dtype)
+        video_array[:, :, ii:ii+2, :] = new_vals
+    return video_array
 
 
 def _downsampled_video_array_from_h5(

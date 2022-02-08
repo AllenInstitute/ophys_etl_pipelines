@@ -22,7 +22,8 @@ from ophys_etl.modules.video.utils import (
     _min_max_from_h5,
     _video_array_from_h5,
     create_downsampled_video,
-    create_side_by_side_video)
+    create_side_by_side_video,
+    add_reticle)
 
 
 class DummyContextManager(object):
@@ -31,6 +32,42 @@ class DummyContextManager(object):
 
     def __exit__(self, type, value, traceback):
         return
+
+
+@pytest.mark.parametrize(
+    "video_dtype, d_reticle",
+    product([np.uint8, np.uint16], [6, 7]))
+def test_add_reticle(video_dtype, d_reticle):
+    max_val = np.iinfo(video_dtype).max
+    video_data = (max_val//2)*np.ones((10, 40, 43, 3),
+                                      dtype=video_dtype)
+
+    input_data = np.copy(video_data)
+
+    video_data = add_reticle(video_array=video_data,
+                             d_reticle=d_reticle)
+
+    assert not np.array_equal(input_data, video_data)
+
+    expected_unchanged = max_val//2
+    expected_just_one = (3*(expected_unchanged//4)) + (max_val//4)
+    expected_overlap = (3*(expected_just_one//4)) + (max_val//4)
+
+    for iy in range(video_data.shape[1]):
+        is_row_grid = False
+        if iy % d_reticle < 2 and iy > 1:
+            is_row_grid = True
+        for ix in range(video_data.shape[2]):
+            is_col_grid = False
+            if ix % d_reticle < 2 and ix > 1:
+                is_col_grid = True
+
+            if not is_row_grid and not is_col_grid:
+                assert (video_data[:, iy, ix, :] == expected_unchanged).all()
+            elif is_row_grid and is_col_grid:
+                assert (video_data[:, iy, ix, 0] == expected_overlap).all()
+            else:
+                assert (video_data[:, iy, ix, 0] == expected_just_one).all()
 
 
 @pytest.mark.parametrize(

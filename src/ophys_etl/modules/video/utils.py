@@ -828,6 +828,7 @@ def apply_downsampled_mean_filter_to_video(
         (ntime, nrows, ncols)
 
     kernel_size: int
+        The side length of the square kernel
 
     Returns
     -------

@@ -5,18 +5,8 @@ import tempfile
 from itertools import product
 import numpy as np
 
-has_suite2p = True
-try:
-    import suite2p.registration  # noqa: F401
-except ImportError:
-    # need to get around the fact that Suite2P may not be defined
-    # in the test environment. These tests should all be marked with
-    # pytest.mark.suite2p_only, which means they will only be run in
-    # our CircleCI environments that contain Suite2P
-    has_suite2p = False
-
-if has_suite2p:
-    from ophys_etl.modules.suite2p_registration.__main__ import (
+import suite2p.registration
+from ophys_etl.modules.suite2p_registration.__main__ import (
         Suite2PRegistration)
 
 
@@ -62,7 +52,6 @@ def video_path_fixture(tmpdir_factory):
     video_path.unlink()
 
 
-@pytest.mark.suite2p_only
 @pytest.mark.parametrize(
     "nonrigid, clip_negative, "
     "do_optimize_motion_params, use_ave_image_as_reference",

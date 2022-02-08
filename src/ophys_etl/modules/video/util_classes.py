@@ -37,10 +37,7 @@ class VideoModuleMixin(object):
         else:
             spatial_filter = None
 
-        if self.args['video_dtype'] == 'uint8':
-            video_dtype = np.uint8
-        else:
-            video_dtype = np.uint16
+        video_dtype = np.dtype(self.args['video_dtype'])
 
         return {'quantiles': quantiles,
                 'spatial_filter': spatial_filter,

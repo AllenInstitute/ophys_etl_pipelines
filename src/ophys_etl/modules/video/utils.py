@@ -232,7 +232,7 @@ def create_side_by_side_video(
     video_array[:, :,
                 :left_uint.shape[2], :] = left_uint
 
-    left_uint_shape = left_uint.shape
+    single_video_ncols = left_uint.shape[2]
 
     del left_uint
 
@@ -241,11 +241,11 @@ def create_side_by_side_video(
     # make the gap between videos gray
     video_array[:,
                 :,
-                left_uint_shape[2]:left_uint_shape[2]+gap,
+                single_video_ncols:single_video_ncols+gap,
                 :] = half_val
 
     video_array[:, :,
-                left_uint_shape[2]+gap:,
+                single_video_ncols+gap:,
                 :] = _downsampled_video_array_from_h5(
                                              input_path=right_video_path,
                                              input_hz=input_hz,

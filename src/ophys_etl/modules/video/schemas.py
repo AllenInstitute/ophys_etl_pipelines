@@ -26,7 +26,11 @@ class VideoBaseSchema(argschema.ArgSchema):
             default='median',
             validation=OneOf(('median', 'mean')),
             description=("Type of spatial smoothing kernel to be "
-                         "applied to the video after downsampling"))
+                         "applied to the video after temporal "
+                         "downsampling. (Note: the mean filter will "
+                         "downsample each video frame by a factor of "
+                         "kernel_size; the median filter does not "
+                         "change the size of the video frames)"))
 
     video_dtype = argschema.fields.String(
             required=False,

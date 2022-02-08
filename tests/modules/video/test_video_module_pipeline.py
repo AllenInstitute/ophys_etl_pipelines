@@ -108,11 +108,11 @@ def test_side_by_side_video_downsampling(
                 assert arr.dtype == np.uint16
 
 
-def test_single_video_schema_error(
+def test_single_video_output_path_error(
         tmpdir,
         video_path_fixture):
     """
-    This is just a smoke test
+    Test that an error is raised if output_path has an invalid suffix
     """
     output_suffix = '.jpg'
     video_dtype = 'uint8'
@@ -140,9 +140,12 @@ def test_single_video_schema_error(
         _ = VideoGenerator(input_data=input_args, args=[])
 
 
-def test_side_by_side_video_schema_error(
+def test_side_by_side_output_path_error(
         tmpdir,
         video_path_fixture):
+    """
+    Test that an error is raised if output_path has an invalid suffix
+    """
     output_suffix = '.jpg'
     video_dtype = 'uint8'
     kernel_type = 'mean'
@@ -170,19 +173,14 @@ def test_side_by_side_video_schema_error(
         _ = SideBySideVideoGenerator(input_data=input_args, args=[])
 
 
-@pytest.mark.parametrize(
-    'lower_quantile, upper_quantile, raises',
-    [(0.9, 0.1, True),
-     (0.1, 0.9, False)])
-def test_single_video_quantiles(
+def test_single_video_quantile_exception(
         tmpdir,
-        video_path_fixture,
-        lower_quantile,
-        upper_quantile,
-        raises):
+        video_path_fixture):
     """
-    This is just a smoke test
+    Test that an exception is raised if lower_quantile > upper_quantile
     """
+    lower_quantile = 0.9
+    upper_quantile = 0.1
     output_suffix = '.avi'
     video_dtype = 'uint8'
     kernel_type = 'mean'
@@ -205,25 +203,18 @@ def test_single_video_quantiles(
                   'video_dtype': video_dtype,
                   'kernel_type': kernel_type}
 
-    if raises:
-        with pytest.raises(ValueError, match='quantile'):
-            _ = VideoGenerator(input_data=input_args, args=[])
-    else:
-        gen = VideoGenerator(input_data=input_args, args=[])
-        gen.run()
-        assert output_path.is_file()
+    with pytest.raises(ValueError, match='quantile'):
+        _ = VideoGenerator(input_data=input_args, args=[])
 
 
-@pytest.mark.parametrize(
-    'lower_quantile, upper_quantile, raises',
-    [(0.9, 0.1, True),
-     (0.1, 0.9, False)])
-def test_side_by_side_video_quantiles(
+def test_side_by_side_video_quantile_exception(
         tmpdir,
-        video_path_fixture,
-        lower_quantile,
-        upper_quantile,
-        raises):
+        video_path_fixture):
+    """
+    Test that an exception is raised if lower_quantile > upper_quantile
+    """
+    lower_quantile = 0.9
+    upper_quantile = 0.1
     output_suffix = '.avi'
     video_dtype = 'uint8'
     kernel_type = 'mean'
@@ -247,10 +238,5 @@ def test_side_by_side_video_quantiles(
                   'video_dtype': video_dtype,
                   'kernel_type': kernel_type}
 
-    if raises:
-        with pytest.raises(ValueError, match='quantile'):
-            _ = SideBySideVideoGenerator(input_data=input_args, args=[])
-    else:
-        gen = SideBySideVideoGenerator(input_data=input_args, args=[])
-        gen.run()
-        assert output_path.is_file()
+    with pytest.raises(ValueError, match='quantile'):
+        _ = SideBySideVideoGenerator(input_data=input_args, args=[])

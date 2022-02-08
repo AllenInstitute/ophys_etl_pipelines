@@ -397,13 +397,9 @@ def create_downsampled_video_h5(
 
     with h5py.File(input_path, 'r') as in_file:
         input_video_shape = in_file['data'].shape
-
-        # quick test to determine the shape of spatial frames
-        # coming out of the spatial_filter
-        if spatial_filter is not None:
-            test_frame = spatial_filter(in_file['data'][:2, :, :])
-        else:
-            test_frame = in_file['data'][:2, :, :]
+        frame_size = _get_post_filter_frame_size(
+                           example_video=in_file['data'][:2, :, :],
+                           spatial_filter=spatial_filter)
 
     # determine how many frames are going to be grouped together
     # by downsampling
@@ -421,11 +417,11 @@ def create_downsampled_video_h5(
     with h5py.File(output_path, 'w') as out_file:
         out_file.create_dataset('data',
                                 shape=(n_frames_out,
-                                       test_frame.shape[1],
-                                       test_frame.shape[2]),
+                                       frame_size[0],
+                                       frame_size[1]),
                                 chunks=(max(1, n_frames_out//100),
-                                        test_frame.shape[1],
-                                        test_frame.shape[2]),
+                                        frame_size[0],
+                                        frame_size[1]),
                                 dtype=float)
 
     mgr = multiprocessing.Manager()
@@ -467,6 +463,33 @@ def create_downsampled_video_h5(
         msg += validity_dict[k][1]
     if len(msg) > 0:
         raise RuntimeError(msg)
+
+
+def _get_post_filter_frame_size(
+        example_video: np.ndarray,
+        spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]]
+        ) -> Tuple[int, int]:
+    """
+    Parameters
+    ----------
+    example_video: np.ndarray
+        (ntime, nrows, ncols) input video data
+
+    spatial_filter: Optional[Callable[[np.ndarray], np.ndarray]
+        spatial filter to be applied to video, transforming it
+        from (ntime, nrows0, ncols0) -> (ntime, nrows1, ncols1)
+
+    Returns
+    -------
+    frame_shape: Tuple[int, int]
+        (nrows1, ncols1) -- spatial shape of frame after spatial_filter
+    """
+    if spatial_filter is not None:
+        filtered_video = spatial_filter(example_video)
+    else:
+        filtered_video = example_video
+
+    return filtered_video.shape[1:]
 
 
 def _write_array_to_video(

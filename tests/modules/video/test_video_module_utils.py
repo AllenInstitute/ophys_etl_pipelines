@@ -23,7 +23,8 @@ from ophys_etl.modules.video.utils import (
     _video_array_from_h5,
     create_downsampled_video,
     create_side_by_side_video,
-    add_reticle)
+    add_reticle,
+    _get_post_filter_frame_size)
 
 
 class DummyContextManager(object):
@@ -32,6 +33,20 @@ class DummyContextManager(object):
 
     def __exit__(self, type, value, traceback):
         return
+
+
+def test_get_post_filter_frame_size():
+    video = np.zeros((10, 23, 22), dtype=int)
+    assert _get_post_filter_frame_size(
+               example_video=video,
+               spatial_filter=None) == (23, 22)
+
+    def silly_filter(input_video):
+        return np.zeros((input_video.shape[0], 3, 4), dtype=float)
+
+    assert _get_post_filter_frame_size(
+                example_video=video,
+                spatial_filter=silly_filter) == (3, 4)
 
 
 @pytest.mark.parametrize(

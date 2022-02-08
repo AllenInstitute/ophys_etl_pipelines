@@ -15,7 +15,7 @@ from ophys_etl.modules.median_filtered_max_projection.utils import (
     apply_median_filter_to_video)
 
 from ophys_etl.modules.video.utils import (
-    apply_mean_filter_to_video,
+    apply_downsampled_mean_filter_to_video,
     _video_worker,
     create_downsampled_video_h5,
     _write_array_to_video,
@@ -73,13 +73,13 @@ def test_add_reticle(video_dtype, d_reticle):
 @pytest.mark.parametrize(
     "kernel_size, nrows, ncols",
     product((2, 4, 7), (32, 13), (32, 23)))
-def test_apply_mean_filter_to_video(
+def test_apply_downsampled_mean_filter_to_video(
         kernel_size,
         nrows,
         ncols):
     rng = np.random.default_rng(235813)
     video_data = rng.random((22, nrows, ncols))
-    ds_video = apply_mean_filter_to_video(
+    ds_video = apply_downsampled_mean_filter_to_video(
                     video=video_data,
                     kernel_size=kernel_size)
 

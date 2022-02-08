@@ -790,7 +790,7 @@ def _downsampled_video_array_from_h5(
         return video_array
 
 
-def apply_mean_filter_to_video(
+def apply_downsampled_mean_filter_to_video(
         video: np.ndarray,
         kernel_size: int) -> np.ndarray:
     """

@@ -1,4 +1,5 @@
-from ophys_etl.modules.video.utils import apply_mean_filter_to_video
+from ophys_etl.modules.video.utils import (
+    apply_downsampled_mean_filter_to_video)
 from ophys_etl.modules.median_filtered_max_projection.utils import (
     apply_median_filter_to_video)
 from functools import partial
@@ -30,8 +31,9 @@ class VideoModuleMixin(object):
                 spatial_filter = partial(apply_median_filter_to_video,
                                          kernel_size=self.args['kernel_size'])
             else:
-                spatial_filter = partial(apply_mean_filter_to_video,
-                                         kernel_size=self.args['kernel_size'])
+                spatial_filter = partial(
+                                     apply_downsampled_mean_filter_to_video,
+                                     kernel_size=self.args['kernel_size'])
         else:
             spatial_filter = None
 

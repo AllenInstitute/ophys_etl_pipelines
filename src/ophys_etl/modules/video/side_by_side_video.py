@@ -1,3 +1,5 @@
+from ophys_etl.modules.video.cli_mixins import VideoModuleMixin
+
 from ophys_etl.modules.video.utils import (
     create_side_by_side_video)
 
@@ -25,30 +27,30 @@ class SideBySideVideoSchema(VideoBaseSchema):
                          "in the right panel of the output video"))
 
 
-class SideBySideVideoGenerator(argschema.ArgSchemaParser):
+class SideBySideVideoGenerator(argschema.ArgSchemaParser,
+                               VideoModuleMixin):
 
     default_schema = SideBySideVideoSchema
 
     def run(self):
-        if self.args['upper_quantile'] is not None:
-            quantiles = (self.args['lower_quantile'],
-                         self.args['upper_quantile'])
-        else:
-            quantiles = None
+
+        supplemental_args = self._get_supplemental_args()
 
         create_side_by_side_video(
-            pathlib.Path(self.args['left_video_path']),
-            pathlib.Path(self.args['right_video_path']),
-            self.args['input_frame_rate_hz'],
-            pathlib.Path(self.args['output_path']),
-            self.args['output_frame_rate_hz'],
-            self.args['kernel_size'],
-            self.args['n_parallel_workers'],
+            left_video_path=pathlib.Path(self.args['left_video_path']),
+            right_video_path=pathlib.Path(self.args['right_video_path']),
+            input_hz=self.args['input_frame_rate_hz'],
+            output_path=pathlib.Path(self.args['output_path']),
+            output_hz=self.args['output_frame_rate_hz'],
+            spatial_filter=supplemental_args['spatial_filter'],
+            n_processors=self.args['n_parallel_workers'],
             quality=self.args['quality'],
-            quantiles=quantiles,
+            quantiles=(self.args['lower_quantile'],
+                       self.args['upper_quantile']),
             reticle=self.args['reticle'],
             speed_up_factor=self.args['speed_up_factor'],
-            tmp_dir=self.args['tmp_dir'])
+            tmp_dir=self.args['tmp_dir'],
+            video_dtype=supplemental_args['video_dtype'])
 
 
 if __name__ == "__main__":

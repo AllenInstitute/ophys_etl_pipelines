@@ -5,6 +5,7 @@ import tempfile
 import pathlib
 import hashlib
 from itertools import product
+from functools import partial
 
 from ophys_etl.utils.array_utils import (
     downsample_array,
@@ -14,13 +15,16 @@ from ophys_etl.modules.median_filtered_max_projection.utils import (
     apply_median_filter_to_video)
 
 from ophys_etl.modules.video.utils import (
+    apply_downsampled_mean_filter_to_video,
     _video_worker,
     create_downsampled_video_h5,
     _write_array_to_video,
     _min_max_from_h5,
     _video_array_from_h5,
     create_downsampled_video,
-    create_side_by_side_video)
+    create_side_by_side_video,
+    add_reticle,
+    _get_post_filter_frame_size)
 
 
 class DummyContextManager(object):
@@ -29,6 +33,88 @@ class DummyContextManager(object):
 
     def __exit__(self, type, value, traceback):
         return
+
+
+def test_get_post_filter_frame_size():
+    video = np.zeros((10, 23, 22), dtype=int)
+    assert _get_post_filter_frame_size(
+               example_video=video,
+               spatial_filter=None) == (23, 22)
+
+    def silly_filter(input_video):
+        return np.zeros((input_video.shape[0], 3, 4), dtype=float)
+
+    assert _get_post_filter_frame_size(
+                example_video=video,
+                spatial_filter=silly_filter) == (3, 4)
+
+
+@pytest.mark.parametrize(
+    "video_dtype, d_reticle",
+    product([np.uint8, np.uint16], [6, 7]))
+def test_add_reticle(video_dtype, d_reticle):
+    max_val = np.iinfo(video_dtype).max
+    video_data = (max_val//2)*np.ones((10, 40, 43, 3),
+                                      dtype=video_dtype)
+
+    input_data = np.copy(video_data)
+
+    video_data = add_reticle(video_array=video_data,
+                             d_reticle=d_reticle)
+
+    assert not np.array_equal(input_data, video_data)
+
+    expected_unchanged = max_val//2
+    expected_just_one = (3*(expected_unchanged//4)) + (max_val//4)
+    expected_overlap = (3*(expected_just_one//4)) + (max_val//4)
+
+    for iy in range(video_data.shape[1]):
+        is_row_grid = False
+        if iy % d_reticle < 2 and iy > 1:
+            is_row_grid = True
+        for ix in range(video_data.shape[2]):
+            is_col_grid = False
+            if ix % d_reticle < 2 and ix > 1:
+                is_col_grid = True
+
+            if not is_row_grid and not is_col_grid:
+                assert (video_data[:, iy, ix, :] == expected_unchanged).all()
+            elif is_row_grid and is_col_grid:
+                assert (video_data[:, iy, ix, 0] == expected_overlap).all()
+            else:
+                assert (video_data[:, iy, ix, 0] == expected_just_one).all()
+
+
+@pytest.mark.parametrize(
+    "kernel_size, nrows, ncols",
+    product((2, 4, 7), (32, 13), (32, 23)))
+def test_apply_downsampled_mean_filter_to_video(
+        kernel_size,
+        nrows,
+        ncols):
+    rng = np.random.default_rng(235813)
+    video_data = rng.random((22, nrows, ncols))
+    ds_video = apply_downsampled_mean_filter_to_video(
+                    video=video_data,
+                    kernel_size=kernel_size)
+
+    expected_shape = (video_data.shape[0],
+                      np.ceil(video_data.shape[1]/kernel_size).astype(int),
+                      np.ceil(video_data.shape[2]/kernel_size).astype(int))
+
+    assert ds_video.shape == expected_shape
+
+    for i_time in range(video_data.shape[0]):
+        for iy in range(0, nrows, kernel_size):
+            for ix in range(0, ncols, kernel_size):
+                chunk = video_data[i_time,
+                                   iy:iy+kernel_size,
+                                   ix:ix+kernel_size]
+                expected = chunk.sum()/(kernel_size**2)
+                iy_ds = np.ceil(iy/kernel_size).astype(int)
+                ix_ds = np.ceil(ix/kernel_size).astype(int)
+                actual = ds_video[i_time, iy_ds, ix_ds]
+                np.testing.assert_allclose(expected, actual)
 
 
 @pytest.mark.parametrize(
@@ -81,6 +167,10 @@ def test_video_module_worker(
 
     if kernel_size is not None:
         expected = apply_median_filter_to_video(expected, kernel_size)
+        spatial_filter = partial(apply_median_filter_to_video,
+                                 kernel_size=kernel_size)
+    else:
+        spatial_filter = None
 
     lock = DummyContextManager()
     _video_worker(
@@ -88,7 +178,7 @@ def test_video_module_worker(
             input_hz,
             output_path,
             output_hz,
-            kernel_size,
+            spatial_filter,
             input_slice,
             dict(),
             lock)
@@ -116,7 +206,8 @@ def test_video_module_worker_exception(
     input_hz = 12.0
     output_hz = 6.0
     input_slice = [5, 19]
-    kernel_size = 3
+    spatial_filter = partial(apply_median_filter_to_video,
+                             kernel_size=3)
     output_path = pathlib.Path('silly.h5')
 
     with pytest.raises(RuntimeError, match="integer multiple"):
@@ -127,7 +218,7 @@ def test_video_module_worker_exception(
                 input_hz,
                 output_path,
                 output_hz,
-                kernel_size,
+                spatial_filter,
                 input_slice,
                 validity_dict,
                 lock)
@@ -139,7 +230,7 @@ def test_video_module_worker_exception(
 
 @pytest.mark.parametrize(
     "output_hz, kernel_size",
-    product((12.0, 5.0, 3.0), (None, 2, 3)))
+    product((12.0, 5.0), (None, 3)))
 def test_module_create_video_h5(
         tmpdir,
         video_path_fixture,
@@ -148,6 +239,12 @@ def test_module_create_video_h5(
     """
     This is really just a smoke test
     """
+    if kernel_size is not None:
+        spatial_filter = partial(apply_median_filter_to_video,
+                                 kernel_size=kernel_size)
+    else:
+        spatial_filter = None
+
     output_path = pathlib.Path(tempfile.mkstemp(
                                    dir=tmpdir,
                                    prefix="create_ideo_smoke_test_",
@@ -157,13 +254,13 @@ def test_module_create_video_h5(
         12.0,
         output_path,
         output_hz,
-        kernel_size,
+        spatial_filter,
         3)
 
 
 @pytest.mark.parametrize(
     "video_suffix, fps, quality",
-    product((".mp4", ".avi"),
+    product((".mp4", ".avi", ".tiff", ".tif"),
             (5, 10),
             (3, 5, 8)))
 def test_module_write_array_to_video(
@@ -211,9 +308,9 @@ def test_min_max_from_h5_no_quantiles(
     expected_max = this_array.max()
 
     actual = _min_max_from_h5(
-                    video_path_fixture,
-                    None,
-                    border)
+                    h5_path=video_path_fixture,
+                    quantiles=(0.0, 1.0),
+                    border=border)
 
     assert np.abs(actual[0]-expected_min) < 1.0e-20
     assert np.abs(actual[1]-expected_max) < 1.0e-20
@@ -246,22 +343,29 @@ def test_min_max_from_h5_with_quantiles(
 
 
 @pytest.mark.parametrize(
-    "min_val, max_val",
+    "min_val, max_val, video_dtype",
     product((50.0, 100.0, 250.0),
-            (1900.0, 1500.0, 1000.0)))
+            (1900.0, 1500.0, 1000.0),
+            (np.uint8, np.uint16)))
 def test_module_video_array_from_h5_no_reticle(
         video_path_fixture,
         video_array_fixture,
         min_val,
-        max_val):
+        max_val,
+        video_dtype):
+
+    if video_dtype == np.uint8:
+        max_cast = 255
+    else:
+        max_cast = 65535
 
     video_array = _video_array_from_h5(
                         video_path_fixture,
-                        min_val,
-                        max_val,
-                        reticle=False)
+                        min_val=min_val,
+                        max_val=max_val,
+                        reticle=False,
+                        video_dtype=video_dtype)
 
-    assert video_array.dtype == np.uint8
     assert len(video_array.shape) == 4
     assert video_array.shape == (video_array_fixture.shape[0],
                                  video_array_fixture.shape[1],
@@ -273,16 +377,31 @@ def test_module_video_array_from_h5_no_reticle(
     assert (video_array[below_min] == 0).all()
     above_max = np.where(video_array_fixture > max_val)
     assert len(above_max[0]) > 0
-    assert (video_array[above_max] == 255).all()
+    assert (video_array[above_max] == max_cast).all()
     assert video_array.min() == 0
-    assert video_array.max() == 255
+    assert video_array.max() == max_cast
+    assert video_array.dtype == video_dtype
 
 
-@pytest.mark.parametrize("d_reticle", [5, 7, 9])
+def test_module_video_array_from_h5_exception(
+        video_path_fixture):
+
+    with pytest.raises(ValueError, match="either np.uint8 or np.uint16"):
+        _ = _video_array_from_h5(
+                        video_path_fixture,
+                        min_val=0.0,
+                        max_val=100.0,
+                        reticle=False,
+                        video_dtype=float)
+
+
+@pytest.mark.parametrize("d_reticle, video_dtype",
+                         product((5, 7, 9), (np.uint8, np.uint16)))
 def test_video_array_from_h5_with_reticle(
         video_path_fixture,
         video_array_fixture,
-        d_reticle):
+        d_reticle,
+        video_dtype):
 
     min_val = 500.0
     max_val = 1500.0
@@ -290,17 +409,19 @@ def test_video_array_from_h5_with_reticle(
 
     no_reticle = _video_array_from_h5(
                         video_path_fixture,
-                        min_val,
-                        max_val,
+                        min_val=min_val,
+                        max_val=max_val,
                         reticle=False,
-                        d_reticle=d_reticle)
+                        d_reticle=d_reticle,
+                        video_dtype=video_dtype)
 
     yes_reticle = _video_array_from_h5(
                         video_path_fixture,
-                        min_val,
-                        max_val,
+                        min_val=min_val,
+                        max_val=max_val,
                         reticle=True,
-                        d_reticle=d_reticle)
+                        d_reticle=d_reticle,
+                        video_dtype=video_dtype)
 
     reticle_mask = np.zeros(no_reticle.shape, dtype=bool)
     for ii in range(d_reticle, video_shape[1], d_reticle):
@@ -319,26 +440,17 @@ def test_video_array_from_h5_with_reticle(
 
 
 @pytest.mark.parametrize(
-    "output_suffix, output_hz, kernel_size, quantiles, reticle, "
-    "speed_up_factor, quality",
-    product((".avi", ".mp4"),
-            (3.0, 5.0),
-            (2, 5),
-            (None, (0.3, 0.9)),
-            (True, False),
-            (1, 4),
-            (5, 7)))
+    "output_suffix, kernel_size, reticle",
+    product((".avi", ".mp4", ".tiff"),
+            (None, 5),
+            (True, False)))
 def test_module_create_downsampled_video(
         tmpdir,
         video_path_fixture,
         video_array_fixture,
         output_suffix,
-        output_hz,
         kernel_size,
-        quantiles,
-        reticle,
-        speed_up_factor,
-        quality):
+        reticle):
     """
     This will test create_downsampled_video by calling all of the
     constituent parts by hand and verifying that the md5checksum
@@ -348,7 +460,11 @@ def test_module_create_downsampled_video(
     no longer self-consistent.
     """
 
+    quantiles = (0.3, 0.9)
     input_hz = 12.0
+    output_hz = 5.0
+    speed_up_factor = 3
+    quality = 4
     d_reticle = 64  # because we haven't exposed this to the user, yet
     expected_file = pathlib.Path(
                         tempfile.mkstemp(dir=tmpdir,
@@ -365,13 +481,13 @@ def test_module_create_downsampled_video(
         downsampled_video = apply_median_filter_to_video(
                                     downsampled_video,
                                     kernel_size)
-
-    if quantiles is None:
-        min_val = downsampled_video.min()
-        max_val = downsampled_video.max()
+        spatial_filter = partial(apply_median_filter_to_video,
+                                 kernel_size=kernel_size)
     else:
-        (min_val,
-         max_val) = np.quantile(downsampled_video, quantiles)
+        spatial_filter = None
+
+    (min_val,
+     max_val) = np.quantile(downsampled_video, quantiles)
 
     downsampled_video = downsampled_video.astype(float)
     downsampled_video = np.where(downsampled_video > min_val,
@@ -426,7 +542,7 @@ def test_module_create_downsampled_video(
             input_hz,
             actual_file,
             output_hz,
-            kernel_size,
+            spatial_filter,
             3,
             quality=quality,
             quantiles=quantiles,
@@ -454,15 +570,11 @@ def test_module_create_downsampled_video(
 
 
 @pytest.mark.parametrize(
-    "output_suffix, output_hz, kernel_size, quantiles, reticle, "
-    "speed_up_factor, quality",
-    product((".avi", ".mp4"),
+    "output_suffix, output_hz, kernel_size, reticle",
+    product((".avi", ".mp4", ".tiff"),
             (3.0, 5.0),
-            (2, 5),
-            (None, (0.3, 0.9)),
-            (True, False),
-            (1, 4),
-            (5, 7)))
+            (None, 5),
+            (True, False)))
 def test_module_create_side_by_side_video(
         tmpdir,
         video_path_fixture,
@@ -470,19 +582,26 @@ def test_module_create_side_by_side_video(
         output_suffix,
         output_hz,
         kernel_size,
-        quantiles,
-        reticle,
-        speed_up_factor,
-        quality):
+        reticle):
     """
     This is just going to be a smoke test, as it's hard to verify
     the contents of an mp4
     """
 
+    quantiles = (0.3, 0.9)
+    quality = 4
+    speed_up_factor = 2
+
     actual_file = pathlib.Path(
                         tempfile.mkstemp(dir=tmpdir,
                                          prefix='side_by_side_actual_',
                                          suffix=output_suffix)[1])
+
+    if kernel_size is not None:
+        spatial_filter = partial(apply_median_filter_to_video,
+                                 kernel_size=kernel_size)
+    else:
+        spatial_filter = None
 
     input_hz = 12.0
     create_side_by_side_video(
@@ -491,7 +610,7 @@ def test_module_create_side_by_side_video(
             input_hz,
             actual_file,
             output_hz,
-            kernel_size,
+            spatial_filter,
             3,
             quality,
             quantiles,
@@ -500,3 +619,34 @@ def test_module_create_side_by_side_video(
             tmpdir)
 
     assert actual_file.is_file()
+
+
+def test_module_create_side_by_side_video_shape_error(
+        tmpdir,
+        video_path_fixture):
+    """
+    Test that create_side_by_side_video raises an error when the
+    two videos have different shapes
+    """
+    out_path = tempfile.mkstemp(dir=tmpdir, suffix='.avi')[1]
+    out_path = pathlib.Path(out_path)
+
+    other_path = tempfile.mkstemp(dir=tmpdir, suffix='.h5')[1]
+    other_path = pathlib.Path(other_path)
+    with h5py.File(other_path, 'w') as out_file:
+        out_file.create_dataset('data', data=np.zeros((2, 2, 2, 2)))
+
+    with pytest.raises(RuntimeError, match='Videos need to be the same shape'):
+        create_side_by_side_video(
+                left_video_path=video_path_fixture,
+                right_video_path=other_path,
+                input_hz=5.0,
+                output_path=out_path,
+                output_hz=1.0,
+                spatial_filter=None,
+                n_processors=3,
+                quality=5,
+                quantiles=(0.0, 1.0),
+                reticle=False,
+                speed_up_factor=2,
+                tmp_dir=tmpdir)

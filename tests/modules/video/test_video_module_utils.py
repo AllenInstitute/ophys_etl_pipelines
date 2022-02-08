@@ -230,7 +230,7 @@ def test_video_module_worker_exception(
 
 @pytest.mark.parametrize(
     "output_hz, kernel_size",
-    product((12.0, 5.0, 3.0), (None, 2, 3)))
+    product((12.0, 5.0), (None, 3)))
 def test_module_create_video_h5(
         tmpdir,
         video_path_fixture,
@@ -260,7 +260,7 @@ def test_module_create_video_h5(
 
 @pytest.mark.parametrize(
     "video_suffix, fps, quality",
-    product((".mp4", ".avi"),
+    product((".mp4", ".avi", ".tiff", ".tif"),
             (5, 10),
             (3, 5, 8)))
 def test_module_write_array_to_video(
@@ -440,24 +440,17 @@ def test_video_array_from_h5_with_reticle(
 
 
 @pytest.mark.parametrize(
-    "output_suffix, output_hz, kernel_size, reticle, "
-    "speed_up_factor, quality",
-    product((".avi", ".mp4"),
-            (3.0, 5.0),
-            (2, 5),
-            (True, False),
-            (1, 4),
-            (5, 7)))
+    "output_suffix, kernel_size, reticle",
+    product((".avi", ".mp4", ".tiff"),
+            (None, 5),
+            (True, False)))
 def test_module_create_downsampled_video(
         tmpdir,
         video_path_fixture,
         video_array_fixture,
         output_suffix,
-        output_hz,
         kernel_size,
-        reticle,
-        speed_up_factor,
-        quality):
+        reticle):
     """
     This will test create_downsampled_video by calling all of the
     constituent parts by hand and verifying that the md5checksum
@@ -469,6 +462,9 @@ def test_module_create_downsampled_video(
 
     quantiles = (0.3, 0.9)
     input_hz = 12.0
+    output_hz = 5.0
+    speed_up_factor = 3
+    quality = 4
     d_reticle = 64  # because we haven't exposed this to the user, yet
     expected_file = pathlib.Path(
                         tempfile.mkstemp(dir=tmpdir,
@@ -574,14 +570,11 @@ def test_module_create_downsampled_video(
 
 
 @pytest.mark.parametrize(
-    "output_suffix, output_hz, kernel_size, reticle, "
-    "speed_up_factor, quality",
-    product((".avi", ".mp4"),
+    "output_suffix, output_hz, kernel_size, reticle",
+    product((".avi", ".mp4", ".tiff"),
             (3.0, 5.0),
-            (None, 2, 5),
-            (True, False),
-            (1, 4),
-            (5, 7)))
+            (None, 5),
+            (True, False)))
 def test_module_create_side_by_side_video(
         tmpdir,
         video_path_fixture,
@@ -589,15 +582,15 @@ def test_module_create_side_by_side_video(
         output_suffix,
         output_hz,
         kernel_size,
-        reticle,
-        speed_up_factor,
-        quality):
+        reticle):
     """
     This is just going to be a smoke test, as it's hard to verify
     the contents of an mp4
     """
 
     quantiles = (0.3, 0.9)
+    quality = 4
+    speed_up_factor = 2
 
     actual_file = pathlib.Path(
                         tempfile.mkstemp(dir=tmpdir,

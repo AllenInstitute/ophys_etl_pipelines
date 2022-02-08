@@ -3,7 +3,6 @@ import pathlib
 import tempfile
 import tifffile
 import numpy as np
-from itertools import product
 from ophys_etl.modules.video.single_video import (
     VideoGenerator)
 
@@ -13,10 +12,10 @@ from ophys_etl.modules.video.side_by_side_video import (
 
 @pytest.mark.parametrize(
     'output_suffix, video_dtype, kernel_type, kernel_size',
-    product(('.avi', '.mp4', '.tiff', '.tif'),
-            ('uint8', 'uint16'),
-            ('median', 'mean'),
-            (None, 2, 0)))
+    [('.avi', 'uint8', 'median', None),
+     ('.mp4', 'uint16', 'median', 2),
+     ('.tiff', 'uint16', 'mean', 0),
+     ('.tif', 'uint8', 'mean', 2)])
 def test_single_video_downsampling(
         tmpdir,
         video_path_fixture,
@@ -61,10 +60,10 @@ def test_single_video_downsampling(
 
 @pytest.mark.parametrize(
     'output_suffix, video_dtype, kernel_type, kernel_size',
-    product(('.avi', '.mp4', '.tiff', '.tif'),
-            ('uint8', 'uint16'),
-            ('median', 'mean'),
-            (None, 2, 0)))
+    [('.avi', 'uint8', 'median', None),
+     ('.mp4', 'uint16', 'median', 2),
+     ('.tiff', 'uint16', 'mean', 0),
+     ('.tif', 'uint8', 'mean', 2)])
 def test_side_by_side_video_downsampling(
         tmpdir,
         video_path_fixture,

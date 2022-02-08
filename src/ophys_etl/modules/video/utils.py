@@ -429,8 +429,6 @@ def create_downsampled_video_h5(
     validity_dict = mgr.dict()
     process_list = []
 
-    print(f'spatial filter {spatial_filter}')
-
     input_chunks = []
     for i0 in range(0, input_video_shape[0], n_frames_per_chunk):
         logger.info(f'starting {i0} -> {input_video_shape[0]}')

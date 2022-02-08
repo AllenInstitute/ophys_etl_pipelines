@@ -1,4 +1,4 @@
-from ophys_etl.modules.video.util_classes import VideoModuleMixin
+from ophys_etl.modules.video.cli_mixins import VideoModuleMixin
 
 from ophys_etl.modules.video.utils import (
     create_downsampled_video)

@@ -504,7 +504,7 @@ def _write_array_to_video(
     Parameters
     ----------
     video_path: pathlib.Path
-        Path to the putput file
+        Path to the output file
 
     video_array: np.ndarray
         Numpy array containing video data. Probably of shape
@@ -534,8 +534,11 @@ def _write_array_to_video(
     logger.info(f"writing array of shape {video_array.shape}")
 
     if video_path.suffix in ('.tiff', '.tif'):
-        imageio.mimsave(video_path,
-                        video_array[:, :, :, 0])
+        if len(video_array.shape) == 4:
+            imageio.mimsave(video_path,
+                            video_array[:, :, :, 0])
+        else:
+            imageio.mimsave(video_path, video_array)
     else:
         if video_path.suffix == '.avi':
             pixelformat = 'yuvj420p'

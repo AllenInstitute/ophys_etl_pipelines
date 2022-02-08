@@ -308,9 +308,9 @@ def test_min_max_from_h5_no_quantiles(
     expected_max = this_array.max()
 
     actual = _min_max_from_h5(
-                    video_path_fixture,
-                    None,
-                    border)
+                    h5_path=video_path_fixture,
+                    quantiles=(0.0, 1.0),
+                    border=border)
 
     assert np.abs(actual[0]-expected_min) < 1.0e-20
     assert np.abs(actual[1]-expected_max) < 1.0e-20
@@ -440,12 +440,11 @@ def test_video_array_from_h5_with_reticle(
 
 
 @pytest.mark.parametrize(
-    "output_suffix, output_hz, kernel_size, quantiles, reticle, "
+    "output_suffix, output_hz, kernel_size, reticle, "
     "speed_up_factor, quality",
     product((".avi", ".mp4"),
             (3.0, 5.0),
             (2, 5),
-            (None, (0.3, 0.9)),
             (True, False),
             (1, 4),
             (5, 7)))
@@ -456,7 +455,6 @@ def test_module_create_downsampled_video(
         output_suffix,
         output_hz,
         kernel_size,
-        quantiles,
         reticle,
         speed_up_factor,
         quality):
@@ -469,6 +467,7 @@ def test_module_create_downsampled_video(
     no longer self-consistent.
     """
 
+    quantiles = (0.3, 0.9)
     input_hz = 12.0
     d_reticle = 64  # because we haven't exposed this to the user, yet
     expected_file = pathlib.Path(
@@ -491,12 +490,8 @@ def test_module_create_downsampled_video(
     else:
         spatial_filter = None
 
-    if quantiles is None:
-        min_val = downsampled_video.min()
-        max_val = downsampled_video.max()
-    else:
-        (min_val,
-         max_val) = np.quantile(downsampled_video, quantiles)
+    (min_val,
+     max_val) = np.quantile(downsampled_video, quantiles)
 
     downsampled_video = downsampled_video.astype(float)
     downsampled_video = np.where(downsampled_video > min_val,
@@ -579,12 +574,11 @@ def test_module_create_downsampled_video(
 
 
 @pytest.mark.parametrize(
-    "output_suffix, output_hz, kernel_size, quantiles, reticle, "
+    "output_suffix, output_hz, kernel_size, reticle, "
     "speed_up_factor, quality",
     product((".avi", ".mp4"),
             (3.0, 5.0),
             (None, 2, 5),
-            (None, (0.3, 0.9)),
             (True, False),
             (1, 4),
             (5, 7)))
@@ -595,7 +589,6 @@ def test_module_create_side_by_side_video(
         output_suffix,
         output_hz,
         kernel_size,
-        quantiles,
         reticle,
         speed_up_factor,
         quality):
@@ -603,6 +596,8 @@ def test_module_create_side_by_side_video(
     This is just going to be a smoke test, as it's hard to verify
     the contents of an mp4
     """
+
+    quantiles = (0.3, 0.9)
 
     actual_file = pathlib.Path(
                         tempfile.mkstemp(dir=tmpdir,

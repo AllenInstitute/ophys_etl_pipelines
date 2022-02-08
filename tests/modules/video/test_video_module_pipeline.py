@@ -172,10 +172,7 @@ def test_side_by_side_video_schema_error(
 
 @pytest.mark.parametrize(
     'lower_quantile, upper_quantile, raises',
-    [(None, None, False),
-     (None, 0.9, True),
-     (0.1, None, True),
-     (0.9, 0.1, True),
+    [(0.9, 0.1, True),
      (0.1, 0.9, False)])
 def test_single_video_quantiles(
         tmpdir,
@@ -219,10 +216,7 @@ def test_single_video_quantiles(
 
 @pytest.mark.parametrize(
     'lower_quantile, upper_quantile, raises',
-    [(None, None, False),
-     (None, 0.9, True),
-     (0.1, None, True),
-     (0.9, 0.1, True),
+    [(0.9, 0.1, True),
      (0.1, 0.9, False)])
 def test_side_by_side_video_quantiles(
         tmpdir,

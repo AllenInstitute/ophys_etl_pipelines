@@ -67,19 +67,17 @@ class VideoBaseSchema(argschema.ArgSchema):
 
     lower_quantile = argschema.fields.Float(
             required=False,
-            default=None,
-            allow_none=True,
+            default=0.0,
+            allow_none=False,
             description=("Lower quantile to use when clipping and "
-                         "normalizing the video; if quantiles are None, "
-                         "will use the min and max values of the video"))
+                         "normalizing the video"))
 
     upper_quantile = argschema.fields.Float(
             required=False,
-            default=None,
-            allow_none=True,
+            default=1.0,
+            allow_none=False,
             description=("Upper quantile to use when clipping and "
-                         "normalizing the video; if quantiles are None, "
-                         "will use the min and max values of the video"))
+                         "normalizing the video"))
 
     tmp_dir = argschema.fields.OutputDir(
             required=False,
@@ -106,17 +104,6 @@ class VideoBaseSchema(argschema.ArgSchema):
 
     @post_load
     def check_quantiles(self, data, **kwargs):
-        valid = True
-        if data['upper_quantile'] is None:
-            if not data['lower_quantile'] is None:
-                valid = False
-        if data['lower_quantile'] is None:
-            if not data['upper_quantile'] is None:
-                valid = False
-        if not valid:
-            msg = 'If upper_quantile is None, lower_quantile must be None '
-            msg += 'and vice-versa'
-            raise ValueError(msg)
         if data['upper_quantile'] is not None:
             if data['upper_quantile'] <= data['lower_quantile']:
                 msg = 'upper_quantile must be > lower_quantile'

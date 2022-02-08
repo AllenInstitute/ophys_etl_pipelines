@@ -557,7 +557,7 @@ def _write_array_to_video(
 
 def _min_max_from_h5(
         h5_path: pathlib.Path,
-        quantiles: Optional[Tuple[float, float]],
+        quantiles: [Tuple[float, float]] = (0.0, 1.0),
         border: int = 50) -> Tuple[float, float]:
     """
     Get the normalizing minimum and maximum pixel values from
@@ -568,9 +568,8 @@ def _min_max_from_h5(
     h5_path: pathlib.Path
         Path to the movie
 
-    quantiles: Optional[Tuple[float, float]]
-        Quantiles to use for normalization (if None, get
-        minimum and maximum values)
+    quantiles: Tuple[float, float]
+        Quantiles to use for normalization
 
     border: int
         Number of pixels to ignore at the border of the field of view.
@@ -594,11 +593,7 @@ def _min_max_from_h5(
         full_data = in_file['data'][:,
                                     border:video_shape[1]-border,
                                     border:video_shape[2]-border]
-        if quantiles is not None:
-            q0, q1 = np.quantile(full_data, quantiles)
-        else:
-            q0 = full_data.min()
-            q1 = full_data.max()
+        q0, q1 = np.quantile(full_data, quantiles)
         logger.info('got normalization')
 
     return q0, q1

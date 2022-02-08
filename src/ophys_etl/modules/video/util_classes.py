@@ -11,15 +11,9 @@ class VideoModuleMixin(object):
     def _get_supplemental_args(self) -> dict:
         """
         Parse self.args and return a dict like
-        {'quantiles': optional tuple of quantiles to use in clipping video
-         'spatial_filter': optional callable spatial filter to apply to video
+        {'spatial_filter': optional callable spatial filter to apply to video
          'video_dtype': dtype of video
         """
-        if self.args['upper_quantile'] is not None:
-            quantiles = (self.args['lower_quantile'],
-                         self.args['upper_quantile'])
-        else:
-            quantiles = (0.0, 1.0)
 
         use_kernel = False
         if self.args['kernel_size'] is not None:
@@ -39,6 +33,5 @@ class VideoModuleMixin(object):
 
         video_dtype = np.dtype(self.args['video_dtype'])
 
-        return {'quantiles': quantiles,
-                'spatial_filter': spatial_filter,
+        return {'spatial_filter': spatial_filter,
                 'video_dtype': video_dtype}

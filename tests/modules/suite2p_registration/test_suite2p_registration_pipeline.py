@@ -97,8 +97,11 @@ def test_suite2p_motion_correction(
                                    prefix='output_',
                                    suffix='.json')[1]
 
+    str_tmpdir = str(pathlib.Path(tmpdir).resolve().absolute())
     s2p_args = {'nonrigid': nonrigid,
-                'h5py': str(video_path_fixture.resolve().absolute())}
+                'h5py': str(video_path_fixture.resolve().absolute()),
+                'tmp_dir': str_tmpdir,
+                'output_dir': str_tmpdir}
 
     args = {'suite2p_args': s2p_args,
             'movie_frame_rate_hz': 6.1,

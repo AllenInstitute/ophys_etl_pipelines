@@ -163,7 +163,7 @@ def test_find_overlapping_roi_pairs():
                           ])
 def test_get_img_thumbnails(x0, y0, x1, y1):
     """
-    Test that, when fed to ROIs that are very distant and do not
+    Test that, when fed two ROIs that are very distant and do not
     overlap, get_img_thumbnails returns bounds
     (xmin, xmax), (ymin, ymax) bounds that cover both ROIs
     """

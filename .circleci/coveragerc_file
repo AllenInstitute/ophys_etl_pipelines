@@ -1,0 +1,5 @@
+# config file for coverage.py
+# https://coverage.readthedocs.io/en/latest/config.html
+[run]
+branch = True
+concurrency = multiprocessing

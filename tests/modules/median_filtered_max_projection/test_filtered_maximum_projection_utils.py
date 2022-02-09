@@ -54,9 +54,9 @@ def test_median_filter_to_video(kernel_size):
 
 
 @pytest.mark.parametrize('n_processors, input_frame_rate, kernel_size',
-                         product((2, 3, 4),
-                                 (3.0, 6.0, 11.0, 31.0),
-                                 (2, 3, 4)))
+                         product((2, 3),
+                                 (3.0, 11.0),
+                                 (2, 3)))
 def test_median_filtered_max_projection_from_array(
         n_processors,
         input_frame_rate,
@@ -93,16 +93,17 @@ def test_median_filtered_max_projection_from_array(
 
 
 @pytest.mark.parametrize(
-        "input_frame_rate, downsampled_frame_rate, median_filter_kernel_size, "
+        "median_filter_kernel_size, "
         "n_frames_at_once",
-        product((31.0, 11.0), (7.0, 4.0), (3, 4), (100, 52, -1, 0)))
+        product((3, 4), (100, 52, -1, 0)))
 def test_maximum_projection_from_path(
         video_path_fixture,
         video_data_fixture,
-        input_frame_rate,
-        downsampled_frame_rate,
         median_filter_kernel_size,
         n_frames_at_once):
+
+    input_frame_rate = 11.0
+    downsampled_frame_rate = 7.0
 
     expected = median_filtered_max_projection_from_array(
                     video_data_fixture,

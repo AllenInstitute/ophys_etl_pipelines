@@ -46,6 +46,7 @@ jobs:
     executor:
       name: python/default
       tag: "3.7.7"
+      machine: true
     steps:
       - checkout
       - run:

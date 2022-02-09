@@ -46,7 +46,6 @@ jobs:
     executor:
       name: python/default
       tag: "3.7.7"
-    resource_class: large
     steps:
       - checkout
       - run:

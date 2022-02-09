@@ -13,8 +13,8 @@ from ophys_etl.utils.rois import (
     sanitize_extract_roi_list,
     extract_roi_to_ophys_roi)
 
-from ophys_etl.modules.roi_cell_classifier.compute_artifacts import (
-    ArtifactGenerator)
+from ophys_etl.modules.roi_cell_classifier.compute_labeler_artifacts import (
+    LabelerArtifactGenerator)
 
 from ophys_etl.modules.roi_cell_classifier.utils import (
     get_traces)
@@ -71,7 +71,7 @@ def test_with_graph(
     input_data['projection_lower_quantile'] = projection_lower_quantile
     input_data['projection_upper_quantile'] = projection_upper_quantile
 
-    generator = ArtifactGenerator(input_data=input_data, args=[])
+    generator = LabelerArtifactGenerator(input_data=input_data, args=[])
     generator.run()
 
     assert output_path.is_file()
@@ -191,10 +191,10 @@ def test_clobber_error(
     input_data['clobber'] = False
 
     with pytest.raises(RuntimeError, match='--clobber=True'):
-        ArtifactGenerator(input_data=input_data, args=[])
+        LabelerArtifactGenerator(input_data=input_data, args=[])
 
     input_data['clobber'] = True
-    ArtifactGenerator(input_data=input_data, args=[])
+    LabelerArtifactGenerator(input_data=input_data, args=[])
 
 
 def test_malformed_corr_file(
@@ -227,4 +227,4 @@ def test_malformed_corr_file(
     input_data['clobber'] = True
 
     with pytest.raises(RuntimeError, match='.pkl or .png'):
-        ArtifactGenerator(input_data=input_data, args=[])
+        LabelerArtifactGenerator(input_data=input_data, args=[])

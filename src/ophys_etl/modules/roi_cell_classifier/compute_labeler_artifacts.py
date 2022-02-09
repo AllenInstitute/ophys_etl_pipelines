@@ -25,7 +25,7 @@ logging.captureWarnings(True)
 logging.basicConfig(level=logging.INFO)
 
 
-class ArtifactFileSchema(argschema.ArgSchema):
+class LabelerArtifactFileSchema(argschema.ArgSchema):
 
     video_path = argschema.fields.InputFile(
             required=True,
@@ -93,9 +93,9 @@ class ArtifactFileSchema(argschema.ArgSchema):
         return data
 
 
-class ArtifactGenerator(argschema.ArgSchemaParser):
+class LabelerArtifactGenerator(argschema.ArgSchemaParser):
 
-    default_schema = ArtifactFileSchema
+    default_schema = LabelerArtifactFileSchema
 
     def run(self):
         video_path = pathlib.Path(self.args['video_path'])
@@ -182,5 +182,5 @@ class ArtifactGenerator(argschema.ArgSchemaParser):
 
 
 if __name__ == "__main__":
-    generator = ArtifactGenerator()
+    generator = LabelerArtifactGenerator()
     generator.run()

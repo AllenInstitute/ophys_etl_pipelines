@@ -130,3 +130,44 @@ def normalize_array(
     normalized = np.round(normalized * 255 / delta)
     normalized = normalized.astype(np.uint8)
     return normalized
+
+
+def array_to_rgb(
+        input_array: np.ndarray,
+        lower_cutoff: Optional[float] = None,
+        upper_cutoff: Optional[float] = None) -> np.ndarray:
+    """
+    Take a 2-D np.ndarray of arbitrary dtype and cast it into
+    a 3-D array of np.uint8 representing an RGB image
+
+    Parameters
+    ----------
+    input_array: np.ndarray
+        (nrows, ncols)
+
+    lower_cutoff: Optional[float]
+        threshold, below which will be = 0
+        (if None, do not clip the array)
+
+    upper_cutoff: Optional[float]
+        threshold, abovewhich will be = 255
+        (if None, do not clip the array)
+
+    Returns
+    -------
+    rgb_array:
+        (nrows, ncols, 3); original data clipped
+        (if cutoffs set) and scaled to np.uint8
+    """
+    output_array = np.zeros((input_array.shape[0],
+                             input_array.shape[1],
+                             3), dtype=np.uint8)
+
+    scaled_array = normalize_array(
+                        array=input_array,
+                        lower_cutoff=lower_cutoff,
+                        upper_cutoff=upper_cutoff)
+
+    for ic in range(3):
+        output_array[:, :, ic] = scaled_array
+    return output_array

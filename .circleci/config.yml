@@ -53,8 +53,7 @@ jobs:
             # uses the latest pip with more strict dependency resolution
             pip install --upgrade pip
             pip install .
-            export COVERAGE_FILE=/tmp/.coverage
-            python -m pytest --verbose -s -m "suite2p_only and not event_detect_only" --cov ophys_etl --cov-report xml:/coverage_outputs/suite2p_cov.xml
+            python -m pytest --verbose -s -m "suite2p_only and not event_detect_only" --cov ophys_etl --cov-report xml
             bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN} -cF not_container_tests
           name: Test
 

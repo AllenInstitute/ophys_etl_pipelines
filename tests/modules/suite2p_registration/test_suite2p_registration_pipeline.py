@@ -35,8 +35,8 @@ def video_path_fixture(tmpdir_factory):
     # nrows, ncols needs to be larger than 128, since
     # the default block size for nonrigid motion correction
     # is 128x128
-    nrows = 64
-    ncols = 64
+    nrows = 160
+    ncols = 160
     data = np.round(rng.normal(6.0, 3.0, (ntime, nrows, ncols)))
     data = data.astype(np.int16)
 
@@ -154,17 +154,16 @@ def test_suite2p_motion_correction(
     # did not change). The rigid motion correction should preserve all pixel
     # values or all frames. nonrigid motion correction does not preserve all
     # pixel values and thus some frames should have different pixel values.
-    # n_non_rigid_different = 0
+    n_non_rigid_different = 0
     for ii in range(input_video.shape[0]):
         in_pixels = np.sort(input_video[ii, :, :].flatten())
         out_pixels = np.sort(corrected_video[ii, :, :].flatten())
         if clip_negative:
             in_pixels = np.where(in_pixels > 0.0, in_pixels, 0.0)
         if nonrigid:
-            pass
-            # if not np.array_equal(in_pixels, out_pixels):
-            #     n_non_rigid_different += 1
+            if not np.array_equal(in_pixels, out_pixels):
+                n_non_rigid_different += 1
         else:
             np.testing.assert_array_equal(in_pixels, out_pixels)
-    # if nonrigid:
-    #     assert n_non_rigid_different > 0
+    if nonrigid:
+        assert n_non_rigid_different > 0

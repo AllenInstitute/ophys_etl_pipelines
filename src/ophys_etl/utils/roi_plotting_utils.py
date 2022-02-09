@@ -1,9 +1,50 @@
 from typing import Tuple, List, Union, Dict
 import numpy as np
+from ophys_etl.utils.array_utils import (
+    array_to_rgb,
+    normalize_array)
+
 from ophys_etl.types import OphysROI
 from ophys_etl.utils.rois import (
     sanitize_extract_roi_list,
     extract_roi_to_ophys_roi)
+
+
+def plot_rois_over_img(
+        img: np.ndarray,
+        roi_list: Union[List[OphysROI], List[Dict]],
+        color: Union[Tuple[int, int, int],
+                     Dict[int, Tuple[int, int, int]]],
+        alpha: float = 0.5) -> np.ndarray:
+    """
+    Plot a list of ROIs over a provided image
+    """
+    if len(img.shape) == 2:
+        img = array_to_rgb(img)
+    elif len(img.shape) == 3:
+        if img.shape[2] != 3:
+            msg = f"Cannot handle image with shape {img.shape}"
+            raise ValueError(msg)
+        if img.dtype != np.uint8:
+            new_img = np.zeros(img.shape, dtype=np.uint8)
+            upper_cutoff = img.max()
+            lower_cutoff = img.min()
+            for ic in range(3):
+                new_img[:, :, ic] = normalize_array(
+                                         img[:, :, ic],
+                                         lower_cutoff=lower_cutoff,
+                                         upper_cutoff=upper_cutoff)
+            img = new_img
+    else:
+        msg = f"Cannot handle image with shape {img.shape}"
+        raise ValueError(msg)
+
+    img = add_list_of_roi_contours_to_img(
+                img=img,
+                roi_list=roi_list,
+                color=color,
+                alpha=alpha)
+    return img
 
 
 def add_roi_contour_to_img(

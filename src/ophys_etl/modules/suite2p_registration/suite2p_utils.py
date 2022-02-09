@@ -1,6 +1,7 @@
 import h5py
 import logging
 import numpy as np
+from scipy.stats import sigmaclip
 from time import time
 from suite2p.registration.register import (pick_initial_reference,
                                            register_frames)
@@ -44,12 +45,13 @@ def load_initial_frames(file_path: str,
     return frames
 
 
-def compute_reference(frames: np.ndarray,
+def compute_reference(input_frames: np.ndarray,
                       niter: int,
                       maxregshift: float,
                       smooth_sigma: float,
                       smooth_sigma_time: float,
-                      mask_slope_factor: float = 3) -> np.ndarray:
+                      mask_slope_factor: float = 3,
+                      logger: callable = None) -> np.ndarray:
     """Computes a stacked reference image from the input frames.
 
     Modified version of Suite2P's compute_reference function with no updating
@@ -60,7 +62,7 @@ def compute_reference(frames: np.ndarray,
 
     Parameters
     ----------
-    frames : array-like, (n_frames, nrows, ncols)
+    input_frames : array-like, (n_frames, nrows, ncols)
         Set of frames to create a reference from.
     niter : int
         Number of iterations to perform when creating the reference image.
@@ -86,9 +88,10 @@ def compute_reference(frames: np.ndarray,
     """
     # Get the dtype of the input frames to properly cast the final reference
     # image as the same type.
-    frames_dtype = frames.dtype
+    frames_dtype = input_frames.dtype
 
     # Get initial reference image from suite2p.
+    frames = trim_frames(input_frames)
     ref_image = pick_initial_reference(frames)
 
     # Determine how much to pad our frames by before shifting to prevent
@@ -151,17 +154,50 @@ def compute_reference(frames: np.ndarray,
         # any NaNs remaining. Throw warning if a NaN is found.
         ref_image = ref_image[pad_y:-pad_y, pad_x:-pad_x]
         if np.any(np.isnan(ref_image)):
-            logging.warning(
-                f"Warning: {np.isnan(ref_image).sum()} NaN pixels found in "
-                "reference image after removing padded values during "
-                f"iteration {idx}. Likely the image quality is low and "
-                " shifting frames failed. Setting NaN values to image mean.")
+            # NaNs can sometimes be left over from the image padding during the
+            # first few iterations before the reference image has converged.
+            # If there are still NaNs left after the final iteration, we
+            # throw the following warning.
+            if idx + 1 == niter:
+                logging.warning(
+                    f"Warning: {np.isnan(ref_image).sum()} NaN pixels found "
+                    " the reference image on the final iteration iteration. "
+                    "Likely the image quality is low and shifting frames "
+                    "failed. Setting NaN values to the image mean.")
             ref_image = np.nan_to_num(ref_image,
                                       nan=np.nanmean(ref_image),
                                       copy=False)
         ref_image = ref_image.astype(frames_dtype)
 
     return ref_image
+
+
+def trim_frames(input_frames: np.ndarray,
+                n_sigma: float = 3) -> np.ndarray:
+    """Remove frames with extremum mean values from the frames used in
+    reference image processing.
+
+    Likely these are empty frames of pure noise.
+
+    Parameters
+    ----------
+    input_frames : numpy.ndarray, (N, M, K)
+        Set of frames to trim.
+    n_sigma : float, optional
+        Number of standard deviations to above which to clip. Default is 3
+        which was found to remove all empty frames while preserving most
+        frames.
+
+    Returns
+    -------
+    trimmed_frames : numpy.ndarray, (N, M, K)
+        Set of frames with the extremum frames removed.
+    """
+    frame_means = np.mean(input_frames, axis=(1, 2))
+    _, low_cut, high_cut = sigmaclip(frame_means, low=n_sigma, high=n_sigma)
+    trimmed_frames = input_frames[np.logical_and(frame_means > low_cut,
+                                                 frame_means < high_cut)]
+    return trimmed_frames
 
 
 def optimize_motion_parameters(initial_frames: np.ndarray,

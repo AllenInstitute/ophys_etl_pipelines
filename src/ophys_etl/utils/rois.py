@@ -597,19 +597,24 @@ def do_rois_abut(roi0: OphysROI,
 
 
 def get_roi_color_map(
-        roi_list: List[OphysROI]) -> Dict[int, Tuple[int, int, int]]:
+        roi_list: Union[List[OphysROI],
+                        List[Dict]]) -> Dict[int, Tuple[int, int, int]]:
     """
     Take a list of OphysROI and return a dict mapping ROI ID
     to RGB color so that no ROIs that touch have the same color
 
     Parametrs
     ---------
-    roi_list: List[OphysROI]
+    roi_list: Union[List[OphysROI], List[Dict]]
 
     Returns
     -------
     color_map: Dict[int, Tuple[int, int, int]]
     """
+    if not isinstance(roi_list[0], OphysROI):
+        roi_list = [extract_roi_to_ophys_roi(roi)
+                    for roi in sanitize_extract_roi_list(roi_list)]
+
     roi_graph = networkx.Graph()
     for roi in roi_list:
         roi_graph.add_node(roi.roi_id)

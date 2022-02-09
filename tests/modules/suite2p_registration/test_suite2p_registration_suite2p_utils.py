@@ -2,13 +2,8 @@ import h5py
 import json
 import numpy as np
 from pathlib import Path
-import sys
-import pytest
 import unittest
 from unittest.mock import MagicMock, Mock, patch
-
-import suite2p.registration
-
 
 from ophys_etl.modules.suite2p_registration.suite2p_utils import (  # noqa: E402, E501
     compute_reference, load_initial_frames, compute_acutance,

@@ -1,5 +1,4 @@
 import json
-import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -9,8 +8,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import tifffile
-
-import suite2p.registration
 
 from ophys_etl.modules.suite2p_wrapper.schemas import \
         Suite2PWrapperSchema, Suite2PWrapperOutputSchema  # noqa: E402

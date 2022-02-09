@@ -5,7 +5,6 @@ import tempfile
 from itertools import product
 import numpy as np
 
-import suite2p.registration
 from ophys_etl.modules.suite2p_registration.__main__ import (
         Suite2PRegistration)
 

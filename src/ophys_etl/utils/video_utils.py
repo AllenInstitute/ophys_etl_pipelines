@@ -322,7 +322,7 @@ def read_and_scale(
 def video_bounds_from_ROI(
         roi: ExtractROI,
         fov_shape: Tuple[int, int],
-        padding: int):
+        padding: int) -> Tuple[Tuple[int, int], Tuple[int, int]]:
     """
     Get the field of view bounds from an ROI
 

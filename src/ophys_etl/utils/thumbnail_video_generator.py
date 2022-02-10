@@ -82,6 +82,11 @@ class VideoGenerator(object):
             self._video_data = video_data
             self._video_shape = self._video_data.shape
 
+    def __del__(self):
+        if hasattr(self, 'tmp_dir'):
+            if self.tmp_dir.is_dir():
+                self.tmp_dir.rmdir()
+
     @property
     def video_path(self):
         if self._video_path is None:
@@ -218,6 +223,11 @@ class VideoGenerator(object):
                             min_max=self.min_max,
                             roi_list=roi_list,
                             roi_color=roi_color)
+
+        # so this generator cannot go out of scope before
+        # the ThumbnailVideos it produces go out of scope
+        thumbnail._assign_generator(self)
+
         return thumbnail
 
     def get_thumbnail_video_from_roi(
@@ -286,4 +296,9 @@ class VideoGenerator(object):
                         fps=fps,
                         quality=quality,
                         min_max=min_max)
+
+        # so this generator cannot go out of scope before
+        # the ThumbnailVideos it produces go out of scope
+        thumbnail._assign_generator(self)
+
         return thumbnail

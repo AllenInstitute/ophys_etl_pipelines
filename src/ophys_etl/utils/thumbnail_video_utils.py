@@ -121,6 +121,7 @@ class ThumbnailVideo(object):
                              "all players; please run again with "
                              "different quality setting.")
 
+        self._generator = None  # for bookkeeping; see assign_generator
         self._path = video_path
         self._origin = origin
         self._frame_shape = video_data.shape[1:3]
@@ -138,6 +139,21 @@ class ThumbnailVideo(object):
                         quality=quality,
                         pixelformat='yuv420p',
                         codec='libx264')
+
+    def _assign_generator(self, generator: object) -> None:
+        """
+        **This should not be used**
+        If the ThumbnailVideo is produced by a VideoGenerator,
+        the generator uses this method to assign itself to the
+        ThumbnailVideo so that the VideoGenerator does not go
+        out of scope (thus having its tmp_dir cleaned up) until
+        all of the ThumbnailVideos produced from the
+        VideoGenerator have gone out of scope.
+        """
+        if self._generator is not None:
+            # should not be able to reaassign self._generator
+            return None
+        self._generator = generator
 
     def __del__(self):
         if self.video_path.is_file():

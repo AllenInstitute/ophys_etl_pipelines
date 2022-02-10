@@ -241,19 +241,28 @@ def test_read_and_scale_by_chunks(chunked_video_path,
 
 
 @pytest.mark.parametrize(
-        "quantiles, min_max, match_str",
-        [(None, None, 'must specify either quantiles'),
-         ((0.1, 0.9), (0.0, 1.0), 'cannot specify both')])
+        "quantiles, min_max, match_str, to_use",
+        [(None, None, 'must specify either quantiles', 'chunked'),
+         (None, None, 'must specify either quantiles', 'unchunked'),
+         ((0.1, 0.9), (0.0, 1.0), 'cannot specify both', 'chunked'),
+         ((0.1, 0.9), (0.0, 1.0), 'cannot specify both', 'unchunked')])
 def test_read_and_scale_norm_exceptions(
         unchunked_video_path,
+        chunked_video_path,
         quantiles,
         min_max,
-        match_str):
+        match_str,
+        to_use):
+
+    if to_use == 'chunked':
+        video_path = chunked_video_path
+    elif to_use == 'unchunked':
+        video_path = unchunked_video_path
 
     with pytest.raises(RuntimeError,
                        match=match_str):
         _ = read_and_scale(
-                        unchunked_video_path,
+                        video_path,
                         origin=(0, 0),
                         frame_shape=(5, 5),
                         quantiles=quantiles,

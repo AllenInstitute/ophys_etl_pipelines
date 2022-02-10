@@ -176,6 +176,8 @@ def test_get_thumbnail_video(tmpdir,
     assert not expected.video_path == thumbnail.video_path
     compare_hashes(expected.video_path, thumbnail.video_path)
 
+    # to make sure we don't needlessly clutter CircleCIs
+    # scratch space
     del thumbnail
     del expected
     del generator
@@ -221,6 +223,9 @@ def test_thumbnail_with_roi_list(
                                               rois=list_of_roi)
 
     assert thumbnail.video_path.is_file()
+
+    # to make sure we don't needlessly clutter CircleCIs
+    # scratch space
     del thumbnail
 
     thumbnail = generator.get_thumbnail_video(origin=origin,
@@ -232,6 +237,9 @@ def test_thumbnail_with_roi_list(
                                               valid_only=True)
 
     assert thumbnail.video_path.is_file()
+
+    # to make sure we don't needlessly clutter CircleCIs
+    # scratch space
     del thumbnail
 
     roi_lookup = {roi['id']: roi for roi in list_of_roi}
@@ -244,6 +252,9 @@ def test_thumbnail_with_roi_list(
                                               rois=roi_lookup)
 
     assert thumbnail.video_path.is_file()
+
+    # to make sure we don't needlessly clutter CircleCIs
+    # scratch space
     del thumbnail
 
     thumbnail = generator.get_thumbnail_video(origin=origin,
@@ -256,6 +267,8 @@ def test_thumbnail_with_roi_list(
 
     assert thumbnail.video_path.is_file()
 
+    # to make sure we don't needlessly clutter CircleCIs
+    # scratch space
     del thumbnail
     del generator
 
@@ -329,6 +342,8 @@ def test_get_thumbnail_video_from_roi(
     assert not expected.video_path == thumbnail.video_path
     compare_hashes(expected.video_path, thumbnail.video_path)
 
+    # to make sure we don't needlessly clutter CircleCIs
+    # scratch space
     del thumbnail
     del expected
     del generator

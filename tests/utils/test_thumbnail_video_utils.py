@@ -25,6 +25,7 @@ from ophys_etl.utils.thumbnail_video_utils import (
 
 @pytest.fixture(scope='session')
 def example_video():
+    """a numpy array of random video data"""
     rng = np.random.RandomState(16412)
     data = rng.randint(0, 100, (100, 60, 60)).astype(np.uint8)
     for ii in range(100):
@@ -34,6 +35,7 @@ def example_video():
 
 @pytest.fixture(scope='session')
 def example_video_path(tmpdir_factory, example_video):
+    """store example_video in a file; return the path to that file"""
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('example_video'))
     base_fname = tempfile.mkstemp(dir=tmpdir,
                                   prefix='example_video_',
@@ -49,6 +51,7 @@ def example_video_path(tmpdir_factory, example_video):
 
 @pytest.fixture
 def example_rgb_video():
+    """an example numpy array of RGB video data"""
     rng = np.random.RandomState(16412)
     data = rng.randint(0, 100, (100, 60, 60, 3)).astype(np.uint8)
     for ii in range(100):
@@ -58,6 +61,7 @@ def example_rgb_video():
 
 @pytest.fixture(scope='session')
 def example_unnormalized_rgb_video():
+    """a numpy array of 3-channel video data; not np.uint8s"""
     rng = np.random.RandomState(6125321)
     data = rng.randint(0, 700, (100, 60, 60, 3))
     return data
@@ -67,6 +71,9 @@ def example_unnormalized_rgb_video():
 def example_unnormalized_rgb_video_path(
         tmpdir_factory,
         example_unnormalized_rgb_video):
+    """store example_unnormalized_rgb_video in a file; return the path
+    to that file"""
+
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('eg_unnorm_rgb_video'))
     # write video to a tempfile
     h5_fname = tempfile.mkstemp(dir=tmpdir,
@@ -83,6 +90,10 @@ def example_unnormalized_rgb_video_path(
 
 @pytest.fixture(scope='session')
 def chunked_video_path(tmpdir_factory):
+    """
+    Store an example video in a chunked HDF5 file;
+    return the path to that file
+    """
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('chunked_video'))
     fname = tempfile.mkstemp(dir=tmpdir,
                              prefix='example_large_video_chunked_',
@@ -108,6 +119,10 @@ def chunked_video_path(tmpdir_factory):
 
 @pytest.fixture(scope='session')
 def unchunked_video_path(tmpdir_factory):
+    """
+    Store an example video in an unchunked HDF5 file;
+    return the path to that file
+    """
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('unchunked_video'))
     fname = tempfile.mkstemp(dir=tmpdir,
                              prefix='example_large_video_unchunked_',
@@ -187,6 +202,9 @@ def test_thumbnail_video(data_fixture, tmpdir, request):
                          ["example_video",
                           "example_rgb_video"])
 def test_trim_video(video_data_fixture, request):
+    """test that trim_video does the correct trimming in
+    time and space"""
+
     video_data = request.getfixturevalue(video_data_fixture)
 
     origin = (3, 9)
@@ -217,6 +235,9 @@ def test_trim_video(video_data_fixture, request):
 @pytest.mark.parametrize("timesteps",
                          [None, np.arange(22, 56)])
 def test_thumbnail_from_array(tmpdir, example_video, timesteps):
+    """
+    Test our ability to create a thumbnail video from a numpy array
+    """
 
     th_video = thumbnail_video_from_array(example_video,
                                           (11, 3),
@@ -258,6 +279,10 @@ def test_thumbnail_from_array(tmpdir, example_video, timesteps):
 @pytest.mark.parametrize("timesteps",
                          [None, np.arange(22, 56)])
 def test_thumbnail_from_rgb_array(tmpdir, example_rgb_video, timesteps):
+    """
+    Test our ability to create a ThumbnailVideo from a three channel
+    numpy array
+    """
 
     th_video = thumbnail_video_from_array(example_rgb_video,
                                           (11, 3),
@@ -307,7 +332,10 @@ def test_thumbnail_from_roi(tmpdir,
                             padding,
                             with_others,
                             roi_color):
-
+    """
+    Test our ability to create a ThumbnailVideo from a field
+    of ROIs, using one as the video's center
+    """
     if timesteps is None:
         n_t = example_video.shape[0]
     else:
@@ -647,6 +675,10 @@ def test_generic_generation_from_ROI(tmpdir,
 
 @pytest.mark.parametrize('factor', [3, 4, 5])
 def test_upscale_video_frame(factor):
+    """
+    Test that upscale_video_frame correctly expands each frame
+    in a numpy array representing a video.
+    """
     rng = np.random.RandomState(88123)
     raw_data = rng.randint(0, 256, (100, 14, 17), dtype=np.uint8)
     new_data = upscale_video_frame(raw_data, factor)

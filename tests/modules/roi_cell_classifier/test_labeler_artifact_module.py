@@ -24,8 +24,8 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
 
 
 @pytest.mark.parametrize(
-        "video_lower_quantile,video_upper_quantile,"
-        "projection_lower_quantile,projection_upper_quantile, use_graph",
+        "video_lower_quantile, video_upper_quantile,"
+        "projection_lower_quantile, projection_upper_quantile, use_graph",
         product((0.1, 0.2), (0.7, 0.8), (0.1, 0.2), (0.7, 0.8),
                 (True, False)))
 def test_with_graph(

@@ -183,12 +183,30 @@ def test_read_and_scale_all_at_once(chunked_video_path,
 
 
 @pytest.mark.parametrize(
+        "quantiles, min_max, match_str",
+        [(None, None, 'must specify either quantiles'),
+         ((0.1, 0.9), (0.0, 1.0), 'cannot specify both')])
+def test_read_and_scale_by_chunks_norm_exceptions(
+        chunked_video_path,
+        quantiles,
+        min_max,
+        match_str):
+
+    with pytest.raises(RuntimeError,
+                       match=match_str):
+        _ = _read_and_scale_by_chunks(
+                        chunked_video_path,
+                        origin=(0, 0),
+                        frame_shape=(5, 5),
+                        quantiles=quantiles,
+                        min_max=min_max)
+
+
+@pytest.mark.parametrize(
          'to_use, normalization, geometry',
          product(('chunked', 'unchunked'),
                  ({'quantiles': None, 'min_max': (10, 5000)},
-                  {'quantiles': (0.1, 0.9), 'min_max': None},
-                  {'quantiles': None, 'min_max': None},
-                  {'quantiles': (0.1, 0.9), 'min_max': (10, 5000)}),
+                  {'quantiles': (0.1, 0.9), 'min_max': None}),
                  ({'origin': (0, 0), 'frame_shape': None},
                   {'origin': (5, 5), 'frame_shape': (3, 3)})))
 def test_read_and_scale_by_chunks(chunked_video_path,
@@ -200,32 +218,6 @@ def test_read_and_scale_by_chunks(chunked_video_path,
         video_path = chunked_video_path
     elif to_use == 'unchunked':
         video_path = unchunked_video_path
-
-    if normalization['quantiles'] is None and normalization['min_max'] is None:
-        with pytest.raises(RuntimeError,
-                           match='must specify either quantiles'):
-
-            actual = _read_and_scale_by_chunks(
-                        video_path,
-                        geometry['origin'],
-                        geometry['frame_shape'],
-                        quantiles=normalization['quantiles'],
-                        min_max=normalization['min_max'])
-        return
-
-    elif (normalization['quantiles'] is not None
-          and normalization['min_max'] is not None):
-
-        with pytest.raises(RuntimeError,
-                           match='cannot specify both quantiles'):
-
-            actual = _read_and_scale_by_chunks(
-                        video_path,
-                        geometry['origin'],
-                        geometry['frame_shape'],
-                        quantiles=normalization['quantiles'],
-                        min_max=normalization['min_max'])
-        return
 
     with h5py.File(video_path, 'r') as in_file:
         full_data = in_file['data'][()]

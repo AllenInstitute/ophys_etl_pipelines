@@ -227,6 +227,15 @@ def _read_and_scale_by_chunks(
         colmax = min(dataset.shape[2], origin[1]+frame_shape[1])
 
         if quantiles is not None:
+
+            # Note: we are trying to avoid carrying two copies
+            # of the video in memory at any given time.
+            # A few lines down, we create a full sized array
+            # of uint8s that get populated from chunks of the
+            # raw movie. If we kept the result of dataset[()]
+            # around at this point, we would have two complete
+            # movies in memory at once, which could get expensive.
+
             min_max = np.quantile(dataset[()], quantiles)
 
         if min_max[0] > min_max[1]:

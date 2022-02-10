@@ -144,12 +144,11 @@ def _read_and_scale_all_at_once(
 
     with h5py.File(full_video_path, 'r') as in_file:
         if quantiles is not None:
-            read_data = in_file['data'][()]
-            min_max = np.quantile(read_data, quantiles)
-            data = read_data[:,
-                             origin[0]:origin[0]+frame_shape[0],
-                             origin[1]:origin[1]+frame_shape[1]]
-            del read_data
+            data = in_file['data'][()]
+            min_max = np.quantile(data, quantiles)
+            data = data[:,
+                        origin[0]:origin[0]+frame_shape[0],
+                        origin[1]:origin[1]+frame_shape[1]]
         else:
             data = in_file['data'][:,
                                    origin[0]:origin[0]+frame_shape[0],

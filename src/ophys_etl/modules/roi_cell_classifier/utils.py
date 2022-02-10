@@ -94,9 +94,9 @@ def clip_img_to_quantiles(
     """
     Clip an image at specified quantiles.
     """
-    mn, mx = np.quantile(img_data, quantiles)
-    out_img = np.where(img_data > mn, img_data, mn)
-    out_img = np.where(out_img < mx, out_img, mx)
+    (min_quantile,
+     max_quantile) = np.quantile(img_data, quantiles)
+    out_img = np.clip(img_data, min_quantile, max_quantile)
     return out_img
 
 

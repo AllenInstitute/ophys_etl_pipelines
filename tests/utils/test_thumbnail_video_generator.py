@@ -52,6 +52,10 @@ def list_of_roi():
 
 @pytest.fixture(scope='session')
 def example_video(tmpdir_factory):
+    """
+    Write an example video to an HDF5 file; return the
+    path to that file.
+    """
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('eg_video'))
     rng = np.random.RandomState(121311)
     nt = 100
@@ -71,6 +75,7 @@ def example_video(tmpdir_factory):
 
 @pytest.fixture
 def example_roi():
+    """an ExtractROI"""
     x = 11
     y = 7
     height = 20
@@ -103,6 +108,8 @@ def compare_hashes(fname0, fname1):
 
 
 def test_video_generator_exception():
+    """test that VideoGenerator raises an exception when given
+    a bogus file name"""
     with pytest.raises(RuntimeError, match='is not a file'):
         VideoGenerator('not_a_file.h5')
 

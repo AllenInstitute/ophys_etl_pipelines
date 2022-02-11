@@ -74,7 +74,7 @@ def chunked_video_path(tmpdir_factory):
                                           chunks=(100, 5, 5),
                                           dtype=np.uint16)
         for chunk in dataset.iter_chunks():
-            arr = rng.integers(0, 65536,
+            arr = rng.integers(0, np.iinfo(np.uint16).max,
                                (chunk[0].stop-chunk[0].start,
                                 chunk[1].stop-chunk[1].start,
                                 chunk[2].stop-chunk[2].start))
@@ -94,7 +94,8 @@ def unchunked_video_path(tmpdir_factory):
                              suffix='.h5')[1]
     rng = np.random.default_rng(714432)
     with h5py.File(fname, 'w') as out_file:
-        data = rng.integers(0, 65536, size=(214, 10, 10)).astype(np.uint16)
+        data = rng.integers(0, np.iinfo(np.uint16).max,
+                            size=(214, 10, 10)).astype(np.uint16)
         out_file.create_dataset('data',
                                 data=data,
                                 chunks=None,

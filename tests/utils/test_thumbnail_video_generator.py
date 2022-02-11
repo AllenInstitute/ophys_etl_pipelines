@@ -57,11 +57,11 @@ def example_video(tmpdir_factory):
     path to that file.
     """
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('eg_video'))
-    rng = np.random.RandomState(121311)
+    rng = np.random.default_rng(121311)
     nt = 100
     nrows = 50
     ncols = 50
-    data = rng.randint(0, 1000, (nt, nrows, ncols))
+    data = rng.integers(0, 1000, (nt, nrows, ncols))
     fname = tempfile.mkstemp(dir=tmpdir,
                              prefix='video_generator_example_video_',
                              suffix='.h5')[1]
@@ -80,8 +80,8 @@ def example_roi():
     y = 7
     height = 20
     width = 35
-    rng = np.random.RandomState(8123)
-    mask = rng.randint(0, 2, (height, width)).astype(bool)
+    rng = np.random.default_rng(8123)
+    mask = rng.integers(0, 2, (height, width)).astype(bool)
     roi = ExtractROI(x=x,
                      y=y,
                      height=height,

@@ -14,16 +14,16 @@ from ophys_etl.schemas import DenseROISchema
 
 @pytest.fixture
 def example_ophys_roi_list_fixture():
-    rng = np.random.RandomState(6412439)
+    rng = np.random.default_rng(6412439)
     roi_list = []
     for ii in range(30):
-        x0 = rng.randint(0, 25)
-        y0 = rng.randint(0, 25)
-        height = rng.randint(3, 7)
-        width = rng.randint(3, 7)
-        mask = rng.randint(0, 2, (height, width)).astype(bool)
-        roi = OphysROI(x0=x0, y0=y0,
-                       height=height, width=width,
+        x0 = rng.integers(0, 25)
+        y0 = rng.integers(0, 25)
+        height = rng.integers(3, 7)
+        width = rng.integers(3, 7)
+        mask = rng.integers(0, 2, (height, width)).astype(bool)
+        roi = OphysROI(x0=int(x0), y0=int(y0),
+                       height=int(height), width=int(width),
                        mask_matrix=mask,
                        roi_id=ii,
                        valid_roi=True)
@@ -614,8 +614,8 @@ def test_roi_abut():
 
 
 def test_extract_roi_to_ophys_roi():
-    rng = np.random.RandomState(345)
-    mask = rng.randint(0, 2, (9, 7)).astype(bool)
+    rng = np.random.default_rng(345)
+    mask = rng.integers(0, 2, (9, 7)).astype(bool)
     roi = {'x': 5,
            'y': 6,
            'width': 7,

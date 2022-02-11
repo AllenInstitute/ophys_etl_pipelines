@@ -26,8 +26,8 @@ from ophys_etl.utils.thumbnail_video_utils import (
 @pytest.fixture(scope='session')
 def example_video():
     """a numpy array of random video data"""
-    rng = np.random.RandomState(16412)
-    data = rng.randint(0, 100, (100, 60, 60)).astype(np.uint8)
+    rng = np.random.default_rng(16412)
+    data = rng.integers(0, 100, (100, 60, 60)).astype(np.uint8)
     for ii in range(100):
         data[ii, ::, :] = ii
     return data
@@ -52,8 +52,8 @@ def example_video_path(tmpdir_factory, example_video):
 @pytest.fixture
 def example_rgb_video():
     """an example numpy array of RGB video data"""
-    rng = np.random.RandomState(16412)
-    data = rng.randint(0, 100, (100, 60, 60, 3)).astype(np.uint8)
+    rng = np.random.default_rng(16412)
+    data = rng.integers(0, 100, (100, 60, 60, 3)).astype(np.uint8)
     for ii in range(100):
         data[ii, ::, :] = ii
     return data
@@ -62,8 +62,8 @@ def example_rgb_video():
 @pytest.fixture(scope='session')
 def example_unnormalized_rgb_video():
     """a numpy array of 3-channel video data; not np.uint8s"""
-    rng = np.random.RandomState(6125321)
-    data = rng.randint(0, 700, (100, 60, 60, 3))
+    rng = np.random.default_rng(6125321)
+    data = rng.integers(0, 700, (100, 60, 60, 3))
     return data
 
 
@@ -98,17 +98,17 @@ def chunked_video_path(tmpdir_factory):
     fname = tempfile.mkstemp(dir=tmpdir,
                              prefix='example_large_video_chunked_',
                              suffix='.h5')[1]
-    rng = np.random.RandomState(22312)
+    rng = np.random.default_rng(22312)
     with h5py.File(fname, 'w') as out_file:
         dataset = out_file.create_dataset('data',
                                           (214, 10, 10),
                                           chunks=(100, 5, 5),
                                           dtype=np.uint16)
         for chunk in dataset.iter_chunks():
-            arr = rng.randint(0, 65536,
-                              (chunk[0].stop-chunk[0].start,
-                               chunk[1].stop-chunk[1].start,
-                               chunk[2].stop-chunk[2].start))
+            arr = rng.integers(0, 65536,
+                               (chunk[0].stop-chunk[0].start,
+                                chunk[1].stop-chunk[1].start,
+                                chunk[2].stop-chunk[2].start))
             dataset[chunk] = arr
 
     fname = pathlib.Path(fname)
@@ -127,9 +127,9 @@ def unchunked_video_path(tmpdir_factory):
     fname = tempfile.mkstemp(dir=tmpdir,
                              prefix='example_large_video_unchunked_',
                              suffix='.h5')[1]
-    rng = np.random.RandomState(714432)
+    rng = np.random.default_rng(714432)
     with h5py.File(fname, 'w') as out_file:
-        data = rng.randint(0, 65536, size=(214, 10, 10)).astype(np.uint16)
+        data = rng.integers(0, 65536, size=(214, 10, 10)).astype(np.uint16)
         out_file.create_dataset('data',
                                 data=data,
                                 chunks=None,
@@ -679,8 +679,8 @@ def test_upscale_video_frame(factor):
     Test that upscale_video_frame correctly expands each frame
     in a numpy array representing a video.
     """
-    rng = np.random.RandomState(88123)
-    raw_data = rng.randint(0, 256, (100, 14, 17), dtype=np.uint8)
+    rng = np.random.default_rng(88123)
+    raw_data = rng.integers(0, 256, (100, 14, 17), dtype=np.uint8)
     new_data = upscale_video_frame(raw_data, factor)
     assert new_data.shape == (100, factor*14, factor*17)
     assert new_data.dtype == raw_data.dtype
@@ -695,7 +695,7 @@ def test_upscale_video_frame(factor):
                     np.testing.assert_array_equal(expected, actual)
 
     # now try on data with a color axis
-    raw_data = rng.randint(0, 256, (100, 14, 17, 5), dtype=np.uint8)
+    raw_data = rng.integers(0, 256, (100, 14, 17, 5), dtype=np.uint8)
     new_data = upscale_video_frame(raw_data, factor)
     assert new_data.shape == (100, factor*14, factor*17, 5)
     assert new_data.dtype == raw_data.dtype

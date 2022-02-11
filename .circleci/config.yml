@@ -46,10 +46,11 @@ jobs:
     machine: true
     steps:
       - checkout
+      - run: export THIS_PYTHON="3.7.7"
       - run:
           name: Build docker image
           command: |
-            docker build --build-arg OPHYS_ETL_TAG=${CIRCLE_BRANCH} --build-arg OPHYS_ETL_COMMIT_SHA=${CIRCLE_SHA1} --build-arg TEST_PYTHON_VERSION="3.7.7" -t alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} .circleci/docker_377
+            docker build --build-arg OPHYS_ETL_TAG=${CIRCLE_BRANCH} --build-arg OPHYS_ETL_COMMIT_SHA=${CIRCLE_SHA1} --build-arg TEST_PYTHON_VERSION=${THIS_PYTHON} -t alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} .circleci/docker_377
       - run:
           name: Run docker image pytest
           # docker runs should succeed with --read-only flag if expected to be
@@ -66,10 +67,11 @@ jobs:
     machine: true
     steps:
       - checkout
+      - run: export THIS_PYTHON="3.8"
       - run:
           name: Build docker image
           command: |
-            docker build --build-arg OPHYS_ETL_TAG=${CIRCLE_BRANCH} --build-arg OPHYS_ETL_COMMIT_SHA=${CIRCLE_SHA1} --build-arg TEST_PYTHON_VERSION="3.8" -t alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} .circleci/docker_377
+            docker build --build-arg OPHYS_ETL_TAG=${CIRCLE_BRANCH} --build-arg OPHYS_ETL_COMMIT_SHA=${CIRCLE_SHA1} --build-arg TEST_PYTHON_VERSION=${THIS_PYTHON} -t alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} .circleci/docker_377
       - run:
           name: Run docker image pytest
           # docker runs should succeed with --read-only flag if expected to be

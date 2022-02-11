@@ -41,26 +41,43 @@ def plot_rois_over_img(
     new_img: np.ndarray
         An RGB image with the ROIs overplotted (does not
         modify img in place)
+
+    Note
+    ----
+    Unless the background image is blank, the image is automatically
+    scaled so that the full dynamic range of pixels is cast to the
+    range [0, 255]. If you want to do something more clever with scaling
+    in the image, you should do so before passing it to this method.
     """
+
+    # if the image is blank, just create an array of zeros
+    is_blank = False
+    if len(np.unique(img)) == 1:
+        img = np.zeros(img.shape, dtype=np.uint8)
+        is_blank = True
+
     if len(img.shape) == 2:
         img = array_to_rgb(img)
     elif len(img.shape) == 3:
         if img.shape[2] != 3:
             msg = f"Cannot handle image with shape {img.shape}"
             raise ValueError(msg)
-        if img.dtype != np.uint8:
-            new_img = np.zeros(img.shape, dtype=np.uint8)
-            upper_cutoff = img.max()
-            lower_cutoff = img.min()
-            for ic in range(3):
-                new_img[:, :, ic] = normalize_array(
-                                         img[:, :, ic],
-                                         lower_cutoff=lower_cutoff,
-                                         upper_cutoff=upper_cutoff)
-            img = new_img
     else:
         msg = f"Cannot handle image with shape {img.shape}"
         raise ValueError(msg)
+
+    if not is_blank:
+        upper_cutoff = img.max()
+        lower_cutoff = img.min()
+        new_img = normalize_array(
+                       array=img,
+                       lower_cutoff=lower_cutoff,
+                       upper_cutoff=upper_cutoff)
+        if len(new_img.shape) < 3:
+            new_img = np.stack([new_img,
+                                new_img,
+                                new_img]).transpose(1, 2, 0)
+        img = new_img
 
     new_img = add_list_of_roi_contours_to_img(
                 img=img,
@@ -105,7 +122,8 @@ def add_roi_contour_to_img(
     cols = np.array([c+roi.x0 for c in valid[:, 1]])
     for ic in range(3):
         old_vals = img[rows, cols, ic]
-        new_vals = np.round(alpha*color[ic]+(1.0-alpha)*old_vals).astype(int)
+        new_vals = np.round(alpha*color[ic]
+                            + (1.0-alpha)*old_vals).astype(np.uint8)
         img[rows, cols, ic] = new_vals
     img = np.where(img >= 255, 255, img)
     return img

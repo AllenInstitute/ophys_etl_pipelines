@@ -42,7 +42,7 @@ jobs:
             fi
             docker push alleninstitutepika/ophys_etl_pipelines
 
-  build377: &test-template
+  build377:
     machine: true
     steps:
       - checkout
@@ -62,6 +62,27 @@ jobs:
                   docker run --entrypoint /bin/bash --read-only --tmpfs /tmp -v $PWD/coverage_outputs:/coverage_outputs alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /repos/ophys_etl/.circleci/scripts/general_container_test.sh
                   bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN} -f $PWD/coverage_outputs/general_cov.xml -cF general_tests
 
+  build38:
+    machine: true
+    steps:
+      - checkout
+      - run:
+          name: Build docker image
+          command: |
+            docker build --build-arg OPHYS_ETL_TAG=${CIRCLE_BRANCH} --build-arg OPHYS_ETL_COMMIT_SHA=${CIRCLE_SHA1} --build-arg TEST_PYTHON_VERSION="3.8" -t alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} .circleci/docker_377
+      - run:
+          name: Run docker image pytest
+          # docker runs should succeed with --read-only flag if expected to be
+          # run by singularity
+          # https://sylabs.io/guides/3.6/user-guide/singularity_and_docker.html#best-practices
+          command: |
+                  set -e
+                  mkdir $PWD/coverage_outputs
+                  # set entrypoint like this so we can handle quotes
+                  docker run --entrypoint /bin/bash --read-only --tmpfs /tmp -v $PWD/coverage_outputs:/coverage_outputs alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /repos/ophys_etl/.circleci/scripts/general_container_test.sh
+                  bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN} -f $PWD/coverage_outputs/general_cov.xml -cF general_tests
+
+
   lint:
     executor: python/default
     steps:
@@ -80,10 +101,12 @@ workflows:
   main:
     jobs:
       - build377
+      - build38
       - lint
       - docker:
           requires:
             - build377
+            - build38
             - lint
           filters:
             branches:

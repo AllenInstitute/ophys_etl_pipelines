@@ -159,15 +159,14 @@ def array_to_rgb(
         (nrows, ncols, 3); original data clipped
         (if cutoffs set) and scaled to np.uint8
     """
-    output_array = np.zeros((input_array.shape[0],
-                             input_array.shape[1],
-                             3), dtype=np.uint8)
 
     scaled_array = normalize_array(
                         array=input_array,
                         lower_cutoff=lower_cutoff,
                         upper_cutoff=upper_cutoff)
 
-    for ic in range(3):
-        output_array[:, :, ic] = scaled_array
+    output_array = np.stack([scaled_array,
+                             scaled_array,
+                             scaled_array]).transpose(1, 2, 0)
+
     return output_array

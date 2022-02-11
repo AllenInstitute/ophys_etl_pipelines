@@ -1,9 +1,13 @@
+from matplotlib import cm as mplt_cm
 import math
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union, Dict
 import numpy as np
+import copy
+import networkx
 from scipy.sparse import coo_matrix
+from scipy.spatial.distance import cdist
 from ophys_etl.utils.motion_border import MotionBorder
-from ophys_etl.types import DenseROI, ExtractROI
+from ophys_etl.types import DenseROI, ExtractROI, OphysROI
 from skimage.morphology import binary_opening, binary_closing, disk
 
 
@@ -430,3 +434,272 @@ def _check_exclusion(compatible_roi: DenseROI,
         exclusion_labels.append('small_size')
 
     return exclusion_labels
+
+
+def extract_roi_to_ophys_roi(roi: ExtractROI) -> OphysROI:
+    """
+    Convert an ExtractROI to an equivalent OphysROI
+
+    Parameters
+    ----------
+    ExtractROI
+
+    Returns
+    -------
+    OphysROI
+    """
+    new_roi = OphysROI(x0=int(roi['x']),
+                       y0=int(roi['y']),
+                       width=int(roi['width']),
+                       height=int(roi['height']),
+                       mask_matrix=roi['mask'],
+                       roi_id=int(roi['id']),
+                       valid_roi=roi['valid'])
+
+    return new_roi
+
+
+def ophys_roi_to_extract_roi(roi: OphysROI) -> ExtractROI:
+    """
+    Convert at OphysROI to an equivalent ExtractROI
+
+    Parameters
+    ----------
+    OphysROI
+
+    Returns
+    -------
+    ExtractROI
+    """
+    mask = []
+    for roi_row in roi.mask_matrix:
+        row = []
+        for el in roi_row:
+            if el:
+                row.append(True)
+            else:
+                row.append(False)
+        mask.append(row)
+
+    new_roi = ExtractROI(x=roi.x0,
+                         y=roi.y0,
+                         width=roi.width,
+                         height=roi.height,
+                         mask=mask,
+                         valid=roi.valid_roi,
+                         id=roi.roi_id)
+    return new_roi
+
+
+def sanitize_extract_roi_list(
+        input_roi_list: List[Dict]) -> List[ExtractROI]:
+    """
+    There are, unfortunately, two ROI serialization schemes floating
+    around in our code base. This method converts the one that is
+    incompatible with ExtractROI to a list of ExtractROI. Specifically,
+    it converts
+
+    valid_roi -> valid
+    mask_matrix -> mask
+    roi_id - > id
+
+    Parameters
+    ----------
+    input_roi_list: List[Dict]
+        List of ROIs represented as dicts which ar inconsistent
+        with ExtractROI
+
+    Returns
+    -------
+    output_roi_list: List[ExtractROI]
+    """
+    output_roi_list = []
+    for roi in input_roi_list:
+        new_roi = copy.deepcopy(roi)
+        if 'valid_roi' in new_roi:
+            new_roi['valid'] = new_roi.pop('valid_roi')
+        if 'mask_matrix' in new_roi:
+            new_roi['mask'] = new_roi.pop('mask_matrix')
+        if 'roi_id' in new_roi:
+            new_roi['id'] = new_roi.pop('roi_id')
+        output_roi_list.append(new_roi)
+    return output_roi_list
+
+
+def _do_rois_abut(array_0: np.ndarray,
+                  array_1: np.ndarray,
+                  pixel_distance: float = np.sqrt(2)) -> bool:
+    """
+    Function that does the work behind user-facing do_rois_abut.
+
+    This function takes in two arrays of pixel coordinates
+    calculates the distance between every pair of pixels
+    across the two arrays. If the minimum distance is less
+    than or equal pixel_distance, it returns True. If not,
+    it returns False.
+
+    Parameters
+    ----------
+    array_0: np.ndarray
+        Array of the first set of pixels. Shape is (npix0, 2).
+        array_0[:, 0] are the row coodinates of the pixels
+        in array_0. array_0[:, 1] are the column coordinates.
+
+    array_1: np.ndarray
+        Same as array_0 for the second array of pixels
+
+    pixel_distance: float
+        Maximum distance two arrays can be from each other
+        at their closest point and still be considered
+        to abut (default: sqrt(2)).
+
+    Return
+    ------
+    boolean
+    """
+    distances = cdist(array_0, array_1, metric='euclidean')
+    if distances.min() <= pixel_distance:
+        return True
+    return False
+
+
+def do_rois_abut(roi0: OphysROI,
+                 roi1: OphysROI,
+                 pixel_distance: float = np.sqrt(2)) -> bool:
+    """
+    Returns True if ROIs are within pixel_distance of each other at any point.
+
+    Parameters
+    ----------
+    roi0: OphysROI
+
+    roi1: OphysROI
+
+    pixel_distance: float
+        The maximum distance from each other the ROIs can be at
+        their closest point and still be considered to abut.
+        (Default: np.sqrt(2))
+
+    Returns
+    -------
+    boolean
+
+    Notes
+    -----
+    pixel_distance is such that if two boundaries are next to each other,
+    that corresponds to pixel_distance=1; pixel_distance=2 corresponds
+    to 1 blank pixel between ROIs
+    """
+
+    return _do_rois_abut(roi0.global_pixel_array,
+                         roi1.global_pixel_array,
+                         pixel_distance=pixel_distance)
+
+
+def get_roi_color_map(
+        roi_list: List[OphysROI]) -> Dict[int, Tuple[int, int, int]]:
+    """
+    Take a list of OphysROI and return a dict mapping ROI ID
+    to RGB color so that no ROIs that touch have the same color
+
+    Parametrs
+    ---------
+    roi_list: List[OphysROI]
+
+    Returns
+    -------
+    color_map: Dict[int, Tuple[int, int, int]]
+    """
+    roi_graph = networkx.Graph()
+    for roi in roi_list:
+        roi_graph.add_node(roi.roi_id)
+    for ii in range(len(roi_list)):
+        roi0 = roi_list[ii]
+        for jj in range(ii+1, len(roi_list)):
+            roi1 = roi_list[jj]
+
+            # value of 5 is so that singleton ROIs that
+            # are near each other do not get assigned
+            # the same color
+            abut = do_rois_abut(roi0, roi1, 5.0)
+            if abut:
+                roi_graph.add_edge(roi0.roi_id, roi1.roi_id)
+                roi_graph.add_edge(roi1.roi_id, roi0.roi_id)
+
+    nx_coloring = networkx.greedy_color(roi_graph)
+    n_colors = len(set(nx_coloring.values()))
+
+    mplt_color_map = mplt_cm.jet
+
+    # create a list of colors based on the matplotlib color map
+    raw_color_list = []
+    for ii in range(n_colors):
+        color = mplt_color_map(0.8*(1.0+ii)/(n_colors+1.0))
+        color = (int(color[0]*255), int(color[1]*255), int(color[2]*255))
+        raw_color_list.append(color)
+
+    # re-order colors so that colors that are adjacent in index
+    # have higher contrast
+    step = max(n_colors//3, 1)
+    color_list = []
+    for i0 in range(step):
+        for ii in range(i0, n_colors, step):
+            this_color = raw_color_list[ii]
+            color_list.append(this_color)
+
+    # reverse color list, since matplotlib.cm.jet will
+    # assign a dark blue as color_list[0], which isn't
+    # great for contrast
+    color_list.reverse()
+
+    color_map = {}
+    for roi_id in nx_coloring:
+        color_map[roi_id] = color_list[nx_coloring[roi_id]]
+    return color_map
+
+
+def get_roi_list_in_fov(
+        roi_list: List[ExtractROI],
+        origin: Tuple[int, int],
+        frame_shape: Tuple[int, int]) -> List[ExtractROI]:
+    """
+    Select only the ROIs whose thumbnails intersect
+    with a specified field of view
+
+    Parameters
+    ----------
+    roi_list: List[ExtractROI]
+
+    origin: Tuple[int, int]
+        The origin in row, col coordinates of the field of view
+
+    frame_shape: Tuple[int, int]
+        (height, width) of the field of view
+
+    Returns
+    -------
+    List[ExtractROI]
+    """
+
+    global_r0 = origin[0]
+    global_r1 = global_r0 + frame_shape[0]
+    global_c0 = origin[1]
+    global_c1 = global_c0 + frame_shape[1]
+
+    output = []
+    for roi in roi_list:
+        r0 = roi['y']
+        r1 = r0+roi['height']
+        c0 = roi['x']
+        c1 = c0+roi['width']
+        if r1 < global_r0:
+            continue
+        elif r0 >= global_r1:
+            continue
+        elif c1 < global_c0:
+            continue
+        elif c0 >= global_c1:
+            continue
+
+        output.append(roi)
+    return output

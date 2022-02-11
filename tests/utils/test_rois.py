@@ -1,12 +1,35 @@
 import pytest
 
 import numpy as np
+import copy
+from itertools import product
 from scipy.sparse import coo_matrix
 
+from ophys_etl.types import ExtractROI
 from ophys_etl.utils.motion_border import MotionBorder
 from ophys_etl.utils import rois as rois_utils
-from ophys_etl.types import DenseROI
+from ophys_etl.types import DenseROI, OphysROI
 from ophys_etl.schemas import DenseROISchema
+
+
+@pytest.fixture
+def example_ophys_roi_list_fixture():
+    rng = np.random.default_rng(6412439)
+    roi_list = []
+    for ii in range(30):
+        x0 = rng.integers(0, 25)
+        y0 = rng.integers(0, 25)
+        height = rng.integers(3, 7)
+        width = rng.integers(3, 7)
+        mask = rng.integers(0, 2, (height, width)).astype(bool)
+        roi = OphysROI(x0=int(x0), y0=int(y0),
+                       height=int(height), width=int(width),
+                       mask_matrix=mask,
+                       roi_id=ii,
+                       valid_roi=True)
+        roi_list.append(roi)
+
+    return roi_list
 
 
 @pytest.mark.parametrize(
@@ -523,3 +546,198 @@ def test_coo_mask_to_compatible_format(coo_mask, expected):
     roi = rois_utils._coo_mask_to_LIMS_compatible_format(coo_mask)
     for k in expected:
         assert roi[k] == expected[k]
+
+
+def test_roi_abut():
+
+    height = 6
+    width = 7
+    mask = np.zeros((height, width), dtype=bool)
+    mask[1:5, 1:6] = True
+
+    # overlapping
+    roi0 = OphysROI(x0=22,
+                    y0=44,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=0,
+                    valid_roi=True)
+
+    roi1 = OphysROI(x0=23,
+                    y0=46,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=1,
+                    valid_roi=True)
+
+    assert rois_utils.do_rois_abut(roi0, roi1, pixel_distance=1.0)
+
+    # just touching
+    roi1 = OphysROI(x0=26,
+                    y0=48,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=1,
+                    valid_roi=True)
+
+    assert rois_utils.do_rois_abut(roi0, roi1, pixel_distance=1.0)
+
+    roi1 = OphysROI(x0=27,
+                    y0=48,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=1,
+                    valid_roi=True)
+
+    assert not rois_utils.do_rois_abut(roi0, roi1, pixel_distance=1.0)
+
+    # they are, however, just diagonally 1 pixel away
+    # from each other
+    assert rois_utils.do_rois_abut(roi0, roi1, pixel_distance=np.sqrt(2))
+
+    # gap of one pixel
+    assert rois_utils.do_rois_abut(roi0, roi1, pixel_distance=2)
+
+    roi1 = OphysROI(x0=28,
+                    y0=48,
+                    height=height,
+                    width=width,
+                    mask_matrix=mask,
+                    roi_id=1,
+                    valid_roi=True)
+
+    assert not rois_utils.do_rois_abut(roi0, roi1, pixel_distance=2)
+
+
+def test_extract_roi_to_ophys_roi():
+    rng = np.random.default_rng(345)
+    mask = rng.integers(0, 2, (9, 7)).astype(bool)
+    roi = {'x': 5,
+           'y': 6,
+           'width': 7,
+           'height': 9,
+           'id': 991,
+           'valid': True,
+           'mask': [list(i) for i in mask]}
+
+    ophys_roi = rois_utils.extract_roi_to_ophys_roi(roi)
+    assert ophys_roi.x0 == roi['x']
+    assert ophys_roi.y0 == roi['y']
+    assert ophys_roi.height == roi['height']
+    assert ophys_roi.width == roi['width']
+    assert ophys_roi.roi_id == roi['id']
+    assert ophys_roi.valid_roi and roi['valid']
+    np.testing.assert_array_equal(ophys_roi.mask_matrix, mask)
+
+
+def test_ophys_roi_to_extract_roi(example_ophys_roi_list_fixture):
+    for roi_in in example_ophys_roi_list_fixture:
+        roi_out = rois_utils.ophys_roi_to_extract_roi(roi_in)
+        assert roi_out['x'] == roi_in.x0
+        assert roi_out['y'] == roi_in.y0
+        assert roi_out['width'] == roi_in.width
+        assert roi_out['height'] == roi_in.height
+        assert roi_out['id'] == roi_in.roi_id
+        np.testing.assert_array_equal(roi_in.mask_matrix,
+                                      roi_out['mask'])
+
+
+@pytest.mark.parametrize(
+    "munge_mapping, extra_field",
+    product([{'valid': 'valid_roi'},
+             {'mask': 'mask_matrix'},
+             {'id': 'roi_id'},
+             {'valid': 'valid_roi', 'mask': 'mask_matrix'},
+             {'valid': 'valid_roi', 'id': 'roi_id'},
+             {'mask': 'mask_matrix', 'id': 'roi_id'},
+             {'valid': 'valid_roi', 'mask': 'mask_matrix', 'id': 'roi_id'}],
+            (True, False))
+)
+def test_sanitize_extract_roi_list(
+        example_ophys_roi_list_fixture,
+        munge_mapping,
+        extra_field):
+
+    extract_roi_list = [rois_utils.ophys_roi_to_extract_roi(roi)
+                        for roi in example_ophys_roi_list_fixture]
+
+    if extra_field:
+        for ii, roi in enumerate(extract_roi_list):
+            roi['nonsense'] = ii
+        for roi in extract_roi_list:
+            assert 'nonsense' in roi
+
+    bad_roi_list = []
+    for roi in extract_roi_list:
+        new_roi = copy.deepcopy(roi)
+        for k in munge_mapping:
+            new_roi[munge_mapping[k]] = new_roi.pop(k)
+        bad_roi_list.append(new_roi)
+
+    assert bad_roi_list != extract_roi_list
+    cleaned_roi_list = rois_utils.sanitize_extract_roi_list(bad_roi_list)
+    assert cleaned_roi_list == extract_roi_list
+
+
+def test_get_roi_list_in_fov():
+    input_rois = []
+    roi_lookup = dict()
+    roi_id_set = set()
+    for xx, yy in product(range(0, 10, 2),
+                          range(0, 10, 2)):
+        roi_id = 10*yy+xx
+        assert roi_id not in roi_id_set
+        roi_id_set.add(roi_id)
+        roi = ExtractROI(
+                id=roi_id,
+                width=2,
+                height=2,
+                mask=[[True, True], [True, True]],
+                valid=True,
+                x=xx,
+                y=yy)
+        input_rois.append(roi)
+        roi_lookup[roi_id] = roi
+
+    output_rois = rois_utils.get_roi_list_in_fov(
+                      input_rois,
+                      origin=(100, 100),
+                      frame_shape=(32, 32))
+    assert len(output_rois) == 0
+
+    output_rois = rois_utils.get_roi_list_in_fov(
+                       input_rois,
+                       origin=(3, 3),
+                       frame_shape=(2, 2))
+
+    expected_ids = set([22, 24, 42, 44])
+    found_ids = set([roi['id'] for roi in output_rois])
+    assert found_ids == expected_ids
+    for roi in output_rois:
+        assert roi == roi_lookup[roi['id']]
+
+    output_rois = rois_utils.get_roi_list_in_fov(
+                       input_rois,
+                       origin=(-5, 5),
+                       frame_shape=(8, 3))
+
+    expected_ids = set([4, 6, 24, 26])
+    found_ids = set([roi['id'] for roi in output_rois])
+    assert found_ids == expected_ids
+    for roi in output_rois:
+        assert roi == roi_lookup[roi['id']]
+
+    output_rois = rois_utils.get_roi_list_in_fov(
+                       input_rois,
+                       origin=(5, -5),
+                       frame_shape=(3, 8))
+
+    expected_ids = set([40, 60, 42, 62])
+    found_ids = set([roi['id'] for roi in output_rois])
+    assert found_ids == expected_ids
+    for roi in output_rois:
+        assert roi == roi_lookup[roi['id']]

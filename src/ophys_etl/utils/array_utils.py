@@ -112,7 +112,7 @@ def normalize_array(
         normalized array
 
     """
-    normalized = np.copy(array)
+    normalized = np.copy(array).astype(float)
     if lower_cutoff is not None:
         normalized[array < lower_cutoff] = lower_cutoff
     else:
@@ -127,6 +127,6 @@ def normalize_array(
 
     delta = upper_cutoff-lower_cutoff
 
-    normalized = np.round(normalized.astype(float) * 255 / delta)
+    normalized = np.round(normalized * 255 / delta)
     normalized = normalized.astype(np.uint8)
     return normalized

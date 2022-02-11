@@ -5,6 +5,7 @@ import h5py
 import pandas as pd
 from numpy.random import seed, uniform
 import pytest
+import json
 
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -182,3 +183,13 @@ def roi_mask_list(image_dims, motion_border):
         ))
 
     return masks
+
+
+@pytest.fixture
+def ophys_plane_data_fixture():
+    this_dir = Path(__file__)
+    resource_dir = this_dir.parent / 'resources'
+    json_path = resource_dir / 'ophys_plane_instantiation_data.json'
+    with open(json_path, 'rb') as in_file:
+        data = json.load(in_file)
+    return data

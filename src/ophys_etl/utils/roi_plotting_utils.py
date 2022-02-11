@@ -17,7 +17,30 @@ def plot_rois_over_img(
                      Dict[int, Tuple[int, int, int]]],
         alpha: float = 0.5) -> np.ndarray:
     """
-    Plot a list of ROIs over a provided image
+    Plot contours from a list of ROIs over a provided image
+
+    Parameters
+    ----------
+    img: np.ndarray
+        The image, either grayscale or RGB
+
+    roi_list: Union[List[OphysROI], List[Dict]]
+        A list of ROIs represented either as an OphysROI
+        or an ExtractROI
+
+    color: Union[Tuple[int, int, int],
+                 Dict[int, Tuple[int, int, int]]
+        Either a tuple indicating a single RGB color for all ROIs
+        or a dict mapping ROI ID to an RGB color (as a tuple of ints)
+
+    alpha: float
+        The transparency
+
+    Returns
+    -------
+    new_img: np.ndarray
+        An RGB image with the ROIs overplotted (does not
+        modify img in place)
     """
     if len(img.shape) == 2:
         img = array_to_rgb(img)
@@ -39,12 +62,12 @@ def plot_rois_over_img(
         msg = f"Cannot handle image with shape {img.shape}"
         raise ValueError(msg)
 
-    img = add_list_of_roi_contours_to_img(
+    new_img = add_list_of_roi_contours_to_img(
                 img=img,
                 roi_list=roi_list,
                 color=color,
                 alpha=alpha)
-    return img
+    return new_img
 
 
 def add_roi_contour_to_img(

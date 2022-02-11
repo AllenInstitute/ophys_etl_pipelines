@@ -48,6 +48,7 @@ def ophys_roi_list_fixture():
 
 @pytest.fixture(scope='session')
 def extract_roi_list_fixture(ophys_roi_list_fixture):
+    """A list of ExtractROI"""
     output = [ophys_roi_to_extract_roi(roi)
               for roi in ophys_roi_list_fixture]
 
@@ -57,7 +58,8 @@ def extract_roi_list_fixture(ophys_roi_list_fixture):
 @pytest.fixture(scope='session')
 def corrupted_extract_roi_list_fixture(
         extract_roi_list_fixture):
-
+    """A list of dicts representing ROIs with the wrong
+    keys for ExtractROI ('valid_roi' instead of 'valid', etc.)"""
     output = []
     for roi in extract_roi_list_fixture:
         new_roi = copy.deepcopy(roi)
@@ -74,6 +76,8 @@ def test_roi_coloring(
         extract_roi_list_fixture,
         corrupted_extract_roi_list_fixture,
         roi_choice):
+    """Test that get_roi_color_map runs and does not assign the
+    same color to ROIs that touch each other"""
 
     if roi_choice == 0:
         roi_list = ophys_roi_list_fixture

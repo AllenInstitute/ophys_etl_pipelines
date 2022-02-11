@@ -12,7 +12,7 @@ from ophys_etl.utils.roi_plotting_utils import (
 
 @pytest.fixture(scope='session')
 def extract_roi_list_fixture():
-
+    """A list of ExtractROIs"""
     roi0 = ExtractROI(
                 id=0,
                 x=1,
@@ -43,7 +43,8 @@ def extract_roi_list_fixture():
 @pytest.fixture(scope='session')
 def corrupted_extract_roi_list_fixture(
         extract_roi_list_fixture):
-
+    """A list of ExtractROIs with the wrong keys ('valid_roi' instead
+    of 'valid', etc.)"""
     output = []
     for roi in extract_roi_list_fixture:
         new_roi = copy.deepcopy(roi)
@@ -56,18 +57,22 @@ def corrupted_extract_roi_list_fixture(
 
 @pytest.fixture(scope='session')
 def ophys_roi_list_fixture(extract_roi_list_fixture):
+    """A list of OphysROIs"""
     return [extract_roi_to_ophys_roi(roi)
             for roi in extract_roi_list_fixture]
 
 
 @pytest.fixture(scope='session')
 def color_map_fixture():
+    """an example color map"""
     return {0: (0, 255, 0),
             1: (0, 0, 255)}
 
 
 @pytest.mark.parametrize('alpha', [0.2, 0.3, 0.4])
 def test_add_roi_contour_to_img(alpha):
+    """Test that add_roi_contour_to_img creates an image with
+    the expected contours of the expected colors"""
     img = 100*np.ones((64, 64, 3), dtype=int)
 
     height = 7
@@ -121,6 +126,10 @@ def test_add_list_of_roi_contours_to_img(
         roi_list_choice,
         use_color_map,
         alpha):
+    """
+    Test taht add_list_of_roi_contours_to_img adds contours
+    of the expected colors to an image
+    """
 
     if roi_list_choice == 0:
         roi_list = extract_roi_list_fixture

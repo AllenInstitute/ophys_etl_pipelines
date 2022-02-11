@@ -8,6 +8,7 @@ LABEL description="This dockerfile provides a working environment for \
 
 ARG OPHYS_ETL_TAG=main
 ARG OPHYS_ETL_COMMIT_SHA="unknown build"
+ARG TEST_PYTHON_VERSION
 
 ENV OPHYS_ETL_COMMIT_SHA=${OPHYS_ETL_COMMIT_SHA}
 ENV CONDA_ENVS=/envs
@@ -24,7 +25,7 @@ RUN mkdir ${CONDA_ENVS}
 WORKDIR /repos
 RUN apt-get -y update --allow-releaseinfo-change \
     && git clone -b ${OPHYS_ETL_TAG} https://github.com/AllenInstitute/ophys_etl_pipelines ./ophys_etl \
-    && conda create --prefix ${OPHYS_ETL_ENV} python=3.7.7 \
+    && conda create --prefix ${OPHYS_ETL_ENV} python=${TEST_PYTHON_VERSION} \
     # the following installs scipy/numpy with MKL backend,
     # if requirements.txt specifies a different version, these will get overwritten
     # and some other BLAS backend will be used - speed will decrease

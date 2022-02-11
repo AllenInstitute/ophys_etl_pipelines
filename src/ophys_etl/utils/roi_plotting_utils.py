@@ -62,11 +62,7 @@ def plot_rois_over_img(
         if img.shape[2] != 3:
             msg = f"Cannot handle image with shape {img.shape}"
             raise ValueError(msg)
-    else:
-        msg = f"Cannot handle image with shape {img.shape}"
-        raise ValueError(msg)
 
-    if not is_blank:
         upper_cutoff = img.max()
         lower_cutoff = img.min()
         new_img = normalize_array(
@@ -78,6 +74,9 @@ def plot_rois_over_img(
                                 new_img,
                                 new_img]).transpose(1, 2, 0)
         img = new_img
+    else:
+        msg = f"Cannot handle image with shape {img.shape}"
+        raise ValueError(msg)
 
     new_img = add_list_of_roi_contours_to_img(
                 img=img,

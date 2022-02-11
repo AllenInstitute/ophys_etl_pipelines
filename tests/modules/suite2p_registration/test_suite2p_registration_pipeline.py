@@ -75,8 +75,6 @@ def test_suite2p_motion_correction(
         use_ave_image_as_reference,
         video_path_fixture):
 
-    raise RuntimeError("SFD votes no")
-
     corr_video_path = tempfile.mkstemp(
                             dir=tmpdir,
                             prefix='motion_corrected_',

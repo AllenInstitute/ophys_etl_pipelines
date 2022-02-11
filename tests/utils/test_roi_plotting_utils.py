@@ -320,6 +320,14 @@ def test_plot_rois_over_img_exceptions(
     """Test that plot_rois_over_img gives the expected error
     message when an image of the wrong shape is passed through"""
 
+    img = np.zeros(4)
+    with pytest.raises(ValueError, match="Cannot handle image with shape"):
+        plot_rois_over_img(
+                img=img,
+                roi_list=extract_roi_list_fixture,
+                color=(255, 0, 0),
+                alpha=0.1)
+
     img = np.zeros((20, 20, 4))
     with pytest.raises(ValueError, match="Cannot handle image with shape"):
         plot_rois_over_img(

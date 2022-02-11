@@ -42,41 +42,52 @@ def plot_rois_over_img(
         An RGB image with the ROIs overplotted (does not
         modify img in place)
 
-    Note
-    ----
+    Notes
+    -----
     Unless the background image is blank, the image is automatically
     scaled so that the full dynamic range of pixels is cast to the
     range [0, 255]. If you want to do something more clever with scaling
     in the image, you should do so before passing it to this method.
+
+    If the image is blank (all pixels have the same value), then the
+    image will set to a blank black background (0, 0, 0).
     """
-
-    # if the image is blank, just create an array of zeros
-    is_blank = False
-    if len(np.unique(img)) == 1:
-        img = np.zeros(img.shape, dtype=np.uint8)
-        is_blank = True
-
-    if len(img.shape) == 2:
-        img = array_to_rgb(img)
+    if len(img.shape) > 3 or len(img.shape) < 2:
+        msg = f"Cannot handle image with shape {img.shape}"
+        raise ValueError(msg)
     elif len(img.shape) == 3:
-        if img.shape[2] != 3:
+        if img.shape[2] > 3:
             msg = f"Cannot handle image with shape {img.shape}"
             raise ValueError(msg)
 
+    # detect if image is blank
+    is_blank = False
+    if len(img.shape) == 2:
+        if len(np.unique(img)) == 1:
+            is_blank = True
+    else:
+        # check each color channel individually
+        is_blank = True
+        for ic in range(3):
+            if len(np.unique(img[:, :, ic])) > 1:
+                is_blank = False
+
+    if is_blank:
+        # if the image is blank, just create an array of zeros
+        img = np.zeros((img.shape[0],
+                        img.shape[1],
+                        3), dtype=np.uint8)
+
+    elif len(img.shape) == 2:
+        img = array_to_rgb(img)
+    else:
         upper_cutoff = img.max()
         lower_cutoff = img.min()
         new_img = normalize_array(
-                       array=img,
-                       lower_cutoff=lower_cutoff,
-                       upper_cutoff=upper_cutoff)
-        if len(new_img.shape) < 3:
-            new_img = np.stack([new_img,
-                                new_img,
-                                new_img]).transpose(1, 2, 0)
+                           array=img,
+                           lower_cutoff=lower_cutoff,
+                           upper_cutoff=upper_cutoff)
         img = new_img
-    else:
-        msg = f"Cannot handle image with shape {img.shape}"
-        raise ValueError(msg)
 
     new_img = add_list_of_roi_contours_to_img(
                 img=img,

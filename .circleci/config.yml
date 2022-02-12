@@ -4,21 +4,21 @@ orbs:
 
 commands:
   build_and_test:
-  parameters:
-    python_version:
-      type: string
-  steps:
-    - checkout
-    - run:
-        name: Build docker image
-        command: |
-          docker build --build-arg OPHYS_ETL_TAG=${CIRCLE_BRANCH} --build-arg OPHYS_ETL_COMMIT_SHA=${CIRCLE_SHA1} --build-arg TEST_PYTHON_VERSION=<< parameters.python_version >> -t alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} .circleci/docker_377
-    - run:
-        name: Run docker image pytest
-        # docker runs should succeed with --read-only flag if expected to be
-        # run by singularity
-        # https://sylabs.io/guides/3.6/user-guide/singularity_and_docker.html#best-practices
-        command: |
+    parameters:
+      python_version:
+        type: string
+    steps:
+      - checkout
+      - run:
+          name: Build docker image
+          command: |
+            docker build --build-arg OPHYS_ETL_TAG=${CIRCLE_BRANCH} --build-arg OPHYS_ETL_COMMIT_SHA=${CIRCLE_SHA1} --build-arg TEST_PYTHON_VERSION=<< parameters.python_version >> -t alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} .circleci/docker_377
+      - run:
+          name: Run docker image pytest
+          # docker runs should succeed with --read-only flag if expected to be
+          # run by singularity
+          # https://sylabs.io/guides/3.6/user-guide/singularity_and_docker.html#best-practices
+          command: |
                 set -e
                 mkdir $PWD/coverage_outputs
                 # set entrypoint like this so we can handle quotes

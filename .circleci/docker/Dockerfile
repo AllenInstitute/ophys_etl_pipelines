@@ -1,6 +1,6 @@
 FROM continuumio/miniconda3:4.8.2
 
-LABEL maintainer="nicholas.mei@alleninstitute.org"
+LABEL maintainer="scott.daniel@alleninstitute.org"
 LABEL version=1.0
 LABEL description="This dockerfile provides an environment in which to run \
                    the unit tests for the Allen Institue for Brain Science \
@@ -36,19 +36,4 @@ RUN apt-get -y update --allow-releaseinfo-change \
 
 # leave /repos/ophys_etl so we can run tests
 
-# The base image has the default entrypoint activate the base conda env.
-# We are creating 2 separate envs.
-# The easiest way to run them is
-# docker run --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:<tag> /envs/suite2p/bin/python -m ophys_etl.transforms.suite2p_wrapper -h"
-# or
-# docker run --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:<tag> /envs/ophys_etl/bin/python -m ophys_etl.transforms.postprocess_rois -h"
-
-# If you need to troubleshoot by running interacticely inside the container:
-# docker run --rm -it --entrypoint "/bin/bash" alleninstitutepika/ophys_etl_pipelines
-
-# If you need to pass args that contain quotes:
-# docker run --entrypoint /bin/bash --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:<tag> -c "/envs/ophys_etl/bin/python -m pytest -m 'not suite2p_only'"
-
-# Uses the bash $@ special parameter to consume all docker args after
-# image_name:tag as args to container bash shell
 ENTRYPOINT ["/bin/bash", "-c", "$@", "--"]

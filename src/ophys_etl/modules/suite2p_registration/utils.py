@@ -3,6 +3,133 @@ import numpy as np
 from typing import Tuple, List
 from scipy.ndimage.filters import median_filter
 from ophys_etl.utils.array_utils import normalize_array
+from suite2p.registration.rigid import shift_frame
+
+
+def find_movie_start_end_empty_frames(
+        h5py_name: str,
+        h5py_key: str,
+        n_sigma: float = 5,
+        logger: callable = None) -> Tuple[int, int]:
+    """Load a movie from HDF5 and find frames at the start and end of the
+    movie that are empty or pure noise and 5 sigma discrepant from the
+    average frame.
+
+    If a non-contiguous set of frames is found, the code will return 0 for
+    that half of the movie and throw a warning about the quality of the data.
+
+    Parameters
+    ----------
+    h5py_name : str
+        Name of the HDF5 file to load from.
+    h5py_key : str
+        Name of the dataset to load from the HDF5 file.
+    n_sigma : float
+        Number of standard deviations beyond which a frame is considered an
+        outlier and "empty".
+    logger : callable, optional
+        Function to print warning messages to.
+
+    Returns
+    -------
+    trim_frames : Tuple[int, int]
+        Tuple of the number of frames to cut from the start and end of the
+        movie as (n_trim_start, n_trim_end).
+    """
+    # Load the data.
+    with h5py.File(h5py_name, 'r') as h5_file:
+        frames = h5_file[h5py_key][:]
+    # Find the midpoint of the movie.
+    midpoint = frames.shape[0] // 2
+
+    # We discover empty or extrema frames by comparing the mean of each frames
+    # to the mean of the full movie.
+    means = frames.mean(axis=(1, 2))
+    mean_of_frames = means.mean()
+
+    # Compute a robust standard deviation that is not sensitive to the
+    # outliers we are attempting to find.
+    quart_low, quart_high = np.percentile(means, [25, 75])
+    # Convert the inner quartile range to an estimate of the standard deviation
+    # 0.6745 is the converting factor between the inner quartile and a
+    # traditional standard deviation.
+    std_est = (quart_high - quart_low) / (2 * 0.6745)
+
+    # Get the indexes of the frames that are found to be n_sigma deviating.
+    start_idxs = np.sort(
+        np.argwhere(
+            means[:midpoint] < mean_of_frames - n_sigma * std_est)).flatten()
+    end_idxs = np.sort(
+        np.argwhere(
+            means[midpoint:] < mean_of_frames - n_sigma * std_est)).flatten() \
+        + midpoint
+
+    # Get the total number of these frames.
+    lowside = len(start_idxs)
+    highside = len(end_idxs)
+
+    # Check to make sure that the indexes found were only from the start/end
+    # of the movie. If not, throw a warning and reset the number of frames
+    # found to zero.
+    if not np.array_equal(start_idxs,
+                          np.arange(0, lowside, dtype=start_idxs.dtype)):
+        lowside = 0
+        if logger is not None:
+            logger(f"{n_sigma} sigma discrepant frames found outside the "
+                   "beginning of the movie. Please inspect the movie for data "
+                   "quality. Not trimming frames from the movie beginning.")
+    if not np.array_equal(end_idxs,
+                          np.arange(frames.shape[0] - highside,
+                                    frames.shape[0],
+                                    dtype=end_idxs.dtype)):
+        highside = 0
+        if logger is not None:
+            logger(f"{n_sigma} sigma discrepant frames found outside the end "
+                   "of the movie. Please inspect the movie for data quality. "
+                   "Not trimming frames from the movie end.")
+
+    return (lowside, highside)
+
+
+def reset_frame_shift(frames: np.ndarray,
+                      dy_array: np.ndarray,
+                      dx_array: np.ndarray,
+                      trim_frames_start: int,
+                      trim_frames_end: int):
+    """Reset the frames of a movie and their shifts.
+
+    Shifts the frame back to its original location and resets the shifts for
+    those frames to (0, 0). Frames, dy_array, and dx_array are edited in
+    place.
+
+    Parameters
+    ----------
+    frames : numpy.ndarray, (N, M, K)
+        Full movie to reset frames in.
+    dy_array : numpy.ndarray, (N,)
+        Array of shifts in the y direction for each frame of the movie.
+    dx_array : numpy.ndarray, (N,)
+        Array of shifts in the x direction for each frame of the movie.
+    trim_frames_start : int
+        Number of frames at the start of the movie that were identified as
+        empty or pure noise.
+    trim_frames_end : int
+        Number of frames at the end of the movie that were identified as
+        empty or pure noise.
+    """
+    for idx in range(trim_frames_start):
+        dy = -dy_array[idx]
+        dx = -dx_array[idx]
+        frames[idx] = shift_frame(frames[idx], dy, dx)
+        dy_array[idx] = 0
+        dx_array[idx] = 0
+
+    for idx in range(frames.shape[0] - trim_frames_end, frames.shape[0]):
+        dy = -dy_array[idx]
+        dx = -dx_array[idx]
+        frames[idx] = shift_frame(frames[idx], dy, dx)
+        dy_array[idx] = 0
+        dx_array[idx] = 0
 
 
 def projection_process(data: np.ndarray,

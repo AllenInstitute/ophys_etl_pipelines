@@ -12,8 +12,13 @@ import warnings
 
 def load_initial_frames(file_path: str,
                         h5py_key: str,
-                        n_frames: int) -> np.ndarray:
+                        n_frames: int,
+                        trim_frames_start: int = 0,
+                        trim_frames_end: int = 0) -> np.ndarray:
     """Load a subset of frames from the hdf5 data specified by file_path.
+
+    Only loads frames between trim_frames_start and n_frames - trim_frames_end
+    from the movie. If both are 0, load frames from the full movie.
 
     Parameters
     ----------
@@ -34,14 +39,15 @@ def load_initial_frames(file_path: str,
     with h5py.File(file_path, 'r') as hdf5_file:
         # Load all frames as fancy indexing is slower than loading the full
         # data.
-        all_frames = hdf5_file[h5py_key][:]
+        max_frame = hdf5_file[h5py_key].shape[0] - trim_frames_end
+        frame_window = hdf5_file[h5py_key][trim_frames_start:max_frame]
         # Total number of frames in the movie.
-        tot_frames = all_frames.shape[0]
+        tot_frames = frame_window.shape[0]
         requested_frames = np.linspace(0,
                                        tot_frames,
                                        1 + min(n_frames, tot_frames),
                                        dtype=int)[:-1]
-        frames = all_frames[requested_frames]
+        frames = frame_window[requested_frames]
     return frames
 
 
@@ -91,7 +97,7 @@ def compute_reference(input_frames: np.ndarray,
     frames_dtype = input_frames.dtype
 
     # Get initial reference image from suite2p.
-    frames = trim_frames(input_frames)
+    frames = remove_extrema_frames(input_frames)
     ref_image = pick_initial_reference(frames)
 
     # Determine how much to pad our frames by before shifting to prevent
@@ -172,12 +178,13 @@ def compute_reference(input_frames: np.ndarray,
     return ref_image
 
 
-def trim_frames(input_frames: np.ndarray,
-                n_sigma: float = 3) -> np.ndarray:
+def remove_extrema_frames(input_frames: np.ndarray,
+                          n_sigma: float = 3) -> np.ndarray:
     """Remove frames with extremum mean values from the frames used in
-    reference image processing.
+    reference image processing/creation.
 
-    Likely these are empty frames of pure noise.
+    Likely these are empty frames of pure noise or very high intensity frames
+    relative to mean.
 
     Parameters
     ----------
@@ -204,6 +211,8 @@ def optimize_motion_parameters(initial_frames: np.ndarray,
                                smooth_sigmas: np.array,
                                smooth_sigma_times: np.array,
                                suite2p_args: dict,
+                               trim_frames_start: int = 0,
+                               trim_frames_end: int = 0,
                                logger: callable = None) -> dict:
     """Loop over a range of parameters and select the best set from the
     max acutance of the final, average image.
@@ -228,6 +237,10 @@ def optimize_motion_parameters(initial_frames: np.ndarray,
             stored.
         ``"maxregshift"``
             Maximum shift allowed as a fraction of the image dimensions.
+    trim_frames_start : int, optional
+        Number of frames to disregard from the start of the movie. Default 0.
+    trim_frames_start : int, optional
+        Number of frames to disregard from the end of the movie. Default 0.
     logger : callable, optional
         Function to print to stdout or a log.
 
@@ -276,7 +289,10 @@ def optimize_motion_parameters(initial_frames: np.ndarray,
                                       current_args['maxregshift'],
                                       current_args['smooth_sigma'],
                                       current_args['smooth_sigma_time'])
-        image_results = create_ave_image(ref_image, current_args)
+        image_results = create_ave_image(ref_image,
+                                         current_args,
+                                         trim_frames_start,
+                                         trim_frames_end)
         ave_image = image_results['ave_image']
         dy_max = image_results['dy_max']
         dx_max = image_results['dx_max']
@@ -304,6 +320,8 @@ def optimize_motion_parameters(initial_frames: np.ndarray,
 
 def create_ave_image(ref_image: np.ndarray,
                      suite2p_args: dict,
+                     trim_frames_start: int = 0,
+                     trim_frames_end: int = 0,
                      batch_size: int = 500) -> dict:
     """Run suite2p image motion correction over a full movie.
 
@@ -328,17 +346,25 @@ def create_ave_image(ref_image: np.ndarray,
         ``"smooth_sigma_time"``
             Time Gaussian smoothing of frames to apply before correlation.
             Used as minimum start value in parameter search (float).
+    trim_frames_start : int, optional
+        Number of frames to disregard from the start of the movie. Default 0.
+    trim_frames_start : int, optional
+        Number of frames to disregard from the end of the movie. Default 0.
     batch_size : int, optional
-
+        Number of frames to process at once.
     """
     with h5py.File(suite2p_args['h5py']) as raw_file:
         frames_dataset = raw_file[suite2p_args['h5py_key']]
-        tot_frames = frames_dataset.shape[0]
+        tot_frames = (frames_dataset.shape[0]
+                      - trim_frames_end
+                      - trim_frames_start)
         ave_frame = np.zeros((frames_dataset.shape[1],
                               frames_dataset.shape[2]))
         dy_max = 0
         dx_max = 0
-        for start_idx in np.arange(0, tot_frames, batch_size):
+        for start_idx in np.arange(trim_frames_start,
+                                   frames_dataset.shape[0] - trim_frames_end,
+                                   batch_size):
             end_idx = start_idx + batch_size
             if end_idx > tot_frames:
                 end_idx = tot_frames

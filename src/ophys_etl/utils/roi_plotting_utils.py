@@ -10,6 +10,27 @@ from ophys_etl.utils.rois import (
     extract_roi_to_ophys_roi)
 
 
+def _is_img_blank(img: np.ndarray) -> bool:
+    """
+    Return True if every pixel in img is the same color.
+    False otherwise.
+    Works for both grayscale and RGB images.
+    """
+    # detect if image is blank
+    is_blank = False
+    if len(img.shape) == 2:
+        if len(np.unique(img)) == 1:
+            is_blank = True
+    else:
+        # check each color channel individually
+        is_blank = True
+        for ic in range(3):
+            if len(np.unique(img[:, :, ic])) > 1:
+                is_blank = False
+
+    return is_blank
+
+
 def plot_rois_over_img(
         img: np.ndarray,
         roi_list: Union[List[OphysROI], List[Dict]],
@@ -61,16 +82,7 @@ def plot_rois_over_img(
             raise ValueError(msg)
 
     # detect if image is blank
-    is_blank = False
-    if len(img.shape) == 2:
-        if len(np.unique(img)) == 1:
-            is_blank = True
-    else:
-        # check each color channel individually
-        is_blank = True
-        for ic in range(3):
-            if len(np.unique(img[:, :, ic])) > 1:
-                is_blank = False
+    is_blank = _is_img_blank(img=img)
 
     if is_blank:
         # if the image is blank, just create an array of zeros

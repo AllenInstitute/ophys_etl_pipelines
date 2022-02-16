@@ -9,7 +9,8 @@ from ophys_etl.utils.rois import (
 from ophys_etl.utils.roi_plotting_utils import (
     add_roi_contour_to_img,
     add_list_of_roi_contours_to_img,
-    plot_rois_over_img)
+    plot_rois_over_img,
+    _is_img_blank)
 
 
 @pytest.fixture(scope='session')
@@ -69,6 +70,19 @@ def color_map_fixture():
     """an example color map"""
     return {0: (11, 255, 56),
             1: (0, 0, 255)}
+
+
+def test_is_img_blank():
+    blank_gray = np.ones((20, 10))
+    assert _is_img_blank(blank_gray)
+    blank_rgb = np.zeros((20, 10, 3))
+    blank_rgb[:, :, 0] = 4
+    blank_rgb[:, :, 1] = 6
+    assert _is_img_blank(blank_rgb)
+    not_blank_gray = np.arange(200).reshape(20, 10)
+    assert not _is_img_blank(not_blank_gray)
+    not_blank_rgb = np.arange(600).reshape(20, 10, 3)
+    assert not _is_img_blank(not_blank_rgb)
 
 
 @pytest.mark.parametrize('alpha', [0.2, 0.3, 0.4])

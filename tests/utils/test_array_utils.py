@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+from itertools import product
 from ophys_etl.utils import array_utils as au
 
 
@@ -179,3 +180,25 @@ def test_scale_to_uint8(input_array, expected_array):
     """
     actual = au.normalize_array(input_array)
     np.testing.assert_array_equal(actual, expected_array)
+
+
+@pytest.mark.parametrize(
+        "lower_cutoff, upper_cutoff",
+        product((None, 15.0), (None, 77.0)))
+def test_array_to_rgb(
+        lower_cutoff, upper_cutoff):
+
+    img = np.arange(144, dtype=float).reshape(12, 12)
+    scaled = au.normalize_array(array=img,
+                                lower_cutoff=lower_cutoff,
+                                upper_cutoff=upper_cutoff)
+
+    rgb = au.array_to_rgb(
+                input_array=img,
+                lower_cutoff=lower_cutoff,
+                upper_cutoff=upper_cutoff)
+
+    assert rgb.dtype == np.uint8
+    assert rgb.shape == (12, 12, 3)
+    for ic in range(3):
+        np.testing.assert_array_equal(rgb[:, :, ic], scaled)

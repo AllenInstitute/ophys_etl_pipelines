@@ -1,13 +1,15 @@
 import pytest
+import copy
 import numpy as np
 
 from ophys_etl.types import OphysROI
+from ophys_etl.utils.rois import ophys_roi_to_extract_roi
 from ophys_etl.utils.rois import do_rois_abut
 from ophys_etl.utils.rois import get_roi_color_map
 
 
 @pytest.fixture(scope='session')
-def roi_list_fixture():
+def ophys_roi_list_fixture():
     """
     List of OphysROI
     """
@@ -44,18 +46,60 @@ def roi_list_fixture():
     return output
 
 
-def test_roi_coloring(roi_list_fixture):
-    color_map = get_roi_color_map(roi_list_fixture)
-    for roi in roi_list_fixture:
+@pytest.fixture(scope='session')
+def extract_roi_list_fixture(ophys_roi_list_fixture):
+    """A list of ExtractROI"""
+    output = [ophys_roi_to_extract_roi(roi)
+              for roi in ophys_roi_list_fixture]
+
+    return output
+
+
+@pytest.fixture(scope='session')
+def corrupted_extract_roi_list_fixture(
+        extract_roi_list_fixture):
+    """A list of dicts representing ROIs with the wrong
+    keys for ExtractROI ('valid_roi' instead of 'valid', etc.)"""
+    output = []
+    for roi in extract_roi_list_fixture:
+        new_roi = copy.deepcopy(roi)
+        new_roi['valid_roi'] = new_roi.pop('valid')
+        new_roi['roi_id'] = new_roi.pop('id')
+        new_roi['mask_matrix'] = new_roi.pop('mask')
+        output.append(new_roi)
+    return output
+
+
+@pytest.mark.parametrize("roi_choice", [0, 1, 2])
+def test_roi_coloring(
+        ophys_roi_list_fixture,
+        extract_roi_list_fixture,
+        corrupted_extract_roi_list_fixture,
+        roi_choice):
+    """Test that get_roi_color_map runs and does not assign the
+    same color to ROIs that touch each other"""
+
+    if roi_choice == 0:
+        roi_list = ophys_roi_list_fixture
+    elif roi_choice == 1:
+        roi_list = extract_roi_list_fixture
+    elif roi_choice == 2:
+        roi_list = corrupted_extract_roi_list_fixture
+
+    color_map = get_roi_color_map(roi_list)
+    for roi in ophys_roi_list_fixture:
         assert roi.roi_id in color_map
-    assert len(color_map) == len(roi_list_fixture)
+
+    assert len(color_map) == len(roi_list)
+
     pairs = 0
-    for ii in range(len(roi_list_fixture)):
-        roi0 = roi_list_fixture[ii]
-        for jj in range(ii+1, len(roi_list_fixture)):
-            roi1 = roi_list_fixture[jj]
+
+    for ii in range(len(roi_list)):
+        roi0 = ophys_roi_list_fixture[ii]
+        for jj in range(ii+1, len(roi_list)):
+            roi1 = ophys_roi_list_fixture[jj]
             if do_rois_abut(roi0, roi1):
                 pairs += 1
                 assert color_map[roi0.roi_id] != color_map[roi1.roi_id]
     assert pairs > 0
-    assert len(set(color_map.values())) < len(roi_list_fixture)
+    assert len(set(color_map.values())) < len(roi_list)

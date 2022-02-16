@@ -81,12 +81,7 @@ def plot_rois_over_img(
     elif len(img.shape) == 2:
         img = array_to_rgb(img)
     else:
-        upper_cutoff = img.max()
-        lower_cutoff = img.min()
-        new_img = normalize_array(
-                           array=img,
-                           lower_cutoff=lower_cutoff,
-                           upper_cutoff=upper_cutoff)
+        new_img = normalize_array(array=img)
         img = new_img
 
     new_img = add_list_of_roi_contours_to_img(

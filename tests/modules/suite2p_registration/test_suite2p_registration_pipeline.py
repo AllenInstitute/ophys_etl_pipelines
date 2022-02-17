@@ -56,12 +56,14 @@ def video_path_fixture(tmpdir_factory):
     "do_optimize_motion_params, use_ave_image_as_reference",
     product((True, False), (True, False), (True, False), (True, False)))
 def test_suite2p_motion_correction(
-        tmpdir,
+        tmp_path_factory,
         nonrigid,
         clip_negative,
         do_optimize_motion_params,
         use_ave_image_as_reference,
         video_path_fixture):
+
+    tmpdir = tmp_path_factory.mktemp('s2p_motion')
 
     corr_video_path = tempfile.mkstemp(
                             dir=tmpdir,
@@ -97,7 +99,7 @@ def test_suite2p_motion_correction(
                                    prefix='output_',
                                    suffix='.json')[1]
 
-    str_tmpdir = str(pathlib.Path(tmpdir).resolve().absolute())
+    str_tmpdir = str(tmpdir.resolve().absolute())
     s2p_args = {'nonrigid': nonrigid,
                 'h5py': str(video_path_fixture.resolve().absolute()),
                 'tmp_dir': str_tmpdir,

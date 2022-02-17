@@ -26,10 +26,12 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
 
 @pytest.mark.parametrize(
         "video_lower_quantile, video_upper_quantile,"
-        "projection_lower_quantile, projection_upper_quantile, use_graph",
+        "projection_lower_quantile, projection_upper_quantile, use_graph, "
+        "with_motion_border",
         product((0.1, 0.2), (0.7, 0.8), (0.1, 0.2), (0.7, 0.8),
-                (True, False)))
+                (True, False), (True, False)))
 def test_with_graph(
+        tmp_path_factory,
         classifier2021_video_fixture,
         classifier2021_video_hash_fixture,
         suite2p_roi_fixture,
@@ -38,12 +40,34 @@ def test_with_graph(
         classifier2021_corr_graph_hash_fixture,
         classifier2021_corr_png_fixture,
         classifier2021_corr_png_hash_fixture,
-        tmpdir,
         video_lower_quantile,
         video_upper_quantile,
         projection_lower_quantile,
         projection_upper_quantile,
-        use_graph):
+        use_graph,
+        with_motion_border):
+
+    tmpdir = tmp_path_factory.mktemp('full_artifact_generation')
+    if with_motion_border:
+        motion_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir,
+                                                    suffix='.csv')[1])
+        with open(motion_path, 'w') as out_file:
+            out_file.write('x,y\n')
+            out_file.write('5,6\n')
+            out_file.write('14,-3\n')
+        expected_motion_border = {'bottom': 6.0,
+                                  'top': 3.0,
+                                  'right_side': 14.0,
+                                  'left_side': 0.0}
+
+        motion_path = str(motion_path.resolve().absolute())
+
+    else:
+        motion_path = None
+        expected_motion_border = {'top': 0,
+                                  'bottom': 0,
+                                  'left_side': 0,
+                                  'right_side': 0}
 
     if use_graph:
         corr_fixture = classifier2021_corr_graph_fixture
@@ -71,6 +95,7 @@ def test_with_graph(
     input_data['video_upper_quantile'] = video_upper_quantile
     input_data['projection_lower_quantile'] = projection_lower_quantile
     input_data['projection_upper_quantile'] = projection_upper_quantile
+    input_data['motion_border_path'] = motion_path
 
     generator = LabelerArtifactGenerator(input_data=input_data, args=[])
     generator.run()
@@ -81,8 +106,7 @@ def test_with_graph(
 
         motion_border = json.loads(
                           artifact_file['motion_border'][()].decode('utf-8'))
-        assert motion_border == {'up': 0, 'down': 0,
-                                 'left': 0, 'right': 0}
+        assert motion_border == expected_motion_border
         # test that ROIs were written correctly
         with open(suite2p_roi_fixture, 'rb') as in_file:
             expected_rois = json.load(in_file)
@@ -169,6 +193,10 @@ def test_with_graph(
     assert metadata['correlation']['hash'] == corr_hash
 
     assert metadata['generator_args'] == input_data
+    if with_motion_border:
+        assert 'motion_csv' in metadata
+    else:
+        assert 'motion_csv' not in metadata
 
 
 def test_clobber_error(

@@ -130,11 +130,11 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
         roi_path = pathlib.Path(self.args['roi_path'])
         if self.args['motion_border_path'] is not None:
             motion_border_path = pathlib.Path(self.args['motion_border_path'])
-            motion_border = get_max_correction_from_file(
+            max_shifts = get_max_correction_from_file(
                                    input_csv=motion_border_path)
         else:
             motion_border_path = None
-            motion_border = MotionBorder(left=0, right=0, up=0, down=0)
+            max_shifts = MotionBorder(left=0, right=0, up=0, down=0)
 
         output_path = pathlib.Path(self.args['artifact_path'])
 
@@ -208,12 +208,17 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
             out_file.create_dataset(
                 'video_data',
                 data=scaled_video)
+
+            # note the transposition below;
+            # if you shift up, the suspect pixels are those that wrap
+            # on the bottom; if you shift right, the suspect pixels
+            # are those that wrap on the right, etc.
             out_file.create_dataset(
                 'motion_border',
-                data=json.dumps({'up': motion_border.up,
-                                 'down': motion_border.down,
-                                 'left': motion_border.left,
-                                 'right': motion_border.right},
+                data=json.dumps({'bottom': max(max_shifts.up, 0),
+                                 'top': max(max_shifts.down, 0),
+                                 'left_side': max(max_shifts.right, 0),
+                                 'right_side': max(max_shifts.left, 0)},
                                 indent=2).encode('utf-8'))
 
             trace_group = out_file.create_group('traces')

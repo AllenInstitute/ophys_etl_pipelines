@@ -1,5 +1,4 @@
 import json
-import sys
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -9,18 +8,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import tifffile
-
-has_suite2p = True
-try:
-    import suite2p.registration  # noqa: F401
-except ImportError:
-    # only mock Suite2P if necessary; otherwise, the mock
-    # makes it into the tests that actually rely on Suite2P
-    has_suite2p = False
-
-if not has_suite2p:
-    sys.modules['suite2p'] = Mock()
-    sys.modules['suite2p.registration.rigid'] = Mock()
 
 from ophys_etl.modules.suite2p_wrapper.schemas import \
         Suite2PWrapperSchema, Suite2PWrapperOutputSchema  # noqa: E402

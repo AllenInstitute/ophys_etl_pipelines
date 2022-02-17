@@ -2,21 +2,8 @@ import h5py
 import json
 import numpy as np
 from pathlib import Path
-import sys
-import pytest
 import unittest
 from unittest.mock import MagicMock, Mock, patch
-
-has_suite2p = True
-try:
-    import suite2p.registration  # noqa: F401
-except ImportError:
-    # only mock Suite2P if necessary; otherwise, the mock
-    # makes it into the tests that actually rely on Suite2P
-    has_suite2p = False
-    sys.modules['suite2p.registration.rigid'] = Mock()
-    sys.modules['suite2p.registration.register'] = Mock()
-
 
 from ophys_etl.modules.suite2p_registration.suite2p_utils import (  # noqa: E402, E501
     compute_reference, load_initial_frames, compute_acutance,
@@ -210,7 +197,6 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         self.assertEqual(result_reference[0, -1], mean_value)
         self.assertEqual(result_reference[-1, 0], mean_value)
 
-    @pytest.mark.suite2p_only
     def test_compute_reference(self):
         """Test that the method creates a reference image as expected using
         suite2p.
@@ -336,7 +322,6 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         self.assertEqual(result['dy_max'], 20)
         self.assertEqual(result['dx_max'], 20)
 
-    @pytest.mark.suite2p_only
     def test_add_required_parameters(self):
         """Test adding to config parameters to the dict.
         """

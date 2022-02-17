@@ -19,7 +19,6 @@ def path_to_hash(file_path):
     return str(hasher.hexdigest())
 
 
-@pytest.mark.suite2p_also
 @pytest.mark.parametrize(
         "basenames, dstsubdir, use_mv, exception",
         [

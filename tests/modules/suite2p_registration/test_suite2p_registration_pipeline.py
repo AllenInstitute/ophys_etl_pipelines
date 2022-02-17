@@ -5,18 +5,7 @@ import tempfile
 from itertools import product
 import numpy as np
 
-has_suite2p = True
-try:
-    import suite2p.registration  # noqa: F401
-except ImportError:
-    # need to get around the fact that Suite2P may not be defined
-    # in the test environment. These tests should all be marked with
-    # pytest.mark.suite2p_only, which means they will only be run in
-    # our CircleCI environments that contain Suite2P
-    has_suite2p = False
-
-if has_suite2p:
-    from ophys_etl.modules.suite2p_registration.__main__ import (
+from ophys_etl.modules.suite2p_registration.__main__ import (
         Suite2PRegistration)
 
 
@@ -62,18 +51,19 @@ def video_path_fixture(tmpdir_factory):
     video_path.unlink()
 
 
-@pytest.mark.suite2p_only
 @pytest.mark.parametrize(
     "nonrigid, clip_negative, "
     "do_optimize_motion_params, use_ave_image_as_reference",
     product((True, False), (True, False), (True, False), (True, False)))
 def test_suite2p_motion_correction(
-        tmpdir,
+        tmp_path_factory,
         nonrigid,
         clip_negative,
         do_optimize_motion_params,
         use_ave_image_as_reference,
         video_path_fixture):
+
+    tmpdir = tmp_path_factory.mktemp('s2p_motion')
 
     corr_video_path = tempfile.mkstemp(
                             dir=tmpdir,
@@ -109,8 +99,11 @@ def test_suite2p_motion_correction(
                                    prefix='output_',
                                    suffix='.json')[1]
 
+    str_tmpdir = str(tmpdir.resolve().absolute())
     s2p_args = {'nonrigid': nonrigid,
-                'h5py': str(video_path_fixture.resolve().absolute())}
+                'h5py': str(video_path_fixture.resolve().absolute()),
+                'tmp_dir': str_tmpdir,
+                'output_dir': str_tmpdir}
 
     args = {'suite2p_args': s2p_args,
             'movie_frame_rate_hz': 6.1,

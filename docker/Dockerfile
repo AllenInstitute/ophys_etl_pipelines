@@ -6,7 +6,6 @@ LABEL description="This dockerfile provides a working environment for \
                    Allen Institute for Brain Science optical physiology data \
                    processing pipelines."
 
-ARG SUITE2P_TAG=v0.10.2
 ARG LZEROCOMMIT=cdfaade68ceb6aa15ec5003c460de4e0575f1d5f
 ARG OPHYS_ETL_TAG=main
 ARG OPHYS_ETL_COMMIT_SHA="unknown build"
@@ -27,18 +26,11 @@ RUN mkdir ${CONDA_ENVS}
 # Install Suite2P (into conda environment named suite2p)
 WORKDIR /repos
 RUN apt-get -y update --allow-releaseinfo-change \
-    # for Suite2P
-    && apt-get -y install libgl1-mesa-glx \
     # for FastLZero
     && apt-get -y install clang libhdf5-serial-dev g++ \
     && rm -rf /var/lib/apt/* \
-    && git clone -b ${SUITE2P_TAG} https://github.com/MouseLand/suite2p ./suite2p \
-    && conda env update --prefix ${SUITE2P_ENV} --file ./suite2p/environment.yml \
-    && conda run --prefix ${SUITE2P_ENV} pip install pyqt5==5.15.1 \
-    pyqt5-sip==12.8.1 \
-    pyqtgraph==0.11.0 \
-    && conda run --prefix ${SUITE2P_ENV} pip install --no-cache ./suite2p \
     && git clone -b ${OPHYS_ETL_TAG} https://github.com/AllenInstitute/ophys_etl_pipelines ./ophys_etl \
+    && conda create --prefix ${SUITE2P_ENV} python=3.8 \
     && conda run --prefix ${SUITE2P_ENV} pip install --no-cache ./ophys_etl \
     && echo "use for suite2p "$(conda run --prefix ${SUITE2P_ENV} which python) \
     && conda create --prefix ${OPHYS_ETL_ENV} python=3.8 \

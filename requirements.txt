@@ -2,7 +2,7 @@ numpy
 scipy
 imageio-ffmpeg
 pytest
-pytest-cov
+coverage
 argschema==2.0.2
 h5py
 matplotlib

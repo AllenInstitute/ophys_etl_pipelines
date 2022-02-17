@@ -52,18 +52,18 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             description=("max allowed registration shift, as a fraction of "
                          "frame max(width and height)"))
     nimg_init = argschema.fields.Int(
-        default=200,
+        default=5000,
         description=("How many frames to use to compute reference "
                      "image for registration"))
     smooth_sigma = argschema.fields.Float(
-        default=1.15,
+        default=1.65,
         description=("Standard deviation in pixels of the gaussian used "
                      "to smooth the phase correlation between the reference "
                      "image and the frame which is being registered. A "
                      "value of >4 is recommended for one-photon "
                      "recordings (with a 512x512 pixel FOV)."))
     smooth_sigma_time = argschema.fields.Float(
-        default=4.0,
+        default=2.0,
         description=("Standard deviation in time frames of the gaussian "
                      "used to smooth the data before phase correlation is "
                      "computed. Might need this to be set to 1 or 2 for "

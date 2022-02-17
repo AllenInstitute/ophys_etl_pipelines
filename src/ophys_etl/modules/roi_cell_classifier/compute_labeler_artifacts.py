@@ -109,7 +109,7 @@ class LabelerArtifactFileSchema(argschema.ArgSchema):
                     msg += f'you gave {str(file_path.resolve().absolute())}\n'
         file_path = pathlib.Path(data['correlation_path'])
         if file_path.suffix not in ('.pkl', '.png'):
-            msg += 'correlation_path must be either .pkl or .png; '
+            msg += 'correlation_path must have suffix either .pkl or .png; '
             msg += f'you gave {str(file_path.resolve().absolute())}\n'
         if len(msg) > 0:
             raise ValueError(msg)

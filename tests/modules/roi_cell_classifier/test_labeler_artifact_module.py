@@ -3,6 +3,7 @@ import tempfile
 import h5py
 import json
 import pathlib
+import copy
 import numpy as np
 import PIL.Image
 from itertools import product
@@ -197,27 +198,15 @@ def test_clobber_error(
     LabelerArtifactGenerator(input_data=input_data, args=[])
 
 
-def test_malformed_corr_file(
+@pytest.fixture(scope='session')
+def well_made_config_fixture(
         classifier2021_video_fixture,
         suite2p_roi_fixture,
-        tmpdir):
-    """
-    Test that if you do not specify .png or .pkl for the correlation
-    file, you get an error
-    """
+        tmp_path_factory):
 
-    corr_path = tempfile.mkstemp(dir=tmpdir,
-                                 prefix='corr_file_',
-                                 suffix='.txt')[1]
-    corr_path = pathlib.Path(corr_path)
-    assert corr_path.exists()
-
-    output_path = tempfile.mkstemp(dir=tmpdir,
-                                   prefix='artifact_file_',
-                                   suffix='.h5')[1]
-
-    output_path = pathlib.Path(output_path)
-    assert output_path.exists()
+    tmpdir = tmp_path_factory.mktemp('for_config')
+    corr_path = tempfile.mkstemp(dir=tmpdir, suffix='.pkl')[1]
+    output_path = tempfile.mkstemp(dir=tmpdir, suffix='.h5')[1]
 
     input_data = dict()
     input_data['video_path'] = str(classifier2021_video_fixture)
@@ -226,5 +215,31 @@ def test_malformed_corr_file(
     input_data['artifact_path'] = str(output_path)
     input_data['clobber'] = True
 
-    with pytest.raises(ValueError, match='.pkl or .png'):
+    yield input_data
+
+
+@pytest.mark.parametrize(
+        'bad_key',
+        ['video_path', 'roi_path',
+         'correlation_path', 'artifact_path',
+         None])
+def test_sufix_validation(
+        well_made_config_fixture,
+        tmp_path_factory,
+        bad_key):
+    """
+    Test that if you specify a file with the wrong suffix as an input,
+    you get an error
+    """
+
+    tmpdir = tmp_path_factory.mktemp('to_test_config')
+    bad_file = tempfile.mkstemp(dir=tmpdir, suffix='.txt')[1]
+
+    input_data = copy.deepcopy(well_made_config_fixture)
+    if bad_key is None:
         LabelerArtifactGenerator(input_data=input_data, args=[])
+    else:
+        input_data.pop(bad_key)
+        input_data[bad_key] = bad_file
+        with pytest.raises(ValueError, match='must have suffix'):
+            LabelerArtifactGenerator(input_data=input_data, args=[])

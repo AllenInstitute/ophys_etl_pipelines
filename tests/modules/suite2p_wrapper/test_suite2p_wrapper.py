@@ -69,9 +69,9 @@ def allen_default_args_fixture():
     output['do_registration'] = 0
     output['reg_tif'] = False
     output['maxregshift'] = 0.2
-    output['nimg_init'] = 200
-    output['smooth_sigma'] = 1.15
-    output['smooth_sigma_time'] = 4.0
+    output['nimg_init'] = 5000
+    output['smooth_sigma'] = 1.65
+    output['smooth_sigma_time'] = 2.0
     output['nonrigid'] = False
     output['roidetect'] = True
     output['sparse_mode'] = True

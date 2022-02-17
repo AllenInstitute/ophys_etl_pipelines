@@ -226,5 +226,5 @@ def test_malformed_corr_file(
     input_data['artifact_path'] = str(output_path)
     input_data['clobber'] = True
 
-    with pytest.raises(RuntimeError, match='.pkl or .png'):
+    with pytest.raises(ValueError, match='.pkl or .png'):
         LabelerArtifactGenerator(input_data=input_data, args=[])

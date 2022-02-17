@@ -92,12 +92,27 @@ class LabelerArtifactFileSchema(argschema.ArgSchema):
                 msg += 'run with --clobber=True'
                 raise RuntimeError(msg)
 
-        correlation_suffix = pathlib.Path(data['correlation_path']).suffix
-        if correlation_suffix not in set(['.png', '.pkl']):
-            msg = "correlation_path must be .pkl or .png file;\n"
-            msg += f"you gave:\n{data['correlation_path']}"
-            raise RuntimeError(msg)
+        return data
 
+    @post_load
+    def check_file_types(self, data, **kwargs):
+        msg = ''
+        for file_path_key, suffix in [('video_path', '.h5'),
+                                      ('roi_path', '.json'),
+                                      ('motion_border_path', '.csv'),
+                                      ('artifact_path', '.h5')]:
+            file_path = data[file_path_key]
+            if file_path is not None:
+                file_path = pathlib.Path(file_path)
+                if file_path.suffix != suffix:
+                    msg += f'{file_path_key} must have suffix {suffix}; '
+                    msg += f'you gave {str(file_path.resolve().absolute())}\n'
+        file_path = pathlib.Path(data['correlation_path'])
+        if file_path.suffix not in ('.pkl', '.png'):
+            msg += 'correlation_path must be either .pkl or .png; '
+            msg += f'you gave {str(file_path.resolve().absolute())}\n'
+        if len(msg) > 0:
+            raise ValueError(msg)
         return data
 
 

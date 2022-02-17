@@ -36,7 +36,17 @@ from ophys_etl.utils.motion_border import (
                           ({"x": [0.42, 0.57, 0.36],
                             "y": [0.01, 0.52, 0.21]}, 0.67,
                            MotionBorder(left=0.57, right=-0.36, up=0.52,
-                                        down=-0.01), False, None)])
+                                        down=-0.01), False, None),
+                          ({"x": [22.0, 42.0, 11.0],
+                            "y": [7.0, -4.0, 56.0]}, 30.0,
+                           MotionBorder(left=22.0, right=-11.0,
+                                        up=7.0, down=4.0),
+                           False, None),
+                          ({"x": [-22.0, 42.0, 3.0],
+                            "y": [7.0, -14.0, 56.0]}, -10.0,
+                           MotionBorder(left=3.0, right=-3.0,
+                                        up=7.0, down=-7.0),
+                           False, None)])
 def test_get_max_correction_border(motion_correction_data, max_shift,
                                    expected_motion_border, x_fail,
                                    expected_error):

@@ -1,9 +1,12 @@
 import pytest
+import tempfile
+import pathlib
 import numpy as np
 import pandas as pd
 
 from ophys_etl.utils.motion_border import (
     get_max_correction_values,
+    get_max_correction_from_file,
     MotionBorder)
 
 
@@ -74,3 +77,40 @@ def test_get_max_correction_border(motion_correction_data, max_shift,
             max_shift=max_shift)
         np.testing.assert_allclose(np.array(expected_motion_border),
                                    np.array(calculated_border))
+
+
+@pytest.fixture(scope='session')
+def motion_csv_path_fixture(tmp_path_factory):
+    """
+    Write out an example CSV for testing motion border detection;
+    will only contain 'x' and 'y' columns.
+    """
+    dir_path = tmp_path_factory.mktemp('motion_csv')
+    file_path = tempfile.mkstemp(dir=dir_path, suffix='.csv')[1]
+    file_path = pathlib.Path(file_path)
+    with open(file_path, 'w') as out_file:
+        out_file.write('x,y\n')
+        for ii in range(10):
+            out_file.write('%d,%d\n' % (ii-5, ii-7))
+    yield file_path
+    if file_path.exists():
+        file_path.unlink()
+
+
+@pytest.mark.parametrize(
+        'max_shift, expected',
+        [(2, MotionBorder(left=2, right=2, up=2, down=2)),
+         (6, MotionBorder(left=4, right=5, up=2, down=6)),
+         (22, MotionBorder(left=4, right=5, up=2, down=7))])
+def test_get_max_correction_from_file(
+        motion_csv_path_fixture,
+        max_shift,
+        expected):
+    """
+    Test method to read a MotionBorder from a file
+    """
+    actual = get_max_correction_from_file(
+                    input_csv=motion_csv_path_fixture,
+                    max_shift=max_shift)
+
+    np.testing.assert_allclose(np.array(actual), np.array(expected))

@@ -38,6 +38,14 @@ class LabelerArtifactFileSchema(argschema.ArgSchema):
             description=("Path to JSON file containing ROIs "
                          "on which to base this artifact file"))
 
+    motion_border_path = argschema.fields.InputFile(
+            required=False,
+            default=None,
+            allow_none=True,
+            description=("Path to csv file of rigid motion translations "
+                         "applied to movie during motion correction; used "
+                         "to calculate the motion border"))
+
     correlation_path = argschema.fields.InputFile(
             required=True,
             description=("Path to either png or pkl file which "

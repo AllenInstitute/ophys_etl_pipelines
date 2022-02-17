@@ -19,6 +19,10 @@ from ophys_etl.modules.roi_cell_classifier.utils import (
 from ophys_etl.utils.video_utils import (
     read_and_scale)
 
+from ophys_etl.utils.motion_border import (
+    get_max_correction_from_file,
+    MotionBorder)
+
 
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
@@ -124,6 +128,14 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
         video_path = pathlib.Path(self.args['video_path'])
         correlation_path = pathlib.Path(self.args['correlation_path'])
         roi_path = pathlib.Path(self.args['roi_path'])
+        if self.args['motion_border_path'] is not None:
+            motion_border_path = pathlib.Path(self.args['motion_border_path'])
+            motion_border = get_max_correction_from_file(
+                                   input_csv=motion_border_path)
+        else:
+            motion_border_path = None
+            motion_border = MotionBorder(left=0, right=0, up=0, down=0)
+
         output_path = pathlib.Path(self.args['artifact_path'])
 
         with open(roi_path, 'rb') as in_file:
@@ -140,10 +152,11 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
         logger.info("wrote traces")
 
         metadata = create_metadata(
-                         self.args,
-                         video_path,
-                         roi_path,
-                         correlation_path)
+                         input_args=self.args,
+                         video_path=video_path,
+                         roi_path=roi_path,
+                         correlation_path=correlation_path,
+                         motion_csv_path=motion_border_path)
 
         logger.info("hashed all input files")
 
@@ -195,6 +208,13 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
             out_file.create_dataset(
                 'video_data',
                 data=scaled_video)
+            out_file.create_dataset(
+                'motion_border',
+                data=json.dumps({'up': motion_border.up,
+                                 'down': motion_border.down,
+                                 'left': motion_border.left,
+                                 'right': motion_border.right},
+                                indent=2).encode('utf-8'))
 
             trace_group = out_file.create_group('traces')
             for roi_id in trace_lookup:

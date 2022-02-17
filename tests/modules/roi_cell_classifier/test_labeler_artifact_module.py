@@ -79,6 +79,10 @@ def test_with_graph(
 
     with h5py.File(output_path, 'r') as artifact_file:
 
+        motion_border = json.loads(
+                          artifact_file['motion_border'][()].decode('utf-8'))
+        assert motion_border == {'up': 0, 'down': 0,
+                                 'left': 0, 'right': 0}
         # test that ROIs were written correctly
         with open(suite2p_roi_fixture, 'rb') as in_file:
             expected_rois = json.load(in_file)

@@ -6,7 +6,7 @@ from itertools import product
 from scipy.sparse import coo_matrix
 
 from ophys_etl.types import ExtractROI
-from ophys_etl.utils.motion_border import MotionBorder
+from ophys_etl.utils.motion_border import MaxFrameShift
 from ophys_etl.utils import rois as rois_utils
 from ophys_etl.types import DenseROI, OphysROI
 from ophys_etl.schemas import DenseROISchema
@@ -302,83 +302,83 @@ def test_crop_roi_mask(mask, expected):
 
 @pytest.mark.parametrize(
         "dense_mask, max_correction_vals, expected",
-        # MotionBorder in order of: [left, right, up, down]
+        # MaxFrameShift in order of: [left, right, up, down]
         [
-            ([[1]], MotionBorder(0, 0, 0, 0), True),
-            ([[1]], MotionBorder(1, 0, 0, 0), False),
-            ([[1]], MotionBorder(0, 1, 0, 0), False),
-            ([[1]], MotionBorder(0, 0, 1, 0), False),
-            ([[1]], MotionBorder(0, 0, 0, 1), False),
-            ([[1]], MotionBorder(0.2, 0, 0, 0), False),
-            ([[1]], MotionBorder(0, 0.2, 0, 0), False),
-            ([[1]], MotionBorder(0, 0, 0.2, 0), False),
-            ([[1]], MotionBorder(0, 0, 0, 0.2), False),
+            ([[1]], MaxFrameShift(0, 0, 0, 0), True),
+            ([[1]], MaxFrameShift(1, 0, 0, 0), False),
+            ([[1]], MaxFrameShift(0, 1, 0, 0), False),
+            ([[1]], MaxFrameShift(0, 0, 1, 0), False),
+            ([[1]], MaxFrameShift(0, 0, 0, 1), False),
+            ([[1]], MaxFrameShift(0.2, 0, 0, 0), False),
+            ([[1]], MaxFrameShift(0, 0.2, 0, 0), False),
+            ([[1]], MaxFrameShift(0, 0, 0.2, 0), False),
+            ([[1]], MaxFrameShift(0, 0, 0, 0.2), False),
             (
                 [[0, 0, 0],
                  [0, 1, 0],
-                 [0, 0, 0]], MotionBorder(1, 1, 1, 1), True),
+                 [0, 0, 0]], MaxFrameShift(1, 1, 1, 1), True),
             (
                 [[0, 1, 0],
                  [0, 1, 0],
-                 [0, 0, 0]], MotionBorder(1, 1, 1, 0), True),
+                 [0, 0, 0]], MaxFrameShift(1, 1, 1, 0), True),
             (
                 [[0, 1, 0],
                  [0, 1, 0],
-                 [0, 0, 0]], MotionBorder(1, 1, 1, 1), False),
+                 [0, 0, 0]], MaxFrameShift(1, 1, 1, 1), False),
             (
                 [[0, 1, 0],
                  [0, 1, 0],
-                 [0, 0, 0]], MotionBorder(1, 1, 1, 0.2), False),
+                 [0, 0, 0]], MaxFrameShift(1, 1, 1, 0.2), False),
             (
                 [[0, 0, 0],
                  [0, 1, 0],
-                 [0, 1, 0]], MotionBorder(1, 1, 0, 1), True),
+                 [0, 1, 0]], MaxFrameShift(1, 1, 0, 1), True),
             (
                 [[0, 0, 0],
                  [0, 1, 0],
-                 [0, 1, 0]], MotionBorder(1, 1, 1, 1), False),
+                 [0, 1, 0]], MaxFrameShift(1, 1, 1, 1), False),
             (
                 [[0, 0, 0],
                  [0, 1, 0],
-                 [0, 1, 0]], MotionBorder(1, 1, 0.2, 1), False),
+                 [0, 1, 0]], MaxFrameShift(1, 1, 0.2, 1), False),
             (
                 [[0, 0, 0],
                  [1, 1, 0],
-                 [0, 0, 0]], MotionBorder(1, 0, 1, 1), True),
+                 [0, 0, 0]], MaxFrameShift(1, 0, 1, 1), True),
             (
                 [[0, 0, 0],
                  [1, 1, 0],
-                 [0, 0, 0]], MotionBorder(1, 1, 1, 1), False),
+                 [0, 0, 0]], MaxFrameShift(1, 1, 1, 1), False),
             (
                 [[0, 0, 0],
                  [1, 1, 0],
-                 [0, 0, 0]], MotionBorder(1, 0.2, 1, 1), False),
+                 [0, 0, 0]], MaxFrameShift(1, 0.2, 1, 1), False),
             (
                 [[0, 0, 0],
                  [0, 1, 1],
-                 [0, 0, 0]], MotionBorder(0, 1, 1, 1), True),
+                 [0, 0, 0]], MaxFrameShift(0, 1, 1, 1), True),
             (
                 [[0, 0, 0],
                  [0, 1, 1],
-                 [0, 0, 0]], MotionBorder(1, 1, 1, 1), False),
+                 [0, 0, 0]], MaxFrameShift(1, 1, 1, 1), False),
             (
                 [[0, 0, 0],
                  [0, 1, 1],
-                 [0, 0, 0]], MotionBorder(0.2, 1, 1, 1), False),
+                 [0, 0, 0]], MaxFrameShift(0.2, 1, 1, 1), False),
             (
                 [[0, 0, 0, 0, 0, 0],
                  [0, 0, 0, 0, 0, 0],
                  [0, 0, 1, 1, 0, 0],
                  [0, 0, 1, 1, 0, 0],
                  [0, 0, 0, 0, 0, 0],
-                 [0, 0, 0, 0, 0, 0]], MotionBorder(2, 2, 2, 2), True),
+                 [0, 0, 0, 0, 0, 0]], MaxFrameShift(2, 2, 2, 2), True),
             (
                 [[0, 0, 0, 0, 0, 0],
                  [0, 0, 0, 0, 0, 0],
                  [0, 0, 1, 1, 0, 0],
                  [0, 0, 1, 1, 0, 0],
                  [0, 0, 0, 0, 0, 0],
-                 [0, 0, 0, 0, 0, 0]], MotionBorder(2, 3, 2, 2), False),
+                 [0, 0, 0, 0, 0, 0]], MaxFrameShift(2, 3, 2, 2), False),
                 ])
 def test_motion_exclusion(dense_mask, max_correction_vals, expected):
     coo = coo_matrix(dense_mask)
@@ -427,7 +427,7 @@ def test_small_size_exclusion(dense_mask, npixel_threshold, expected):
             # this empty one should get filtered away
             coo_matrix([[]])
            ],
-          MotionBorder(2.5, 2.5, 2.5, 2.5), 3,
+          MaxFrameShift(2.5, 2.5, 2.5, 2.5), 3,
           [{'id': 0,
             'x': 0,
             'y': 0,

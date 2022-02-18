@@ -1,6 +1,11 @@
 import pytest
+import pathlib
+import tempfile
+import copy
 import h5py
 import json
+import hashlib
+import PIL.Image
 import numpy as np
 from itertools import product
 
@@ -10,7 +15,8 @@ from ophys_etl.utils.rois import (
 
 from ophys_etl.modules.roi_cell_classifier.utils import (
     get_traces,
-    clip_img_to_quantiles)
+    clip_img_to_quantiles,
+    create_metadata)
 
 
 def test_sanitize_extract_roi_list(
@@ -107,3 +113,89 @@ def test_clip_img_to_quantiles(min_quantile, max_quantile):
                 assert np.abs(clipped_pixel-raw_pixel) < eps
                 preserved += 1
     assert preserved > 0
+
+
+@pytest.fixture(scope='session')
+def input_file_fixture(tmp_path_factory):
+    """
+    A dict mapping file type ('video', 'rois', etc.)
+    to path and md5 hash
+    """
+    result = dict()
+    rng = np.random.default_rng(72412)
+    tmpdir = tmp_path_factory.mktemp('for_metadata_test')
+    h5_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir, suffix='.h5')[1])
+    with h5py.File(h5_path, 'w') as out_file:
+        out_file.create_dataset('data', data=rng.random(100))
+    h5_hash = hashlib.md5()
+    with open(h5_path, 'rb') as in_file:
+        h5_hash.update(in_file.read())
+    h5_hash = h5_hash.hexdigest()
+    result['video'] = {'path': str(h5_path.resolve().absolute()),
+                       'hash': h5_hash}
+
+    roi_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir, suffix='.json')[1])
+    with open(roi_path, 'w') as out_file:
+        out_file.write(json.dumps([{'hi': 'there'}, 5, 6.2], indent=2))
+    roi_hash = hashlib.md5()
+    with open(roi_path, 'rb') as in_file:
+        roi_hash.update(in_file.read())
+    roi_hash = roi_hash.hexdigest()
+    result['rois'] = {'path': str(roi_path.resolve().absolute()),
+                      'hash': roi_hash}
+
+    correlation_path = pathlib.Path(tempfile.mkstemp(
+                                         dir=tmpdir,
+                                         suffix='.png')[1])
+    img = PIL.Image.fromarray(rng.integers(0, 255, (32, 32)).astype(np.uint8))
+    img.save(correlation_path)
+    correlation_hash = hashlib.md5()
+    with open(correlation_path, 'rb') as in_file:
+        correlation_hash.update(in_file.read())
+    correlation_hash = correlation_hash.hexdigest()
+    correlation_path = str(correlation_path.resolve().absolute())
+    result['correlation'] = {'path': correlation_path,
+                             'hash': correlation_hash}
+
+    motion_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir, suffix='.csv')[1])
+    with open(motion_path, 'w') as out_file:
+        out_file.write('qwertyuiopasdfghjkl')
+    motion_hash = hashlib.md5()
+    with open(motion_path, 'rb') as in_file:
+        motion_hash.update(in_file.read())
+    motion_hash = motion_hash.hexdigest()
+    result['motion_csv'] = {'path': str(motion_path.resolve().absolute()),
+                            'hash': motion_hash}
+
+    yield result
+
+
+@pytest.mark.parametrize('use_motion', (True, False))
+def test_create_metadata(input_file_fixture, use_motion):
+    """
+    Test that create_metadata produces the expected output
+    """
+
+    input_args = {'a': 1, 'b': 2}
+    file_metadata = copy.deepcopy(input_file_fixture)
+    if use_motion:
+        motion_path = pathlib.Path(file_metadata['motion_csv']['path'])
+    else:
+        file_metadata.pop('motion_csv')
+        motion_path = None
+
+    result = create_metadata(
+                  input_args=input_args,
+                  video_path=pathlib.Path(file_metadata['video']['path']),
+                  roi_path=pathlib.Path(file_metadata['rois']['path']),
+                  correlation_path=pathlib.Path(
+                                       file_metadata['correlation']['path']),
+                  motion_csv_path=motion_path)
+
+    assert result['generator_args'] == input_args
+    for k in file_metadata:
+        assert result[k] == file_metadata[k]
+    for k in result:
+        if k == 'generator_args':
+            continue
+        assert k in file_metadata

@@ -19,6 +19,11 @@ from ophys_etl.modules.roi_cell_classifier.utils import (
 from ophys_etl.utils.video_utils import (
     read_and_scale)
 
+from ophys_etl.utils.motion_border import (
+    get_max_correction_from_file,
+    MotionBorder,
+    motion_border_from_max_shift)
+
 
 logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
@@ -37,6 +42,14 @@ class LabelerArtifactFileSchema(argschema.ArgSchema):
             required=True,
             description=("Path to JSON file containing ROIs "
                          "on which to base this artifact file"))
+
+    motion_border_path = argschema.fields.InputFile(
+            required=False,
+            default=None,
+            allow_none=True,
+            description=("Path to csv file of rigid motion translations "
+                         "applied to movie during motion correction; used "
+                         "to calculate the motion border"))
 
     correlation_path = argschema.fields.InputFile(
             required=True,
@@ -84,12 +97,27 @@ class LabelerArtifactFileSchema(argschema.ArgSchema):
                 msg += 'run with --clobber=True'
                 raise RuntimeError(msg)
 
-        correlation_suffix = pathlib.Path(data['correlation_path']).suffix
-        if correlation_suffix not in set(['.png', '.pkl']):
-            msg = "correlation_path must be .pkl or .png file;\n"
-            msg += f"you gave:\n{data['correlation_path']}"
-            raise RuntimeError(msg)
+        return data
 
+    @post_load
+    def check_file_types(self, data, **kwargs):
+        msg = ''
+        for file_path_key, suffix in [('video_path', '.h5'),
+                                      ('roi_path', '.json'),
+                                      ('motion_border_path', '.csv'),
+                                      ('artifact_path', '.h5')]:
+            file_path = data[file_path_key]
+            if file_path is not None:
+                file_path = pathlib.Path(file_path)
+                if file_path.suffix != suffix:
+                    msg += f'{file_path_key} must have suffix {suffix}; '
+                    msg += f'you gave {str(file_path.resolve().absolute())}\n'
+        file_path = pathlib.Path(data['correlation_path'])
+        if file_path.suffix not in ('.pkl', '.png'):
+            msg += 'correlation_path must have suffix either .pkl or .png; '
+            msg += f'you gave {str(file_path.resolve().absolute())}\n'
+        if len(msg) > 0:
+            raise ValueError(msg)
         return data
 
 
@@ -101,6 +129,16 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
         video_path = pathlib.Path(self.args['video_path'])
         correlation_path = pathlib.Path(self.args['correlation_path'])
         roi_path = pathlib.Path(self.args['roi_path'])
+        if self.args['motion_border_path'] is not None:
+            motion_border_path = pathlib.Path(self.args['motion_border_path'])
+            max_shifts = get_max_correction_from_file(
+                                   input_csv=motion_border_path)
+            motion_border = motion_border_from_max_shift(max_shifts)
+        else:
+            motion_border_path = None
+            motion_border = MotionBorder(left_side=0, right_side=0,
+                                         top=0, bottom=0)
+
         output_path = pathlib.Path(self.args['artifact_path'])
 
         with open(roi_path, 'rb') as in_file:
@@ -117,10 +155,11 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
         logger.info("wrote traces")
 
         metadata = create_metadata(
-                         self.args,
-                         video_path,
-                         roi_path,
-                         correlation_path)
+                         input_args=self.args,
+                         video_path=video_path,
+                         roi_path=roi_path,
+                         correlation_path=correlation_path,
+                         motion_csv_path=motion_border_path)
 
         logger.info("hashed all input files")
 
@@ -172,6 +211,18 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
             out_file.create_dataset(
                 'video_data',
                 data=scaled_video)
+
+            # note the transposition below;
+            # if you shift up, the suspect pixels are those that wrap
+            # on the bottom; if you shift right, the suspect pixels
+            # are those that wrap on the right, etc.
+            out_file.create_dataset(
+                'motion_border',
+                data=json.dumps({'bottom': motion_border.bottom,
+                                 'top': motion_border.top,
+                                 'left_side': motion_border.left_side,
+                                 'right_side': motion_border.right_side},
+                                indent=2).encode('utf-8'))
 
             trace_group = out_file.create_group('traces')
             for roi_id in trace_lookup:

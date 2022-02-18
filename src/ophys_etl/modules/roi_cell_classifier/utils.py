@@ -1,4 +1,4 @@
-from typing import Tuple, Dict, List, Union
+from typing import Tuple, Dict, List, Union, Optional
 import h5py
 import numpy as np
 import pathlib
@@ -124,7 +124,8 @@ def create_metadata_entry(
 def create_metadata(input_args: dict,
                     video_path: pathlib.Path,
                     roi_path: pathlib.Path,
-                    correlation_path: pathlib.Path) -> dict:
+                    correlation_path: pathlib.Path,
+                    motion_csv_path: Optional[pathlib.Path] = None) -> dict:
     """
     Create the metadata dict for an artifact file
 
@@ -142,10 +143,13 @@ def create_metadata(input_args: dict,
     correlation_path: pathlib.Path
         path to the correlation projection data
 
+    motion_csv_path: Optional[pathlib.Path]
+        path to the csv file from which the motion border is read
+
     Returns
     -------
     metadata: dict
-        The complete metadata for the artifac file
+        The complete metadata for the artifact file
     """
     metadata = dict()
     metadata['generator_args'] = copy.deepcopy(input_args)
@@ -153,6 +157,8 @@ def create_metadata(input_args: dict,
     metadata['video'] = create_metadata_entry(video_path)
     metadata['rois'] = create_metadata_entry(roi_path)
     metadata['correlation'] = create_metadata_entry(correlation_path)
+    if motion_csv_path is not None:
+        metadata['motion_csv'] = create_metadata_entry(motion_csv_path)
 
     return metadata
 

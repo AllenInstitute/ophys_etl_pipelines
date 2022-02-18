@@ -32,7 +32,11 @@ def connection(scope="function"):
                 "AttributeName": "timestamp",
                 "AttributeType": "N"
             }
-        ]
+        ],
+        ProvisionedThroughput={
+            "ReadCapacityUnits": 123,
+            "WriteCapacityUnits": 123
+        }
     )
     yield RegistryConnection(table_name)
     mock_dynamo.stop()

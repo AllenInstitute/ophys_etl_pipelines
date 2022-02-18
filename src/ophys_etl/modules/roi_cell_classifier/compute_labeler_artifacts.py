@@ -21,7 +21,8 @@ from ophys_etl.utils.video_utils import (
 
 from ophys_etl.utils.motion_border import (
     get_max_correction_from_file,
-    MaxFrameShift)
+    MotionBorder,
+    motion_border_from_max_shift)
 
 
 logger = logging.getLogger(__name__)
@@ -132,9 +133,11 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
             motion_border_path = pathlib.Path(self.args['motion_border_path'])
             max_shifts = get_max_correction_from_file(
                                    input_csv=motion_border_path)
+            motion_border = motion_border_from_max_shift(max_shifts)
         else:
             motion_border_path = None
-            max_shifts = MaxFrameShift(left=0, right=0, up=0, down=0)
+            motion_border = MotionBorder(left_side=0, right_side=0,
+                                         top=0, bottom=0)
 
         output_path = pathlib.Path(self.args['artifact_path'])
 
@@ -215,10 +218,10 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
             # are those that wrap on the right, etc.
             out_file.create_dataset(
                 'motion_border',
-                data=json.dumps({'bottom': max(max_shifts.up, 0),
-                                 'top': max(max_shifts.down, 0),
-                                 'left_side': max(max_shifts.right, 0),
-                                 'right_side': max(max_shifts.left, 0)},
+                data=json.dumps({'bottom': motion_border.bottom,
+                                 'top': motion_border.top,
+                                 'left_side': motion_border.left_side,
+                                 'right_side': motion_border.right_side},
                                 indent=2).encode('utf-8'))
 
             trace_group = out_file.create_group('traces')

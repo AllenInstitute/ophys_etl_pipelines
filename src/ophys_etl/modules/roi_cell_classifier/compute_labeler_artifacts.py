@@ -21,7 +21,7 @@ from ophys_etl.utils.video_utils import (
 
 from ophys_etl.utils.motion_border import (
     get_max_correction_from_file,
-    MotionBorder)
+    MaxFrameShift)
 
 
 logger = logging.getLogger(__name__)
@@ -134,7 +134,7 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
                                    input_csv=motion_border_path)
         else:
             motion_border_path = None
-            max_shifts = MotionBorder(left=0, right=0, up=0, down=0)
+            max_shifts = MaxFrameShift(left=0, right=0, up=0, down=0)
 
         output_path = pathlib.Path(self.args['artifact_path'])
 

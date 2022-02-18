@@ -6,7 +6,7 @@ import copy
 import networkx
 from scipy.sparse import coo_matrix
 from scipy.spatial.distance import cdist
-from ophys_etl.utils.motion_border import MotionBorder
+from ophys_etl.utils.motion_border import MaxFrameShift
 from ophys_etl.types import DenseROI, ExtractROI, OphysROI
 from skimage.morphology import binary_opening, binary_closing, disk
 
@@ -255,7 +255,7 @@ def crop_roi_mask(roi_mask: coo_matrix) -> coo_matrix:
 
 
 def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
-                                max_correction_vals: MotionBorder,
+                                max_correction_vals: MaxFrameShift,
                                 movie_shape: Tuple[int, int],
                                 npixel_threshold: int,
                                 ) -> List[DenseROI]:
@@ -267,7 +267,7 @@ def coo_rois_to_lims_compatible(coo_masks: List[coo_matrix],
     coo_masks: List[coo_matrix]
         A list of scipy coo_matrices representing ROI masks, each element of
         list is a unique ROI.
-    max_correction_vals: MotionBorder
+    max_correction_vals: MaxFrameShift
         Named tuple containing the max motion correction values identified
         in the motion correction step of ophys segmentation pipeline.
         Name tuple has the following names: ['left', 'right', 'up', 'down'].

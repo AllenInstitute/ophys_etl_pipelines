@@ -3,7 +3,7 @@ import json
 from marshmallow import ValidationError
 
 from ophys_etl.schemas import DenseROISchema
-from ophys_etl.utils.motion_border import MotionBorder
+from ophys_etl.utils.motion_border import MaxFrameShift
 from ophys_etl.utils.rois import dense_to_extract
 from ophys_etl.modules.binarize_extract_bridge.schemas import (
         BridgeInputSchema, BridgeOutputSchema)
@@ -35,21 +35,21 @@ class BinarizeToExtractBridge(argschema.ArgSchemaParser):
 
         # read the motion border and check they are all the same
         for i, roi in enumerate(compatible_rois):
-            iborder = MotionBorder(
+            ishift = MaxFrameShift(
                 up=roi['max_correction_up'],
                 down=roi['max_correction_down'],
                 left=roi['max_correction_left'],
                 right=roi['max_correction_right'])
             if i == 0:
-                border = iborder
+                frame_shift = ishift
             else:
-                assert iborder == border
+                assert ishift == frame_shift
 
-        border_dict = {
-                'y1': border.up,
-                'y0': border.down,
-                'x0': border.right,
-                'x1': border.left
+        frame_shift_dict = {
+                'y1': frame_shift.up,
+                'y0': frame_shift.down,
+                'x0': frame_shift.right,
+                'x1': frame_shift.left
                 }
 
         converted_rois = [dense_to_extract(roi) for roi in compatible_rois]
@@ -59,7 +59,7 @@ class BinarizeToExtractBridge(argschema.ArgSchemaParser):
                 'motion_corrected_stack': self.args['motion_corrected_video'],
                 'storage_directory': self.args['storage_directory'],
                 'rois': converted_rois,
-                'motion_border': border_dict
+                'motion_border': frame_shift_dict
                 }
 
         self.output(output, indent=2)

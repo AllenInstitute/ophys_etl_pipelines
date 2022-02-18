@@ -4,11 +4,11 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-MotionBorder = namedtuple('MotionBorder', ['left', 'right', 'up', 'down'])
+MaxFrameShift = namedtuple('MaxFrameShift', ['left', 'right', 'up', 'down'])
 
 
 def get_max_correction_values(x_series: pd.Series, y_series: pd.Series,
-                              max_shift: float = 30.0) -> MotionBorder:
+                              max_shift: float = 30.0) -> MaxFrameShift:
     """
     Gets the max correction values in the cardinal directions from a series
     of correction values in the x and y directions
@@ -27,7 +27,7 @@ def get_max_correction_values(x_series: pd.Series, y_series: pd.Series,
 
     Returns
     -------
-    MotionBorder
+    MaxFrameShift
         A named tuple containing the maximum correction values found during
         motion correction workflow step. Saved with the following direction
         order [left, right, up, down].
@@ -48,20 +48,20 @@ def get_max_correction_values(x_series: pd.Series, y_series: pd.Series,
     down_shift = np.max(-1 * y_no_outliers.min(), 0)
     up_shift = np.max(y_no_outliers.max(), 0)
 
-    max_border = MotionBorder(left=left_shift, right=right_shift,
+    max_shift = MaxFrameShift(left=left_shift, right=right_shift,
                               up=up_shift, down=down_shift)
 
     # check if all exist
-    if np.any(np.isnan(np.array(max_border))):
-        raise ValueError("One or more motion correction border directions "
-                         "was found to be Nan, max motion border found: "
-                         f"{max_border}, with max_shift {max_shift}")
+    if np.any(np.isnan(np.array(max_shift))):
+        raise ValueError("One or more motion correction shifts "
+                         "was found to be Nan, max shift found: "
+                         f"{max_shift}, with max_shift {max_shift}")
 
-    return max_border
+    return max_shift
 
 
 def get_max_correction_from_file(
-        input_csv: Path, max_shift: float = 30.0) -> MotionBorder:
+        input_csv: Path, max_shift: float = 30.0) -> MaxFrameShift:
     """
 
     Parameters
@@ -78,15 +78,15 @@ def get_max_correction_from_file(
 
     Returns
     -------
-    motion_border
+    max_shift
         A named tuple containing the maximum correction values found during
         motion correction workflow step. Saved with the following direction
         order [left, right, up, down].
 
     """
     motion_correction_df = pd.read_csv(input_csv)
-    motion_border = get_max_correction_values(
+    max_shift = get_max_correction_values(
         x_series=motion_correction_df['x'].astype('float'),
         y_series=motion_correction_df['y'].astype('float'),
         max_shift=max_shift)
-    return motion_border
+    return max_shift

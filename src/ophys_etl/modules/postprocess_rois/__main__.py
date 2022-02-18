@@ -6,7 +6,7 @@ from marshmallow import ValidationError
 
 from ophys_etl.utils.motion_border import (
         get_max_correction_from_file,
-        MotionBorder)
+        MaxFrameShift)
 from ophys_etl.schemas import DenseROISchema
 from ophys_etl.utils.rois import (binarize_roi_mask,
                                   coo_rois_to_lims_compatible,
@@ -67,16 +67,16 @@ class PostProcessROIs(ArgSchemaParser):
                          f" {self.args['motion_correction_values']}")
 
         if self.args['motion_correction_values'] is not None:
-            motion_border = get_max_correction_from_file(
+            max_frame_shift = get_max_correction_from_file(
                 self.args['motion_correction_values'],
                 self.args['maximum_motion_shift'])
         else:
-            motion_border = MotionBorder(left=0, right=0, up=0, down=0)
+            max_frame_shift = MaxFrameShift(left=0, right=0, up=0, down=0)
 
         # create the rois
         self.logger.info("Transforming ROIs to LIMS compatible style.")
         compatible_rois = coo_rois_to_lims_compatible(
-                binarized_coo_rois, motion_border, movie_shape,
+                binarized_coo_rois, max_frame_shift, movie_shape,
                 self.args['npixel_threshold'])
 
         if self.args['morphological_ops']:

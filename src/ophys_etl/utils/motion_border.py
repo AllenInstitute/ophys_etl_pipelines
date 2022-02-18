@@ -110,7 +110,7 @@ def motion_border_from_max_shift(
     # a movie in a given direction during motion correction. This could,
     # in principle, be negative (if a movie was only ever shifted up, it's
     # maximum down shift will be negative). MotionBorder is the positive
-    # definite number of pixels to ignore at the edge of a field of view.
+    # (or zero) number of pixels to ignore at the edge of a field of view.
     # In addition to the fact that MotionBorder can only be positive, there
     # is a transposition. If a movie is only ever shifted up, there should
     # be a non-zero motion border at the bottom, since those pixels were

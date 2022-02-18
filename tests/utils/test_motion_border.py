@@ -7,7 +7,9 @@ import pandas as pd
 from ophys_etl.utils.motion_border import (
     get_max_correction_values,
     get_max_correction_from_file,
-    MaxFrameShift)
+    MaxFrameShift,
+    motion_border_from_max_shift,
+    MotionBorder)
 
 
 @pytest.mark.parametrize("motion_correction_data, max_shift,"
@@ -113,4 +115,29 @@ def test_get_max_correction_from_file(
                     input_csv=motion_csv_path_fixture,
                     max_shift=max_shift)
 
+    np.testing.assert_allclose(np.array(actual), np.array(expected))
+
+
+@pytest.mark.parametrize(
+    'max_shift, expected',
+    [(MaxFrameShift(up=0, down=0, left=0, right=0),
+      MotionBorder(top=0, bottom=0, left_side=0, right_side=0)),
+     (MaxFrameShift(up=10, down=0, left=0, right=0),
+      MotionBorder(top=0, bottom=10, left_side=0, right_side=0)),
+     (MaxFrameShift(up=-10, down=0, left=0, right=0),
+      MotionBorder(top=0, bottom=0, left_side=0, right_side=0)),
+     (MaxFrameShift(up=0, down=10, left=0, right=0),
+      MotionBorder(top=10, bottom=0, left_side=0, right_side=0)),
+     (MaxFrameShift(up=0, down=-10, left=0, right=0),
+      MotionBorder(top=0, bottom=0, left_side=0, right_side=0)),
+     (MaxFrameShift(up=0, down=0, left=10, right=0),
+      MotionBorder(top=0, bottom=0, left_side=0, right_side=10)),
+     (MaxFrameShift(up=0, down=0, left=-10, right=0),
+      MotionBorder(top=0, bottom=0, left_side=0, right_side=0)),
+     (MaxFrameShift(up=0, down=0, left=0, right=10),
+      MotionBorder(top=0, bottom=0, left_side=10, right_side=0)),
+     (MaxFrameShift(up=0, down=0, left=0, right=-10),
+      MotionBorder(top=0, bottom=0, left_side=0, right_side=0))])
+def test_motion_border_from_max_shift(max_shift, expected):
+    actual = motion_border_from_max_shift(max_shift)
     np.testing.assert_allclose(np.array(actual), np.array(expected))

@@ -4,7 +4,13 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
+# see comment in motion_border_from_max_frame_shift for an explanation
+# of the difference between these two structures
+
 MaxFrameShift = namedtuple('MaxFrameShift', ['left', 'right', 'up', 'down'])
+
+MotionBorder = namedtuple('MotionBorder',
+                          ['top', 'bottom', 'left_side', 'right_side'])
 
 
 def get_max_correction_values(x_series: pd.Series, y_series: pd.Series,
@@ -90,3 +96,32 @@ def get_max_correction_from_file(
         y_series=motion_correction_df['y'].astype('float'),
         max_shift=max_shift)
     return max_shift
+
+
+def motion_border_from_max_shift(
+        max_shift: MaxFrameShift) -> MotionBorder:
+    """
+    Find the MotionBorder that corresponds to a given
+    MaxFrameShift
+    """
+
+    # The difference between MaxFrameShift and MotionBorder is that
+    # MaxFrame shift records the maximum shift that was applied to
+    # a movie in a given direction during motion correction. This could,
+    # in principle, be negative (if a movie was only ever shifted up, it's
+    # maximum down shift will be negative). MotionBorder is the positive
+    # definite number of pixels to ignore at the edge of a field of view.
+    # In addition to the fact that MotionBorder can only be positive, there
+    # is a transposition. If a movie is only ever shifted up, there should
+    # be a non-zero motion border at the bottom, since those pixels were
+    # either wrapped or padded by motion correction, but there should be
+    # no motion border at the top (assuming you trust your motion correction
+    # algorithm).
+
+    result = MotionBorder(
+                bottom=max(max_shift.up, 0),
+                top=max(max_shift.down, 0),
+                left_side=max(max_shift.right, 0),
+                right_side=max(max_shift.left, 0))
+
+    return result

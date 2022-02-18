@@ -189,6 +189,14 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
 
         logger.info("Created scaled video")
 
+        # determine chunks in which to save the video data
+        ntime = scaled_video.shape[0]
+        nrows = scaled_video.shape[1]
+        ncols = scaled_video.shape[2]
+        video_chunks = (max(1, ntime//10),
+                        max(1, nrows//16),
+                        max(1, ncols//16))
+
         with h5py.File(output_path, 'a') as out_file:
             out_file.create_dataset(
                 'metadata',
@@ -210,7 +218,8 @@ class LabelerArtifactGenerator(argschema.ArgSchemaParser):
                 data=correlation_img_data)
             out_file.create_dataset(
                 'video_data',
-                data=scaled_video)
+                data=scaled_video,
+                chunks=video_chunks)
 
             # note the transposition below;
             # if you shift up, the suspect pixels are those that wrap

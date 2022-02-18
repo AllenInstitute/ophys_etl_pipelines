@@ -139,6 +139,7 @@ def test_labeler_artifact_generator(
                     artifact_file[f'traces/{roi_id}'][()])
 
         # test that the scaled video data was written correctly
+        assert artifact_file['video_data'].chunks is not None
         scaled_video = artifact_file['video_data'][()]
 
         with h5py.File(classifier2021_video_fixture, 'r') as raw_file:

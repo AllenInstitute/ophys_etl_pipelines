@@ -30,7 +30,7 @@ from ophys_etl.modules.segmentation.graph_utils.conversion import (
         "with_motion_border",
         product((0.1, 0.2), (0.7, 0.8), (0.1, 0.2), (0.7, 0.8),
                 (True, False), (True, False)))
-def test_with_graph(
+def test_labeler_artifact_generator(
         tmp_path_factory,
         classifier2021_video_fixture,
         classifier2021_video_hash_fixture,
@@ -46,6 +46,9 @@ def test_with_graph(
         projection_upper_quantile,
         use_graph,
         with_motion_border):
+    """
+    Test that LabelerArtifactGenerator runs and produces expected output
+    """
 
     tmpdir = tmp_path_factory.mktemp('full_artifact_generation')
     if with_motion_border:
@@ -235,6 +238,10 @@ def well_made_config_fixture(
         classifier2021_video_fixture,
         suite2p_roi_fixture,
         tmp_path_factory):
+    """
+    A dict representing the input_json for LabelerArtifactGenerator.
+    This one will pass validation.
+    """
 
     tmpdir = tmp_path_factory.mktemp('for_config')
     corr_path = tempfile.mkstemp(dir=tmpdir, suffix='.pkl')[1]

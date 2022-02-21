@@ -34,6 +34,18 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         # Get suite2p args.
         suite2p_args = self.args['suite2p_args']
 
+        if self.args['auto_remove_empty_frames']:
+            self.logger.info("Attempting to find empty frames at the start "
+                             "and end of the movie.")
+            lowside, highside = utils.find_movie_start_end_empty_frames(
+                h5py_name=suite2p_args['h5py'],
+                h5py_key=suite2p_args['h5py_key'],
+                logger=self.logger.warning)
+            self.args['trim_frames_start'] = lowside
+            self.args['trim_frames_end'] = highside
+            self.logger.info(f"Found ({lowside}, {highside}) at the "
+                             "start/end of the movie.")
+
         if suite2p_args['force_refImg'] and len(suite2p_args['refImg']) == 0:
             # Use our own version of compute_reference to create the initial
             # reference image used by suite2p.
@@ -42,7 +54,9 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
             intial_frames = load_initial_frames(
                 file_path=suite2p_args['h5py'],
                 h5py_key=suite2p_args['h5py_key'],
-                n_frames=suite2p_args['nimg_init'],)
+                n_frames=suite2p_args['nimg_init'],
+                trim_frames_start=self.args['trim_frames_start'],
+                trim_frames_end=self.args['trim_frames_end'])
             # Optimizing motion parameters is only available for nonrigid
             # settings.
             if self.args['do_optimize_motion_params'] and \
@@ -71,11 +85,13 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                     self.args['smooth_sigma_time_steps'])
 
                 optimize_result = optimize_motion_parameters(
-                    intial_frames,
-                    smooth_sigmas,
-                    smooth_sigma_times,
-                    suite2p_args,
-                    self.logger.info)
+                    initial_frames=intial_frames,
+                    smooth_sigmas=smooth_sigmas,
+                    smooth_sigma_times=smooth_sigma_times,
+                    suite2p_args=suite2p_args,
+                    trim_frames_start=self.args['trim_frames_start'],
+                    trim_frames_end=self.args['trim_frames_end'],
+                    logger=self.logger.info)
                 if self.args['use_ave_image_as_reference']:
                     suite2p_args['refImg'] = optimize_result['ave_image']
                 else:
@@ -177,6 +193,19 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
             dy = delta_y[frame_index] - ops.item()['yoff'][frame_index]
             data[frame_index] = shift_frame(data[frame_index], dy, dx)
 
+        # If we found frames that are empty at the end and beginning of the
+        # movie, we reset their motion shift and set their shifts to 0.
+        utils.reset_frame_shift(data,
+                                delta_y,
+                                delta_x,
+                                self.args['trim_frames_start'],
+                                self.args['trim_frames_end'])
+        # Create a boolean lookup of frames we reset as they were found
+        # to be empty.
+        is_valid = np.ones(len(data), dtype='bool')
+        is_valid[:self.args['trim_frames_start']] = False
+        is_valid[len(data) - self.args['trim_frames_end']:] = False
+
         # write the hdf5
         with h5py.File(self.args['motion_corrected_output'], "w") as f:
             f.create_dataset('data', data=data, chunks=(1, *data.shape[1:]))
@@ -222,7 +251,8 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
             "y": delta_y,
             "x_pre_clip": ops.item()['xoff'],
             "y_pre_clip": ops.item()['yoff'],
-            "correlation": ops.item()["corrXY"]
+            "correlation": ops.item()["corrXY"],
+            "is_valid": is_valid,
         })
         motion_offset_df.to_csv(
             path_or_buf=self.args['motion_diagnostics_output'],

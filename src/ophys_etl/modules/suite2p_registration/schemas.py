@@ -94,6 +94,44 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
         default=8,
         description="Maximum number of iterations to preform when creating a "
                     "reference image.")
+    auto_remove_empty_frames = argschema.fields.Boolean(
+        required=False,
+        default=True,
+        allow_none=False,
+        description="Automatically detect empty noise frames at the start and "
+                    "end of the movie. Overrides values set in "
+                    "trim_frames_start and trim_frames_end. Some movies "
+                    "arrive with otherwise quality data but contain a set of "
+                    "frames that are empty and contain pure noise. When "
+                    "processed, these frames tend to receive "
+                    "large random shifts that throw off motion border "
+                    "calculation. Turning on this setting automatically "
+                    "detects these frames before processing and removes them "
+                    "from reference image creation,  automated smoothing "
+                    "parameter searches, and finally the motion border "
+                    "calculation. The frames are still written however any "
+                    "shift estimated is removed and their shift is set to 0 "
+                    "to avoid large motion borders.")
+    trim_frames_start = argschema.fields.Int(
+        required=False,
+        default=0,
+        allow_none=False,
+        description="Number of frames to remove from the start of the movie "
+                    "if known. Removes frames from motion border calculation "
+                    "and resets the frame shifts found. Frames are still "
+                    "written to motion correction. Raises an error if "
+                    "auto_remove_empty_frames is set and "
+                    "trim_frames_start > 0")
+    trim_frames_end = argschema.fields.Int(
+        required=False,
+        default=0,
+        allow_none=False,
+        description="Number of frames to remove from the end of the movie "
+                    "if known. Removes frames from motion border calculation "
+                    "and resets the frame shifts found. Frames are still "
+                    "written to motion correction. Raises an error if "
+                    "auto_remove_empty_frames is set and "
+                    "trim_frames_start > 0")
     do_optimize_motion_params = argschema.fields.Bool(
         default=False,
         required=False,
@@ -190,6 +228,21 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
                     raise ValueError(msg)
 
         data['suite2p_args']['movie_frame_rate_hz'] = parent_val
+        return data
+
+    @marshmallow.post_load
+    def check_trim_frames(self, data, **kwargs):
+        """Make sure that if the user sets auto_remove_empty_frames
+        and timing frames is already requested, raise an error.
+        """
+        if data['auto_remove_empty_frames'] and \
+           (data['trim_frames_start'] > 0 or data['trim_frames_end'] > 0):
+            msg = "Requested auto_remove_empty_frames but " \
+                  "trim_frames_start > 0 or trim_frames_end > 0. Please " \
+                  "either request auto_remove_empty_frames or manually set " \
+                  "trim_frames_start/trim_frames_end if number of frames to " \
+                  "trim is known."
+            raise ValueError(msg)
         return data
 
 

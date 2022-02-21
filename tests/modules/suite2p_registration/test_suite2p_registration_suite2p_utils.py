@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, Mock, patch
 from ophys_etl.modules.suite2p_registration.suite2p_utils import (  # noqa: E402, E501
     compute_reference, load_initial_frames, compute_acutance,
     add_required_parameters, create_ave_image, optimize_motion_parameters,
-    trim_frames)
+    remove_extrema_frames)
 
 
 # Mock function to return just the first frame as the reference. We
@@ -119,7 +119,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         self.assertEqual(output.shape[1], self.n_frames)
         self.assertTrue(np.all(np.equal(output, np.load(self.mock_data_loc))))
 
-    def test_trim_frames(self):
+    def test_remove_extrema_frames(self):
         """Test that empty frames are properly removed from the data.
         """
         # Create a bunch of frames with the same values to have a high
@@ -133,7 +133,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                                             self.xy_shape))
         # Create a well separated frame.
         test_data[10, :, :] = test_data[10, :, :] // frame_value
-        frames = trim_frames(test_data)
+        frames = remove_extrema_frames(test_data)
         # Test that our different frame is removed.
         self.assertEqual(len(test_data) - 1, len(frames))
         # Test that the frame we set to a value of 1 for each pixel is
@@ -242,7 +242,11 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
             suite2p_args['smooth_sigma_time_max'],
             suite2p_args['smooth_sigma_time_steps'])
 
-        def create_ave_image_mock(ref_image, suite2p_args, batch_size=500):
+        def create_ave_image_mock(ref_image,
+                                  suite2p_args,
+                                  trim_frames_start=0,
+                                  trim_frames_end=0,
+                                  batch_size=500):
             image = np.zeros((self.xy_shape, self.xy_shape), dtype=int)
             if suite2p_args['smooth_sigma'] > 0.65 and \
                suite2p_args['smooth_sigma_time'] > 0.0:
@@ -299,7 +303,9 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
 
         with patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
                    'register_frames', register_frames_mock):
-            result = create_ave_image(self.original_reference, suite2p_args)
+            result = create_ave_image(
+                ref_image=self.original_reference,
+                suite2p_args=suite2p_args)
         self.assertTrue(np.allclose(result['ave_image'],
                                     np.ones((self.xy_shape,
                                              self.xy_shape))))
@@ -316,8 +322,9 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                         'smooth_sigma': 1.15,
                         'smooth_sigma_time': 1.0}
         add_required_parameters(suite2p_args)
-        result = create_ave_image(self.original_reference,
-                                  suite2p_args)
+        result = create_ave_image(
+            ref_image=self.original_reference,
+            suite2p_args=suite2p_args)
         np.testing.assert_allclose(result['ave_image'], self.org_ave_image)
         self.assertEqual(result['dy_max'], 20)
         self.assertEqual(result['dx_max'], 20)

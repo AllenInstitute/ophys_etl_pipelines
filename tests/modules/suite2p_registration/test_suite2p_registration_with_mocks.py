@@ -49,9 +49,11 @@ class MockSuite2PWrapper(argschema.ArgSchemaParser):
 
 @pytest.fixture
 def mock_ops_data():
-    return {"Lx": 0, "Ly": 0, "nframes": 5, "xrange": 0, "yrange": 0,
-            "xoff": [1, 2, 3, 4, 5], "yoff": [5, 4, 3, 2, 1],
-            "corrXY": [6, 7, 8, 9, 10], "meanImg": 0}
+    return {"Lx": 0, "Ly": 0, "nframes": 1000, "xrange": 0, "yrange": 0,
+            "xoff": np.linspace(-5, 5, 1000, dtype=int),
+            "yoff": np.linspace(5, -5, 1000, dtype=int),
+            "corrXY": np.linspace(5, 10, 1000, dtype=int),
+            "meanImg": 0}
 
 
 def test_suite2p_registration(tmp_path, mock_ops_data):
@@ -73,7 +75,7 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
             "output_json": str(outj_path)}
 
     def compute_reference_mock(**kwargs):
-        return np.zeros((1000, 32, 32))
+        return np.zeros((32, 32))
 
     # Mock out subtasks that expect real data or data not provied
     # in this test. These methods have their own unitests.
@@ -175,3 +177,54 @@ def test_suite2p_frame_rate_consistency(tmp_path, mock_ops_data):
                 MockSuite2PWrapper):
             runner = s2preg.Suite2PRegistration(input_data=args, args=[])
             assert runner.args['suite2p_args']['movie_frame_rate_hz'] == 11.0
+
+
+def test_suite2p_trim_frames_raises(tmp_path, mock_ops_data):
+    h5path = tmp_path / "mc_video.h5"
+    with h5py.File(str(h5path), "w") as f:
+        f.create_dataset("data", data=np.zeros((1000, 32, 32)))
+
+    outj_path = tmp_path / "output.json"
+    args = {"suite2p_args": {
+                "h5py": str(h5path),
+            },
+            'auto_remove_empty_frames': True,
+            'trim_frames_start': 10,
+            'trim_frames_end': 0,
+            'movie_frame_rate_hz': 11.0,
+            'registration_summary_output': str(tmp_path / "summary.png"),
+            'motion_correction_preview_output': str(tmp_path / "preview.webm"),
+            "motion_corrected_output": str(tmp_path / "motion_output.h5"),
+            "motion_diagnostics_output": str(tmp_path / "motion_offset.csv"),
+            "max_projection_output": str(tmp_path / "max_proj.png"),
+            "avg_projection_output": str(tmp_path / "avg_proj.png"),
+            "output_json": str(outj_path)}
+
+    with pytest.raises(ValueError, match="Requested auto_remove_empty_frames"):
+        with patch.object(MockSuite2PWrapper, "mock_ops_data", mock_ops_data):
+            with patch(
+              'ophys_etl.modules.suite2p_registration.__main__.Suite2PWrapper',
+              MockSuite2PWrapper):
+                s2preg.Suite2PRegistration(input_data=args, args=[])
+
+    args = {"suite2p_args": {
+                "h5py": str(h5path),
+            },
+            'auto_remove_empty_frames': True,
+            'trim_frames_start': 0,
+            'trim_frames_end': 10,
+            'movie_frame_rate_hz': 11.0,
+            'registration_summary_output': str(tmp_path / "summary.png"),
+            'motion_correction_preview_output': str(tmp_path / "preview.webm"),
+            "motion_corrected_output": str(tmp_path / "motion_output.h5"),
+            "motion_diagnostics_output": str(tmp_path / "motion_offset.csv"),
+            "max_projection_output": str(tmp_path / "max_proj.png"),
+            "avg_projection_output": str(tmp_path / "avg_proj.png"),
+            "output_json": str(outj_path)}
+
+    with pytest.raises(ValueError, match="Requested auto_remove_empty_frames"):
+        with patch.object(MockSuite2PWrapper, "mock_ops_data", mock_ops_data):
+            with patch(
+              'ophys_etl.modules.suite2p_registration.__main__.Suite2PWrapper',
+              MockSuite2PWrapper):
+                s2preg.Suite2PRegistration(input_data=args, args=[])

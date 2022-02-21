@@ -12,7 +12,6 @@ ARG OPHYS_ETL_COMMIT_SHA="unknown build"
 
 ENV OPHYS_ETL_COMMIT_SHA=${OPHYS_ETL_COMMIT_SHA}
 ENV CONDA_ENVS=/envs
-ENV SUITE2P_ENV=${CONDA_ENVS}/suite2p
 ENV OPHYS_ETL_ENV=${CONDA_ENVS}/ophys_etl
 ENV EVENT_DETECT_ENV=${CONDA_ENVS}/event_detection
 ENV NUMBA_CACHE_DIR=/tmp
@@ -30,9 +29,6 @@ RUN apt-get -y update --allow-releaseinfo-change \
     && apt-get -y install clang libhdf5-serial-dev g++ \
     && rm -rf /var/lib/apt/* \
     && git clone -b ${OPHYS_ETL_TAG} https://github.com/AllenInstitute/ophys_etl_pipelines ./ophys_etl \
-    && conda create --prefix ${SUITE2P_ENV} python=3.8 \
-    && conda run --prefix ${SUITE2P_ENV} pip install --no-cache ./ophys_etl \
-    && echo "use for suite2p "$(conda run --prefix ${SUITE2P_ENV} which python) \
     && conda create --prefix ${OPHYS_ETL_ENV} python=3.8 \
     # the following installs scipy/numpy with MKL backend,
     # if requirements.txt specifies a different version, these will get overwritten

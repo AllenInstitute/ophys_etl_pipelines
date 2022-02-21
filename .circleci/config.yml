@@ -44,8 +44,6 @@ jobs:
                   set -e
                   mkdir $PWD/coverage_outputs_3.8
                   # set entrypoint like this so we can handle quotes
-                  docker run --entrypoint /bin/bash --read-only --tmpfs /tmp -v $PWD/coverage_outputs_3.8:/coverage_outputs_3.8 alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /repos/ophys_etl/.circleci/scripts/run_and_test.sh "not event_detect_only" 3.8 suite2p suite2p_cov.xml
-                  bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN} -f $PWD/coverage_outputs_3.8/suite2p_cov.xml -cF suite2p_tests
                   docker run --entrypoint /bin/bash --read-only --tmpfs /tmp -v $PWD/coverage_outputs_3.8:/coverage_outputs_3.8 alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /repos/ophys_etl/.circleci/scripts/run_and_test.sh "event_detect_only" 3.8 event_detection event_cov.xml
                   bash <(curl -s https://codecov.io/bash) -t ${CODECOV_TOKEN} -f $PWD/coverage_outputs_3.8/event_cov.xml -cF event_detection_tests
                   docker run --entrypoint /bin/bash --read-only --tmpfs /tmp -v $PWD/coverage_outputs_3.8:/coverage_outputs_3.8 alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /repos/ophys_etl/.circleci/scripts/run_and_test.sh "not event_detect_only" 3.8 ophys_etl general_cov.xml
@@ -54,7 +52,7 @@ jobs:
           name: Run docker image smoke test
           command: |
                   set -e
-                  docker run --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /envs/suite2p/bin/python -m ophys_etl.modules.suite2p_wrapper --h5py /repos/ophys_etl/tests/modules/suite2p_wrapper/resources/movie_100x100x100.h5 --output_dir /tmp --movie_frame_rate 1.0 --log_level INFO --output_json /tmp/output.json
+                  docker run --read-only --tmpfs /tmp alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} /envs/ophys_etl/bin/python -m ophys_etl.modules.suite2p_wrapper --h5py /repos/ophys_etl/tests/modules/suite2p_wrapper/resources/movie_100x100x100.h5 --output_dir /tmp --movie_frame_rate 1.0 --log_level INFO --output_json /tmp/output.json
       - run:
           name: Upload docker image
           command: |

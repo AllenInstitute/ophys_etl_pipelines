@@ -96,7 +96,7 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
                     "reference image.")
     auto_remove_empty_frames = argschema.fields.Boolean(
         required=False,
-        default=False,
+        default=True,
         allow_none=False,
         description="Automatically detect empty noise frames at the start and "
                     "end of the movie. Overrides values set in "

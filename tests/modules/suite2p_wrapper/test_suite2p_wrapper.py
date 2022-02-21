@@ -86,6 +86,7 @@ def allen_default_args_fixture():
     output['inner_neuropil_radius'] = 2
     output['min_neuropil_pixels'] = 350
     output['allow_overlap'] = True
+    output['spikedetect'] = False
     return output
 
 

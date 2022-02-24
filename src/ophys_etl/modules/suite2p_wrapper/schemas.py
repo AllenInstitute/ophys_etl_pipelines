@@ -88,6 +88,9 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
                     "refImg to an empty list or array (Default).")
 
     # s2p cell detection settings
+    spikedetect = argschema.fields.Bool(
+            default=False,
+            description=("whether or not to run spike deconvolution"))
     roidetect = argschema.fields.Bool(
             default=True,
             description=("Whether or not to run ROI extraction. This is the "

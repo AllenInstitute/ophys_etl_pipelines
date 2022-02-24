@@ -50,7 +50,6 @@ class ScanImageMetadata(object):
         # is not accidentally changed downstream
         return copy.deepcopy(self._defined_rois)
 
-
     @property
     def n_rois(self) -> int:
         """
@@ -59,3 +58,15 @@ class ScanImageMetadata(object):
         if not hasattr(self, '_n_rois'):
             self._n_rois = len(self.defined_rois)
         return self._n_rois
+
+    def zs_for_roi(self, i_roi:int) -> List[int]:
+        """
+        Return a list of the z-values at which the specified
+        ROI was scanned
+        """
+        if i_roi > self.n_rois:
+            msg = f"You asked for ROI {i_roi}; "
+            msg += f"there are only {self.n_rois} "
+            msg += "specified in this TIFF file"
+            raise ValueError(msg)
+        return self.defined_rois[i_roi]['zs']

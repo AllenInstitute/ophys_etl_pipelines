@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 import tifffile
 import copy
 import pathlib
@@ -19,7 +19,8 @@ class ScanImageMetadata(object):
         if not tiff_path.is_file():
             raise ValueError(f"{tiff_path.resolve().absolute()} "
                              "is not a file")
-        self._metadata = tifffile.read_scanimage_metadata(open(tiff_path, 'rb'))
+        self._metadata = tifffile.read_scanimage_metadata(
+                                          open(tiff_path, 'rb'))
 
     @property
     def defined_rois(self) -> List[dict]:
@@ -59,7 +60,7 @@ class ScanImageMetadata(object):
             self._n_rois = len(self.defined_rois)
         return self._n_rois
 
-    def zs_for_roi(self, i_roi:int) -> List[int]:
+    def zs_for_roi(self, i_roi: int) -> List[int]:
         """
         Return a list of the z-values at which the specified
         ROI was scanned
@@ -70,3 +71,51 @@ class ScanImageMetadata(object):
             msg += "specified in this TIFF file"
             raise ValueError(msg)
         return self.defined_rois[i_roi]['zs']
+
+    def roi_center(self,
+                   i_roi: int,
+                   atol: float = 1.0e-5) -> Tuple[float, float]:
+        """
+        Return the X, Y center of the specified ROI.
+
+        If the scanfields within an ROI have inconsistent values to within
+        absolute tolerance atol, raise an error (this is probably allowed
+        by ScanImage; I do not think we are ready to handle it, yet).
+        """
+        if i_roi > self.n_rois:
+            msg = f"You asked for ROI {i_roi}; "
+            msg += f"there are only {self.n_rois} "
+            msg += "specified in this TIFF file"
+            raise ValueError(msg)
+
+        scanfields = self.defined_rois[i_roi]['scanfields']
+        if isinstance(scanfields, dict):
+            scanfields = [scanfields]
+        elif not isinstance(scanfields, list):
+            msg = "Expected scanfields to be either a list "
+            msg += f"or a dict; instead got {type(scanfields)}"
+            raise RuntimeError(msg)
+        avg_x = 0.0
+        avg_y = 0.0
+        for field in scanfields:
+            center = field['centerXY']
+            avg_x += center[0]
+            avg_y += center[1]
+        avg_x = avg_x / len(scanfields)
+        avg_y = avg_y / len(scanfields)
+
+        is_valid = True
+        for field in scanfields:
+            center = field['centerXY']
+            if abs(center[0]-avg_x) > atol:
+                is_valid = False
+            if abs(center[1]-avg_y) > atol:
+                is_valid = False
+
+        if not is_valid:
+            msg = "\nInconsistent scanfield centers:\n"
+            for field in scanfields:
+                msg += "{field['centerXY']}\n"
+            raise RuntimeError(msg)
+
+        return (avg_x, avg_y)

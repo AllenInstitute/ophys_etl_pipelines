@@ -95,14 +95,14 @@ class ScanImageTiffSplitter(object):
         self._valid_z_per_roi = valid_z_per_roi
         self._n_valid_zs = 0
         self._n_rois = len(valid_z_per_roi)
-        self._z_roi_manifest = []
+        self._roi_z_manifest = []
         ct = 0
         i_roi = 0
         for zz in local_z_value_list:
             if i_roi >= len(valid_z_per_roi):
                 break
             if zz in valid_z_per_roi[i_roi]:
-                self._z_roi_manifest.append((i_roi, zz))
+                self._roi_z_manifest.append((i_roi, zz))
                 self._n_valid_zs += 1
                 ct += 1
                 if ct == len(valid_z_per_roi[i_roi]):
@@ -114,8 +114,8 @@ class ScanImageTiffSplitter(object):
         return self._valid_z_per_roi
 
     @property
-    def z_roi_manifest(self) -> List[Tuple[int, int]]:
-        return self._z_roi_manifest
+    def roi_z_manifest(self) -> List[Tuple[int, int]]:
+        return self._roi_z_manifest
 
     @property
     def n_valid_zs(self) -> int:
@@ -135,7 +135,7 @@ class ScanImageTiffSplitter(object):
     def _get_stride(self, i_roi: int, z_value: int) -> int:
         found_it = False
         n_step_over = 0
-        for roi_z_pair in self.z_roi_manifest:
+        for roi_z_pair in self.roi_z_manifest:
             if roi_z_pair == (i_roi, z_value):
                 found_it = True
                 break

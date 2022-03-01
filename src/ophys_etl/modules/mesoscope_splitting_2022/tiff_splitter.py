@@ -36,7 +36,7 @@ class ScanImageTiffSplitter(object):
          ...
          [roiN_z0, roiN_z1, roiN_z2...]]
         """
-        z_value_array = self._metadata.all_zs()
+        z_value_array = np.array(self._metadata.all_zs()).flatten()
         defined_rois = self._metadata.defined_rois
 
         z_per_roi = []
@@ -57,18 +57,17 @@ class ScanImageTiffSplitter(object):
 
         # check that z values in z_array occurr in ROI order
         current_roi = 0
-        for z_sub_array in z_value_array:
-            for z_value in z_sub_array:
+        for z_value in z_value_array:
+            if z_value not in z_per_roi[current_roi]:
+                if z_value == 0:
+                    # it was just a placeholder
+                    continue
+                current_roi += 1
                 if z_value not in z_per_roi[current_roi]:
-                    if z_value == 0:
-                        # it was just a placeholder
-                        continue
-                    current_roi += 1
-                    if z_value not in z_per_roi[current_roi]:
-                        msg += f"z_value {z_value} from sub array "
-                        msg += "not in correct order for ROIS; "
-                        msg += f"{z_value_array}; "
-                        msg += f"{z_per_roi}\n"
+                    msg += f"z_value {z_value} from sub array "
+                    msg += "not in correct order for ROIS; "
+                    msg += f"{z_value_array}; "
+                    msg += f"{z_per_roi}\n"
 
         if len(msg) > 0:
             full_msg = "Unclear how to split this TIFF\n"

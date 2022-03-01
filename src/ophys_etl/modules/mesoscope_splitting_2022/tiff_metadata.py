@@ -16,6 +16,7 @@ class ScanImageMetadata(object):
     """
 
     def __init__(self, tiff_path: pathlib.Path):
+        self._file_path = tiff_path
         if not tiff_path.is_file():
             raise ValueError(f"{tiff_path.resolve().absolute()} "
                              "is not a file")
@@ -77,24 +78,10 @@ class ScanImageMetadata(object):
         Return the structure that lists the z-values of all scans divided
         into imaging groups.
         """
-
-        # because SI.hStackManager.zs was repurposed
-        # between releases of ScanImage
-        keys_to_try = ('SI.hStackManager.zs',
-                       'SI.hStackManager.zsAllActuators')
-        result = None
-        for k in keys_to_try:
-            value = self._metadata[0][k]
-            if isinstance(value, list):
-                if isinstance(value[0], list):
-                    result = value
-                    break
-        if result is None:
-            msg = "Could not find a valid structure. "
-            msg += "Tried these keys:\n"
-            msg += f"{keys_to_try}"
-            raise RuntimeError(msg)
-        return result
+        key_to_use = 'SI.hStackManager.zsAllActuators'
+        if key_to_use in self._metadata[0]:
+            return self._metadata[0][key_to_use]
+        return self._metadata[0]['SI.hStackManager.zs']
 
     def roi_center(self,
                    i_roi: int,

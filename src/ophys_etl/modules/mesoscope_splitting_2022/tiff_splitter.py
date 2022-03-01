@@ -131,7 +131,7 @@ class ScanImageTiffSplitter(object):
                 self._n_pages = len(tiff_file.pages)
         return self._n_pages
 
-    def _get_stride(self, i_roi: int, z_value: int) -> int:
+    def _get_offset(self, i_roi: int, z_value: int) -> int:
         found_it = False
         n_step_over = 0
         for roi_z_pair in self.roi_z_manifest:
@@ -163,11 +163,11 @@ class ScanImageTiffSplitter(object):
             msg += f"TIFF file {self._file_path.resolve().absolute()}"
             raise ValueError(msg)
 
-        stride = self._get_stride(i_roi=i_roi, z_value=z_value)
+        offset = self._get_offset(i_roi=i_roi, z_value=z_value)
 
         tiff_data = []
         with tifffile.TiffFile(self._file_path, 'rb') as tiff_file:
-            for i_page in range(stride, self.n_pages, self.n_valid_zs):
+            for i_page in range(offset, self.n_pages, self.n_valid_zs):
                 arr = tiff_file.pages[i_page].asarray()
                 tiff_data.append(arr)
 

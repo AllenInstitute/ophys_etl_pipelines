@@ -1,5 +1,6 @@
 from typing import List, Set, Tuple
 import tifffile
+import h5py
 import pathlib
 import numpy as np
 from ophys_etl.modules.mesoscope_splitting_2022.tiff_metadata import (
@@ -172,3 +173,60 @@ class ScanImageTiffSplitter(object):
                 tiff_data.append(arr)
 
         return tiff_data
+
+
+class TimeSeriesSplitter(ScanImageTiffSplitter):
+
+    def _get_data(self, i_roi: int, z_value: int) -> None:
+        msg = "_get_data is not implemented for "
+        msg += "TimeSeriesSplitter; the resulting "
+        msg += "output would be unreasonably large. "
+        msg += "Call write_video_h5 instead to write "
+        msg += "data directly to an HDF5 file."
+        raise NotImplementedError(msg)
+
+    def write_video_h5(self,
+                       i_roi: int,
+                       z_value: int,
+                       h5_path: pathlib.Path) -> None:
+        """
+        Get a list of np.ndarrays representing the image data for
+        ROI i_roi at specified z_value
+        """
+
+        if i_roi >= self.n_rois:
+            msg = f"You asked for ROI {i_roi}; "
+            msg += f"there are only {self.n_rois} ROIs "
+            msg += f"in {self._file_path.resolve().absolute()}"
+            raise ValueError(msg)
+
+        if z_value not in self.valid_z_per_roi[i_roi]:
+            msg = f"{z_value} is not a valid z value for ROI {i_roi};"
+            msg += f"valid z values are {self.valid_z_per_roi[i_roi]}\n"
+            msg += f"TIFF file {self._file_path.resolve().absolute()}"
+            raise ValueError(msg)
+
+        offset = self._get_offset(i_roi=i_roi, z_value=z_value)
+
+        n_frames = np.ceil((self.n_pages-offset)/self.n_valid_zs).astype(int)
+
+        with tifffile.TiffFile(self._file_path, 'rb') as tiff_file:
+            eg_array = tiff_file.pages[0].asarray()
+            fov_shape = eg_array.shape
+            video_dtype = eg_array.dtype
+
+            with h5py.File(h5_path, 'w') as out_file:
+                out_file.create_dataset(
+                            'data',
+                            shape=(n_frames, fov_shape[0], fov_shape[1]),
+                            dtype=video_dtype,
+                            chunks=(max(1, n_frames//1000),
+                                    fov_shape[0], fov_shape[1]))
+
+                for i_frame, i_page in enumerate(range(offset,
+                                                       self.n_pages,
+                                                       self.n_valid_zs)):
+                    arr = tiff_file.pages[i_page].asarray()
+                    out_file['data'][i_frame, :, :] = arr
+
+        return None

@@ -3,6 +3,7 @@ import tifffile
 import h5py
 import pathlib
 import numpy as np
+from ophys_etl.utils.array_utils import normalize_array
 from ophys_etl.modules.mesoscope_splitting_2022.tiff_metadata import (
     ScanImageMetadata)
 
@@ -173,6 +174,19 @@ class ScanImageTiffSplitter(object):
                 tiff_data.append(arr)
 
         return tiff_data
+
+    def write_image_tiff(self,
+                         i_roi: int,
+                         z_value: int,
+                         tiff_path: pathlib.Path) -> None:
+
+        data = np.array(self._get_data(i_roi=i_roi, z_value=z_value))
+        avg_img = np.mean(data, axis=0)
+        avg_img = normalize_array(array=avg_img,
+                                  lower_cutoff=None,
+                                  upper_cutoff=None)
+        tifffile.imsave(tiff_path, avg_img)
+        return None
 
 
 class TimeSeriesSplitter(ScanImageTiffSplitter):

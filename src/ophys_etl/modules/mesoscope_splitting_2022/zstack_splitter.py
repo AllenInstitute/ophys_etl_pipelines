@@ -1,5 +1,6 @@
 from typing import List
 import tifffile
+import h5py
 import pathlib
 import numpy as np
 from ophys_etl.modules.mesoscope_splitting_2022.tiff_metadata import (
@@ -61,3 +62,14 @@ class ZStackSplitter(object):
             for i_page in range(z_index, n_pages, 2):
                 data.append(tiff_file.pages[i_page].asarray())
         return np.stack(data)
+
+    def write_stack_h5(self,
+                       i_roi: int,
+                       z_value: int,
+                       zstack_path: pathlib.Path) -> None:
+
+        data = self._get_data(i_roi=i_roi, z_value=z_value)
+        with h5py.File(zstack_path, 'w') as out_file:
+            out_file.create_dataset('data',
+                                    data=data,
+                                    chunks=(1, data.shape[1], data.shape[2]))

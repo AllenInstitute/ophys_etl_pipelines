@@ -1,7 +1,6 @@
-from typing import Union, List, Set, Tuple
+from typing import List, Set, Tuple
 import tifffile
 import pathlib
-import copy
 import numpy as np
 from ophys_etl.modules.mesoscope_splitting_2022.tiff_metadata import (
     ScanImageMetadata)
@@ -19,7 +18,6 @@ class ScanImageTiffSplitter(object):
     tiff_path: pathlib.Path
         Path to the TIFF file whose metadata we are parsing
     """
-
 
     def __init__(self, tiff_path: pathlib.Path):
         self._file_path = tiff_path
@@ -51,7 +49,7 @@ class ScanImageTiffSplitter(object):
             if isinstance(roi['zs'], list):
                 roi_zs = roi['zs']
             else:
-                roi_zs = [roi['zs'],]
+                roi_zs = [roi['zs'], ]
             z_set = set(roi_zs)
             if len(z_set) != len(roi_zs):
                 msg += f"roi {i_roi} has duplicate zs: {roi['zs']}\n"
@@ -86,8 +84,6 @@ class ScanImageTiffSplitter(object):
         # scanned in the ROI (this will help us parse the placeholder
         # zeros that sometimes get dropped into
         # SI.hStackManager.zsAllActuators
-
-        n_valid_zs = 0
 
         valid_z_per_roi = []
         for roi in defined_rois:
@@ -136,7 +132,7 @@ class ScanImageTiffSplitter(object):
                 self._n_pages = len(tiff_file.pages)
         return self._n_pages
 
-    def _get_stride(self, i_roi:int, z_value: int) -> int:
+    def _get_stride(self, i_roi: int, z_value: int) -> int:
         found_it = False
         n_step_over = 0
         for roi_z_pair in self.z_roi_manifest:

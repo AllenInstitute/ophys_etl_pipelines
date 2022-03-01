@@ -1,7 +1,6 @@
-from typing import Union, List, Set, Tuple
+from typing import List
 import tifffile
 import pathlib
-import copy
 import numpy as np
 from ophys_etl.modules.mesoscope_splitting_2022.tiff_metadata import (
     ScanImageMetadata)
@@ -23,7 +22,7 @@ class ZStackSplitter(object):
         for tiff_path in path_to_metadata.keys():
             metadata = path_to_metadata[tiff_path]
             this_roi = None
-            for i_roi, roi  in enumerate(metadata.defined_rois):
+            for i_roi, roi in enumerate(metadata.defined_rois):
                 if roi['discretePlaneMode'] == 0:
                     if this_roi is not None:
                         raise RuntimeError("More than one ROI has "
@@ -42,7 +41,7 @@ class ZStackSplitter(object):
             z_mean = z_array.mean(axis=0)
             assert z_mean.shape == (2,)
             if (z_mean % 1).max() > 1.0e-6:
-                raise RuntimeError(f"mean z values for {tiff_pat} are not "
+                raise RuntimeError(f"mean z values for {tiff_path} are not "
                                    f"integers: {z_mean}")
             for ii, z_value in enumerate(z_mean):
                 self._roi_z_to_path[(this_roi, int(z_value))] = tiff_path

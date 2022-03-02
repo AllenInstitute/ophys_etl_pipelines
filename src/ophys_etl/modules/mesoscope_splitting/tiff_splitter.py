@@ -38,7 +38,22 @@ class ScanImageTiffSplitter(object):
          ...
          [roiN_z0, roiN_z1, roiN_z2...]]
         """
-        z_value_array = np.array(self._metadata.all_zs()).flatten()
+        z_value_array = self._metadata.all_zs()
+
+        # check that z_value_array is a list of lists
+        if not isinstance(z_value_array, list):
+            msg = "Unclear how to split this TIFF\n"
+            msg += f"{self._file_path.resolve().absolute()}\n"
+            msg += f"metadata.all_zs {self._metadata.all_zs()}"
+            raise RuntimeError(msg)
+
+        if not isinstance(z_value_array[0], list):
+            msg = "Unclear how to split this TIFF\n"
+            msg += f"{self._file_path.resolve().absolute()}\n"
+            msg += f"metadata.all_zs {self._metadata.all_zs()}"
+            raise RuntimeError(msg)
+
+        z_value_array = np.concatenate(z_value_array)
         defined_rois = self._metadata.defined_rois
 
         z_per_roi = []
@@ -58,18 +73,29 @@ class ScanImageTiffSplitter(object):
             z_per_roi.append(z_set)
 
         # check that z values in z_array occurr in ROI order
-        current_roi = 0
-        for z_value in z_value_array:
-            if z_value not in z_per_roi[current_roi]:
-                if z_value == 0:
-                    # it was just a placeholder
-                    continue
-                current_roi += 1
-                if z_value not in z_per_roi[current_roi]:
-                    msg += f"z_value {z_value} from sub array "
-                    msg += "not in correct order for ROIS; "
+        offset = 0
+        n_z = len(z_value_array)//len(z_per_roi)
+
+        # check that every ROI has the same number of zs
+        if len(z_value_array) % len(z_per_roi) != 0:
+            msg += "There do not appear to be an "
+            msg += "equal number of zs per ROI\n"
+            msg += f"n_z: {len(z_value_array)} "
+            msg += f"n_roi: {len(z_per_roi)}\n"
+
+        for roi_zs in z_per_roi:
+            these_zs = set(z_value_array[offset:offset+n_z])
+            if these_zs != roi_zs:
+                # might have been a zero placeholder
+                these_zs = set(z_value_array[offset:offset+n_z-1])
+                odd_value = z_value_array[offset+n_z-1]
+                if odd_value != 0 or these_zs != roi_zs:
+                    msg += "z_values from sub array "
+                    msg += "not in correct order for ROIs; "
                     msg += f"{z_value_array}; "
                     msg += f"{z_per_roi}\n"
+                    break
+            offset += n_z
 
         if len(msg) > 0:
             full_msg = "Unclear how to split this TIFF\n"

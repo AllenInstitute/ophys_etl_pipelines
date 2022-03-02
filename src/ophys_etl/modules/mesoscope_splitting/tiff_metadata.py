@@ -4,6 +4,11 @@ import copy
 import pathlib
 
 
+def _read_metadata(tiff_path: pathlib.Path):
+    return tifffile.read_scanimage_metadata(
+                        open(tiff_path, 'rb'))
+
+
 class ScanImageMetadata(object):
     """
     A class to handle reading and parsing the metadata that
@@ -20,8 +25,7 @@ class ScanImageMetadata(object):
         if not tiff_path.is_file():
             raise ValueError(f"{tiff_path.resolve().absolute()} "
                              "is not a file")
-        self._metadata = tifffile.read_scanimage_metadata(
-                                          open(tiff_path, 'rb'))
+        self._metadata = _read_metadata(tiff_path)
 
     @property
     def defined_rois(self) -> List[dict]:
@@ -38,7 +42,7 @@ class ScanImageMetadata(object):
             roi_parent = self._metadata[1]['RoiGroups']
             roi_group = roi_parent['imagingRoiGroup']['rois']
             if isinstance(roi_group, dict):
-                self._defined_rois = [roi_group]
+                self._defined_rois = [roi_group, ]
             elif isinstance(roi_group, list):
                 self._defined_rois = roi_group
             else:
@@ -66,7 +70,7 @@ class ScanImageMetadata(object):
         Return a list of the z-values at which the specified
         ROI was scanned
         """
-        if i_roi > self.n_rois:
+        if i_roi >= self.n_rois:
             msg = f"You asked for ROI {i_roi}; "
             msg += f"there are only {self.n_rois} "
             msg += "specified in this TIFF file"
@@ -81,7 +85,16 @@ class ScanImageMetadata(object):
         key_to_use = 'SI.hStackManager.zsAllActuators'
         if key_to_use in self._metadata[0]:
             return self._metadata[0][key_to_use]
-        return self._metadata[0]['SI.hStackManager.zs']
+
+        other_key = 'SI.hStackManager.zs'
+        if other_key not in self._metadata[0]:
+            msg = "Cannot load all_zs from "
+            msg += f"{self._file_path.resolve().absolute()}\n"
+            msg += f"Neither {key_to_use} nor "
+            msg += f"{other_key} present"
+            raise ValueError(msg)
+
+        return self._metadata[0][other_key]
 
     def roi_center(self,
                    i_roi: int,

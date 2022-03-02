@@ -30,6 +30,7 @@ class ZStackSplitter(object):
                                            "discretePlaneMode==0 for "
                                            "{tiff_path}")
                     this_roi = i_roi
+
             if this_roi is None:
                 raise RuntimeError("Could not find discretePlaneMode==0 for "
                                    f"{tiff_path}")
@@ -40,7 +41,6 @@ class ZStackSplitter(object):
                                    f"{z_array}")
 
             z_mean = z_array.mean(axis=0)
-            assert z_mean.shape == (2,)
             if (z_mean % 1).max() > 1.0e-6:
                 raise RuntimeError(f"mean z values for {tiff_path} are not "
                                    f"integers: {z_mean}")

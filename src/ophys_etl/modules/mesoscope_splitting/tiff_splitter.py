@@ -1,4 +1,4 @@
-from typing import List, Set, Tuple
+from typing import List, Set, Tuple, Optional
 import tifffile
 import h5py
 import pathlib
@@ -28,6 +28,7 @@ class ScanImageTiffSplitter(object):
 
         self._validate_z_stack()
         self._get_z_manifest()
+        self._frame_shape = dict()
 
     def _validate_z_stack(self):
         """
@@ -121,7 +122,6 @@ class ScanImageTiffSplitter(object):
 
         self._valid_z_per_roi = valid_z_per_roi
         self._n_valid_zs = 0
-        self._n_rois = len(valid_z_per_roi)
         self._roi_z_manifest = []
         ct = 0
         i_roi = 0
@@ -150,7 +150,7 @@ class ScanImageTiffSplitter(object):
 
     @property
     def n_rois(self) -> int:
-        return self._n_rois
+        return self._metadata.n_rois
 
     @property
     def n_pages(self):
@@ -158,6 +158,9 @@ class ScanImageTiffSplitter(object):
             with tifffile.TiffFile(self._file_path, 'rb') as tiff_file:
                 self._n_pages = len(tiff_file.pages)
         return self._n_pages
+
+    def roi_center(self, i_roi: int) -> Tuple[float, float]:
+        return self._metadata.roi_center(i_roi=i_roi)
 
     def _get_offset(self, i_roi: int, z_value: int) -> int:
         found_it = False
@@ -198,14 +201,58 @@ class ScanImageTiffSplitter(object):
             for i_page in range(offset, self.n_pages, self.n_valid_zs):
                 arr = tiff_file.pages[i_page].asarray()
                 tiff_data.append(arr)
+                key_pair = (i_roi, z_value)
+                if key_pair in self._frame_shape:
+                    if arr.shape != self._frame_shape[key_pair]:
+                        msg = f"ROI {i_roi} z_value {z_value}\n"
+                        msg += "yields inconsistent frame shape"
+                        raise RuntimeError(msg)
+                else:
+                    self._frame_shape[key_pair] = arr.shape
+
 
         return tiff_data
 
+    def frame_shape(self,
+                    i_roi: int,
+                    z_value: Optional[int]) -> Tuple[int, int]:
+        if z_value is None:
+            z_value = self._get_z_value(i_roi=i_roi)
+
+        key_pair = (i_roi, z_value)
+
+        if key_pair not in self._frame_shape:
+            offset = self._get_offset(i_roi=i_roi, z_value=z_value)
+            with tifffile.TiffFile(self._file_path, 'rb') as tiff_file:
+                page = tiff_file.pages[0].asarray()
+                self._frame_shape[key_pair] = page.shape
+        return self._frame_shape[key_pair]
+
+    def _get_z_value(self, i_roi: int) -> int:
+        # When splitting surface TIFFs, there's no sensible
+        # way to know the z-value ahead of time (whatever the
+        # operator enters is just a placeholder). The block
+        # of code below will scan for z-values than align with
+        # the specified ROI ID and select the correct z value
+        # (assuming there is only one)
+        possible_z_values = []
+        for pair in self.roi_z_manifest:
+            if pair[0] == i_roi:
+                possible_z_values.append(pair[1])
+        if len(possible_z_values) > 1:
+            msg = f"{len(possible_z_values)} possible z values "
+            msg += f"for ROI {i_roi}; must specify one of\n"
+            msg += f"{possible_z_values}"
+            raise RuntimeError(msg)
+        z_value = possible_z_values[0]
+        return z_value
+
     def write_image_tiff(self,
                          i_roi: int,
-                         z_value: int,
+                         z_value: Optional[int],
                          tiff_path: pathlib.Path) -> None:
-
+        if z_value is None:
+            z_value = self._get_z_value(i_roi=i_roi)
         data = np.array(self._get_data(i_roi=i_roi, z_value=z_value))
         avg_img = np.mean(data, axis=0)
         avg_img = normalize_array(array=avg_img,

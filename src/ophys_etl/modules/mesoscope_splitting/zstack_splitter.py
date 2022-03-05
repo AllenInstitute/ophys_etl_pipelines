@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 import tifffile
 import h5py
 import pathlib
@@ -10,18 +10,19 @@ from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
 class ZStackSplitter(object):
 
     def __init__(self, tiff_path_list: List[pathlib.Path]):
-        path_to_metadata = dict()
+        self._path_to_metadata = dict()
+        self._frame_shape = dict()
         for tiff_path in tiff_path_list:
             str_path = str(tiff_path.resolve().absolute())
-            path_to_metadata[str_path] = ScanImageMetadata(
+            self._path_to_metadata[str_path] = ScanImageMetadata(
                                                 tiff_path=tiff_path)
 
         # construct lookup tables to help us map ROI index and z-value
         # to a tiff path and an index in the z-array
         self._roi_z_to_path = dict()
         self._path_z_to_index = dict()
-        for tiff_path in path_to_metadata.keys():
-            metadata = path_to_metadata[tiff_path]
+        for tiff_path in self._path_to_metadata.keys():
+            metadata = self._path_to_metadata[tiff_path]
             this_roi = None
             for i_roi, roi in enumerate(metadata.defined_rois):
                 if roi['discretePlaneMode'] == 0:
@@ -49,18 +50,51 @@ class ZStackSplitter(object):
                 self._path_z_to_index[(tiff_path, int(z_value))] = ii
 
         self._path_to_pages = dict()
-        for tiff_path in path_to_metadata.keys():
+        for tiff_path in self._path_to_metadata.keys():
             with tifffile.TiffFile(tiff_path, 'rb') as tiff_file:
                 self._path_to_pages[tiff_path] = len(tiff_file.pages)
+
+    def roi_center(self, i_roi: int) -> Tuple[float, float]:
+        center_tol = 1.0e-5
+        possible_center = []
+        for pair in self._roi_z_to_path:
+            if pair[0] != i_roi:
+                continue
+            tiff_path = self._roi_z_to_path[pair]
+            metadata = self._path_to_metadata[tiff_path]
+            possible_center.append(metadata.roi_center(i_roi=i_roi))
+
+        baseline_center = possible_center[0]
+        for ii in range(1, len(possible_center)):
+            center = possible_center[ii]
+            dsq = ((center[0]-baseline_center[0])**2
+                   + (center[1]-baseline_center[1])**2)
+            if dsq > center_tol:
+                msg = "Cannot find consistent center for ROI "
+                msg += f"{i_roi}"
+        return baseline_center
+
+    def frame_shape(self, i_roi:int, z_value:int) -> Tuple[int, int]:
+        tiff_path = self._roi_z_to_path[(i_roi, z_value)]
+        z_index = self._path_z_to_index[(tiff_path, z_value)]
+        with tifffile.TiffFile(tiff_path, 'rb') as tiff_file:
+            page = tiff_file.pages[z_index].asarray()
+        return page.shape
 
     def _get_data(self, i_roi: int, z_value: int) -> np.ndarray:
         tiff_path = self._roi_z_to_path[(i_roi, z_value)]
         z_index = self._path_z_to_index[(tiff_path, z_value)]
         data = []
         n_pages = self._path_to_pages[tiff_path]
+        baseline_shape = self.frame_shape(i_roi=i_roi, z_value=z_value)
         with tifffile.TiffFile(tiff_path, 'rb') as tiff_file:
             for i_page in range(z_index, n_pages, 2):
-                data.append(tiff_file.pages[i_page].asarray())
+                this_page = tiff_file.pages[i_page].asarray()
+                if this_page.shape != baseline_shape:
+                    msg = f"ROI {i_roi} z_value {z_value} "
+                    msg += "give inconsistent page shape"
+                    raise RuntimeError(msg)
+                data.append(this_page)
         return np.stack(data)
 
     def write_stack_h5(self,

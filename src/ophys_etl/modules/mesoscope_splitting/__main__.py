@@ -1,8 +1,19 @@
-from argschmea import ArgschemaParser
-
+from argschema import ArgSchemaParser
+import pathlib
+import time
 
 from ophys_etl.modules.mesoscope_splitting.schemas import (
     InputSchema, OutputSchema)
+
+from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
+    ScanImageTiffSplitter,
+    TimeSeriesSplitter)
+
+from ophys_etl.modules.mesoscope_splitting.zstack_splitter import (
+    ZStackSplitter)
+
+from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
+    ScanImageMetadata)
 
 
 class TiffSplitterCLI(ArgSchemaParser):
@@ -10,104 +21,214 @@ class TiffSplitterCLI(ArgSchemaParser):
     default_output_schema = OutputSchema
 
     def run(self):
+        t0 = time.time()
+        output = {"column_stacks": []}
+        files_to_record = []
 
-        # check for repeated z value
-        ts_mesoscope_tiff = MesoscopeTiff(mod.args["timeseries_tif"])
-        checks.check_for_repeated_planes(ts_mesoscope_tiff)
+        ts_path = pathlib.Path(self.args['timeseries_tif'])
+        timeseries_splitter = TimeSeriesSplitter(tiff_path=ts_path)
+        files_to_record.append(ts_path)
 
-        # check consistency between input json and tiff headers
-        check_list = []
-        for plane_group in mod.args["plane_groups"]:
-            pg_tiff = Path(plane_group["local_z_stack_tif"])
-            roi_index = list({i["roi_index"]
-                              for i in plane_group["ophys_experiments"]})
-            check_list.append(
-                checks.ConsistencyInput(tiff=pg_tiff, roi_index=roi_index))
-        checks.splitting_consistency_check(check_list)
+        depth_path = pathlib.Path(self.args["depths_tif"])
+        depth_splitter = ScanImageTiffSplitter(tiff_path=depth_path)
+        files_to_record.append(depth_path)
 
-        # end checks
+        surface_path = pathlib.Path(self.args["surface_tif"])
+        surface_splitter = ScanImageTiffSplitter(tiff_path=surface_path)
+        files_to_record.append(surface_path)
 
-        if mod.args['test_mode']:
-            global volume_to_h5, volume_to_tif
-            volume_to_h5 = mock_h5
-            volume_to_tif = mock_tif
+        zstack_path_list = []
+        for plane_grp in self.args['plane_groups']:
+            zstack_path = pathlib.Path(plane_grp['local_z_stack_tif'])
+            zstack_path_list.append(zstack_path)
+            files_to_record.append(zstack_path)
 
-        stack_tifs = set()
+        zstack_splitter = ZStackSplitter(tiff_path_list=zstack_path_list)
+
         ready_to_archive = set()
-        session_storage = mod.args["storage_directory"]
 
-        output = {"column_stacks": [],
-                  "file_metadata": []}
+        # Looking at recent examples of outputs from this queue,
+        # I do not think we have honored the 'column_z_stack_tif'
+        # entry in the schema for some time now. I find no examples
+        # in which this entry of the input.jon is ever populated.
+        # I am leaving it here for now to avoid the complication of
+        # having to modify the ruby strategy associated with this
+        # queue, which is out of scope for the work we have
+        # currently committed to.
+        for plane_group in self.args["plane_groups"]:
+            if "column_z_stack_tif" in plane_group:
+                msg = "'column_z_stack_tif' detected in 'plane_groups'; "
+                msg += "the TIFF splitting code no longer handles that file."
+                self.logger.warn(msg)
 
-        experiments = []
-        z_outs = {}
+        # how far apart are we going to allow two ROI center
+        # to be and still be considered "the same"
+        center_dsq_tol = 1.0e-6
 
-        for plane_group in mod.args["plane_groups"]:
-            column_stack = plane_group.get("column_z_stack_tif", None)
-            if column_stack:
-                ready_to_archive.add(column_stack)
-                if column_stack not in stack_tifs:
-                    try:
-                        out, meta = convert_column(
-                            column_stack,
-                            session_storage,
-                            plane_group["ophys_experiments"][0])
-                        output["column_stacks"].append(out)
-                        output["file_metadata"].append(meta)
-                    except ValueError as e:
-                        # don't break on failed column stack conversion
-                        logging.error(e)
-                    stack_tifs.add(column_stack)
+        experiment_metadata = []
+        for plane_group in self.args["plane_groups"]:
+            for experiment in plane_group["ophys_experiments"]:
+                this_exp_metadata = dict()
+                this_exp_metadata["experiment_id"] = experiment["experiment_id"]
+                for file_key in ('timeseries',
+                                 'depth_2p',
+                                 'surface_2p',
+                                 'local_z_stack'):
+                    this_metadata = dict()
+                    for data_key in ('offset_x',
+                                     'offset_y',
+                                     'rotation',
+                                     'resolution'):
+                        this_metadata[data_key] = experiment[data_key]
+                    this_exp_metadata[file_key] = this_metadata
 
-            for exp in plane_group["ophys_experiments"]:
-                localz = plane_group["local_z_stack_tif"]
-                ready_to_archive.add(localz)
+                # TODO make sure we record this metadata
+                # for each file in the output json
+                # https://github.com/AllenInstitute/ophys_etl_pipelines/blob/main/src/ophys_etl/modules/mesoscope_splitting/__main__.py#L47-L63
 
-                localz_tiff = MesoscopeTiff(localz)
-                out, meta = split_z(localz_tiff, exp)
+                experiment_dir = pathlib.Path(experiment["storage_directory"])
+                experiment_id = experiment["experiment_id"]
+                roi_index = experiment["roi_index"]
+                scanfield_z = experiment["scanfield_z"]
 
-                if localz not in stack_tifs:
-                    output["file_metadata"].append(meta)
-                    stack_tifs.add(localz)
+                roi_center = depth_splitter.roi_center(i_roi=roi_index)
+                depth_name = f"{experiment_id}_depth.tif"
+                depth_out_path = experiment_dir / depth_name
+                depth_splitter.write_image_tiff(
+                                    i_roi=roi_index,
+                                    z_value=scanfield_z,
+                                    tiff_path=depth_out_path)
+                str_path = str(depth_out_path.resolve().absolute())
+                this_exp_metadata['depth_2p']['filename'] = str_path
+                frame_shape = depth_splitter.frame_shape(
+                                       i_roi=roi_index,
+                                       z_value=scanfield_z)
+                this_exp_metadata['depth_2p']['height'] = frame_shape[0]
+                this_exp_metadata['depth_2p']['width'] = frame_shape[1]
 
-                experiments.append(exp)
-                z_outs[exp["experiment_id"]] = out
+                self.logger.info("wrote "
+                                 f"{depth_out_path.resolve().absolute()}")
 
-        sf_mesoscope_tiff = MesoscopeTiff(mod.args["surface_tif"])
-        surf_outs, surf_meta = split_image(sf_mesoscope_tiff,
-                                           experiments,
-                                           "surface")
+                surface_name = f"{experiment_id}_surface.tif"
+                surface_out_path = experiment_dir / surface_name
+                surface_center = surface_splitter.roi_center(i_roi=roi_index)
+                str_path = str(surface_out_path.resolve().absolute())
+                this_exp_metadata['surface_2p']['filename'] = str_path
+                frame_shape = surface_splitter.frame_shape(
+                                         i_roi=roi_index,
+                                         z_value=None)
+                this_exp_metadata['surface_2p']['height'] = frame_shape[0]
+                this_exp_metadata['surface_2p']['width'] = frame_shape[1]
 
-        dp_mesoscope_tiff = MesoscopeTiff(mod.args["depths_tif"])
-        depth_outs, depth_meta = split_image(dp_mesoscope_tiff,
-                                             experiments,
-                                             "depth")
+                # check that the depth and surface ROIs are aligned
+                center_dsq = ((surface_center[0]-roi_center[0])**2
+                              + (surface_center[1]-roi_center[1])**2)
 
-        ts_outs, ts_meta = split_timeseries(ts_mesoscope_tiff,
-                                            experiments)
+                if center_dsq > center_dsq_tol:
+                    msg = f"experiment {experiment_id}\n"
+                    msg += f"depth roi center {roi_center}\n"
+                    msg += f"surface roi center {surface_center}\n"
+                    msg += "are inconsistent"
+                    raise RuntimeError(msg)
 
-        output["file_metadata"].extend([surf_meta, depth_meta, ts_meta])
+                surface_splitter.write_image_tiff(
+                                    i_roi=roi_index,
+                                    z_value=None,
+                                    tiff_path=surface_out_path)
 
-        exp_out = []
-        for exp in experiments:
-            eid = exp["experiment_id"]
-            exp_data = {"experiment_id": eid,
-                        "local_z_stack": z_outs[eid],
-                        "surface_2p": surf_outs[eid],
-                        "depth_2p": depth_outs[eid],
-                        "timeseries": ts_outs[eid]}
-            exp_out.append(exp_data)
+                self.logger.info(
+                      f"wrote {surface_out_path.resolve().absolute()}")
 
-        output["experiment_output"] = exp_out
+                zstack_name = f"{experiment_id}_z_stack_local.h5"
+                zstack_out_path = experiment_dir / zstack_name
+                zstack_center = zstack_splitter.roi_center(i_roi=roi_index)
+                str_path = str(zstack_out_path.resolve().absolute())
+                this_exp_metadata['local_z_stack']['filename'] = str_path
 
-        ready_to_archive.add(mod.args["surface_tif"])
-        ready_to_archive.add(mod.args["depths_tif"])
-        ready_to_archive.add(mod.args["timeseries_tif"])
+                # check that the depth and zstack ROIs are aligned
+                center_dsq = ((zstack_center[0]-roi_center[0])**2
+                              + (zstack_center[1]-roi_center[1])**2)
+
+                if center_dsq > center_dsq_tol:
+                    msg = f"experiment {experiment_id}\n"
+                    msg += f"depth roi center {roi_center}\n"
+                    msg += f"zstack roi center {zstack_center}\n"
+                    msg += "are inconsistent"
+                    raise RuntimeError(msg)
+
+                zstack_splitter.write_stack_h5(
+                                    i_roi=roi_index,
+                                    z_value=scanfield_z,
+                                    zstack_path=zstack_out_path)
+
+                frame_shape = zstack_splitter.frame_shape(
+                                    i_roi=roi_index,
+                                    z_value=scanfield_z)
+
+                this_exp_metadata['local_z_stack']['height'] = frame_shape[0]
+                this_exp_metadata['local_z_stack']['width'] = frame_shape[1]
+
+                self.logger.info(
+                      f"wrote {zstack_out_path.resolve().absolute()}")
+
+                timeseries_name = f"{experiment_id}.h5"
+                timeseries_out_path = experiment_dir / timeseries_name
+                timeseries_center = timeseries_splitter.roi_center(
+                                                            i_roi=roi_index)
+                str_path = str(timeseries_out_path.resolve().absolute())
+                this_exp_metadata['timeseries']['filename'] = str_path
+
+                # check that the depth and timeseries ROIs are aligned
+                center_dsq = ((timeseries_center[0]-roi_center[0])**2
+                              + (timeseries_center[1]-roi_center[1])**2)
+
+                if center_dsq > center_dsq_tol:
+                    msg = f"experiment {experiment_id}\n"
+                    msg += f"depth roi center {roi_center}\n"
+                    msg += f"surface roi center {timeseries_center}\n"
+                    msg += "are inconsistent"
+                    raise RuntimeError(msg)
+
+                timeseries_splitter.write_video_h5(
+                                        i_roi=roi_index,
+                                        z_value=scanfield_z,
+                                        h5_path=timeseries_out_path)
+
+                frame_shape = timeseries_splitter.frame_shape(
+                                        i_roi=roi_index,
+                                        z_value=scanfield_z)
+                this_exp_metadata['timeseries']['height'] = frame_shape[0]
+                this_exp_metadata['timeseries']['width'] = frame_shape[1]
+
+                self.logger.info(
+                       f"wrote {timeseries_out_path.resolve().absolute()}")
+
+                experiment_metadata.append(this_exp_metadata)
+
+        output["experiment_output"] = experiment_metadata
+
+        ready_to_archive.add(self.args["surface_tif"])
+        ready_to_archive.add(self.args["depths_tif"])
+        ready_to_archive.add(self.args["timeseries_tif"])
+        for zstack_path in zstack_path_list:
+            ready_to_archive.add(str(zstack_path.resolve().absolute()))
 
         output["ready_to_archive"] = list(ready_to_archive)
 
-        mod.output(output, indent=1)
+        # record file metadata
+        file_metadata = []
+        for file_path in files_to_record:
+            tiff_metadata = ScanImageMetadata(file_path)
+            this_metadata = dict()
+            this_metadata['input_tif'] = str(file_path.resolve().absolute())
+            this_metadata['scanimage_metadata'] = tiff_metadata._metadata[0]
+            this_metadata['roi_metadata'] = tiff_metadata._metadata[1]
+            file_metadata.append(this_metadata)
+        output["file_metadata"] = file_metadata
 
+        self.output(output, indent=1)
+        duration = time.time()-t0
+        self.logger.info(f"that took {duration:.2e} seconds")
 
 if __name__ == "__main__":
     runner = TiffSplitterCLI()

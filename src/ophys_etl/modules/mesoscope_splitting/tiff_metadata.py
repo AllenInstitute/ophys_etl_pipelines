@@ -109,7 +109,7 @@ class ScanImageMetadata(object):
         if i_roi > self.n_rois:
             msg = f"You asked for ROI {i_roi}; "
             msg += f"there are only {self.n_rois} "
-            msg += "specified in this TIFF file"
+            msg += "specified in {self._file_path.resolve().absolute()}"
             raise ValueError(msg)
 
         scanfields = self.defined_rois[i_roi]['scanfields']

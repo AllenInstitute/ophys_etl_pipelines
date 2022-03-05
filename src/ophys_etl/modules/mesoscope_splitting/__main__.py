@@ -91,15 +91,11 @@ class TiffSplitterCLI(ArgSchemaParser):
         exp_out = []
         for exp in experiments:
             eid = exp["experiment_id"]
-            sync_stride = ts_outs[eid].pop("sync_stride")
-            sync_offset = ts_outs[eid].pop("sync_offset")
             exp_data = {"experiment_id": eid,
                         "local_z_stack": z_outs[eid],
                         "surface_2p": surf_outs[eid],
                         "depth_2p": depth_outs[eid],
-                        "timeseries": ts_outs[eid],
-                        "sync_offset": sync_offset,
-                        "sync_stride": sync_stride}
+                        "timeseries": ts_outs[eid]}
             exp_out.append(exp_data)
 
         output["experiment_output"] = exp_out

@@ -48,13 +48,8 @@ class ScanImageTiffSplitter(object):
             msg += f"metadata.all_zs {self._metadata.all_zs()}"
             raise RuntimeError(msg)
 
-        if not isinstance(z_value_array[0], list):
-            msg = "Unclear how to split this TIFF\n"
-            msg += f"{self._file_path.resolve().absolute()}\n"
-            msg += f"metadata.all_zs {self._metadata.all_zs()}"
-            raise RuntimeError(msg)
-
-        z_value_array = np.concatenate(z_value_array)
+        if isinstance(z_value_array[0], list):
+            z_value_array = np.concatenate(z_value_array)
         defined_rois = self._metadata.defined_rois
 
         z_per_roi = []

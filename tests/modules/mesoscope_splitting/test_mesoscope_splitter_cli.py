@@ -27,6 +27,12 @@ def z_to_exp_id_fixture():
 
 
 @pytest.fixture(scope='session')
+def z_list_fixture():
+    z_list = [[2, 1], [3, 4], [6, 5], [8, 7]]
+    return z_list
+
+
+@pytest.fixture(scope='session')
 def roi_index_to_z_fixture():
     return {0: [1, 2, 3, 4], 1: [5, 6, 7, 8]}
 
@@ -38,35 +44,27 @@ def z_to_roi_index_fixture():
 
 
 @pytest.fixture(scope='session')
-def z_to_stack_path_fixture(splitter_tmp_dir_fixture):
+def z_to_stack_path_fixture(splitter_tmp_dir_fixture,
+                            z_list_fixture):
     tmp_dir = splitter_tmp_dir_fixture
+    result = dict()
+    for pair in z_list_fixture:
+        path = tempfile.mkstemp(dir=tmp_dir,
+                                suffix='_z_stack.tiff')[1]
+        result[tuple(pair)] = path
 
-    path_0 = tmp_dir / 'z_stack_0.tiff'
-    path_0 = str(path_0.resolve().absolute())
-
-    path_1 = tmp_dir / 'z_stack_1.tiff'
-    path_1 = str(path_1.resolve().absolute())
-
-    path_2 = tmp_dir / 'z_stack_2.tiff'
-    path_2 = str(path_2.resolve().absolute())
-
-    path_3 = tmp_dir / 'z_stack_3.tiff'
-    path_3 = str(path_3.resolve().absolute())
-
-    return {1: path_0, 2: path_0,
-            3: path_1, 4: path_1,
-            5: path_2, 6: path_2,
-            7: path_3, 8: path_3}
+    return result
 
 
 @pytest.fixture(scope='session')
-def image_metadata_fixture():
+def image_metadata_fixture(z_list_fixture,
+                           roi_index_to_z_fixture):
     """
     List of dicts representing metadata for depth and
     timeseries tiffs
     """
 
-    z_list = [[2, 1], [3, 4], [6, 5], [8, 7]]
+    z_list = z_list_fixture
 
     metadata = []
     si_metadata = dict()
@@ -74,13 +72,14 @@ def image_metadata_fixture():
     metadata.append(si_metadata)
 
     roi_list = []
-    roi_list.append({'zs': [1, 2, 3, 4],
-                     'scanfields': [{'centerXY': [9, 10]},
-                                    {'centerXY': [9, 10]}]})
-
-    roi_list.append({'zs': [5, 6, 7, 8],
-                     'scanfields': [{'centerXY': [11, 12]},
-                                    {'centerXY': [11, 12]}]})
+    roi_index_list = list(roi_index_to_z_fixture.keys())
+    roi_index_list.sort()
+    for roi_index in roi_index_list:
+        zs = roi_index_to_z_fixture[roi_index]
+        this_roi = {'zs': zs,
+                    'scanfields': [{'centerXY': [9+roi_index, 10-roi_index]},
+                                   {'centerXY': [9+roi_index, 10-roi_index]}]}
+        roi_list.append(this_roi)
 
     metadata.append({'RoiGroups': {'imagingRoiGroup': {'rois': roi_list}}})
 
@@ -88,78 +87,48 @@ def image_metadata_fixture():
 
 
 @pytest.fixture(scope='session')
-def surface_metadata_fixture(image_metadata_fixture):
+def surface_metadata_fixture(image_metadata_fixture,
+                             roi_index_to_z_fixture):
     """
     List of dicts representing metadata for surface TIFF
     """
     metadata = copy.deepcopy(image_metadata_fixture)
-    z_list = [[29, 0], [39, 0]]
-    metadata[0]['SI.hStackManager.zsAllActuators'] = z_list
+    n_rois = len(roi_index_to_z_fixture)
+    z_list = []
     rois = metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
-    rois[0]['zs'] = 29
-    rois[1]['zs'] = 39
+    for ii in range(n_rois):
+        val = 1+17*ii
+        z_list.append([val, 0])
+        rois[ii]['zs'] = val
+
+    metadata[0]['SI.hStackManager.zsAllActuators'] = z_list
     return metadata
 
 
 @pytest.fixture(scope='session')
 def zstack_metadata_fixture(splitter_tmp_dir_fixture,
                             image_metadata_fixture,
-                            z_to_stack_path_fixture):
+                            z_to_stack_path_fixture,
+                            z_to_roi_index_fixture):
     """
     Dict mapping z-stack path to metadata for the z-stack file
     """
     result = dict()
-    this_path = z_to_stack_path_fixture[1]
-    this_metadata = copy.deepcopy(image_metadata_fixture)
-    rois = this_metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
-    rois[0]['discretePlaneMode'] = 0
-    rois[1]['discretePlaneMode'] = 1
-    z0_list = np.linspace(1.0, 3.0, 13)
-    z1_list = np.linspace(0.0, 2.0, 13)
-    z_list = []
-    for z0, z1 in zip(z0_list, z1_list):
-        z_list.append([z0, z1])
-    this_metadata[0]['SI.hStackManager.zsAllActuators'] = z_list
-    result[this_path] = this_metadata
-
-    this_path = z_to_stack_path_fixture[3]
-    this_metadata = copy.deepcopy(image_metadata_fixture)
-    rois = this_metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
-    rois[0]['discretePlaneMode'] = 0
-    rois[1]['discretePlaneMode'] = 1
-    z0_list = np.linspace(2.0, 4.0, 13)
-    z1_list = np.linspace(3.0, 5.0, 13)
-    z_list = []
-    for z0, z1 in zip(z0_list, z1_list):
-        z_list.append([z0, z1])
-    this_metadata[0]['SI.hStackManager.zsAllActuators'] = z_list
-    result[this_path] = this_metadata
-
-    this_path = z_to_stack_path_fixture[5]
-    this_metadata = copy.deepcopy(image_metadata_fixture)
-    rois = this_metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
-    rois[0]['discretePlaneMode'] = 1
-    rois[1]['discretePlaneMode'] = 0
-    z0_list = np.linspace(5.0, 7.0, 13)
-    z1_list = np.linspace(4.0, 6.0, 13)
-    z_list = []
-    for z0, z1 in zip(z0_list, z1_list):
-        z_list.append([z0, z1])
-    this_metadata[0]['SI.hStackManager.zsAllActuators'] = z_list
-    result[this_path] = this_metadata
-
-    this_path = z_to_stack_path_fixture[7]
-    this_metadata = copy.deepcopy(image_metadata_fixture)
-    rois = this_metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
-    rois[0]['discretePlaneMode'] = 1
-    rois[1]['discretePlaneMode'] = 0
-    z0_list = np.linspace(7.0, 9.0, 13)
-    z1_list = np.linspace(6.0, 8.0, 13)
-    z_list = []
-    for z0, z1 in zip(z0_list, z1_list):
-        z_list.append([z0, z1])
-    this_metadata[0]['SI.hStackManager.zsAllActuators'] = z_list
-    result[this_path] = this_metadata
+    for pair in z_to_stack_path_fixture:
+        this_path = z_to_stack_path_fixture[pair]
+        this_metadata = copy.deepcopy(image_metadata_fixture)
+        rois = this_metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
+        for ii in range(len(rois)):
+            rois[ii]['discretePlaneMode'] = 1
+        roi_index = z_to_roi_index_fixture[pair[0]]
+        rois[roi_index]['discretePlaneMode'] = 0
+        z0_list = np.linspace(pair[0]-1, pair[0]+1, 13)
+        z1_list = np.linspace(pair[1]-1, pair[1]+1, 13)
+        z_list = []
+        for z0, z1 in zip(z0_list, z1_list):
+            z_list.append([z0, z1])
+        this_metadata[0]['SI.hStackManager.zsAllActuators'] = z_list
+        result[this_path] = this_metadata
 
     return result
 
@@ -331,9 +300,9 @@ def input_json_fixture(
     params['storage_directory'] = str(output_tmp_dir.resolve().absolute())
 
     plane_groups = []
-    for z_pair in ((1, 2), (3, 4), (5, 6), (7, 8)):
+    for z_pair in z_to_stack_path_fixture:
         this_group = dict()
-        z_stack_path = z_to_stack_path_fixture[z_pair[0]]
+        z_stack_path = z_to_stack_path_fixture[z_pair]
         this_group['local_z_stack_tif'] = z_stack_path
         experiments = []
         for zz in z_pair:

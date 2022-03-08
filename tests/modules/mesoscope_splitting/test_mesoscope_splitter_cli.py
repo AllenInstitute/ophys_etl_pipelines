@@ -23,17 +23,18 @@ def z_to_exp_id_fixture():
     dict mapping z value to ophys_experiment_id
     """
     return {2: 222, 1: 111, 3: 333, 4: 444, 5: 555,
-            6: 666, 7:777, 8:888}
+            6: 666, 7: 777, 8: 888}
 
 
 @pytest.fixture(scope='session')
 def roi_index_to_z_fixture():
     return {0: [1, 2, 3, 4], 1: [5, 6, 7, 8]}
 
+
 @pytest.fixture(scope='session')
 def z_to_roi_index_fixture():
-    return {1:0, 2:0, 3:0, 4:0,
-            5:1, 6:1, 7:1, 8:1}
+    return {1: 0, 2: 0, 3: 0, 4: 0,
+            5: 1, 6: 1, 7: 1, 8: 1}
 
 
 @pytest.fixture(scope='session')
@@ -81,7 +82,6 @@ def image_metadata_fixture():
                      'scanfields': [{'centerXY': [11, 12]},
                                     {'centerXY': [11, 12]}]})
 
-
     metadata.append({'RoiGroups': {'imagingRoiGroup': {'rois': roi_list}}})
 
     return metadata
@@ -108,7 +108,6 @@ def zstack_metadata_fixture(splitter_tmp_dir_fixture,
     """
     Dict mapping z-stack path to metadata for the z-stack file
     """
-    tmp_dir = splitter_tmp_dir_fixture
     result = dict()
     this_path = z_to_stack_path_fixture[1]
     this_metadata = copy.deepcopy(image_metadata_fixture)
@@ -266,7 +265,7 @@ def timeseries_fixture(splitter_tmp_dir_fixture,
         exp_id = z_to_exp_id_fixture[zz]
         expected_path = tmp_dir / f'expected_{exp_id}_timeseries.h5'
         with h5py.File(expected_path, 'w') as out_file:
-            out_file.create_dataset('data', data= z_to_data[zz])
+            out_file.create_dataset('data', data=z_to_data[zz])
         result[f'expected_{exp_id}'] = str(expected_path.resolve().absolute())
     return result
 
@@ -323,7 +322,6 @@ def input_json_fixture(
     """
     Return dict of input data for Mesoscope TIFF splitting CLI
     """
-    input_dir = splitter_tmp_dir_fixture
     output_tmp_dir = tmp_path_factory.mktemp('splitter_cli_output')
     output_tmp_dir = pathlib.Path(output_tmp_dir)
     params = dict()

@@ -74,7 +74,7 @@ class ZStackSplitter(object):
                 msg += f"{i_roi}"
         return baseline_center
 
-    def frame_shape(self, i_roi:int, z_value:int) -> Tuple[int, int]:
+    def frame_shape(self, i_roi: int, z_value: int) -> Tuple[int, int]:
         tiff_path = self._roi_z_to_path[(i_roi, z_value)]
         z_index = self._path_z_to_index[(tiff_path, z_value)]
         with tifffile.TiffFile(tiff_path, 'rb') as tiff_file:

@@ -69,7 +69,8 @@ class TiffSplitterCLI(ArgSchemaParser):
         for plane_group in self.args["plane_groups"]:
             for experiment in plane_group["ophys_experiments"]:
                 this_exp_metadata = dict()
-                this_exp_metadata["experiment_id"] = experiment["experiment_id"]
+                exp_id = experiment["experiment_id"]
+                this_exp_metadata["experiment_id"] = exp_id
                 for file_key in ('timeseries',
                                  'depth_2p',
                                  'surface_2p',
@@ -229,6 +230,7 @@ class TiffSplitterCLI(ArgSchemaParser):
         self.output(output, indent=1)
         duration = time.time()-t0
         self.logger.info(f"that took {duration:.2e} seconds")
+
 
 if __name__ == "__main__":
     runner = TiffSplitterCLI()

@@ -210,7 +210,6 @@ class ScanImageTiffSplitter(object):
                 else:
                     self._frame_shape[key_pair] = arr.shape
 
-
         return tiff_data
 
     def frame_shape(self,
@@ -224,7 +223,7 @@ class ScanImageTiffSplitter(object):
         if key_pair not in self._frame_shape:
             offset = self._get_offset(i_roi=i_roi, z_value=z_value)
             with tifffile.TiffFile(self._file_path, 'rb') as tiff_file:
-                page = tiff_file.pages[0].asarray()
+                page = tiff_file.pages[offset].asarray()
                 self._frame_shape[key_pair] = page.shape
         return self._frame_shape[key_pair]
 

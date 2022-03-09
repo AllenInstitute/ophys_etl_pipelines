@@ -8,6 +8,16 @@ from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
 
 
 class ZStackSplitter(object):
+    """
+    Class to handle splitting all of the _local_z_stack.tiff files
+    associated with an OPhys session.
+
+    Parameters
+    ----------
+    tiff_path_list: List[pathlib.Path]
+        List of paths to the _local_z_stack.tiff files
+        associated with this OPhys session.
+    """
 
     def __init__(self, tiff_path_list: List[pathlib.Path]):
         self._path_to_metadata = dict()
@@ -19,8 +29,15 @@ class ZStackSplitter(object):
 
         # construct lookup tables to help us map ROI index and z-value
         # to a tiff path and an index in the z-array
+
+        # map (i_roi, z_value) pairs to TIFF file paths
         self._roi_z_to_path = dict()
+
+        # map (tiff_file_path, z_value) to the index, i.e.
+        # to which scanned z-value *in this TIFF* does the
+        # z-value correspond.
         self._path_z_to_index = dict()
+
         for tiff_path in self._path_to_metadata.keys():
             metadata = self._path_to_metadata[tiff_path]
             this_roi = None
@@ -55,6 +72,10 @@ class ZStackSplitter(object):
                 self._path_to_pages[tiff_path] = len(tiff_file.pages)
 
     def roi_center(self, i_roi: int) -> Tuple[float, float]:
+        """
+        Return the (X, Y) center coordinates for the ROI specified
+        by i_roi.
+        """
         center_tol = 1.0e-5
         possible_center = []
         for pair in self._roi_z_to_path:
@@ -75,6 +96,10 @@ class ZStackSplitter(object):
         return baseline_center
 
     def frame_shape(self, i_roi: int, z_value: int) -> Tuple[int, int]:
+        """
+        Return the (nrows, ncolumns) shape of the first page associated
+        with the specified (i_roi, z_value) pair
+        """
         tiff_path = self._roi_z_to_path[(i_roi, z_value)]
         z_index = self._path_z_to_index[(tiff_path, z_value)]
         with tifffile.TiffFile(tiff_path, 'rb') as tiff_file:
@@ -82,6 +107,11 @@ class ZStackSplitter(object):
         return page.shape
 
     def _get_pages(self, i_roi: int, z_value: int) -> np.ndarray:
+        """
+        Get all of the TIFF pages associated in this z-stack set with
+        an (i_roi, z_value) pair. Return as a numpy array shaped like
+        (n_pages, nrows, ncolumns)
+        """
         tiff_path = self._roi_z_to_path[(i_roi, z_value)]
         z_index = self._path_z_to_index[(tiff_path, z_value)]
         data = []
@@ -101,6 +131,26 @@ class ZStackSplitter(object):
                        i_roi: int,
                        z_value: int,
                        zstack_path: pathlib.Path) -> None:
+        """
+        Write the z-stack for a specific ROI, z pair to an
+        HDF5 file
+
+        Parameters
+        ----------
+        i_roi: int
+            index of the ROI
+
+        z_value: int
+            depth of the plane whose z-stack we are writing
+
+        z_stack_path: pathlib.Path
+            path to the HDF5 file to be written
+
+        Returns
+        -------
+        None
+            output is written to the HDF5 file.
+        """
 
         data = self._get_pages(i_roi=i_roi, z_value=z_value)
         with h5py.File(zstack_path, 'w') as out_file:

@@ -5,6 +5,11 @@ import pathlib
 
 
 def _read_metadata(tiff_path: pathlib.Path):
+    """
+    Calls tifffile.read_scanimage_metadata on the specified
+    path and returns teh result. This method was factored
+    out so that it could be easily mocked in unit tests.
+    """
     return tifffile.read_scanimage_metadata(
                         open(tiff_path, 'rb'))
 
@@ -80,7 +85,13 @@ class ScanImageMetadata(object):
     def all_zs(self) -> List:
         """
         Return the structure that lists the z-values of all scans divided
-        into imaging groups.
+        into imaging groups, i.e.
+
+        scanimage_metadata[0]['SI.hStackManager.zsAllActuators']
+
+        (in historical versions of ScanImage, the desired key is actually
+        'SI.hStackManager.zs'; this method will try that if
+        'zsAllActuators' is not present)
         """
         key_to_use = 'SI.hStackManager.zsAllActuators'
         if key_to_use in self._metadata[0]:
@@ -105,6 +116,19 @@ class ScanImageMetadata(object):
         If the scanfields within an ROI have inconsistent values to within
         absolute tolerance atol, raise an error (this is probably allowed
         by ScanImage; I do not think we are ready to handle it, yet).
+
+        Parameters
+        ----------
+        i_roi: int
+
+        atol: float
+            The tolerance in X and Y within which two
+            points in (X, Y) space are allowed to be the same
+
+        Returns
+        -------
+        center: Tuple[float, float]
+           (X_coord, Y_coord)
         """
         if i_roi > self.n_rois:
             msg = f"You asked for ROI {i_roi}; "

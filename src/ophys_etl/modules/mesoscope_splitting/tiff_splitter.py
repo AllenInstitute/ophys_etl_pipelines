@@ -34,8 +34,10 @@ class ScanImageTiffSplitter(object):
         """
         Make sure that the zsAllActuators are arranged the
         way we expect, i.e.
-        [[roi0_z0, roi0_z1, roi0_z2...],
-         [roi1_z0, roi1_z1, roi1_z2...],
+        [[roi0_z0, roi0_z1, roi0_z2..., roi0_zM],
+         [roi0_zM+1, roi0_zM+2, ...],
+         [roi1_z0, roi1_z1, roi1_z2..., roi1_zM],
+         [roi1_zM+1, roi1_zM+2, ...],
          ...
          [roiN_z0, roiN_z1, roiN_z2...]]
 

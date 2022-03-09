@@ -160,3 +160,20 @@ def test_suite2p_motion_correction(
             np.testing.assert_array_equal(in_pixels, out_pixels)
     if nonrigid:
         assert n_non_rigid_different > 0
+
+    path_list = (corr_video_path, diagnostics_path,
+                 max_projection_path, avg_projection_path,
+                 summary_path, webm_path)
+    for this_path in path_list:
+        this_path = pathlib.Path(this_path)
+        if this_path.is_file():
+            this_path.unlink()
+
+    tmp_dir = pathlib.Path(str_tmpdir)
+    path_list = [n for n in tmp_dir.rglob('*')]
+    for this_path in path_list:
+        if this_path.is_file():
+            try:
+                this_path.unlink()
+            except Exception:
+                pass

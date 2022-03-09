@@ -357,6 +357,15 @@ def test_pairwise_plot_generation(tmpdir, expected_pairwise):
         assert fname in expected_files
     assert ct == len(expected_files)
 
+    tmpdir = pathlib.Path(tmpdir)
+    path_list = [n for n in tmpdir.rglob('*')]
+    for this_path in path_list:
+        if this_path.is_file():
+            try:
+                this_path.unlink()
+            except Exception:
+                pass
+
 
 @pytest.mark.parametrize('mangling_operation', ['some', 'all',
                                                 'both_some',
@@ -513,3 +522,12 @@ def test_pairwise_plot_generation_nans(tmpdir,
         ct += 1
         assert fname in expected_files
     assert ct == len(expected_files)
+
+    tmpdir = pathlib.Path(tmpdir)
+    path_list = [n for n in tmpdir.rglob('*')]
+    for this_path in path_list:
+        if this_path.is_file():
+            try:
+                this_path.unlink()
+            except Exception:
+                pass

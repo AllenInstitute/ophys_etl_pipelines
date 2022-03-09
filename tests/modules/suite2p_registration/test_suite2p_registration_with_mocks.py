@@ -126,6 +126,14 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
     assert np.allclose(obt_motion_offset_df["correlation"],
                        mock_ops_data['corrXY'])
 
+    path_list = [n for n in tmp_path.rglob('*')]
+    for this_path in path_list:
+        if this_path.is_file():
+            try:
+                this_path.unlink()
+            except Exception:
+                pass
+
 
 def test_suite2p_frame_rate_consistency(tmp_path, mock_ops_data):
     """
@@ -178,6 +186,14 @@ def test_suite2p_frame_rate_consistency(tmp_path, mock_ops_data):
             runner = s2preg.Suite2PRegistration(input_data=args, args=[])
             assert runner.args['suite2p_args']['movie_frame_rate_hz'] == 11.0
 
+    path_list = [n for n in tmp_path.rglob('*')]
+    for this_path in path_list:
+        if this_path.is_file():
+            try:
+                this_path.unlink()
+            except Exception:
+                pass
+
 
 def test_suite2p_trim_frames_raises(tmp_path, mock_ops_data):
     h5path = tmp_path / "mc_video.h5"
@@ -228,3 +244,11 @@ def test_suite2p_trim_frames_raises(tmp_path, mock_ops_data):
               'ophys_etl.modules.suite2p_registration.__main__.Suite2PWrapper',
               MockSuite2PWrapper):
                 s2preg.Suite2PRegistration(input_data=args, args=[])
+
+    path_list = [n for n in tmp_path.rglob('*')]
+    for this_path in path_list:
+        if this_path.is_file():
+            try:
+                this_path.unlink()
+            except Exception:
+                pass

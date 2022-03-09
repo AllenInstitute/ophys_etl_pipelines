@@ -1,3 +1,5 @@
+import pathlib
+
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 from ophys_etl.modules.decrosstalk.decrosstalk import run_decrosstalk
 
@@ -24,3 +26,12 @@ def test_run_decrosstalk(tmpdir):
     run_decrosstalk(plane1, plane0,
                     cache_dir=session['qc_output_dir'],
                     clobber=True)
+
+    tmpdir = pathlib.Path(tmpdir)
+    path_list = [n for n in tmpdir.rglob('*')]
+    for this_path in path_list:
+        if this_path.is_file():
+            try:
+                this_path.unlink()
+            except Exception:
+                pass

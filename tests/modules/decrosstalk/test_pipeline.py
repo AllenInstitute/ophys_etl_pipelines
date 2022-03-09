@@ -1,3 +1,4 @@
+import pathlib
 import os
 import h5py
 import json
@@ -74,6 +75,15 @@ def test_run_decrosstalk(tmpdir):
         full_name = os.path.join(output_dir, fname)
         msg = 'could not find %s' % full_name
         assert os.path.isfile(full_name), msg
+
+    tmpdir = pathlib.Path(tmpdir)
+    path_list = [n for n in tmpdir.rglob('*')]
+    for this_path in path_list:
+        if this_path.is_file():
+            try:
+                this_path.unlink()
+            except Exception:
+                pass
 
 
 def test_run_decrosstalk_with_empty_rois(tmpdir):
@@ -152,3 +162,12 @@ def test_run_decrosstalk_with_empty_rois(tmpdir):
         full_name = os.path.join(output_dir, fname)
         msg = 'could not find %s' % full_name
         assert os.path.isfile(full_name), msg
+
+    tmpdir = pathlib.Path(tmpdir)
+    path_list = [n for n in tmpdir.rglob('*')]
+    for this_path in path_list:
+        if this_path.is_file():
+            try:
+                this_path.unlink()
+            except Exception:
+                pass

@@ -81,7 +81,7 @@ class ZStackSplitter(object):
             page = tiff_file.pages[z_index].asarray()
         return page.shape
 
-    def _get_data(self, i_roi: int, z_value: int) -> np.ndarray:
+    def _get_pages(self, i_roi: int, z_value: int) -> np.ndarray:
         tiff_path = self._roi_z_to_path[(i_roi, z_value)]
         z_index = self._path_z_to_index[(tiff_path, z_value)]
         data = []
@@ -102,7 +102,7 @@ class ZStackSplitter(object):
                        z_value: int,
                        zstack_path: pathlib.Path) -> None:
 
-        data = self._get_data(i_roi=i_roi, z_value=z_value)
+        data = self._get_pages(i_roi=i_roi, z_value=z_value)
         with h5py.File(zstack_path, 'w') as out_file:
             out_file.create_dataset('data',
                                     data=data,

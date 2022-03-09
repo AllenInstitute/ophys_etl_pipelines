@@ -128,7 +128,7 @@ def test_depth_splitter(tmp_path_factory,
                         n_rois,
                         use_zs):
     """
-    Test that, when splitting a depth TIFF, _get_data and
+    Test that, when splitting a depth TIFF, _get_pages and
     write_image_tiff behave as expected
     """
 
@@ -157,8 +157,8 @@ def test_depth_splitter(tmp_path_factory,
         splitter = ScanImageTiffSplitter(tiff_path=tiff_path)
         for i_z, z_value in enumerate(z_value_list):
             i_roi = i_z//n_z_per_roi
-            arr = splitter._get_data(i_roi=i_roi,
-                                     z_value=z_value)
+            arr = splitter._get_pages(i_roi=i_roi,
+                                      z_value=z_value)
             assert len(arr) == 5
             for i_page in range(5):
                 expected = page_lookup[(i_roi, z_value)][i_page]
@@ -268,7 +268,7 @@ def test_surface_splitter(tmp_path_factory,
                           z_value_list,
                           use_zs):
     """
-    Test that, when splitting a surface TIFF, _get_data and
+    Test that, when splitting a surface TIFF, _get_pages and
     write_image_tiff behave as expected
     """
 
@@ -298,8 +298,8 @@ def test_surface_splitter(tmp_path_factory,
         splitter = ScanImageTiffSplitter(tiff_path=tiff_path)
         for i_z, z_value in enumerate(z_value_list):
             i_roi = i_z//n_z_per_roi
-            arr = splitter._get_data(i_roi=i_roi,
-                                     z_value=z_value)
+            arr = splitter._get_pages(i_roi=i_roi,
+                                      z_value=z_value)
             assert len(arr) == 5
             for i_page in range(5):
                 expected = page_lookup[(i_roi, z_value)][i_page]
@@ -508,7 +508,7 @@ def test_z_stack_splitter(tmp_path_factory,
 
         for i_roi in range(n_rois):
             for z_value in roi_to_z_mapping[i_roi]:
-                actual = splitter._get_data(
+                actual = splitter._get_pages(
                                      i_roi=i_roi,
                                      z_value=z_value)
                 expected = np.stack(tiff_pages_lookup[(i_roi, z_value)])

@@ -38,6 +38,10 @@ class ScanImageTiffSplitter(object):
          [roi1_z0, roi1_z1, roi1_z2...],
          ...
          [roiN_z0, roiN_z1, roiN_z2...]]
+
+        or, in the case of one ROI
+
+        [z0, z1, z2....]
         """
         z_value_array = self._metadata.all_zs()
 
@@ -70,28 +74,32 @@ class ScanImageTiffSplitter(object):
 
         # check that z values in z_array occurr in ROI order
         offset = 0
-        n_z = len(z_value_array)//len(z_per_roi)
+        n_roi = len(z_per_roi)
+        n_z_per_roi = len(z_value_array)//n_roi
 
         # check that every ROI has the same number of zs
-        if len(z_value_array) % len(z_per_roi) != 0:
+        if len(z_value_array) % n_roi != 0:
             msg += "There do not appear to be an "
             msg += "equal number of zs per ROI\n"
             msg += f"n_z: {len(z_value_array)} "
             msg += f"n_roi: {len(z_per_roi)}\n"
 
         for roi_zs in z_per_roi:
-            these_zs = set(z_value_array[offset:offset+n_z])
+            these_zs = set(z_value_array[offset:offset+n_z_per_roi])
             if these_zs != roi_zs:
-                # might have been a zero placeholder
-                these_zs = set(z_value_array[offset:offset+n_z-1])
-                odd_value = z_value_array[offset+n_z-1]
+                these_zs = set(z_value_array[offset:
+                                             offset+n_z_per_roi-1])
+
+                # might be placeholder value == 0
+                odd_value = z_value_array[offset+n_z_per_roi-1]
+
                 if odd_value != 0 or these_zs != roi_zs:
                     msg += "z_values from sub array "
                     msg += "not in correct order for ROIs; "
                     msg += f"{z_value_array}; "
                     msg += f"{z_per_roi}\n"
                     break
-            offset += n_z
+            offset += n_z_per_roi
 
         if len(msg) > 0:
             full_msg = "Unclear how to split this TIFF\n"
@@ -100,6 +108,10 @@ class ScanImageTiffSplitter(object):
             raise RuntimeError(full_msg)
 
     def _get_z_manifest(self):
+        """
+        Populate various member objects that help us keep
+        track of what z values go with what ROIs in this TIFF
+        """
         local_z_value_list = np.array(self._metadata.all_zs()).flatten()
         defined_rois = self._metadata.defined_rois
 
@@ -133,31 +145,60 @@ class ScanImageTiffSplitter(object):
 
     @property
     def valid_z_per_roi(self) -> List[Set[int]]:
+        """
+        A list. Each element of the list represents an ROI
+        and is a set containg the values of z that occur
+        in that ROI, i.e.
+
+        self.valid_z_per_roi[2]
+
+        is a set of zs that are valie for roi_index=2
+        """
         return self._valid_z_per_roi
 
     @property
     def roi_z_manifest(self) -> List[Tuple[int, int]]:
+        """
+        A list of tuples. Each tuple is a valid
+        (roi_index, z) pair.
+        """
         return self._roi_z_manifest
 
     @property
     def n_valid_zs(self) -> int:
+        """
+        The total number of valid z values associated with this TIFF.
+        """
         return self._n_valid_zs
 
     @property
     def n_rois(self) -> int:
+        """
+        The number of ROIs in this TIFF
+        """
         return self._metadata.n_rois
 
     @property
     def n_pages(self):
+        """
+        The number of pages in this TIFF
+        """
         if not hasattr(self, '_n_pages'):
             with tifffile.TiffFile(self._file_path, 'rb') as tiff_file:
                 self._n_pages = len(tiff_file.pages)
         return self._n_pages
 
     def roi_center(self, i_roi: int) -> Tuple[float, float]:
+        """
+        The (X, Y) center coordinates of roi_index=i_roi
+        """
         return self._metadata.roi_center(i_roi=i_roi)
 
     def _get_offset(self, i_roi: int, z_value: int) -> int:
+        """
+        Get the first page associated with the specified
+        i_roi, z_value pair.
+        """
         found_it = False
         n_step_over = 0
         for roi_z_pair in self.roi_z_manifest:
@@ -171,10 +212,10 @@ class ScanImageTiffSplitter(object):
             raise ValueError(msg)
         return n_step_over
 
-    def _get_data(self, i_roi: int, z_value: int) -> List[np.ndarray]:
+    def _get_pages(self, i_roi: int, z_value: int) -> List[np.ndarray]:
         """
-        Get a list of np.ndarrays representing the image data for
-        ROI i_roi at specified z_value
+        Get a list of np.ndarrays representing the pages of image data
+        for ROI i_roi at the specified z_value
         """
 
         if i_roi >= self.n_rois:
@@ -210,6 +251,24 @@ class ScanImageTiffSplitter(object):
     def frame_shape(self,
                     i_roi: int,
                     z_value: Optional[int]) -> Tuple[int, int]:
+        """
+        Get the shape of the image for a specified ROI at a specified
+        z value
+
+        Parameters
+        ----------
+        i_roi: int
+            index of the ROI
+
+        z_value: Optional[int]
+            value of z. If None, z_value will be detected automaticall
+            (assuming there is no ambiguity)
+
+        Returns
+        -------
+        frame_shape: Tuple[int, int]
+            (nrows, ncolumns)
+        """
         if z_value is None:
             z_value = self._get_z_value(i_roi=i_roi)
 
@@ -223,6 +282,11 @@ class ScanImageTiffSplitter(object):
         return self._frame_shape[key_pair]
 
     def _get_z_value(self, i_roi: int) -> int:
+        """
+        Return the z_value associated with i_roi, assuming
+        there is only one. Raises a RuntimeError if there
+        is more than one.
+        """
         # When splitting surface TIFFs, there's no sensible
         # way to know the z-value ahead of time (whatever the
         # operator enters is just a placeholder). The block
@@ -245,9 +309,31 @@ class ScanImageTiffSplitter(object):
                          i_roi: int,
                          z_value: Optional[int],
                          tiff_path: pathlib.Path) -> None:
+        """
+        Write the image created by averaging all of the TIFF
+        pages associated with an (i_roi, z_value) pair to a TIFF
+        file.
+
+        Parameters
+        ----------
+        i_roi: int
+
+        z_value: Optional[int]
+            If None, will be detected automatically (assuming there
+            is only one)
+
+        tiff_path: pathlib.Path
+            Path to file to be written
+
+        Returns
+        -------
+        None
+            Output is written to tiff_path
+        """
+
         if z_value is None:
             z_value = self._get_z_value(i_roi=i_roi)
-        data = np.array(self._get_data(i_roi=i_roi, z_value=z_value))
+        data = np.array(self._get_pages(i_roi=i_roi, z_value=z_value))
         avg_img = np.mean(data, axis=0)
         avg_img = normalize_array(array=avg_img,
                                   lower_cutoff=None,
@@ -257,9 +343,17 @@ class ScanImageTiffSplitter(object):
 
 
 class TimeSeriesSplitter(ScanImageTiffSplitter):
+    """
+    A class to specifically for splitting timeseries TIFFs
 
-    def _get_data(self, i_roi: int, z_value: int) -> None:
-        msg = "_get_data is not implemented for "
+    Parameters
+    ----------
+    tiff_path: pathlib.Path
+        Path to the TIFF file whose metadata we are parsing
+    """
+
+    def _get_pages(self, i_roi: int, z_value: int) -> None:
+        msg = "_get_pages is not implemented for "
         msg += "TimeSeriesSplitter; the resulting "
         msg += "output would be unreasonably large. "
         msg += "Call write_video_h5 instead to write "
@@ -271,8 +365,24 @@ class TimeSeriesSplitter(ScanImageTiffSplitter):
                        z_value: int,
                        h5_path: pathlib.Path) -> None:
         """
-        Get a list of np.ndarrays representing the image data for
-        ROI i_roi at specified z_value
+        Write all of the pages associated with an
+        (i_roi, z_value) pair to an HDF5 file.
+
+        Parameters
+        ----------
+        i_roi: int
+            index of the ROI
+
+        z_value: int
+            z value of the scanfield plane
+
+        h5_path: pathlib.Path
+            path to the HDF5 file to be written
+
+        Returns
+        -------
+        None
+            output is written to h5_path
         """
 
         if i_roi >= self.n_rois:

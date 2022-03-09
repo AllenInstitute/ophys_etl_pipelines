@@ -46,8 +46,13 @@ were recorded, you must flatten
 `metadata[0]['SI.hStackManager.zsAllActuators']`).
 
 `roi['discretePlaneMode']` this will usuall be set to 1. For a z-stack TIFF
-it will be set to 0 for the ROI to which the z-stack corresponds (that is not
-a typo; 0 indicates the ROI being scanned for that z-stack).
+it will be set to 0 for the ROI to which the z-stack corresponds. This is
+because `discretePlanMode==1` corresponds to an ROI that is only scanned at
+discrete planes, i.e. at the planes defined by the user.
+`discretePlaneMode==0` means the ROI is defined over an entire volume.
+Data is collected whenever the planes specified by
+`SI.hStackManager.zsAllActuators` crosses that volume (the ROI marked with
+`discretePlaneMode==0`).
 
 `roi['scanfields'][ii]['centerXY']` 'scanfields' gives you a list of all of
 the planes scanned in the ROI. 'centerXY' gives you the 2-dimensional center

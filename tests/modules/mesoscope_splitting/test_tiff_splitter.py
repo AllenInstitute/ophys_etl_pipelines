@@ -353,6 +353,11 @@ def test_time_splitter(tmp_path_factory,
                        z_value_list,
                        n_rois,
                        use_zs):
+
+    """
+    Test that, when splitting a timeseries TIFF,
+    write_output_file behaves as expected
+    """
     n_rois = len(z_value_list)
     n_z_per_roi = 1
 
@@ -490,6 +495,10 @@ def _create_z_stack_tiffs(
 def test_z_stack_splitter(tmp_path_factory,
                           z_value_list,
                           use_zs):
+    """
+    Test that _get_pages and write_output_file behave properly
+    for zstack_splitter
+    """
     tmpdir = pathlib.Path(tmp_path_factory.mktemp('z_stack_test'))
 
     n_z_per_roi = 2  # a requirement of the z-stacks

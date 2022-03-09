@@ -1,12 +1,10 @@
+# This file defines all of the independent data fixture necessary
+# to test TIFF splitting in the case of a 4 ROI x 2 plane OPhys session
+# when the same z value is sampled in multiple ROIs
+
 import pytest
-import copy
-import tifffile
 import pathlib
-import h5py
-from unittest.mock import patch
-import numpy as np
-from ophys_etl.modules.mesoscope_splitting.__main__ import (
-    TiffSplitterCLI)
+from utils import run_mesoscope_cli_test
 
 
 @pytest.fixture
@@ -59,74 +57,17 @@ def test_splitter_4x2_with_repeats(
                       timeseries_fixture,
                       zstack_fixture):
 
-    tmp_dir = tmp_path_factory.mktemp('cli_output_json')
-    output_json = pathlib.Path(tmp_dir) / 'output.json'
-    output_json = str(output_json.resolve().absolute())
-    input_json = copy.deepcopy(input_json_fixture)
-    input_json['output_json'] = output_json
-
-    metadata_lookup = copy.deepcopy(zstack_metadata_fixture)
-    metadata_lookup[input_json['timeseries_tif']] = image_metadata_fixture
-    metadata_lookup[input_json['depths_tif']] = image_metadata_fixture
-    metadata_lookup[input_json['surface_tif']] = surface_metadata_fixture
-
-    def mock_read_metadata(tiff_path):
-        str_path = str(tiff_path.resolve().absolute())
-        return metadata_lookup[str_path]
-
-    to_replace = 'ophys_etl.modules.mesoscope_splitting.'
-    to_replace += 'tiff_metadata._read_metadata'
-    with patch(to_replace,
-               new=mock_read_metadata):
-
-        runner = TiffSplitterCLI(
-                    args=[],
-                    input_data=input_json)
-        runner.run()
-
-    exp_ct = 0
-    for plane_group in input_json['plane_groups']:
-        for exp in plane_group['ophys_experiments']:
-            exp_ct += 1
-            exp_dir = exp['storage_directory']
-            exp_dir = pathlib.Path(exp_dir)
-            exp_id = exp['experiment_id']
-            ts_actual = exp_dir / f'{exp_id}.h5'
-            with h5py.File(ts_actual, 'r') as in_file:
-                actual = in_file['data'][()]
-            ts_expected = timeseries_fixture[f'expected_{exp_id}']
-            with h5py.File(ts_expected, 'r') as in_file:
-                expected = in_file['data'][()]
-            np.testing.assert_array_equal(actual, expected)
-
-            depth_actual = exp_dir / f'{exp_id}_depth.tif'
-            with tifffile.TiffFile(depth_actual, 'rb') as in_file:
-                assert len(in_file.pages) == 1
-                actual = in_file.pages[0].asarray()
-            depth_expected = depth_fixture[f'expected_{exp_id}']
-            with tifffile.TiffFile(depth_expected, 'rb') as in_file:
-                assert len(in_file.pages) == 1
-                expected = in_file.pages[0].asarray()
-            np.testing.assert_array_equal(actual, expected)
-
-            surface_actual = exp_dir / f'{exp_id}_surface.tif'
-            with tifffile.TiffFile(surface_actual, 'rb') as in_file:
-                assert len(in_file.pages) == 1
-                actual = in_file.pages[0].asarray()
-
-            roi_index = exp['roi_index']
-            surface_expected = surface_fixture[f'expected_{roi_index}']
-            with tifffile.TiffFile(surface_expected, 'rb') as in_file:
-                assert len(in_file.pages) == 1
-                expected = in_file.pages[0].asarray()
-            np.testing.assert_array_equal(actual, expected)
-
-            stack_actual = exp_dir / f'{exp_id}_z_stack_local.h5'
-            with h5py.File(stack_actual, 'r') as in_file:
-                actual = in_file['data'][()]
-            stack_expected = zstack_fixture[f'expected_{exp_id}']
-            with h5py.File(stack_expected, 'r') as in_file:
-                expected = in_file['data'][()]
-            np.testing.assert_array_equal(actual, expected)
+    tmp_dir = tmp_path_factory.mktemp('cli_output_json_4x2_repeats')
+    tmp_dir = pathlib.Path(tmp_dir)
+    exp_ct = run_mesoscope_cli_test(
+                input_json=input_json_fixture,
+                tmp_dir=tmp_dir,
+                zstack_metadata=zstack_metadata_fixture,
+                surface_metadata=surface_metadata_fixture,
+                image_metadata=image_metadata_fixture,
+                depth_data=depth_fixture,
+                surface_data=surface_fixture,
+                timeseries_data=timeseries_fixture,
+                zstack_data=zstack_fixture)
 
     assert exp_ct == 8

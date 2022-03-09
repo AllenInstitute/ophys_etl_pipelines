@@ -1,3 +1,22 @@
+# The fixtures in this file can be strung together to generate
+# a self consistent TIFF splitting dataset provided that the following
+# independent fixtures are defined:
+
+# z_to_exp_id_fixture -- Returning a dict mapping (z0, z1) tuples to a dict
+# that maps individual  values to experiment_id
+
+# z_list_fixture -- Returning the list you would expect to find in
+# SI.hStackManager.zsAllActuators in the ScanImage metadata
+
+# roi_index_to_z_fixture -- returning a dict mapping roi_index
+# to the sub-list of z_values (as represented in z_list_fixture)
+
+# z_to_roi_index_fixture -- Returning a dict mapping a tuple of z values
+# to the roi_index to which those z-values belong
+
+# For an example of how these are implemented self-consistently, see any
+# of the test_*py files in this module
+
 import pytest
 import copy
 import tifffile
@@ -11,6 +30,10 @@ from ophys_etl.utils.array_utils import normalize_array
 @pytest.fixture
 def z_to_stack_path_fixture(splitter_tmp_dir_fixture,
                             z_list_fixture):
+    """
+    Return a dict mapping a tuple of z-values to the path
+    to local_z_stack.tiff corresponding to those z-values
+    """
     tmp_dir = splitter_tmp_dir_fixture
     result = dict()
     for pair in z_list_fixture:
@@ -25,8 +48,7 @@ def z_to_stack_path_fixture(splitter_tmp_dir_fixture,
 def image_metadata_fixture(z_list_fixture,
                            roi_index_to_z_fixture):
     """
-    List of dicts representing metadata for depth and
-    timeseries tiffs
+    ScanImage metadata for depth and timeseries TIFFs
     """
 
     z_list = z_list_fixture
@@ -58,7 +80,7 @@ def image_metadata_fixture(z_list_fixture,
 def surface_metadata_fixture(image_metadata_fixture,
                              roi_index_to_z_fixture):
     """
-    List of dicts representing metadata for surface TIFF
+    ScanImage metadata for surface TIFFs
     """
     metadata = copy.deepcopy(image_metadata_fixture)
     n_rois = len(roi_index_to_z_fixture)
@@ -83,7 +105,8 @@ def zstack_metadata_fixture(splitter_tmp_dir_fixture,
                             z_to_roi_index_fixture,
                             roi_index_to_z_fixture):
     """
-    Dict mapping z-stack path to metadata for the z-stack file
+    Dict mapping z-stack path to ScanImage metadata for
+    the local_z_stack TIFFs
     """
     n_rois = len(roi_index_to_z_fixture)
     result = dict()
@@ -114,9 +137,12 @@ def zstack_fixture(zstack_metadata_fixture,
                    z_to_exp_id_fixture,
                    splitter_tmp_dir_fixture):
     """
-    Create zstack files.
-    Return a dict mapping each individual experiment
-    to its expected zstack as an HDF5 file.
+    Create z-stack tiff files at paths specified in
+    zstack_metadata_fixture
+
+    Also write h5 files containing the expected z-stacks
+    for individual experiments. Return a dict mapping experiment_id
+    to the expected h5 file.
     """
     rng = np.random.default_rng(7123412)
     tmp_dir = splitter_tmp_dir_fixture
@@ -157,8 +183,14 @@ def zstack_fixture(zstack_metadata_fixture,
 def surface_fixture(splitter_tmp_dir_fixture,
                     roi_index_to_z_fixture):
     """
-    Returns path to surface tiff and path to expected tiffs
-    for each ROI
+    Create the raw surface TIFF file as well as the
+    expected TIFFs associated with individual experiments.
+
+    Return a dict mapping
+    'raw' -> the path to the raw surface TIFF
+
+    'expected_{exp_id}' -> the path to the expected TIFF
+    for an individual experiment
     """
     n_rois = len(roi_index_to_z_fixture)
     tmp_dir = splitter_tmp_dir_fixture
@@ -208,9 +240,14 @@ def timeseries_fixture(splitter_tmp_dir_fixture,
                        image_metadata_fixture,
                        z_to_exp_id_fixture):
     """
-    Create timeseries tiff.
-    Return path to raw tiff and the expected HDF5 files for
-    each experiment.
+    Create the raw timeseries TIFF as well as HDF5 files
+    containing the expected videos for individual experiments.
+
+    Returns a dict mapping
+    'raw' -> the path to the raw timeseries TIFF
+
+    'expected_{exp_id}' -> path to the expected HDF5 file for a given
+    experiment
     """
     rng = np.random.default_rng(6123512)
     tmp_dir = splitter_tmp_dir_fixture
@@ -255,8 +292,14 @@ def depth_fixture(splitter_tmp_dir_fixture,
                   image_metadata_fixture,
                   z_to_exp_id_fixture):
     """
-    Create the depth tiff.
-    Return paths to raw tiff and expected output tiffs.
+    Create the raw depth TIFF file as well as the
+    expected TIFFs associated with individual experiments.
+
+    Return a dict mapping
+    'raw' -> the path to the raw depth TIFF
+
+    'expected_{exp_id}' -> the path to the expected TIFF
+    for an individual experiment
     """
     rng = np.random.default_rng(334422)
     tmp_dir = splitter_tmp_dir_fixture

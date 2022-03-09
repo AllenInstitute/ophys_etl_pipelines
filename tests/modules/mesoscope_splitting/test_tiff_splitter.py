@@ -129,7 +129,7 @@ def test_depth_splitter(tmp_path_factory,
                         use_zs):
     """
     Test that, when splitting a depth TIFF, _get_pages and
-    write_image_tiff behave as expected
+    write_output_file behave as expected
     """
 
     tmp_dir = tmp_path_factory.mktemp('test_depth_2x4')
@@ -167,9 +167,9 @@ def test_depth_splitter(tmp_path_factory,
 
             tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
             tmp_path = pathlib.Path(tmp_path)
-            splitter.write_image_tiff(i_roi=i_roi,
-                                      z_value=z_value,
-                                      tiff_path=tmp_path)
+            splitter.write_output_file(i_roi=i_roi,
+                                       z_value=z_value,
+                                       output_path=tmp_path)
             with tifffile.TiffFile(tmp_path, 'rb') as tiff_file:
                 assert len(tiff_file.pages) == 1
                 actual = tiff_file.pages[0].asarray()
@@ -277,7 +277,7 @@ def test_surface_splitter(tmp_path_factory,
                           use_zs):
     """
     Test that, when splitting a surface TIFF, _get_pages and
-    write_image_tiff behave as expected
+    write_output_file behave as expected
     """
 
     n_rois = len(z_value_list)
@@ -316,9 +316,9 @@ def test_surface_splitter(tmp_path_factory,
 
             tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
             tmp_path = pathlib.Path(tmp_path)
-            splitter.write_image_tiff(i_roi=i_roi,
-                                      z_value=z_value,
-                                      tiff_path=tmp_path)
+            splitter.write_output_file(i_roi=i_roi,
+                                       z_value=z_value,
+                                       output_path=tmp_path)
             with tifffile.TiffFile(tmp_path, 'rb') as tiff_file:
                 assert len(tiff_file.pages) == 1
                 actual = tiff_file.pages[0].asarray()
@@ -380,10 +380,10 @@ def test_time_splitter(tmp_path_factory,
             i_roi = i_z//n_z_per_roi
             tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.h5')[1]
             tmp_path = pathlib.Path(tmp_path)
-            splitter.write_video_h5(
+            splitter.write_output_file(
                         i_roi=i_roi,
                         z_value=z_value,
-                        h5_path=tmp_path)
+                        output_path=tmp_path)
             with h5py.File(tmp_path, 'r') as in_file:
                 actual = in_file['data'][()]
             expected = np.stack(page_lookup[(i_roi, z_value)])
@@ -533,10 +533,10 @@ def test_z_stack_splitter(tmp_path_factory,
 
                 tmp_h5 = tempfile.mkstemp(dir=tmpdir, suffix='.h5')[1]
                 tmp_h5 = pathlib.Path(tmp_h5)
-                splitter.write_stack_h5(
+                splitter.write_output_file(
                             i_roi=i_roi,
                             z_value=z_value,
-                            zstack_path=tmp_h5)
+                            output_path=tmp_h5)
                 with h5py.File(tmp_h5, 'r') as in_file:
                     actual = in_file['data'][()]
                 np.testing.assert_array_equal(actual, expected)

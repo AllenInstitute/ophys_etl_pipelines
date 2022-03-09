@@ -95,10 +95,10 @@ class TiffSplitterCLI(ArgSchemaParser):
                 roi_center = depth_splitter.roi_center(i_roi=roi_index)
                 depth_name = f"{experiment_id}_depth.tif"
                 depth_out_path = experiment_dir / depth_name
-                depth_splitter.write_image_tiff(
+                depth_splitter.write_output_file(
                                     i_roi=roi_index,
                                     z_value=scanfield_z,
-                                    tiff_path=depth_out_path)
+                                    output_path=depth_out_path)
                 str_path = str(depth_out_path.resolve().absolute())
                 this_exp_metadata['depth_2p']['filename'] = str_path
                 frame_shape = depth_splitter.frame_shape(
@@ -132,10 +132,10 @@ class TiffSplitterCLI(ArgSchemaParser):
                     msg += "are inconsistent"
                     raise RuntimeError(msg)
 
-                surface_splitter.write_image_tiff(
+                surface_splitter.write_output_file(
                                     i_roi=roi_index,
                                     z_value=None,
-                                    tiff_path=surface_out_path)
+                                    output_path=surface_out_path)
 
                 self.logger.info(
                       f"wrote {surface_out_path.resolve().absolute()}")
@@ -157,10 +157,10 @@ class TiffSplitterCLI(ArgSchemaParser):
                     msg += "are inconsistent"
                     raise RuntimeError(msg)
 
-                zstack_splitter.write_stack_h5(
+                zstack_splitter.write_output_file(
                                     i_roi=roi_index,
                                     z_value=scanfield_z,
-                                    zstack_path=zstack_out_path)
+                                    output_path=zstack_out_path)
 
                 frame_shape = zstack_splitter.frame_shape(
                                     i_roi=roi_index,
@@ -190,10 +190,10 @@ class TiffSplitterCLI(ArgSchemaParser):
                     msg += "are inconsistent"
                     raise RuntimeError(msg)
 
-                timeseries_splitter.write_video_h5(
+                timeseries_splitter.write_output_file(
                                         i_roi=roi_index,
                                         z_value=scanfield_z,
-                                        h5_path=timeseries_out_path)
+                                        output_path=timeseries_out_path)
 
                 frame_shape = timeseries_splitter.frame_shape(
                                         i_roi=roi_index,

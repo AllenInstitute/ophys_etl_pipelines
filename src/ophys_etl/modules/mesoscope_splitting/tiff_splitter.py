@@ -307,10 +307,10 @@ class ScanImageTiffSplitter(object):
         z_value = possible_z_values[0]
         return z_value
 
-    def write_image_tiff(self,
-                         i_roi: int,
-                         z_value: Optional[int],
-                         tiff_path: pathlib.Path) -> None:
+    def write_output_file(self,
+                          i_roi: int,
+                          z_value: Optional[int],
+                          output_path: pathlib.Path) -> None:
         """
         Write the image created by averaging all of the TIFF
         pages associated with an (i_roi, z_value) pair to a TIFF
@@ -324,14 +324,18 @@ class ScanImageTiffSplitter(object):
             If None, will be detected automatically (assuming there
             is only one)
 
-        tiff_path: pathlib.Path
+        output_path: pathlib.Path
             Path to file to be written
 
         Returns
         -------
         None
-            Output is written to tiff_path
+            Output is written to output_path
         """
+
+        if output_path.suffix not in ('.tif', '.tiff'):
+            msg = "expected .tiff output path; "
+            msg += f"you specified {output_path.resolve().absolute()}"
 
         if z_value is None:
             z_value = self._get_z_value(i_roi=i_roi)
@@ -340,7 +344,7 @@ class ScanImageTiffSplitter(object):
         avg_img = normalize_array(array=avg_img,
                                   lower_cutoff=None,
                                   upper_cutoff=None)
-        tifffile.imsave(tiff_path, avg_img)
+        tifffile.imsave(output_path, avg_img)
         return None
 
 
@@ -362,10 +366,10 @@ class TimeSeriesSplitter(ScanImageTiffSplitter):
         msg += "data directly to an HDF5 file."
         raise NotImplementedError(msg)
 
-    def write_video_h5(self,
-                       i_roi: int,
-                       z_value: int,
-                       h5_path: pathlib.Path) -> None:
+    def write_output_file(self,
+                          i_roi: int,
+                          z_value: int,
+                          output_path: pathlib.Path) -> None:
         """
         Write all of the pages associated with an
         (i_roi, z_value) pair to an HDF5 file.
@@ -378,14 +382,19 @@ class TimeSeriesSplitter(ScanImageTiffSplitter):
         z_value: int
             z value of the scanfield plane
 
-        h5_path: pathlib.Path
+        output_path: pathlib.Path
             path to the HDF5 file to be written
 
         Returns
         -------
         None
-            output is written to h5_path
+            output is written to output_path
         """
+
+        if output_path.suffix != '.h5':
+            msg = "expected HDF5 output path; "
+            msg += f"you gave {output_path.resolve().absolute()}"
+            raise ValueError(msg)
 
         if i_roi >= self.n_rois:
             msg = f"You asked for ROI {i_roi}; "
@@ -408,7 +417,7 @@ class TimeSeriesSplitter(ScanImageTiffSplitter):
             fov_shape = eg_array.shape
             video_dtype = eg_array.dtype
 
-            with h5py.File(h5_path, 'w') as out_file:
+            with h5py.File(output_path, 'w') as out_file:
                 out_file.create_dataset(
                             'data',
                             shape=(n_frames, fov_shape[0], fov_shape[1]),

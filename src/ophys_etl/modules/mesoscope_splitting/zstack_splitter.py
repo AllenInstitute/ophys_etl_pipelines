@@ -127,10 +127,10 @@ class ZStackSplitter(object):
                 data.append(this_page)
         return np.stack(data)
 
-    def write_stack_h5(self,
-                       i_roi: int,
-                       z_value: int,
-                       zstack_path: pathlib.Path) -> None:
+    def write_output_file(self,
+                          i_roi: int,
+                          z_value: int,
+                          output_path: pathlib.Path) -> None:
         """
         Write the z-stack for a specific ROI, z pair to an
         HDF5 file
@@ -143,7 +143,7 @@ class ZStackSplitter(object):
         z_value: int
             depth of the plane whose z-stack we are writing
 
-        z_stack_path: pathlib.Path
+        output_path: pathlib.Path
             path to the HDF5 file to be written
 
         Returns
@@ -152,8 +152,13 @@ class ZStackSplitter(object):
             output is written to the HDF5 file.
         """
 
+        if output_path.suffix != '.h5':
+            msg = "expected HDF5 output path; "
+            msg += f"you gave {output_path.resolve().absolute()}"
+            raise ValueError(msg)
+
         data = self._get_pages(i_roi=i_roi, z_value=z_value)
-        with h5py.File(zstack_path, 'w') as out_file:
+        with h5py.File(output_path, 'w') as out_file:
             out_file.create_dataset('data',
                                     data=data,
                                     chunks=(1, data.shape[1], data.shape[2]))

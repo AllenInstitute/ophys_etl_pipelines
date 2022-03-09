@@ -91,118 +91,59 @@ class TiffSplitterCLI(ArgSchemaParser):
                 experiment_id = experiment["experiment_id"]
                 roi_index = experiment["roi_index"]
                 scanfield_z = experiment["scanfield_z"]
+                baseline_center = None
+                for (splitter,
+                     z_value,
+                     output_name,
+                     metadata_tag) in zip(
+                                          (depth_splitter,
+                                           surface_splitter,
+                                           zstack_splitter,
+                                           timeseries_splitter),
+                                          (scanfield_z,
+                                           None,
+                                           scanfield_z,
+                                           scanfield_z),
+                                          (f"{experiment_id}_depth.tif",
+                                           f"{experiment_id}_surface.tif",
+                                           f"{experiment_id}_z_stack_local.h5",
+                                           f"{experiment_id}.h5"),
+                                          ("depth_2p",
+                                           "surface_2p",
+                                           "local_z_stack",
+                                           "timeseries")):
 
-                roi_center = depth_splitter.roi_center(i_roi=roi_index)
-                depth_name = f"{experiment_id}_depth.tif"
-                depth_out_path = experiment_dir / depth_name
-                depth_splitter.write_output_file(
+                    output_path = experiment_dir / output_name
+
+                    roi_center = splitter.roi_center(i_roi=roi_index)
+                    if baseline_center is None:
+                        baseline_center = roi_center
+                    else:
+                        # check that the depth and surface ROIs are aligned
+                        center_dsq = ((baseline_center[0]-roi_center[0])**2
+                                      + (baseline_center[1]-roi_center[1])**2)
+
+                        if center_dsq > center_dsq_tol:
+                            msg = f"experiment {experiment_id}\n"
+                            msg += "roi center in consistnet for "
+                            msg += f"{output_path.resolve().absolute()}\n"
+                            msg += f"{baseline_center}; {roi_center}"
+                            raise RuntimeError(msg)
+
+                    splitter.write_output_file(
                                     i_roi=roi_index,
-                                    z_value=scanfield_z,
-                                    output_path=depth_out_path)
-                str_path = str(depth_out_path.resolve().absolute())
-                this_exp_metadata['depth_2p']['filename'] = str_path
-                frame_shape = depth_splitter.frame_shape(
+                                    z_value=z_value,
+                                    output_path=output_path)
+                    str_path = str(output_path.resolve().absolute())
+                    this_exp_metadata[metadata_tag]['filename'] = str_path
+                    frame_shape = splitter.frame_shape(
                                        i_roi=roi_index,
-                                       z_value=scanfield_z)
-                this_exp_metadata['depth_2p']['height'] = frame_shape[0]
-                this_exp_metadata['depth_2p']['width'] = frame_shape[1]
+                                       z_value=z_value)
+                    this_exp_metadata[metadata_tag]['height'] = frame_shape[0]
+                    this_exp_metadata[metadata_tag]['width'] = frame_shape[1]
 
-                self.logger.info("wrote "
-                                 f"{depth_out_path.resolve().absolute()}")
-
-                surface_name = f"{experiment_id}_surface.tif"
-                surface_out_path = experiment_dir / surface_name
-                surface_center = surface_splitter.roi_center(i_roi=roi_index)
-                str_path = str(surface_out_path.resolve().absolute())
-                this_exp_metadata['surface_2p']['filename'] = str_path
-                frame_shape = surface_splitter.frame_shape(
-                                         i_roi=roi_index,
-                                         z_value=None)
-                this_exp_metadata['surface_2p']['height'] = frame_shape[0]
-                this_exp_metadata['surface_2p']['width'] = frame_shape[1]
-
-                # check that the depth and surface ROIs are aligned
-                center_dsq = ((surface_center[0]-roi_center[0])**2
-                              + (surface_center[1]-roi_center[1])**2)
-
-                if center_dsq > center_dsq_tol:
-                    msg = f"experiment {experiment_id}\n"
-                    msg += f"depth roi center {roi_center}\n"
-                    msg += f"surface roi center {surface_center}\n"
-                    msg += "are inconsistent"
-                    raise RuntimeError(msg)
-
-                surface_splitter.write_output_file(
-                                    i_roi=roi_index,
-                                    z_value=None,
-                                    output_path=surface_out_path)
-
-                self.logger.info(
-                      f"wrote {surface_out_path.resolve().absolute()}")
-
-                zstack_name = f"{experiment_id}_z_stack_local.h5"
-                zstack_out_path = experiment_dir / zstack_name
-                zstack_center = zstack_splitter.roi_center(i_roi=roi_index)
-                str_path = str(zstack_out_path.resolve().absolute())
-                this_exp_metadata['local_z_stack']['filename'] = str_path
-
-                # check that the depth and zstack ROIs are aligned
-                center_dsq = ((zstack_center[0]-roi_center[0])**2
-                              + (zstack_center[1]-roi_center[1])**2)
-
-                if center_dsq > center_dsq_tol:
-                    msg = f"experiment {experiment_id}\n"
-                    msg += f"depth roi center {roi_center}\n"
-                    msg += f"zstack roi center {zstack_center}\n"
-                    msg += "are inconsistent"
-                    raise RuntimeError(msg)
-
-                zstack_splitter.write_output_file(
-                                    i_roi=roi_index,
-                                    z_value=scanfield_z,
-                                    output_path=zstack_out_path)
-
-                frame_shape = zstack_splitter.frame_shape(
-                                    i_roi=roi_index,
-                                    z_value=scanfield_z)
-
-                this_exp_metadata['local_z_stack']['height'] = frame_shape[0]
-                this_exp_metadata['local_z_stack']['width'] = frame_shape[1]
-
-                self.logger.info(
-                      f"wrote {zstack_out_path.resolve().absolute()}")
-
-                timeseries_name = f"{experiment_id}.h5"
-                timeseries_out_path = experiment_dir / timeseries_name
-                timeseries_center = timeseries_splitter.roi_center(
-                                                            i_roi=roi_index)
-                str_path = str(timeseries_out_path.resolve().absolute())
-                this_exp_metadata['timeseries']['filename'] = str_path
-
-                # check that the depth and timeseries ROIs are aligned
-                center_dsq = ((timeseries_center[0]-roi_center[0])**2
-                              + (timeseries_center[1]-roi_center[1])**2)
-
-                if center_dsq > center_dsq_tol:
-                    msg = f"experiment {experiment_id}\n"
-                    msg += f"depth roi center {roi_center}\n"
-                    msg += f"surface roi center {timeseries_center}\n"
-                    msg += "are inconsistent"
-                    raise RuntimeError(msg)
-
-                timeseries_splitter.write_output_file(
-                                        i_roi=roi_index,
-                                        z_value=scanfield_z,
-                                        output_path=timeseries_out_path)
-
-                frame_shape = timeseries_splitter.frame_shape(
-                                        i_roi=roi_index,
-                                        z_value=scanfield_z)
-                this_exp_metadata['timeseries']['height'] = frame_shape[0]
-                this_exp_metadata['timeseries']['width'] = frame_shape[1]
-
-                self.logger.info(
-                       f"wrote {timeseries_out_path.resolve().absolute()}")
+                    self.logger.info("wrote "
+                                     f"{output_path.resolve().absolute()}")
 
                 experiment_metadata.append(this_exp_metadata)
 

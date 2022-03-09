@@ -83,15 +83,12 @@ class TiffSplitterCLI(ArgSchemaParser):
                         this_metadata[data_key] = experiment[data_key]
                     this_exp_metadata[file_key] = this_metadata
 
-                # TODO make sure we record this metadata
-                # for each file in the output json
-                # https://github.com/AllenInstitute/ophys_etl_pipelines/blob/main/src/ophys_etl/modules/mesoscope_splitting/__main__.py#L47-L63
-
                 experiment_dir = pathlib.Path(experiment["storage_directory"])
                 experiment_id = experiment["experiment_id"]
                 roi_index = experiment["roi_index"]
                 scanfield_z = experiment["scanfield_z"]
                 baseline_center = None
+
                 for (splitter,
                      z_value,
                      output_name,

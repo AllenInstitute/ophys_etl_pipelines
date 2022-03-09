@@ -349,4 +349,27 @@ def input_json_fixture(
         plane_groups.append(this_group)
     params['plane_groups'] = plane_groups
     params['log_level'] = 'WARNING'
-    return params
+    yield params
+
+    ts_path = pathlib.Path(params['timeseries_tif'])
+    if ts_path.is_file():
+        ts_path.unlink()
+    depth_path = pathlib.Path(params['depths_tif'])
+    if depth_path.is_file():
+        depth_path.unlink()
+    surface_path = pathlib.Path(params['surface_tif'])
+    if surface_path.is_file():
+        surface_path.unlink()
+
+    for plane_group in params['plane_groups']:
+        zstack_path = pathlib.Path(plane_group['local_z_stack_tif'])
+        if zstack_path.is_file():
+            zstack_path.unlink()
+        for experiment in plane_group['ophys_experiments']:
+            this_dir = pathlib.Path(experiment['storage_directory'])
+            path_list = [n for n in this_dir.rglob('*')]
+            for this_path in path_list:
+                suffix = this_path.suffix
+                if suffix == '.h5' or suffix == '.tiff' or suffix == '.tif':
+                    if this_path.is_file():
+                        this_path.unlink()

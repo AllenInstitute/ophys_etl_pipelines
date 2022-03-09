@@ -177,6 +177,11 @@ def test_depth_splitter(tmp_path_factory,
             np.testing.assert_array_equal(actual,
                                           avg_img_lookup[(i_roi, z_value)])
 
+            if tmp_path.is_file():
+                tmp_path.unlink()
+        if tiff_path.is_file():
+            tiff_path.unlink()
+
 
 @pytest.mark.parametrize(
     "z_value_list, n_rois, use_zs",
@@ -253,6 +258,9 @@ def test_splitter_manifest(tmp_path_factory,
             else:
                 assert pair[1] in roi_zs
 
+    if tiff_path.is_file():
+        tiff_path.unlink()
+
 
 @pytest.mark.parametrize(
     "z_value_list, use_zs",
@@ -317,6 +325,10 @@ def test_surface_splitter(tmp_path_factory,
 
             np.testing.assert_array_equal(actual,
                                           avg_img_lookup[(i_roi, z_value)])
+            if tmp_path.is_file():
+                tmp_path.unlink()
+        if tiff_path.is_file():
+            tiff_path.unlink()
 
 
 @pytest.mark.parametrize(
@@ -376,6 +388,11 @@ def test_time_splitter(tmp_path_factory,
                 actual = in_file['data'][()]
             expected = np.stack(page_lookup[(i_roi, z_value)])
             np.testing.assert_array_equal(expected, actual)
+
+            if tmp_path.is_file():
+                tmp_path.unlink()
+        if tiff_path.is_file():
+            tiff_path.unlink()
 
 
 def _create_z_stack_tiffs(
@@ -523,3 +540,9 @@ def test_z_stack_splitter(tmp_path_factory,
                 with h5py.File(tmp_h5, 'r') as in_file:
                     actual = in_file['data'][()]
                 np.testing.assert_array_equal(actual, expected)
+
+                if tmp_h5.is_file():
+                    tmp_h5.unlink()
+        for z_stack_path in z_stack_path_list:
+            if z_stack_path.is_file():
+                z_stack_path.unlink()

@@ -22,8 +22,10 @@ def z_to_exp_id_fixture():
     """
     dict mapping z value to ophys_experiment_id
     """
-    return {2: 222, 1: 111, 3: 333, 4: 444, 5: 555,
-            6: 666, 7: 777, 8: 888}
+    return {(2, 1): {2: 222, 1: 111},
+            (3, 4): {3: 333, 4: 444},
+            (6, 5): {6: 666, 5: 555},
+            (8, 7): {8: 888, 7: 777}}
 
 
 @pytest.fixture(scope='session')
@@ -39,8 +41,10 @@ def roi_index_to_z_fixture():
 
 @pytest.fixture(scope='session')
 def z_to_roi_index_fixture():
-    return {1: 0, 2: 0, 3: 0, 4: 0,
-            5: 1, 6: 1, 7: 1, 8: 1}
+    return {(2, 1): 0,
+            (3, 4): 0,
+            (6, 5): 1,
+            (8, 7): 1}
 
 
 @pytest.fixture(scope='session')
@@ -120,7 +124,7 @@ def zstack_metadata_fixture(splitter_tmp_dir_fixture,
         rois = this_metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
         for ii in range(len(rois)):
             rois[ii]['discretePlaneMode'] = 1
-        roi_index = z_to_roi_index_fixture[pair[0]]
+        roi_index = z_to_roi_index_fixture[tuple(pair)]
         rois[roi_index]['discretePlaneMode'] = 0
         z0_list = np.linspace(pair[0]-1, pair[0]+1, 13)
         z1_list = np.linspace(pair[1]-1, pair[1]+1, 13)
@@ -154,7 +158,7 @@ def zstack_fixture(zstack_metadata_fixture,
         z0 = np.mean(z_array[0, :]).astype(int)
         z1 = np.mean(z_array[1, :]).astype(int)
         for zz in (z0, z1):
-            exp_id = z_to_exp_id_fixture[zz]
+            exp_id = z_to_exp_id_fixture[(z0, z1)][zz]
             expected_path = tmp_dir / f'{exp_id}_expected_z_stack.h5'
             data = rng.integers(0, 10*zz, (n_pages, 24, 24))
             raw_data[zz] = data
@@ -216,26 +220,33 @@ def timeseries_fixture(splitter_tmp_dir_fixture,
     rng = np.random.default_rng(6123512)
     tmp_dir = splitter_tmp_dir_fixture
     z_list = image_metadata_fixture[0]['SI.hStackManager.zsAllActuators']
-    z_list = np.concatenate(z_list)
     z_to_data = dict()
     n_pages = 13
-    for zz in z_list:
-        data = rng.integers(0, 255, (n_pages, 24, 24))
-        z_to_data[zz] = data
+    for z_pair in z_list:
+        z_pair = tuple(z_pair)
+        z_to_data[z_pair] = {}
+        for zz in z_pair:
+            data = rng.integers(0, 255, (n_pages, 24, 24))
+            z_to_data[z_pair][zz] = data
     tiff_data = []
     for i_page in range(n_pages):
-        for zz in z_list:
-            tiff_data.append(z_to_data[zz][i_page, :, :])
+        for z_pair in z_list:
+            z_pair = tuple(z_pair)
+            for zz in z_pair:
+                tiff_data.append(z_to_data[z_pair][zz][i_page, :, :])
     raw_path = tempfile.mkstemp(dir=tmp_dir, suffix='_timeseries.tiff')[1]
     tifffile.imsave(raw_path, tiff_data)
     result = dict()
     result['raw'] = raw_path
-    for zz in z_list:
-        exp_id = z_to_exp_id_fixture[zz]
-        expected_path = tmp_dir / f'expected_{exp_id}_timeseries.h5'
-        with h5py.File(expected_path, 'w') as out_file:
-            out_file.create_dataset('data', data=z_to_data[zz])
-        result[f'expected_{exp_id}'] = str(expected_path.resolve().absolute())
+    for z_pair in z_list:
+        z_pair = tuple(z_pair)
+        for zz in z_pair:
+            exp_id = z_to_exp_id_fixture[z_pair][zz]
+            expected_path = tmp_dir / f'expected_{exp_id}_timeseries.h5'
+            with h5py.File(expected_path, 'w') as out_file:
+                out_file.create_dataset('data', data=z_to_data[z_pair][zz])
+            str_path = str(expected_path.resolve().absolute())
+            result[f'expected_{exp_id}'] = str_path
     return result
 
 
@@ -250,27 +261,34 @@ def depth_fixture(splitter_tmp_dir_fixture,
     rng = np.random.default_rng(334422)
     tmp_dir = splitter_tmp_dir_fixture
     z_list = image_metadata_fixture[0]['SI.hStackManager.zsAllActuators']
-    z_list = np.concatenate(z_list)
     z_to_data = dict()
     n_pages = 11
-    for zz in z_list:
-        data = rng.integers(zz, 2*zz, (n_pages, 24, 24))
-        z_to_data[zz] = data
+    for z_pair in z_list:
+        z_pair = tuple(z_pair)
+        z_to_data[z_pair] = dict()
+        for zz in z_pair:
+            data = rng.integers(zz, 2*zz, (n_pages, 24, 24))
+            z_to_data[z_pair][zz] = data
     tiff_data = []
     for i_page in range(n_pages):
-        for zz in z_list:
-            tiff_data.append(z_to_data[zz][i_page, :, :])
+        for z_pair in z_list:
+            z_pair = tuple(z_pair)
+            for zz in z_pair:
+                tiff_data.append(z_to_data[z_pair][zz][i_page, :, :])
     raw_path = tempfile.mkstemp(dir=tmp_dir, suffix='_depth.tiff')[1]
     tifffile.imsave(raw_path, tiff_data)
     result = dict()
     result['raw'] = raw_path
-    for zz in z_list:
-        exp_id = z_to_exp_id_fixture[zz]
-        expected_path = tmp_dir / f'expected_{exp_id}_depth.tiff'
-        expected_data = np.mean(z_to_data[zz], axis=0)
-        expected_data = normalize_array(array=expected_data)
-        tifffile.imsave(expected_path, expected_data)
-        result[f'expected_{exp_id}'] = str(expected_path.resolve().absolute())
+    for z_pair in z_list:
+        z_pair = tuple(z_pair)
+        for zz in z_pair:
+            exp_id = z_to_exp_id_fixture[z_pair][zz]
+            expected_path = tmp_dir / f'expected_{exp_id}_depth.tiff'
+            expected_data = np.mean(z_to_data[z_pair][zz], axis=0)
+            expected_data = normalize_array(array=expected_data)
+            tifffile.imsave(expected_path, expected_data)
+            str_path = str(expected_path.resolve().absolute())
+            result[f'expected_{exp_id}'] = str_path
     return result
 
 
@@ -305,16 +323,17 @@ def input_json_fixture(
         z_stack_path = z_to_stack_path_fixture[z_pair]
         this_group['local_z_stack_tif'] = z_stack_path
         experiments = []
+        z_pair = tuple(z_pair)
         for zz in z_pair:
             this_experiment = dict()
-            exp_id = z_to_exp_id_fixture[zz]
+            exp_id = z_to_exp_id_fixture[z_pair][zz]
             exp_dir = output_tmp_dir / f'{exp_id}_dir'
             if not exp_dir.exists():
                 exp_dir.mkdir()
             exp_dir = str(exp_dir.resolve().absolute())
             this_experiment['experiment_id'] = exp_id
             this_experiment['storage_directory'] = exp_dir
-            this_experiment['roi_index'] = z_to_roi_index_fixture[zz]
+            this_experiment['roi_index'] = z_to_roi_index_fixture[z_pair]
             this_experiment['scanfield_z'] = zz
             this_experiment['offset_x'] = 0
             this_experiment['offset_y'] = 0

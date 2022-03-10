@@ -60,7 +60,7 @@ class ScanImageTiffSplitter(IntToZMapperMixin):
             z_value_array = np.concatenate(z_value_array)
         defined_rois = self._metadata.defined_rois
 
-        z_per_roi = []
+        z_int_per_roi = []
 
         msg = ""
 
@@ -71,16 +71,16 @@ class ScanImageTiffSplitter(IntToZMapperMixin):
                 roi_zs = roi['zs']
             else:
                 roi_zs = [roi['zs'], ]
-            roi_zs = [self._int_from_z(z_value=zz)
-                      for zz in roi_zs]
-            z_set = set(roi_zs)
-            if len(z_set) != len(roi_zs):
+            roi_z_ints = [self._int_from_z(z_value=zz)
+                          for zz in roi_zs]
+            z_int_set = set(roi_z_ints)
+            if len(z_int_set) != len(roi_zs):
                 msg += f"roi {i_roi} has duplicate zs: {roi['zs']}\n"
-            z_per_roi.append(z_set)
+            z_int_per_roi.append(z_int_set)
 
         # check that z values in z_array occurr in ROI order
         offset = 0
-        n_roi = len(z_per_roi)
+        n_roi = len(z_int_per_roi)
         n_z_per_roi = len(z_value_array)//n_roi
 
         # check that every ROI has the same number of zs
@@ -88,21 +88,22 @@ class ScanImageTiffSplitter(IntToZMapperMixin):
             msg += "There do not appear to be an "
             msg += "equal number of zs per ROI\n"
             msg += f"n_z: {len(z_value_array)} "
-            msg += f"n_roi: {len(z_per_roi)}\n"
+            msg += f"n_roi: {len(z_int_per_roi)}\n"
 
-        for roi_zs in z_per_roi:
-            these_zs = set([self._int_from_z(z_value=zz)
-                            for zz in
-                            z_value_array[offset:offset+n_z_per_roi]])
-            if these_zs != roi_zs:
-                these_zs = set([self._int_from_z(z_value=zz)
+        for roi_z_ints in z_int_per_roi:
+            these_z_ints = set([self._int_from_z(z_value=zz)
                                 for zz in
-                                z_value_array[offset:offset+n_z_per_roi-1]])
+                                z_value_array[offset:offset+n_z_per_roi]])
+            if these_z_ints != roi_z_ints:
+                these_z_ints = set([self._int_from_z(z_value=zz)
+                                    for zz in
+                                    z_value_array[offset:
+                                                  offset+n_z_per_roi-1]])
 
                 # might be placeholder value == 0
                 odd_value = z_value_array[offset+n_z_per_roi-1]
 
-                if np.abs(odd_value) >= 1.0e-6 or these_zs != roi_zs:
+                if np.abs(odd_value) >= 1.0e-6 or these_z_ints != roi_z_ints:
                     msg += "z_values from sub array "
                     msg += "not in correct order for ROIs; "
                     break
@@ -112,7 +113,7 @@ class ScanImageTiffSplitter(IntToZMapperMixin):
             full_msg = "Unclear how to split this TIFF\n"
             full_msg += f"{self._file_path.resolve().absolute()}\n"
             full_msg += f"{msg}"
-            full_msg += f"all_zs {self._metadata.all_zs()}\nrois:\n"
+            full_msg += f"all_zs {self._metadata.all_zs()}\nfrom rois:\n"
             for roi in self._metadata.defined_rois:
                 full_msg += f"zs: {roi['zs']}\n"
             raise RuntimeError(full_msg)

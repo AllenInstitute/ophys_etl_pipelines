@@ -1,11 +1,11 @@
 import pytest
 from ophys_etl.modules.mesoscope_splitting.mixins import (
-    IntToZMapperMixin)
+    IntFromZMapperMixin)
 
 
 @pytest.mark.parametrize("atol", [0.01, 0.001, 0.0001])
-def test_int_to_z_mapper(atol):
-    mapper = IntToZMapperMixin()
+def test_int_from_z_mapper(atol):
+    mapper = IntFromZMapperMixin()
     f0 = 4.1
     f1 = f0 + 1.01*atol
     f2 = f0 + 0.5*atol

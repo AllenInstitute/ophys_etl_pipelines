@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class IntToZMapperMixin(object):
+class IntFromZMapperMixin(object):
     """
     This mixin defines methods to construct a mapping from
     floats to unique integer identifiers where floats are

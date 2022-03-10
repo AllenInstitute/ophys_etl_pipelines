@@ -5,12 +5,12 @@ import pathlib
 import numpy as np
 from ophys_etl.utils.array_utils import normalize_array
 from ophys_etl.modules.mesoscope_splitting.mixins import (
-    IntToZMapperMixin)
+    IntFromZMapperMixin)
 from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
     ScanImageMetadata)
 
 
-class ScanImageTiffSplitter(IntToZMapperMixin):
+class ScanImageTiffSplitter(IntFromZMapperMixin):
     """
     A class to naively split up a tiff file by just looping over
     the scanfields in its ROIs

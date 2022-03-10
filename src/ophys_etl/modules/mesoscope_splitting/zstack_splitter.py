@@ -4,12 +4,12 @@ import h5py
 import pathlib
 import numpy as np
 from ophys_etl.modules.mesoscope_splitting.mixins import (
-    IntToZMapperMixin)
+    IntFromZMapperMixin)
 from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
     ScanImageMetadata)
 
 
-class ZStackSplitter(IntToZMapperMixin):
+class ZStackSplitter(IntFromZMapperMixin):
     """
     Class to handle splitting all of the _local_z_stack.tiff files
     associated with an OPhys session.

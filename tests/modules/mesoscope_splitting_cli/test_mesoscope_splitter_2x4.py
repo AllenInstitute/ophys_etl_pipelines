@@ -7,6 +7,11 @@ from utils import run_mesoscope_cli_test
 
 
 @pytest.fixture
+def float_resolution_fixture():
+    return 0
+
+
+@pytest.fixture
 def splitter_tmp_dir_fixture(tmp_path_factory):
     tmp_dir = tmp_path_factory.mktemp('splitter_cli_test')
     return pathlib.Path(tmp_dir)

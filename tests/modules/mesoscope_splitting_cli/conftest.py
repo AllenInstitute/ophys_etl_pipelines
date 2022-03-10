@@ -14,6 +14,9 @@
 # z_to_roi_index_fixture -- Returning a dict mapping a tuple of z values
 # to the roi_index to which those z-values belong
 
+# float_resolution_fixture -- an integer indicating how many decimal places
+# to include in float values of z (set to 0 if zs are integers)
+
 # For an example of how these are implemented self-consistently, see any
 # of the test_*py files in this module
 
@@ -135,7 +138,8 @@ def zstack_metadata_fixture(splitter_tmp_dir_fixture,
 @pytest.fixture
 def zstack_fixture(zstack_metadata_fixture,
                    z_to_exp_id_fixture,
-                   splitter_tmp_dir_fixture):
+                   splitter_tmp_dir_fixture,
+                   float_resolution_fixture):
     """
     Create z-stack tiff files at paths specified in
     zstack_metadata_fixture
@@ -156,9 +160,10 @@ def zstack_fixture(zstack_metadata_fixture,
         z0 = np.mean(z_array[0, :])
         z1 = np.mean(z_array[1, :])
         for zz in (z0, z1):
-            if z0 % 1 > 0.05:
-                z_pair = (np.round(z0, decimals=1), np.round(z1, decimals=1))
-                zz = np.round(zz, decimals=1)
+            if float_resolution_fixture > 0:
+                z_pair = (np.round(z0, decimals=float_resolution_fixture),
+                          np.round(z1, decimals=float_resolution_fixture))
+                zz = np.round(zz, decimals=float_resolution_fixture)
             else:
                 z_pair = (z0, z1)
                 zz = zz
@@ -173,8 +178,8 @@ def zstack_fixture(zstack_metadata_fixture,
         tiff_data = []
         for i_page in range(n_pages):
             for zz in (z0, z1):
-                if zz % 1 > 0.05:
-                    zz = np.round(zz, decimals=1)
+                if float_resolution_fixture > 0:
+                    zz = np.round(zz, decimals=float_resolution_fixture)
                 tiff_data.append(raw_data[zz][i_page, :, :])
 
         tifffile.imsave(tmp_dir / tiff_path, tiff_data)

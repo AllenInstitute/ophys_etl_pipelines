@@ -2,7 +2,9 @@ from collections import defaultdict
 
 import h5py
 import numpy as np
+import pathlib
 import pytest
+import tempfile
 
 import imageio_ffmpeg as mpg
 from ophys_etl.types import ExtractROI
@@ -166,3 +168,27 @@ def test_video_bounds_from_ROI(padding, x0, y0, height, width):
     assert origin[1] >= 0
     assert origin[0]+fov[0] <= 128
     assert origin[1]+fov[1] <= 128
+
+
+def test_get_max_and_mean():
+    rng = np.random.default_rng(1234)
+    frames_image_size = 100
+    data = rng.integers(low=0,
+                        high=2,
+                        size=(frames_image_size,
+                              frames_image_size,
+                              frames_image_size),
+                        dtype=int)
+
+    _, video_path = tempfile.mkstemp(
+        suffix='.h5')
+    video_path = pathlib.Path(video_path)
+
+    with h5py.File(video_path, 'w') as h5_file:
+        h5_file.create_dataset(name='data', data=data)
+
+    result = transformations.get_max_and_avg(video_path)
+    np.testing.assert_array_equal(result['max'], 1)
+    np.testing.assert_allclose(result['avg'], data.mean(axis=0))
+
+    video_path.unlink()

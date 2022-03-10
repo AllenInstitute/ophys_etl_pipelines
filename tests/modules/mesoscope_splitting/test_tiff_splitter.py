@@ -234,31 +234,28 @@ def test_splitter_manifest(tmp_path_factory,
         assert splitter.n_pages == 5*len(z_value_list)
         assert splitter.n_valid_zs == len(z_value_list)
         assert splitter.n_rois == n_rois
-        valid_z_per_roi = splitter.valid_z_per_roi
-        assert len(valid_z_per_roi) == n_rois
         offset = 0
-        for roi in valid_z_per_roi:
-            expected = set([splitter._int_from_z(z_value=zz)
-                            for zz in z_value_list[offset:offset+n_z_per_roi]])
-            assert expected == roi
+        for i_roi in range(n_rois):
+            for zz in z_value_list[offset:offset+n_z_per_roi]:
+                assert splitter.is_z_valid_for_roi(i_roi=i_roi, z_value=zz)
             offset += n_z_per_roi
 
         # check for all (i_roi, z) pairs
-        assert len(splitter.roi_z_manifest) == len(z_value_list)
-        for pair in splitter.roi_z_manifest:
+        assert len(splitter.roi_z_int_manifest) == len(z_value_list)
+        for pair in splitter.roi_z_int_manifest:
             i_roi = pair[0]
             roi_grp = metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
             if isinstance(roi_grp, dict):
                 assert i_roi == 0
-                roi_zs = splitter._int_from_z(z_value=roi_grp['zs'])
+                roi_z_ints = splitter._int_from_z(z_value=roi_grp['zs'])
             else:
-                roi_zs = [splitter._int_from_z(z_value=zz)
-                          for zz in roi_grp[i_roi]['zs']]
+                roi_z_ints = [splitter._int_from_z(z_value=zz)
+                              for zz in roi_grp[i_roi]['zs']]
 
-            if isinstance(roi_zs, int):
-                assert pair[1] == roi_zs
+            if isinstance(roi_z_ints, int):
+                assert pair[1] == roi_z_ints
             else:
-                assert pair[1] in roi_zs
+                assert pair[1] in roi_z_ints
 
     if tiff_path.is_file():
         tiff_path.unlink()

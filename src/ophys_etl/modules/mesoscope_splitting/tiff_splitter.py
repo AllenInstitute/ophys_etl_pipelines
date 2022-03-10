@@ -1,4 +1,4 @@
-from typing import List, Set, Tuple, Optional
+from typing import List, Tuple, Optional
 import tifffile
 import h5py
 import pathlib
@@ -131,6 +131,7 @@ class ScanImageTiffSplitter(IntToZMapperMixin):
         # zeros that sometimes get dropped into
         # SI.hStackManager.zsAllActuators
 
+        valid_z_int_per_roi = []
         valid_z_per_roi = []
         for roi in defined_rois:
             this_z_value = roi['zs']
@@ -138,47 +139,45 @@ class ScanImageTiffSplitter(IntToZMapperMixin):
                 this_z_value = [this_z_value, ]
             z_as_int = [self._int_from_z(z_value=zz)
                         for zz in this_z_value]
-            valid_z_per_roi.append(set(z_as_int))
+            valid_z_int_per_roi.append(set(z_as_int))
+            valid_z_per_roi.append(this_z_value)
 
+        self._valid_z_int_per_roi = valid_z_int_per_roi
         self._valid_z_per_roi = valid_z_per_roi
         self._n_valid_zs = 0
-        self._roi_z_manifest = []
+        self._roi_z_int_manifest = []
         ct = 0
         i_roi = 0
         local_z_index_list = [self._int_from_z(zz)
                               for zz in local_z_value_list]
         for zz in local_z_index_list:
-            if i_roi >= len(valid_z_per_roi):
+            if i_roi >= len(valid_z_int_per_roi):
                 break
-            if zz in valid_z_per_roi[i_roi]:
+            if zz in valid_z_int_per_roi[i_roi]:
                 roi_z = (i_roi, zz)
-                self._roi_z_manifest.append(roi_z)
+                self._roi_z_int_manifest.append(roi_z)
                 self._n_valid_zs += 1
                 ct += 1
-                if ct == len(valid_z_per_roi[i_roi]):
+                if ct == len(valid_z_int_per_roi[i_roi]):
                     i_roi += 1
                     ct = 0
 
-    @property
-    def valid_z_per_roi(self) -> List[Set[int]]:
+    def is_z_valid_for_roi(self,
+                           i_roi: int,
+                           z_value: float) -> bool:
         """
-        A list. Each element of the list represents an ROI
-        and is a set containg the values of
-        self._int_from_z() for the z-values occurring in that ROI
-
-        self.valid_z_per_roi[2]
-
-        is a set of self._int_from_z(z) that are valid for roi_index=2
+        Is specified z-value valid for the specified ROI
         """
-        return self._valid_z_per_roi
+        z_as_int = self._int_from_z(z_value=z_value)
+        return z_as_int in self._valid_z_int_per_roi[i_roi]
 
     @property
-    def roi_z_manifest(self) -> List[Tuple[int, int]]:
+    def roi_z_int_manifest(self) -> List[Tuple[int, int]]:
         """
         A list of tuples. Each tuple is a valid
-        (roi_index, z) pair.
+        (roi_index, z_as_int) pair.
         """
-        return self._roi_z_manifest
+        return self._roi_z_int_manifest
 
     @property
     def n_valid_zs(self) -> int:
@@ -218,7 +217,7 @@ class ScanImageTiffSplitter(IntToZMapperMixin):
         found_it = False
         n_step_over = 0
         this_roi_z = (i_roi, self._int_from_z(z_value=z_value))
-        for roi_z_pair in self.roi_z_manifest:
+        for roi_z_pair in self.roi_z_int_manifest:
             if roi_z_pair == this_roi_z:
                 found_it = True
                 break
@@ -241,10 +240,9 @@ class ScanImageTiffSplitter(IntToZMapperMixin):
             msg += f"in {self._file_path.resolve().absolute()}"
             raise ValueError(msg)
 
-        z_int = self._int_from_z(z_value=z_value)
-        if z_int not in self.valid_z_per_roi[i_roi]:
-            msg = f"{z_int} is not a valid z value for ROI {i_roi};"
-            msg += f"valid z values are {self.valid_z_per_roi[i_roi]}\n"
+        if not self.is_z_valid_for_roi(i_roi=i_roi, z_value=z_value):
+            msg = f"{z_value} is not a valid z value for ROI {i_roi};"
+            msg += f"valid z values are {self._valid_z_per_roi[i_roi]}\n"
             msg += f"TIFF file {self._file_path.resolve().absolute()}"
             raise ValueError(msg)
 
@@ -312,7 +310,7 @@ class ScanImageTiffSplitter(IntToZMapperMixin):
         # the specified ROI ID and select the correct z value
         # (assuming there is only one)
         possible_z_values = []
-        for pair in self.roi_z_manifest:
+        for pair in self.roi_z_int_manifest:
             if pair[0] == i_roi:
                 possible_z_values.append(pair[1])
         if len(possible_z_values) > 1:
@@ -418,10 +416,9 @@ class TimeSeriesSplitter(ScanImageTiffSplitter):
             msg += f"in {self._file_path.resolve().absolute()}"
             raise ValueError(msg)
 
-        z_int = self._int_from_z(z_value=z_value)
-        if z_int not in self.valid_z_per_roi[i_roi]:
+        if not self.is_z_valid_for_roi(i_roi=i_roi, z_value=z_value):
             msg = f"{z_value} is not a valid z value for ROI {i_roi};"
-            msg += f"valid z values are {self.valid_z_per_roi[i_roi]}\n"
+            msg += f"valid z values are {self._valid_z_per_roi[i_roi]}\n"
             msg += f"TIFF file {self._file_path.resolve().absolute()}"
             raise ValueError(msg)
 

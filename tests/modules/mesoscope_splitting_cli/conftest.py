@@ -153,10 +153,16 @@ def zstack_fixture(zstack_metadata_fixture,
         this_metadata = zstack_metadata_fixture[tiff_path]
         z_array = np.array(this_metadata[0]['SI.hStackManager.zsAllActuators'])
         z_array = z_array.transpose()
-        z0 = np.mean(z_array[0, :]).astype(int)
-        z1 = np.mean(z_array[1, :]).astype(int)
+        z0 = np.mean(z_array[0, :])
+        z1 = np.mean(z_array[1, :])
         for zz in (z0, z1):
-            exp_id = z_to_exp_id_fixture[(z0, z1)][zz]
+            if z0 % 1 > 0.05:
+                z_pair = (np.round(z0, decimals=1), np.round(z1, decimals=1))
+                zz = np.round(zz, decimals=1)
+            else:
+                z_pair = (z0, z1)
+                zz = zz
+            exp_id = z_to_exp_id_fixture[z_pair][zz]
             expected_path = tmp_dir / f'{exp_id}_expected_z_stack.h5'
             data = rng.integers(0, 10*zz, (n_pages, 24, 24))
             raw_data[zz] = data
@@ -167,6 +173,8 @@ def zstack_fixture(zstack_metadata_fixture,
         tiff_data = []
         for i_page in range(n_pages):
             for zz in (z0, z1):
+                if zz % 1 > 0.05:
+                    zz = np.round(zz, decimals=1)
                 tiff_data.append(raw_data[zz][i_page, :, :])
 
         tifffile.imsave(tmp_dir / tiff_path, tiff_data)

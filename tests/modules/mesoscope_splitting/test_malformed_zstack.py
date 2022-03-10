@@ -200,26 +200,3 @@ def z_stack_mean_not_int(tmp_path_factory,
         path_to_metadata[tmp_path] = metadata
 
     return path_to_metadata
-
-
-def test_z_mean_not_int(
-        z_stack_mean_not_int):
-    """
-    Test that an error is raised if mean of the z values
-    is not an integer
-    """
-    z_stack_path_to_metadata = z_stack_mean_not_int
-
-    def mock_read_metadata(tiff_path):
-        str_path = str(tiff_path.resolve().absolute())
-        return z_stack_path_to_metadata[str_path]
-
-    tiff_path_list = [pathlib.Path(n)
-                      for n in z_stack_path_to_metadata.keys()]
-
-    to_replace = 'ophys_etl.modules.mesoscope_splitting.'
-    to_replace += 'tiff_metadata._read_metadata'
-    with patch(to_replace, new=mock_read_metadata):
-        with pytest.raises(RuntimeError,
-                           match="are not integers"):
-            ZStackSplitter(tiff_path_list=tiff_path_list)

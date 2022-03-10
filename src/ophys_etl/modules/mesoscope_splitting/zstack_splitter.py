@@ -3,11 +3,13 @@ import tifffile
 import h5py
 import pathlib
 import numpy as np
+from ophys_etl.modules.mesoscope_splitting.mixins import (
+    IntToZMapperMixin)
 from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
     ScanImageMetadata)
 
 
-class ZStackSplitter(object):
+class ZStackSplitter(IntToZMapperMixin):
     """
     Class to handle splitting all of the _local_z_stack.tiff files
     associated with an OPhys session.
@@ -20,6 +22,7 @@ class ZStackSplitter(object):
     """
 
     def __init__(self, tiff_path_list: List[pathlib.Path]):
+
         self._path_to_metadata = dict()
         self._frame_shape = dict()
         for tiff_path in tiff_path_list:
@@ -59,12 +62,11 @@ class ZStackSplitter(object):
                                    f"{z_array}")
 
             z_mean = z_array.mean(axis=0)
-            if (z_mean % 1).max() > 1.0e-6:
-                raise RuntimeError(f"mean z values for {tiff_path} are not "
-                                   f"integers: {z_mean}")
             for ii, z_value in enumerate(z_mean):
-                self._roi_z_to_path[(this_roi, int(z_value))] = tiff_path
-                self._path_z_to_index[(tiff_path, int(z_value))] = ii
+                roi_z = (this_roi, self._int_from_z(z_value=z_value))
+                self._roi_z_to_path[roi_z] = tiff_path
+                path_z = (tiff_path, self._int_from_z(z_value=z_value))
+                self._path_z_to_index[path_z] = ii
 
         self._path_to_pages = dict()
         for tiff_path in self._path_to_metadata.keys():
@@ -95,25 +97,33 @@ class ZStackSplitter(object):
                 msg += f"{i_roi}"
         return baseline_center
 
-    def frame_shape(self, i_roi: int, z_value: int) -> Tuple[int, int]:
+    def frame_shape(self, i_roi: int, z_value: float) -> Tuple[int, int]:
         """
         Return the (nrows, ncolumns) shape of the first page associated
         with the specified (i_roi, z_value) pair
         """
-        tiff_path = self._roi_z_to_path[(i_roi, z_value)]
-        z_index = self._path_z_to_index[(tiff_path, z_value)]
+        roi_z = (i_roi, self._int_from_z(z_value=z_value))
+        tiff_path = self._roi_z_to_path[roi_z]
+
+        path_z = (tiff_path, self._int_from_z(z_value=z_value))
+        z_index = self._path_z_to_index[path_z]
+
         with tifffile.TiffFile(tiff_path, 'rb') as tiff_file:
             page = tiff_file.pages[z_index].asarray()
         return page.shape
 
-    def _get_pages(self, i_roi: int, z_value: int) -> np.ndarray:
+    def _get_pages(self, i_roi: int, z_value: float) -> np.ndarray:
         """
         Get all of the TIFF pages associated in this z-stack set with
         an (i_roi, z_value) pair. Return as a numpy array shaped like
         (n_pages, nrows, ncolumns)
         """
-        tiff_path = self._roi_z_to_path[(i_roi, z_value)]
-        z_index = self._path_z_to_index[(tiff_path, z_value)]
+        roi_z = (i_roi, self._int_from_z(z_value=z_value))
+        tiff_path = self._roi_z_to_path[roi_z]
+
+        path_z = (tiff_path, self._int_from_z(z_value=z_value))
+        z_index = self._path_z_to_index[path_z]
+
         data = []
         n_pages = self._path_to_pages[tiff_path]
         baseline_shape = self.frame_shape(i_roi=i_roi, z_value=z_value)
@@ -129,7 +139,7 @@ class ZStackSplitter(object):
 
     def write_output_file(self,
                           i_roi: int,
-                          z_value: int,
+                          z_value: float,
                           output_path: pathlib.Path) -> None:
         """
         Write the z-stack for a specific ROI, z pair to an

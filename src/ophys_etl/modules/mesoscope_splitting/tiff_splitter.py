@@ -4,11 +4,13 @@ import h5py
 import pathlib
 import numpy as np
 from ophys_etl.utils.array_utils import normalize_array
+from ophys_etl.modules.mesoscope_splitting.mixins import (
+    IntToZMapperMixin)
 from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
     ScanImageMetadata)
 
 
-class ScanImageTiffSplitter(object):
+class ScanImageTiffSplitter(IntToZMapperMixin):
     """
     A class to naively split up a tiff file by just looping over
     the scanfields in its ROIs
@@ -69,6 +71,8 @@ class ScanImageTiffSplitter(object):
                 roi_zs = roi['zs']
             else:
                 roi_zs = [roi['zs'], ]
+            roi_zs = [self._int_from_z(z_value=zz)
+                      for zz in roi_zs]
             z_set = set(roi_zs)
             if len(z_set) != len(roi_zs):
                 msg += f"roi {i_roi} has duplicate zs: {roi['zs']}\n"
@@ -87,19 +91,20 @@ class ScanImageTiffSplitter(object):
             msg += f"n_roi: {len(z_per_roi)}\n"
 
         for roi_zs in z_per_roi:
-            these_zs = set(z_value_array[offset:offset+n_z_per_roi])
+            these_zs = set([self._int_from_z(z_value=zz)
+                            for zz in
+                            z_value_array[offset:offset+n_z_per_roi]])
             if these_zs != roi_zs:
-                these_zs = set(z_value_array[offset:
-                                             offset+n_z_per_roi-1])
+                these_zs = set([self._int_from_z(z_value=zz)
+                                for zz in
+                                z_value_array[offset:offset+n_z_per_roi-1]])
 
                 # might be placeholder value == 0
                 odd_value = z_value_array[offset+n_z_per_roi-1]
 
-                if odd_value != 0 or these_zs != roi_zs:
+                if np.abs(odd_value) >= 1.0e-6 or these_zs != roi_zs:
                     msg += "z_values from sub array "
                     msg += "not in correct order for ROIs; "
-                    msg += f"{z_value_array}; "
-                    msg += f"{z_per_roi}\n"
                     break
             offset += n_z_per_roi
 
@@ -107,6 +112,9 @@ class ScanImageTiffSplitter(object):
             full_msg = "Unclear how to split this TIFF\n"
             full_msg += f"{self._file_path.resolve().absolute()}\n"
             full_msg += f"{msg}"
+            full_msg += f"all_zs {self._metadata.all_zs()}\nrois:\n"
+            for roi in self._metadata.defined_rois:
+                full_msg += f"zs: {roi['zs']}\n"
             raise RuntimeError(full_msg)
 
     def _get_z_manifest(self):
@@ -127,18 +135,23 @@ class ScanImageTiffSplitter(object):
             this_z_value = roi['zs']
             if isinstance(this_z_value, int):
                 this_z_value = [this_z_value, ]
-            valid_z_per_roi.append(set(this_z_value))
+            z_as_int = [self._int_from_z(z_value=zz)
+                        for zz in this_z_value]
+            valid_z_per_roi.append(set(z_as_int))
 
         self._valid_z_per_roi = valid_z_per_roi
         self._n_valid_zs = 0
         self._roi_z_manifest = []
         ct = 0
         i_roi = 0
-        for zz in local_z_value_list:
+        local_z_index_list = [self._int_from_z(zz)
+                              for zz in local_z_value_list]
+        for zz in local_z_index_list:
             if i_roi >= len(valid_z_per_roi):
                 break
             if zz in valid_z_per_roi[i_roi]:
-                self._roi_z_manifest.append((i_roi, zz))
+                roi_z = (i_roi, zz)
+                self._roi_z_manifest.append(roi_z)
                 self._n_valid_zs += 1
                 ct += 1
                 if ct == len(valid_z_per_roi[i_roi]):
@@ -149,12 +162,12 @@ class ScanImageTiffSplitter(object):
     def valid_z_per_roi(self) -> List[Set[int]]:
         """
         A list. Each element of the list represents an ROI
-        and is a set containg the values of z that occur
-        in that ROI, i.e.
+        and is a set containg the values of
+        self._int_from_z() for the z-values occurring in that ROI
 
         self.valid_z_per_roi[2]
 
-        is a set of zs that are valie for roi_index=2
+        is a set of self._int_from_z(z) that are valid for roi_index=2
         """
         return self._valid_z_per_roi
 
@@ -196,15 +209,16 @@ class ScanImageTiffSplitter(object):
         """
         return self._metadata.roi_center(i_roi=i_roi)
 
-    def _get_offset(self, i_roi: int, z_value: int) -> int:
+    def _get_offset(self, i_roi: int, z_value: float) -> int:
         """
         Get the first page associated with the specified
         i_roi, z_value pair.
         """
         found_it = False
         n_step_over = 0
+        this_roi_z = (i_roi, self._int_from_z(z_value=z_value))
         for roi_z_pair in self.roi_z_manifest:
-            if roi_z_pair == (i_roi, z_value):
+            if roi_z_pair == this_roi_z:
                 found_it = True
                 break
             n_step_over += 1
@@ -214,7 +228,7 @@ class ScanImageTiffSplitter(object):
             raise ValueError(msg)
         return n_step_over
 
-    def _get_pages(self, i_roi: int, z_value: int) -> List[np.ndarray]:
+    def _get_pages(self, i_roi: int, z_value: float) -> List[np.ndarray]:
         """
         Get a list of np.ndarrays representing the pages of image data
         for ROI i_roi at the specified z_value
@@ -226,8 +240,9 @@ class ScanImageTiffSplitter(object):
             msg += f"in {self._file_path.resolve().absolute()}"
             raise ValueError(msg)
 
-        if z_value not in self.valid_z_per_roi[i_roi]:
-            msg = f"{z_value} is not a valid z value for ROI {i_roi};"
+        z_int = self._int_from_z(z_value=z_value)
+        if z_int not in self.valid_z_per_roi[i_roi]:
+            msg = f"{z_int} is not a valid z value for ROI {i_roi};"
             msg += f"valid z values are {self.valid_z_per_roi[i_roi]}\n"
             msg += f"TIFF file {self._file_path.resolve().absolute()}"
             raise ValueError(msg)
@@ -252,7 +267,7 @@ class ScanImageTiffSplitter(object):
 
     def frame_shape(self,
                     i_roi: int,
-                    z_value: Optional[int]) -> Tuple[int, int]:
+                    z_value: Optional[float]) -> Tuple[int, int]:
         """
         Get the shape of the image for a specified ROI at a specified
         z value
@@ -262,7 +277,7 @@ class ScanImageTiffSplitter(object):
         i_roi: int
             index of the ROI
 
-        z_value: Optional[int]
+        z_value: Optional[float]
             value of z. If None, z_value will be detected automaticall
             (assuming there is no ambiguity)
 
@@ -274,7 +289,7 @@ class ScanImageTiffSplitter(object):
         if z_value is None:
             z_value = self._get_z_value(i_roi=i_roi)
 
-        key_pair = (i_roi, z_value)
+        key_pair = (i_roi, self._int_from_z(z_value))
 
         if key_pair not in self._frame_shape:
             offset = self._get_offset(i_roi=i_roi, z_value=z_value)
@@ -283,7 +298,7 @@ class ScanImageTiffSplitter(object):
                 self._frame_shape[key_pair] = page.shape
         return self._frame_shape[key_pair]
 
-    def _get_z_value(self, i_roi: int) -> int:
+    def _get_z_value(self, i_roi: int) -> float:
         """
         Return the z_value associated with i_roi, assuming
         there is only one. Raises a RuntimeError if there
@@ -305,11 +320,11 @@ class ScanImageTiffSplitter(object):
             msg += f"{possible_z_values}"
             raise RuntimeError(msg)
         z_value = possible_z_values[0]
-        return z_value
+        return self._z_from_int(ii=z_value)
 
     def write_output_file(self,
                           i_roi: int,
-                          z_value: Optional[int],
+                          z_value: Optional[float],
                           output_path: pathlib.Path) -> None:
         """
         Write the image created by averaging all of the TIFF
@@ -358,7 +373,7 @@ class TimeSeriesSplitter(ScanImageTiffSplitter):
         Path to the TIFF file whose metadata we are parsing
     """
 
-    def _get_pages(self, i_roi: int, z_value: int) -> None:
+    def _get_pages(self, i_roi: int, z_value: float) -> None:
         msg = "_get_pages is not implemented for "
         msg += "TimeSeriesSplitter; the resulting "
         msg += "output would be unreasonably large. "
@@ -368,7 +383,7 @@ class TimeSeriesSplitter(ScanImageTiffSplitter):
 
     def write_output_file(self,
                           i_roi: int,
-                          z_value: int,
+                          z_value: float,
                           output_path: pathlib.Path) -> None:
         """
         Write all of the pages associated with an
@@ -402,7 +417,8 @@ class TimeSeriesSplitter(ScanImageTiffSplitter):
             msg += f"in {self._file_path.resolve().absolute()}"
             raise ValueError(msg)
 
-        if z_value not in self.valid_z_per_roi[i_roi]:
+        z_int = self._int_from_z(z_value=z_value)
+        if z_int not in self.valid_z_per_roi[i_roi]:
             msg = f"{z_value} is not a valid z value for ROI {i_roi};"
             msg += f"valid z values are {self.valid_z_per_roi[i_roi]}\n"
             msg += f"TIFF file {self._file_path.resolve().absolute()}"

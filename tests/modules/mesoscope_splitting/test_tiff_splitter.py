@@ -238,7 +238,8 @@ def test_splitter_manifest(tmp_path_factory,
         assert len(valid_z_per_roi) == n_rois
         offset = 0
         for roi in valid_z_per_roi:
-            expected = set(z_value_list[offset:offset+n_z_per_roi])
+            expected = set([splitter._int_from_z(z_value=zz)
+                            for zz in z_value_list[offset:offset+n_z_per_roi]])
             assert expected == roi
             offset += n_z_per_roi
 
@@ -249,9 +250,10 @@ def test_splitter_manifest(tmp_path_factory,
             roi_grp = metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
             if isinstance(roi_grp, dict):
                 assert i_roi == 0
-                roi_zs = roi_grp['zs']
+                roi_zs = splitter._int_from_z(z_value=roi_grp['zs'])
             else:
-                roi_zs = roi_grp[i_roi]['zs']
+                roi_zs = [splitter._int_from_z(z_value=zz)
+                          for zz in roi_grp[i_roi]['zs']]
 
             if isinstance(roi_zs, int):
                 assert pair[1] == roi_zs

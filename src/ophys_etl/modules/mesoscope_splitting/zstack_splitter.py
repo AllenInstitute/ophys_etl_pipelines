@@ -34,12 +34,12 @@ class ZStackSplitter(IntToZMapperMixin):
         # to a tiff path and an index in the z-array
 
         # map (i_roi, z_value) pairs to TIFF file paths
-        self._roi_z_to_path = dict()
+        self._roi_z_int_to_path = dict()
 
         # map (tiff_file_path, z_value) to the index, i.e.
         # to which scanned z-value *in this TIFF* does the
         # z-value correspond.
-        self._path_z_to_index = dict()
+        self._path_z_int_to_index = dict()
 
         for tiff_path in self._path_to_metadata.keys():
             metadata = self._path_to_metadata[tiff_path]
@@ -64,9 +64,9 @@ class ZStackSplitter(IntToZMapperMixin):
             z_mean = z_array.mean(axis=0)
             for ii, z_value in enumerate(z_mean):
                 roi_z = (this_roi, self._int_from_z(z_value=z_value))
-                self._roi_z_to_path[roi_z] = tiff_path
+                self._roi_z_int_to_path[roi_z] = tiff_path
                 path_z = (tiff_path, self._int_from_z(z_value=z_value))
-                self._path_z_to_index[path_z] = ii
+                self._path_z_int_to_index[path_z] = ii
 
         self._path_to_pages = dict()
         for tiff_path in self._path_to_metadata.keys():
@@ -80,10 +80,10 @@ class ZStackSplitter(IntToZMapperMixin):
         """
         center_tol = 1.0e-5
         possible_center = []
-        for pair in self._roi_z_to_path:
+        for pair in self._roi_z_int_to_path:
             if pair[0] != i_roi:
                 continue
-            tiff_path = self._roi_z_to_path[pair]
+            tiff_path = self._roi_z_int_to_path[pair]
             metadata = self._path_to_metadata[tiff_path]
             possible_center.append(metadata.roi_center(i_roi=i_roi))
 
@@ -103,10 +103,10 @@ class ZStackSplitter(IntToZMapperMixin):
         with the specified (i_roi, z_value) pair
         """
         roi_z = (i_roi, self._int_from_z(z_value=z_value))
-        tiff_path = self._roi_z_to_path[roi_z]
+        tiff_path = self._roi_z_int_to_path[roi_z]
 
         path_z = (tiff_path, self._int_from_z(z_value=z_value))
-        z_index = self._path_z_to_index[path_z]
+        z_index = self._path_z_int_to_index[path_z]
 
         with tifffile.TiffFile(tiff_path, 'rb') as tiff_file:
             page = tiff_file.pages[z_index].asarray()
@@ -119,10 +119,10 @@ class ZStackSplitter(IntToZMapperMixin):
         (n_pages, nrows, ncolumns)
         """
         roi_z = (i_roi, self._int_from_z(z_value=z_value))
-        tiff_path = self._roi_z_to_path[roi_z]
+        tiff_path = self._roi_z_int_to_path[roi_z]
 
         path_z = (tiff_path, self._int_from_z(z_value=z_value))
-        z_index = self._path_z_to_index[path_z]
+        z_index = self._path_z_int_to_index[path_z]
 
         data = []
         n_pages = self._path_to_pages[tiff_path]

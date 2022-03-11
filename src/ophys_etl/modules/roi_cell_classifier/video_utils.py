@@ -1,6 +1,7 @@
 from typing import Optional, List, Tuple, Dict, Union
 import pathlib
 import numpy as np
+import copy
 import h5py
 import numbers
 from ophys_etl.types import ExtractROI

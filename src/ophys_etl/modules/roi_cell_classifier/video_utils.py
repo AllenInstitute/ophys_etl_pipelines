@@ -89,6 +89,9 @@ def get_thumbnail_video_from_artifact_file(
     # thumbnail_video_from_ROI() below will not handle that well
     if not isinstance(roi['id'], numbers.Number):
         new_id = -999
+        if isinstance(roi_color, dict):
+            roi_color = copy.deepcopy(roi_color)
+            roi_color[new_id] = roi_color[roi['id']]
     else:
         new_id = int(roi['id'])
 

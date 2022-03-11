@@ -12,6 +12,9 @@ from ophys_etl.modules.roi_cell_classifier.video_utils import (
 
 
 def path_to_hash(this_path):
+    """
+    Return the md5 checksum of a file specified by a path
+    """
     hasher = hashlib.md5()
     with open(this_path, 'rb') as in_file:
         chunk = in_file.read(10000)
@@ -26,7 +29,7 @@ def path_to_hash(this_path):
     product((0, 5), (True, False),
             (None, (122, 11, 6)),
             (None, np.arange(6, 36, dtype=int))))
-def test_roundtrip(
+def test_video_gen(
         video_file_fixture,
         extract_roi_list_fixture,
         tmp_path_factory,
@@ -34,7 +37,10 @@ def test_roundtrip(
         use_other_roi,
         roi_color,
         timesteps):
-
+    """
+    Test that get_thumbnail_video_from_artifact_file returns
+    the same results as VideoGenerator.get_thumbnail_video_from_roi
+    """
     tmp_dir = pathlib.Path(tmp_path_factory.mktemp('roundtrip'))
     alt_tmp_dir = pathlib.Path(tmp_path_factory.mktemp('by_hand'))
 

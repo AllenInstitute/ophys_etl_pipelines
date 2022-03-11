@@ -16,9 +16,54 @@ def get_thumbnail_video_from_artifact_file(
                           Tuple[int, int, int],
                           Dict[int, Tuple[int, int, int]]] = None,
          timesteps: Optional[np.ndarray] = None,
-         quality: int = 5,
          fps: int = 31,
-         tmp_dir: Optional[pathlib.Path] = None):
+         quality: int = 5,
+         tmp_dir: Optional[pathlib.Path] = None
+         ) -> thumbnail_utils.ThumbnailVideo:
+    """
+    Get a ThumbnailVideo from an ROI and a labeler artifact file
+
+    Parameters
+    ----------
+    artifact_path: pathlib.Path
+        Path to the labeler artifact file from which to read the video
+
+    roi: ExtractROI
+
+    padding: int
+        The number of pixels to either side of the ROI to
+        include in the field of view (if possible; default=0)
+
+    other_roi: Union[None, List[ExtractROI]]
+        Other ROI to display
+
+    roi_color: Union[None,
+                     Tuple[int, int, int],
+                     Dict[int, Tuple[int, int, int]]]
+        If not None, the RGB color in which to plot the ROI's
+        contour (or dict mapping ROI ID to RGB color).
+        If None, ROI is not plotted in thumbnail.
+        (default: None)
+
+    timesteps: Optional[np.ndarray]
+        If not None, timesteps to put in the thumbnail
+        video. If None, use all timesetps (default: None)
+
+    fps: int
+        frames per second (default: 31)
+
+    quality: int
+        quality parameter passed to imageio. Max is 10.
+        (default: 5)
+
+    tmp_dir: Optional[pathlib.Path]
+        temporary directory where thumbnail video will
+        be written
+
+    Returns
+    -------
+    thumbnail_utils.ThumbnailVideo
+    """
 
     with h5py.File(artifact_path, 'r') as in_file:
         fov_shape = in_file['video_data'].shape[1:]

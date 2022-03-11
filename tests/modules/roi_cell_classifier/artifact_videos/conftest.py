@@ -67,3 +67,15 @@ def extract_roi_list_fixture():
                                mask=[list(v) for v in mask]))
 
     return roi_list
+
+
+@pytest.fixture(scope='session')
+def roi_with_string_as_id():
+    rng = np.random.default_rng(5321)
+    mask = rng.integers(0, 2, (7, 12)).astype(bool)
+    return ExtractROI(id='aaa',
+                      x=9, y=6,
+                      width=mask.shape[1],
+                      height=mask.shape[0],
+                      valid=True,
+                      mask=[list(v) for v in mask])

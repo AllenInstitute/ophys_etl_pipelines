@@ -83,8 +83,16 @@ def get_thumbnail_video_from_artifact_file(
         else:
             video_data = in_file['video_data'][timesteps, y0:y1, x0:x1]
 
+    # When users of the cell labeling app try to load a video from
+    # an arbitrary point, the assigned id is a string, not an int.
+    # thumbnail_video_from_ROI() below will not handle that well
+    if not isinstance(roi['id'], int):
+        new_id = -999
+    else:
+        new_id = int(roi['id'])
+
     new_roi = ExtractROI(
-                   id=int(roi['id']),
+                   id=new_id,
                    y=int(roi['y']-y0),
                    x=int(roi['x']-x0),
                    width=int(roi['width']),

@@ -77,3 +77,25 @@ def test_video_gen(
         assert h0 == h1
         del v0
         del v1
+
+
+def test_video_gen_for_string_roi_id(
+        video_file_fixture,
+        roi_with_string_as_id,
+        tmp_path_factory):
+    """
+    Test that get_thumbnail_video_from_artifact_file can handle
+    and ROI whose ID is a string
+    """
+    tmp_dir = pathlib.Path(tmp_path_factory.mktemp('str_roi'))
+
+    v1 = get_thumbnail_video_from_artifact_file(
+                    artifact_path=video_file_fixture,
+                    roi=roi_with_string_as_id,
+                    padding=23,
+                    other_roi=None,
+                    roi_color=(255, 112, 34),
+                    timesteps=np.arange(10, 90),
+                    tmp_dir=tmp_dir)
+
+    assert v1.video_path.is_file()

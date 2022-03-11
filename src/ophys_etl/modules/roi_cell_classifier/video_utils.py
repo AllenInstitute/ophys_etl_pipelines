@@ -80,9 +80,6 @@ def get_thumbnail_video_from_artifact_file(
         x0 = origin[1]
         x1 = origin[1]+window_shape[1]
 
-        assert y1>y0
-        assert x1>x0
-
         if timesteps is None:
             video_data = in_file['video_data'][:, y0:y1, x0:x1]
         else:

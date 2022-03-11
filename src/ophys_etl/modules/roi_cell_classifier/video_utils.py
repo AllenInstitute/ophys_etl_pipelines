@@ -1,7 +1,6 @@
 from typing import Optional, List, Tuple, Dict, Union
 import pathlib
 import numpy as np
-import copy
 import h5py
 import numbers
 from ophys_etl.types import ExtractROI
@@ -88,16 +87,36 @@ def get_thumbnail_video_from_artifact_file(
     # When users of the cell labeling app try to load a video from
     # an arbitrary point, the assigned id is a string, not an int.
     # thumbnail_video_from_ROI() below will not handle that well
+
+    roi_id_to_int = dict()
+    dummy_roi_id = -999
     if not isinstance(roi['id'], numbers.Number):
-        new_id = -999
-        if isinstance(roi_color, dict):
-            roi_color = copy.deepcopy(roi_color)
-            roi_color[new_id] = roi_color[roi['id']]
+        roi_id_to_int[roi['id']] = dummy_roi_id
+        dummy_roi_id -= 1
     else:
-        new_id = int(roi['id'])
+        roi_id_to_int[roi['id']] = int(roi['id'])
+
+    if other_roi is not None:
+        for o_roi in other_roi:
+            if not isinstance(o_roi['id'], numbers.Number):
+                if o_roi['id'] not in roi_id_to_int:
+                    roi_id_to_int[o_roi['id']] = dummy_roi_id
+                    dummy_roi_id -= 1
+            else:
+                roi_id_to_int[o_roi['id']] = int(o_roi['id'])
+
+    # map colors to the new, always-an-integer ROI
+    if isinstance(roi_color, dict):
+        new_roi_color = dict()
+        new_roi_color[roi_id_to_int[roi['id']]] = roi_color[roi['id']]
+        if other_roi is not None:
+            for o_roi in other_roi:
+                new_roi_color[roi_id_to_int[roi['id']]] = roi_color[roi['id']]
+    else:
+        new_roi_color = roi_color
 
     new_roi = ExtractROI(
-                   id=new_id,
+                   id=roi_id_to_int[roi['id']],
                    y=int(roi['y']-y0),
                    x=int(roi['x']-x0),
                    width=int(roi['width']),
@@ -109,8 +128,9 @@ def get_thumbnail_video_from_artifact_file(
     else:
         new_other_roi = []
         for o_roi in other_roi:
+
             new_o_roi = ExtractROI(
-                           id=int(o_roi['id']),
+                           id=roi_id_to_int[o_roi['id']],
                            y=int(o_roi['y']-y0),
                            x=int(o_roi['x']-x0),
                            width=int(o_roi['width']),
@@ -123,7 +143,7 @@ def get_thumbnail_video_from_artifact_file(
                     video=video_data,
                     roi=new_roi,
                     padding=padding,
-                    roi_color=roi_color,
+                    roi_color=new_roi_color,
                     other_roi=new_other_roi,
                     timesteps=None,
                     tmp_dir=tmp_dir,

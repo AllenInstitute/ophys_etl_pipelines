@@ -2,6 +2,7 @@ from typing import Optional, List, Tuple, Dict, Union
 import pathlib
 import numpy as np
 import h5py
+import numbers
 from ophys_etl.types import ExtractROI
 from ophys_etl.utils.video_utils import video_bounds_from_ROI
 import ophys_etl.utils.thumbnail_video_utils as thumbnail_utils
@@ -86,7 +87,7 @@ def get_thumbnail_video_from_artifact_file(
     # When users of the cell labeling app try to load a video from
     # an arbitrary point, the assigned id is a string, not an int.
     # thumbnail_video_from_ROI() below will not handle that well
-    if not isinstance(roi['id'], int):
+    if not isinstance(roi['id'], numbers.Number):
         new_id = -999
     else:
         new_id = int(roi['id'])

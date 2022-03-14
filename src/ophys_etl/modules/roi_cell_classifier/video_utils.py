@@ -50,6 +50,9 @@ def get_thumbnail_video_from_artifact_file(
         If not None, timesteps to put in the thumbnail
         video. If None, use all timesetps (default: None)
 
+        Note: timesteps will automatically be clipped to be
+        between [0, video_shape[0])
+
     fps: int
         frames per second (default: 31)
 
@@ -67,11 +70,11 @@ def get_thumbnail_video_from_artifact_file(
     """
 
     with h5py.File(artifact_path, 'r') as in_file:
-        fov_shape = in_file['video_data'].shape[1:]
+        video_shape = in_file['video_data'].shape
         (origin,
          window_shape) = video_bounds_from_ROI(
                               roi=roi,
-                              fov_shape=fov_shape,
+                              fov_shape=video_shape[1:],
                               padding=padding)
 
         y0 = origin[0]
@@ -82,6 +85,9 @@ def get_thumbnail_video_from_artifact_file(
         if timesteps is None:
             video_data = in_file['video_data'][:, y0:y1, x0:x1]
         else:
+            valid = np.logical_and(timesteps >= 0,
+                                   timesteps < video_shape[0])
+            timesteps = timesteps[valid]
             video_data = in_file['video_data'][timesteps, y0:y1, x0:x1]
 
     # When users of the cell labeling app try to load a video from

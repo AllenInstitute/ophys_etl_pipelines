@@ -111,7 +111,8 @@ def get_thumbnail_video_from_artifact_file(
         new_roi_color[roi_id_to_int[roi['id']]] = roi_color[roi['id']]
         if other_roi is not None:
             for o_roi in other_roi:
-                new_roi_color[roi_id_to_int[o_roi['id']]] = roi_color[o_roi['id']]
+                id_as_int = roi_id_to_int[o_roi['id']]
+                new_roi_color[id_as_int] = roi_color[o_roi['id']]
     else:
         new_roi_color = roi_color
 

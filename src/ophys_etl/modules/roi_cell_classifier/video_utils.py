@@ -95,7 +95,13 @@ def get_thumbnail_video_from_artifact_file(
                 msg += "automatically clipping timesteps to be valid"
                 warnings.warn(msg)
             timesteps = timesteps[valid]
-            video_data = in_file['video_data'][timesteps, y0:y1, x0:x1]
+            dt = np.unique(np.diff(timesteps))
+            if len(dt) == 1 and int(dt.max()) == 1:
+                tmin = timesteps.min()
+                tmax = timesteps.max()+1
+                video_data = in_file['video_data'][tmin:tmax, y0:y1, x0:x1]
+            else:
+                video_data = in_file['video_data'][timesteps, y0:y1, x0:x1]
 
     # When users of the cell labeling app try to load a video from
     # an arbitrary point, the assigned id is a string, not an int.

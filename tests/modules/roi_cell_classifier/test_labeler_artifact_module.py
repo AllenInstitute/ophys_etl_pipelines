@@ -5,6 +5,7 @@ import json
 import pathlib
 import copy
 import numpy as np
+import os
 import PIL.Image
 from itertools import product
 
@@ -79,11 +80,14 @@ def test_labeler_artifact_generator(
         corr_fixture = classifier2021_corr_png_fixture
         corr_hash = classifier2021_corr_png_hash_fixture
 
-    output_path = tempfile.mkstemp(dir=tmpdir,
-                                   prefix='artifact_file_',
-                                   suffix='.h5')[1]
+    output_tuple = tempfile.mkstemp(dir=tmpdir,
+                                    prefix='artifact_file_',
+                                    suffix='.h5')
 
-    output_path = pathlib.Path(output_path)
+    # without this, got a "too many files open" error
+    os.close(output_tuple[0])
+
+    output_path = pathlib.Path(output_tuple[1])
 
     # because tempfile.mkstemp actually creates the file
     output_path.unlink()

@@ -43,6 +43,8 @@ def classifier2021_video_fixture(classifier2021_tmpdir_fixture):
     with h5py.File(video_path, 'w') as out_file:
         out_file.create_dataset('data', data=data)
     yield video_path
+    if video_path.is_file():
+        video_path.unlink()
 
 
 @pytest.fixture(scope='session')
@@ -91,6 +93,8 @@ def suite2p_roi_fixture(classifier2021_tmpdir_fixture):
     with open(roi_path, 'w') as out_file:
         out_file.write(json.dumps(roi_list, indent=2))
     yield roi_path
+    if roi_path.is_file():
+        roi_path.unlink()
 
 
 @pytest.fixture(scope='session')
@@ -123,6 +127,8 @@ def classifier2021_corr_graph_fixture(
                            filtered_hnc_Gaussian=rng.random())
     nx.write_gpickle(graph, graph_path)
     yield graph_path
+    if graph_path.is_file():
+        graph_path.unlink()
 
 
 @pytest.fixture(scope='session')
@@ -148,7 +154,10 @@ def classifier2021_corr_png_fixture(
     img = normalize_array(img)
     img = PIL.Image.fromarray(img)
     img.save(png_path)
-    yield pathlib.Path(png_path)
+    png_path = pathlib.Path(png_path)
+    yield png_path
+    if png_path.is_file():
+        png_path.unlink()
 
 
 @pytest.fixture(scope='session')

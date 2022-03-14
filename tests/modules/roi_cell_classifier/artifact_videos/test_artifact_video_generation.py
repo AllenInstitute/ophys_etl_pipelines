@@ -99,3 +99,49 @@ def test_video_gen_for_string_roi_id(
                     tmp_dir=tmp_dir)
 
     assert v1.video_path.is_file()
+
+
+@pytest.mark.parametrize(
+        "safe_timesteps, unsafe_timesteps",
+        [(np.arange(0, 50), np.arange(-40, 50)),
+         (np.arange(60, 100), np.arange(60, 130))])
+def test_timestep_clipping(
+        video_file_fixture,
+        extract_roi_list_fixture,
+        tmp_path_factory,
+        safe_timesteps,
+        unsafe_timesteps):
+    """
+    Test that get_thumbnail_from_artifact_file correctly clips
+    timesteps
+    """
+    tmp_dir = pathlib.Path(tmp_path_factory.mktemp('time_clip'))
+    roi_color = (99, 88, 55)
+    padding = 16
+    other_roi = None
+
+    for ii, roi in enumerate(extract_roi_list_fixture):
+
+        v0 = get_thumbnail_video_from_artifact_file(
+                    artifact_path=video_file_fixture,
+                    roi=roi,
+                    padding=padding,
+                    other_roi=other_roi,
+                    roi_color=roi_color,
+                    timesteps=safe_timesteps,
+                    tmp_dir=tmp_dir)
+
+        v1 = get_thumbnail_video_from_artifact_file(
+                    artifact_path=video_file_fixture,
+                    roi=roi,
+                    padding=padding,
+                    other_roi=other_roi,
+                    roi_color=roi_color,
+                    timesteps=unsafe_timesteps,
+                    tmp_dir=tmp_dir)
+
+        h0 = path_to_hash(v0.video_path)
+        h1 = path_to_hash(v1.video_path)
+        assert h0 == h1
+        del v0
+        del v1

@@ -3,6 +3,7 @@ import pathlib
 import numpy as np
 import h5py
 import numbers
+import warnings
 from ophys_etl.types import ExtractROI
 from ophys_etl.utils.video_utils import video_bounds_from_ROI
 import ophys_etl.utils.thumbnail_video_utils as thumbnail_utils
@@ -50,6 +51,9 @@ def get_thumbnail_video_from_artifact_file(
         If not None, timesteps to put in the thumbnail
         video. If None, use all timesetps (default: None)
 
+        Note: timesteps will automatically be clipped to be
+        between [0, video_shape[0])
+
     fps: int
         frames per second (default: 31)
 
@@ -67,11 +71,11 @@ def get_thumbnail_video_from_artifact_file(
     """
 
     with h5py.File(artifact_path, 'r') as in_file:
-        fov_shape = in_file['video_data'].shape[1:]
+        video_shape = in_file['video_data'].shape
         (origin,
          window_shape) = video_bounds_from_ROI(
                               roi=roi,
-                              fov_shape=fov_shape,
+                              fov_shape=video_shape[1:],
                               padding=padding)
 
         y0 = origin[0]
@@ -82,7 +86,22 @@ def get_thumbnail_video_from_artifact_file(
         if timesteps is None:
             video_data = in_file['video_data'][:, y0:y1, x0:x1]
         else:
-            video_data = in_file['video_data'][timesteps, y0:y1, x0:x1]
+            valid = np.logical_and(timesteps >= 0,
+                                   timesteps < video_shape[0])
+            if valid.sum() < len(timesteps):
+                msg = "You asked for timesteps between "
+                msg += f"[{timesteps.min()}, {timesteps.max()}]; "
+                msg += f"this video has shape {video_shape}; "
+                msg += "automatically clipping timesteps to be valid"
+                warnings.warn(msg)
+            timesteps = timesteps[valid]
+            dt = np.unique(np.diff(timesteps))
+            if len(dt) == 1 and int(dt.max()) == 1:
+                tmin = timesteps.min()
+                tmax = timesteps.max()+1
+                video_data = in_file['video_data'][tmin:tmax, y0:y1, x0:x1]
+            else:
+                video_data = in_file['video_data'][timesteps, y0:y1, x0:x1]
 
     # When users of the cell labeling app try to load a video from
     # an arbitrary point, the assigned id is a string, not an int.
@@ -111,7 +130,8 @@ def get_thumbnail_video_from_artifact_file(
         new_roi_color[roi_id_to_int[roi['id']]] = roi_color[roi['id']]
         if other_roi is not None:
             for o_roi in other_roi:
-                new_roi_color[roi_id_to_int[o_roi['id']]] = roi_color[o_roi['id']]
+                id_as_int = roi_id_to_int[o_roi['id']]
+                new_roi_color[id_as_int] = roi_color[o_roi['id']]
     else:
         new_roi_color = roi_color
 

@@ -3,6 +3,7 @@ import pathlib
 import numpy as np
 import h5py
 import numbers
+import warnings
 from ophys_etl.types import ExtractROI
 from ophys_etl.utils.video_utils import video_bounds_from_ROI
 import ophys_etl.utils.thumbnail_video_utils as thumbnail_utils
@@ -87,6 +88,12 @@ def get_thumbnail_video_from_artifact_file(
         else:
             valid = np.logical_and(timesteps >= 0,
                                    timesteps < video_shape[0])
+            if valid.sum() < len(timesteps):
+                msg = "You asked for timesteps between "
+                msg += f"[{timesteps.min()}, {timesteps.max()}]; "
+                msg += f"this video has shape {video_shape}; "
+                msg += "automatically clipping timesteps to be valid"
+                warnings.warn(msg)
             timesteps = timesteps[valid]
             video_data = in_file['video_data'][timesteps, y0:y1, x0:x1]
 

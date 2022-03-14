@@ -41,12 +41,14 @@ def apply_median_filter_to_video(
     return filtered_frames
 
 
-def _filter_worker(video: np.ndarray,
-                   kernel_size: int,
-                   output_list: multiprocessing.managers.ListProxy) -> None:
+def _filter_worker(
+        video: np.ndarray,
+        kernel_size: int,
+        output_list: multiprocessing.managers.ListProxy,
+        output_lock: multiprocessing.managers.AcquirerProxy) -> None:
     """
     Worker method to apply apply_median_filter_to_video to a subset of
-    video frames from a video
+    video frames from a video and take the maximum over time of those frames
 
     Parameters
     ----------
@@ -60,9 +62,18 @@ def _filter_worker(video: np.ndarray,
         frames will be kept. Because it does not matter the order of
         frames when they are cast into a maximum projection image,
         the order of the frames does not need to be preserved here.
+
+        To save memory, only the maximum projection of the current
+        chunk of frames is saved.
+
+    output_lock: multiprocessing.managers.AcquirerProxy
+        A multiprocessing.manager.Lock() to prevent multiple processes
+        from writing to the output_list at once
     """
     local_result = apply_median_filter_to_video(video, kernel_size)
-    output_list.append(local_result)
+    local_result = local_result.max(axis=0)
+    with output_lock:
+        output_list.append(local_result)
 
 
 def median_filtered_max_projection_from_array(
@@ -116,6 +127,7 @@ def median_filtered_max_projection_from_array(
     process_list = []
     mgr = multiprocessing.Manager()
     output_list = mgr.list()
+    output_lock = mgr.Lock()
     ntime0 = video.shape[0]
     for i0 in range(0, ntime0, n_frames_per_chunk):
 
@@ -129,14 +141,15 @@ def median_filtered_max_projection_from_array(
                     target=_filter_worker,
                     args=(input_chunk,
                           median_filter_kernel_size,
-                          output_list))
+                          output_list,
+                          output_lock))
         p.start()
         process_list.append(p)
 
     for p in process_list:
         p.join()
 
-    return np.vstack(output_list).max(axis=0)
+    return np.stack(output_list).max(axis=0)
 
 
 def median_filtered_max_projection_from_path(

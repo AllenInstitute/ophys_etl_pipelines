@@ -304,7 +304,10 @@ def expected_pairwise():
     return expected_files
 
 
-def test_pairwise_plot_generation(tmpdir, expected_pairwise):
+def test_pairwise_plot_generation(
+            tmpdir,
+            expected_pairwise,
+            helper_functions):
     """
     Run a smoke test on qc_plotting.generate_pairwise_figures
     """
@@ -357,14 +360,7 @@ def test_pairwise_plot_generation(tmpdir, expected_pairwise):
         assert fname in expected_files
     assert ct == len(expected_files)
 
-    tmpdir = pathlib.Path(tmpdir)
-    path_list = [n for n in tmpdir.rglob('*')]
-    for this_path in path_list:
-        if this_path.is_file():
-            try:
-                this_path.unlink()
-            except Exception:
-                pass
+    helper_functions.clean_up_dir(tmpdir=tmpdir)
 
 
 @pytest.mark.parametrize('mangling_operation', ['some', 'all',
@@ -373,7 +369,8 @@ def test_pairwise_plot_generation(tmpdir, expected_pairwise):
                                                 'both_value'])
 def test_pairwise_plot_generation_nans(tmpdir,
                                        expected_pairwise,
-                                       mangling_operation):
+                                       mangling_operation,
+                                       helper_functions):
     """
     Run a smoke test on qc_plotting.generate_pairwise_figures
     in the case where data being plotted contains NaNs
@@ -523,11 +520,4 @@ def test_pairwise_plot_generation_nans(tmpdir,
         assert fname in expected_files
     assert ct == len(expected_files)
 
-    tmpdir = pathlib.Path(tmpdir)
-    path_list = [n for n in tmpdir.rglob('*')]
-    for this_path in path_list:
-        if this_path.is_file():
-            try:
-                this_path.unlink()
-            except Exception:
-                pass
+    helper_functions.clean_up_dir(tmpdir=tmpdir)

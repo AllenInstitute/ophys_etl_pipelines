@@ -61,7 +61,8 @@ def test_suite2p_motion_correction(
         clip_negative,
         do_optimize_motion_params,
         use_ave_image_as_reference,
-        video_path_fixture):
+        video_path_fixture,
+        helper_functions):
 
     tmpdir = tmp_path_factory.mktemp('s2p_motion')
 
@@ -169,11 +170,4 @@ def test_suite2p_motion_correction(
         if this_path.is_file():
             this_path.unlink()
 
-    tmp_dir = pathlib.Path(str_tmpdir)
-    path_list = [n for n in tmp_dir.rglob('*')]
-    for this_path in path_list:
-        if this_path.is_file():
-            try:
-                this_path.unlink()
-            except Exception:
-                pass
+    helper_functions.clean_up_dir(tmpdir=str_tmpdir)

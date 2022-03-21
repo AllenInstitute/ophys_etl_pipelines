@@ -1,3 +1,4 @@
+from typing import Union
 from pathlib import Path
 from typing import Tuple
 
@@ -11,6 +12,35 @@ import numpy as np
 from scipy.sparse import coo_matrix
 
 from ophys_etl.utils.roi_masks import RoiMask
+
+
+class HelperFunctions(object):
+    @staticmethod
+    def clean_up_dir(tmpdir: Union[str, Path]):
+        """
+        Attempt to clean up all of the files in a specified
+        directory. If a file cannot be deleted, just catch the
+        exception and move on.
+        """
+        print(f"cleaning up {tmpdir}")
+        tmpdir = Path(tmpdir)
+        path_list = [n for n in tmpdir.rglob('*')]
+        for this_path in path_list:
+            if this_path.is_file():
+                try:
+                    this_path.unlink()
+                except Exception:
+                    pass
+
+
+@pytest.fixture
+def helper_functions():
+    """
+    See solution to making helper functions available across
+    a pytest module in
+    https://stackoverflow.com/questions/33508060/create-and-import-helper-functions-in-tests-without-creating-packages-in-test-di
+    """
+    return HelperFunctions
 
 
 @pytest.fixture

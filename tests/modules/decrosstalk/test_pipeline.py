@@ -1,4 +1,3 @@
-import pathlib
 import os
 import h5py
 import json
@@ -8,7 +7,8 @@ from ophys_etl.modules.decrosstalk.__main__ import DecrosstalkWrapper
 from .utils import create_data
 
 
-def test_run_decrosstalk(tmpdir):
+def test_run_decrosstalk(tmpdir,
+                         helper_functions):
     """
     Test that ophys_etl/transforms/decrosstalk_wrapper
     runs as expected
@@ -76,17 +76,11 @@ def test_run_decrosstalk(tmpdir):
         msg = 'could not find %s' % full_name
         assert os.path.isfile(full_name), msg
 
-    tmpdir = pathlib.Path(tmpdir)
-    path_list = [n for n in tmpdir.rglob('*')]
-    for this_path in path_list:
-        if this_path.is_file():
-            try:
-                this_path.unlink()
-            except Exception:
-                pass
+    helper_functions.clean_up_dir(tmpdir=tmpdir)
 
 
-def test_run_decrosstalk_with_empty_rois(tmpdir):
+def test_run_decrosstalk_with_empty_rois(tmpdir,
+                                         helper_functions):
     """
     Test that ophys_etl/transforms/decrosstalk_wrapper
     runs as expected when ROIs are empty
@@ -163,11 +157,4 @@ def test_run_decrosstalk_with_empty_rois(tmpdir):
         msg = 'could not find %s' % full_name
         assert os.path.isfile(full_name), msg
 
-    tmpdir = pathlib.Path(tmpdir)
-    path_list = [n for n in tmpdir.rglob('*')]
-    for this_path in path_list:
-        if this_path.is_file():
-            try:
-                this_path.unlink()
-            except Exception:
-                pass
+    helper_functions.clean_up_dir(tmpdir=tmpdir)

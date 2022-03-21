@@ -1,12 +1,10 @@
-import pathlib
-
 from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 from ophys_etl.modules.decrosstalk.decrosstalk import run_decrosstalk
 
 from .utils import create_data
 
 
-def test_run_decrosstalk(tmpdir):
+def test_run_decrosstalk(tmpdir, helper_functions):
     """
     Test that run_decrosstalk() can run
     as expected in production.
@@ -27,11 +25,4 @@ def test_run_decrosstalk(tmpdir):
                     cache_dir=session['qc_output_dir'],
                     clobber=True)
 
-    tmpdir = pathlib.Path(tmpdir)
-    path_list = [n for n in tmpdir.rglob('*')]
-    for this_path in path_list:
-        if this_path.is_file():
-            try:
-                this_path.unlink()
-            except Exception:
-                pass
+    helper_functions.clean_up_dir(tmpdir=tmpdir)

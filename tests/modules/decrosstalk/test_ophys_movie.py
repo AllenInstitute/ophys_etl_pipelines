@@ -1,5 +1,4 @@
 import tempfile
-import pathlib
 import h5py
 import numpy as np
 import ophys_etl.modules.decrosstalk.ophys_plane as ophys_plane
@@ -89,7 +88,8 @@ def _run_ophys_movie_test(tmp_filename):
                                   np.zeros(200, dtype=float))
 
 
-def test_ophys_movie(tmpdir):
+def test_ophys_movie(tmpdir,
+                     helper_functions):
     test_ophys_movie._temp_files = []
     tmp_filename = tempfile.mkstemp(prefix='ophys_movie_filename',
                                     suffix='.h5',
@@ -97,11 +97,4 @@ def test_ophys_movie(tmpdir):
     test_ophys_movie._temp_files.append(tmp_filename)
     _run_ophys_movie_test(tmp_filename)
 
-    tmpdir = pathlib.Path(tmpdir)
-    path_list = [n for n in tmpdir.rglob('*')]
-    for this_path in path_list:
-        if this_path.is_file():
-            try:
-                this_path.unlink()
-            except Exception:
-                pass
+    helper_functions.clean_up_dir(tmpdir=tmpdir)

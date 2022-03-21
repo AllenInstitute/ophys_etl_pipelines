@@ -1,5 +1,7 @@
+from typing import List, Tuple
 from argschema import ArgSchemaParser
 import pathlib
+import numpy as np
 import time
 
 from ophys_etl.modules.mesoscope_splitting.schemas import (
@@ -14,6 +16,54 @@ from ophys_etl.modules.mesoscope_splitting.zstack_splitter import (
 
 from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
     ScanImageMetadata)
+
+
+def get_valid_roi_centers(
+        timeseries_splitter: TimeSeriesSplitter) -> List[Tuple[float, float]]:
+    """
+    Return a list of all of the valid ROI centers taken from a
+    TimeSeriesSplitter
+    """
+    eps = 0.01  # ROIs farther apart than this are different
+    valid_roi_centers = []
+    for roi_z_tuple in timeseries_splitter.roi_z_int_manifest:
+        roi_center = timeseries_splitter.roi_center(
+                              i_roi=roi_z_tuple[0])
+        dmin = None
+        for other_roi_center in valid_roi_centers:
+            distance = np.sqrt((roi_center[0]-other_roi_center[0])**2
+                               + (roi_center[1]-other_roi_center[1])**2)
+            if dmin is None or distance < dmin:
+                dmin = distance
+        if dmin is None or dmin > eps:
+            valid_roi_centers.append(roi_center)
+    return valid_roi_centers
+
+
+def get_nearest_roi_center(
+        this_roi_center: Tuple[float, float],
+        valid_roi_centers: List[Tuple[float, float]]) -> int:
+    """
+    Take a specified ROI center and a list of valid ROI centers,
+    return the index in valid_roi_centers that is closest to
+    this_roi_center
+    """
+    dmin = None
+    ans = None
+    for i_roi, roi in enumerate(valid_roi_centers):
+        dist = ((this_roi_center[0]-roi[0])**2
+                + (this_roi_center[1]-roi[1])**2)
+        if dmin is None or dist < dmin:
+            ans = i_roi
+            dmin = dist
+
+    if ans is None:
+        msg = "Could not find nearest ROI center for\n"
+        msg += f"{this_roi_center}\n"
+        msg += f"{valid_roi_centers}\n"
+        raise RuntimeError(msg)
+
+    return ans
 
 
 class TiffSplitterCLI(ArgSchemaParser):
@@ -61,9 +111,15 @@ class TiffSplitterCLI(ArgSchemaParser):
                 msg += "the TIFF splitting code no longer handles that file."
                 self.logger.warn(msg)
 
-        # how far apart are we going to allow two ROI center
-        # to be and still be considered "the same"
-        center_dsq_tol = 1.0e-6
+        # There are cases where the centers for ROIs are not
+        # exact across modalities, so we cannot demand that the
+        # ROI centers be the same to within an absolute tolerance.
+        # Here we use the timeseries TIFF to assemble a list of all
+        # available ROI centers. When splitting the other TIFFs, we
+        # will validate them by making sure that the closest
+        # valid_roi_center is always what we expect.
+        valid_roi_centers = get_valid_roi_centers(
+                                timeseries_splitter=timeseries_splitter)
 
         experiment_metadata = []
         for plane_group in self.args["plane_groups"]:
@@ -113,22 +169,21 @@ class TiffSplitterCLI(ArgSchemaParser):
                     output_path = experiment_dir / output_name
 
                     roi_center = splitter.roi_center(i_roi=roi_index)
+                    nearest_valid = get_nearest_roi_center(
+                                        this_roi_center=roi_center,
+                                        valid_roi_centers=valid_roi_centers)
                     if baseline_center is None:
-                        baseline_center = roi_center
-                    else:
-                        # check that the depth and surface ROIs are aligned
-                        center_dsq = ((baseline_center[0]-roi_center[0])**2
-                                      + (baseline_center[1]-roi_center[1])**2)
+                        baseline_center = nearest_valid
 
-                        if center_dsq > center_dsq_tol:
-                            msg = f"experiment {experiment_id}\n"
-                            msg += "roi center inconsistent for "
-                            msg += "input: "
-                            msg += f"{splitter.input_path()}\n"
-                            msg += "output: "
-                            msg += f"{output_path.resolve().absolute()}\n"
-                            msg += f"{baseline_center}; {roi_center}"
-                            raise RuntimeError(msg)
+                    if nearest_valid != baseline_center:
+                        msg = f"experiment {experiment_id}\n"
+                        msg += "roi center inconsistent for "
+                        msg += "input: "
+                        msg += f"{splitter.input_path.resolve().absolute()}\n"
+                        msg += "output: "
+                        msg += f"{output_path.resolve().absolute()}\n"
+                        msg += f"{baseline_center}; {roi_center}\n"
+                        raise RuntimeError(msg)
 
                     splitter.write_output_file(
                                     i_roi=roi_index,

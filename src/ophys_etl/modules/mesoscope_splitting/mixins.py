@@ -44,14 +44,14 @@ class IntFromZMapperMixin(object):
         result = None
         max_value = -1
         for z_test, int_val in self._int_from_z_lookup.items():
-            d = np.abs(z_value-z_test)
+            delta = np.abs(z_value-z_test)
             if int_val > max_value:
                 max_value = int_val
-            if d <= atol:
-                if best_delta is not None and d > best_delta:
+            if delta <= atol:
+                if best_delta is not None and delta > best_delta:
                     continue
                 result = int_val
-                best_delta = d
+                best_delta = delta
 
         if result is None:
             new_val = max_value + 1

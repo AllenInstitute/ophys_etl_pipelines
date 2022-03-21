@@ -211,8 +211,8 @@ def test_all_zs_error(
 
     with patch(to_replace, new=mock_read_metadata):
         metadata = ScanImageMetadata(tiff_path=tmp_path)
-        with pytest.raises(ValueError, match="Cannot load all_zs"):
-            metadata.all_zs()
+    with pytest.raises(ValueError, match="Cannot load all_zs"):
+        metadata.all_zs()
 
 
 def test_zs_for_roi(
@@ -242,12 +242,12 @@ def test_zs_for_roi(
 
         with patch(to_replace, new=mock_read_metadata):
             metadata = ScanImageMetadata(tiff_path=tmp_path)
-            assert metadata.n_rois == len(expected_rois)
-            for i_roi in range(metadata.n_rois):
-                assert metadata.zs_for_roi(i_roi) == expected_rois[i_roi]['zs']
+        assert metadata.n_rois == len(expected_rois)
+        for i_roi in range(metadata.n_rois):
+            assert metadata.zs_for_roi(i_roi) == expected_rois[i_roi]['zs']
 
-            with pytest.raises(ValueError, match="You asked for ROI"):
-                metadata.zs_for_roi(metadata.n_rois)
+        with pytest.raises(ValueError, match="You asked for ROI"):
+            metadata.zs_for_roi(metadata.n_rois)
 
 
 def test_defined_rois(

@@ -122,7 +122,7 @@ class TiffSplitterCLI(ArgSchemaParser):
 
                         if center_dsq > center_dsq_tol:
                             msg = f"experiment {experiment_id}\n"
-                            msg += "roi center in consistnet for "
+                            msg += "roi center in consistent for "
                             msg += f"{output_path.resolve().absolute()}\n"
                             msg += f"{baseline_center}; {roi_center}"
                             raise RuntimeError(msg)

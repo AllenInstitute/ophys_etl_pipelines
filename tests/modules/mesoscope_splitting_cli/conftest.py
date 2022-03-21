@@ -218,7 +218,7 @@ def surface_fixture(splitter_tmp_dir_fixture,
     data_list = []
     expected_img_list = []
 
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(554433)
     for ii in range(n_rois):
         this_data = rng.integers(0, 100, (n_pages, 24, 24))
         this_expected = normalize_array(this_data.mean(axis=0))

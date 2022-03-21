@@ -73,6 +73,15 @@ class ZStackSplitter(IntFromZMapperMixin):
             with tifffile.TiffFile(tiff_path, 'rb') as tiff_file:
                 self._path_to_pages[tiff_path] = len(tiff_file.pages)
 
+    @property
+    def input_path(self) -> List[str]:
+        """
+        The list of files this splitter is trying to split
+        """
+        output = list(self._path_to_metadata.keys())
+        output.sort()
+        return output
+
     def roi_center(self, i_roi: int) -> Tuple[float, float]:
         """
         Return the (X, Y) center coordinates for the ROI specified

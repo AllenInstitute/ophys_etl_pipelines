@@ -162,6 +162,13 @@ class ScanImageTiffSplitter(IntFromZMapperMixin):
                     i_roi += 1
                     ct = 0
 
+    @property
+    def input_path(self) -> pathlib.Path:
+        """
+        The file this splitter is trying to split
+        """
+        return self._file_path
+
     def is_z_valid_for_roi(self,
                            i_roi: int,
                            z_value: float) -> bool:

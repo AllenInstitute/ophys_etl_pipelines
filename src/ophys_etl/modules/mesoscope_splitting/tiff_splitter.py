@@ -371,7 +371,7 @@ class ScanImageTiffSplitter(IntFromZMapperMixin):
 
 class TimeSeriesSplitter(ScanImageTiffSplitter):
     """
-    A class to specifically for splitting timeseries TIFFs
+    A class specifically for splitting timeseries TIFFs
 
     Parameters
     ----------

@@ -1,5 +1,5 @@
 import pytest
-from typing import List
+from typing import List, Tuple, Dict
 from unittest.mock import patch
 import numpy as np
 import h5py
@@ -18,11 +18,16 @@ from ophys_etl.modules.mesoscope_splitting.zstack_splitter import (
     ZStackSplitter)
 
 
-def _create_image_tiff(tmp_dir: pathlib.Path,
-                       z_value_list: List[int],
-                       n_rois: int,
-                       use_zs: bool = False,
-                       is_surface: bool = False):
+def _create_image_tiff(
+        tmp_dir: pathlib.Path,
+        z_value_list: List[int],
+        n_rois: int,
+        use_zs: bool = False,
+        is_surface: bool = False
+        ) -> Tuple[pathlib.Path,
+                   Dict[Tuple[int, int], np.ndarray],
+                   Dict[Tuple[int, int], List[np.ndarray]],
+                   dict]:
     """
     A fixture simulating a depth TIFF sampling 2 ROIs,
     4 zs at each ROI.
@@ -402,7 +407,10 @@ def test_time_splitter(tmp_path_factory,
 def _create_z_stack_tiffs(
         tmpdir: pathlib.Path,
         roi_to_z_mapping: List[List[int]],
-        use_zs: bool = False):
+        use_zs: bool = False
+        ) -> Tuple[Dict[str, dict],
+                   Dict[Tuple[int, int],
+                        List[np.ndarray]]]:
     """
     Returns
     -------

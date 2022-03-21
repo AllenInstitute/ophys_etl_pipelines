@@ -1,7 +1,7 @@
 import pytest
 import tempfile
 import copy
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 import pathlib
 from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
     ScanImageMetadata)
@@ -182,12 +182,10 @@ def test_all_zs(
                              mock_1x3_metadata_zsAllActuators,
                              mock_3x1_metadata_zsAllActuators):
 
-        def mock_read_metadata(tiff_path):
-            return metadata_fixture[0]
-
         expected = metadata_fixture[1]
 
-        with patch(to_replace, new=mock_read_metadata):
+        with patch(to_replace,
+                   new=Mock(return_value=metadata_fixture[0])):
             metadata = ScanImageMetadata(tiff_path=tmp_path)
             assert expected == metadata.all_zs()
 
@@ -203,13 +201,11 @@ def test_all_zs_error(
     tmpdir = tmp_path_factory.mktemp('test_all_zs')
     tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
 
-    def mock_read_metadata(tiff_path):
-        return mock_2x3_metadata_nozs
-
     to_replace = 'ophys_etl.modules.mesoscope_splitting.'
     to_replace += 'tiff_metadata._read_metadata'
 
-    with patch(to_replace, new=mock_read_metadata):
+    with patch(to_replace,
+               new=Mock(return_value=mock_2x3_metadata_nozs)):
         metadata = ScanImageMetadata(tiff_path=tmp_path)
     with pytest.raises(ValueError, match="Cannot load all_zs"):
         metadata.all_zs()
@@ -235,12 +231,10 @@ def test_zs_for_roi(
                              mock_1x3_metadata_zsAllActuators,
                              mock_3x1_metadata_zsAllActuators):
 
-        def mock_read_metadata(tiff_path):
-            return metadata_fixture[0]
-
         expected_rois = metadata_fixture[2]
 
-        with patch(to_replace, new=mock_read_metadata):
+        with patch(to_replace,
+                   new=Mock(return_value=metadata_fixture[0])):
             metadata = ScanImageMetadata(tiff_path=tmp_path)
         assert metadata.n_rois == len(expected_rois)
         for i_roi in range(metadata.n_rois):
@@ -270,11 +264,9 @@ def test_defined_rois(
                              mock_1x3_metadata_zsAllActuators,
                              mock_3x1_metadata_zsAllActuators):
 
-        def mock_read_metadata(tiff_path):
-            return metadata_fixture[0]
-
         expected_rois = metadata_fixture[2]
 
-        with patch(to_replace, new=mock_read_metadata):
+        with patch(to_replace,
+                   new=Mock(return_value=metadata_fixture[0])):
             metadata = ScanImageMetadata(tiff_path=tmp_path)
             assert metadata.defined_rois == expected_rois

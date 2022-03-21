@@ -1,6 +1,6 @@
 import pytest
 from typing import List, Tuple, Dict
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 import numpy as np
 import h5py
 import pathlib
@@ -153,11 +153,8 @@ def test_depth_splitter(tmp_path_factory,
 
     n_z_per_roi = len(z_value_list) // n_rois
 
-    def scanimage_metadata_mock(file_handle):
-        return metadata
-
     with patch('tifffile.read_scanimage_metadata',
-               new=scanimage_metadata_mock):
+               new=Mock(return_value=metadata)):
 
         splitter = ScanImageTiffSplitter(tiff_path=tiff_path)
     for i_z, z_value in enumerate(z_value_list):
@@ -229,11 +226,8 @@ def test_splitter_manifest(tmp_path_factory,
 
     n_z_per_roi = len(z_value_list) // n_rois
 
-    def scanimage_metadata_mock(file_handle):
-        return metadata
-
     with patch('tifffile.read_scanimage_metadata',
-               new=scanimage_metadata_mock):
+               new=Mock(return_value=metadata)):
         splitter = ScanImageTiffSplitter(tiff_path=tiff_path)
 
     assert splitter.n_pages == 5*len(z_value_list)
@@ -301,11 +295,8 @@ def test_surface_splitter(tmp_path_factory,
     page_lookup = surface_tiff[2]
     metadata = surface_tiff[3]
 
-    def scanimage_metadata_mock(file_handle):
-        return metadata
-
     with patch('tifffile.read_scanimage_metadata',
-               new=scanimage_metadata_mock):
+               new=Mock(return_value=metadata)):
         splitter = ScanImageTiffSplitter(tiff_path=tiff_path)
 
     for i_z, z_value in enumerate(z_value_list):
@@ -378,11 +369,8 @@ def test_time_splitter(tmp_path_factory,
     page_lookup = time_tiff[2]
     metadata = time_tiff[3]
 
-    def scanimage_metadata_mock(file_handle):
-        return metadata
-
     with patch('tifffile.read_scanimage_metadata',
-               new=scanimage_metadata_mock):
+               new=Mock(return_value=metadata)):
         splitter = TimeSeriesSplitter(tiff_path=tiff_path)
 
     for i_z, z_value in enumerate(z_value_list):

@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 import pathlib
 import tempfile
 
@@ -25,11 +25,8 @@ def test_repeated_z_error(
     metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
                 roi_metadata]
 
-    def scanimage_metadata_mock(file_handle):
-        return metadata
-
     with patch('tifffile.read_scanimage_metadata',
-               new=scanimage_metadata_mock):
+               new=Mock(return_value=metadata)):
 
         with pytest.raises(RuntimeError, match="has duplicate zs"):
             ScanImageTiffSplitter(tiff_path=tmp_path)
@@ -53,11 +50,8 @@ def test_roi_order_error(
     metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
                 roi_metadata]
 
-    def scanimage_metadata_mock(file_handle):
-        return metadata
-
     with patch('tifffile.read_scanimage_metadata',
-               new=scanimage_metadata_mock):
+               new=Mock(return_value=metadata)):
 
         with pytest.raises(RuntimeError,
                            match="not in correct order for ROIs"):
@@ -82,11 +76,8 @@ def test_uneven_z_per_roi(
     metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
                 roi_metadata]
 
-    def scanimage_metadata_mock(file_handle):
-        return metadata
-
     with patch('tifffile.read_scanimage_metadata',
-               new=scanimage_metadata_mock):
+               new=Mock(return_value=metadata)):
 
         with pytest.raises(RuntimeError,
                            match="equal number of zs per ROI"):
@@ -110,11 +101,8 @@ def test_zs_not_list(
     metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
                 roi_metadata]
 
-    def scanimage_metadata_mock(file_handle):
-        return metadata
-
     with patch('tifffile.read_scanimage_metadata',
-               new=scanimage_metadata_mock):
+               new=Mock(return_value=metadata)):
 
         with pytest.raises(RuntimeError,
                            match="Unclear how to split"):
@@ -139,11 +127,8 @@ def test_zs_not_list_of_lists(
     metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
                 roi_metadata]
 
-    def scanimage_metadata_mock(file_handle):
-        return metadata
-
     with patch('tifffile.read_scanimage_metadata',
-               new=scanimage_metadata_mock):
+               new=Mock(return_value=metadata)):
 
         with pytest.raises(RuntimeError,
                            match="Unclear how to split"):

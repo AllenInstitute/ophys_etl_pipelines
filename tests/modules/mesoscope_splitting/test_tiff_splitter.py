@@ -406,7 +406,7 @@ def _create_z_stack_tiffs(
     dict mapping (i_roi, z_value) to tiff_pages_lookup
     """
 
-    rng = np.random.default_rng()
+    rng = np.random.default_rng(662211)
 
     tiff_pages_lookup = dict()
     z_stack_path_to_metadata = dict()

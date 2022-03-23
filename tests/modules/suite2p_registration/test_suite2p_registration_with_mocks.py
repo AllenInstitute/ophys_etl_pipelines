@@ -56,7 +56,7 @@ def mock_ops_data():
             "meanImg": 0}
 
 
-def test_suite2p_registration(tmp_path, mock_ops_data):
+def test_suite2p_registration(tmp_path, mock_ops_data, helper_functions):
     h5path = tmp_path / "mc_video.h5"
     with h5py.File(str(h5path), "w") as f:
         f.create_dataset("data", data=np.zeros((1000, 32, 32)))
@@ -126,8 +126,11 @@ def test_suite2p_registration(tmp_path, mock_ops_data):
     assert np.allclose(obt_motion_offset_df["correlation"],
                        mock_ops_data['corrXY'])
 
+    helper_functions.clean_up_dir(tmpdir=tmp_path)
 
-def test_suite2p_frame_rate_consistency(tmp_path, mock_ops_data):
+
+def test_suite2p_frame_rate_consistency(
+        tmp_path, mock_ops_data, helper_functions):
     """
     Test that, if suite2p_args and args specify different
     movie_frame_rate_hz, an exception is raised
@@ -178,8 +181,11 @@ def test_suite2p_frame_rate_consistency(tmp_path, mock_ops_data):
             runner = s2preg.Suite2PRegistration(input_data=args, args=[])
             assert runner.args['suite2p_args']['movie_frame_rate_hz'] == 11.0
 
+    helper_functions.clean_up_dir(tmpdir=tmp_path)
 
-def test_suite2p_trim_frames_raises(tmp_path, mock_ops_data):
+
+def test_suite2p_trim_frames_raises(
+        tmp_path, mock_ops_data, helper_functions):
     h5path = tmp_path / "mc_video.h5"
     with h5py.File(str(h5path), "w") as f:
         f.create_dataset("data", data=np.zeros((1000, 32, 32)))
@@ -228,3 +234,5 @@ def test_suite2p_trim_frames_raises(tmp_path, mock_ops_data):
               'ophys_etl.modules.suite2p_registration.__main__.Suite2PWrapper',
               MockSuite2PWrapper):
                 s2preg.Suite2PRegistration(input_data=args, args=[])
+
+    helper_functions.clean_up_dir(tmpdir=tmp_path)

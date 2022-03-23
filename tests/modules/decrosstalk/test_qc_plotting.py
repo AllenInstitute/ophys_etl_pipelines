@@ -304,7 +304,10 @@ def expected_pairwise():
     return expected_files
 
 
-def test_pairwise_plot_generation(tmpdir, expected_pairwise):
+def test_pairwise_plot_generation(
+            tmpdir,
+            expected_pairwise,
+            helper_functions):
     """
     Run a smoke test on qc_plotting.generate_pairwise_figures
     """
@@ -357,6 +360,8 @@ def test_pairwise_plot_generation(tmpdir, expected_pairwise):
         assert fname in expected_files
     assert ct == len(expected_files)
 
+    helper_functions.clean_up_dir(tmpdir=tmpdir)
+
 
 @pytest.mark.parametrize('mangling_operation', ['some', 'all',
                                                 'both_some',
@@ -364,7 +369,8 @@ def test_pairwise_plot_generation(tmpdir, expected_pairwise):
                                                 'both_value'])
 def test_pairwise_plot_generation_nans(tmpdir,
                                        expected_pairwise,
-                                       mangling_operation):
+                                       mangling_operation,
+                                       helper_functions):
     """
     Run a smoke test on qc_plotting.generate_pairwise_figures
     in the case where data being plotted contains NaNs
@@ -513,3 +519,5 @@ def test_pairwise_plot_generation_nans(tmpdir,
         ct += 1
         assert fname in expected_files
     assert ct == len(expected_files)
+
+    helper_functions.clean_up_dir(tmpdir=tmpdir)

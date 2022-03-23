@@ -4,7 +4,7 @@ from ophys_etl.modules.decrosstalk.decrosstalk import run_decrosstalk
 from .utils import create_data
 
 
-def test_run_decrosstalk(tmpdir):
+def test_run_decrosstalk(tmpdir, helper_functions):
     """
     Test that run_decrosstalk() can run
     as expected in production.
@@ -24,3 +24,5 @@ def test_run_decrosstalk(tmpdir):
     run_decrosstalk(plane1, plane0,
                     cache_dir=session['qc_output_dir'],
                     clobber=True)
+
+    helper_functions.clean_up_dir(tmpdir=tmpdir)

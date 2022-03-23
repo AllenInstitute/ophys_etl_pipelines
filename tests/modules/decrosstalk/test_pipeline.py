@@ -7,7 +7,8 @@ from ophys_etl.modules.decrosstalk.__main__ import DecrosstalkWrapper
 from .utils import create_data
 
 
-def test_run_decrosstalk(tmpdir):
+def test_run_decrosstalk(tmpdir,
+                         helper_functions):
     """
     Test that ophys_etl/transforms/decrosstalk_wrapper
     runs as expected
@@ -75,8 +76,11 @@ def test_run_decrosstalk(tmpdir):
         msg = 'could not find %s' % full_name
         assert os.path.isfile(full_name), msg
 
+    helper_functions.clean_up_dir(tmpdir=tmpdir)
 
-def test_run_decrosstalk_with_empty_rois(tmpdir):
+
+def test_run_decrosstalk_with_empty_rois(tmpdir,
+                                         helper_functions):
     """
     Test that ophys_etl/transforms/decrosstalk_wrapper
     runs as expected when ROIs are empty
@@ -152,3 +156,5 @@ def test_run_decrosstalk_with_empty_rois(tmpdir):
         full_name = os.path.join(output_dir, fname)
         msg = 'could not find %s' % full_name
         assert os.path.isfile(full_name), msg
+
+    helper_functions.clean_up_dir(tmpdir=tmpdir)

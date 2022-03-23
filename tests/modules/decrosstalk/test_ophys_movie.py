@@ -88,10 +88,13 @@ def _run_ophys_movie_test(tmp_filename):
                                   np.zeros(200, dtype=float))
 
 
-def test_ophys_movie(tmpdir):
+def test_ophys_movie(tmpdir,
+                     helper_functions):
     test_ophys_movie._temp_files = []
     tmp_filename = tempfile.mkstemp(prefix='ophys_movie_filename',
                                     suffix='.h5',
                                     dir=tmpdir)[1]
     test_ophys_movie._temp_files.append(tmp_filename)
     _run_ophys_movie_test(tmp_filename)
+
+    helper_functions.clean_up_dir(tmpdir=tmpdir)

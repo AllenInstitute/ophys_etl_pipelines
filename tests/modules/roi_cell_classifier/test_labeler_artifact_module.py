@@ -206,6 +206,15 @@ def test_labeler_artifact_generator(
     else:
         assert 'motion_csv' not in metadata
 
+    tmpdir = pathlib.Path(tmpdir)
+    path_list = [n for n in tmpdir.rglob('*')]
+    for this_path in path_list:
+        if this_path.is_file():
+            try:
+                this_path.unlink()
+            except Exception:
+                pass
+
 
 def test_clobber_error(
         classifier2021_video_fixture,

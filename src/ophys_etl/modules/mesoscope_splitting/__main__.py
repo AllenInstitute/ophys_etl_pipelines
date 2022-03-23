@@ -1,374 +1,233 @@
-import logging
-import os
-import numpy as np
-import h5py
-from typing import (
-    List, Dict, Tuple)
-from pathlib import Path
-from typing_extensions import TypedDict
+from typing import List, Tuple
 from argschema import ArgSchemaParser
-from ophys_etl.modules.mesoscope_splitting.tiff import MesoscopeTiff
-from ophys_etl.modules.mesoscope_splitting.conversion_utils import (
-    volume_to_h5, volume_to_tif, average_and_unsign)
-from ophys_etl.modules.mesoscope_splitting.metadata import SI_stringify_floats
+import pathlib
+import numpy as np
+import time
+
 from ophys_etl.modules.mesoscope_splitting.schemas import (
     InputSchema, OutputSchema)
-from ophys_etl.modules.mesoscope_splitting import checks
+
+from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
+    ScanImageTiffSplitter,
+    TimeSeriesSplitter)
+
+from ophys_etl.modules.mesoscope_splitting.zstack_splitter import (
+    ZStackSplitter)
+
+from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
+    ScanImageMetadata)
 
 
-def mock_h5(*args, **kwargs):
-    pass
-
-
-def mock_tif(filename, *args, **kwargs):
-    f = open(filename, "w")
-    f.close()
-
-
-class ConversionOutputDict(TypedDict):
-    filename: str
-    resolution: float
-    offset_x: float
-    offset_y: float
-    rotation: float
-    height: int
-    width: int
-
-
-class ConversionMetadataDict(TypedDict):
-    input_tif: str
-    roi_metadata: Dict
-    scanimage_metadata: Dict
-
-
-ConversionTuple = Tuple[ConversionOutputDict, ConversionMetadataDict]
-
-
-def conversion_output(volume,
-                      outfile,
-                      experiment_info) -> ConversionTuple:
-    mt = volume._tiff
-    height, width = volume.plane_shape
-    meta_res = {"input_tif": mt._source,
-                "roi_metadata": SI_stringify_floats(mt.roi_metadata),
-                "scanimage_metadata": SI_stringify_floats(mt.frame_metadata)}
-    out_res = {"filename": outfile,
-               "resolution": experiment_info["resolution"],
-               "offset_x": experiment_info["offset_x"],
-               "offset_y": experiment_info["offset_y"],
-               "rotation": experiment_info["rotation"],
-               "height": height,
-               "width": width}
-
-    return out_res, meta_res
-
-
-def convert_column(input_tif, session_storage, experiment_info):
-    mt = MesoscopeTiff(input_tif)
-    if len(mt.volume_views) != 1:
-        raise ValueError("Expected 1 stack in {}, but found {}".format(
-            input_tif, len(mt.volume_views)))
-    basename = os.path.basename(input_tif)
-    h5_base = os.path.splitext(basename)[0] + ".h5"
-    filename = os.path.join(session_storage, h5_base)
-    stack = mt.volume_views[0]
-
-    with h5py.File(filename, "w") as f:
-        volume_to_h5(f, stack)
-
-    return conversion_output(mt.volume_views[0], filename, experiment_info)
-
-
-def split_z(input_tif: MesoscopeTiff,
-            experiments: List[Dict],
-            testing=False) -> ConversionTuple:
-    """Takes a z_stack file from a Mesoscope ophys session and a list
-    of the experiments performed during that session and splits the data
-    into a z_stack file (as a .h5) for each individual experiment.
-
-    Parameters
-    ----------
-    input_tif : MesoscopeTiff
-        MesoscopeTiff object containing the timeseries data that
-        will be split by experiment.
-
-    experiments : List[Dict]
-        A list of dictionaries, each containing information about
-        the experiments performed during the ophys session, as described by
-        the ExperimentPlane schema defined in /pipelines/brain_observatory/
-        schemas/split_mesoscope.py.
-
-    Returns
-    -------
-    outs : ConversionOutputDict
-        A dictionary containing specific information about the experiments,
-        including the location of the input data.
-
-    meta : ConversionMetadataDict
-        A dictionary containing metadata about the experiment, including the
-        location where the ata will be saved.
+def get_valid_roi_centers(
+        timeseries_splitter: TimeSeriesSplitter) -> List[Tuple[float, float]]:
     """
-    directory = experiments["storage_directory"]
-    eid = experiments["experiment_id"]
-    filename = os.path.join(directory, "{}_z_stack_local.h5".format(eid))
-
-    i = experiments["roi_index"]
-    z = experiments["scanfield_z"]
-    stack = input_tif.nearest_volume(i, z)
-    if stack is None:
-        raise ValueError(
-            "Could not find stack to extract from {} for experiment {}".format(
-                input_tif._source, eid
-            )
-        )
-
-    logging.info(
-        "Got stack centered at z={} for target z={} in {}".format(
-            np.mean(stack.zs), z, input_tif._source
-        )
-    )
-
-    with h5py.File(filename, "w") as f:
-        volume_to_h5(f, stack)
-
-    outs, meta = conversion_output(stack, filename, experiments)
-
-    return outs, meta
-
-
-def split_image(input_tif: MesoscopeTiff,
-                experiments: List[Dict],
-                name: str) -> Tuple[Dict, Dict]:
-    """Takes a file from a Mesoscope ophys session containing many images
-    and a list of the experiments performed during that session and splits
-    the images into multiple .tif files by experiment.
-
-    Parameters
-    ----------
-    input_tif : MesoscopeTiff
-        MesoscopeTiff object containing the timeseries data that
-        will be split by experiment.
-
-    experiments : List[Dict]
-        A list of dictionaries, each containing information about
-        the experiments performed during the ophys session, as described by
-        the ExperimentPlane schema defined in /pipelines/brain_observatory/
-        schemas/split_mesoscope.py.
-
-    name : str
-        The name of the data that will be split (e.g. 'surface'
-        for surface image data or 'depth' for depth image data)
-
-    Returns
-    -------
-    outs : ConversionOutputDict
-        A dictionary containing specific information about the experiments,
-        including the location of the input data.
-
-    meta : ConversionMetadataDict
-        A dictionary containing metadata about the experiment, including the
-        location where the ata will be saved.
+    Return a list of all of the valid ROI centers taken from a
+    TimeSeriesSplitter
     """
-    outs = {}
-
-    for exp in experiments:
-        directory = exp["storage_directory"]
-        eid = exp["experiment_id"]
-        i = exp["roi_index"]
-        z = exp["scanfield_z"]
-        filename = os.path.join(directory, "{}_{}.tif".format(eid, name))
-
-        plane = input_tif.nearest_plane(i, z)
-        if plane is None:
-            raise ValueError(
-                "No plane to extract from {} for experiment {}".format(
-                    input_tif._source, eid
-                )
-            )
-
-        logging.info(
-            "Got plane at z={} for target z={} in {}".format(
-                np.mean(plane.zs), z, input_tif._source
-            )
-        )
-
-        volume_to_tif(filename, plane, projection_func=average_and_unsign)
-
-        outs[eid], meta = conversion_output(plane, filename, exp)
-
-    return outs, meta
+    eps = 0.01  # ROIs farther apart than this are different
+    valid_roi_centers = []
+    for roi_z_tuple in timeseries_splitter.roi_z_int_manifest:
+        roi_center = timeseries_splitter.roi_center(
+                              i_roi=roi_z_tuple[0])
+        dmin = None
+        for other_roi_center in valid_roi_centers:
+            distance = np.sqrt((roi_center[0]-other_roi_center[0])**2
+                               + (roi_center[1]-other_roi_center[1])**2)
+            if dmin is None or distance < dmin:
+                dmin = distance
+        if dmin is None or dmin > eps:
+            valid_roi_centers.append(roi_center)
+    return valid_roi_centers
 
 
-def split_timeseries(input_tif: MesoscopeTiff,
-                     experiments: List[Dict]) -> Tuple[Dict, Dict]:
-    """Takes a timeseries file from a Mesoscope ophys session and a list
-    of the experiments performed during that session and splits the data
-    into a timeseries file (as a .h5) for each individual experiment.
-
-    Parameters
-    ----------
-    input_tif : MesoscopeTiff
-        MesoscopeTiff object containing the timeseries data that
-        will be split by experiment.
-
-    experiments : List[Dict]
-        A list of dictionaries, each containing information about
-        the experiments performed during the ophys session, as described by
-        the ExperimentPlane schema defined in /pipelines/brain_observatory/
-        schemas/split_mesoscope.py.
-
-    Returns
-    -------
-    outs : ConversionOutputDict
-        A dictionary containing specific information about the experiments,
-        including the location of the input data.
-
-    meta : ConversionMetadataDict
-        A dictionary containing metadata about the experiment, including the
-        location where the ata will be saved.
+def get_nearest_roi_center(
+        this_roi_center: Tuple[float, float],
+        valid_roi_centers: List[Tuple[float, float]]) -> int:
     """
-    outs = {}
+    Take a specified ROI center and a list of valid ROI centers,
+    return the index in valid_roi_centers that is closest to
+    this_roi_center
+    """
+    dmin = None
+    ans = None
+    for i_roi, roi in enumerate(valid_roi_centers):
+        dist = ((this_roi_center[0]-roi[0])**2
+                + (this_roi_center[1]-roi[1])**2)
+        if dmin is None or dist < dmin:
+            ans = i_roi
+            dmin = dist
 
-    for exp in experiments:
-        directory = exp["storage_directory"]
-        eid = exp["experiment_id"]
-        i = exp["roi_index"]
-        z = exp["scanfield_z"]
-        filename = os.path.join(directory, "{}.h5".format(eid))
+    if ans is None:
+        msg = "Could not find nearest ROI center for\n"
+        msg += f"{this_roi_center}\n"
+        msg += f"{valid_roi_centers}\n"
+        raise RuntimeError(msg)
 
-        plane = input_tif.nearest_plane(i, z)
-        if plane is None:
-            raise ValueError(
-                "No plane to extract from {} for experiment {}".format(
-                    input_tif._source, eid
-                )
-            )
-
-        logging.info(
-            "Got plane at z={} for target z={} in {}".format(
-                np.mean(plane.zs), z, input_tif._source
-            )
-        )
-
-        with h5py.File(filename, "w") as f:
-            volume_to_h5(f, plane)
-
-        outs[eid], meta = conversion_output(plane, filename, exp)
-        if input_tif.is_multiscope:
-            outs[eid]["sync_stride"] = plane.stride // 2
-            outs[eid]["sync_offset"] = plane.page_offset // 2
-        else:
-            outs[eid]["sync_stride"] = plane.stride
-            outs[eid]["sync_offset"] = plane.page_offset
-
-    return outs, meta
+    return ans
 
 
-def main():
-    mod = ArgSchemaParser(schema_type=InputSchema,
-                          output_schema_type=OutputSchema)
+class TiffSplitterCLI(ArgSchemaParser):
+    default_schema = InputSchema
+    default_output_schema = OutputSchema
 
-    # check for repeated z value
-    ts_mesoscope_tiff = MesoscopeTiff(mod.args["timeseries_tif"])
-    checks.check_for_repeated_planes(ts_mesoscope_tiff)
+    def run(self):
+        t0 = time.time()
+        output = {"column_stacks": []}
+        files_to_record = []
 
-    # check consistency between input json and tiff headers
-    check_list = []
-    for plane_group in mod.args["plane_groups"]:
-        pg_tiff = Path(plane_group["local_z_stack_tif"])
-        roi_index = list({i["roi_index"]
-                          for i in plane_group["ophys_experiments"]})
-        check_list.append(
-            checks.ConsistencyInput(tiff=pg_tiff, roi_index=roi_index))
-    checks.splitting_consistency_check(check_list)
+        ts_path = pathlib.Path(self.args['timeseries_tif'])
+        timeseries_splitter = TimeSeriesSplitter(tiff_path=ts_path)
+        files_to_record.append(ts_path)
 
-    # end checks
+        depth_path = pathlib.Path(self.args["depths_tif"])
+        depth_splitter = ScanImageTiffSplitter(tiff_path=depth_path)
+        files_to_record.append(depth_path)
 
-    if mod.args['test_mode']:
-        global volume_to_h5, volume_to_tif
-        volume_to_h5 = mock_h5
-        volume_to_tif = mock_tif
+        surface_path = pathlib.Path(self.args["surface_tif"])
+        surface_splitter = ScanImageTiffSplitter(tiff_path=surface_path)
+        files_to_record.append(surface_path)
 
-    stack_tifs = set()
-    ready_to_archive = set()
-    session_storage = mod.args["storage_directory"]
+        zstack_path_list = []
+        for plane_grp in self.args['plane_groups']:
+            zstack_path = pathlib.Path(plane_grp['local_z_stack_tif'])
+            zstack_path_list.append(zstack_path)
+            files_to_record.append(zstack_path)
 
-    output = {"column_stacks": [],
-              "file_metadata": []}
+        zstack_splitter = ZStackSplitter(tiff_path_list=zstack_path_list)
 
-    experiments = []
-    z_outs = {}
+        ready_to_archive = set()
 
-    for plane_group in mod.args["plane_groups"]:
-        column_stack = plane_group.get("column_z_stack_tif", None)
-        if column_stack:
-            ready_to_archive.add(column_stack)
-            if column_stack not in stack_tifs:
-                try:
-                    out, meta = convert_column(
-                        column_stack,
-                        session_storage,
-                        plane_group["ophys_experiments"][0])
-                    output["column_stacks"].append(out)
-                    output["file_metadata"].append(meta)
-                except ValueError as e:
-                    # don't break on failed column stack conversion
-                    logging.error(e)
-                stack_tifs.add(column_stack)
+        # Looking at recent examples of outputs from this queue,
+        # I do not think we have honored the 'column_z_stack_tif'
+        # entry in the schema for some time now. I find no examples
+        # in which this entry of the input.jon is ever populated.
+        # I am leaving it here for now to avoid the complication of
+        # having to modify the ruby strategy associated with this
+        # queue, which is out of scope for the work we have
+        # currently committed to.
+        for plane_group in self.args["plane_groups"]:
+            if "column_z_stack_tif" in plane_group:
+                msg = "'column_z_stack_tif' detected in 'plane_groups'; "
+                msg += "the TIFF splitting code no longer handles that file."
+                self.logger.warn(msg)
 
-        for exp in plane_group["ophys_experiments"]:
-            localz = plane_group["local_z_stack_tif"]
-            ready_to_archive.add(localz)
+        # There are cases where the centers for ROIs are not
+        # exact across modalities, so we cannot demand that the
+        # ROI centers be the same to within an absolute tolerance.
+        # Here we use the timeseries TIFF to assemble a list of all
+        # available ROI centers. When splitting the other TIFFs, we
+        # will validate them by making sure that the closest
+        # valid_roi_center is always what we expect.
+        valid_roi_centers = get_valid_roi_centers(
+                                timeseries_splitter=timeseries_splitter)
 
-            localz_tiff = MesoscopeTiff(localz)
-            out, meta = split_z(localz_tiff, exp)
+        experiment_metadata = []
+        for plane_group in self.args["plane_groups"]:
+            for experiment in plane_group["ophys_experiments"]:
+                this_exp_metadata = dict()
+                exp_id = experiment["experiment_id"]
+                this_exp_metadata["experiment_id"] = exp_id
+                for file_key in ('timeseries',
+                                 'depth_2p',
+                                 'surface_2p',
+                                 'local_z_stack'):
+                    this_metadata = dict()
+                    for data_key in ('offset_x',
+                                     'offset_y',
+                                     'rotation',
+                                     'resolution'):
+                        this_metadata[data_key] = experiment[data_key]
+                    this_exp_metadata[file_key] = this_metadata
 
-            if localz not in stack_tifs:
-                output["file_metadata"].append(meta)
-                stack_tifs.add(localz)
+                experiment_dir = pathlib.Path(experiment["storage_directory"])
+                experiment_id = experiment["experiment_id"]
+                roi_index = experiment["roi_index"]
+                scanfield_z = experiment["scanfield_z"]
+                baseline_center = None
 
-            experiments.append(exp)
-            z_outs[exp["experiment_id"]] = out
+                for (splitter,
+                     z_value,
+                     output_name,
+                     metadata_tag) in zip(
+                                          (depth_splitter,
+                                           surface_splitter,
+                                           zstack_splitter,
+                                           timeseries_splitter),
+                                          (scanfield_z,
+                                           None,
+                                           scanfield_z,
+                                           scanfield_z),
+                                          (f"{experiment_id}_depth.tif",
+                                           f"{experiment_id}_surface.tif",
+                                           f"{experiment_id}_z_stack_local.h5",
+                                           f"{experiment_id}.h5"),
+                                          ("depth_2p",
+                                           "surface_2p",
+                                           "local_z_stack",
+                                           "timeseries")):
 
-    sf_mesoscope_tiff = MesoscopeTiff(mod.args["surface_tif"])
-    surf_outs, surf_meta = split_image(sf_mesoscope_tiff,
-                                       experiments,
-                                       "surface")
+                    output_path = experiment_dir / output_name
 
-    dp_mesoscope_tiff = MesoscopeTiff(mod.args["depths_tif"])
-    depth_outs, depth_meta = split_image(dp_mesoscope_tiff,
-                                         experiments,
-                                         "depth")
+                    roi_center = splitter.roi_center(i_roi=roi_index)
+                    nearest_valid = get_nearest_roi_center(
+                                        this_roi_center=roi_center,
+                                        valid_roi_centers=valid_roi_centers)
+                    if baseline_center is None:
+                        baseline_center = nearest_valid
 
-    ts_outs, ts_meta = split_timeseries(ts_mesoscope_tiff,
-                                        experiments)
+                    if nearest_valid != baseline_center:
+                        msg = f"experiment {experiment_id}\n"
+                        msg += "roi center inconsistent for "
+                        msg += "input: "
+                        msg += f"{splitter.input_path.resolve().absolute()}\n"
+                        msg += "output: "
+                        msg += f"{output_path.resolve().absolute()}\n"
+                        msg += f"{baseline_center}; {roi_center}\n"
+                        raise RuntimeError(msg)
 
-    output["file_metadata"].extend([surf_meta, depth_meta, ts_meta])
+                    splitter.write_output_file(
+                                    i_roi=roi_index,
+                                    z_value=z_value,
+                                    output_path=output_path)
+                    str_path = str(output_path.resolve().absolute())
+                    this_exp_metadata[metadata_tag]['filename'] = str_path
+                    frame_shape = splitter.frame_shape(
+                                       i_roi=roi_index,
+                                       z_value=z_value)
+                    this_exp_metadata[metadata_tag]['height'] = frame_shape[0]
+                    this_exp_metadata[metadata_tag]['width'] = frame_shape[1]
 
-    exp_out = []
-    for exp in experiments:
-        eid = exp["experiment_id"]
-        sync_stride = ts_outs[eid].pop("sync_stride")
-        sync_offset = ts_outs[eid].pop("sync_offset")
-        exp_data = {"experiment_id": eid,
-                    "local_z_stack": z_outs[eid],
-                    "surface_2p": surf_outs[eid],
-                    "depth_2p": depth_outs[eid],
-                    "timeseries": ts_outs[eid],
-                    "sync_offset": sync_offset,
-                    "sync_stride": sync_stride}
-        exp_out.append(exp_data)
+                    self.logger.info("wrote "
+                                     f"{output_path.resolve().absolute()}")
 
-    output["experiment_output"] = exp_out
+                experiment_metadata.append(this_exp_metadata)
 
-    ready_to_archive.add(mod.args["surface_tif"])
-    ready_to_archive.add(mod.args["depths_tif"])
-    ready_to_archive.add(mod.args["timeseries_tif"])
+        output["experiment_output"] = experiment_metadata
 
-    output["ready_to_archive"] = list(ready_to_archive)
+        ready_to_archive.add(self.args["surface_tif"])
+        ready_to_archive.add(self.args["depths_tif"])
+        ready_to_archive.add(self.args["timeseries_tif"])
+        for zstack_path in zstack_path_list:
+            ready_to_archive.add(str(zstack_path.resolve().absolute()))
 
-    mod.output(output, indent=1)
+        output["ready_to_archive"] = list(ready_to_archive)
+
+        # record file metadata
+        file_metadata = []
+        for file_path in files_to_record:
+            tiff_metadata = ScanImageMetadata(file_path)
+            this_metadata = dict()
+            this_metadata['input_tif'] = str(file_path.resolve().absolute())
+            this_metadata['scanimage_metadata'] = tiff_metadata._metadata[0]
+            this_metadata['roi_metadata'] = tiff_metadata._metadata[1]
+            file_metadata.append(this_metadata)
+        output["file_metadata"] = file_metadata
+
+        self.output(output, indent=1)
+        duration = time.time()-t0
+        self.logger.info(f"that took {duration:.2e} seconds")
 
 
 if __name__ == "__main__":
-    main()
+    runner = TiffSplitterCLI()
+    runner.run()

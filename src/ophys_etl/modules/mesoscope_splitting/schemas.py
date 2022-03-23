@@ -96,8 +96,6 @@ class ExperimentOutput(DefaultSchema):
     surface_2p = Nested(ImageFileOutput, required=True)
     depth_2p = Nested(ImageFileOutput, required=True)
     timeseries = Nested(ImageFileOutput, required=True)
-    sync_offset = Int()
-    sync_stride = Int()
 
 
 class OutputSchema(DefaultSchema):

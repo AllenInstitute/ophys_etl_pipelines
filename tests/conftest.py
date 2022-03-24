@@ -22,7 +22,6 @@ class HelperFunctions(object):
         directory. If a file cannot be deleted, just catch the
         exception and move on.
         """
-        print(f"cleaning up {tmpdir}")
         tmpdir = Path(tmpdir)
         path_list = [n for n in tmpdir.rglob('*')]
         for this_path in path_list:

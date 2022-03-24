@@ -17,6 +17,9 @@ from ophys_etl.modules.mesoscope_splitting.zstack_splitter import (
 from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
     ScanImageMetadata)
 
+from ophys_etl.modules.mesoscope_splitting.output_json_sanitizer import (
+    get_sanitized_json_data)
+
 
 def get_valid_roi_centers(
         timeseries_splitter: TimeSeriesSplitter) -> List[Tuple[float, float]]:
@@ -223,7 +226,7 @@ class TiffSplitterCLI(ArgSchemaParser):
             file_metadata.append(this_metadata)
         output["file_metadata"] = file_metadata
 
-        self.output(output, indent=1)
+        self.output(get_sanitized_json_data(output), indent=1)
         duration = time.time()-t0
         self.logger.info(f"that took {duration:.2e} seconds")
 

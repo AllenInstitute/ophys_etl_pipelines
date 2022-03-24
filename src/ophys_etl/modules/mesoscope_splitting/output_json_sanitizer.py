@@ -12,7 +12,7 @@ import numbers
 import numpy as np
 
 
-def _sanitize_element(element: numbers.Number) -> Union[str, float]:
+def _sanitize_element(element: numbers.Number) -> Union[str, numbers.Number]:
     """
     If element is NaN or +/-inf, convert to a
     string; otherwise, return element as-si
@@ -27,7 +27,8 @@ def _sanitize_element(element: numbers.Number) -> Union[str, float]:
 
 
 def _sanitize_data(
-        data: Union[list, dict, float]) -> Union[list, dict, float]:
+        data: Union[list, dict, numbers.Number, str]
+        ) -> Union[list, dict, numbers.Number, str]:
     """
     Iteratively sanitize a data structure so that there are no NaNs
     or infinities in the output.json returned by this module

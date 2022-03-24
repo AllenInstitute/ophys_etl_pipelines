@@ -7,7 +7,6 @@
 # to the output.json.
 
 from typing import Union
-import json
 import numbers
 import numpy as np
 
@@ -64,9 +63,4 @@ def get_sanitized_json_data(
         A version of output_json_data that is fit to be written to
         the output.json and ingested by LIMS
     """
-
-    # round trip the data through JSON so that any sets get converted
-    # into lists, etc.
-    reconstituted = json.loads(json.dumps(output_json_data))
-    json_data = _sanitize_data(data=reconstituted)
-    return json_data
+    return _sanitize_data(data=output_json_data)

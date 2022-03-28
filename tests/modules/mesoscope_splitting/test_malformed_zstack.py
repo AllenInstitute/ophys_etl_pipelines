@@ -177,32 +177,6 @@ def test_z_odd_shape(
 
 
 @pytest.fixture(scope='session')
-def z_stack_mean_not_int(tmp_path_factory,
-                         baseline_zstack_metadata):
-    """
-    Create a set of z_stacks in which the mean
-    of each stack's z values is not an integer
-    """
-
-    path_to_metadata = dict()
-    tmp_dir = tmp_path_factory.mktemp('z_stack_none')
-    for ii in range(3):
-        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
-        metadata = copy.deepcopy(baseline_zstack_metadata)
-        rois = metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
-        rois[ii]['discretePlaneMode'] = 0
-
-        if ii == 1:
-            key_name = 'SI.hStackManager.zsAllActuators'
-            metadata[0].pop(key_name)
-            metadata[0][key_name] = [[1.1, 2.1], [1.2, 2.2]]
-
-        path_to_metadata[tmp_path] = metadata
-
-    return path_to_metadata
-
-
-@pytest.fixture(scope='session')
 def z_stack_roi_missing_tiff(tmp_path_factory,
                              baseline_zstack_metadata):
     """

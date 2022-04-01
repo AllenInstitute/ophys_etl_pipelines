@@ -1,4 +1,4 @@
-from typing import Tuple, Optional, Union
+from typing import Tuple, Optional, Union, Dict
 import h5py
 import numpy as np
 import imageio_ffmpeg as mpg
@@ -386,3 +386,28 @@ def video_bounds_from_ROI(
         colmax = min(fov_shape[1], colmin+max_dim)
 
     return (rowmin, colmin), (rowmax-rowmin, colmax-colmin)
+
+
+def get_max_and_avg(video_path: Path) -> Dict[str, np.ndarray]:
+    """Compute the mean and max projection from a movie on disk.
+
+    Parameters
+    ----------
+    video_path : pathlib.Path
+        Path to HDF5 file containing full movie. Movie is assume to be
+        stored in a dataset named "data".
+
+    Returns
+    -------
+    projections : Dict[str, np.ndarray]
+        Dictionary of image projects of the movie.
+
+        "mean" : Mean projection of the movie.
+        "max" : Max projection of the movie.
+    """
+    with h5py.File(video_path, "r") as in_file:
+        video_data = in_file["data"][()]
+    max_img = np.max(video_data, axis=0)
+    avg_img = np.mean(video_data, axis=0)
+
+    return {"max": max_img, "avg": avg_img}

@@ -2,6 +2,7 @@ from typing import List, Tuple
 import tifffile
 import h5py
 import pathlib
+import json
 import numpy as np
 from ophys_etl.modules.mesoscope_splitting.mixins import (
     IntFromZMapperMixin)
@@ -41,6 +42,11 @@ class ZStackSplitter(IntFromZMapperMixin):
         # z-value correspond.
         self._path_z_int_to_index = dict()
 
+        # this is an internal lookup table which we will use
+        # to validate that every ROI is represented by a
+        # z-stack file
+        roi_to_path = dict()
+
         for tiff_path in self._path_to_metadata.keys():
             metadata = self._path_to_metadata[tiff_path]
             this_roi = None
@@ -56,6 +62,10 @@ class ZStackSplitter(IntFromZMapperMixin):
                 raise RuntimeError("Could not find discretePlaneMode==0 for "
                                    f"{tiff_path}")
 
+            if this_roi not in roi_to_path:
+                roi_to_path[this_roi] = []
+            roi_to_path[this_roi].append(tiff_path)
+
             z_array = np.array(metadata.all_zs())
             if z_array.shape[1] != 2:
                 raise RuntimeError(f"z_array for {tiff_path} has odd shape\n"
@@ -67,6 +77,21 @@ class ZStackSplitter(IntFromZMapperMixin):
                 self._roi_z_int_to_path[roi_z] = tiff_path
                 path_z = (tiff_path, self._int_from_z(z_value=z_value))
                 self._path_z_int_to_index[path_z] = ii
+
+        # check that every ROI has a z-stack file
+        for tiff_path in self._path_to_metadata:
+            metadata = self._path_to_metadata[tiff_path]
+            n_rois = len(metadata.defined_rois)
+            if len(roi_to_path) != n_rois:
+                msg = (f"There are {n_rois} ROIs; however, only "
+                       f"{len(roi_to_path)} of them are represented in the "
+                       "local z-stack TIFFS. Here is a mapping from i_roi to "
+                       "TIFF paths\n"
+                       f"{json.dumps(roi_to_path, indent=2, sort_keys=True)}"
+                       "\n\nThis was determined by scanning the z-stack TIFFs "
+                       "and noting which ROIs were marked with "
+                       "discretePlaneMode==0")
+                raise RuntimeError(msg)
 
         self._path_to_pages = dict()
         for tiff_path in self._path_to_metadata.keys():

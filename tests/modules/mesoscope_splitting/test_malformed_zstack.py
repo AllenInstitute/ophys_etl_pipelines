@@ -177,26 +177,47 @@ def test_z_odd_shape(
 
 
 @pytest.fixture(scope='session')
-def z_stack_mean_not_int(tmp_path_factory,
-                         baseline_zstack_metadata):
+def z_stack_roi_missing_tiff(tmp_path_factory,
+                             baseline_zstack_metadata):
     """
-    Create a set of z_stacks in which the mean
-    of each stack's z values is not an integer
+    Create a set of z_stacks in which an ROI is not represented
+    by discretePlaneMode==0 in the stack TIFFs
     """
 
     path_to_metadata = dict()
-    tmp_dir = tmp_path_factory.mktemp('z_stack_none')
+    tmp_dir = tmp_path_factory.mktemp('z_stack_many')
     for ii in range(3):
         tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
         metadata = copy.deepcopy(baseline_zstack_metadata)
         rois = metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
-        rois[ii]['discretePlaneMode'] = 0
-
-        if ii == 1:
-            key_name = 'SI.hStackManager.zsAllActuators'
-            metadata[0].pop(key_name)
-            metadata[0][key_name] = [[1.1, 2.1], [1.2, 2.2]]
+        if ii == 0 or ii == 1:
+            rois[0]['discretePlaneMode'] = 0
+        else:
+            rois[ii]['discretePlaneMode'] = 0
 
         path_to_metadata[tmp_path] = metadata
 
     return path_to_metadata
+
+
+def test_roi_missing_tiff(
+        z_stack_roi_missing_tiff):
+    """
+    Test that an error is raised if an ROI does not have
+    a corresponding z-stack TIFF with discretePlaneMode==0
+    """
+    z_stack_path_to_metadata = z_stack_roi_missing_tiff
+
+    def mock_read_metadata(tiff_path):
+        str_path = str(tiff_path.resolve().absolute())
+        return z_stack_path_to_metadata[str_path]
+
+    tiff_path_list = [pathlib.Path(n)
+                      for n in z_stack_path_to_metadata.keys()]
+
+    to_replace = 'ophys_etl.modules.mesoscope_splitting.'
+    to_replace += 'tiff_metadata._read_metadata'
+    with patch(to_replace, new=mock_read_metadata):
+        with pytest.raises(RuntimeError,
+                           match="are represented in the local z-stack"):
+            ZStackSplitter(tiff_path_list=tiff_path_list)

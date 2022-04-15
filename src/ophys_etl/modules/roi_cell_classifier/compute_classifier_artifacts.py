@@ -55,6 +55,15 @@ class ClassifierArtifactsInputSchema(ArgSchema):
         default=128,
         description="Size of square cutout in pixels.",
     )
+    selected_rois = fields.List(
+        fields.Int,
+        required=False,
+        allow_none=True,
+        default=None,
+        description="Specific subset of ROIs by ROI id in the experiment FOV "
+                    "to produce artifacts for. Only ROIs specified in this "
+                    "will have artifacts output.",
+    )
 
 
 class ClassifierArtifactsGenerator(ArgSchemaParser):
@@ -102,15 +111,21 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         corr_img = normalize_array(array=corr_img,
                                    lower_cutoff=q0,
                                    upper_cutoff=q1)
-
         self.logger.info("Normalized images...")
 
         with open(roi_path, "rb") as in_file:
             extract_roi_list = sanitize_extract_roi_list(
                 json.load(in_file))
 
+        selected_rois = self.args['selected_rois']
+        if selected_rois is None:
+            selected_rois = [roi['id'] for roi in extract_roi_list]
+        selected_rois = set(selected_rois)
+
         self.logger.info("Creating and writing ROI artifacts...")
         for roi in extract_roi_list:
+            if roi['id'] not in selected_rois:
+                continue
             self._write_thumbnails(extract_roi=roi,
                                    max_img=max_img,
                                    avg_img=avg_img,

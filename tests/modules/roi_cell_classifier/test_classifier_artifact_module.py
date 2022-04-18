@@ -66,9 +66,20 @@ class TestComputeClassifierArtifacts(unittest.TestCase):
         shutil.rmtree(self.output_path)
 
     def test_run(self):
+        """Test that run executes when no ROI list is specified.
+        """
+        self._run_wrapper(None)
+
+    def test_run_selected_roi(self):
+        """Test that when our ROI is specified, it is successfully written.
+        """
+        self._run_wrapper([self.extract_roi['id']])
+
+    def _run_wrapper(self, selected_rois):
         """Test run method works and the images produced have the expected
         values.
         """
+        self.args['selected_rois'] = selected_rois
         image_value = 100
 
         corr_img = np.ones((self.frames_image_size, self.frames_image_size))
@@ -95,6 +106,32 @@ class TestComputeClassifierArtifacts(unittest.TestCase):
             test = Image.open(test_file)
             np.testing.assert_array_equal(image.__array__(),
                                           test.__array__())
+
+    def test_no_selected_roi(self):
+        """Test that and ROI is not written when its id is not specified.
+        """
+        # Select a roi that is not in the list if input ROIs
+        self.args['selected_rois'] = [self.extract_roi['id'] + 1]
+        image_value = 100
+
+        corr_img = np.ones((self.frames_image_size, self.frames_image_size))
+        corr_img[self.centroid, self.centroid] = image_value
+
+        with patch('ophys_etl.modules.roi_cell_classifier.'
+                   'compute_classifier_artifacts.graph_to_img',
+                   Mock(return_value=corr_img)), \
+             patch('ophys_etl.modules.roi_cell_classifier.'
+                   'compute_classifier_artifacts.sanitize_extract_roi_list',
+                   Mock(return_value=[self.extract_roi])), \
+             patch('ophys_etl.modules.roi_cell_classifier.'
+                   'compute_classifier_artifacts.json.loads',
+                   Mock()):
+            classArtifacts = ClassifierArtifactsGenerator(
+                args=[], input_data=self.args)
+            classArtifacts.run()
+
+        output_file_list = np.sort(glob(f'{self.output_path}/*.png'))
+        self.assertEqual(len(output_file_list), 0)
 
     def test_write_thumbnails(self):
         """Test that artifact thumbnails are written.

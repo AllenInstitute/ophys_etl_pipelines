@@ -50,7 +50,7 @@ def test_single_video_downsampling(
     assert output_path.is_file()
 
     if output_path.suffix in ('.tiff', '.tif'):
-        with tifffile.TiffFile(output_path, 'rb') as input_file:
+        with tifffile.TiffFile(output_path, mode='rb') as input_file:
             arr = input_file.pages[0].asarray()
             if video_dtype == 'uint8':
                 assert arr.dtype == np.uint8
@@ -99,7 +99,7 @@ def test_side_by_side_video_downsampling(
     assert output_path.is_file()
 
     if output_path.suffix in ('.tiff', '.tif'):
-        with tifffile.TiffFile(output_path, 'rb') as input_file:
+        with tifffile.TiffFile(output_path, mode='rb') as input_file:
             arr = input_file.pages[0].asarray()
             if video_dtype == 'uint8':
                 assert arr.dtype == np.uint8

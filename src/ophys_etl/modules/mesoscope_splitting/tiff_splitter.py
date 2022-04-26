@@ -206,7 +206,7 @@ class ScanImageTiffSplitter(IntFromZMapperMixin):
         The number of pages in this TIFF
         """
         if not hasattr(self, '_n_pages'):
-            with tifffile.TiffFile(self._file_path, 'rb') as tiff_file:
+            with tifffile.TiffFile(self._file_path, mode='rb') as tiff_file:
                 self._n_pages = len(tiff_file.pages)
         return self._n_pages
 
@@ -256,7 +256,7 @@ class ScanImageTiffSplitter(IntFromZMapperMixin):
         offset = self._get_offset(i_roi=i_roi, z_value=z_value)
 
         tiff_data = []
-        with tifffile.TiffFile(self._file_path, 'rb') as tiff_file:
+        with tifffile.TiffFile(self._file_path, mode='rb') as tiff_file:
             for i_page in range(offset, self.n_pages, self.n_valid_zs):
                 arr = tiff_file.pages[i_page].asarray()
                 tiff_data.append(arr)
@@ -299,7 +299,7 @@ class ScanImageTiffSplitter(IntFromZMapperMixin):
 
         if key_pair not in self._frame_shape:
             offset = self._get_offset(i_roi=i_roi, z_value=z_value)
-            with tifffile.TiffFile(self._file_path, 'rb') as tiff_file:
+            with tifffile.TiffFile(self._file_path, mode='rb') as tiff_file:
                 page = tiff_file.pages[offset].asarray()
                 self._frame_shape[key_pair] = page.shape
         return self._frame_shape[key_pair]
@@ -433,7 +433,7 @@ class TimeSeriesSplitter(ScanImageTiffSplitter):
 
         n_frames = np.ceil((self.n_pages-offset)/self.n_valid_zs).astype(int)
 
-        with tifffile.TiffFile(self._file_path, 'rb') as tiff_file:
+        with tifffile.TiffFile(self._file_path, mode='rb') as tiff_file:
             eg_array = tiff_file.pages[0].asarray()
             fov_shape = eg_array.shape
             video_dtype = eg_array.dtype

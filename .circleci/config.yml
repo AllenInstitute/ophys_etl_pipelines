@@ -28,7 +28,8 @@ commands:
 
 jobs:
   docker:
-    machine: true
+    machine:
+      image: ubuntu-2004:current
     steps:
       - checkout
       - run:
@@ -60,19 +61,22 @@ jobs:
             if [ "$CIRCLE_BRANCH" = "main" ]
             then
                 docker tag alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:main
+                docker push alleninstitutepika/ophys_etl_pipelines:main
             else
                 docker tag alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:develop
+                docker push alleninstitutepika/ophys_etl_pipelines:develop
             fi
-            docker push alleninstitutepika/ophys_etl_pipelines
 
   build377:
-    machine: true
+    machine:
+      image: ubuntu-2004:current
     steps:
       - build_and_test:
           python_version: "3.7.7"
 
   build38:
-    machine: true
+    machine:
+      image: ubuntu-2004:current
     steps:
       - build_and_test:
           python_version: "3.8"

@@ -172,7 +172,7 @@ def test_depth_splitter(tmp_path_factory,
         splitter.write_output_file(i_roi=i_roi,
                                    z_value=z_value,
                                    output_path=tmp_path)
-        with tifffile.TiffFile(tmp_path, 'rb') as tiff_file:
+        with tifffile.TiffFile(tmp_path, mode='rb') as tiff_file:
             assert len(tiff_file.pages) == 1
             actual = tiff_file.pages[0].asarray()
 
@@ -314,7 +314,7 @@ def test_surface_splitter(tmp_path_factory,
         splitter.write_output_file(i_roi=i_roi,
                                    z_value=z_value,
                                    output_path=tmp_path)
-        with tifffile.TiffFile(tmp_path, 'rb') as tiff_file:
+        with tifffile.TiffFile(tmp_path, mode='rb') as tiff_file:
             assert len(tiff_file.pages) == 1
             actual = tiff_file.pages[0].asarray()
 

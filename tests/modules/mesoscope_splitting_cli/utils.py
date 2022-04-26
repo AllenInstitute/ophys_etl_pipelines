@@ -102,23 +102,23 @@ def run_mesoscope_cli_test(
             np.testing.assert_array_equal(actual, expected)
 
             depth_actual = exp_dir / f'{exp_id}_depth.tif'
-            with tifffile.TiffFile(depth_actual, 'rb') as in_file:
+            with tifffile.TiffFile(depth_actual, mode='rb') as in_file:
                 assert len(in_file.pages) == 1
                 actual = in_file.pages[0].asarray()
             depth_expected = depth_data[f'expected_{exp_id}']
-            with tifffile.TiffFile(depth_expected, 'rb') as in_file:
+            with tifffile.TiffFile(depth_expected, mode='rb') as in_file:
                 assert len(in_file.pages) == 1
                 expected = in_file.pages[0].asarray()
             np.testing.assert_array_equal(actual, expected)
 
             surface_actual = exp_dir / f'{exp_id}_surface.tif'
-            with tifffile.TiffFile(surface_actual, 'rb') as in_file:
+            with tifffile.TiffFile(surface_actual, mode='rb') as in_file:
                 assert len(in_file.pages) == 1
                 actual = in_file.pages[0].asarray()
 
             roi_index = exp['roi_index']
             surface_expected = surface_data[f'expected_{roi_index}']
-            with tifffile.TiffFile(surface_expected, 'rb') as in_file:
+            with tifffile.TiffFile(surface_expected, mode='rb') as in_file:
                 assert len(in_file.pages) == 1
                 expected = in_file.pages[0].asarray()
             np.testing.assert_array_equal(actual, expected)

@@ -1,9 +1,38 @@
 import h5py
 import numpy as np
-from typing import Tuple, List
+from typing import Callable, Tuple, List
 from scipy.ndimage.filters import median_filter
 from ophys_etl.utils.array_utils import normalize_array
 from suite2p.registration.rigid import shift_frame
+
+
+def check_and_warn_on_datatype(h5py_name: str,
+                               h5py_key: str,
+                               logger: Callable):
+    """Suite2p assumes int16 types throughout code. Check that the input
+    data is type int16 else throw a warning.
+
+    Parameters
+    ----------
+    h5py_name : str
+        Path to the HDF5 containing the data.
+    h5py_key : str
+        Name of the dataset to check.
+    logger : Callable
+        Logger to output logger warning to.
+    """
+    with h5py.File(h5py_name, 'r') as h5_file:
+        dataset = h5_file[h5py_key]
+
+        if dataset.dtype.byteorder == '>':
+            logger('Data byteorder is big-endian which may cause issues in '
+                   'suite2p. This may result in a crash or unexpected '
+                   'results.')
+        if dataset.dtype.name != 'int16':
+            logger(f'Data type is {dataset.dtype.name} and not int16. Suite2p '
+                   'assumes int16 data as input and throughout codebase. '
+                   'Non-int16 data may result in unexpected results or '
+                   'crashes.')
 
 
 def find_movie_start_end_empty_frames(

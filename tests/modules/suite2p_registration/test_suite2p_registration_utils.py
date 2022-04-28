@@ -4,10 +4,11 @@ import pytest
 import numpy as np
 from pathlib import Path
 import tempfile
+import warnings
 
 from ophys_etl.modules.suite2p_registration.utils import (
     identify_and_clip_outliers, check_movie_against_raw, reset_frame_shift,
-    find_movie_start_end_empty_frames
+    find_movie_start_end_empty_frames, check_and_warn_on_datatype
 )
 
 
@@ -164,3 +165,34 @@ def test_check_movie_against_raw():
         check_movie_against_raw(corr_data=corr_data[rand_index],
                                 raw_hdf5=h5_file_loc,
                                 h5py_key=h5_key)
+
+
+def test_check_and_warn_on_datatype():
+    """Test that warnings are thrown when the wrong types data types are
+    specified.
+    """
+    h5_file = tempfile.NamedTemporaryFile('w', suffix='.h5')
+
+    # test no warnings
+    with h5py.File(h5_file.name, 'w') as h5:
+        h5.create_dataset(name='data',
+                          data=np.arange(20, dtype='int16'))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        check_and_warn_on_datatype(h5_file.name, 'data', warnings.warn)
+
+    # test wrong type.
+    with h5py.File(h5_file.name, 'w') as h5:
+        h5.create_dataset(name='data',
+                          data=np.arange(20, dtype='uint16'))
+    with pytest.warns(UserWarning, match='Data type is'):
+        check_and_warn_on_datatype(h5_file.name, 'data', warnings.warn)
+
+    # test wrong endian.
+    with h5py.File(h5_file.name, 'w') as h5:
+        h5.create_dataset(name='data',
+                          data=np.arange(20, dtype='>i2'))
+    with pytest.warns(UserWarning, match='Data byteorder is'):
+        check_and_warn_on_datatype(h5_file.name, 'data', warnings.warn)
+
+    h5_file.close()

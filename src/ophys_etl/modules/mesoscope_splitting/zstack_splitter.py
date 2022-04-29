@@ -95,7 +95,7 @@ class ZStackSplitter(IntFromZMapperMixin):
 
         self._path_to_pages = dict()
         for tiff_path in self._path_to_metadata.keys():
-            with tifffile.TiffFile(tiff_path, 'rb') as tiff_file:
+            with tifffile.TiffFile(tiff_path, mode='rb') as tiff_file:
                 self._path_to_pages[tiff_path] = len(tiff_file.pages)
 
     @property
@@ -142,7 +142,7 @@ class ZStackSplitter(IntFromZMapperMixin):
         path_z = (tiff_path, self._int_from_z(z_value=z_value))
         z_index = self._path_z_int_to_index[path_z]
 
-        with tifffile.TiffFile(tiff_path, 'rb') as tiff_file:
+        with tifffile.TiffFile(tiff_path, mode='rb') as tiff_file:
             page = tiff_file.pages[z_index].asarray()
         return page.shape
 
@@ -161,7 +161,7 @@ class ZStackSplitter(IntFromZMapperMixin):
         data = []
         n_pages = self._path_to_pages[tiff_path]
         baseline_shape = self.frame_shape(i_roi=i_roi, z_value=z_value)
-        with tifffile.TiffFile(tiff_path, 'rb') as tiff_file:
+        with tifffile.TiffFile(tiff_path, mode='rb') as tiff_file:
             for i_page in range(z_index, n_pages, 2):
                 this_page = tiff_file.pages[i_page].asarray()
                 if this_page.shape != baseline_shape:

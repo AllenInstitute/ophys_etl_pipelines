@@ -34,6 +34,10 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         # Get suite2p args.
         suite2p_args = self.args['suite2p_args']
 
+        utils.check_and_warn_on_datatype(h5py_name=suite2p_args['h5py'],
+                                         h5py_key=suite2p_args['h5py_key'],
+                                         logger=self.logger.warning)
+
         if self.args['auto_remove_empty_frames']:
             self.logger.info("Attempting to find empty frames at the start "
                              "and end of the movie.")

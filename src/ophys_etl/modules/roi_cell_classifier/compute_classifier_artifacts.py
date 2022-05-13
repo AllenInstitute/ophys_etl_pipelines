@@ -167,9 +167,8 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         mask[pixel_array[0], pixel_array[1]] = 255
 
         # Compute center of cutout from ROI bounding box.
-        center_row = int(
-            np.round(extract_roi['y'] + extract_roi['height'] / 2))
-        center_col = int(np.round(extract_roi['x'] + extract_roi['width'] / 2))
+        center_row = ophys_roi.bounding_box_center_y
+        center_col = ophys_roi.bounding_box_center_x
 
         # Find the indices of the desired cutout in the image.
         row_indices = self._get_cutout_indices(center_row,

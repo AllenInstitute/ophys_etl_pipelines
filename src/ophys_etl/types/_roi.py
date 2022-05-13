@@ -130,8 +130,13 @@ class OphysROI(object):
                 n += 1
                 cr += irow
                 cc += icol
-        self._centroid_row = self._y0 + cr/n
-        self._centroid_col = self._x0 + cc/n
+        self._centroid_row = self._y0 + cr / n
+        self._centroid_col = self._x0 + cc / n
+
+        self._bounding_box_center_row = int(
+            np.round(self._y0 + self._height / 2))
+        self._bounding_box_center_col = int(
+            np.round(self._x0 + self._width / 2))
 
     @classmethod
     def from_schema_dict(cls, schema_dict: Dict[str, Union[int, List]]):
@@ -164,10 +169,10 @@ class OphysROI(object):
         global coordinates that make up this ROI
         """
         valid = np.argwhere(self._mask_matrix)
-        self._global_pixel_set = set([(r+self._y0, c+self._x0)
+        self._global_pixel_set = set([(r + self._y0, c + self._x0)
                                       for r, c in valid])
 
-        self._global_pixel_array = np.array([[r+self._y0, c+self._x0]
+        self._global_pixel_array = np.array([[r + self._y0, c + self._x0]
                                              for r, c in valid])
 
     @property
@@ -223,6 +228,14 @@ class OphysROI(object):
     @property
     def height(self) -> int:
         return self._height
+
+    @property
+    def bounding_box_center_y(self) -> float:
+        return self._bounding_box_center_col
+
+    @property
+    def bounding_box_center_x(self) -> float:
+        return self._bounding_box_center_row
 
     @property
     def valid_roi(self) -> bool:

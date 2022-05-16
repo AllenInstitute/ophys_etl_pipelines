@@ -175,6 +175,14 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
                          "movie to be Suite2P segmented. Used in conjunction "
                          "with 'bin_duration' to derive an 'nbinned' "
                          "Suite2P value."))
+    movie_frame_rate = argschema.fields.Float(
+            required=False,
+            default=None,
+            allow_none=True,
+            description=("Same as movie_frame_rate_hz. Used in the LIMS ruby "
+                         "strategy due to a typo in the variable name. Value "
+                         "here will be copied into movie_frame_rate_hz. If "
+                         "both are set: raise ValueError"))
     bin_duration = argschema.fields.Float(
             required=False,
             default=3.7,
@@ -205,7 +213,9 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
 
     @mm.post_load
     def check_args(self, data, **kwargs):
-        if (data['nbinned'] is None) & (data['movie_frame_rate_hz'] is None):
+        if (data['nbinned'] is None and
+                data['movie_frame_rate_hz'] is None and
+                data['movie_frame_rate'] is None):
             raise Suite2PWrapperException(
                     "Must provide either `nbinned` or `movie_frame_rate_hz`")
         return data
@@ -216,6 +226,17 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
             data['retain_files'] = [
                     'ops1.npy', 'data.bin', 'Fneu.npy', 'F.npy', 'iscell.npy',
                     'ops.npy', 'spks.npy', 'stat.npy']
+        return data
+
+    @mm.post_load
+    def copy_movie_frame_rate(self, data, **kwargs):
+        if data['movie_frame_rate'] is not None and \
+           data['movie_frame_rate_hz'] is None:
+            data['movie_frame_rate_hz'] = data['movie_frame_rate']
+        elif (data['movie_frame_rate'] is not None and
+              data['movie_frame_rate_hz'] is not None):
+            raise ValueError("Cannot set values for both movie_frame_rate and "
+                             "movie_frame_rate_hz. Please set only one.")
         return data
 
 

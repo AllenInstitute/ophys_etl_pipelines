@@ -133,11 +133,6 @@ class OphysROI(object):
         self._centroid_row = self._y0 + cr / n
         self._centroid_col = self._x0 + cc / n
 
-        self._bounding_box_center_row = int(
-            np.round(self._y0 + self._height / 2))
-        self._bounding_box_center_col = int(
-            np.round(self._x0 + self._width / 2))
-
     @classmethod
     def from_schema_dict(cls, schema_dict: Dict[str, Union[int, List]]):
         """
@@ -230,12 +225,14 @@ class OphysROI(object):
         return self._height
 
     @property
-    def bounding_box_center_y(self) -> float:
-        return self._bounding_box_center_col
+    def bounding_box_center_y(self) -> int:
+        return int(
+            np.round(self._y0 + self._height / 2))
 
     @property
-    def bounding_box_center_x(self) -> float:
-        return self._bounding_box_center_row
+    def bounding_box_center_x(self) -> int:
+        return int(
+            np.round(self._x0 + self._width / 2))
 
     @property
     def valid_roi(self) -> bool:

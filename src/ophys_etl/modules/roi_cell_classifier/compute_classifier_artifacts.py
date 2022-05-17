@@ -57,6 +57,7 @@ class ClassifierArtifactsInputSchema(ArgSchema):
     )
     selected_rois = fields.List(
         fields.Int,
+        cli_as_single_argument=True,
         required=False,
         allow_none=True,
         default=None,

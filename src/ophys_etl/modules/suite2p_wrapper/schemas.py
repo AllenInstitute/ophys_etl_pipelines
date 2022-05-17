@@ -1,5 +1,6 @@
 import argschema
 import marshmallow as mm
+import numpy as np
 
 from ophys_etl.modules.suite2p_wrapper.utils import Suite2PWrapperException
 
@@ -231,12 +232,19 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
     @mm.post_load
     def copy_movie_frame_rate(self, data, **kwargs):
         if data['movie_frame_rate'] is not None and \
-           data['movie_frame_rate_hz'] is None:
+                data['movie_frame_rate_hz'] is not None:
+            if not np.allclose(data['movie_frame_rate'],
+                               data['movie_frame_rate_hz']):
+                raise ValueError(
+                    "Cannot set different values for both movie_frame_rate "
+                    "and movie_frame_rate_hz. "
+                    f"movie_frame_rate={data['movie_frame_rate']}, "
+                    f"movie_frame_rate_hz={data['movie_frame_rate_hz']}. "
+                    "Please set only one.")
+        elif data['movie_frame_rate'] is not None and \
+                data['movie_frame_rate_hz'] is None:
             data['movie_frame_rate_hz'] = data['movie_frame_rate']
-        elif (data['movie_frame_rate'] is not None and
-              data['movie_frame_rate_hz'] is not None):
-            raise ValueError("Cannot set values for both movie_frame_rate and "
-                             "movie_frame_rate_hz. Please set only one.")
+
         return data
 
 

@@ -202,3 +202,57 @@ def test_array_to_rgb(
     assert rgb.shape == (12, 12, 3)
     for ic in range(3):
         np.testing.assert_array_equal(rgb[:, :, ic], scaled)
+
+
+def test_get_cutout_indices():
+    """Test the correct indices of the unpadded cutout are found in the
+    image.
+    """
+    cutout_size = 128
+    half_cutout = cutout_size // 2
+    im_size = 512
+
+    # Low is clipped.
+    center = 10
+    indices = au.get_cutout_indices(center, im_size, cutout_size)
+    assert indices[0] == 0
+    assert indices[1] == center + half_cutout
+
+    # High is clipped.
+    center = 510
+    indices = au.get_cutout_indices(center, im_size, cutout_size)
+    assert indices[0] == center - half_cutout
+    assert indices[1] == im_size
+
+    # Both not clipped.
+    center = 128
+    indices = au.get_cutout_indices(128, im_size, cutout_size)
+    assert indices[0] == center - half_cutout
+    assert indices[1] == center + half_cutout
+
+
+def test_get_padding():
+    """Test that the correct amount of padding for the cutout is found.
+    """
+    cutout_size = 128
+    half_cutout = cutout_size // 2
+    im_size = 512
+
+    # Test pad lowside.
+    center = 4
+    pads = au.get_cutout_padding(center, im_size, cutout_size)
+    assert pads[0] == half_cutout - center
+    assert pads[1] == 0
+
+    # Test pad highside.
+    center = im_size - 4
+    pads = au.get_cutout_padding(center, im_size, cutout_size)
+    assert pads[0] == 0
+    assert pads[1] == center - im_size + half_cutout
+
+    # Test pad highside.
+    center = 32
+    im_size = 64
+    pads = au.get_cutout_padding(center, im_size, cutout_size)
+    assert pads[0] == half_cutout - center
+    assert pads[1] == half_cutout - center

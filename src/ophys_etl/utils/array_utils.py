@@ -1,7 +1,7 @@
 from typing import Optional
 import h5py
 import numpy as np
-from typing import Union
+from typing import Union, Tuple
 
 
 def n_frames_from_hz(
@@ -170,3 +170,62 @@ def array_to_rgb(
                              scaled_array]).transpose(1, 2, 0)
 
     return output_array
+
+
+def get_cutout_indices(
+    center_dim: int,
+    image_dim: int,
+    cutout_dim: int,
+) -> Tuple[int, int]:
+    """Find the min/max indices of a cutout within the image size.
+
+    Parameters
+    ----------
+    center_dim : int
+        Center pixel coordinate in the dimension of interest.
+    image_dim : int
+        Image dimension size in pixels.
+    cutout_dim : int
+        Size of the dimension of the cutout in pixels.
+
+    Returns
+    -------
+    cutout_indices : Tuple[int, int]
+        Indices in the cutout to that cover the ROI in one dimension.
+    """
+    # Get size of cutout.
+    lowside = max(0, center_dim - cutout_dim // 2)
+    highside = min(image_dim, center_dim + cutout_dim // 2)
+    return (lowside, highside)
+
+
+def get_cutout_padding(dim_center: int,
+                       image_dim_size: int,
+                       cutout_dim: int) -> Tuple[int, int]:
+    """If the requested cutout size is beyond any dimension of the image,
+    found how much we need to pad by.
+
+    Parameters
+    ----------
+    dim_center : int
+        Index of the center of the ROI bbox in one of the image dimensions
+        (row, col)
+    image_dim_size : int
+        Size of the image in the dimension we are testing for padding.
+    cutout_dim : int
+        Size of the dimension of the cutout.
+
+    Returns
+    -------
+    padding : Tuple[int, int]
+        Amount to pad on at the beginning and/or end of the cutout.
+    """
+    # If the difference between center and cutout size is less than zero,
+    # we need to pad.
+    lowside_pad = np.abs(
+        min(0, dim_center - cutout_dim // 2))
+    # If the difference between the center plus the cutout size is
+    # bigger than the image size, we need to pad.
+    highside_pad = max(
+        0, dim_center + cutout_dim // 2 - image_dim_size)
+    return (lowside_pad, highside_pad)

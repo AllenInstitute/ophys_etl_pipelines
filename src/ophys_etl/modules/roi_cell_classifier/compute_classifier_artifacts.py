@@ -198,6 +198,8 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         max_activation_thumbnail = max_activation_img[
                                  row_indices[0]:row_indices[1],
                                  col_indices[0]:col_indices[1]]
+        max_activation_thumbnail = normalize_array(
+            array=max_activation_thumbnail)
 
         # Find if we need to pad the image.
         row_pad = self._get_padding(center_row, max_img.shape[0])
@@ -312,8 +314,6 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             trace = f['traces'][str(roi_id)][()]
         with h5py.File(self.args['video_path'], 'r') as f:
             img = f['data'][trace.argmax()]
-
-        img = normalize_array(array=img)
         return img
 
 

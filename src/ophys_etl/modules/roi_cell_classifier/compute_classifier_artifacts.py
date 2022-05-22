@@ -4,6 +4,8 @@ import time
 from typing import Tuple
 
 import json
+
+import h5py
 import numpy as np
 import PIL
 
@@ -31,6 +33,10 @@ class ClassifierArtifactsInputSchema(ArgSchema):
     graph_path = fields.InputFile(
         required=True,
         description="Path to pickle file containing full movie graph.",
+    )
+    artifact_path = fields.InputFile(
+        required=True,
+        description='Path to h5 file containing trace dataset'
     )
 
     # Output Artifact location.
@@ -162,6 +168,10 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         ophys_roi = extract_roi_to_ophys_roi(extract_roi)
         pixel_array = ophys_roi.global_pixel_array.transpose()
 
+        # Get the max activation image
+        max_activation_img = self._get_max_activation_img(
+            roi_id=ophys_roi.roi_id)
+
         # Create the mask image and set the masked value.
         mask = np.zeros(max_img.shape, dtype=np.uint8)
         mask[pixel_array[0], pixel_array[1]] = 255
@@ -185,6 +195,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                                   col_indices[0]:col_indices[1]]
         mask_thumbnail = mask[row_indices[0]:row_indices[1],
                               col_indices[0]:col_indices[1]]
+        max_activation_thumbnail = max_activation_img[
+                                 row_indices[0]:row_indices[1],
+                                 col_indices[0]:col_indices[1]]
 
         # Find if we need to pad the image.
         row_pad = self._get_padding(center_row, max_img.shape[0])
@@ -204,6 +217,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         mask_thumbnail = np.pad(mask_thumbnail,
                                 pad_width=padding, mode="constant",
                                 constant_values=0)
+        max_activation_thumbnail = np.pad(max_activation_thumbnail,
+                                          pad_width=padding, mode="constant",
+                                          constant_values=0)
 
         # Store the ROI cutouts to disk.
         roi_id = ophys_roi.roi_id
@@ -211,11 +227,13 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             msg = f"{exp_id}_{roi_id} has bad mask {mask_thumbnail.shape}"
             raise RuntimeError(msg)
         for img, name in zip((max_thumbnail, avg_thumbnail,
-                              corr_thumbnail, mask_thumbnail),
+                              corr_thumbnail, mask_thumbnail,
+                              max_activation_thumbnail),
                              (f"max_{exp_id}_{roi_id}.png",
                               f"avg_{exp_id}_{roi_id}.png",
                               f"correlation_{exp_id}_{roi_id}.png",
-                              f"mask_{exp_id}_{roi_id}.png")):
+                              f"mask_{exp_id}_{roi_id}.png",
+                              f"max_activation_{exp_id}_{roi_id}.png")):
 
             if img.shape != desired_shape:
                 msg = f"{name} has shape {img.shape}"
@@ -276,6 +294,27 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         highside_pad = max(
             0, dim_center + self.args['cutout_size'] // 2 - image_dim_size)
         return (lowside_pad, highside_pad)
+
+    def _get_max_activation_img(self, roi_id: int) -> np.ndarray:
+        """
+        Gets the frame from the video where this roi shows the most activity
+
+        Parameters
+        ----------
+        roi_id
+
+        Returns
+        -------
+        frame from the video where this roi shows the most activity
+
+        """
+        with h5py.File(self.args['artifact_path'], 'r') as f:
+            trace = f['traces'][str(roi_id)][()]
+        with h5py.File(self.args['video_path'], 'r') as f:
+            img = f['data'][trace.argmax()]
+
+        img = normalize_array(array=img)
+        return img
 
 
 if __name__ == "__main__":

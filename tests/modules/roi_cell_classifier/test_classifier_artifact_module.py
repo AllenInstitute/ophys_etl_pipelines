@@ -29,6 +29,7 @@ class TestComputeClassifierArtifacts(unittest.TestCase):
         self.x0_y0_width_height = 10
         self.centroid = 15
         self.exp_id = 12345
+        self.expected_num_artifact_files = 5
         self.extract_roi = ExtractROI(id=1,
                                       x=self.x0_y0_width_height,
                                       y=self.x0_y0_width_height,
@@ -50,12 +51,24 @@ class TestComputeClassifierArtifacts(unittest.TestCase):
             dir=self.output_path,
             prefix=f'{self.exp_id}_',
             suffix='.h5')
+        _, self.artifact_path = tempfile.mkstemp(
+            dir=self.output_path,
+            prefix=f'{self.exp_id}_',
+            suffix='.h5'
+        )
 
         with h5py.File(self.video_path, 'w') as h5_file:
             h5_file.create_dataset(name='data', data=self.data)
 
+        with h5py.File(self.artifact_path, 'w') as h5_file:
+            h5_file.create_dataset(
+                name=f'traces/{self.extract_roi["id"]}',
+                data=np.random.random(self.data.shape[0])
+            )
+
         self.args = {'video_path': self.video_path,
                      'roi_path': self.video_path,
+                     'artifact_path': self.artifact_path,
                      'graph_path': self.video_path,
                      'out_dir': self.output_path,
                      'low_quantile': 0.2,
@@ -99,7 +112,8 @@ class TestComputeClassifierArtifacts(unittest.TestCase):
             classArtifacts.run()
 
         output_file_list = np.sort(glob(f'{self.output_path}/*.png'))
-        self.assertEqual(len(output_file_list), 4)
+        self.assertEqual(len(output_file_list),
+                         self.expected_num_artifact_files)
 
         for output_file, test_file in zip(output_file_list, self.test_files):
             image = Image.open(output_file)
@@ -158,7 +172,8 @@ class TestComputeClassifierArtifacts(unittest.TestCase):
             exp_id=self.exp_id)
 
         output_file_list = np.sort(glob(f'{self.output_path}/*.png'))
-        self.assertEqual(len(output_file_list), 4)
+        self.assertEqual(len(output_file_list),
+                         self.expected_num_artifact_files)
 
     def test_get_cutout_indices(self):
         """Test the correct indices of the unpadded cutout are found in the

@@ -741,3 +741,65 @@ def test_get_roi_list_in_fov():
     assert found_ids == expected_ids
     for roi in output_rois:
         assert roi == roi_lookup[roi['id']]
+
+
+@pytest.mark.parametrize(
+        "fov_shape, row_bounds, col_bounds, expected_mask",
+        [((20, 30),
+          (3, 8), (4, 10),  # add a row above and a column to the left
+          [[False, False, False, False, False, False],
+           [False, False, False, True, True, False],
+           [False, False, True, False, False, True],
+           [False, False, False, False, True, False],
+           [False, False, True, False, True, True]]),
+          ((20, 30),
+           (4, 9), (5, 11),  # add a row below and column to the right
+           [[False, False, True, True, False, False],
+            [False, True, False, False, True, False],
+            [False, False, False, True, False, False],
+            [False, True, False, True, True, False],
+            [False, False, False, False, False, False]]),
+           ((20, 30),
+            (5, 7), (6, 9),  # trim one row and one column from either end
+            [[True, False, False],
+             [False, False, True]])
+        ])
+def test_clip_roi(
+        fov_shape,
+        row_bounds,
+        col_bounds,
+        expected_mask):
+    """
+    Test util to clip an ROI to a specified FOV window.
+    """
+
+    # ROI mask encompasses
+    # rows 4-7 inclusive
+    # cols 5-9 inclusive
+    mask = [[False, False, True, True, False],
+            [False, True, False, False, True],
+            [False, False, False, True, False],
+            [False, True, False, True, True]]
+
+    x0 = 5
+    y0 = 4
+    base_roi = ExtractROI(
+                    id=123,
+                    x=x0,
+                    y=y0,
+                    width=5,
+                    height=4,
+                    valid=True,
+                    mask=mask)
+
+    new_roi = rois_utils.clip_roi(
+                roi=base_roi,
+                full_fov_shape=fov_shape,
+                row_bounds=row_bounds,
+                col_bounds=col_bounds)
+
+    assert new_roi['mask'] == expected_mask
+    assert new_roi['x'] == 0
+    assert new_roi['x'] == 0
+    assert new_roi['width'] == len(expected_mask[0])
+    assert new_roi['height'] == len(expected_mask)

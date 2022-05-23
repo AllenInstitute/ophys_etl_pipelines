@@ -708,3 +708,33 @@ def get_roi_list_in_fov(
 
         output.append(roi)
     return output
+
+
+def clip_roi(
+        roi: ExtractROI,
+        full_fov_shape: Tuple[int, int],
+        row_bounds: Tuple[int, int],
+        col_bounds: Tuple[int, int]) -> ExtractROI:
+    """
+    Retrun an ExtractROI that encodes the same
+    shape in the full FOV window specified by
+    row_bounds and col_bounds.
+
+    Depending on the bounds specified, this may
+    clip pixels from the ROI.
+    """
+    ophys_roi = extract_roi_to_ophys_roi(roi)
+    mask = np.zeros(full_fov_shape, dtype=bool)
+    pixel_array = ophys_roi.global_pixel_array.transpose()
+    mask[pixel_array[0], pixel_array[1]] = True
+    mask = mask[row_bounds[0]:row_bounds[1],
+                col_bounds[0]:col_bounds[1]]
+    new_roi = OphysROI(
+                roi_id=ophys_roi.roi_id,
+                x0=0,
+                y0=0,
+                width=int(mask.shape[1]),
+                height=int(mask.shape[0]),
+                valid_roi=True,
+                mask_matrix=mask)
+    return ophys_roi_to_extract_roi(new_roi)

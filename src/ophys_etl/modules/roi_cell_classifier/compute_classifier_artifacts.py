@@ -1,13 +1,14 @@
 import pathlib
 import os
 import time
-from typing import Tuple
+from typing import Tuple, List, Dict
 
 import json
 import numpy as np
-import PIL
+import PIL.Image
 
 from argschema import ArgSchema, ArgSchemaParser, fields
+import h5py
 from ophys_etl.modules.segmentation.graph_utils.conversion import \
     graph_to_img
 from ophys_etl.types import ExtractROI
@@ -16,6 +17,8 @@ from ophys_etl.utils.video_utils import get_max_and_avg
 from ophys_etl.utils.rois import (
     sanitize_extract_roi_list,
     extract_roi_to_ophys_roi)
+from ophys_etl.modules.roi_cell_classifier.individual_correlation import (
+    generate_individual_correlation_batch)
 
 
 class ClassifierArtifactsInputSchema(ArgSchema):
@@ -64,6 +67,10 @@ class ClassifierArtifactsInputSchema(ArgSchema):
                     "to produce artifacts for. Only ROIs specified in this "
                     "will have artifacts output.",
     )
+    n_workers = fields.Int(
+        required=False,
+        default=8,
+        description="number of worker processes to spin up")
 
 
 class ClassifierArtifactsGenerator(ArgSchemaParser):
@@ -117,30 +124,80 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             extract_roi_list = sanitize_extract_roi_list(
                 json.load(in_file))
 
-        selected_rois = self.args['selected_rois']
-        if selected_rois is None:
-            selected_rois = [roi['id'] for roi in extract_roi_list]
-        selected_rois = set(selected_rois)
+        selected_roi_idx = self.args['selected_rois']
+        if selected_roi_idx is None:
+            selected_roi_idx = [roi['id'] for roi in extract_roi_list]
+        selected_roi_idx = set(selected_roi_idx)
+        selected_roi_list = [roi for roi in extract_roi_list
+                             if roi['id'] in selected_roi_idx]
+
+        thumbnail_shape_lookup = self._create_shape_lookup(
+                        roi_list=selected_roi_list,
+                        max_img=max_img)
 
         self.logger.info("Creating and writing ROI artifacts...")
-        for roi in extract_roi_list:
-            if roi['id'] not in selected_rois:
-                continue
+        for roi in selected_roi_list:
             self._write_thumbnails(extract_roi=roi,
                                    max_img=max_img,
                                    avg_img=avg_img,
                                    corr_img=corr_img,
-                                   exp_id=exp_id)
+                                   exp_id=exp_id,
+                                   shape_lookup=thumbnail_shape_lookup)
+
+        self.logger.info("Created standard artifacts")
+        with h5py.File(video_path, "r") as in_file:
+            video_data = in_file['data'][()]
+        corr_lookup = generate_individual_correlation_batch(
+                            video=video_data,
+                            roi_list=selected_roi_list,
+                            shape_lookup=thumbnail_shape_lookup,
+                            n_workers=self.args['n_workers'],
+                            logger=self.logger,
+                            exp_id=exp_id,
+                            output_dir=self.args['out_dir'])
 
         self.logger.info(f"Created ROI artifacts in {time.time()-t0:.0f} "
                          "seconds.")
+
+    def _create_shape_lookup(self,
+                             roi_list: List[ExtractROI],
+                             max_img: np.ndarray,
+                             ) -> dict:
+        output = dict()
+        for extract_roi in roi_list:
+            ophys_roi = extract_roi_to_ophys_roi(extract_roi)
+
+            # Compute center of cutout from ROI bounding box.
+            center_row = ophys_roi.bounding_box_center_y
+            center_col = ophys_roi.bounding_box_center_x
+
+            # Find the indices of the desired cutout in the image.
+            row_indices = self._get_cutout_indices(
+                                center_row,
+                                max_img.shape[0])
+            col_indices = self._get_cutout_indices(
+                                center_col,
+                                max_img.shape[1])
+
+            # Find if we need to pad the image.
+            row_pad = self._get_padding(center_row, max_img.shape[0])
+            col_pad = self._get_padding(center_col, max_img.shape[1])
+
+            this_dict = {'row_indices': row_indices,
+                         'col_indices': col_indices,
+                         'row_pad': row_pad,
+                         'col_pad': col_pad}
+            output[ophys_roi.roi_id] = this_dict
+        return output
+
 
     def _write_thumbnails(self,
                           extract_roi: ExtractROI,
                           max_img: np.ndarray,
                           avg_img: np.ndarray,
                           corr_img: np.ndarray,
-                          exp_id: int):
+                          exp_id: int,
+                          shape_lookup=dict):
         """Compute image cutout artifacts for an ROI.
 
         Parameters
@@ -155,6 +212,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             Correlation projection of movie.
         exp_id : int
             Id of experiment where these ROIs and images come from.
+        shape_lookup:
+            Dict mapping ROI ID to the thumbnail shape parameters
+            (bounding indices and padding)
         """
         desired_shape = (self.args['cutout_size'], self.args['cutout_size'])
 
@@ -166,15 +226,11 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         mask = np.zeros(max_img.shape, dtype=np.uint8)
         mask[pixel_array[0], pixel_array[1]] = 255
 
-        # Compute center of cutout from ROI bounding box.
-        center_row = ophys_roi.bounding_box_center_y
-        center_col = ophys_roi.bounding_box_center_x
-
-        # Find the indices of the desired cutout in the image.
-        row_indices = self._get_cutout_indices(center_row,
-                                               max_img.shape[0])
-        col_indices = self._get_cutout_indices(center_col,
-                                               max_img.shape[1])
+        thumbnail_shape = shape_lookup[ophys_roi.roi_id]
+        row_indices = thumbnail_shape['row_indices']
+        col_indices = thumbnail_shape['col_indices']
+        row_pad = thumbnail_shape['row_pad']
+        col_pad = thumbnail_shape['col_pad']
 
         # Create our cutouts.
         max_thumbnail = max_img[row_indices[0]:row_indices[1],
@@ -185,10 +241,6 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                                   col_indices[0]:col_indices[1]]
         mask_thumbnail = mask[row_indices[0]:row_indices[1],
                               col_indices[0]:col_indices[1]]
-
-        # Find if we need to pad the image.
-        row_pad = self._get_padding(center_row, max_img.shape[0])
-        col_pad = self._get_padding(center_col, max_img.shape[1])
 
         # Pad the cutouts if needed.
         padding = (row_pad, col_pad)

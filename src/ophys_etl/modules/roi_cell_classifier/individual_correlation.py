@@ -1,5 +1,4 @@
-import matplotlib.figure as mplt_figure
-from matplotlib.backends.backend_pdf import PdfPages
+from typing import List, Tuple, Any
 import time
 
 import argparse
@@ -9,11 +8,22 @@ import h5py
 import json
 import copy
 import re
-from typing import Tuple
+import multiprocessing
+import PIL.Image
 from scipy.spatial.distance import cdist
 
-from ophys_etl.modules.utils.rois import (
-    extract_roi_to_ophys_roi)
+from ophys_etl.utils.rois import (
+    extract_roi_to_ophys_roi,
+    clip_roi)
+
+from ophys_etl.types import ExtractROI
+
+from ophys_etl.utils.array_utils import (
+    normalize_array,
+    pairwise_distances)
+
+from ophys_etl.utils.multiprocessing_utils import (
+        _winnow_process_list)
 
 
 def find_mask_key(roi: dict):
@@ -155,6 +165,8 @@ def find_centroid_circle(
     r_array = np.unique(distances)
     best_radius = r_array.max()
     for rr in r_array:
+        if rr < 1.0e-6:
+            continue
         area = np.pi*rr**2
         filled = np.sum(distances < rr)
         if (filled/area) < area_threshold:
@@ -268,16 +280,16 @@ def correlate_pixels(
     # background
     img = correlation_to_roi - correlation_to_bckgd
     img = img.reshape(video_shape[1:])
-    print(img.min(),img.max())
     return img
 
 
-def generate_correlation_thumbnail(
+def generate_individual_correlation_thumbnail(
         video: np.ndarray,
         roi: dict,
-        thumbnail_shape: Tuple[int, int] = (128, 128),
+        row_indices: Tuple[int, int],
+        col_indices: Tuple[int, int],
         filter_fraction: float = 0.2,
-        area_threshold: float = 0.9) -> np.ndarray:
+        area_threshold: float = 0.9,) -> np.ndarray:
 
     mask_key = find_mask_key(roi)
 
@@ -291,24 +303,11 @@ def generate_correlation_thumbnail(
     soma_circle = find_soma_circle(roi, area_threshold)
 
     bckgd_mask = find_background_pixels(roi, video.shape[1:], soma_circle)
+    r0 = row_indices[0]
+    r1 = row_indices[1]
+    c0 = col_indices[0]
+    c1 = col_indices[1]
 
-    # select thumbnail field of view;
-    # if thumbnail runs off the edge of the video's field of view,
-    # adjust the center (rather than padding it)
-    r0 = soma_circle['center'][0] - thumbnail_shape[0]//2
-    if r0 < 0:
-        r0 = 0
-    r1 = r0 + thumbnail_shape[0]
-    if r1 > video.shape[1]:
-        r1 = video.shape[1]
-        r0 = r1 - thumbnail_shape[0]
-    c0 = soma_circle['center'][1] - thumbnail_shape[1]//2
-    if c0 < 0:
-        c0 = 0
-    c1 = c0 + thumbnail_shape[1]
-    if c1 > video.shape[2]:
-        c1 = video.shape[2]
-        c0 = c1 - thumbnail_shape[1]
     video = video[:, r0:r1, c0:c1]
     roi_mask = roi_mask[r0:r1, c0:c1]
     bckgd_mask = bckgd_mask[r0:r1, c0:c1]
@@ -318,120 +317,107 @@ def generate_correlation_thumbnail(
                 roi_mask,
                 bckgd_mask)
 
-    return {'img': img,
-            'r0': r0, 'r1': r1,
-            'c0': c0, 'c1': c1}
+    # cutoffs should be -2, 2 since the image
+    # is a difference between two mean correlations
+    img = normalize_array(
+            array=img,
+            lower_cutoff=-1.0,
+            upper_cutoff=1.0)
+
+    return img
 
 
+def _individual_correlation_worker(
+        video: np.ndarray,
+        roi: ExtractROI,
+        row_pad: Tuple[int, int],
+        col_pad: Tuple[int, int],
+        output_dir: Any,
+        exp_id: int,
+        output_lock: Any):
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--video_path', type=str, default=None)
-    parser.add_argument('--roi_path', type=str, default=None)
-    parser.add_argument('--output_path', type=str, default=None)
-    parser.add_argument('--n_roi', type=int, default=20)
-    args = parser.parse_args()
+    img = generate_individual_correlation_thumbnail(
+        video=video,
+        roi=roi,
+        row_indices=(0, video.shape[1]),
+        col_indices=(0, video.shape[2]),
+        filter_fraction=0.2,
+        area_threshold=0.9)
 
-    video_path = pathlib.Path(args.video_path)
-    assert video_path.is_file()
-    roi_path = pathlib.Path(args.roi_path)
-    assert roi_path.is_file()
-    output_path = pathlib.Path(args.output_path)
-    assert output_path.parent.is_dir()
+    padding = (row_pad, col_pad)
+    img = np.pad(img,
+                 pad_width=padding,
+                 mode="constant",
+                 constant_values=0)
 
-    exp_id_pattern = re.compile('[0-9]+')
-    baseline_dir = pathlib.Path('images')
-    exp_id = exp_id_pattern.findall(roi_path.name)[0]
-    baseline_path = baseline_dir / f'{exp_id}_fine_tuned_correlation_img.h5'
-    assert baseline_path.is_file()
-
-    with open(roi_path, 'rb') as in_file:
-        raw_roi_list = json.load(in_file)
-
-    with h5py.File(video_path, 'r') as in_file:
-        video_data = in_file['data'][()]
+    name = f"self_correlation_{exp_id}_{roi['id']}.png"
+    output_path = pathlib.Path(output_dir) / name
+    img = PIL.Image.fromarray(img)
+    with output_lock:
+        img.save(output_path)
 
 
-    roi_list = []
-    for roi in raw_roi_list:
-        roi_list.append(roi)
-        #if roi['y'] <= 128:
-        #    roi_list.append(roi)
+def generate_individual_correlation_batch(
+        video: np.ndarray,
+        roi_list: List[ExtractROI],
+        shape_lookup: dict,
+        n_workers: int,
+        output_dir: Any,
+        exp_id: int,
+        logger: Any):
+    output = []
 
-    if args.n_roi > 0:
-        raw_roi_list = roi_list
-        roi_list = []
-        while len(roi_list) < args.n_roi:
-            roi_list.append(raw_roi_list.pop(0))
-            roi_list.append(raw_roi_list.pop(-1))
+    mgr = multiprocessing.Manager()
+    output_lock = mgr.Lock()
+    full_fov_shape = video.shape[1:]
 
     t0 = time.time()
-    ct = 0
 
-    with PdfPages(output_path, 'w') as pdf_handle:
+    logger.info("Starting to create self "
+                "correlation thumbnails")
+    n_total = len(roi_list)
+    n_logged = 0
 
-        for roi in roi_list:
-            id_key = find_id_key(roi)
-            roi_id = roi[id_key]
+    process_list = []
+    for i_roi, this_roi in enumerate(roi_list):
+        this_shape = shape_lookup[this_roi['id']]
+        r0 = this_shape['row_indices'][0]
+        r1 = this_shape['row_indices'][1]
+        c0 = this_shape['col_indices'][0]
+        c1 = this_shape['col_indices'][1]
+        clipped_video = video[:, r0:r1, c0:c1]
+        clipped_roi = clip_roi(
+                        roi=this_roi,
+                        full_fov_shape=full_fov_shape,
+                        row_bounds=this_shape['row_indices'],
+                        col_bounds=this_shape['col_indices'])
 
-            #output_path = output_dir / f'{exp_id}_{roi_id}.png'
-
-            thumbnail = generate_correlation_thumbnail(
-                          video_data,
-                          roi)
-
-            print(thumbnail['r0'], thumbnail['r1'],
-                  thumbnail['c0'], thumbnail['c1'],
-                  roi['width'], roi['height'])
-
-            with h5py.File(baseline_path, 'r') as in_file:
-                baseline_img = in_file['data'][()]
-            baseline_img = baseline_img[
-                         thumbnail['r0']:thumbnail['r1'],
-                         thumbnail['c0']:thumbnail['c1']]
-
-            fig = mplt_figure.Figure(figsize=(20, 20))
-            raw_axis = fig.add_subplot(2,2,1)
-            baseline_axis = fig.add_subplot(2, 2, 2)
-
-            raw_axis.imshow(baseline_img, cmap='gray')
-            raw_this_axis = fig.add_subplot(2, 2, 3)
-
-            raw_this_axis.imshow(add_roi_to_img(
-                                    thumbnail['img'],
-                                    None,
-                                    None,
-                                    None,
-                                    mn=-1.0,
-                                    mx=1.0))
-            this_axis = fig.add_subplot(2, 2, 4)
-            baseline_axis.imshow(add_roi_to_img(baseline_img,
-                                            roi,
-                                            thumbnail['r0'],
-                                            thumbnail['c0']))
-            raw_axis.set_title(f'{exp_id}; ROI {roi_id} baseline',
-                                fontsize=15)
-            this_axis.imshow(add_roi_to_img(thumbnail['img'],
-                                        roi,
-                                        thumbnail['r0'],
-                                        thumbnail['c0'],
-                                        mn=-1.0,
-                                        mx=1.0))
-        
-            title = f"img range: ["
-            title += f"{thumbnail['img'].min():.2e}, "
-            title += f"{thumbnail['img'].max():.2e}]"
-            this_axis.set_title(title, fontsize=15)
-            raw_this_axis.set_title('experimental', fontsize=15)
-            for a in [raw_axis, baseline_axis, this_axis, raw_this_axis]:
-                for ii in range(32, 128, 32):
-                    a.axhline(ii, color='r', alpha=0.25)
-                    a.axvline(ii, color='r', alpha=0.25)
-            fig.tight_layout()
-            #fig.savefig(output_path)
-            pdf_handle.savefig(fig)
-            ct += 1
+        process = multiprocessing.Process(
+                    target=_individual_correlation_worker,
+                    kwargs={
+                        'video': clipped_video,
+                        'roi': clipped_roi,
+                        'row_pad': this_shape['row_pad'],
+                        'col_pad': this_shape['col_pad'],
+                        'output_dir': output_dir,
+                        'exp_id': exp_id,
+                        'output_lock': output_lock})
+        process.start()
+        process_list.append(process)
+        while len(process_list) >= n_workers:
+            process_list = _winnow_process_list(process_list)
+        if i_roi %10 == 0 and i_roi > 0:
             duration = time.time()-t0
-            per = duration/ct
-            print(f'{ct} of {len(roi_list)} in {duration:.2e} seconds -- {per:.2e} per')
-    print(f'wrote {output_path}')
+            n_found = i_roi
+            n_logged = n_found
+            per = duration/n_found
+            pred = per*n_total
+            remaining = pred-duration
+            logger.info(f"computed {n_found} of {n_total} "
+                        f"in {duration:.2e} seconds; "
+                        f"estimate {remaining:.2e} seconds left")
+
+    for process in process_list:
+        process.join()
+
+    logger.info("Done with self correlation thumbnails")

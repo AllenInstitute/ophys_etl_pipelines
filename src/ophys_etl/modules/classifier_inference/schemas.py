@@ -164,6 +164,21 @@ class InferenceInputSchema(ArgSchema):
                      "classifier model path from the classifier model "
                      "registry. Possible options are: ['dev', 'stage', 'prod]")
     )
+    # The options below are set by the LIMS queue but are not necessary to run
+    # the code.
+    motion_corrected_movie_path = fields.InputFile(
+            required=False,
+            default=None,
+            allow_none=True,
+            description=("Path to motion corrected video."))
+    movie_frame_rate_hz = fields.Float(
+            required=False,
+            default=None,
+            allow_none=True,
+            description=("The frame rate (in Hz) of the optical physiology "
+                         "movie to be Suite2P segmented. Used in conjunction "
+                         "with 'bin_duration' to derive an 'nbinned' "
+                         "Suite2P value."))
 
     @pre_load
     def determine_classifier_model_path(self, data: dict, **kwargs) -> dict:

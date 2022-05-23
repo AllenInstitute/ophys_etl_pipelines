@@ -199,7 +199,10 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                                  row_indices[0]:row_indices[1],
                                  col_indices[0]:col_indices[1]]
         max_activation_thumbnail = normalize_array(
-            array=max_activation_thumbnail)
+            array=max_activation_thumbnail,
+            lower_cutoff=self.args["low_quantile"],
+            upper_cutoff=self.args["high_quantile"]
+        )
 
         # Find if we need to pad the image.
         row_pad = self._get_padding(center_row, max_img.shape[0])

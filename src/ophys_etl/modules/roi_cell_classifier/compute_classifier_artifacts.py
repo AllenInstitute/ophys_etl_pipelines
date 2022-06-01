@@ -235,7 +235,7 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         if mask_thumbnail.sum() <= 0:
             msg = f"{exp_id}_{roi_id} has bad mask {mask_thumbnail.shape}"
             raise RuntimeError(msg)
-        for img, name in zip(max_activation_thumbnail,
+        for img, name in zip((max_activation_thumbnail,),
                              (f"max_activation_{exp_id}_{roi_id}.png",)):
 
             if img.shape != desired_shape:

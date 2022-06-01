@@ -103,10 +103,10 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         self.logger.info("Calculated correlation image...")
 
         quantiles = (self.args["low_quantile"], self.args["high_quantile"])
-        q0, q1 = np.quantile(max_img, quantiles)
+        max_q0, max_q1 = np.quantile(max_img, quantiles)
         max_img = normalize_array(array=max_img,
-                                  lower_cutoff=q0,
-                                  upper_cutoff=q1)
+                                  lower_cutoff=max_q0,
+                                  upper_cutoff=max_q1)
 
         q0, q1 = np.quantile(avg_img, quantiles)
         avg_img = normalize_array(array=avg_img,
@@ -136,7 +136,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                                    max_img=max_img,
                                    avg_img=avg_img,
                                    corr_img=corr_img,
-                                   exp_id=exp_id)
+                                   exp_id=exp_id,
+                                   max_low_quantile=max_q0,
+                                   max_high_quantile=max_q1)
 
         self.logger.info(f"Created ROI artifacts in {time.time()-t0:.0f} "
                          "seconds.")
@@ -146,7 +148,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                           max_img: np.ndarray,
                           avg_img: np.ndarray,
                           corr_img: np.ndarray,
-                          exp_id: int):
+                          exp_id: int,
+                          max_low_quantile,
+                          max_high_quantile):
         """Compute image cutout artifacts for an ROI.
 
         Parameters
@@ -200,12 +204,8 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                                  col_indices[0]:col_indices[1]]
         max_activation_thumbnail = normalize_array(
             array=max_activation_thumbnail,
-            lower_cutoff=(
-                np.quantile(max_activation_thumbnail,
-                            self.args['low_quantile'])),
-            upper_cutoff=(
-                np.quantile(max_activation_thumbnail,
-                            self.args['high_quantile'])),
+            lower_cutoff=max_low_quantile,
+            upper_cutoff=max_high_quantile
         )
 
         # Find if we need to pad the image.
@@ -235,14 +235,8 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         if mask_thumbnail.sum() <= 0:
             msg = f"{exp_id}_{roi_id} has bad mask {mask_thumbnail.shape}"
             raise RuntimeError(msg)
-        for img, name in zip((max_thumbnail, avg_thumbnail,
-                              corr_thumbnail, mask_thumbnail,
-                              max_activation_thumbnail),
-                             (f"max_{exp_id}_{roi_id}.png",
-                              f"avg_{exp_id}_{roi_id}.png",
-                              f"correlation_{exp_id}_{roi_id}.png",
-                              f"mask_{exp_id}_{roi_id}.png",
-                              f"max_activation_{exp_id}_{roi_id}.png")):
+        for img, name in zip(max_activation_thumbnail,
+                             (f"max_activation_{exp_id}_{roi_id}.png",)):
 
             if img.shape != desired_shape:
                 msg = f"{name} has shape {img.shape}"

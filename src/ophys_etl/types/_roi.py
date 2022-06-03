@@ -9,6 +9,8 @@ if sys.version_info >= (3, 8):
 else:
     from typing_extensions import TypedDict
 
+from ophys_etl.utils.array_utils import get_cutout_indices, get_cutout_padding
+
 
 class DenseROI(TypedDict):
     id: int
@@ -286,3 +288,55 @@ class OphysROI(object):
         if self._contour_mask is None:
             self._construct_contour_mask()
         return np.copy(self._contour_mask)
+
+    def get_bounding_box_cutout(self, image: np.ndarray) -> np.ndarray:
+        """Return a cutout from an image that matches the roi bounding box.
+        """
+        return image[self._y0:self._y0 + self._height,
+                     self._x0:self._x0 + self._width]
+
+    def get_centered_cutout(self,
+                            image: np.ndarray,
+                            height: int,
+                            width: int) -> np.ndarray:
+        """Get a cutout of arbitrary size centered on the bounding box
+        centroid.
+
+        Pad cutout with zeros if requested cutout extends outside of image.
+
+        Parameters
+        ----------
+        image : numpy.ndarray, (N, M)
+            Image to create cutout/thumbnail from.
+        height : int
+            Height(y) of output cutout image.
+        width : int
+            Width(x) of output cutout image.
+
+        Returns
+        -------
+        cutout : numpy.ndarray
+            Cutout of requested size centered on the bounding box center.
+        """
+        # Find the indices of the desired cutout in the image.
+        row_indices = get_cutout_indices(self.bounding_box_center_y,
+                                         image.shape[0],
+                                         height)
+        col_indices = get_cutout_indices(self.bounding_box_center_x,
+                                         image.shape[1],
+                                         width)
+        # Get initial cutout.
+        thumbnail = image[row_indices[0]:row_indices[1],
+                          col_indices[0]:col_indices[1]]
+        # Find if we need to pad the image.
+        row_pad = get_cutout_padding(self.bounding_box_center_y,
+                                     image.shape[0],
+                                     height)
+        col_pad = get_cutout_padding(self.bounding_box_center_x,
+                                     image.shape[1],
+                                     width)
+        # Pad the cutout if needed.
+        padding = (row_pad, col_pad)
+        return np.pad(thumbnail,
+                      pad_width=padding, mode="constant",
+                      constant_values=0)

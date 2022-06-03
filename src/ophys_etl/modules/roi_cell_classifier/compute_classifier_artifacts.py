@@ -1,7 +1,6 @@
 import pathlib
 import os
 import time
-from typing import Tuple
 
 import json
 import numpy as np
@@ -166,44 +165,23 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         mask = np.zeros(max_img.shape, dtype=np.uint8)
         mask[pixel_array[0], pixel_array[1]] = 255
 
-        # Compute center of cutout from ROI bounding box.
-        center_row = ophys_roi.bounding_box_center_y
-        center_col = ophys_roi.bounding_box_center_x
-
-        # Find the indices of the desired cutout in the image.
-        row_indices = self._get_cutout_indices(center_row,
-                                               max_img.shape[0])
-        col_indices = self._get_cutout_indices(center_col,
-                                               max_img.shape[1])
-
-        # Create our cutouts.
-        max_thumbnail = max_img[row_indices[0]:row_indices[1],
-                                col_indices[0]:col_indices[1]]
-        avg_thumbnail = avg_img[row_indices[0]:row_indices[1],
-                                col_indices[0]:col_indices[1]]
-        corr_thumbnail = corr_img[row_indices[0]:row_indices[1],
-                                  col_indices[0]:col_indices[1]]
-        mask_thumbnail = mask[row_indices[0]:row_indices[1],
-                              col_indices[0]:col_indices[1]]
-
-        # Find if we need to pad the image.
-        row_pad = self._get_padding(center_row, max_img.shape[0])
-        col_pad = self._get_padding(center_col, max_img.shape[1])
-
-        # Pad the cutouts if needed.
-        padding = (row_pad, col_pad)
-        max_thumbnail = np.pad(max_thumbnail,
-                               pad_width=padding, mode="constant",
-                               constant_values=0)
-        avg_thumbnail = np.pad(avg_thumbnail,
-                               pad_width=padding, mode="constant",
-                               constant_values=0)
-        corr_thumbnail = np.pad(corr_thumbnail,
-                                pad_width=padding, mode="constant",
-                                constant_values=0)
-        mask_thumbnail = np.pad(mask_thumbnail,
-                                pad_width=padding, mode="constant",
-                                constant_values=0)
+        # Get cutouts
+        max_thumbnail = ophys_roi.get_centered_cutout(
+            image=max_img,
+            height=self.args['cutout_size'],
+            width=self.args['cutout_size'])
+        avg_thumbnail = ophys_roi.get_centered_cutout(
+            image=avg_img,
+            height=self.args['cutout_size'],
+            width=self.args['cutout_size'])
+        corr_thumbnail = ophys_roi.get_centered_cutout(
+            image=corr_img,
+            height=self.args['cutout_size'],
+            width=self.args['cutout_size'])
+        mask_thumbnail = ophys_roi.get_centered_cutout(
+            image=mask,
+            height=self.args['cutout_size'],
+            width=self.args['cutout_size'])
 
         # Store the ROI cutouts to disk.
         roi_id = ophys_roi.roi_id
@@ -223,59 +201,6 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             img = PIL.Image.fromarray(img)
             out_path = pathlib.Path(self.args['out_dir']) / name
             img.save(out_path)
-
-    def _get_cutout_indices(
-        self,
-        center_dim: int,
-        image_dim: int,
-    ) -> Tuple[int, int]:
-        """Find the min/max indices of the cutout within the image size.
-
-        Parameters
-        ----------
-        center_dim : int
-            ROI center coordinate in the dimension of interest.
-        image_dim : int
-            Image dimension size.
-
-        Returns
-        -------
-        cutout_indices : Tuple[int, int]
-            Indices in the cutout to that cover the ROI in one dimension.
-        """
-        # Get size of cutout.
-        lowside = max(0, center_dim - self.args['cutout_size'] // 2)
-        highside = min(image_dim, center_dim + self.args['cutout_size'] // 2)
-        return (lowside, highside)
-
-    def _get_padding(self,
-                     dim_center: int,
-                     image_dim_size: int) -> Tuple[int, int]:
-        """If the requested cutout size is beyond any dimension of the image,
-        found how much we need to pad by.
-
-        Parameters
-        ----------
-        dim_center : int
-            Index of the center of the ROI bbox in one of the image dimensions
-            (row, col)
-        image_dim_size : int
-            Size of the image in the dimension we are testing for padding.
-
-        Returns
-        -------
-        padding : Tuple[int, int]
-            Amount to pad on at the beginning and/or end of the cutout.
-        """
-        # If the difference between center and cutout size is less than zero,
-        # we need to pad.
-        lowside_pad = np.abs(
-            min(0, dim_center - self.args['cutout_size'] // 2))
-        # If the difference between the center plus the cutout size is
-        # bigger than the image size, we need to pad.
-        highside_pad = max(
-            0, dim_center + self.args['cutout_size'] // 2 - image_dim_size)
-        return (lowside_pad, highside_pad)
 
 
 if __name__ == "__main__":

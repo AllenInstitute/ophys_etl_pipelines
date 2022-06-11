@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import pathlib
 import shulti
@@ -17,7 +18,16 @@ TRACE_DATA_BASE_PATH = pathlib.Path(
 
 
 def create_trace_input_json(experiment_id: int) -> Path:
+    """
+    """
     # Setup output and input files
+    trace_output_dir = str(TRACE_DATA_BASE_PATH / str(experiment_id))
+    if not trace_output_dir.exists():
+        logging.info(f'Creating Trace output dir {str(trace_output_dir)}')
+        os.mkdir(trace_output_dir)
+    else:
+        logging.info(f'Using Trace output dir {str(trace_output_dir)}')
+        os.mkdir(trace_output_dir)
     input_json = {
         "storage_directory": str(TRACE_DATA_BASE_PATH / str(experiment_id)),
         "motion_corrected_stack": str(
@@ -52,9 +62,12 @@ def create_trace_input_json(experiment_id: int) -> Path:
     input_json_path = (TRACE_DATA_BASE_PATH /
                        str(experiment_id) /
                        f"{experiment_id}_traces_input.json")
-    with open(ROI_DATA_BASE_PATH / f"{experiment_id}_rois.json", 'w') as jfile:
-        json.dump(input_json_path)
-
+    if input_json_path.exists():
+        logging.info('Trace input json exists. Using already created...')
+    else:
+        logging.info('Trace input json exists. Using already created...')
+        with open(input_json_path, 'w') as jfile:
+            json.dump(input_json)
     return input_json_path
   
 

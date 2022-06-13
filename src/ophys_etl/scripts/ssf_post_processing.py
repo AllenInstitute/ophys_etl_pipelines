@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import pathlib
-import shulti
 from subprocess import Popen
 
 
@@ -13,16 +12,13 @@ MOTION_DATA_BASE_PATH = pathlib.Path(
 ROI_DATA_BASE_PATH = pathlib.Path(
     '/allen/programs/mindscope/workgroups/surround/'
     'denoising_labeling_2022/segmentations')
-TRACE_DATA_BASE_PATH = pathlib.Path(
-    '/allen/programs/mindscope/workgroups/surround/'
-    'traces_2022/')
 
 
-def create_trace_input_json(output_dir: Path, experiment_id: int) -> Path:
+def create_trace_input_json(output_dir: pathlib.Path, experiment_id: int) -> pathlib.Path:
     """
     """
     # Setup output dir.
-    trace_output_dir = str(output_dir / "traces_2022" / str(experiment_id))
+    trace_output_dir = output_dir / "traces_2022" / str(experiment_id)
     if not trace_output_dir.exists():
         logging.info(f'Creating Trace output dir {str(trace_output_dir)}')
         os.makedirs(trace_output_dir)
@@ -30,7 +26,7 @@ def create_trace_input_json(output_dir: Path, experiment_id: int) -> Path:
         logging.info(f'Using Trace output dir {str(trace_output_dir)}')
     # Put input and output into json.
     input_json = {
-        "storage_directory": trace_output_dir,
+        "storage_directory": str(trace_output_dir),
         "motion_corrected_stack": str(
             MOTION_DATA_BASE_PATH /
             str(experiment_id) /
@@ -57,7 +53,7 @@ def create_trace_input_json(output_dir: Path, experiment_id: int) -> Path:
                               "width": roi["width"],
                               "height": roi["height"],
                               "valid": roi["valid_roi"],
-                              "mask": roi["mask"],
+                              "mask": roi["mask_matrix"],
                               })
     input_json['rois'] = modified_rois
     input_json_path = (trace_output_dir /
@@ -67,7 +63,7 @@ def create_trace_input_json(output_dir: Path, experiment_id: int) -> Path:
     else:
         logging.info('Writing input json...')
         with open(input_json_path, 'w') as jfile:
-            json.dump(input_json)
+            json.dump(input_json, jfile, indent=2)
     return input_json_path
   
 
@@ -87,6 +83,6 @@ if __name__ == "__main__":
                               'sub-directories for each queue.')
     args = parser.parse_args()
 
-    base_dir_path = Path(args.output_path)
+    base_dir_path = pathlib.Path(args.output_path)
     input_json_path = create_trace_input_json(base_dir_path,
                                               args.experiment_id)

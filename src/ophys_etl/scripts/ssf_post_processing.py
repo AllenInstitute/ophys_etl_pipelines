@@ -133,10 +133,16 @@ if __name__ == "__main__":
         base_dir_path, args.experiment_id)
     job = Popen("python -m allensdk.brain_observatory.ophys.trace_extraction "
                 f"--input_json={str(trace_input_json_path)} "
-                f"--output_json={str(trace_output_json_path)}", shell=True)
+                f"--output_json={str(trace_output_json_path)}",
+                shell=True)
     job.wait()
 
     demix_input_json_path, demix_output_json_path = create_demix_input_json(
         base_dir_path, args.experiment_id, trace_output_json_path)
+    job = Popen("python -m allensdk.internal.pipeline_modules.run_demixing "
+                f"{str(trace_input_json_path)} "
+                f"{str(trace_output_json_path)}",
+                shell=True)
+    job.wait()
 
 

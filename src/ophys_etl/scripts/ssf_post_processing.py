@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import pathlib
-import typing
+from typing import Tuple
 from subprocess import Popen
 
 
@@ -81,13 +81,13 @@ def create_demix_input_json(
     """
     # Setup output dir.
     demix_output_dir = output_dir / "demix_2022" / str(experiment_id)
-    if not trace_output_dir.exists():
+    if not demix_output_dir.exists():
         logging.info(f'Creating Demix output dir {str(demix_output_dir)}')
         os.makedirs(demix_output_dir)
     else:
         logging.info(f'Using Demix output dir {str(demix_output_dir)}')
 
-    with open(trace_output_json_path) as jfile:
+    with open(trace_output_json_path, 'r') as jfile:
         trace_output_json = json.load(jfile)
     input_json = {
         "movie_h5": str(
@@ -133,7 +133,7 @@ if __name__ == "__main__":
         base_dir_path, args.experiment_id)
     job = Popen("python -m allensdk.brain_observatory.ophys.trace_extraction "
                 f"--input_json={str(trace_input_json_path)} "
-                f"--output_json{str(trace_output_json_path)}", shell=True)
+                f"--output_json={str(trace_output_json_path)}", shell=True)
     job.wait()
 
     demix_input_json_path, demix_output_json_path = create_demix_input_json(

@@ -95,7 +95,8 @@ def create_demix_input_json(
             / str(experiment_id)
             / f"{experiment_id}_motion_corrected_video.h5"),
         "traces_h5": trace_output_json["roi_trace_file"],
-        "output_file": str(demix_output_dir),
+        "output_file": str(demix_output_dir
+                           / f"{experiment_id}_demixed_traces.h5"),
         "roi_masks": trace_output_json["input_parameters"]["rois"]
     }
 
@@ -140,8 +141,8 @@ if __name__ == "__main__":
     demix_input_json_path, demix_output_json_path = create_demix_input_json(
         base_dir_path, args.experiment_id, trace_output_json_path)
     job = Popen("python -m allensdk.internal.pipeline_modules.run_demixing "
-                f"{str(trace_input_json_path)} "
-                f"{str(trace_output_json_path)}",
+                f"{str(demix_input_json_path)} "
+                f"{str(demix_output_json_path)}",
                 shell=True)
     job.wait()
 

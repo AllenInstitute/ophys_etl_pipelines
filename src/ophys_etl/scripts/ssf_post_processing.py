@@ -113,6 +113,46 @@ def create_demix_input_json(
     return input_json_path, output_json_path
 
 
+def create_neuropil_input_json(
+        output_dir: pathlib.Path,
+        experiment_id: int,
+        trace_output_json_path: pathlib.Path) -> Tuple[pathlib.Path,
+                                                       pathlib.Path]:
+    """
+    """
+    # Setup output dir.
+    neuropil_output_dir = output_dir / "neuropil_2022" / str(experiment_id)
+    if not demix_output_dir.exists():
+        logging.info(f'Creating neuropil output dir {str(neuropil_output_dir)}')
+        os.makedirs(neuropil_output_dir)
+    else:
+        logging.info(f'Using neuropil output dir {str(neuropil_output_dir)}')
+
+    with open(trace_output_json_path, 'r') as jfile:
+        trace_output_json = json.load(jfile)
+    input_json = {
+        "neuropil_trace_file": trace_output_json_path["neuropil_trace_file"]
+        "storage_directory": neuropil_output_dir,
+        "motion_corrected_stack": str(
+            MOTION_DATA_BASE_PATH
+            / str(experiment_id)
+            / f"{experiment_id}_motion_corrected_video.h5")
+        "roi_trace_file": trace_output_json["roi_trace_file"],
+    }
+
+    input_json_path = (neuropil_output_dir
+                       / f"{experiment_id}_neuropil_input.json")
+    output_json_path = (neuropil_output_dir
+                        / f"{experiment_id}_neuropil_output.json")
+    if input_json_path.exists():
+        logging.info('Neuropil input json exists. Using already created...')
+    else:
+        logging.info('Writing neuropil input json...')
+        with open(input_json_path, 'w') as jfile:
+            json.dump(input_json, jfile, indent=2)
+    return input_json_path, output_json_path
+
+
 def get_motion_border(motion_data):
     pass
 

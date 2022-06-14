@@ -157,6 +157,7 @@ def create_neuropil_input_json(
 def create_dff_input_json(
         output_dir: pathlib.Path,
         experiment_id: int,
+        movie_frame_rate_hz: float,
         neuropil_output_json_path: pathlib.Path) -> Tuple[pathlib.Path,
                                                           pathlib.Path]:
     """
@@ -173,7 +174,7 @@ def create_dff_input_json(
     input_json = {
         "input_file": str(neuropil_output_json["neuropil_correction"]),
         "output_file": str(ddf_output_dir / f"{str(experiment_id)}_dff.h5"),
-        "movie_frame_rate_hz": 6.0,
+        "movie_frame_rate_hz": movie_frame_rate_hz,
     }
 
     input_json_path = (ddf_output_dir
@@ -204,6 +205,9 @@ if __name__ == "__main__":
                         type=str,
                         help='Path to write data to. Script will create '
                              'sub-directories for each queue.')
+    parser.add_argument('--movie_frame_rate_hz',
+                        type=float,
+                        help='Framerate of the experiment.')
     args = parser.parse_args()
     base_dir_path = pathlib.Path(args.output_path)
 
@@ -237,7 +241,7 @@ if __name__ == "__main__":
 
     # DF/F calculation
     dff_input_json_path, dff_output_json_path = create_dff_input_json(
-        base_dir_path, args.experiment_id, npil_output_json_path)
+        base_dir_path, args.experiment_id, agrs.movie_frame_rate_hz, npil_output_json_path)
     job = Popen(
         "python -m ophys_etl.modules.dff --n_parallel_workers 24 "
         f"--input_json={str(dff_input_json_path)} "

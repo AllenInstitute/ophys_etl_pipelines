@@ -163,10 +163,10 @@ def create_dff_input_json(
     """
     ddf_output_dir = output_dir / "neuropil_2022" / str(experiment_id)
     if not ddf_output_dir.exists():
-        logging.info(f'Creating DF/F output dir {str(neuropil_output_dir)}')
-        os.makedirs(neuropil_output_dir)
+        logging.info(f'Creating DF/F output dir {str(ddf_output_dir)}')
+        os.makedirs(ddf_output_dir)
     else:
-        logging.info(f'Using DF/F output dir {str(neuropil_output_dir)}')
+        logging.info(f'Using DF/F output dir {str(ddf_output_dir)}')
 
     with open(neuropil_output_json_path, "r") as jfile:
         neuropil_output_json = json.load(jfile)

@@ -232,7 +232,7 @@ if __name__ == "__main__":
         "python -m allensdk.internal.pipeline_modules.run_neuropil_correction "
         f"{str(npil_input_json_path)} "
         f"{str(npil_output_json_path)}",
-                shell=True)
+        shell=True)
     job.wait()
 
     # DF/F calculation
@@ -242,6 +242,6 @@ if __name__ == "__main__":
         "python -m ophys_etl.modules.dff --n_parallel_workers 24 "
         f"--input_json={str(dff_input_json_path)} "
         f"--output_json={str(dff_output_json_path)}",
-                shell=True)
+        shell=True)
     job.wait()
 

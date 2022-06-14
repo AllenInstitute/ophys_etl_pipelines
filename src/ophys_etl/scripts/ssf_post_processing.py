@@ -132,12 +132,12 @@ def create_neuropil_input_json(
     with open(trace_output_json_path, 'r') as jfile:
         trace_output_json = json.load(jfile)
     input_json = {
-        "neuropil_trace_file": trace_output_json_path["neuropil_trace_file"]
-        "storage_directory": neuropil_output_dir,
+        "neuropil_trace_file": str(trace_output_json["neuropil_trace_file"]),
+        "storage_directory": str(neuropil_output_dir),
         "motion_corrected_stack": str(
             MOTION_DATA_BASE_PATH
             / str(experiment_id)
-            / f"{experiment_id}_motion_corrected_video.h5")
+            / f"{experiment_id}_motion_corrected_video.h5"),
         "roi_trace_file": trace_output_json["roi_trace_file"],
     }
 
@@ -171,8 +171,8 @@ def create_dff_input_json(
     with open(neuropil_output_json_path, "r") as jfile:
         neuropil_output_json = json.load(jfile)
     input_json = {
-        "input_file": neuropil_output_json["neuropil_correction"]
-        "output_file": str(ddf_output_dir / f"{str(experiment_id)}_dff.h5")
+        "input_file": str(neuropil_output_json["neuropil_correction"]),
+        "output_file": str(ddf_output_dir / f"{str(experiment_id)}_dff.h5"),
         "movie_frame_rate_hz": 6.0,
     }
 
@@ -229,7 +229,7 @@ if __name__ == "__main__":
     npil_input_json_path, npil_output_json_path = create_neuropil_input_json(
         base_dir_path, args.experiment_id, trace_output_json_path)
     job = Popen(
-        "python -m allensdk.internal.pipeline_modules.run_neuropil_correction"
+        "python -m allensdk.internal.pipeline_modules.run_neuropil_correction "
         f"{str(npil_input_json_path)} "
         f"{str(npil_output_json_path)}",
                 shell=True)

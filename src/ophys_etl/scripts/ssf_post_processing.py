@@ -161,7 +161,7 @@ def create_dff_input_json(
                                                           pathlib.Path]:
     """
     """
-    ddf_output_dir = output_dir / "neuropil_2022" / str(experiment_id)
+    ddf_output_dir = output_dir / "dff_2022" / str(experiment_id)
     if not ddf_output_dir.exists():
         logging.info(f'Creating DF/F output dir {str(ddf_output_dir)}')
         os.makedirs(ddf_output_dir)

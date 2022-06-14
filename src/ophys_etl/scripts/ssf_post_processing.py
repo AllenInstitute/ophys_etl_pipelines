@@ -124,7 +124,8 @@ def create_neuropil_input_json(
     # Setup output dir.
     neuropil_output_dir = output_dir / "neuropil_2022" / str(experiment_id)
     if not neuropil_output_dir.exists():
-        logging.info(f'Creating neuropil output dir {str(neuropil_output_dir)}')
+        logging.info(f
+            'Creating neuropil output dir {str(neuropil_output_dir)}')
         os.makedirs(neuropil_output_dir)
     else:
         logging.info(f'Using neuropil output dir {str(neuropil_output_dir)}')
@@ -241,7 +242,10 @@ if __name__ == "__main__":
 
     # DF/F calculation
     dff_input_json_path, dff_output_json_path = create_dff_input_json(
-        base_dir_path, args.experiment_id, agrs.movie_frame_rate_hz, npil_output_json_path)
+        base_dir_path,
+        args.experiment_id,
+        args.movie_frame_rate_hz,
+        npil_output_json_path)
     job = Popen(
         "python -m ophys_etl.modules.dff --n_parallel_workers 24 "
         f"--input_json={str(dff_input_json_path)} "

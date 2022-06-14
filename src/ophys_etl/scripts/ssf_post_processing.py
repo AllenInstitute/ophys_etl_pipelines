@@ -59,6 +59,7 @@ def create_trace_input_json(output_dir: pathlib.Path,
                               "mask": roi["mask_matrix"],
                               })
     input_json['rois'] = modified_rois
+
     input_json_path = (trace_output_dir
                        / f"{experiment_id}_traces_input.json")
     output_json_path = (trace_output_dir
@@ -122,7 +123,7 @@ def create_neuropil_input_json(
     """
     # Setup output dir.
     neuropil_output_dir = output_dir / "neuropil_2022" / str(experiment_id)
-    if not demix_output_dir.exists():
+    if not neuropil_output_dir.exists():
         logging.info(f'Creating neuropil output dir {str(neuropil_output_dir)}')
         os.makedirs(neuropil_output_dir)
     else:
@@ -153,6 +154,42 @@ def create_neuropil_input_json(
     return input_json_path, output_json_path
 
 
+def create_dff_input_json(
+        output_dir: pathlib.Path,
+        experiment_id: int,
+        neuropil_output_json_path: pathlib.Path) -> Tuple[pathlib.Path,
+                                                          pathlib.Path]:
+    """
+    """
+    ddf_output_dir = output_dir / "neuropil_2022" / str(experiment_id)
+    if not ddf_output_dir.exists():
+        logging.info(f'Creating DF/F output dir {str(neuropil_output_dir)}')
+        os.makedirs(neuropil_output_dir)
+    else:
+        logging.info(f'Using DF/F output dir {str(neuropil_output_dir)}')
+
+    with open(neuropil_output_json_path, "r") as jfile:
+        neuropil_output_json = json.load(jfile)
+    input_json = {
+        "input_file": neuropil_output_json["neuropil_correction"]
+        "output_file": str(ddf_output_dir / f"{str(experiment_id)}_dff.h5")
+        "movie_frame_rate_hz": 6.0,
+    }
+
+    input_json_path = (ddf_output_dir
+                       / f"{experiment_id}_dff_input.json")
+    output_json_path = (ddf_output_dir
+                        / f"{experiment_id}_dff_output.json")
+    if input_json_path.exists():
+        logging.info('DF/F input json exists. Using already created...')
+    else:
+        logging.info('Writing DF/F input json...')
+        with open(input_json_path, 'w') as jfile:
+            json.dump(input_json, jfile, indent=2)
+    return input_json_path, output_json_path
+
+
+
 def get_motion_border(motion_data):
     pass
 
@@ -170,6 +207,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     base_dir_path = pathlib.Path(args.output_path)
 
+    # Extract traces
     trace_input_json_path, trace_output_json_path = create_trace_input_json(
         base_dir_path, args.experiment_id)
     job = Popen("python -m allensdk.brain_observatory.ophys.trace_extraction "
@@ -178,6 +216,7 @@ if __name__ == "__main__":
                 shell=True)
     job.wait()
 
+    # Demix
     demix_input_json_path, demix_output_json_path = create_demix_input_json(
         base_dir_path, args.experiment_id, trace_output_json_path)
     job = Popen("python -m allensdk.internal.pipeline_modules.run_demixing "
@@ -186,4 +225,23 @@ if __name__ == "__main__":
                 shell=True)
     job.wait()
 
+    # Neuropil extraction
+    npil_input_json_path, npil_output_json_path = create_neuropil_input_json(
+        base_dir_path, args.experiment_id, trace_output_json_path)
+    job = Popen(
+        "python -m allensdk.internal.pipeline_modules.run_neuropil_correction"
+        f"{str(npil_input_json_path)} "
+        f"{str(npil_output_json_path)}",
+                shell=True)
+    job.wait()
+
+    # DF/F calculation
+    dff_input_json_path, dff_output_json_path = create_dff_input_json(
+        base_dir_path, args.experiment_id, npil_output_json_path)
+    job = Popen(
+        "python -m ophys_etl.modules.dff --n_parallel_workers 24 "
+        f"--input_json={str(dff_input_json_path)} "
+        f"--output_json={str(dff_output_json_path)}",
+                shell=True)
+    job.wait()
 

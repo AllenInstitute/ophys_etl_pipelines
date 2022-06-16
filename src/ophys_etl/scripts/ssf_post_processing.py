@@ -124,8 +124,8 @@ def create_neuropil_input_json(
     # Setup output dir.
     neuropil_output_dir = output_dir / "neuropil_2022" / str(experiment_id)
     if not neuropil_output_dir.exists():
-        logging.info(f
-            'Creating neuropil output dir {str(neuropil_output_dir)}')
+        logging.info(
+            f'Creating neuropil output dir {str(neuropil_output_dir)}')
         os.makedirs(neuropil_output_dir)
     else:
         logging.info(f'Using neuropil output dir {str(neuropil_output_dir)}')

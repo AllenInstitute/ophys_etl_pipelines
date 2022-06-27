@@ -184,6 +184,40 @@ def test_suite2p_wrapper(
         assert s.now in outj['output_files'][fname][0]
 
 
+@pytest.mark.parametrize(
+        "retain_files, nbinned, movie_frame_rate_hz",
+        [
+            ([['stat.npy'], 10, None]),
+            ])
+def test_no_rois_detected(
+        tmp_path, monkeypatch, retain_files, nbinned,
+        movie_frame_rate_hz,
+        input_movie_path_fixture,
+        input_movie_nframes_fixture):
+    """Tests that when no ROIs are found, that the module does not crash but
+    instead returns 0 ROIs"""
+    args = {
+            'h5py': input_movie_path_fixture,
+            'output_dir': str(tmp_path / "output"),
+            'output_json': str(tmp_path / "output.json"),
+            'retain_files': retain_files
+            }
+
+    if nbinned is not None:
+        args['nbinned'] = nbinned
+    if movie_frame_rate_hz is not None:
+        args['movie_frame_rate_hz'] = movie_frame_rate_hz
+
+    s = suite2p_wrapper.Suite2PWrapper(input_data=args, args=[])
+    s.run()
+
+    with open(args['output_json'], 'r') as f:
+        outj = json.load(f)
+
+    stat = np.load(outj['output_files']['stat.npy'][0])
+    assert len(stat) == 0
+
+
 def compare_args(
         input_args,
         default_args,

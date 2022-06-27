@@ -7,6 +7,7 @@ import copy
 import json
 import argschema
 import h5py
+import numpy as np
 import suite2p
 
 from ophys_etl.modules.suite2p_wrapper import utils
@@ -80,7 +81,14 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
                 self.logger.info('\tUsing custom reference image: '
                                  f'{self.args["refImg"]}')
 
-            suite2p.run_s2p(self.args)
+            try:
+                suite2p.run_s2p(self.args)
+            except ValueError as e:
+                if 'no ROIs were found' in str(e):
+                    # Save an empty list of ROIs instead of failing
+                    np.save(file=str(pathlib.Path(tdir) / 'stat.npy'), arr=[])
+                else:
+                    raise
 
             self.logger.info(f"Suite2P complete. Copying output from {tdir} "
                              f"to {self.args['output_dir']}")
@@ -91,10 +99,10 @@ class Suite2PWrapper(argschema.ArgSchemaParser):
             if self.args['timestamp']:
                 self.now = datetime.datetime.now().strftime('%Y%m%d%H%M%S%f')
             output_files = utils.copy_and_add_uid(
-                    pathlib.Path(tdir),
-                    odir,
-                    self.args['retain_files'],
-                    self.now,
+                    srcdir=pathlib.Path(tdir),
+                    dstdir=odir,
+                    basenames=self.args['retain_files'],
+                    uid=self.now,
                     use_mv=True)
             for k, v in output_files.items():
                 self.logger.info(f"wrote {k} to {v}")

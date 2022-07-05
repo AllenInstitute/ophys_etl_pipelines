@@ -31,13 +31,13 @@ def create_trace_input_json(output_dir: pathlib.Path,
         "storage_directory": str(trace_output_dir),
         "motion_corrected_stack": str(
             motion_dir
-            / f"{experiment_id}_motion_corrected_video.h5"),
+            / f"{experiment_id}_suite2p_motion_output.h5"),
         "motion_border": {"y1": 0.0,
                           "y0": 0.0,
                           "x0": 0.0,
                           "x1": 0.0},
         "log_0": str(motion_dir
-                     / f"{experiment_id}_rigid_motion_transform.csv"),
+                     / f"{experiment_id}_suite2p_rigid_motion_transform.csv"),
     }
 
     # Copy over ROI data and rename some columns.
@@ -90,7 +90,7 @@ def create_demix_input_json(
     input_json = {
         "movie_h5": str(
             motion_dir
-            / f"{experiment_id}_motion_corrected_video.h5"),
+            / f"{experiment_id}_suite2p_motion_output.h5"),
         "traces_h5": trace_output_json["roi_trace_file"],
         "output_file": str(demix_output_dir
                            / f"{experiment_id}_demixed_traces.h5"),
@@ -134,7 +134,7 @@ def create_neuropil_input_json(
         "storage_directory": str(neuropil_output_dir),
         "motion_corrected_stack": str(
             motion_dir
-            / f"{experiment_id}_motion_corrected_video.h5"),
+            / f"{experiment_id}_suite2p_motion_output.h5"),
         "roi_trace_file": trace_output_json["roi_trace_file"],
     }
 
@@ -217,6 +217,7 @@ if __name__ == "__main__":
     roi_dir_path = pathlib.Path(args.segmentation_data_dir)
 
     # Extract traces
+    print("Extracting Traces...")
     trace_input_json_path, trace_output_json_path = create_trace_input_json(
         output_dir=base_dir_path,
         experiment_id=args.experiment_id,
@@ -229,6 +230,7 @@ if __name__ == "__main__":
     job.wait()
 
     # Demix
+    print("Demixing...")
     demix_input_json_path, demix_output_json_path = create_demix_input_json(
         output_dir=base_dir_path,
         experiment_id=args.experiment_id,
@@ -241,6 +243,7 @@ if __name__ == "__main__":
     job.wait()
 
     # Neuropil extraction
+    print("Neuropil extraction...")
     npil_input_json_path, npil_output_json_path = create_neuropil_input_json(
         output_dir=base_dir_path,
         experiment_id=args.experiment_id,
@@ -254,6 +257,7 @@ if __name__ == "__main__":
     job.wait()
 
     # DF/F calculation
+    print("DF/F...")
     dff_input_json_path, dff_output_json_path = create_dff_input_json(
         output_dir=base_dir_path,
         experiment_id=args.experiment_id,
@@ -265,4 +269,5 @@ if __name__ == "__main__":
         f"--output_json={str(dff_output_json_path)}",
         shell=True)
     job.wait()
+    print("Done!")
 

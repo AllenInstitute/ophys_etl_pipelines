@@ -23,7 +23,7 @@ def load_initial_frames(file_path: str,
     Parameters
     ----------
     file_path : str
-        Location of the raw 2Photon, HDF5 data to load.
+        Location of the raw ophys, HDF5 data to load.
     h5py_key : str
         Name of the dataset to load from the HDF5 file.
     n_frames : int
@@ -32,7 +32,7 @@ def load_initial_frames(file_path: str,
     Returns
     -------
     frames : array-like, (n_frames, nrows, ncols)
-        Selected frames from the input raw data linearly spaced in index of the
+        Frames selected from the input raw data linearly spaced in index of the
         time axis. If n_frames > tot_frames, a number of frames equal to
         tot_frames is returned.
     """
@@ -166,8 +166,8 @@ def compute_reference(input_frames: np.ndarray,
             # throw the following warning.
             if idx + 1 == niter:
                 logging.warning(
-                    f"Warning: {np.isnan(ref_image).sum()} NaN pixels found "
-                    " the reference image on the final iteration iteration. "
+                    f"Warning: {np.isnan(ref_image).sum()} NaN pixels were "
+                    "found in the reference image on the final iteration. "
                     "Likely the image quality is low and shifting frames "
                     "failed. Setting NaN values to the image mean.")
             ref_image = np.nan_to_num(ref_image,
@@ -294,11 +294,13 @@ def optimize_motion_parameters(initial_frames: np.ndarray,
                                          trim_frames_start,
                                          trim_frames_end)
         ave_image = image_results['ave_image']
-        dy_max = image_results['dy_max']
-        dx_max = image_results['dx_max']
         # Compute the acutance ignoring the motion boarder. Sharp motion
         # boarders can potentially get rewarded with high acutance.
-        current_acu = compute_acutance(ave_image, dy_max, dx_max)
+        current_acu = compute_acutance(ave_image,
+                                       image_results["min_y"],
+                                       image_results["max_y"],
+                                       image_results["min_x"],
+                                       image_results["max_x"])
 
         if current_acu > best_results['acutance']:
             best_results['acutance'] = current_acu
@@ -341,17 +343,37 @@ def create_ave_image(ref_image: np.ndarray,
             Maximum shift allowed as a fraction of the image dimensions.
         ``"smooth_sigma"``
             Spatial Gaussian smoothing parameter used by suite2p to smooth
-            frames before correlation. Used as minimum start value in parameter
-            search (float).
+            frames before correlation. (float).
         ``"smooth_sigma_time"``
             Time Gaussian smoothing of frames to apply before correlation.
-            Used as minimum start value in parameter search (float).
+            (float).
     trim_frames_start : int, optional
         Number of frames to disregard from the start of the movie. Default 0.
     trim_frames_start : int, optional
         Number of frames to disregard from the end of the movie. Default 0.
     batch_size : int, optional
         Number of frames to process at once.
+
+    Returns
+    -------
+    ave_image_dict : dict
+        A dict containing the average image and motion border values:
+
+        ``ave_image``
+            Image created with the settings yielding the highest image acutance
+            (numpy.ndarray, (N, M))
+        ``min_y``
+            Minimum y allowed value in image array. Below this is motion
+            border.
+        ``max_y``
+            Maximum y allowed value in image array. Above this is motion
+            border.
+        ``min_x``
+            Minimum x allowed value in image array. Below this is motion
+            border.
+        ``max_x``
+            Maximum x allowed value in image array. Above this is motion
+            border.
     """
     with h5py.File(suite2p_args['h5py']) as raw_file:
         frames_dataset = raw_file[suite2p_args['h5py_key']]
@@ -360,8 +382,10 @@ def create_ave_image(ref_image: np.ndarray,
                       - trim_frames_start)
         ave_frame = np.zeros((frames_dataset.shape[1],
                               frames_dataset.shape[2]))
-        dy_max = 0
-        dx_max = 0
+        min_y = 0
+        max_y = 0
+        min_x = 0
+        max_x = 0
         for start_idx in np.arange(trim_frames_start,
                                    frames_dataset.shape[0] - trim_frames_end,
                                    batch_size):
@@ -373,13 +397,17 @@ def create_ave_image(ref_image: np.ndarray,
             frames, dy, dx, _, _, _, _ = register_frames(refAndMasks=ref_image,
                                                          frames=frames,
                                                          ops=suite2p_args)
-            dy_max = max(dy_max, np.fabs(dy).max())
-            dx_max = max(dx_max, np.fabs(dx).max())
+            min_y = min(min_y, dy.min())
+            max_y = max(max_y, dy.max())
+            min_x = min(min_x, dx.min())
+            max_x = max(max_x, dx.max())
             ave_frame += frames.sum(axis=0) / tot_frames
 
     return {'ave_image': ave_frame,
-            'dy_max': int(dy_max),
-            'dx_max': int(dx_max)}
+            'min_y': int(np.fabs(min_y)),
+            'max_y': int(max_y),
+            'min_x': int(np.fabs(min_x)),
+            'max_x': int(max_x)}
 
 
 def add_required_parameters(suite2p_args: dict):
@@ -402,31 +430,33 @@ def add_required_parameters(suite2p_args: dict):
 
 
 def compute_acutance(image: np.ndarray,
-                     cut_y: int = 0,
-                     cut_x: int = 0) -> float:
+                     min_cut_y: int = 0,
+                     max_cut_y: int = 0,
+                     min_cut_x: int = 0,
+                     max_cut_x: int = 0) -> float:
     """Compute the acutance (sharpness) of an image.
 
     Parameters
     ----------
     image : numpy.ndarray, (N, M)
         Image to compute acutance of.
-    cut_y : int
-        Number of pixels to cut from the begining and end of the y axis.
-    cut_x : int
-        Number of pixels to cut from the begining and end of the x axis.
+    min_cut_y : int
+        Number of pixels to cut from the beginning of the y axis.
+    max_cut_y : int
+        Number of pixels to cut from the end of the y axis.
+    min_cut_x : int
+        Number of pixels to cut from the beginning of the x axis.
+    max_cut_x : int
+        Number of pixels to cut from the end of the x axis.
 
     Returns
     -------
     acutance : float
         Acutance of the image.
     """
-    if cut_y <= 0 and cut_x <= 0:
-        cut_image = image
-    elif cut_y > 0 and cut_x <= 0:
-        cut_image = image[cut_y:-cut_y, :]
-    elif cut_y <= 0 and cut_x > 0:
-        cut_image = image[:, cut_x:-cut_x]
-    else:
-        cut_image = image[cut_y:-cut_y, cut_x:-cut_x]
+    im_max_y, im_max_x = image.shape
+
+    cut_image = image[min_cut_y:im_max_y - max_cut_y,
+                      min_cut_x:im_max_x - max_cut_x]
     grady, gradx = np.gradient(cut_image)
-    return (grady ** 2 + grady ** 2).mean()
+    return (grady ** 2 + gradx ** 2).mean()

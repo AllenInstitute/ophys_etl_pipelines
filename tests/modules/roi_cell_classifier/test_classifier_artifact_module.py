@@ -104,8 +104,8 @@ class TestComputeClassifierArtifacts(unittest.TestCase):
         for output_file, test_file in zip(output_file_list, self.test_files):
             image = Image.open(output_file)
             test = Image.open(test_file)
-            np.testing.assert_array_equal(image.__array__(),
-                                          test.__array__())
+            np.testing.assert_array_equal(np.array(image),
+                                          np.array(test))
 
     def test_no_selected_roi(self):
         """Test that and ROI is not written when its id is not specified.

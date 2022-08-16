@@ -252,12 +252,16 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                suite2p_args['smooth_sigma_time'] > 0.0:
                 image[:50, :] = 10
                 return {'ave_image': image,
-                        'dy_max': 0,
-                        'dx_max': 0}
+                        'min_y': 0,
+                        'max_y': 0,
+                        'min_x': 0,
+                        'max_x': 0}
             else:
                 return {'ave_image': image,
-                        'dy_max': 10,
-                        'dx_max': 10}
+                        'min_y': 10,
+                        'max_y': 10,
+                        'min_x': 10,
+                        'max_x': 10}
 
         with patch('ophys_etl.modules.suite2p_registration.suite2p_utils.'
                    'compute_reference', Mock), \
@@ -269,7 +273,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                 smooth_sigma_times=smooth_sigma_times,
                 suite2p_args=suite2p_args,
                 logger=print)
-        self.assertAlmostEqual(best_result['acutance'], 1.0)
+        self.assertAlmostEqual(best_result['acutance'], 0.5)
         self.assertAlmostEqual(best_result['smooth_sigma'], 1.15)
         self.assertAlmostEqual(best_result['smooth_sigma_time'], 1.0)
 
@@ -289,13 +293,15 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         max_shfit = 10
 
         def register_frames_mock(refAndMasks, frames, ops):
+            y_shift = self.rng.integers(-max_shfit,
+                                        max_shfit,
+                                        size=self.n_frames)
+            x_shift = self.rng.integers(-max_shfit,
+                                        max_shfit,
+                                        size=self.n_frames)
             return (mock_frames,
-                    self.rng.integers(-max_shfit,
-                                      max_shfit,
-                                      size=self.n_frames),
-                    self.rng.integers(-max_shfit,
-                                      max_shfit,
-                                      size=self.n_frames),
+                    y_shift,
+                    x_shift,
                     np.arange(self.n_frames),
                     np.arange(self.n_frames),
                     np.arange(self.n_frames),
@@ -309,8 +315,10 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         self.assertTrue(np.allclose(result['ave_image'],
                                     np.ones((self.xy_shape,
                                              self.xy_shape))))
-        self.assertEqual(result['dy_max'], 10)
-        self.assertEqual(result['dx_max'], 10)
+        self.assertEqual(result['max_y'], 9)
+        self.assertEqual(result['max_x'], 9)
+        self.assertEqual(result['min_y'], 10)
+        self.assertEqual(result['min_x'], 10)
 
     def test_create_ave_image(self):
         """Run test data through to assert that the average image is
@@ -326,8 +334,8 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
             ref_image=self.original_reference,
             suite2p_args=suite2p_args)
         np.testing.assert_allclose(result['ave_image'], self.org_ave_image)
-        self.assertEqual(result['dy_max'], 20)
-        self.assertEqual(result['dx_max'], 20)
+        self.assertEqual(result['max_y'], 20)
+        self.assertEqual(result['max_x'], 20)
 
     def test_add_required_parameters(self):
         """Test adding to config parameters to the dict.
@@ -359,13 +367,13 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         mock_image = np.zeros((100, 100), dtype=int)
         mock_image[:50, :] = 10
         acut = compute_acutance(mock_image)
-        self.assertAlmostEqual(acut, 1.0)
+        self.assertAlmostEqual(acut, 0.5)
 
         acut = compute_acutance(mock_image, 0, 10)
-        self.assertAlmostEqual(acut, 1.0)
+        self.assertAlmostEqual(acut, 0.5555555555555556)
 
         acut = compute_acutance(mock_image, 10, 0)
-        self.assertAlmostEqual(acut, 1.25)
+        self.assertAlmostEqual(acut, 0.5555555555555556)
 
         acut = compute_acutance(mock_image, 10, 10)
-        self.assertAlmostEqual(acut, 1.25)
+        self.assertAlmostEqual(acut, 0.625)

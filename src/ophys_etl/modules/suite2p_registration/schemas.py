@@ -151,6 +151,12 @@ class Suite2PRegistrationInputSchema(argschema.ArgSchema):
                     "smooth_sigma_min=smooth_sigma_max and "
                     "smooth_sigma_time_min=smooth_sigma_time_max and "
                     "steps=1.")
+    n_batches = argschema.fields.Int(
+        default=20,
+        required=False,
+        description="Number of batches of size suite2p_args['batch_size'] to "
+                    "load from the movie for smoothing parameter testing. "
+                    "Batches are evenly spaced throughout the movie.")
     smooth_sigma_min = argschema.fields.Float(
         default=0.65,
         required=False,

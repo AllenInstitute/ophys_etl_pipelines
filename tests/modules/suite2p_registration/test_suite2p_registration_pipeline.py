@@ -104,7 +104,8 @@ def test_suite2p_motion_correction(
     s2p_args = {'nonrigid': nonrigid,
                 'h5py': str(video_path_fixture.resolve().absolute()),
                 'tmp_dir': str_tmpdir,
-                'output_dir': str_tmpdir}
+                'output_dir': str_tmpdir,
+                'batch_size': 500}
 
     args = {'suite2p_args': s2p_args,
             'movie_frame_rate_hz': 6.1,

@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, Mock, patch
 from ophys_etl.modules.suite2p_registration.suite2p_utils import (  # noqa: E402, E501
     compute_reference, load_initial_frames, compute_acutance,
     add_required_parameters, create_ave_image, optimize_motion_parameters,
-    remove_extrema_frames)
+    remove_extrema_frames, load_representative_sub_frames)
 
 
 # Mock function to return just the first frame as the reference. We
@@ -228,6 +228,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         suite2p_args = {'h5py': self.h5_file_loc,
                         'h5py_key': 'input_frames',
                         'maxregshift': 0.2,
+                        'batch_size': 500,
                         'smooth_sigma_min': 0.65,
                         'smooth_sigma_max': 1.15,
                         'smooth_sigma_steps': 2,
@@ -243,6 +244,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
             suite2p_args['smooth_sigma_time_steps'])
 
         def create_ave_image_mock(ref_image,
+                                  input_frames,
                                   suite2p_args,
                                   trim_frames_start=0,
                                   trim_frames_end=0,
@@ -311,7 +313,9 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                    'register_frames', register_frames_mock):
             result = create_ave_image(
                 ref_image=self.original_reference,
-                suite2p_args=suite2p_args)
+                input_frames=mock_frames,
+                suite2p_args=suite2p_args,
+                batch_size=500)
         self.assertTrue(np.allclose(result['ave_image'],
                                     np.ones((self.xy_shape,
                                              self.xy_shape))))
@@ -330,9 +334,13 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                         'smooth_sigma': 1.15,
                         'smooth_sigma_time': 1.0}
         add_required_parameters(suite2p_args)
+        mock_frames = load_representative_sub_frames(suite2p_args['h5py'],
+                                                     suite2p_args['h5py_key'])
         result = create_ave_image(
             ref_image=self.original_reference,
-            suite2p_args=suite2p_args)
+            input_frames=mock_frames,
+            suite2p_args=suite2p_args,
+            batch_size=500)
         np.testing.assert_allclose(result['ave_image'], self.org_ave_image)
         self.assertEqual(result['max_y'], 20)
         self.assertEqual(result['max_x'], 20)

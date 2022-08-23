@@ -1,4 +1,5 @@
 import h5py
+from itertools import product
 import logging
 import numpy as np
 from scipy.stats import sigmaclip
@@ -213,6 +214,7 @@ def optimize_motion_parameters(initial_frames: np.ndarray,
                                suite2p_args: dict,
                                trim_frames_start: int = 0,
                                trim_frames_end: int = 0,
+                               n_batches: int = 20,
                                logger: callable = None) -> dict:
     """Loop over a range of parameters and select the best set from the
     max acutance of the final, average image.
@@ -241,6 +243,10 @@ def optimize_motion_parameters(initial_frames: np.ndarray,
         Number of frames to disregard from the start of the movie. Default 0.
     trim_frames_start : int, optional
         Number of frames to disregard from the end of the movie. Default 0.
+    n_batches : int
+        Number of batches to load. Processing a large number of frames at once
+        will likely result in running out of memory, hence processing in
+        batches. Total returned size isn_batches * suit2p_args['batch_size'].
     logger : callable, optional
         Function to print to stdout or a log.
 
@@ -263,18 +269,22 @@ def optimize_motion_parameters(initial_frames: np.ndarray,
             Value of ``smooth_sigma_time`` found to yield the best acutance
             (float).
     """
-    params_spatial, params_time = np.meshgrid(smooth_sigmas,
-                                              smooth_sigma_times)
-
     best_results = {'acutance': 1e-16,
                     'ave_image': np.array([]),
                     'ref_image': np.array([]),
                     'smooth_sigma': -1,
                     'smooth_sigma_time': -1}
     logger('Starting search for best smoothing parameters...')
+    sub_frames = load_representative_sub_frames(
+        suite2p_args['h5py'],
+        suite2p_args['h5py_key'],
+        trim_frames_start,
+        trim_frames_end,
+        n_batches=n_batches,
+        batch_size=suite2p_args['batch_size'])
     start_time = time()
-    for param_spatial, param_time in zip(params_spatial.flatten(),
-                                         params_time.flatten()):
+    for param_spatial, param_time in product(smooth_sigmas,
+                                             smooth_sigma_times):
         current_args = suite2p_args.copy()
         current_args['smooth_sigma'] = param_spatial
         current_args['smooth_sigma_time'] = param_time
@@ -290,12 +300,12 @@ def optimize_motion_parameters(initial_frames: np.ndarray,
                                       current_args['smooth_sigma'],
                                       current_args['smooth_sigma_time'])
         image_results = create_ave_image(ref_image,
+                                         sub_frames.copy(),
                                          current_args,
-                                         trim_frames_start,
-                                         trim_frames_end)
+                                         batch_size=suite2p_args['batch_size'])
         ave_image = image_results['ave_image']
-        # Compute the acutance ignoring the motion boarder. Sharp motion
-        # boarders can potentially get rewarded with high acutance.
+        # Compute the acutance ignoring the motion border. Sharp motion
+        # borders can potentially get rewarded with high acutance.
         current_acu = compute_acutance(ave_image,
                                        image_results["min_y"],
                                        image_results["max_y"],
@@ -320,10 +330,50 @@ def optimize_motion_parameters(initial_frames: np.ndarray,
     return best_results
 
 
+def load_representative_sub_frames(h5py_name,
+                                   h5py_key,
+                                   trim_frames_start: int = 0,
+                                   trim_frames_end: int = 0,
+                                   n_batches: int = 20,
+                                   batch_size: int = 500):
+    """Load a subset of frames spanning the full movie.
+
+    Parameters
+    ----------
+    h5py_name : str
+        Path to the h5 file to load frames from.
+    h5py_key : str
+        Name of the h5 dataset containing the movie.
+    trim_frames_start : int, optional
+        Number of frames to disregard from the start of the movie. Default 0.
+    trim_frames_start : int, optional
+        Number of frames to disregard from the end of the movie. Default 0.
+    n_batches : int
+        Number of batches to load. Total returned size is
+        n_batches * batch_size.
+    batch_size : int, optional
+        Number of frames to process at once. Total returned size is
+        n_batches * batch_size.
+
+    Returns
+    -------
+    """
+    output_frames = []
+    frame_fracts = np.arange(0, 1, 1 / n_batches)
+    with h5py.File(h5py_name, 'r') as h5_file:
+        dataset = h5_file[h5py_key]
+        total_frames = dataset.shape[0] - trim_frames_start - trim_frames_end
+        if total_frames < n_batches * batch_size:
+            return dataset[:]
+        for percent_start in frame_fracts:
+            frame_start = int(percent_start * total_frames + trim_frames_start)
+            output_frames.append(dataset[frame_start:frame_start + batch_size])
+    return np.concatenate(output_frames)
+
+
 def create_ave_image(ref_image: np.ndarray,
+                     input_frames: np.ndarray,
                      suite2p_args: dict,
-                     trim_frames_start: int = 0,
-                     trim_frames_end: int = 0,
                      batch_size: int = 500) -> dict:
     """Run suite2p image motion correction over a full movie.
 
@@ -331,6 +381,8 @@ def create_ave_image(ref_image: np.ndarray,
     ----------
     ref_image : numpy.ndarray, (N, M)
         Reference image to correlate with movie frames.
+    input_frames : numpy.ndarray, (L, N, M)
+        Frames to motion correct and compute average image/acutance of.
     suite2p_args : dict
         Dictionary of suite2p args containing:
 
@@ -347,10 +399,6 @@ def create_ave_image(ref_image: np.ndarray,
         ``"smooth_sigma_time"``
             Time Gaussian smoothing of frames to apply before correlation.
             (float).
-    trim_frames_start : int, optional
-        Number of frames to disregard from the start of the movie. Default 0.
-    trim_frames_start : int, optional
-        Number of frames to disregard from the end of the movie. Default 0.
     batch_size : int, optional
         Number of frames to process at once.
 
@@ -375,33 +423,27 @@ def create_ave_image(ref_image: np.ndarray,
             Maximum x allowed value in image array. Above this is motion
             border.
     """
-    with h5py.File(suite2p_args['h5py']) as raw_file:
-        frames_dataset = raw_file[suite2p_args['h5py_key']]
-        tot_frames = (frames_dataset.shape[0]
-                      - trim_frames_end
-                      - trim_frames_start)
-        ave_frame = np.zeros((frames_dataset.shape[1],
-                              frames_dataset.shape[2]))
-        min_y = 0
-        max_y = 0
-        min_x = 0
-        max_x = 0
-        for start_idx in np.arange(trim_frames_start,
-                                   frames_dataset.shape[0] - trim_frames_end,
-                                   batch_size):
-            end_idx = start_idx + batch_size
-            if end_idx > tot_frames:
-                end_idx = tot_frames
-            frames = frames_dataset[start_idx:end_idx]
-            add_required_parameters(suite2p_args)
-            frames, dy, dx, _, _, _, _ = register_frames(refAndMasks=ref_image,
-                                                         frames=frames,
-                                                         ops=suite2p_args)
-            min_y = min(min_y, dy.min())
-            max_y = max(max_y, dy.max())
-            min_x = min(min_x, dx.min())
-            max_x = max(max_x, dx.max())
-            ave_frame += frames.sum(axis=0) / tot_frames
+    ave_frame = np.zeros((ref_image.shape[0],
+                          ref_image.shape[1]))
+    min_y = 0
+    max_y = 0
+    min_x = 0
+    max_x = 0
+    tot_frames = input_frames.shape[0]
+    add_required_parameters(suite2p_args)
+    for start_idx in np.arange(0, tot_frames, batch_size):
+        end_idx = start_idx + batch_size
+        if end_idx > tot_frames:
+            end_idx = tot_frames
+        frames = input_frames[start_idx:end_idx]
+        frames, dy, dx, _, _, _, _ = register_frames(refAndMasks=ref_image,
+                                                     frames=frames,
+                                                     ops=suite2p_args)
+        min_y = min(min_y, dy.min())
+        max_y = max(max_y, dy.max())
+        min_x = min(min_x, dx.min())
+        max_x = max(max_x, dx.max())
+        ave_frame += frames.sum(axis=0) / tot_frames
 
     return {'ave_image': ave_frame,
             'min_y': int(np.fabs(min_y)),

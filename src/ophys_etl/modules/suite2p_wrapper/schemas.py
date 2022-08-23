@@ -56,6 +56,9 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
         default=5000,
         description=("How many frames to use to compute reference "
                      "image for registration"))
+    batch_size = argschema.fields.Int(
+        default=500,
+        description=("Number of frames to process at once."))
     smooth_sigma = argschema.fields.Float(
         default=1.15,
         description=("Standard deviation in pixels of the gaussian used "

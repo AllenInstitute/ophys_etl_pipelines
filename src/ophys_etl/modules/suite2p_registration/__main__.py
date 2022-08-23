@@ -95,6 +95,7 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                     suite2p_args=suite2p_args,
                     trim_frames_start=self.args['trim_frames_start'],
                     trim_frames_end=self.args['trim_frames_end'],
+                    n_batches=self.args['n_batches'],
                     logger=self.logger.info)
                 if self.args['use_ave_image_as_reference']:
                     suite2p_args['refImg'] = optimize_result['ave_image']

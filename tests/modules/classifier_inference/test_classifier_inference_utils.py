@@ -1,4 +1,4 @@
-from moto import mock_dynamodb2
+from moto import mock_dynamodb
 import boto3
 import pytest
 
@@ -7,7 +7,7 @@ from ophys_etl.modules.classifier_inference.utils import RegistryConnection
 
 @pytest.fixture
 def connection(scope="function"):
-    mock_dynamo = mock_dynamodb2()
+    mock_dynamo = mock_dynamodb()
     mock_dynamo.start()
     table_name = "test-table"
     client = boto3.client("dynamodb", region_name="us-west-2")
@@ -52,7 +52,8 @@ def test_register_active_model_roundtrip(connection, monkeypatch):
         TableName=connection._table_name,
         Key={"model_name": {"S": "twiggy"},
              "timestamp": {"N": "123"}},
-        ProjectionExpression="model_name,timestamp,artifact_location,mlflow_run_id"    # noqa
+        ExpressionAttributeNames={'#timestamp': 'timestamp'},
+        ProjectionExpression="model_name,#timestamp,artifact_location,mlflow_run_id",    # noqa
     )
     # Roundtrip get the records that were put
     assert record["Item"] == {

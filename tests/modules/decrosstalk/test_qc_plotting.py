@@ -23,6 +23,27 @@ from ophys_etl.modules.decrosstalk.qc_plotting import (
 matplotlib.use('Agg')
 
 
+@pytest.fixture
+def decrosstalk_data_dir():
+    this_dir = pathlib.Path(__file__).parent.resolve()
+    data_dir = this_dir / 'data/qc_plotting'
+    return data_dir
+
+
+@pytest.fixture
+def decrosstalk_input_json_name(
+        decrosstalk_data_dir):
+    input_json_name = decrosstalk_data_dir / 'DECROSSTALK_example_input.json'
+    return input_json_name
+
+
+@pytest.fixture
+def decrosstalk_output_json_name(
+        decrosstalk_data_dir):
+    output_json_name = decrosstalk_data_dir / 'DECROSSTALK_example_output.json'
+    return output_json_name
+
+
 def test_get_roi_pixels():
     """
     Test method that maps a list of ROIs to a dict of pixels
@@ -161,14 +182,12 @@ def test_find_overlapping_roi_pairs():
                           (509, 508, 112, 113),  # one ROI at extreme corner
                           (100, 200, 300, 200)
                           ])
-def test_get_img_thumbnails(x0, y0, x1, y1):
+def test_get_img_thumbnails(x0, y0, x1, y1, decrosstalk_data_dir):
     """
     Test that, when fed two ROIs that are very distant and do not
     overlap, get_img_thumbnails returns bounds
     (xmin, xmax), (ymin, ymax) bounds that cover both ROIs
     """
-    this_dir = pathlib.Path(__file__).parent.resolve()
-    data_dir = this_dir / 'data/qc_plotting'
 
     roi0 = OphysROI(x0=x0, y0=y0,
                     width=3, height=4,
@@ -189,7 +208,7 @@ def test_get_img_thumbnails(x0, y0, x1, y1):
                     valid_roi=True)
 
     img_fname = '1071738402_suite2p_maximum_projection.png'
-    raw_img = PIL.Image.open(data_dir / img_fname, mode='r')
+    raw_img = PIL.Image.open(decrosstalk_data_dir / img_fname, mode='r')
     n_rows = raw_img.size[0]
     n_cols = raw_img.size[1]
     max_img = np.array(raw_img).reshape(n_rows, n_cols)
@@ -229,15 +248,16 @@ def test_get_img_thumbnails(x0, y0, x1, y1):
     assert ymax <= 512
 
 
-def test_summary_plot_generation(tmpdir):
+def test_summary_plot_generation(
+        tmpdir,
+        decrosstalk_data_dir,
+        decrosstalk_input_json_name,
+        decrosstalk_output_json_name):
     """
     Run a smoke test on qc_plotting.generate_roi_figure
     """
-    this_dir = pathlib.Path(__file__).parent.resolve()
-    data_dir = this_dir / 'data/qc_plotting'
 
-    input_json_name = data_dir / 'DECROSSTALK_example_input.json'
-    with open(input_json_name, 'rb') as in_file:
+    with open(decrosstalk_input_json_name, 'rb') as in_file:
         src_data = json.load(in_file)
 
     plane_list = []
@@ -246,12 +266,12 @@ def test_summary_plot_generation(tmpdir):
 
             # redirect maximum projection path
             orig = pathlib.Path(plane['maximum_projection_image_file']).name
-            new = data_dir / orig
+            new = decrosstalk_data_dir / orig
             plane['maximum_projection_image_file'] = new
             p = DecrosstalkingOphysPlane.from_schema_dict(plane)
 
             # add QC data file path to plane
-            qc_name = data_dir / f'{p.experiment_id}_qc_data.h5'
+            qc_name = decrosstalk_data_dir / f'{p.experiment_id}_qc_data.h5'
 
             p.qc_file_path = qc_name
             plane_list.append(p)
@@ -260,7 +280,7 @@ def test_summary_plot_generation(tmpdir):
     for ii in range(0, len(plane_list), 2):
         ophys_planes.append((plane_list[ii], plane_list[ii+1]))
 
-    with open(data_dir / 'DECROSSTALK_example_output.json', 'rb') as in_file:
+    with open(decrosstalk_output_json_name, 'rb') as in_file:
         output_data = json.load(in_file)
 
     out_path = tmpdir / 'summary.png'
@@ -275,47 +295,93 @@ def test_summary_plot_generation(tmpdir):
 
 
 @pytest.fixture
-def expected_pairwise():
+def expected_pairwise(
+        decrosstalk_input_json_name):
     """
     Pairwise plots that should be generated based on the
     data in resources/
     """
+
+    # create a lookup table mapping ROI_ID to cell_num
+    roi_id_to_cell_num = dict()
+    with open(decrosstalk_input_json_name, 'rb') as in_file:
+        json_data = json.load(in_file)
+    for plane_pair in json_data['coupled_planes']:
+        for plane in plane_pair['planes']:
+            these_rois = []
+            for this_roi in plane['rois']:
+                these_rois.append(this_roi['id'])
+            min_roi = min(these_rois)
+            for this_roi in these_rois:
+                roi_id_to_cell_num[this_roi] = this_roi-min_roi
+
+    def _extend_expected_files(
+            dirname=None,
+            roi_pair_set=None,
+            roi_id_to_cell_num=None):
+
+        expected_files = []
+
+        for roi_pair in roi_pair_set:
+            cell0 = roi_id_to_cell_num[roi_pair[0]]
+            cell1 = roi_id_to_cell_num[roi_pair[1]]
+            fname = f'cells_{cell0}_{cell1}'
+            fname += f'_rois_{roi_pair[0]}_{roi_pair[1]}'
+            fname += '_comparison.png'
+            expected_files.append(dirname / fname)
+        return expected_files
+
     expected_files = []
     dirname = pathlib.Path('1071738390_1071738393_roi_pairs')
-    for fname in ('1080616650_1080616555_comparison.png',
-                  '1080616658_1080616553_comparison.png',
-                  '1080616659_1080616554_comparison.png'):
-        expected_files.append(dirname / fname)
+    roi_pair_set = ((1080616650, 1080616555),
+                    (1080616658, 1080616553),
+                    (1080616659, 1080616554))
+
+    expected_files += _extend_expected_files(
+        dirname=dirname,
+        roi_pair_set=roi_pair_set,
+        roi_id_to_cell_num=roi_id_to_cell_num)
 
     dirname = pathlib.Path('1071738394_1071738396_roi_pairs')
-    for fname in ('1080618091_1080616600_comparison.png',
-                  '1080618102_1080616618_comparison.png'):
-        expected_files.append(dirname / fname)
+    roi_pair_set = ((1080618091, 1080616600),
+                    (1080618102, 1080616618))
+
+    expected_files += _extend_expected_files(
+        dirname=dirname,
+        roi_pair_set=roi_pair_set,
+        roi_id_to_cell_num=roi_id_to_cell_num)
 
     dirname = pathlib.Path('1071738397_1071738399_roi_pairs')
-    for fname in ('1080618093_1080623135_comparison.png',
-                  '1080618114_1080623164_comparison.png'):
-        expected_files.append(dirname / fname)
+    roi_pair_set = ((1080618093, 1080623135),
+                    (1080618114, 1080623164))
+
+    expected_files += _extend_expected_files(
+        dirname=dirname,
+        roi_pair_set=roi_pair_set,
+        roi_id_to_cell_num=roi_id_to_cell_num)
 
     dirname = pathlib.Path('1071738400_1071738402_roi_pairs')
-    for fname in ('1080616774_1080622865_comparison.png',
-                  '1080616776_1080622881_comparison.png'):
-        expected_files.append(dirname / fname)
+    roi_pair_set = ((1080616774, 1080622865),
+                    (1080616776, 1080622881))
+
+    expected_files += _extend_expected_files(
+        dirname=dirname,
+        roi_pair_set=roi_pair_set,
+        roi_id_to_cell_num=roi_id_to_cell_num)
+
     return expected_files
 
 
 def test_pairwise_plot_generation(
             tmpdir,
             expected_pairwise,
+            decrosstalk_data_dir,
+            decrosstalk_input_json_name,
             helper_functions):
     """
     Run a smoke test on qc_plotting.generate_pairwise_figures
     """
-    this_dir = pathlib.Path(__file__).parent.resolve()
-    data_dir = this_dir / 'data/qc_plotting'
-
-    input_json_name = data_dir / 'DECROSSTALK_example_input.json'
-    with open(input_json_name, 'rb') as in_file:
+    with open(decrosstalk_input_json_name, 'rb') as in_file:
         src_data = json.load(in_file)
 
     plane_list = []
@@ -324,12 +390,12 @@ def test_pairwise_plot_generation(
 
             # redirect maximum projection path
             orig = pathlib.Path(plane['maximum_projection_image_file']).name
-            new = data_dir / orig
+            new = decrosstalk_data_dir / orig
             plane['maximum_projection_image_file'] = new
             p = DecrosstalkingOphysPlane.from_schema_dict(plane)
 
             # add QC data file path to plane
-            qc_name = data_dir / f'{p.experiment_id}_qc_data.h5'
+            qc_name = decrosstalk_data_dir / f'{p.experiment_id}_qc_data.h5'
 
             p.qc_file_path = qc_name
             plane_list.append(p)
@@ -367,10 +433,13 @@ def test_pairwise_plot_generation(
                                                 'both_some',
                                                 'both_all',
                                                 'both_value'])
-def test_pairwise_plot_generation_nans(tmpdir,
-                                       expected_pairwise,
-                                       mangling_operation,
-                                       helper_functions):
+def test_pairwise_plot_generation_nans(
+        tmpdir,
+        decrosstalk_data_dir,
+        decrosstalk_input_json_name,
+        expected_pairwise,
+        mangling_operation,
+        helper_functions):
     """
     Run a smoke test on qc_plotting.generate_pairwise_figures
     in the case where data being plotted contains NaNs
@@ -390,16 +459,13 @@ def test_pairwise_plot_generation_nans(tmpdir,
                         are identical)
     """
 
-    this_dir = pathlib.Path(__file__).parent.resolve()
-    data_dir = this_dir / 'data/qc_plotting'
     plotting_dir = pathlib.Path(tmpdir)/'mangled_plots'
 
     # directory where we will write the HDF5 files with
     # traces that contain NaNs
     mangled_data_dir = pathlib.Path(tmpdir)/'mangled_data'
 
-    input_json_name = data_dir / 'DECROSSTALK_example_input.json'
-    with open(input_json_name, 'rb') as in_file:
+    with open(decrosstalk_input_json_name, 'rb') as in_file:
         src_data = json.load(in_file)
 
     # list of planes that need mangling;
@@ -412,7 +478,7 @@ def test_pairwise_plot_generation_nans(tmpdir,
 
             # redirect maximum projection path
             orig = pathlib.Path(plane['maximum_projection_image_file']).name
-            new = data_dir / orig
+            new = decrosstalk_data_dir / orig
             plane['maximum_projection_image_file'] = new
             p = DecrosstalkingOphysPlane.from_schema_dict(plane)
 
@@ -420,10 +486,10 @@ def test_pairwise_plot_generation_nans(tmpdir,
             local_fname = f'{p.experiment_id}_qc_data.h5'
             if i_plane == 0 or 'both' in mangling_operation:
                 qc_name = mangled_data_dir / local_fname
-                orig_qc_name = data_dir / local_fname
+                orig_qc_name = decrosstalk_data_dir / local_fname
                 planes_to_mangle.append((orig_qc_name, qc_name))
             else:
-                qc_name = data_dir / local_fname
+                qc_name = decrosstalk_data_dir / local_fname
 
             p.qc_file_path = qc_name
             plane_list.append(p)

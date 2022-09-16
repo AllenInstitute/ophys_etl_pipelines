@@ -479,13 +479,11 @@ def plot_pair_of_rois(roi0: OphysROI,
 
     color0_hex = '#%02x%02x%02x' % color0[:3]
     color1_hex = '#%02x%02x%02x' % color1[:3]
-    roi_id_0 = roi0.roi_id
-    roi_id_1 = roi1.roi_id
 
     # If either ROI does not have a valid trace, do not
     # generate a plot
-    valid_0 = qc0[f'ROI/{roi_id_0}/valid_unmixed_trace'][()]
-    valid_1 = qc1[f'ROI/{roi_id_1}/valid_unmixed_trace'][()]
+    valid_0 = qc0[f'ROI/{roi0.roi_id}/valid_unmixed_trace'][()]
+    valid_1 = qc1[f'ROI/{roi1.roi_id}/valid_unmixed_trace'][()]
     if not valid_0:
         return None
     if not valid_1:
@@ -537,9 +535,12 @@ def plot_pair_of_rois(roi0: OphysROI,
     axes.append(title0_axis)
     axes.append(title1_axis)
 
+    cell_num_0 = roi0.roi_id-roi_min0
+    cell_num_1 = roi1.roi_id-roi_min1
+
     # fill out title_axes
     title0 = f"Plane {qc1['paired_plane'][()]};  roi {roi0.roi_id};  "
-    title0 += f"cell num {roi0.roi_id-roi_min0}\n"
+    title0 += f"cell num {cell_num_0}\n"
     title0 += "overlap: %.1f%%;      " % (roi_pair[2]*100)
     is_ghost = qc0[f'ROI/{roi0.roi_id}/is_ghost'][()]
     title0 += f"is_ghost: {is_ghost}"
@@ -548,7 +549,7 @@ def plot_pair_of_rois(roi0: OphysROI,
                           loc='left')
 
     title1 = f"Plane {qc0['paired_plane'][()]};  roi {roi1.roi_id};  "
-    title1 += f"cell num {roi1.roi_id-roi_min1}\n"
+    title1 += f"cell num {cell_num_1}\n"
     title1 += "Overlap: %.1f%%;      " % (roi_pair[3]*100)
     is_ghost = qc1[f'ROI/{roi1.roi_id}/is_ghost'][()]
     title1 += f"is_ghost: {is_ghost}"
@@ -699,7 +700,9 @@ def plot_pair_of_rois(roi0: OphysROI,
     for ax in axes:
         fig.add_subplot(ax)
 
-    out_name = plotting_dir/f'{roi_id_0}_{roi_id_1}_comparison.png'
+    fname = f'cells_{cell_num_0}_{cell_num_1}'
+    fname += f'_rois_{roi0.roi_id}_{roi1.roi_id}_comparison.png'
+    out_name = plotting_dir/fname
     fig.savefig(out_name)
     plt.close(fig)
     return None
@@ -728,7 +731,9 @@ def generate_pairwise_figures(
         {ophys_experiment_id_0}_{ophys_experiment_id_1}_roi_pairs
         containing pngs for each individual overlapping pair of ROIs.
         These pngs will be named like
-        {roi_id_0}_{roi_id_1}_comparison.png
+        cells_{cell_num_0}_{cell_num_1}_rois_{roi_id_0}_{roi_id_1}_comparison.png
+        where values of cell_num_N refer to the abbreviated ID given to
+        the ROIs in the full field-of-view QC plot.
     """
 
     for plane_pair in ophys_planes:

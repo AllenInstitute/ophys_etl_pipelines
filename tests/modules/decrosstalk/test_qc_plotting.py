@@ -14,7 +14,9 @@ from ophys_etl.modules.decrosstalk.ophys_plane import DecrosstalkingOphysPlane
 from ophys_etl.modules.decrosstalk.qc_plotting.pairwise_plot import (
     get_roi_pixels,
     find_overlapping_roi_pairs,
-    get_img_thumbnails)
+    get_img_thumbnails,
+    get_nanmaxed_timestep,
+    get_most_active_section)
 
 from ophys_etl.modules.decrosstalk.qc_plotting import (
     generate_roi_figure,
@@ -42,6 +44,89 @@ def decrosstalk_output_json_name(
         decrosstalk_data_dir):
     output_json_name = decrosstalk_data_dir / 'DECROSSTALK_example_output.json'
     return output_json_name
+
+
+@pytest.mark.parametrize(
+        "trace, maxdex, maxval",
+        [(np.array([np.NaN, np.NaN, np.NaN]), -1, None),
+         (np.array([1.0, np.NaN, 1.2, 0.9]), 2, 0.2),
+         (np.array([1.0, 2.2, 1.3, 0.8]), 1, 1.05)])
+def test_get_nanmaxed_timestep(
+        trace, maxdex, maxval):
+    (actual_dex, actual_val) = get_nanmaxed_timestep(trace)
+    assert actual_dex == maxdex
+    if maxval is None:
+        assert actual_val is None
+    else:
+        np.testing.assert_allclose(actual_val, maxval)
+
+
+@pytest.mark.parametrize(
+        "trace0, trace1, n_timesteps, expected",
+        [(np.array([np.NaN]*20),
+          np.array([np.NaN]*20),
+          10, (0, 10)),
+         (np.array([np.NaN]*20),
+          np.array([np.NaN]*20),
+          100, (0, 20)),
+         (np.array([1.0, np.NaN, 2.0, 5.0, 4.0, 2.0]),
+          np.array([0.1, 0.2, np.NaN, 0.1, 0.2, 0.3]),
+          4, (1, 5)),
+         (np.array([1.0, np.NaN, 2.0, 5.0, 4.0, 2.0]),
+          np.array([10.1, 10.2, np.NaN, 10.1, 10.2, 10.3]),
+          4, (1, 5)),
+         (np.array([1.0, np.NaN, 2.0, 5.0, 4.0, 2.0]),
+          np.array([0.1, 0.2, np.NaN, 0.1, 0.2, 0.3]),
+          40, (0, 6)),
+         (np.array([0.1, 1.2, 0.5, 1.0, np.NaN, 2.0, 5.0, 4.0, 2.0]),
+          np.array([0.1, 0.2, np.NaN, 0.1, 0.2, 0.3, np.NaN, 0.2, 0.2]),
+          7, (2, 9)),
+         (np.array([0.1, 0.2, np.NaN, 0.1, 0.2, 0.3, np.NaN, 0.2, 0.2]),
+          np.array([0.1, 1.2, 0.5, 1.0, np.NaN, 2.0, 5.0, 4.0, 2.0]),
+          7, (2, 9)),
+         (np.array([0.1, 0.2, np.NaN, 0.1, 0.2, 0.3, np.NaN, 0.2, 0.2]),
+          np.array([0.1, 7.8, 0.5, 1.0, np.NaN, 2.0, 5.0, 4.0, 2.0]),
+          7, (0, 7)),
+         (np.array([np.NaN]*20),
+          np.array([np.NaN]*20),
+          6, (0, 6))])
+def test_get_most_active_section(
+        trace0,
+        trace1,
+        n_timesteps,
+        expected):
+    actual = get_most_active_section(
+                trace0=trace0,
+                trace1=trace1,
+                n_timesteps=n_timesteps)
+    assert expected == actual
+
+
+def test_get_most_active_section_masked():
+    """
+    Test that get_most_active_section ignores
+    timesteps without altering input when n_ignore > 0
+    """
+    rng = np.random.default_rng(2233)
+    trace0 = np.array([0.1]*10)
+    trace1 = rng.random(size=10)
+    trace1[3] = 100.0
+    trace1[6] = 50.0
+    trace1_copy = np.copy(trace1)
+
+    result = get_most_active_section(
+                trace0=trace0,
+                trace1=trace1,
+                n_timesteps=5,
+                n_ignore=5)
+
+    assert result == (4, 9)
+    np.testing.assert_allclose(
+            trace0,
+            np.array([0.1]*10))
+    np.testing.assert_allclose(
+            trace1,
+            trace1_copy)
 
 
 def test_get_roi_pixels():

@@ -405,6 +405,96 @@ def get_img_thumbnails(roi0: OphysROI,
             (ymin, ymax))
 
 
+def get_nanmaxed_timestep(
+        trace: np.ndarray) -> Tuple[int, Optional[float]]:
+    """
+    For a trace, subtract off the median. Then return the index
+    and value of maximum of the median-subtracted trace.
+
+    If the trace is all NaNs, return (-1, None)
+
+    Parameters
+    ----------
+    trace: np.ndarray
+
+    Returns
+    -------
+    maxdex: int
+        timestep index of the maximum median-subtracted value
+
+    maxval: Optional[float]
+        maximum median subtracted value (None if trace is all NaNs)
+    """
+    if np.all(np.isnan(trace)):
+        return (-1, None)
+    mu = np.nanmedian(trace)
+    maxdex = np.nanargmax(trace - mu)
+    maxval = trace[maxdex] - mu
+    return (maxdex, maxval)
+
+
+def get_most_active_section(
+        trace0: np.ndarray,
+        trace1: np.ndarray,
+        n_timesteps: int,
+        n_ignore: int = 0) -> Tuple[int, int]:
+    """
+    Take two coupled traces, return the (i0, i1) timestep
+    bounds of the segment of length n_timesteps with the
+    largest maximum value for (trace-median_of_trace).
+
+    Parameters
+    ----------
+    trace0: np.ndarray
+
+    trace1: np.darray
+
+    n_timesteps: int
+        The length of the segment to be identified
+        (in timesteps)
+
+    n_ignore: int
+        Ignore the first n_ignore timesteps when selecting
+        the most active region
+
+    Returns
+    -------
+    bounds: Tuple[int, int]
+       Bounds such that trace0[bounds[0]:bounds[1]]
+       yields the desired interval
+    """
+
+    # mask the first n_ignore timesteps with
+    # np.NaN
+    if n_ignore > 0:
+        trace0 = np.copy(trace0)
+        trace1 = np.copy(trace1)
+        trace0[:n_ignore] = np.NaN
+        trace1[:n_ignore] = np.NaN
+
+    (maxdex0, max0) = get_nanmaxed_timestep(trace0)
+    (maxdex1, max1) = get_nanmaxed_timestep(trace1)
+
+    if max0 is None and max1 is None:
+        return (0, min(n_timesteps, len(trace0)))
+    elif max0 is None:
+        chosendex = maxdex1
+    elif max1 is None:
+        chosendex = maxdex0
+    elif max0 > max1:
+        chosendex = maxdex0
+    else:
+        chosendex = maxdex1
+
+    i0 = max(0, chosendex - n_timesteps//2)
+    i1 = i0 + n_timesteps
+    if i1 > len(trace0):
+        i1 = len(trace0)
+        i0 = max(0, i1-n_timesteps)
+
+    return (i0, i1)
+
+
 def plot_pair_of_rois(roi0: OphysROI,
                       roi1: OphysROI,
                       qc0: h5py.File,
@@ -479,13 +569,11 @@ def plot_pair_of_rois(roi0: OphysROI,
 
     color0_hex = '#%02x%02x%02x' % color0[:3]
     color1_hex = '#%02x%02x%02x' % color1[:3]
-    roi_id_0 = roi0.roi_id
-    roi_id_1 = roi1.roi_id
 
     # If either ROI does not have a valid trace, do not
     # generate a plot
-    valid_0 = qc0[f'ROI/{roi_id_0}/valid_unmixed_trace'][()]
-    valid_1 = qc1[f'ROI/{roi_id_1}/valid_unmixed_trace'][()]
+    valid_0 = qc0[f'ROI/{roi0.roi_id}/valid_unmixed_trace'][()]
+    valid_1 = qc1[f'ROI/{roi1.roi_id}/valid_unmixed_trace'][()]
     if not valid_0:
         return None
     if not valid_1:
@@ -537,9 +625,12 @@ def plot_pair_of_rois(roi0: OphysROI,
     axes.append(title0_axis)
     axes.append(title1_axis)
 
+    cell_num_0 = roi0.roi_id-roi_min0
+    cell_num_1 = roi1.roi_id-roi_min1
+
     # fill out title_axes
     title0 = f"Plane {qc1['paired_plane'][()]};  roi {roi0.roi_id};  "
-    title0 += f"cell num {roi0.roi_id-roi_min0}\n"
+    title0 += f"cell num {cell_num_0}\n"
     title0 += "overlap: %.1f%%;      " % (roi_pair[2]*100)
     is_ghost = qc0[f'ROI/{roi0.roi_id}/is_ghost'][()]
     title0 += f"is_ghost: {is_ghost}"
@@ -548,7 +639,7 @@ def plot_pair_of_rois(roi0: OphysROI,
                           loc='left')
 
     title1 = f"Plane {qc0['paired_plane'][()]};  roi {roi1.roi_id};  "
-    title1 += f"cell num {roi1.roi_id-roi_min1}\n"
+    title1 += f"cell num {cell_num_1}\n"
     title1 += "Overlap: %.1f%%;      " % (roi_pair[3]*100)
     is_ghost = qc1[f'ROI/{roi1.roi_id}/is_ghost'][()]
     title1 += f"is_ghost: {is_ghost}"
@@ -581,11 +672,32 @@ def plot_pair_of_rois(roi0: OphysROI,
                       roi=roi1,
                       roi_color=color1)
 
-    # plot traces
-    raw_axis = plt.Subplot(fig, grid[1:4, 7:30])
-    unmixed_axis = plt.Subplot(fig, grid[6:9, 7:30])
+    # Set params for controlling width of trace axes.
+    # The main trace plot will extend from first_trace:last_trace
+    # in the matplotlib GridSpec. The zoom-in on the most active
+    # region will extend from last_trace+1:last_zoom
+    #
+    # There is not a well-motivated reason for these numbers beyond
+    # "the main trace plot should be longer than the zoom-in trace plot,
+    # and the zoom-in trace plot should be long enough that some details
+    # are evident." This is the first combination that I tried. Natalia
+    # was happy with the relative sizes of the plots.
+    first_trace = 7
+    last_trace = 24
+    last_zoom = 30
+
+    # number of timesteps to zoom in on for most active region
+    n_zoom_timesteps = 1000
+
+    raw_axis = plt.Subplot(fig, grid[1:4, first_trace:last_trace])
+    unmixed_axis = plt.Subplot(fig, grid[6:9, first_trace:last_trace])
     axes.append(raw_axis)
     axes.append(unmixed_axis)
+
+    raw_zoom_axis = plt.Subplot(fig, grid[1:4, last_trace+1:last_zoom])
+    unmixed_zoom_axis = plt.Subplot(fig, grid[6:9, last_trace+1:last_zoom])
+    axes.append(raw_zoom_axis)
+    axes.append(unmixed_zoom_axis)
 
     trace_bounds = {}   # dict for storing max, min values of traces
     for trace_key in ("raw", "unmixed"):
@@ -593,13 +705,35 @@ def plot_pair_of_rois(roi0: OphysROI,
         for ii in (0, 1):
             trace_bounds[trace_key][ii] = {'min': None, 'max': None}
 
-    for ax, trace_key in zip((raw_axis, unmixed_axis),
-                             ('raw', 'unmixed')):
+    # Communication with Natalia Orlova:
+    # 'let's select activity in pre-decrosstalking and use the same time
+    # interval for post-decrosstalking for the zoom-in since the point
+    # here is to show "decrosstalking quality"'
+    #
+    # she also requested that we ignore the first 5000 timesteps
+    # when constructing the zoom-in plot so that initial activity
+    # spikes do not pollute the visualization
 
-        for s in ('top', 'right'):
-            ax.spines[s].set_visible(False)
+    raw_trace0 = qc0[f'ROI/{roi0.roi_id}/roi/raw/signal/trace'][()]
+    raw_trace1 = qc1[f'ROI/{roi1.roi_id}/roi/raw/signal/trace'][()]
 
-        ax.tick_params(axis='both', labelsize=7)
+    zoom_bounds = get_most_active_section(
+                        trace0=raw_trace0,
+                        trace1=raw_trace1,
+                        n_timesteps=n_zoom_timesteps,
+                        n_ignore=5000)
+
+    for (trace_axis,
+         zoom_axis,
+         trace_key) in zip((raw_axis, unmixed_axis),
+                           (raw_zoom_axis, unmixed_zoom_axis),
+                           ('raw', 'unmixed')):
+
+        for ax in (trace_axis, zoom_axis):
+            for s in ('top', 'right'):
+                ax.spines[s].set_visible(False)
+
+            ax.tick_params(axis='both', labelsize=7)
 
         trace0 = qc0[f'ROI/{roi0.roi_id}/roi/{trace_key}/signal/trace'][()]
         trace1 = qc1[f'ROI/{roi1.roi_id}/roi/{trace_key}/signal/trace'][()]
@@ -634,17 +768,44 @@ def plot_pair_of_rois(roi0: OphysROI,
                 trace_bounds[trace_key][1]['min'] = t1_min
 
         t = np.arange(len(trace0), dtype=int)
-        ax.plot(t, trace0, color=color0_hex, linewidth=1)
-        ax.plot(t, trace1, color=color1_hex, linewidth=1)
+        trace_axis.plot(t, trace0, color=color0_hex, linewidth=1)
+        trace_axis.plot(t, trace1, color=color1_hex, linewidth=1)
+
+        zoom_t = t[zoom_bounds[0]:zoom_bounds[1]]
+        zoom_axis.plot(zoom_t,
+                       trace0[zoom_bounds[0]:zoom_bounds[1]],
+                       color=color0_hex,
+                       linewidth=1)
+
+        zoom_axis.plot(zoom_t,
+                       trace1[zoom_bounds[0]:zoom_bounds[1]],
+                       color=color1_hex,
+                       linewidth=1)
+
         if trace_key == 'raw':
-            title = 'Traces before decrosstalking'
+            trace_title = 'Traces before decrosstalking'
+            n_actual = zoom_bounds[1]-zoom_bounds[0]
+            zoom_title = f'Most active {n_actual} timesteps'
         else:
-            title = 'Traces after decrosstalking'
-        ax.set_title(title, fontsize=10)
+            trace_title = 'Traces after decrosstalking'
+            zoom_title = None
+        trace_axis.set_title(trace_title, fontsize=10)
+
+        if zoom_title is not None:
+            zoom_axis.set_title(zoom_title, fontsize=10)
+
+    # make sure raw and unmixed zoom axes have the same vertical
+    # extent
+    raw_ylim = raw_zoom_axis.get_ylim()
+    unmixed_ylim = unmixed_zoom_axis.get_ylim()
+    ylim = (min(raw_ylim[0], unmixed_ylim[0]),
+            max(raw_ylim[1], unmixed_ylim[1]))
+    unmixed_zoom_axis.set_ylim(ylim)
+    raw_zoom_axis.set_ylim(ylim)
 
     # plot 2D histograms of trace values at individual timesteps
-    raw_hist_axis = plt.Subplot(fig, grid[1:4, 31:36])
-    unmixed_hist_axis = plt.Subplot(fig, grid[6:9, 31:36])
+    raw_hist_axis = plt.Subplot(fig, grid[1:4, last_zoom+1:36])
+    unmixed_hist_axis = plt.Subplot(fig, grid[6:9, last_zoom+1:36])
     axes.append(raw_hist_axis)
     axes.append(unmixed_hist_axis)
 
@@ -699,7 +860,9 @@ def plot_pair_of_rois(roi0: OphysROI,
     for ax in axes:
         fig.add_subplot(ax)
 
-    out_name = plotting_dir/f'{roi_id_0}_{roi_id_1}_comparison.png'
+    fname = f'cells_{cell_num_0}_{cell_num_1}'
+    fname += f'_rois_{roi0.roi_id}_{roi1.roi_id}_comparison.png'
+    out_name = plotting_dir/fname
     fig.savefig(out_name)
     plt.close(fig)
     return None
@@ -728,7 +891,9 @@ def generate_pairwise_figures(
         {ophys_experiment_id_0}_{ophys_experiment_id_1}_roi_pairs
         containing pngs for each individual overlapping pair of ROIs.
         These pngs will be named like
-        {roi_id_0}_{roi_id_1}_comparison.png
+        cells_{cell_num_0}_{cell_num_1}_rois_{roi_id_0}_{roi_id_1}_comparison.png
+        where values of cell_num_N refer to the abbreviated ID given to
+        the ROIs in the full field-of-view QC plot.
     """
 
     for plane_pair in ophys_planes:

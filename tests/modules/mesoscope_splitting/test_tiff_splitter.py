@@ -95,6 +95,11 @@ def _create_image_tiff(
         key_name = 'SI.hStackManager.zsAllActuators'
     metadata.append({key_name: z_array})
 
+    if is_surface:
+        metadata[0]['SI.hChannels.channelSave'] = 1
+    else:
+        metadata[0]['SI.hChannels.channelSave'] = [1, 2]
+
     roi_list = []
     for ii in range(0, len(z_value_list), n_z_per_roi):
         this_list = copy.deepcopy(list(z_value_list[ii:ii+n_z_per_roi]))

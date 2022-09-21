@@ -58,6 +58,32 @@ class ScanImageTiffSplitter(IntFromZMapperMixin):
 
         if isinstance(z_value_array[0], list):
             z_value_array = np.concatenate(z_value_array)
+
+        # if self._metadata.channelSave == 1, verify that every
+        # value of z_value_array is zero, then remove them
+        if isinstance(self._metadata.channelSave, int):
+            if self._metadata.channelSave != 1:
+                raise RuntimeError(
+                    "Expect channelSave == 1 or [1, 2]; got "
+                    f"{self._metadata.channelSave}\n{self._file_path}")
+            for ii in range(1, len(z_value_array), 2):
+                if z_value_array[ii] != 0:
+                    raise RuntimeError(
+                        "channelSave==1 but z values are "
+                        f"{z_value_array}; "
+                        "expect every other value to be zero\n"
+                        f"{self._file_path}")
+            z_value_array = z_value_array[::2]
+        else:
+            valid_channel = isinstance(self._metadata.channelSave, list)
+            if valid_channel:
+                valid_channel = (self._metadata.channelSave == [1, 2])
+
+            if not valid_channel:
+                raise RuntimeError(
+                    "Do not know how to handle channelSave=="
+                    f"{self._metadata.channelSave}\n{self._file_path}")
+
         defined_rois = self._metadata.defined_rois
 
         z_int_per_roi = []
@@ -94,19 +120,11 @@ class ScanImageTiffSplitter(IntFromZMapperMixin):
             these_z_ints = set([self._int_from_z(z_value=zz)
                                 for zz in
                                 z_value_array[offset:offset+n_z_per_roi]])
+
             if these_z_ints != roi_z_ints:
-                these_z_ints = set([self._int_from_z(z_value=zz)
-                                    for zz in
-                                    z_value_array[offset:
-                                                  offset+n_z_per_roi-1]])
-
-                # might be placeholder value == 0
-                odd_value = z_value_array[offset+n_z_per_roi-1]
-
-                if np.abs(odd_value) >= 1.0e-6 or these_z_ints != roi_z_ints:
-                    msg += "z_values from sub array "
-                    msg += "not in correct order for ROIs; "
-                    break
+                msg += "z_values from sub array "
+                msg += "not in correct order for ROIs; "
+                break
             offset += n_z_per_roi
 
         if len(msg) > 0:

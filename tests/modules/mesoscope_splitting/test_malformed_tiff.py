@@ -22,7 +22,8 @@ def test_repeated_z_error(
     img_grp = {'rois': roi_list}
     roi_grp = {'imagingRoiGroup': img_grp}
     roi_metadata = {'RoiGroups': roi_grp}
-    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
+    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup,
+                 'SI.hChannels.channelSave': [1, 2]},
                 roi_metadata]
 
     with patch('tifffile.read_scanimage_metadata',
@@ -47,7 +48,8 @@ def test_roi_order_error(
     img_grp = {'rois': roi_list}
     roi_grp = {'imagingRoiGroup': img_grp}
     roi_metadata = {'RoiGroups': roi_grp}
-    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
+    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup,
+                 'SI.hChannels.channelSave': [1, 2]},
                 roi_metadata]
 
     with patch('tifffile.read_scanimage_metadata',
@@ -73,7 +75,8 @@ def test_uneven_z_per_roi(
     img_grp = {'rois': roi_list}
     roi_grp = {'imagingRoiGroup': img_grp}
     roi_metadata = {'RoiGroups': roi_grp}
-    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
+    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup,
+                 'SI.hChannels.channelSave': [1, 2]},
                 roi_metadata]
 
     with patch('tifffile.read_scanimage_metadata',
@@ -98,7 +101,8 @@ def test_zs_not_list(
     img_grp = {'rois': roi_list}
     roi_grp = {'imagingRoiGroup': img_grp}
     roi_metadata = {'RoiGroups': roi_grp}
-    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
+    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup,
+                 'SI.hChannels.channelSave': [1, 2]},
                 roi_metadata]
 
     with patch('tifffile.read_scanimage_metadata',
@@ -112,24 +116,25 @@ def test_zs_not_list(
 def test_zs_not_list_of_lists(
         tmp_path_factory):
     """
-    Test that an error is raised if zsAllActuators is not a list
-    of lists
+    Test that error is raised if the placeholder zeros are missing
+    when SI.hChannels.channelSave == 1
     """
     tmp_dir = tmp_path_factory.mktemp('repeated_z_error')
     tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmp_dir,
                                              suffix='.tiff')[1])
 
-    z_lineup = [5, 4]
+    z_lineup = [[5, 4], [6, 7], [8, 9]]
     roi_list = [{'zs': [1, 2, 3]}, {'zs': [4, 5]}]
     img_grp = {'rois': roi_list}
     roi_grp = {'imagingRoiGroup': img_grp}
     roi_metadata = {'RoiGroups': roi_grp}
-    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
+    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup,
+                 'SI.hChannels.channelSave': 1},
                 roi_metadata]
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
 
         with pytest.raises(RuntimeError,
-                           match="Unclear how to split"):
+                           match="channelSave==1"):
             ScanImageTiffSplitter(tiff_path=tmp_path)

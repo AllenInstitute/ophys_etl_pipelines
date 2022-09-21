@@ -59,6 +59,7 @@ def image_metadata_fixture(z_list_fixture,
     metadata = []
     si_metadata = dict()
     si_metadata['SI.hStackManager.zsAllActuators'] = z_list
+    si_metadata['SI.hChannels.channelSave'] = [1, 2]
     metadata.append(si_metadata)
 
     roi_list = []
@@ -86,6 +87,10 @@ def surface_metadata_fixture(image_metadata_fixture,
     ScanImage metadata for surface TIFFs
     """
     metadata = copy.deepcopy(image_metadata_fixture)
+
+    metadata[0].pop('SI.hChannels.channelSave')
+    metadata[0]['SI.hChannels.channelSave'] = 1
+
     n_rois = len(roi_index_to_z_fixture)
     z_list = []
     rois = metadata[1]['RoiGroups']['imagingRoiGroup']['rois']

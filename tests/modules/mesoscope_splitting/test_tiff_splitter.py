@@ -378,14 +378,21 @@ def test_time_splitter(tmp_path_factory,
                new=Mock(return_value=metadata)):
         splitter = TimeSeriesSplitter(tiff_path=tiff_path)
 
+    output_path_map = dict()
     for i_z, z_value in enumerate(z_value_list):
         i_roi = i_z//n_z_per_roi
-        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.h5')[1]
-        tmp_path = pathlib.Path(tmp_path)
-        splitter.write_output_file(
-                        i_roi=i_roi,
-                        z_value=z_value,
-                        output_path=tmp_path)
+        output_path = pathlib.Path(
+                tempfile.mkstemp(dir=tmp_dir, suffix='.h5')[1])
+        output_path_map[(i_roi, z_value)] = output_path
+
+    splitter.write_output_files(
+            output_path_map=output_path_map,
+            tmp_dir=tmp_dir,
+            dump_every=5)
+
+    for i_z, z_value in enumerate(z_value_list):
+        i_roi = i_z//n_z_per_roi
+        tmp_path = output_path_map[(i_roi, z_value)]
         with h5py.File(tmp_path, 'r') as in_file:
             actual = in_file['data'][()]
         expected = np.stack(page_lookup[(i_roi, z_value)])
@@ -393,6 +400,7 @@ def test_time_splitter(tmp_path_factory,
 
         if tmp_path.is_file():
             tmp_path.unlink()
+
     if tiff_path.is_file():
         tiff_path.unlink()
 

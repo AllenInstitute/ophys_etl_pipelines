@@ -209,20 +209,16 @@ class TiffSplitterCLI(ArgSchemaParser):
         # them differently to avoid reading through the TIFFs
         # more than once
 
+        output_path_lookup = dict()
         for plane_group in self.args["plane_groups"]:
             for experiment in plane_group["ophys_experiments"]:
-                print(f"\n\n{experiment}\n\n")
                 exp_id = experiment["experiment_id"]
                 scanfield_z = experiment["scanfield_z"]
                 roi_index = experiment["roi_index"]
                 experiment_dir = pathlib.Path(experiment["storage_directory"])
                 fname = f"{exp_id}.h5"
                 output_path = experiment_dir / fname
-                print(f"\ngetting {roi_index} {scanfield_z}\n")
-                timeseries_splitter.write_output_file(
-                        i_roi=roi_index,
-                        z_value=scanfield_z,
-                        output_path=output_path)
+                output_path_lookup[(roi_index, scanfield_z)] = output_path
 
                 frame_shape = timeseries_splitter.frame_shape(
                                        i_roi=roi_index,
@@ -235,6 +231,11 @@ class TiffSplitterCLI(ArgSchemaParser):
                         metadata["timeseries"]["height"] = frame_shape[0]
                         metadata["timeseries"]["width"] = frame_shape[1]
                         metadata["timeseries"]["filename"] = str_path
+
+        timeseries_splitter.write_output_files(
+                output_path_map=output_path_lookup,
+                tmp_dir=None,
+                dump_every=1000)
 
         output["experiment_output"] = experiment_metadata
 

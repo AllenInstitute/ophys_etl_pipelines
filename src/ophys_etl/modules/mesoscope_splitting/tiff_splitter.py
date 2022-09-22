@@ -1,6 +1,5 @@
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Dict
 import tifffile
-import h5py
 import pathlib
 import numpy as np
 from ophys_etl.utils.array_utils import normalize_array
@@ -8,9 +7,11 @@ from ophys_etl.modules.mesoscope_splitting.mixins import (
     IntFromZMapperMixin)
 from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
     ScanImageMetadata)
+from ophys_etl.modules.mesoscope_splitting.timeseries_utils import (
+    split_timeseries_tiff)
 
 
-class ScanImageTiffSplitter(IntFromZMapperMixin):
+class TiffSplitterBase(IntFromZMapperMixin):
     """
     A class to naively split up a tiff file by just looping over
     the scanfields in its ROIs
@@ -225,16 +226,6 @@ class ScanImageTiffSplitter(IntFromZMapperMixin):
         """
         return self._metadata.n_rois
 
-    @property
-    def n_pages(self):
-        """
-        The number of pages in this TIFF
-        """
-        if not hasattr(self, '_n_pages'):
-            with tifffile.TiffFile(self._file_path, mode='rb') as tiff_file:
-                self._n_pages = len(tiff_file.pages)
-        return self._n_pages
-
     def roi_center(self, i_roi: int) -> Tuple[float, float]:
         """
         The (X, Y) center coordinates of roi_index=i_roi
@@ -259,42 +250,6 @@ class ScanImageTiffSplitter(IntFromZMapperMixin):
             msg += f"TIFF file {self._file_path.resolve().absolute()}"
             raise ValueError(msg)
         return n_step_over
-
-    def _get_pages(self, i_roi: int, z_value: float) -> List[np.ndarray]:
-        """
-        Get a list of np.ndarrays representing the pages of image data
-        for ROI i_roi at the specified z_value
-        """
-
-        if i_roi >= self.n_rois:
-            msg = f"You asked for ROI {i_roi}; "
-            msg += f"there are only {self.n_rois} ROIs "
-            msg += f"in {self._file_path.resolve().absolute()}"
-            raise ValueError(msg)
-
-        if not self.is_z_valid_for_roi(i_roi=i_roi, z_value=z_value):
-            msg = f"{z_value} is not a valid z value for ROI {i_roi};"
-            msg += f"valid z values are {self._valid_z_per_roi[i_roi]}\n"
-            msg += f"TIFF file {self._file_path.resolve().absolute()}"
-            raise ValueError(msg)
-
-        offset = self._get_offset(i_roi=i_roi, z_value=z_value)
-
-        tiff_data = []
-        with tifffile.TiffFile(self._file_path, mode='rb') as tiff_file:
-            for i_page in range(offset, self.n_pages, self.n_valid_zs):
-                arr = tiff_file.pages[i_page].asarray()
-                tiff_data.append(arr)
-                key_pair = (i_roi, z_value)
-                if key_pair in self._frame_shape:
-                    if arr.shape != self._frame_shape[key_pair]:
-                        msg = f"ROI {i_roi} z_value {z_value}\n"
-                        msg += "yields inconsistent frame shape"
-                        raise RuntimeError(msg)
-                else:
-                    self._frame_shape[key_pair] = arr.shape
-
-        return tiff_data
 
     def frame_shape(self,
                     i_roi: int,
@@ -328,6 +283,57 @@ class ScanImageTiffSplitter(IntFromZMapperMixin):
                 page = tiff_file.pages[offset].asarray()
                 self._frame_shape[key_pair] = page.shape
         return self._frame_shape[key_pair]
+
+
+class ScanImageTiffSplitter(TiffSplitterBase):
+
+    @property
+    def n_pages(self):
+        """
+        The number of pages in this TIFF
+        """
+        if not hasattr(self, '_n_pages'):
+            with tifffile.TiffFile(self._file_path, mode='rb') as tiff_file:
+                self._n_pages = len(tiff_file.pages)
+        return self._n_pages
+
+    def _get_pages(self, i_roi: int, z_value: float) -> List[np.ndarray]:
+        """
+        Get a list of np.ndarrays representing the pages of image data
+        for ROI i_roi at the specified z_value
+        """
+
+        if i_roi >= self.n_rois:
+            msg = f"You asked for ROI {i_roi}; "
+            msg += f"there are only {self.n_rois} ROIs "
+            msg += f"in {self._file_path.resolve().absolute()}"
+            raise ValueError(msg)
+
+        if not self.is_z_valid_for_roi(i_roi=i_roi, z_value=z_value):
+            msg = f"{z_value} is not a valid z value for ROI {i_roi};"
+            msg += f"valid z values are {self._valid_z_per_roi[i_roi]}\n"
+            msg += f"TIFF file {self._file_path.resolve().absolute()}"
+            raise ValueError(msg)
+
+        offset = self._get_offset(i_roi=i_roi, z_value=z_value)
+
+        with tifffile.TiffFile(self._file_path, mode='rb') as tiff_file:
+            tiff_data = [tiff_file.pages[i_page].asarray()
+                         for i_page in
+                         range(offset, self.n_pages, self.n_valid_zs)]
+
+        key_pair = (i_roi, z_value)
+
+        for arr in tiff_data:
+            if key_pair in self._frame_shape:
+                if arr.shape != self._frame_shape[key_pair]:
+                    msg = f"ROI {i_roi} z_value {z_value}\n"
+                    msg += "yields inconsistent frame shape"
+                    raise RuntimeError(msg)
+            else:
+                self._frame_shape[key_pair] = arr.shape
+
+        return tiff_data
 
     def _get_z_value(self, i_roi: int) -> float:
         """
@@ -394,7 +400,7 @@ class ScanImageTiffSplitter(IntFromZMapperMixin):
         return None
 
 
-class TimeSeriesSplitter(ScanImageTiffSplitter):
+class TimeSeriesSplitter(TiffSplitterBase):
     """
     A class specifically for splitting timeseries TIFFs
 
@@ -404,77 +410,108 @@ class TimeSeriesSplitter(ScanImageTiffSplitter):
         Path to the TIFF file whose metadata we are parsing
     """
 
-    def _get_pages(self, i_roi: int, z_value: float) -> None:
-        msg = "_get_pages is not implemented for "
-        msg += "TimeSeriesSplitter; the resulting "
-        msg += "output would be unreasonably large. "
-        msg += "Call write_video_h5 instead to write "
-        msg += "data directly to an HDF5 file."
-        raise NotImplementedError(msg)
-
-    def write_output_file(self,
-                          i_roi: int,
-                          z_value: float,
-                          output_path: pathlib.Path) -> None:
+    def write_output_files(self,
+                           output_path_map: Dict[Tuple[int, float],
+                                                 pathlib.Path],
+                           tmp_dir: Optional[pathlib.Path] = None,
+                           dump_every: int = 1000) -> None:
         """
         Write all of the pages associated with an
         (i_roi, z_value) pair to an HDF5 file.
 
         Parameters
         ----------
-        i_roi: int
-            index of the ROI
+        output_path_map: Dict[Tuple[int, float], pathlib.Path]
+            Dict mapping (i_roi, z_value) pairs to output paths
+            where the data for those ROIs should go.
 
-        z_value: int
-            z value of the scanfield plane
+        tmp_dir: Optional[pathlib.Path]
+            Directory where temporary files will be written.
 
-        output_path: pathlib.Path
-            path to the HDF5 file to be written
+        dump_every: int
+            Number of frames to store in each temprorary file
+            (see Notes)
 
         Returns
         -------
         None
-            output is written to output_path
+            Timeseries for the ROIs are written to the paths
+            specified in output_path_map.
+
+            If not specified, will write temporary files into
+            the directory where the final files are meant to
+            be written.
+
+        Notes
+        -----
+        Because the only way to get n_pages from a BigTIFF is to
+        iterate over its pages, counting, this module works by iterating
+        over the pages, splitting the timeseries data into small temp files
+        as it goes and keeping track of how many total pages are being written
+        for each ROI. After the temp files are written, the temp files are
+        gathered together into the final files specified in output_path_map
+        and the temporary files are deleted.
         """
 
-        if output_path.suffix != '.h5':
-            msg = "expected HDF5 output path; "
-            msg += f"you gave {output_path.resolve().absolute()}"
+        for key_pair in output_path_map:
+            output_path = output_path_map[key_pair]
+            if output_path.suffix != '.h5':
+                msg = "expected HDF5 output path; "
+                msg += f"you gave {output_path.resolve().absolute()}"
+                raise ValueError(msg)
+
+            i_roi = key_pair[0]
+            z_value = key_pair[1]
+
+            if i_roi >= self.n_rois:
+                msg = f"You asked for ROI {i_roi}; "
+                msg += f"there are only {self.n_rois} ROIs "
+                msg += f"in {self._file_path.resolve().absolute()}"
+                raise ValueError(msg)
+
+            if not self.is_z_valid_for_roi(i_roi=i_roi, z_value=z_value):
+                msg = f"{z_value} is not a valid z value for ROI {i_roi};"
+                msg += f"valid z values are {self._valid_z_per_roi[i_roi]}\n"
+                msg += f"TIFF file {self._file_path.resolve().absolute()}"
+                raise ValueError(msg)
+
+        if len(output_path_map) != len(self.roi_z_int_manifest):
+            msg = f"you specified paths for {len(output_path_map)} "
+            msg += "timeseries files, but the metadata for this "
+            msg += "TIFF says it contains "
+            msg += f"{len(self.roi_z_int_manifest)}; "
+            msg += "we cannot split this file "
+            msg += f"({self._file_path})"
             raise ValueError(msg)
 
-        if i_roi >= self.n_rois:
-            msg = f"You asked for ROI {i_roi}; "
-            msg += f"there are only {self.n_rois} ROIs "
-            msg += f"in {self._file_path.resolve().absolute()}"
-            raise ValueError(msg)
+        all_roi_z_int = set()
+        for key_pair in output_path_map:
+            i_roi = key_pair[0]
+            z_value = key_pair[1]
+            this_pair = (i_roi, self._int_from_z(z_value=z_value))
+            all_roi_z_int.add(this_pair)
+        for roi_z_pair in self.roi_z_int_manifest:
+            if roi_z_pair not in all_roi_z_int:
+                raise ValueError(
+                    "You did not specify output paths for all "
+                    "of the timeseries in "
+                    f"{self._file_path}")
 
-        if not self.is_z_valid_for_roi(i_roi=i_roi, z_value=z_value):
-            msg = f"{z_value} is not a valid z value for ROI {i_roi};"
-            msg += f"valid z values are {self._valid_z_per_roi[i_roi]}\n"
-            msg += f"TIFF file {self._file_path.resolve().absolute()}"
-            raise ValueError(msg)
+        offset_to_path = dict()
+        for key_pair in output_path_map:
+            i_roi = key_pair[0]
+            z_value = key_pair[1]
+            offset = self._get_offset(i_roi=i_roi, z_value=z_value)
+            if offset in offset_to_path:
+                raise RuntimeError(
+                    "Same offset occurs twice when splitting "
+                    f"{self._file_path}")
+            offset_to_path[offset] = output_path_map[key_pair]
 
-        offset = self._get_offset(i_roi=i_roi, z_value=z_value)
-
-        n_frames = np.ceil((self.n_pages-offset)/self.n_valid_zs).astype(int)
-
-        with tifffile.TiffFile(self._file_path, mode='rb') as tiff_file:
-            eg_array = tiff_file.pages[0].asarray()
-            fov_shape = eg_array.shape
-            video_dtype = eg_array.dtype
-
-            with h5py.File(output_path, 'w') as out_file:
-                out_file.create_dataset(
-                            'data',
-                            shape=(n_frames, fov_shape[0], fov_shape[1]),
-                            dtype=video_dtype,
-                            chunks=(max(1, n_frames//1000),
-                                    fov_shape[0], fov_shape[1]))
-
-                for i_frame, i_page in enumerate(range(offset,
-                                                       self.n_pages,
-                                                       self.n_valid_zs)):
-                    arr = tiff_file.pages[i_page].asarray()
-                    out_file['data'][i_frame, :, :] = arr
+        split_timeseries_tiff(
+                tiff_path=self._file_path,
+                tmp_dir=tmp_dir,
+                offset_to_path=offset_to_path,
+                dump_every=dump_every)
 
         return None

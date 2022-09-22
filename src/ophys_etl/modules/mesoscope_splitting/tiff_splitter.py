@@ -47,6 +47,13 @@ class ScanImageTiffSplitter(IntFromZMapperMixin):
 
         [z0, z1, z2....]
         """
+        # check that self._metadata.channelSave is of a form
+        # we can process
+        if self._metadata.channelSave not in (1, [1, 2]):
+            raise RuntimeError(
+                "Expect channelSave == 1 or [1, 2]; got "
+                f"{self._metadata.channelSave}\n{self._file_path}")
+
         z_value_array = self._metadata.all_zs()
 
         # check that z_value_array is a list of lists

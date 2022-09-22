@@ -450,7 +450,8 @@ def _create_z_stack_tiffs(
         for ii in range(len(z0_values)):
             z_values.append([z0_values[ii], z1_values[ii]])
 
-        metadata = [{z_key: z_values},
+        metadata = [{z_key: z_values,
+                     'SI.hChannels.channelSave': [1, 2]},
                     roi_metadata]
         str_path = str(stack_path.resolve().absolute())
         z_stack_path_to_metadata[str_path] = metadata

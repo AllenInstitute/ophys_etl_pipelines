@@ -31,6 +31,12 @@ class ZStackSplitter(IntFromZMapperMixin):
             self._path_to_metadata[str_path] = ScanImageMetadata(
                                                 tiff_path=tiff_path)
 
+            if self._path_to_metadata[str_path].channelSave != [1, 2]:
+                raise RuntimeError(
+                    f"metadata for {str_path} has channelSave="
+                    f"{self._path_to_metadata[str_path].channelSave}\n"
+                    "can only handle channelSave==[1, 2]")
+
         # construct lookup tables to help us map ROI index and z-value
         # to a tiff path and an index in the z-array
 

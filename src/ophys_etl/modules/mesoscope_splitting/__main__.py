@@ -200,8 +200,11 @@ class TiffSplitterCLI(ArgSchemaParser):
                     this_exp_metadata[metadata_tag]['height'] = frame_shape[0]
                     this_exp_metadata[metadata_tag]['width'] = frame_shape[1]
 
+                    elapsed_time = time.time()-t0
+
                     self.logger.info("wrote "
-                                     f"{output_path.resolve().absolute()}")
+                                     f"{output_path.resolve().absolute()} "
+                                     f"after {elapsed_time:.2e} seconds")
 
                 experiment_metadata.append(this_exp_metadata)
 

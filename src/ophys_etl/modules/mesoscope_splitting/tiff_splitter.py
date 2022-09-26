@@ -414,7 +414,8 @@ class TimeSeriesSplitter(TiffSplitterBase):
                            output_path_map: Dict[Tuple[int, float],
                                                  pathlib.Path],
                            tmp_dir: Optional[pathlib.Path] = None,
-                           dump_every: int = 1000) -> None:
+                           dump_every: int = 1000,
+                           logger: Optional[callable] = None) -> None:
         """
         Write all of the pages associated with an
         (i_roi, z_value) pair to an HDF5 file.
@@ -431,6 +432,10 @@ class TimeSeriesSplitter(TiffSplitterBase):
         dump_every: int
             Number of frames to store in each temprorary file
             (see Notes)
+
+        logger: Optional[callable]
+            Logger which will be invoked with logger.INFO
+            by worker methods
 
         Returns
         -------
@@ -512,6 +517,7 @@ class TimeSeriesSplitter(TiffSplitterBase):
                 tiff_path=self._file_path,
                 tmp_dir=tmp_dir,
                 offset_to_path=offset_to_path,
-                dump_every=dump_every)
+                dump_every=dump_every,
+                logger=logger)
 
         return None

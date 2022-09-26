@@ -5,13 +5,15 @@ import pathlib
 import numpy as np
 import tempfile
 import os
+import time
 
 
 def split_timeseries_tiff(
         tiff_path: pathlib.Path,
         offset_to_path: Dict,
         tmp_dir: Optional[pathlib.Path] = None,
-        dump_every: int = 1000):
+        dump_every: int = 1000,
+        logger: Optional[callable] = None):
 
     offset_to_tmp_files = dict()
     offset_to_tmp_dir = dict()
@@ -29,7 +31,8 @@ def split_timeseries_tiff(
             offset_to_path=offset_to_path,
             offset_to_tmp_files=offset_to_tmp_files,
             offset_to_tmp_dir=offset_to_tmp_dir,
-            dump_every=dump_every)
+            dump_every=dump_every,
+            logger=logger)
     finally:
         for offset in offset_to_tmp_files:
             for tmp_pth in offset_to_tmp_files[offset]:
@@ -42,7 +45,11 @@ def _split_timeseries_tiff(
         offset_to_path: Dict,
         offset_to_tmp_files: Dict,
         offset_to_tmp_dir: Dict,
-        dump_every: int = 1000):
+        dump_every: int = 1000,
+        logger: Optional[callable] = None):
+
+    if logger is not None:
+        logger.info(f"Splitting {tiff_path}")
 
     max_offset = max(list(offset_to_path.keys()))
 
@@ -51,10 +58,13 @@ def _split_timeseries_tiff(
     offset_to_cache = dict()
     offset_to_valid_cache = dict()
 
+    t0 = time.time()
+    page_ct = 0
     with tifffile.TiffFile(tiff_path, mode='rb') as tiff_file:
         current_offset = -1
         cache_ct = 0
         for page in tiff_file.pages:
+            page_ct += 1
             arr = page.asarray()
 
             if fov_shape is None:
@@ -78,6 +88,11 @@ def _split_timeseries_tiff(
                         offset_to_tmp_files=offset_to_tmp_files,
                         offset_to_tmp_dir=offset_to_tmp_dir)
                     cache_ct = 0
+                    if logger is not None:
+                        duration = time.time()-t0
+                        msg = f"Iterated through {page_ct} TIFF pages "
+                        msg += f"in {duration:.2e} seconds"
+                        logger.info(msg)
 
             offset_to_cache[current_offset][cache_ct, :, :] = arr
             offset_to_valid_cache[current_offset] = cache_ct+1
@@ -88,10 +103,26 @@ def _split_timeseries_tiff(
         offset_to_tmp_files=offset_to_tmp_files,
         offset_to_tmp_dir=offset_to_tmp_dir)
 
+    if logger is not None:
+        duration = time.time()-t0
+        msg = f"Iterated through all {page_ct} TIFF pages "
+        msg += f"in {duration:.2e} seconds"
+        logger.info(msg)
+
     for offset in offset_to_tmp_files:
         _gather_timeseries_caches(
             file_path_list=offset_to_tmp_files[offset],
             final_output_path=offset_to_path[offset])
+        if logger is not None:
+            duration = time.time()-t0
+            msg = f"Wrote {offset_to_path[offset]} after "
+            msg += f"{duration:.2e} seconds"
+            logger.info(msg)
+
+    if logger is not None:
+        duration = time.time()-t0
+        msg = f"Split {tiff_path} in {duration:.2e} seconds"
+        logger.info(msg)
 
 
 def _gather_timeseries_caches(

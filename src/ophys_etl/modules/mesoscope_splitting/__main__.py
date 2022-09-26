@@ -235,7 +235,8 @@ class TiffSplitterCLI(ArgSchemaParser):
         timeseries_splitter.write_output_files(
                 output_path_map=output_path_lookup,
                 tmp_dir=None,
-                dump_every=1000)
+                dump_every=3000,
+                logger=self.logger)
 
         output["experiment_output"] = experiment_metadata
 

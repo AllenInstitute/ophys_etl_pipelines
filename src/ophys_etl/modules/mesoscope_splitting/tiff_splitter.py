@@ -359,6 +359,34 @@ class ScanImageTiffSplitter(TiffSplitterBase):
         z_value = possible_z_values[0]
         return self._z_from_int(ii=z_value)
 
+    def get_avg_img(self,
+                    i_roi: int,
+                    z_value: Optional[float]) -> np.ndarray:
+        """
+        Get the image created by averaging all of the TIFF
+        pages associated with an (i_roi, z_value) pair
+
+        Parameters
+        ----------
+        i_roi: int
+
+        z_value: Optional[int]
+            If None, will be detected automatically (assuming there
+            is only one)
+
+        Returns
+        -------
+        np.ndarray
+            of floats
+        """
+
+        if z_value is None:
+            z_value = self._get_z_value(i_roi=i_roi)
+        data = np.array(self._get_pages(i_roi=i_roi, z_value=z_value))
+        avg_img = np.mean(data, axis=0)
+
+        return avg_img
+
     def write_output_file(self,
                           i_roi: int,
                           z_value: Optional[float],
@@ -389,13 +417,14 @@ class ScanImageTiffSplitter(TiffSplitterBase):
             msg = "expected .tiff output path; "
             msg += f"you specified {output_path.resolve().absolute()}"
 
-        if z_value is None:
-            z_value = self._get_z_value(i_roi=i_roi)
-        data = np.array(self._get_pages(i_roi=i_roi, z_value=z_value))
-        avg_img = np.mean(data, axis=0)
+        avg_img = self.get_avg_img(
+                    i_roi=i_roi,
+                    z_value=z_value)
+
         avg_img = normalize_array(array=avg_img,
                                   lower_cutoff=None,
                                   upper_cutoff=None)
+
         tifffile.imsave(output_path, avg_img)
         return None
 

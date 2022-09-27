@@ -42,6 +42,8 @@ def _create_image_tiff(
     -------
     the path to the TIFF
 
+    a dict mapping roi_id, z -> raw average image
+
     a dict mapping roi_id, z -> normalized average image
 
     a dict mapping roi_id, z -> expected tiff pages
@@ -51,6 +53,7 @@ def _create_image_tiff(
     """
 
     avg_img_lookup = dict()
+    raw_avg_img_lookup = dict()
     page_lookup = dict()
     tiff_pages = []
     n_pages = 5
@@ -76,6 +79,7 @@ def _create_image_tiff(
         sub_arr = tiff_pages[i_z::len(z_value_list), :, :]
         mean_img = np.mean(sub_arr, axis=0)
         roi_id = i_z//n_z_per_roi
+        raw_avg_img_lookup[(roi_id, z_value)] = mean_img
         avg_img_lookup[(roi_id, z_value)] = normalize_array(mean_img)
 
     z_array = []
@@ -112,7 +116,11 @@ def _create_image_tiff(
 
     metadata.append(roi_metadata)
 
-    return (tmp_path, avg_img_lookup, page_lookup, metadata)
+    return (tmp_path,
+            raw_avg_img_lookup,
+            avg_img_lookup,
+            page_lookup,
+            metadata)
 
 
 @pytest.mark.parametrize(
@@ -152,9 +160,10 @@ def test_depth_splitter(tmp_path_factory,
                     is_surface=False)
 
     tiff_path = depth_tiff[0]
-    avg_img_lookup = depth_tiff[1]
-    page_lookup = depth_tiff[2]
-    metadata = depth_tiff[3]
+    raw_avg_img_lookup = depth_tiff[1]
+    avg_img_lookup = depth_tiff[2]
+    page_lookup = depth_tiff[3]
+    metadata = depth_tiff[4]
 
     n_z_per_roi = len(z_value_list) // n_rois
 
@@ -172,8 +181,16 @@ def test_depth_splitter(tmp_path_factory,
             np.testing.assert_array_equal(expected,
                                           arr[i_page])
 
+        actual = splitter.get_avg_img(
+                    i_roi=i_roi,
+                    z_value=z_value)
+        np.testing.assert_allclose(
+                    actual,
+                    raw_avg_img_lookup[(i_roi, z_value)])
+
         tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
         tmp_path = pathlib.Path(tmp_path)
+
         splitter.write_output_file(i_roi=i_roi,
                                    z_value=z_value,
                                    output_path=tmp_path)
@@ -227,7 +244,7 @@ def test_splitter_manifest(tmp_path_factory,
                     is_surface=False)
 
     tiff_path = depth_tiff[0]
-    metadata = depth_tiff[3]
+    metadata = depth_tiff[4]
 
     n_z_per_roi = len(z_value_list) // n_rois
 
@@ -296,9 +313,10 @@ def test_surface_splitter(tmp_path_factory,
                     is_surface=True)
 
     tiff_path = surface_tiff[0]
-    avg_img_lookup = surface_tiff[1]
-    page_lookup = surface_tiff[2]
-    metadata = surface_tiff[3]
+    raw_avg_img_lookup = surface_tiff[1]
+    avg_img_lookup = surface_tiff[2]
+    page_lookup = surface_tiff[3]
+    metadata = surface_tiff[4]
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
@@ -313,6 +331,14 @@ def test_surface_splitter(tmp_path_factory,
             expected = page_lookup[(i_roi, z_value)][i_page]
             np.testing.assert_array_equal(expected,
                                           arr[i_page])
+
+        actual = splitter.get_avg_img(
+                    i_roi=i_roi,
+                    z_value=z_value)
+
+        np.testing.assert_allclose(
+                actual,
+                raw_avg_img_lookup[(i_roi, z_value)])
 
         tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
         tmp_path = pathlib.Path(tmp_path)
@@ -371,8 +397,8 @@ def test_time_splitter(tmp_path_factory,
                     is_surface=True)
 
     tiff_path = time_tiff[0]
-    page_lookup = time_tiff[2]
-    metadata = time_tiff[3]
+    page_lookup = time_tiff[3]
+    metadata = time_tiff[4]
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):

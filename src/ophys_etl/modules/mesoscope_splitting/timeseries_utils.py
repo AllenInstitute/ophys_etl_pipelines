@@ -13,7 +13,53 @@ def split_timeseries_tiff(
         offset_to_path: Dict,
         tmp_dir: Optional[pathlib.Path] = None,
         dump_every: int = 1000,
-        logger: Optional[callable] = None):
+        logger: Optional[callable] = None) -> None:
+    """
+    Split a timeseries TIFF containing multiple mesoscope
+    movies into individual HDF5 files.
+
+    Parameters
+    ----------
+    tiff_path: pathlib.Path
+        Path to the timeseries TIFF file
+
+    offset_to_path: Dict
+        A dict mapping the offset corresponding to each timeseries
+        to the path to the HDF5 file where that timeseries will be
+        written (i.e. offset_to_path[0] = 'fileA.h5',
+        offset_to_path[1] = 'fileB.h5', offset_to_path[2] = 'fileC.h5')
+        corresponds to a TIFF file whose pages are arranged like
+        [fileA, fileB, fileC, fileA, fileB, fileC, fileA, fileB, fileC....]
+
+    tmp_dir: Optional[pathlib.Path]
+        Directory where temporary files are written (if None,
+        the temporary files corresponding to each HDF5 file will
+        be written to the directory where the final HDF5 is meant
+        to be written)
+
+    dump_every: int
+        Write frames to the temporary files every dump_every
+        frames per movie.
+
+    logger: Optional[callable]
+        Log statements will be written to logger.info()
+
+    Returns
+    -------
+    None
+        Timeseries are written to HDF5 files specified in offset_to_path
+
+    Notes
+    -----
+    Because there is no way to get the number of pages in a BigTIFF
+    without (expensively) scanning through all of the pages, this
+    method operates by iterating through the pages once, writing
+    the pages corresponding to each timeseries to a series of temporary
+    files associated with that timeseries. Once all of the pages have
+    been written to the temporary files, the temporary files associated
+    with each timeseries are joined into the appropriate HDF5 files
+    and deleted.
+    """
 
     offset_to_tmp_files = dict()
     offset_to_tmp_dir = dict()
@@ -46,7 +92,40 @@ def _split_timeseries_tiff(
         offset_to_tmp_files: Dict,
         offset_to_tmp_dir: Dict,
         dump_every: int = 1000,
-        logger: Optional[callable] = None):
+        logger: Optional[callable] = None) -> None:
+    """
+    Method to do the work behind split_timeseries_tiff
+
+    Parameters
+    ----------
+    tiff_path: pathlib.Path
+        Path to the timeseries TIFF being split
+
+    offset_to_path: Dict
+        Dict mapping offset to final HDF5 path (see
+        split_timeseries_tiff for explanation)
+
+    offset_to_tmp_files: Dict
+        An empty dict for storing the lists of temporary
+        files generated for each individual timeseries.
+        This method wil populate the dict in place.
+
+    offset_to_tmp_dir: Dict
+        A dict mapping offset to the directory where
+        the corresponding temporary files will be written
+
+    dump_every: int
+        Write to the temporary files every dump_every frames
+
+    logger: Optional[callable]
+        Log statements will be written to logger.info()
+
+    Returns
+    -------
+    None
+        Timeseries data is written to the paths specified in
+        offset_to_path
+    """
 
     if logger is not None:
         logger.info(f"Splitting {tiff_path}")
@@ -126,9 +205,33 @@ def _split_timeseries_tiff(
 
 
 def _gather_timeseries_caches(
-        file_path_list: List,
-        final_output_path: pathlib.Path):
+        file_path_list: List[pathlib.Path],
+        final_output_path: pathlib.Path) -> None:
+    """
+    Take a list of HDF5 files containing an array 'data' and
+    join them into a single HDF5 file with an array 'data' that
+    is the result of calling np.stack() on the smaller arrays.
 
+    Parameters
+    ----------
+    file_path_list: List[pathlib.Path]
+        List of paths to files to be joined
+
+    final_output_path: pathlib.Path
+        Path to the HDF5 file that is produced by joining
+        file_path_list
+
+    Return
+    ------
+    None
+        Contents of files in file_path_list are joined into
+        final_output_path
+
+    Notes
+    -----
+    Files in file_path_list are deleted with os.unlink
+    after they are joined.
+    """
     n_frames = 0
     fov_shape = None
     video_dtype = None
@@ -169,7 +272,42 @@ def _dump_timeseries_caches(
         offset_to_cache: Dict,
         offset_to_valid_cache: Dict,
         offset_to_tmp_files: Dict,
-        offset_to_tmp_dir: Dict):
+        offset_to_tmp_dir: Dict) -> None:
+    """
+    Write cached arrays to temporary files.
+
+    Parameters
+    ----------
+    offset_to_cache: Dict
+        Maps offset (see split_timeseries_tiff) to numpy
+        arrays that are being dumped to temporary files.
+
+    offset_to_valid_cache: Dict
+        Maps offset to the index in offset_to_cache[offset] that
+        is the last valid row (in case the cache was incompletely
+        populated), i.e.
+        offset_to_cache[offset][:offset_to_valid_cache[offset], :, :]
+        is written to the temporary files.
+
+        After this method is run, all entries in offset_to_cache
+        are set to -1.
+
+    offset_to_tmp_files: Dict
+        Maps offset to list of temporary files that are being written.
+        This dict starts out mapping to empty lists. This method
+        creates temporary files and populates this dict with paths
+        to them.
+
+    offset_to_tmp_dir: Dict
+       Maps offset to directory where temporary files will be written
+
+    Returns
+    -------
+    None
+        This metod writes the data input through offset_to_cache
+        to temporary files (that this method creates and logs in
+        offset_to_tmp_files)
+    """
 
     for offset in offset_to_cache:
         tmp_dir = offset_to_tmp_dir[offset]

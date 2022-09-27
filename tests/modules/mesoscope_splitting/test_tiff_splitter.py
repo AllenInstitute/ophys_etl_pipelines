@@ -334,7 +334,7 @@ def test_surface_splitter(tmp_path_factory,
 
         actual = splitter.get_avg_img(
                     i_roi=i_roi,
-                    z_value=z_value)
+                    z_value=None)
 
         np.testing.assert_allclose(
                 actual,
@@ -343,7 +343,7 @@ def test_surface_splitter(tmp_path_factory,
         tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
         tmp_path = pathlib.Path(tmp_path)
         splitter.write_output_file(i_roi=i_roi,
-                                   z_value=z_value,
+                                   z_value=None,
                                    output_path=tmp_path)
         with tifffile.TiffFile(tmp_path, mode='rb') as tiff_file:
             assert len(tiff_file.pages) == 1

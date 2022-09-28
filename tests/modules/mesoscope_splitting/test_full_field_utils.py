@@ -271,7 +271,22 @@ def test_get_stitched_tiff_shapes_errors(
         'RoiGroups'][
             'imagingRoiGroup'][
                 'rois'][1][
-                    'scanfields']['pixelResolutionXY'] = (1, 2)
+                    'scanfields']['pixelResolutionXY'] = (roix, 999)
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        with pytest.raises(ValueError, match='different pixel resolutions'):
+            _get_stitched_tiff_shapes(
+                tiff_path=tiff_path,
+                avg_img=avg_img)
+
+    # if an ROI has different resolution than others
+    metadata = copy.deepcopy(baseline_metadata)
+    metadata[1][
+        'RoiGroups'][
+            'imagingRoiGroup'][
+                'rois'][1][
+                    'scanfields']['pixelResolutionXY'] = (999, roiy)
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):

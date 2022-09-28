@@ -4,15 +4,20 @@ import numpy as np
 import pathlib
 import tifffile
 import tempfile
+import copy
+from itertools import product
 from ophys_etl.modules.mesoscope_splitting.full_field_utils import (
-    _average_full_field_tiff)
+    _average_full_field_tiff,
+    _get_stitched_tiff_shapes)
 
 
 def _create_full_field_tiff(
         numVolumes: int,
         numSlices: int,
         seed: int,
-        output_dir: pathlib.Path):
+        output_dir: pathlib.Path,
+        nrows: int = 23,
+        ncols: int = 37):
     """
     Create a random full field tiff according to specified
     metadata fields
@@ -31,6 +36,12 @@ def _create_full_field_tiff(
     output_dir: pathlib.Path
         directory where output files can be written
 
+    nrows: int
+        Number of rows in the field of view image
+
+    ncols: int
+        Number of columns in the field of view image
+
     Returns
     -------
     tiff_path: pathlib.Path
@@ -41,10 +52,10 @@ def _create_full_field_tiff(
         slices and volumes
 
     metadata:
-        Dict containing metadata fields
+        List containing dict of metadata fields
     """
     rng = np.random.default_rng(seed=seed)
-    data = rng.random((numVolumes*numSlices, 17, 21))
+    data = rng.random((numVolumes*numSlices, nrows, ncols))
     avg_img = data.mean(axis=0)
     tiff_pages = [data[ii, :, :] for ii in range(data.shape[0])]
     tiff_path = pathlib.Path(
@@ -120,3 +131,151 @@ def test_average_full_field_tiff_failures(
             _average_full_field_tiff(tiff_path=tiff_path)
 
     helper_functions.clean_up_dir(tmpdir=tmpdir)
+
+
+def _create_roi_metadata(
+        nrois: int,
+        roix: int,
+        roiy: int):
+    """
+    Create the dict of ROI metadata for a simulated ScanImage TIFF
+
+    Parameters
+    ----------
+    nrois: int
+        The number of ROIs
+
+    roix: int
+        pixelResolutionXY[0] for each ROI
+
+    roiy: int
+        pixelResoluitonXY[1] for each ROI
+
+    Returns
+    -------
+    roi_metadata: dict
+    """
+
+    roi_metadata = {
+        'RoiGroups':
+            {'imagingRoiGroup': {'rois': list()}}}
+
+    for i_roi in range(nrois):
+        this_roi = {'scanfields':
+                    {'pixelResolutionXY': [roix, roiy]}}
+        roi_metadata['RoiGroups']['imagingRoiGroup']['rois'].append(this_roi)
+    return roi_metadata
+
+
+@pytest.mark.parametrize(
+        "nrois, roiy, roix, gap",
+        product((2, 5), (6, 13), (2, 7), (3, 5)))
+def test_get_stitched_tiff_shapes(
+        tmpdir_factory,
+        helper_functions,
+        nrois,
+        roiy,
+        roix,
+        gap):
+    """
+    Test that _get_stitched_tiff_shapes returns the expected
+    values for 'shape' and 'gap'
+    """
+
+    nrows = gap*(nrois-1)+roiy*nrois
+    ncols = 23
+
+    tmpdir = pathlib.Path(
+                tmpdir_factory.mktemp('stitched_shapes'))
+
+    (tiff_path,
+     avg_img,
+     metadata) = _create_full_field_tiff(
+                     numVolumes=5,
+                     numSlices=3,
+                     seed=112358,
+                     output_dir=tmpdir,
+                     nrows=nrows,
+                     ncols=ncols)
+
+    roi_metadata = _create_roi_metadata(
+            nrois=nrois,
+            roix=roix,
+            roiy=roiy)
+
+    metadata.append(roi_metadata)
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        result = _get_stitched_tiff_shapes(
+                    tiff_path=tiff_path,
+                    avg_img=avg_img)
+
+    assert result['gap'] == gap
+    assert result['shape'] == (roix*nrois, roiy)
+
+    helper_functions.clean_up_dir(tmpdir)
+
+
+def test_get_stitched_tiff_shapes_errors(
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that _get_stitched_tiff_shapes raises
+    errors when the ROI metadata is not as expected
+    """
+
+    nrois = 3
+    roix = 11
+    roiy = 7
+    gap = 3
+    nrows = gap*(nrois-1)+roiy*nrois
+    ncols = 23
+
+    tmpdir = pathlib.Path(
+                tmpdir_factory.mktemp('stitched_shapes'))
+
+    (tiff_path,
+     avg_img,
+     baseline_metadata) = _create_full_field_tiff(
+                     numVolumes=5,
+                     numSlices=3,
+                     seed=112358,
+                     output_dir=tmpdir,
+                     nrows=nrows,
+                     ncols=ncols)
+
+    roi_metadata = _create_roi_metadata(
+            nrois=nrois,
+            roix=roix,
+            roiy=roiy)
+
+    baseline_metadata.append(roi_metadata)
+
+    # if an ROI has more than one scanfield
+    metadata = copy.deepcopy(baseline_metadata)
+    metadata[1][
+        'RoiGroups'][
+            'imagingRoiGroup'][
+                'rois'][1]['scanfields'] = (1, 2)
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        with pytest.raises(ValueError, match='more than one scanfield'):
+            _get_stitched_tiff_shapes(
+                tiff_path=tiff_path,
+                avg_img=avg_img)
+
+    # if an ROI has different resolution than others
+    metadata = copy.deepcopy(baseline_metadata)
+    metadata[1][
+        'RoiGroups'][
+            'imagingRoiGroup'][
+                'rois'][1][
+                    'scanfields']['pixelResolutionXY'] = (1, 2)
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        with pytest.raises(ValueError, match='different pixel resolutions'):
+            _get_stitched_tiff_shapes(
+                tiff_path=tiff_path,
+                avg_img=avg_img)

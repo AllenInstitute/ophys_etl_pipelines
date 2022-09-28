@@ -2,6 +2,7 @@ from typing import List, Tuple, Union
 import tifffile
 import copy
 import pathlib
+import numpy as np
 
 
 def _read_metadata(tiff_path: pathlib.Path):
@@ -175,7 +176,7 @@ class ScanImageMetadata(object):
         center: Tuple[float, float]
            (X_coord, Y_coord)
         """
-        if i_roi > self.n_rois:
+        if i_roi >= self.n_rois:
             msg = f"You asked for ROI {i_roi}; "
             msg += f"there are only {self.n_rois} "
             msg += "specified in {self._file_path.resolve().absolute()}"
@@ -212,3 +213,114 @@ class ScanImageMetadata(object):
             raise RuntimeError(msg)
 
         return (avg_x, avg_y)
+
+    def roi_size(
+            self,
+            i_roi: int) -> Tuple[float, float]:
+        """
+        Return the size in physical units of an ROI. Will raise an error
+        if the ROI has multiple scanfields with inconsistent size values.
+
+        Parameters
+        ----------
+        i_roi: int:
+            Index of the ROI whose size is to be returned.
+
+        Returns
+        -------
+        sizexy: Tuple[float, float]
+            This is just the 'sizeXY' element associated with an ROI's
+            scanfield metadata.
+        """
+        if i_roi >= self.n_rois:
+            msg = f"You asked for ROI {i_roi}; "
+            msg += f"there are only {self.n_rois} "
+            msg += "specified in {self._file_path.resolve().absolute()}"
+            raise ValueError(msg)
+
+        scanfields = self.defined_rois[i_roi]['scanfields']
+        if isinstance(scanfields, dict):
+            scanfields = [scanfields]
+        elif not isinstance(scanfields, list):
+            msg = "Expected scanfields to be either a list "
+            msg += f"or a dict; instead got {type(scanfields)}"
+            raise RuntimeError(msg)
+
+        size_x = None
+        size_y = None
+        for this_scanfield in scanfields:
+            if size_x is None:
+                size_x = this_scanfield['sizeXY'][0]
+                size_y = this_scanfield['sizeXY'][1]
+            else:
+                same_x = np.allclose(size_x, this_scanfield['sizeXY'][0])
+                same_y = np.allclose(size_y, this_scanfield['sizeXY'][1])
+                if not same_x or not same_y:
+                    msg = f"{self._file_path.resolve().absolute()}\n"
+                    msg += f"i_roi: {i_roi}\n"
+                    msg += "has multiple scanfields with differing sizeXY\n"
+                    msg += "asking for roi_size is meaningless"
+                    raise ValueError(msg)
+
+        if size_x is None or size_y is None:
+            raise ValueError(
+                "Could not find sizeXY for "
+                f"ROI {i_roi} in {self._file_path.resolve().absolute()}")
+
+        return (size_x, size_y)
+
+    def roi_resolution(
+            self,
+            i_roi: int) -> Tuple[int, int]:
+        """
+        Return the size in pixels of an ROI. Will raise an error
+        if the ROI has multiple scanfields with inconsistent values.
+
+        Parameters
+        ----------
+        i_roi: int:
+            Index of the ROI whose size is to be returned.
+
+        Returns
+        -------
+        resolutionxy: Tuple[int, int]
+            This is just the 'pixelResolutionXY' element associated with
+            an ROI's scanfield metadata.
+        """
+        if i_roi >= self.n_rois:
+            msg = f"You asked for ROI {i_roi}; "
+            msg += f"there are only {self.n_rois} "
+            msg += "specified in {self._file_path.resolve().absolute()}"
+            raise ValueError(msg)
+
+        scanfields = self.defined_rois[i_roi]['scanfields']
+        if isinstance(scanfields, dict):
+            scanfields = [scanfields]
+        elif not isinstance(scanfields, list):
+            msg = "Expected scanfields to be either a list "
+            msg += f"or a dict; instead got {type(scanfields)}"
+            raise RuntimeError(msg)
+
+        pix_x = None
+        pix_y = None
+        for this_scanfield in scanfields:
+            if pix_x is None:
+                pix_x = this_scanfield['pixelResolutionXY'][0]
+                pix_y = this_scanfield['pixelResolutionXY'][1]
+            else:
+                same_x = (pix_x == this_scanfield['pixelResolutionXY'][0])
+                same_y = (pix_y == this_scanfield['pixelResolutionXY'][1])
+                if not same_x or not same_y:
+                    msg = f"{self._file_path.resolve().absolute()}\n"
+                    msg += f"i_roi: {i_roi}\n"
+                    msg += "has multiple scanfields with differing "
+                    msg += "pixelResolutionXY\n"
+                    msg += "asking for roi_size is meaningless"
+                    raise ValueError(msg)
+
+        if pix_x is None or pix_y is None:
+            raise ValueError(
+                "Could not find pixelResolutionXY for "
+                f"ROI {i_roi} in {self._file_path.resolve().absolute()}")
+
+        return (pix_x, pix_y)

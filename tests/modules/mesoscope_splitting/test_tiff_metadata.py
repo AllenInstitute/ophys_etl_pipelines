@@ -270,3 +270,53 @@ def test_defined_rois(
                    new=Mock(return_value=metadata_fixture[0])):
             metadata = ScanImageMetadata(tiff_path=tmp_path)
             assert metadata.defined_rois == expected_rois
+
+
+@pytest.mark.parametrize(
+        "wrong_numVolumes",
+        [2.1, (1, 2, 3), [1, 2, 3], 'abcde'])
+def test_numVolumes_errors(
+        wrong_numVolumes,
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that errors are raised when
+    SI.hStackManager.actualNumVolumes is not an int
+    """
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('numVolumes_errors'))
+    tiff_path = pathlib.Path(
+                    tempfile.mkstemp(dir=tmpdir, suffix='tiff')[1])
+
+    metadata = [{'SI.hStackManager.actualNumVolumes': wrong_numVolumes}]
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        obj = ScanImageMetadata(tiff_path=tiff_path)
+        with pytest.raises(ValueError, match='expected int'):
+            obj.numVolumes
+
+    helper_functions.clean_up_dir(tmpdir=tmpdir)
+
+
+@pytest.mark.parametrize(
+        "wrong_numSlices",
+        [2.1, (1, 2, 3), [1, 2, 3], 'abcde'])
+def test_numSlices_errors(
+        wrong_numSlices,
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that errors are raised when
+    SI.hStackManager.actualNumSlices is not an int
+    """
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('numSlices_errors'))
+    tiff_path = pathlib.Path(
+                    tempfile.mkstemp(dir=tmpdir, suffix='tiff')[1])
+
+    metadata = [{'SI.hStackManager.actualNumSlices': wrong_numSlices}]
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        obj = ScanImageMetadata(tiff_path=tiff_path)
+        with pytest.raises(ValueError, match='expected int'):
+            obj.numSlices
+
+    helper_functions.clean_up_dir(tmpdir=tmpdir)

@@ -320,3 +320,199 @@ def test_numSlices_errors(
             obj.numSlices
 
     helper_functions.clean_up_dir(tmpdir=tmpdir)
+
+
+def test_roi_size(
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that ScanImageMetadata.roi_size returns expected values
+    """
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('roi_size'))
+    tmp_path = pathlib.Path(
+        tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    roi_to_size = [
+        (10.1, 2.3),
+        (4.5, 6.1),
+        (8.3, 2.5)
+    ]
+
+    roi_list = [
+        {'scanfields': {'sizeXY': roi_to_size[0]}},
+        {'scanfields': [{'sizeXY': roi_to_size[1]},
+                        {'sizeXY': roi_to_size[1]}]},
+        {'scanfields': {'sizeXY': roi_to_size[2]}}]
+
+    metadata = ['nothing', dict()]
+    metadata[1]['RoiGroups'] = {
+        'imagingRoiGroup': {
+            'rois': roi_list}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path=tmp_path)
+    for ii in range(3):
+        assert tiff_metadata.roi_size(ii) == roi_to_size[ii]
+
+    with pytest.raises(ValueError, match="there are only 3"):
+        tiff_metadata.roi_size(3)
+
+    helper_functions.clean_up_dir(tmpdir)
+
+
+def test_roi_size_errors(
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that ScanImageMetadata.roi_size returns errors when scanfields
+    have inconsistent sizes
+    """
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('roi_size'))
+    tmp_path = pathlib.Path(
+        tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    roi_to_size = [
+        (10.1, 2.3),
+        (4.5, 6.1),
+        (8.3, 2.5)
+    ]
+
+    # test for error when an ROI has two conflicting values
+    # for scanfields:sizeXY
+
+    roi_list = [
+        {'scanfields': {'sizeXY': roi_to_size[0]}},
+        {'scanfields': [{'sizeXY': roi_to_size[1]},
+                        {'sizeXY': roi_to_size[2]}]},
+        {'scanfields': {'sizeXY': roi_to_size[2]}}]
+
+    metadata = ['nothing', dict()]
+    metadata[1]['RoiGroups'] = {
+        'imagingRoiGroup': {
+            'rois': roi_list}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path=tmp_path)
+        with pytest.raises(ValueError, match="differing sizeXY"):
+            tiff_metadata.roi_size(1)
+
+    # test for error when an ROI's scanfields are
+    # of the wrong datatype
+
+    roi_list = [
+        {'scanfields': {'sizeXY': roi_to_size[0]}},
+        {'scanfields': 'this is just a string, huh?'},
+        {'scanfields': {'sizeXY': roi_to_size[2]}}]
+
+    metadata = ['nothing', dict()]
+    metadata[1]['RoiGroups'] = {
+        'imagingRoiGroup': {
+            'rois': roi_list}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path=tmp_path)
+        with pytest.raises(RuntimeError, match="either a list or a dict"):
+            tiff_metadata.roi_size(1)
+
+    helper_functions.clean_up_dir(tmpdir)
+
+
+def test_roi_resolution(
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that ScanImageMetadata.roi_resolution returns expected values
+    """
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('roi_resolution'))
+    tmp_path = pathlib.Path(
+        tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    roi_to_res = [
+        (10, 2),
+        (4, 6),
+        (8, 2)
+    ]
+
+    roi_list = [
+        {'scanfields': {'pixelResolutionXY': roi_to_res[0]}},
+        {'scanfields': [{'pixelResolutionXY': roi_to_res[1]},
+                        {'pixelResolutionXY': roi_to_res[1]}]},
+        {'scanfields': {'pixelResolutionXY': roi_to_res[2]}}]
+
+    metadata = ['nothing', dict()]
+    metadata[1]['RoiGroups'] = {
+        'imagingRoiGroup': {
+            'rois': roi_list}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path=tmp_path)
+    for ii in range(3):
+        assert tiff_metadata.roi_resolution(ii) == roi_to_res[ii]
+
+    with pytest.raises(ValueError, match="there are only 3"):
+        tiff_metadata.roi_size(3)
+
+    helper_functions.clean_up_dir(tmpdir)
+
+
+def test_roi_resolution_errors(
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that ScanImageMetadata.roi_size returns errors when scanfields
+    have inconsistent sizes
+    """
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('roi_resolution'))
+    tmp_path = pathlib.Path(
+        tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    roi_to_res = [
+        (10, 2),
+        (4, 6),
+        (8, 2)
+    ]
+
+    # test for error when an ROI has two conflicting values
+    # for scanfields:pixelResolutionXY
+
+    roi_list = [
+        {'scanfields': {'pixelResolutionXY': roi_to_res[0]}},
+        {'scanfields': [{'pixelResolutionXY': roi_to_res[1]},
+                        {'pixelResolutionXY': roi_to_res[2]}]},
+        {'scanfields': {'pixelResolutionXY': roi_to_res[2]}}]
+
+    metadata = ['nothing', dict()]
+    metadata[1]['RoiGroups'] = {
+        'imagingRoiGroup': {
+            'rois': roi_list}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path=tmp_path)
+        with pytest.raises(ValueError, match="differing pixelResolutionXY"):
+            tiff_metadata.roi_resolution(1)
+
+    # test for error when an ROI's scanfields are
+    # of the wrong datatype
+
+    roi_list = [
+        {'scanfields': {'sizeXY': roi_to_res[0]}},
+        {'scanfields': 'this is just a string, huh?'},
+        {'scanfields': {'sizeXY': roi_to_res[2]}}]
+
+    metadata = ['nothing', dict()]
+    metadata[1]['RoiGroups'] = {
+        'imagingRoiGroup': {
+            'rois': roi_list}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path=tmp_path)
+        with pytest.raises(RuntimeError, match="either a list or a dict"):
+            tiff_metadata.roi_resolution(1)
+
+    helper_functions.clean_up_dir(tmpdir)

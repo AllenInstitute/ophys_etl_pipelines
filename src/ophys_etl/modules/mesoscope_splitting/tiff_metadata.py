@@ -33,6 +33,41 @@ class ScanImageMetadata(object):
         self._metadata = _read_metadata(tiff_path)
 
     @property
+    def numVolumes(self) -> int:
+        """
+        The metadata field representing the number of volumes
+        recorded by the rig
+        """
+        if not hasattr(self, '_numVolumes'):
+            value = self._metadata[0]['SI.hStackManager.actualNumVolumes']
+            if not isinstance(value, int):
+                raise ValueError(
+                    f"in {self._file_path}\n"
+                    "SI.hStackManager.actualNumVolumes is a "
+                    f"{type(value)}; expected int")
+
+            self._numVolumes = value
+
+        return self._numVolumes
+
+    @property
+    def numSlices(self) -> int:
+        """
+        The metadata field representing the number of slices
+        recorded by the rig
+        """
+        if not hasattr(self, '_numSlices'):
+            value = self._metadata[0]['SI.hStackManager.actualNumSlices']
+            if not isinstance(value, int):
+                raise ValueError(
+                    f"in {self._file_path}\n"
+                    "SI.hStackManager.actualNumSlices is a "
+                    f"{type(value)}; expected int")
+            self._numSlices = value
+
+        return self._numSlices
+
+    @property
     def channelSave(self) -> Union[int, List[int]]:
         """
         The metadata field representing which channels were saved

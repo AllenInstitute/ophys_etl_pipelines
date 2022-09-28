@@ -6,9 +6,12 @@ import tifffile
 import tempfile
 import copy
 from itertools import product
+from ophys_etl.utils.array_utils import normalize_array
 from ophys_etl.modules.mesoscope_splitting.full_field_utils import (
     _average_full_field_tiff,
-    _get_stitched_tiff_shapes)
+    _get_stitched_tiff_shapes,
+    _stitch_full_field_tiff,
+    stitch_full_field_tiff)
 
 
 def _create_full_field_tiff(
@@ -37,10 +40,10 @@ def _create_full_field_tiff(
         directory where output files can be written
 
     nrows: int
-        Number of rows in the field of view image
+        Number of rows in the image averaged over pages
 
     ncols: int
-        Number of columns in the field of view image
+        Number of columns in the image averaged over pages
 
     Returns
     -------
@@ -136,7 +139,9 @@ def test_average_full_field_tiff_failures(
 def _create_roi_metadata(
         nrois: int,
         roix: int,
-        roiy: int):
+        roiy: int,
+        sizex: float = 2.1,
+        sizey: float = 3.2):
     """
     Create the dict of ROI metadata for a simulated ScanImage TIFF
 
@@ -151,9 +156,21 @@ def _create_roi_metadata(
     roiy: int
         pixelResoluitonXY[1] for each ROI
 
+    sizex: float
+        sizeXY[0] for each ROI
+
+    sizey: float
+        sizeXY[1] for each ROI
+
     Returns
     -------
     roi_metadata: dict
+
+    Notes
+    -----
+    ROIs will be given a centerXY value that is the same in y
+    but increments in x. This is the arrangement of ROIs in the
+    full field TIFF files we are meant to stitch together.
     """
 
     roi_metadata = {
@@ -162,7 +179,9 @@ def _create_roi_metadata(
 
     for i_roi in range(nrois):
         this_roi = {'scanfields':
-                    {'pixelResolutionXY': [roix, roiy]}}
+                    {'pixelResolutionXY': [roix, roiy],
+                     'sizeXY': [sizex, sizey],
+                     'centerXY': [0.5*sizex+i_roi*sizex, 0.5*sizey]}}
         roi_metadata['RoiGroups']['imagingRoiGroup']['rois'].append(this_roi)
     return roi_metadata
 
@@ -183,7 +202,7 @@ def test_get_stitched_tiff_shapes(
     """
 
     nrows = gap*(nrois-1)+roiy*nrois
-    ncols = 23
+    ncols = roix
 
     tmpdir = pathlib.Path(
                 tmpdir_factory.mktemp('stitched_shapes'))
@@ -211,7 +230,56 @@ def test_get_stitched_tiff_shapes(
                     avg_img=avg_img)
 
     assert result['gap'] == gap
-    assert result['shape'] == (roix*nrois, roiy)
+    assert result['shape'] == (roiy, roix*nrois)
+
+    helper_functions.clean_up_dir(tmpdir)
+
+
+@pytest.mark.parametrize(
+        "dcols, drows", [(0, 1), (1, 0)])
+def test_get_stitched_tiff_shapes_validation(
+        tmpdir_factory,
+        helper_functions,
+        dcols,
+        drows):
+    """
+    Test that _get_stitched_tiff_shapes throws expected error
+    when the average image has the wrong shape
+
+    dcols, drows are integers indicating how much
+    the number of rows/columns in the avg_img should be off
+    """
+
+    nrois = 7
+    roiy = 11
+    roix = 13
+    gap = 3
+
+    roi_metadata = _create_roi_metadata(
+            nrois=nrois,
+            roix=roix,
+            roiy=roiy)
+
+    tmpdir = pathlib.Path(
+                tmpdir_factory.mktemp('stitched_shapes'))
+
+    (tiff_path,
+     avg_img,
+     metadata) = _create_full_field_tiff(
+                     numVolumes=5,
+                     numSlices=3,
+                     seed=112358,
+                     output_dir=tmpdir,
+                     nrows=gap*(nrois-1)+roiy*nrois+drows,
+                     ncols=roix+dcols)
+
+    metadata.append(roi_metadata)
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        with pytest.raises(ValueError, match="expected average over pages"):
+            _get_stitched_tiff_shapes(
+                tiff_path=tiff_path,
+                avg_img=avg_img)
 
     helper_functions.clean_up_dir(tmpdir)
 
@@ -294,3 +362,152 @@ def test_get_stitched_tiff_shapes_errors(
             _get_stitched_tiff_shapes(
                 tiff_path=tiff_path,
                 avg_img=avg_img)
+
+
+@pytest.mark.parametrize(
+        "n_rois, roi_rows, roi_cols, gap",
+        [
+         (3, 11, 17, 2),
+         (2, 27, 31, 1),
+         (7, 18, 29, 4)
+        ])
+def test_stitch_full_field_tiff(
+        tmpdir_factory,
+        helper_functions,
+        n_rois,
+        roi_rows,
+        roi_cols,
+        gap):
+    """
+    Test that _stitch_full_field_tiff correctly disassembles and
+    re-assembles the average image
+
+    n_rois -- an int indicating how many ROIs to simulate in the avg_img
+
+    roi_rows -- an int indicating how many rows are in each ROI
+
+    roi_cols -- an int indicating how many cols are in each ROI
+
+    gap -- an int indicating how many pixels occur between each ROI
+    """
+    rng = np.random.default_rng(58132134)
+
+    nrows = gap*(n_rois-1)+roi_rows*n_rois
+    ncols = roi_cols
+    avg_img = np.zeros((nrows, ncols), dtype=float)
+    avg_img *= np.NaN
+
+    expected_stitched = np.zeros((roi_rows, n_rois*roi_cols),
+                                 dtype=float)
+
+    list_of_rois = []
+    for i_roi in range(n_rois):
+        r0 = i_roi*(roi_rows+gap)
+        r1 = r0+roi_rows
+        tile = rng.random((roi_rows, roi_cols))
+        list_of_rois.append(tile)
+        avg_img[r0:r1, :] = tile
+        expected_stitched[:, i_roi*roi_cols:(i_roi+1)*roi_cols] = tile
+
+    metadata = ['nothing',
+                _create_roi_metadata(
+                    nrois=n_rois,
+                    roix=roi_cols,
+                    roiy=roi_rows)]
+
+    tmpdir = pathlib.Path(
+            tmpdir_factory.mktemp('stitch_full_field'))
+    tiff_path = pathlib.Path(
+            tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    with patch("tifffile.read_scanimage_metadata",
+               new=Mock(return_value=metadata)):
+
+        stitched_img = _stitch_full_field_tiff(
+                tiff_path=tiff_path,
+                avg_img=avg_img)
+
+    # make sure the gap pixels were all ignored
+    assert np.all(np.logical_not(np.isnan(stitched_img)))
+
+    np.testing.assert_allclose(stitched_img, expected_stitched)
+
+    helper_functions.clean_up_dir(tmpdir)
+
+
+@pytest.mark.parametrize(
+        "n_rois, roi_rows, roi_cols, gap",
+        [
+         (3, 11, 17, 2),
+         (2, 27, 31, 1),
+         (7, 18, 29, 4)
+        ])
+def test_user_facing_stitch_full_field_tiff(
+        tmpdir_factory,
+        helper_functions,
+        n_rois,
+        roi_rows,
+        roi_cols,
+        gap):
+    """
+    Test that stitch_full_field_tiff correctly disassembles and
+    re-assembles the average image
+
+    n_rois -- an int indicating how many ROIs to simulate in the avg_img
+
+    roi_rows -- an int indicating how many rows are in each ROI
+
+    roi_cols -- an int indicating how many cols are in each ROI
+
+    gap -- an int indicating how many pixels occur between each ROI
+    """
+    rng = np.random.default_rng(58132134)
+
+    nrows = gap*(n_rois-1)+roi_rows*n_rois
+    ncols = roi_cols
+    avg_img = np.zeros((nrows, ncols), dtype=float)
+    avg_img *= np.NaN
+
+    expected_stitched = np.zeros((roi_rows, n_rois*roi_cols),
+                                 dtype=float)
+
+    list_of_rois = []
+    for i_roi in range(n_rois):
+        r0 = i_roi*(roi_rows+gap)
+        r1 = r0+roi_rows
+        tile = rng.random((roi_rows, roi_cols))
+        list_of_rois.append(tile)
+        avg_img[r0:r1, :] = tile
+        expected_stitched[:, i_roi*roi_cols:(i_roi+1)*roi_cols] = tile
+
+    expected_stitched = normalize_array(
+            array=expected_stitched,
+            dtype=np.uint16)
+
+    metadata = ['nothing',
+                _create_roi_metadata(
+                    nrois=n_rois,
+                    roix=roi_cols,
+                    roiy=roi_rows)]
+
+    tmpdir = pathlib.Path(
+            tmpdir_factory.mktemp('stitch_full_field'))
+    tiff_path = pathlib.Path(
+            tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    with patch("tifffile.read_scanimage_metadata",
+               new=Mock(return_value=metadata)):
+        with patch("ophys_etl.modules.mesoscope_splitting."
+                   "full_field_utils._average_full_field_tiff",
+                   new=Mock(return_value=avg_img)):
+            stitched_img = stitch_full_field_tiff(
+                    tiff_path=tiff_path)
+
+    # make sure the gap pixels were all ignored
+    assert np.all(np.logical_not(np.isnan(stitched_img)))
+
+    assert stitched_img.dtype == np.uint16
+
+    np.testing.assert_allclose(stitched_img, expected_stitched)
+
+    helper_functions.clean_up_dir(tmpdir)

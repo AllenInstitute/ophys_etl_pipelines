@@ -232,6 +232,22 @@ class TiffSplitterBase(IntFromZMapperMixin):
         """
         return self._metadata.roi_center(i_roi=i_roi)
 
+    def roi_size(
+            self,
+            i_roi: int) -> Tuple[float, float]:
+        """
+        The physical space size (x, y) of the i_roith ROI
+        """
+        return self._metadata.roi_size(i_roi=i_roi)
+
+    def roi_resolution(
+            self,
+            i_roi: int) -> Tuple[int, int]:
+        """
+        The pixel resolution of the i_roith ROI
+        """
+        return self._metadata.roi_resolution(i_roi=i_roi)
+
     def _get_offset(self, i_roi: int, z_value: float) -> int:
         """
         Get the first page associated with the specified

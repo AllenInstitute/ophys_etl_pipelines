@@ -34,6 +34,10 @@ class ScanImageMetadata(object):
         self._metadata = _read_metadata(tiff_path)
 
     @property
+    def file_path(self) -> pathlib.Path:
+        return self._file_path
+
+    @property
     def numVolumes(self) -> int:
         """
         The metadata field representing the number of volumes

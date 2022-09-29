@@ -285,7 +285,7 @@ class TiffSplitterBase(IntFromZMapperMixin):
         return self._frame_shape[key_pair]
 
 
-class ScanImageTiffSplitter(TiffSplitterBase):
+class AvgImageTiffSplitter(TiffSplitterBase):
 
     @property
     def n_pages(self):
@@ -380,12 +380,20 @@ class ScanImageTiffSplitter(TiffSplitterBase):
             of floats
         """
 
+        if not hasattr(self, '_avg_img_cache'):
+            self._avg_img_cache = dict()
+
         if z_value is None:
             z_value = self._get_z_value(i_roi=i_roi)
-        data = np.array(self._get_pages(i_roi=i_roi, z_value=z_value))
-        avg_img = np.mean(data, axis=0)
 
-        return avg_img
+        z_int = self._int_from_z(z_value=z_value)
+        pair = (i_roi, z_int)
+        if pair not in self._avg_img_cache:
+            data = np.array(self._get_pages(i_roi=i_roi, z_value=z_value))
+            avg_img = np.mean(data, axis=0)
+            self._avg_img_cache[pair] = avg_img
+
+        return np.copy(self._avg_img_cache[pair])
 
     def write_output_file(self,
                           i_roi: int,

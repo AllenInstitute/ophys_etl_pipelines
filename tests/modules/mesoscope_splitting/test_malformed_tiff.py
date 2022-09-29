@@ -4,7 +4,7 @@ import pathlib
 import tempfile
 
 from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
-    ScanImageTiffSplitter)
+    AvgImageTiffSplitter)
 
 
 def test_repeated_z_error(
@@ -30,7 +30,7 @@ def test_repeated_z_error(
                new=Mock(return_value=metadata)):
 
         with pytest.raises(RuntimeError, match="has duplicate zs"):
-            ScanImageTiffSplitter(tiff_path=tmp_path)
+            AvgImageTiffSplitter(tiff_path=tmp_path)
 
 
 def test_roi_order_error(
@@ -57,7 +57,7 @@ def test_roi_order_error(
 
         with pytest.raises(RuntimeError,
                            match="not in correct order for ROIs"):
-            ScanImageTiffSplitter(tiff_path=tmp_path)
+            AvgImageTiffSplitter(tiff_path=tmp_path)
 
 
 def test_uneven_z_per_roi(
@@ -84,7 +84,7 @@ def test_uneven_z_per_roi(
 
         with pytest.raises(RuntimeError,
                            match="equal number of zs per ROI"):
-            ScanImageTiffSplitter(tiff_path=tmp_path)
+            AvgImageTiffSplitter(tiff_path=tmp_path)
 
 
 def test_zs_not_list(
@@ -110,7 +110,7 @@ def test_zs_not_list(
 
         with pytest.raises(RuntimeError,
                            match="Unclear how to split"):
-            ScanImageTiffSplitter(tiff_path=tmp_path)
+            AvgImageTiffSplitter(tiff_path=tmp_path)
 
 
 def test_zs_no_placeholder(
@@ -137,7 +137,7 @@ def test_zs_no_placeholder(
 
         with pytest.raises(RuntimeError,
                            match="channelSave==1"):
-            ScanImageTiffSplitter(tiff_path=tmp_path)
+            AvgImageTiffSplitter(tiff_path=tmp_path)
 
 
 @pytest.mark.parametrize("channelSave", [2, 3, [1, 5], [1, 2, 3]])
@@ -166,4 +166,4 @@ def test_illegal_channelSave(
 
         with pytest.raises(RuntimeError,
                            match="Expect channelSave == 1 or"):
-            ScanImageTiffSplitter(tiff_path=tmp_path)
+            AvgImageTiffSplitter(tiff_path=tmp_path)

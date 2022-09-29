@@ -8,7 +8,7 @@ from ophys_etl.modules.mesoscope_splitting.schemas import (
     InputSchema, OutputSchema)
 
 from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
-    ScanImageTiffSplitter,
+    AvgImageTiffSplitter,
     TimeSeriesSplitter)
 
 from ophys_etl.modules.mesoscope_splitting.zstack_splitter import (
@@ -83,11 +83,11 @@ class TiffSplitterCLI(ArgSchemaParser):
         files_to_record.append(ts_path)
 
         depth_path = pathlib.Path(self.args["depths_tif"])
-        depth_splitter = ScanImageTiffSplitter(tiff_path=depth_path)
+        depth_splitter = AvgImageTiffSplitter(tiff_path=depth_path)
         files_to_record.append(depth_path)
 
         surface_path = pathlib.Path(self.args["surface_tif"])
-        surface_splitter = ScanImageTiffSplitter(tiff_path=surface_path)
+        surface_splitter = AvgImageTiffSplitter(tiff_path=surface_path)
         files_to_record.append(surface_path)
 
         zstack_path_list = []

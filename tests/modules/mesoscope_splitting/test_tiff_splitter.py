@@ -11,7 +11,7 @@ import copy
 from ophys_etl.utils.array_utils import normalize_array
 
 from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
-    ScanImageTiffSplitter,
+    AvgImageTiffSplitter,
     TimeSeriesSplitter)
 
 from ophys_etl.modules.mesoscope_splitting.zstack_splitter import (
@@ -170,7 +170,7 @@ def test_depth_splitter(tmp_path_factory,
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
 
-        splitter = ScanImageTiffSplitter(tiff_path=tiff_path)
+        splitter = AvgImageTiffSplitter(tiff_path=tiff_path)
     for i_z, z_value in enumerate(z_value_list):
         i_roi = i_z//n_z_per_roi
         arr = splitter._get_pages(i_roi=i_roi,
@@ -250,7 +250,7 @@ def test_splitter_manifest(tmp_path_factory,
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
-        splitter = ScanImageTiffSplitter(tiff_path=tiff_path)
+        splitter = AvgImageTiffSplitter(tiff_path=tiff_path)
 
     assert splitter.n_pages == 5*len(z_value_list)
     assert splitter.n_valid_zs == len(z_value_list)
@@ -320,7 +320,7 @@ def test_surface_splitter(tmp_path_factory,
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
-        splitter = ScanImageTiffSplitter(tiff_path=tiff_path)
+        splitter = AvgImageTiffSplitter(tiff_path=tiff_path)
 
     for i_z, z_value in enumerate(z_value_list):
         i_roi = i_z//n_z_per_roi

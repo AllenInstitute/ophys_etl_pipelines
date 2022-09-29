@@ -164,6 +164,7 @@ def test_normalize_array(array, lower_cutoff, upper_cutoff, expected):
                                     lower_cutoff=lower_cutoff,
                                     upper_cutoff=upper_cutoff)
     np.testing.assert_array_equal(normalized, expected)
+    assert normalized.dtype == np.uint8
 
 
 @pytest.mark.parametrize(
@@ -180,6 +181,43 @@ def test_scale_to_uint8(input_array, expected_array):
     """
     actual = au.normalize_array(input_array)
     np.testing.assert_array_equal(actual, expected_array)
+    assert actual.dtype == np.uint8
+
+
+@pytest.mark.parametrize(
+        "input_array, lower, upper, input_dtype, expected",
+        [
+         (np.array([22, 33, 44, 11, 39]),
+          12.0, 40.0, np.uint16,
+          np.array([23405, 49151, 65535, 0, 63194])),
+         (np.array([22, 33, 44, 11, 39]),
+          12.0, 40.0, np.int16,
+          np.array([-9363, 16383, 32767, -32768, 30426])),
+         (np.array([22, 33, 44, 11, 39]),
+          None, 40.0, np.int16,
+          np.array([-7910, 16948, 32767, -32768, 30507])),
+         (np.array([22, 33, 44, 11, 39]),
+          12.0, None, np.int16,
+          np.array([-12288, 10239, 32767, -32768, 22527]))
+
+        ]
+)
+def test_scale_to_other_types(
+        input_array,
+        lower,
+        upper,
+        input_dtype,
+        expected):
+    """
+    Test that normalize_array works for datatypes other than np.uint8
+    """
+    actual = au.normalize_array(
+                array=input_array,
+                lower_cutoff=lower,
+                upper_cutoff=upper,
+                dtype=input_dtype)
+    np.testing.assert_array_equal(actual, expected)
+    assert actual.dtype == input_dtype
 
 
 @pytest.mark.parametrize(

@@ -14,6 +14,7 @@ from ophys_etl.modules.mesoscope_splitting.full_field_utils import (
     _get_stitched_tiff_shapes,
     _stitch_full_field_tiff,
     _get_origin,
+    _validate_all_roi_same_size,
     stitch_full_field_tiff)
 
 
@@ -531,7 +532,7 @@ def test_get_origin(
                 dir=tmpdir,
                 suffix='.tiff')[1])
 
-    metadata = ['noting',
+    metadata = ['nothing',
                 dict()]
 
     roi_metadata = [
@@ -553,5 +554,81 @@ def test_get_origin(
         actual = _get_origin(metadata_obj)
     expected = [0.35, 0.4]
     np.testing.assert_allclose(expected, actual)
+
+    helper_functions.clean_up_dir(tmpdir)
+
+
+def test_validate_all_roi_same_size(
+        tmpdir_factory,
+        helper_functions):
+
+    tmpdir = pathlib.Path(
+            tmpdir_factory.mktemp('validate_roi_size'))
+    tiff_path = pathlib.Path(
+            tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    metadata = ['nothing',
+                None]
+
+    # in case where the ROIs do have the same size, verify
+    # that _validate_all_roi_same_size does, in fact, return
+    # pixelResolutionXY and sizeXY
+
+    roi_metadata = [
+        {'scanfields': {
+            'sizeXY': [2.1, 3.2],
+            'pixelResolutionXY': [45, 33]}},
+        {'scanfields': {
+            'sizeXY': [2.1, 3.2],
+            'pixelResolutionXY': [45, 33]}}]
+
+    metadata[1] = {'RoiGroups': {
+                       'imagingRoiGroup': {
+                           'rois': roi_metadata}}}
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        metadata_obj = ScanImageMetadata(tiff_path)
+        (resolution,
+         size) = _validate_all_roi_same_size(metadata_obj)
+        assert resolution == (45, 33)
+        np.testing.assert_allclose(size, [2.1, 3.2])
+
+    # test for error in case where sizeXY differs
+
+    roi_metadata = [
+        {'scanfields': {
+            'sizeXY': [2.11, 3.2],
+            'pixelResolutionXY': [45, 33]}},
+        {'scanfields': {
+            'sizeXY': [2.1, 3.2],
+            'pixelResolutionXY': [45, 33]}}]
+
+    metadata[1] = {'RoiGroups': {
+                       'imagingRoiGroup': {
+                           'rois': roi_metadata}}}
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        metadata_obj = ScanImageMetadata(tiff_path)
+        with pytest.raises(ValueError, match='different physical units'):
+            _validate_all_roi_same_size(metadata_obj)
+
+    # test for error in case where pixelResolutionXY differs
+
+    roi_metadata = [
+        {'scanfields': {
+            'sizeXY': [2.1, 3.2],
+            'pixelResolutionXY': [45, 33]}},
+        {'scanfields': {
+            'sizeXY': [2.1, 3.2],
+            'pixelResolutionXY': [46, 33]}}]
+
+    metadata[1] = {'RoiGroups': {
+                       'imagingRoiGroup': {
+                           'rois': roi_metadata}}}
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        metadata_obj = ScanImageMetadata(tiff_path)
+        with pytest.raises(ValueError, match='different pixel resolutions'):
+            _validate_all_roi_same_size(metadata_obj)
 
     helper_functions.clean_up_dir(tmpdir)

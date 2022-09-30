@@ -23,7 +23,7 @@ class HelperFunctions(object):
         directory. If a file cannot be deleted, just catch the
         exception and move on.
 
-        Attempt to remove the dir after cleanup
+        Attempt to remove the dir after cleanup.
         """
         tmpdir = Path(tmpdir)
         path_list = [n for n in tmpdir.rglob('*')]

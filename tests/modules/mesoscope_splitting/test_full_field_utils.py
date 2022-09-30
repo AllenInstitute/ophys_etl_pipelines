@@ -7,10 +7,13 @@ import tempfile
 import copy
 from itertools import product
 from ophys_etl.utils.array_utils import normalize_array
+from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
+    ScanImageMetadata)
 from ophys_etl.modules.mesoscope_splitting.full_field_utils import (
     _average_full_field_tiff,
     _get_stitched_tiff_shapes,
     _stitch_full_field_tiff,
+    _get_origin,
     stitch_full_field_tiff)
 
 
@@ -509,5 +512,46 @@ def test_user_facing_stitch_full_field_tiff(
     assert stitched_img.dtype == np.uint16
 
     np.testing.assert_allclose(stitched_img, expected_stitched)
+
+    helper_functions.clean_up_dir(tmpdir)
+
+
+def test_get_origin(
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that _get_origin actually returns the physical space
+    coordinates of the origin implied by a ScanImageMetadata object
+    """
+
+    tmpdir = pathlib.Path(
+            tmpdir_factory.mktemp('get_origin'))
+    tiff_path = pathlib.Path(
+            tempfile.mkstemp(
+                dir=tmpdir,
+                suffix='.tiff')[1])
+
+    metadata = ['noting',
+                dict()]
+
+    roi_metadata = [
+        {'scanfields': {
+            'centerXY': [1.1, 2.1],
+            'sizeXY': [1.5, 0.62]}},
+        {'scanfields': {
+            'centerXY': [0.5, 3.4],
+            'sizeXY': [0.02, 6.0]}}]
+
+    metadata[1] = {
+        'RoiGroups': {
+             'imagingRoiGroup': {
+                 'rois': roi_metadata}}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        metadata_obj = ScanImageMetadata(tiff_path)
+        actual = _get_origin(metadata_obj)
+    expected = [0.35, 0.4]
+    np.testing.assert_allclose(expected, actual)
 
     helper_functions.clean_up_dir(tmpdir)

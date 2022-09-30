@@ -10,6 +10,10 @@ import numpy as np
 from skimage.transform import resize as skimage_resize
 from unittest.mock import Mock, patch
 
+from .utils import (
+    _create_full_field_tiff,
+    _create_roi_metadata)
+
 from ophys_etl.utils.array_utils import (
     normalize_array)
 
@@ -20,7 +24,8 @@ from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
     AvgImageTiffSplitter)
 
 from ophys_etl.modules.mesoscope_splitting.full_field_utils import (
-    _insert_rois_into_surface_img)
+    _insert_rois_into_surface_img,
+    stitch_tiff_with_rois)
 
 
 def _create_avg_surface_tiff(
@@ -195,5 +200,74 @@ def test_insertion_worker(
     # verify that all of the pixels that should not be in the ROIs are
     # still NaNs
     assert np.all(np.isnan(img[mask_missing]))
+
+    helper_functions.clean_up_dir(tmpdir)
+
+
+def test_user_facing_insertion(
+        tmpdir_factory,
+        helper_functions):
+    """
+    This is really just a smoke test of stitch_tiff_with_rois
+    """
+    tmpdir = pathlib.Path(
+                tmpdir_factory.mktemp('user_facing_insertion'))
+
+    origin_x = 21.2
+    origin_y = 11.1
+
+    (avg_tiff_path,
+     avg_images,
+     avg_metadata) = _create_avg_surface_tiff(
+                          n_rois=3,
+                          pixel_size=1.3,
+                          origin_x=origin_x,
+                          origin_y=origin_y,
+                          output_dir=tmpdir)
+
+    nrois = 2
+    roix = 372
+    roiy = 168
+    gap = 3
+    nrows = gap*(nrois-1)+roiy*nrois
+    ncols = roix
+
+    (bckgd_path,
+     bckgd_img,
+     bckgd_metadata) = _create_full_field_tiff(
+                 numVolumes=2,
+                 numSlices=7,
+                 seed=45678,
+                 output_dir=tmpdir,
+                 nrows=nrows,
+                 ncols=ncols)
+
+    roi_metadata = _create_roi_metadata(
+            nrois=nrois,
+            roix=roix,
+            roiy=roiy,
+            sizex=1.51*roix,
+            sizey=1.51*roiy,
+            origin_x=origin_x,
+            origin_y=origin_y)
+
+    bckgd_metadata.append(roi_metadata)
+
+    def mock_read_metadata(tiff_path):
+        if tiff_path == bckgd_path:
+            return bckgd_metadata
+        elif tiff_path == avg_tiff_path:
+            return avg_metadata
+        raise RuntimeError(f"do not know {tiff_path}")
+
+    to_replace = 'ophys_etl.modules.mesoscope_splitting.'
+    to_replace += 'tiff_metadata._read_metadata'
+    with patch(to_replace, new=mock_read_metadata):
+        img = stitch_tiff_with_rois(
+                full_field_path=bckgd_path,
+                avg_surface_path=avg_tiff_path)
+
+    assert isinstance(img, np.ndarray)
+    assert img.dtype == np.uint16
 
     helper_functions.clean_up_dir(tmpdir)

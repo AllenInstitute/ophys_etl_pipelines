@@ -37,12 +37,12 @@ def stitch_tiff_with_rois(
         avg_surface_path = pathlib.Path(avg_surface_path)
 
     full_field_img = stitch_full_field_tiff(full_field_path)
-
+    full_field_metadata = ScanImageMetadata(full_field_path)
     avg_splitter = AvgImageTiffSplitter(avg_surface_path)
 
     stitched_roi_img = _insert_rois_into_surface_img(
             full_field_img=full_field_img,
-            full_field_path=full_field_path,
+            full_field_metadata=full_field_metadata,
             avg_image_splitter=avg_splitter)
 
     return stitched_roi_img
@@ -66,24 +66,23 @@ def stitch_full_field_tiff(
     """
 
     img = _average_full_field_tiff(tiff_path)
+    tiff_metadata = ScanImageMetadata(tiff_path)
     img = _stitch_full_field_tiff(
-            tiff_path=tiff_path,
+            tiff_metadata=tiff_metadata,
             avg_img=img)
     return normalize_array(array=img, dtype=np.uint16)
 
 
 def _insert_rois_into_surface_img(
         full_field_img: np.ndarray,
-        full_field_path: pathlib.Path,
+        full_field_metadata: ScanImageMetadata,
         avg_image_splitter: AvgImageTiffSplitter) -> np.ndarray:
 
-    ff_metadata = ScanImageMetadata(full_field_path)
-
     (ff_resolution,
-     ff_size) = _validate_all_roi_same_size(ff_metadata)
+     ff_size) = _validate_all_roi_same_size(full_field_metadata)
 
     (origin_col,
-     origin_row) = _get_origin(ff_metadata)
+     origin_row) = _get_origin(full_field_metadata)
 
     output_img = np.copy(full_field_img)
 
@@ -191,7 +190,7 @@ def _average_full_field_tiff(
 
 
 def _get_stitched_tiff_shapes(
-        tiff_path: pathlib.Path,
+        tiff_metadata: ScanImageMetadata,
         avg_img: np.ndarray) -> Dict:
     """
     Get the final shape for the stitched TIFF to be produced
@@ -199,8 +198,8 @@ def _get_stitched_tiff_shapes(
 
     Parameters
     ----------
-    tiff_path: pathlib.Path
-        Path to the full field TIFF
+    tiff_metadata: ScanImageMetadata
+        The metadata object associated with this avg_img
 
     avg_img: np.ndarray
         Average image produced by _average_full_field_tiff
@@ -212,12 +211,10 @@ def _get_stitched_tiff_shapes(
         'gap': the gap (in pixels) between columns in the final stitched image
     """
 
-    metadata = ScanImageMetadata(tiff_path)
-
     # Make sure that every ROI only has one scanfield
-    for roi in metadata.defined_rois:
+    for roi in tiff_metadata.defined_rois:
         if not isinstance(roi['scanfields'], dict):
-            msg = f"{tiff_path}\n"
+            msg = f"{tiff_metadata.file_path}\n"
             msg += "contains an ROI with more than one scanfield;\n"
             msg += "uncertain how to handle this case"
             raise ValueError(msg)
@@ -225,18 +222,18 @@ def _get_stitched_tiff_shapes(
     # Make sure that every ROI has the same size in pixels as determined
     # by pixelResolutionXY
     resolution = None
-    for i_roi in range(len(metadata.defined_rois)):
-        this_resolution = metadata.roi_resolution(i_roi)
+    for i_roi in range(len(tiff_metadata.defined_rois)):
+        this_resolution = tiff_metadata.roi_resolution(i_roi)
         if resolution is None:
             resolution = this_resolution
         else:
             if resolution != this_resolution:
-                msg = f"{tiff_path}\n"
+                msg = f"{tiff_metadata.file_path}\n"
                 msg += "contains ROIs with different pixel resolutions;\n"
                 msg += "uncertain how to handle this case"
                 raise ValueError(msg)
 
-    n_rois = len(metadata.defined_rois)
+    n_rois = len(tiff_metadata.defined_rois)
 
     # image coordinates...
     stitched_shape = (resolution[1],
@@ -249,7 +246,7 @@ def _get_stitched_tiff_shapes(
                           stitched_shape[1]//n_rois)
 
     if avg_img.shape != expected_avg_shape:
-        msg = f"{tiff_path}\n"
+        msg = f"{tiff_metadata.file_path}\n"
         msg += "expected average over pages to have shape "
         msg += f"{expected_avg_shape}\n"
         msg += f"got {avg_img.shape}\n"
@@ -318,15 +315,15 @@ def _get_origin(
 
 
 def _stitch_full_field_tiff(
-        tiff_path: pathlib.Path,
+        tiff_metadata: ScanImageMetadata,
         avg_img: np.ndarray) -> np.ndarray:
     """
     Stitch the full field TIFF into a single image
 
     Parameters
     ----------
-    tiff_path: pathlib.Path
-        path to the full field TIFF
+    tiff_metadata: ScanImageMetadata
+        The metadata associated with thi avg_image
 
     avg_img: np.ndarray
         average image returned by _average_full_field_tiff
@@ -337,30 +334,28 @@ def _stitch_full_field_tiff(
     """
 
     final_shapes = _get_stitched_tiff_shapes(
-            tiff_path=tiff_path,
+            tiff_metadata=tiff_metadata,
             avg_img=avg_img)
 
     stitched_shape = final_shapes['shape']
     pixel_gap = final_shapes['gap']
 
-    metadata = ScanImageMetadata(tiff_path)
-
     # Make sure ROIs all have the same size in physical
     # units and pixels
 
     (resolution,
-     physical_size) = _validate_all_roi_same_size(metadata)
+     physical_size) = _validate_all_roi_same_size(tiff_metadata)
 
     physical_to_pixels = (resolution[0]/physical_size[0],
                           resolution[1]/physical_size[1])
 
     (origin_col,
-     origin_row) = _get_origin(metadata)
+     origin_row) = _get_origin(tiff_metadata)
 
     stitched_img = np.zeros(stitched_shape, dtype=avg_img.dtype)
 
-    for i_roi in range(metadata.n_rois):
-        roi_center = metadata.roi_center(i_roi=i_roi)
+    for i_roi in range(tiff_metadata.n_rois):
+        roi_center = tiff_metadata.roi_center(i_roi=i_roi)
         roi_row0 = roi_center[1]-physical_size[1]/2
         roi_col0 = roi_center[0]-physical_size[0]/2
         pix_row0 = np.round((roi_row0-origin_row)*physical_to_pixels[1])

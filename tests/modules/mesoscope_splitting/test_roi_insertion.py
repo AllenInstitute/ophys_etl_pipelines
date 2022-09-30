@@ -13,6 +13,9 @@ from unittest.mock import Mock, patch
 from ophys_etl.utils.array_utils import (
     normalize_array)
 
+from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
+    ScanImageMetadata)
+
 from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
     AvgImageTiffSplitter)
 
@@ -157,10 +160,12 @@ def test_insertion_worker(
 
     with patch("tifffile.read_scanimage_metadata",
                new=Mock(return_value=bckgd_metadata)):
-        img = _insert_rois_into_surface_img(
-                full_field_img=bckgd_img,
-                full_field_path=nonsense_path,
-                avg_image_splitter=avg_splitter)
+        ff_metadata = ScanImageMetadata(nonsense_path)
+
+    img = _insert_rois_into_surface_img(
+            full_field_img=bckgd_img,
+            full_field_metadata=ff_metadata,
+            avg_image_splitter=avg_splitter)
 
     # mask out expected ROI pixels so that we can verify that
     # non-ROI pixels are still NaN after insertion

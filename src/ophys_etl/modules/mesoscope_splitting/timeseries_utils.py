@@ -4,7 +4,9 @@ import h5py
 import pathlib
 import numpy as np
 import tempfile
+import datetime
 import os
+import shutil
 import time
 
 
@@ -61,14 +63,38 @@ def split_timeseries_tiff(
     and deleted.
     """
 
+    # Create a unique temporary directory with an unambiguous
+    # name so that if clean-up gets interrupted by some
+    # catastrophic failure we will know what the directory
+    # was for.
+    now = datetime.datetime.now()
+    timestamp = (f"{now.year}_{now.month}_"
+                 f"{now.day}_{now.hour}_"
+                 f"{now.minute}_{now.second}")
+
+    tmp_prefix = f"mesoscope_timeseries_tmp_{timestamp}_"
+    directories_to_clean = []
+
+    if tmp_dir is not None:
+        actual_tmp_dir = pathlib.Path(
+                tempfile.mkdtemp(
+                    dir=tmp_dir,
+                    prefix=tmp_prefix))
+        directories_to_clean.append(actual_tmp_dir)
+
     offset_to_tmp_files = dict()
     offset_to_tmp_dir = dict()
     for offset in offset_to_path:
-        pth = offset_to_path[offset]
         if tmp_dir is not None:
-            offset_to_tmp_dir[offset] = tmp_dir
+            offset_to_tmp_dir[offset] = actual_tmp_dir
         else:
-            offset_to_tmp_dir[offset] = pth.parent
+            pth = offset_to_path[offset]
+            actual_tmp_dir = pathlib.Path(
+                    tempfile.mkdtemp(
+                        dir=pth.parent,
+                        prefix=tmp_prefix))
+            offset_to_tmp_dir[offset] = actual_tmp_dir
+            directories_to_clean.append(actual_tmp_dir)
         offset_to_tmp_files[offset] = []
 
     try:
@@ -84,6 +110,11 @@ def split_timeseries_tiff(
             for tmp_pth in offset_to_tmp_files[offset]:
                 if tmp_pth.exists():
                     os.unlink(tmp_pth)
+
+        # clean up temporary directories
+        for dir_pth in directories_to_clean:
+            if dir_pth.exists():
+                shutil.rmtree(dir_pth)
 
 
 def _split_timeseries_tiff(
@@ -322,8 +353,11 @@ def _dump_timeseries_caches(
 
         tmp_path = pathlib.Path(tmp_path[1])
 
+        # append path first so the code knows to clean up
+        # the file in case file-creation gets interrupted
+        offset_to_tmp_files[offset].append(tmp_path)
+
         with h5py.File(tmp_path, 'w') as out_file:
             out_file.create_dataset(
                 'data', data=cache)
-        offset_to_tmp_files[offset].append(tmp_path)
         offset_to_valid_cache[offset] = -1

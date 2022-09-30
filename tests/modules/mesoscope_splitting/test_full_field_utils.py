@@ -229,9 +229,11 @@ def test_get_stitched_tiff_shapes(
     metadata.append(roi_metadata)
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
-        result = _get_stitched_tiff_shapes(
-                    tiff_path=tiff_path,
-                    avg_img=avg_img)
+        tiff_metadata = ScanImageMetadata(tiff_path)
+
+    result = _get_stitched_tiff_shapes(
+                tiff_metadata=tiff_metadata,
+                avg_img=avg_img)
 
     assert result['gap'] == gap
     assert result['shape'] == (roiy, roix*nrois)
@@ -280,10 +282,12 @@ def test_get_stitched_tiff_shapes_validation(
     metadata.append(roi_metadata)
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
-        with pytest.raises(ValueError, match="expected average over pages"):
-            _get_stitched_tiff_shapes(
-                tiff_path=tiff_path,
-                avg_img=avg_img)
+        tiff_metadata = ScanImageMetadata(tiff_path)
+
+    with pytest.raises(ValueError, match="expected average over pages"):
+        _get_stitched_tiff_shapes(
+            tiff_metadata=tiff_metadata,
+            avg_img=avg_img)
 
     helper_functions.clean_up_dir(tmpdir)
 
@@ -332,10 +336,12 @@ def test_get_stitched_tiff_shapes_errors(
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
-        with pytest.raises(ValueError, match='more than one scanfield'):
-            _get_stitched_tiff_shapes(
-                tiff_path=tiff_path,
-                avg_img=avg_img)
+        tiff_metadata = ScanImageMetadata(tiff_path)
+
+    with pytest.raises(ValueError, match='more than one scanfield'):
+        _get_stitched_tiff_shapes(
+            tiff_metadata=tiff_metadata,
+            avg_img=avg_img)
 
     # if an ROI has different resolution than others
     metadata = copy.deepcopy(baseline_metadata)
@@ -347,10 +353,12 @@ def test_get_stitched_tiff_shapes_errors(
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
-        with pytest.raises(ValueError, match='different pixel resolutions'):
-            _get_stitched_tiff_shapes(
-                tiff_path=tiff_path,
-                avg_img=avg_img)
+        tiff_metadata = ScanImageMetadata(tiff_path)
+
+    with pytest.raises(ValueError, match='different pixel resolutions'):
+        _get_stitched_tiff_shapes(
+            tiff_metadata=tiff_metadata,
+            avg_img=avg_img)
 
     # if an ROI has different resolution than others
     metadata = copy.deepcopy(baseline_metadata)
@@ -362,10 +370,12 @@ def test_get_stitched_tiff_shapes_errors(
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
-        with pytest.raises(ValueError, match='different pixel resolutions'):
-            _get_stitched_tiff_shapes(
-                tiff_path=tiff_path,
-                avg_img=avg_img)
+        tiff_metadata = ScanImageMetadata(tiff_path)
+
+    with pytest.raises(ValueError, match='different pixel resolutions'):
+        _get_stitched_tiff_shapes(
+            tiff_metadata=tiff_metadata,
+            avg_img=avg_img)
 
 
 @pytest.mark.parametrize(
@@ -426,10 +436,11 @@ def test_stitch_full_field_tiff(
 
     with patch("tifffile.read_scanimage_metadata",
                new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path)
 
-        stitched_img = _stitch_full_field_tiff(
-                tiff_path=tiff_path,
-                avg_img=avg_img)
+    stitched_img = _stitch_full_field_tiff(
+            tiff_metadata=tiff_metadata,
+            avg_img=avg_img)
 
     # make sure the gap pixels were all ignored
     assert np.all(np.logical_not(np.isnan(stitched_img)))

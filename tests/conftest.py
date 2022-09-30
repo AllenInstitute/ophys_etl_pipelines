@@ -22,6 +22,8 @@ class HelperFunctions(object):
         Attempt to clean up all of the files in a specified
         directory. If a file cannot be deleted, just catch the
         exception and move on.
+
+        Attempt to remove the dir after cleanup
         """
         tmpdir = Path(tmpdir)
         path_list = [n for n in tmpdir.rglob('*')]

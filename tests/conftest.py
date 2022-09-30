@@ -7,6 +7,7 @@ import pandas as pd
 from numpy.random import seed, uniform
 import pytest
 import json
+import shutil
 
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -30,6 +31,10 @@ class HelperFunctions(object):
                     this_path.unlink()
                 except Exception:
                     pass
+        try:
+            shutil.rmtree(tmpdir)
+        except Exception:
+            pass
 
 
 @pytest.fixture

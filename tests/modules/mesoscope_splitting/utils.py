@@ -59,3 +59,59 @@ def _create_full_field_tiff(
                  'SI.hStackManager.actualNumSlices': numSlices}]
 
     return (tiff_path, avg_img, metadata)
+
+
+def _create_roi_metadata(
+        nrois: int,
+        roix: int,
+        roiy: int,
+        sizex: float = 2.1,
+        sizey: float = 3.2,
+        origin_x: float = 0.0,
+        origin_y: float = 0.0):
+    """
+    Create the dict of ROI metadata for a simulated ScanImage TIFF
+
+    Parameters
+    ----------
+    nrois: int
+        The number of ROIs
+
+    roix: int
+        pixelResolutionXY[0] for each ROI
+
+    roiy: int
+        pixelResoluitonXY[1] for each ROI
+
+    sizex: float
+        sizeXY[0] for each ROI
+
+    sizey: float
+        sizeXY[1] for each ROI
+
+    origin_x, origin_y: float
+        origin of ROI coordinate system in physical units
+
+    Returns
+    -------
+    roi_metadata: dict
+
+    Notes
+    -----
+    ROIs will be given a centerXY value that is the same in y
+    but increments in x. This is the arrangement of ROIs in the
+    full field TIFF files we are meant to stitch together.
+    """
+
+    roi_metadata = {
+        'RoiGroups':
+            {'imagingRoiGroup': {'rois': list()}}}
+
+    for i_roi in range(nrois):
+        this_roi = {'scanfields':
+                    {'pixelResolutionXY': [roix, roiy],
+                     'sizeXY': [sizex, sizey],
+                     'centerXY': [origin_x+0.5*sizex+i_roi*sizex,
+                                  origin_y+0.5*sizey]}}
+        roi_metadata['RoiGroups']['imagingRoiGroup']['rois'].append(this_roi)
+    return roi_metadata

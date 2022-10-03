@@ -63,6 +63,14 @@ class InputSchema(ArgSchema):
         default=3000,
         description=("Write timeseries data to scratch files every "
                      "dump_every frames"))
+    tmp_dir = OutputDir(
+        required=False,
+        default='/tmp',
+        description=("Directory where the temporary files created during "
+                     "timeseries splitting are written. If None, each "
+                     "OphysExperiment will create its own temporary "
+                     "directory in the output directory for the final "
+                     "HDF5 file"))
 
 
 class TiffMetadataOutput(DefaultSchema):

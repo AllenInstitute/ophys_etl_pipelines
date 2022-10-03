@@ -234,7 +234,7 @@ class TiffSplitterCLI(ArgSchemaParser):
 
         timeseries_splitter.write_output_files(
                 output_path_map=output_path_lookup,
-                tmp_dir=None,
+                tmp_dir=self.args["tmp_dir"],
                 dump_every=self.args["dump_every"],
                 logger=self.logger)
 

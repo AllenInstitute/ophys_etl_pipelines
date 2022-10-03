@@ -378,6 +378,7 @@ def input_json_fixture(
     output_tmp_dir = tmp_path_factory.mktemp('splitter_cli_output')
     output_tmp_dir = pathlib.Path(output_tmp_dir)
     params = dict()
+    params['dump_every'] = 5  # timeseries all have 13 frames
     params['depths_tif'] = depth_fixture['raw']
     params['surface_tif'] = surface_fixture['raw']
     params['timeseries_tif'] = timeseries_fixture['raw']

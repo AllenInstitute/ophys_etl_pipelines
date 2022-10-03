@@ -58,6 +58,11 @@ class InputSchema(ArgSchema):
     plane_groups = Nested(
         PlaneGroup,
         many=True)
+    dump_every = Int(
+        required=False,
+        default=3000,
+        description=("Write timeseries data to scratch files every "
+                     "dump_every frames"))
 
 
 class TiffMetadataOutput(DefaultSchema):

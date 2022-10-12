@@ -222,6 +222,120 @@ def trim_video(
     return sub_video
 
 
+def thumbnail_video_array_from_array(
+        full_video: np.ndarray,
+        origin: Tuple[int, int],
+        frame_shape: Tuple[int, int],
+        timesteps: Optional[np.ndarray] = None,
+        origin_offset: Optional[Tuple[int, int]] = None,
+        timestep_offset: Optional[np.ndarray] = None,
+        roi_list: Optional[List[ExtractROI]] = None,
+        roi_color: Union[None,
+                         Tuple[int, int, int],
+                         Dict[int, Tuple[int, int, int]]] = (255, 0, 0)
+        ) -> np.ndarray:
+    """
+    Create a thumbnail video as a numpy array from a numpy array.
+    This method will do the work of trimming the array in space
+    and time.
+
+    No attempt is made to scale or convert the data type of
+    full_video's contents.
+
+    Parameters
+    ----------
+    full_video: np.ndarray
+        Shape is (n_time, n_rows, n_cols)
+        or (n_time, n_rows, n_cols, 3) for RGB
+
+    origin: Tuple[int, int]
+        (row_min, col_min) of desired thumbnail
+
+    frame_shape: Tuple[int, int]
+        (n_rows, n_cols) of desired thumbnail
+
+    timesteps: Optional[np.ndarray]
+        Array of timesteps. If None, keep all timesteps from
+        full_video (default: None)
+
+    origin_offset: Optional[Tuple[int, int]]
+        Offset values to be added to origin in container.
+        *Should only be used by methods which call this method
+        after pre-truncating the video in space; do NOT use this
+        by hand.*
+
+    timestep_offset: Optional[Tuple[int, int]]
+        timestep values to be saved in output, even though the
+        cut in time has already been applied to the sub_video.
+        *Should only be used by methods which call this method
+        after pre-truncating the video in space; do NOT use this
+        by hand.*
+
+    roi_list: Optional[List[ExtractROI]]
+        If not None, list of ROIs whose contours are to be drawn
+        in the thumbnail video (default: None)
+
+    roi_color: Optional[Tuple[int, int, int], Dict[int, Tuple[int, int, int]]]
+        RGB color of ROIs to be drawn in the thumbnail video.
+        (default (255, 0, 0))
+        Or a dict mapping ROI ID to the RGB colors of ROIs
+
+    Returns
+    -------
+    sub_video:
+        numpy array representing the thumbnail video with ROIs (if provided)
+    """
+
+    if timesteps is not None and timestep_offset is not None:
+        msg = "You have called thumbnail_video_from_array "
+        msg += "with non-None timesteps and non-None "
+        msg += "timestep_offset; only one of these can be "
+        msg += "non-None at a time."
+        raise RuntimeError(msg)
+
+    if origin_offset is None:
+        origin_offset = (0, 0)
+
+    sub_video = trim_video(
+                    full_video,
+                    origin,
+                    frame_shape,
+                    timesteps=timesteps)
+
+    if timesteps is None:
+        if timestep_offset is not None:
+            timesteps = timestep_offset
+
+    if roi_list is not None:
+        # convert to RGB
+        if len(sub_video.shape) < 4:
+            sub_video = get_rgb_sub_video(sub_video,
+                                          (0, 0),
+                                          sub_video.shape[1:3])
+        sub_video = np.copy(sub_video)
+
+        valid_rois = get_roi_list_in_fov(
+                        roi_list,
+                        (origin[0]+origin_offset[0],
+                         origin[1]+origin_offset[1]),
+                        (sub_video.shape[1],
+                         sub_video.shape[2]))
+
+        for roi in valid_rois:
+            if isinstance(roi_color, dict):
+                this_color = roi_color[roi['id']]
+            else:
+                this_color = roi_color
+            sub_video = add_roi_contour_to_video(
+                            sub_video,
+                            (origin[0]+origin_offset[0],
+                             origin[1]+origin_offset[1]),
+                            roi,
+                            this_color)
+
+    return sub_video
+
+
 def thumbnail_video_from_array(
         full_video: np.ndarray,
         origin: Tuple[int, int],
@@ -305,12 +419,15 @@ def thumbnail_video_from_array(
         Containing the metadata about the written thumbnail video
     """
 
-    if timesteps is not None and timestep_offset is not None:
-        msg = "You have called thumbnail_video_from_array "
-        msg += "with non-None timesteps and non-None "
-        msg += "timestep_offset; only one of these can be "
-        msg += "non-None at a time."
-        raise RuntimeError(msg)
+    sub_video = thumbnail_video_array_from_array(
+                    full_video=full_video,
+                    origin=origin,
+                    frame_shape=frame_shape,
+                    timesteps=timesteps,
+                    origin_offset=origin_offset,
+                    timestep_offset=timestep_offset,
+                    roi_list=roi_list,
+                    roi_color=roi_color)
 
     if file_path is None:
         if tmp_dir is None:
@@ -322,43 +439,6 @@ def thumbnail_video_from_array(
 
     if origin_offset is None:
         origin_offset = (0, 0)
-
-    sub_video = trim_video(
-                    full_video,
-                    origin,
-                    frame_shape,
-                    timesteps=timesteps)
-
-    if timesteps is None:
-        if timestep_offset is not None:
-            timesteps = timestep_offset
-
-    if roi_list is not None:
-        # convert to RGB
-        if len(sub_video.shape) < 4:
-            sub_video = get_rgb_sub_video(sub_video,
-                                          (0, 0),
-                                          sub_video.shape[1:3])
-        sub_video = np.copy(sub_video)
-
-        valid_rois = get_roi_list_in_fov(
-                        roi_list,
-                        (origin[0]+origin_offset[0],
-                         origin[1]+origin_offset[1]),
-                        (sub_video.shape[1],
-                         sub_video.shape[2]))
-
-        for roi in valid_rois:
-            if isinstance(roi_color, dict):
-                this_color = roi_color[roi['id']]
-            else:
-                this_color = roi_color
-            sub_video = add_roi_contour_to_video(
-                            sub_video,
-                            (origin[0]+origin_offset[0],
-                             origin[1]+origin_offset[1]),
-                            roi,
-                            this_color)
 
     container = ThumbnailVideo(sub_video,
                                file_path,

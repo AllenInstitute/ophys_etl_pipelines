@@ -190,6 +190,35 @@ def test_all_zs(
             assert expected == metadata.all_zs()
 
 
+def test_raw_metadata(
+        tmp_path_factory,
+        mock_2x3_metadata_zs,
+        mock_2x3_metadata_zsAllActuators,
+        mock_1x3_metadata_zsAllActuators,
+        mock_3x1_metadata_zsAllActuators):
+    """
+    Test that ScanImageMetadata.raw_metadata returns the expected result
+    """
+
+    tmpdir = tmp_path_factory.mktemp('test_all_zs')
+    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    to_replace = 'ophys_etl.modules.mesoscope_splitting.'
+    to_replace += 'tiff_metadata._read_metadata'
+
+    for metadata_fixture in (mock_2x3_metadata_zs[0],
+                             mock_2x3_metadata_zsAllActuators[0],
+                             mock_1x3_metadata_zsAllActuators[0],
+                             mock_3x1_metadata_zsAllActuators[0]):
+
+        expected = metadata_fixture
+
+        with patch(to_replace,
+                   new=Mock(return_value=metadata_fixture)):
+            metadata = ScanImageMetadata(tiff_path=tmp_path)
+            assert expected == metadata.raw_metadata
+
+
 def test_all_zs_error(
         tmp_path_factory,
         mock_2x3_metadata_nozs):

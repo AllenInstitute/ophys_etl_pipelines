@@ -2,6 +2,7 @@ import pytest
 import pathlib
 import h5py
 import tifffile
+import json
 from itertools import product
 import numpy as np
 from ophys_etl.modules.mesoscope_splitting.timeseries_utils import (
@@ -109,9 +110,13 @@ def test_dump_timeseries_caches(
         helper_functions.clean_up_dir(tmpdir)
 
 
+@pytest.mark.parametrize(
+        "expected_metadata",
+        [{'a': 1, 'b': 2}, None])
 def test_gather_timeseries_caches(
         tmpdir_factory,
-        helper_functions):
+        helper_functions,
+        expected_metadata):
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('gather'))
     finaldir = pathlib.Path(tmpdir_factory.mktemp('gather_output'))
     rng = np.random.default_rng(581321)
@@ -130,10 +135,20 @@ def test_gather_timeseries_caches(
 
     _gather_timeseries_caches(
         file_path_list=file_path_list,
-        final_output_path=full_path)
+        final_output_path=full_path,
+        metadata=expected_metadata)
 
     with h5py.File(full_path, 'r') as in_file:
+
+        if expected_metadata is None:
+            assert 'scanimage_metadata' not in in_file.keys()
+        else:
+            actual_metadata = json.loads(
+                        in_file['scanimage_metadata'][()].decode('utf-8'))
+            assert actual_metadata == expected_metadata
+
         actual = in_file['data'][()]
+
     np.testing.assert_allclose(data, actual)
 
     # make sure that tmpdir got cleaned up automatically
@@ -145,15 +160,18 @@ def test_gather_timeseries_caches(
 
 
 @pytest.mark.parametrize(
-        'dump_every, same_tmpdir',
-        product((50, 17, 8), (True, False)))
+        'dump_every, same_tmpdir, expected_metadata',
+        product((50, 17, 8),
+                (True, False),
+                (None, {'a': 1, 'b': 2})))
 def test_split_timeseries_tiff_worker(
         timeseries_fixtures,
         timeseries_tiff_fixture,
         tmpdir_factory,
         helper_functions,
         dump_every,
-        same_tmpdir):
+        same_tmpdir,
+        expected_metadata):
 
     offset_to_tmp_dir = dict()
     if same_tmpdir:
@@ -179,11 +197,19 @@ def test_split_timeseries_tiff_worker(
             offset_to_path=offset_to_path,
             offset_to_tmp_files=offset_to_tmp_files,
             offset_to_tmp_dir=offset_to_tmp_dir,
-            dump_every=dump_every)
+            dump_every=dump_every,
+            metadata=expected_metadata)
 
     for offset in range(3):
         expected = timeseries_fixtures[offset]
         with h5py.File(offset_to_path[offset], 'r') as in_file:
+            if expected_metadata is None:
+                assert 'scanimage_metadata' not in in_file.keys()
+            else:
+                actual_metadata = json.loads(
+                          in_file['scanimage_metadata'][()].decode('utf-8'))
+                assert actual_metadata == expected_metadata
+
             actual = in_file['data'][()]
         np.testing.assert_allclose(expected, actual)
 
@@ -193,14 +219,16 @@ def test_split_timeseries_tiff_worker(
 
 
 @pytest.mark.parametrize(
-        'dump_every',
-        (50, 17, 8))
+        'dump_every, expected_metadata',
+        product((50, 17, 8),
+                (None, {'a': 1, 'b': 2})))
 def test_split_timeseries_tiff(
         timeseries_fixtures,
         timeseries_tiff_fixture,
         tmpdir_factory,
         helper_functions,
-        dump_every):
+        dump_every,
+        expected_metadata):
     """
     Effectively the same test as test_split_timeseries_tiff_worker,
     except that this also tests that the cache files get cleaned
@@ -221,11 +249,19 @@ def test_split_timeseries_tiff(
             tiff_path=timeseries_tiff_fixture,
             offset_to_path=offset_to_path,
             tmp_dir=tmpdir,
-            dump_every=dump_every)
+            dump_every=dump_every,
+            metadata=expected_metadata)
 
     for offset in range(3):
         expected = timeseries_fixtures[offset]
         with h5py.File(offset_to_path[offset], 'r') as in_file:
+            if expected_metadata is None:
+                assert 'scanimage_metadata' not in in_file.keys()
+            else:
+                actual_metadata = json.loads(
+                        in_file['scanimage_metadata'][()].decode('utf-8'))
+                assert actual_metadata == expected_metadata
+
             actual = in_file['data'][()]
         np.testing.assert_allclose(expected, actual)
 

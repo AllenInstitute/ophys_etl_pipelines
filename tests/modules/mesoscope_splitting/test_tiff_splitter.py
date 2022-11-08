@@ -7,6 +7,7 @@ import pathlib
 import tempfile
 import tifffile
 import copy
+import json
 
 from ophys_etl.utils.array_utils import normalize_array
 
@@ -447,12 +448,14 @@ def _create_z_stack_tiffs(
     -------
     dict mapping z_stack_path to metadata
     dict mapping (i_roi, z_value) to tiff_pages_lookup
+    dict mapping (i_roi, z_value) to z_stack_path
     """
 
     rng = np.random.default_rng(662211)
 
     tiff_pages_lookup = dict()
     z_stack_path_to_metadata = dict()
+    tiff_path_lookup = dict()
 
     n_rois = len(roi_to_z_mapping)
 
@@ -501,6 +504,7 @@ def _create_z_stack_tiffs(
                     this_z = roi_to_z_mapping[i_roi][ii]
                     if (i_roi, this_z) not in tiff_pages_lookup:
                         tiff_pages_lookup[(i_roi, this_z)] = []
+                        tiff_path_lookup[(i_roi, this_z)] = str_path
                     page = rng.integers(0, 2**16-1, (24, 24)).astype(np.int16)
                     page[i_roi:i_roi+5, i_roi:i_roi+5] = 0
                     page[i_z:i_z+2, i_z:i_z+2] = 1000
@@ -510,7 +514,8 @@ def _create_z_stack_tiffs(
         tifffile.imsave(stack_path, this_tiff)
 
     return (z_stack_path_to_metadata,
-            tiff_pages_lookup)
+            tiff_pages_lookup,
+            tiff_path_lookup)
 
 
 @pytest.mark.parametrize(
@@ -556,6 +561,7 @@ def test_z_stack_splitter(tmp_path_factory,
 
     z_stack_path_to_metadata = dataset[0]
     tiff_pages_lookup = dataset[1]
+    tiff_path_lookup = dataset[2]
 
     def mock_read_metadata(tiff_path):
         str_path = str(tiff_path.resolve().absolute())
@@ -573,6 +579,10 @@ def test_z_stack_splitter(tmp_path_factory,
 
     for i_roi in range(n_rois):
         for z_value in roi_to_z_mapping[i_roi]:
+
+            expected_metadata = mock_read_metadata(
+                    pathlib.Path(tiff_path_lookup[(i_roi, z_value)]))
+
             actual = splitter._get_pages(
                                  i_roi=i_roi,
                                  z_value=z_value)
@@ -586,7 +596,11 @@ def test_z_stack_splitter(tmp_path_factory,
                             z_value=z_value,
                             output_path=tmp_h5)
             with h5py.File(tmp_h5, 'r') as in_file:
+                actual_metadata = json.loads(
+                            in_file['scanimage_metadata'][()].decode('utf-8'))
+                assert actual_metadata == expected_metadata
                 actual = in_file['data'][()]
+
             np.testing.assert_array_equal(actual, expected)
 
             if tmp_h5.is_file():

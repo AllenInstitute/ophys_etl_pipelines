@@ -89,6 +89,7 @@ def run_mesoscope_cli_test(
 
     exp_ct = 0
     for plane_group in input_json['plane_groups']:
+        this_zstack_path = plane_group['local_z_stack_tif']
         for exp in plane_group['ophys_experiments']:
             exp_ct += 1
             exp_dir = exp['storage_directory']
@@ -137,10 +138,14 @@ def run_mesoscope_cli_test(
                 expected = in_file.pages[0].asarray()
             np.testing.assert_array_equal(actual, expected)
 
+            stack_expected = zstack_data[f'expected_{exp_id}']
             stack_actual = exp_dir / f'{exp_id}_z_stack_local.h5'
+            expected_zstack_metadata = zstack_metadata[this_zstack_path]
             with h5py.File(stack_actual, 'r') as in_file:
                 actual = in_file['data'][()]
-            stack_expected = zstack_data[f'expected_{exp_id}']
+                actual_zstack_metadata = json.loads(
+                        in_file['scanimage_metadata'][()].decode('utf-8'))
+                assert actual_zstack_metadata == expected_zstack_metadata
             with h5py.File(stack_expected, 'r') as in_file:
                 expected = in_file['data'][()]
             np.testing.assert_array_equal(actual, expected)

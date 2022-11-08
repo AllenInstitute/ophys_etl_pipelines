@@ -152,14 +152,21 @@ class ZStackSplitter(IntFromZMapperMixin):
             page = tiff_file.pages[z_index].asarray()
         return page.shape
 
+    def _get_tiff_path(self, i_roi: int, z_value: float) -> pathlib.Path:
+        """
+        Return the tiff path corresponding to the (i_roi, z_value) pair
+        """
+        roi_z = (i_roi, self._int_from_z(z_value=z_value))
+        tiff_path = self._roi_z_int_to_path[roi_z]
+        return tiff_path
+
     def _get_pages(self, i_roi: int, z_value: float) -> np.ndarray:
         """
         Get all of the TIFF pages associated in this z-stack set with
         an (i_roi, z_value) pair. Return as a numpy array shaped like
         (n_pages, nrows, ncolumns)
         """
-        roi_z = (i_roi, self._int_from_z(z_value=z_value))
-        tiff_path = self._roi_z_int_to_path[roi_z]
+        tiff_path = self._get_tiff_path(i_roi=i_roi, z_value=z_value)
 
         path_z = (tiff_path, self._int_from_z(z_value=z_value))
         z_index = self._path_z_int_to_index[path_z]
@@ -210,7 +217,17 @@ class ZStackSplitter(IntFromZMapperMixin):
             raise ValueError(msg)
 
         data = self._get_pages(i_roi=i_roi, z_value=z_value)
+
+        metadata = self._path_to_metadata[
+                        self._get_tiff_path(
+                            i_roi=i_roi,
+                            z_value=z_value)].raw_metadata
+
         with h5py.File(output_path, 'w') as out_file:
+            out_file.create_dataset(
+                    'scanimage_metadata',
+                    data=json.dumps(metadata).encode('utf-8'))
+
             out_file.create_dataset('data',
                                     data=data,
                                     chunks=(1, data.shape[1], data.shape[2]))

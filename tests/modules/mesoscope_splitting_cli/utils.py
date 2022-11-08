@@ -105,6 +105,10 @@ def run_mesoscope_cli_test(
             with tifffile.TiffFile(depth_actual, mode='rb') as in_file:
                 assert len(in_file.pages) == 1
                 actual = in_file.pages[0].asarray()
+                actual_depth_metadata = in_file.shaped_metadata[0][
+                                          'scanimage_metadata']
+                assert actual_depth_metadata == image_metadata
+
             depth_expected = depth_data[f'expected_{exp_id}']
             with tifffile.TiffFile(depth_expected, mode='rb') as in_file:
                 assert len(in_file.pages) == 1
@@ -115,6 +119,9 @@ def run_mesoscope_cli_test(
             with tifffile.TiffFile(surface_actual, mode='rb') as in_file:
                 assert len(in_file.pages) == 1
                 actual = in_file.pages[0].asarray()
+                actual_surface_metadata = in_file.shaped_metadata[0][
+                                           'scanimage_metadata']
+                assert actual_surface_metadata == surface_metadata
 
             roi_index = exp['roi_index']
             surface_expected = surface_data[f'expected_{roi_index}']

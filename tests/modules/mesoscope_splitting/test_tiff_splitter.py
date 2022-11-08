@@ -197,6 +197,10 @@ def test_depth_splitter(tmp_path_factory,
         with tifffile.TiffFile(tmp_path, mode='rb') as tiff_file:
             assert len(tiff_file.pages) == 1
             actual = tiff_file.pages[0].asarray()
+            output_metadata = tiff_file.shaped_metadata[0][
+                                           'scanimage_metadata']
+
+            assert output_metadata == metadata
 
         np.testing.assert_array_equal(actual,
                                       avg_img_lookup[(i_roi, z_value)])

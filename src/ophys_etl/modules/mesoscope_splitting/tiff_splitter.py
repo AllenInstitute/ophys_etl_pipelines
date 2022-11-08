@@ -449,7 +449,11 @@ class AvgImageTiffSplitter(TiffSplitterBase):
                                   lower_cutoff=None,
                                   upper_cutoff=None)
 
-        tifffile.imsave(output_path, avg_img)
+        metadata = {'scanimage_metadata': self._metadata.raw_metadata}
+
+        tifffile.imsave(output_path,
+                        avg_img,
+                        metadata=metadata)
         return None
 
 

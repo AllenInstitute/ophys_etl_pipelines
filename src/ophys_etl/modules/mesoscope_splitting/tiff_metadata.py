@@ -38,6 +38,14 @@ class ScanImageMetadata(object):
         return self._file_path
 
     @property
+    def raw_metadata(self) -> tuple:
+        """
+        Return a copy of the raw metadata as read by
+        tifffile.read_scanimage_metadata.
+        """
+        return copy.deepcopy(self._metadata)
+
+    @property
     def numVolumes(self) -> int:
         """
         The metadata field representing the number of volumes

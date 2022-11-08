@@ -570,11 +570,14 @@ class TimeSeriesSplitter(TiffSplitterBase):
                     f"{self._file_path}")
             offset_to_path[offset] = output_path_map[key_pair]
 
+        metadata = self._metadata.raw_metadata
+
         split_timeseries_tiff(
                 tiff_path=self._file_path,
                 tmp_dir=tmp_dir,
                 offset_to_path=offset_to_path,
                 dump_every=dump_every,
-                logger=logger)
+                logger=logger,
+                metadata=metadata)
 
         return None

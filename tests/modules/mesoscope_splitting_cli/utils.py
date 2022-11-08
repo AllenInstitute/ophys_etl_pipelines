@@ -2,6 +2,7 @@ import copy
 import tifffile
 import pathlib
 import h5py
+import json
 from unittest.mock import patch
 import numpy as np
 from ophys_etl.modules.mesoscope_splitting.__main__ import (
@@ -95,7 +96,13 @@ def run_mesoscope_cli_test(
             exp_id = exp['experiment_id']
             ts_actual = exp_dir / f'{exp_id}.h5'
             with h5py.File(ts_actual, 'r') as in_file:
+                actual_timeseries_metadata = json.loads(
+                        in_file['scanimage_metadata'][()].decode('utf-8'))
+
+                assert actual_timeseries_metadata == image_metadata
+
                 actual = in_file['data'][()]
+
             ts_expected = timeseries_data[f'expected_{exp_id}']
             with h5py.File(ts_expected, 'r') as in_file:
                 expected = in_file['data'][()]

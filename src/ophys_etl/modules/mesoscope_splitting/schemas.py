@@ -58,11 +58,19 @@ class InputSchema(ArgSchema):
     plane_groups = Nested(
         PlaneGroup,
         many=True)
-    test_mode = Int(
-        default=0,
-        description=("Flag to run without actually splitting data. For testing"
-                     " runner mechanism and metadata. Testing of splitting "
-                     "is handled in testing for the mesoscope_2p package."))
+    dump_every = Int(
+        required=False,
+        default=3000,
+        description=("Write timeseries data to scratch files every "
+                     "dump_every frames"))
+    tmp_dir = OutputDir(
+        required=False,
+        default='/tmp',
+        description=("Directory where the temporary files created during "
+                     "timeseries splitting are written. If None, each "
+                     "OphysExperiment will create its own temporary "
+                     "directory in the output directory for the final "
+                     "HDF5 file"))
 
 
 class TiffMetadataOutput(DefaultSchema):

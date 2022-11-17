@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Union
 import tifffile
 import copy
 import pathlib
@@ -31,6 +31,16 @@ class ScanImageMetadata(object):
             raise ValueError(f"{tiff_path.resolve().absolute()} "
                              "is not a file")
         self._metadata = _read_metadata(tiff_path)
+
+    @property
+    def channelSave(self) -> Union[int, List[int]]:
+        """
+        The metadata field representing which channels were saved
+        in this TIFF. Either 1 or [1, 2]
+        """
+        if not hasattr(self, '_channelSave'):
+            self._channelSave = self._metadata[0]['SI.hChannels.channelSave']
+        return self._channelSave
 
     @property
     def defined_rois(self) -> List[dict]:

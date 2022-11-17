@@ -31,6 +31,12 @@ class ZStackSplitter(IntFromZMapperMixin):
             self._path_to_metadata[str_path] = ScanImageMetadata(
                                                 tiff_path=tiff_path)
 
+            if self._path_to_metadata[str_path].channelSave != [1, 2]:
+                raise RuntimeError(
+                    f"metadata for {str_path} has channelSave="
+                    f"{self._path_to_metadata[str_path].channelSave}\n"
+                    "can only handle channelSave==[1, 2]")
+
         # construct lookup tables to help us map ROI index and z-value
         # to a tiff path and an index in the z-array
 
@@ -162,13 +168,15 @@ class ZStackSplitter(IntFromZMapperMixin):
         n_pages = self._path_to_pages[tiff_path]
         baseline_shape = self.frame_shape(i_roi=i_roi, z_value=z_value)
         with tifffile.TiffFile(tiff_path, mode='rb') as tiff_file:
-            for i_page in range(z_index, n_pages, 2):
-                this_page = tiff_file.pages[i_page].asarray()
-                if this_page.shape != baseline_shape:
-                    msg = f"ROI {i_roi} z_value {z_value} "
-                    msg += "give inconsistent page shape"
-                    raise RuntimeError(msg)
-                data.append(this_page)
+            data = [tiff_file.pages[i_page].asarray()
+                    for i_page in range(z_index, n_pages, 2)]
+
+        for this_page in data:
+            if this_page.shape != baseline_shape:
+                msg = f"ROI {i_roi} z_value {z_value} "
+                msg += "give inconsistent page shape"
+                raise RuntimeError(msg)
+
         return np.stack(data)
 
     def write_output_file(self,

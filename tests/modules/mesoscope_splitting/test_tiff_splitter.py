@@ -11,7 +11,7 @@ import copy
 from ophys_etl.utils.array_utils import normalize_array
 
 from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
-    ScanImageTiffSplitter,
+    AvgImageTiffSplitter,
     TimeSeriesSplitter)
 
 from ophys_etl.modules.mesoscope_splitting.zstack_splitter import (
@@ -42,6 +42,8 @@ def _create_image_tiff(
     -------
     the path to the TIFF
 
+    a dict mapping roi_id, z -> raw average image
+
     a dict mapping roi_id, z -> normalized average image
 
     a dict mapping roi_id, z -> expected tiff pages
@@ -51,6 +53,7 @@ def _create_image_tiff(
     """
 
     avg_img_lookup = dict()
+    raw_avg_img_lookup = dict()
     page_lookup = dict()
     tiff_pages = []
     n_pages = 5
@@ -76,6 +79,7 @@ def _create_image_tiff(
         sub_arr = tiff_pages[i_z::len(z_value_list), :, :]
         mean_img = np.mean(sub_arr, axis=0)
         roi_id = i_z//n_z_per_roi
+        raw_avg_img_lookup[(roi_id, z_value)] = mean_img
         avg_img_lookup[(roi_id, z_value)] = normalize_array(mean_img)
 
     z_array = []
@@ -95,6 +99,11 @@ def _create_image_tiff(
         key_name = 'SI.hStackManager.zsAllActuators'
     metadata.append({key_name: z_array})
 
+    if is_surface:
+        metadata[0]['SI.hChannels.channelSave'] = 1
+    else:
+        metadata[0]['SI.hChannels.channelSave'] = [1, 2]
+
     roi_list = []
     for ii in range(0, len(z_value_list), n_z_per_roi):
         this_list = copy.deepcopy(list(z_value_list[ii:ii+n_z_per_roi]))
@@ -107,7 +116,11 @@ def _create_image_tiff(
 
     metadata.append(roi_metadata)
 
-    return (tmp_path, avg_img_lookup, page_lookup, metadata)
+    return (tmp_path,
+            raw_avg_img_lookup,
+            avg_img_lookup,
+            page_lookup,
+            metadata)
 
 
 @pytest.mark.parametrize(
@@ -147,16 +160,17 @@ def test_depth_splitter(tmp_path_factory,
                     is_surface=False)
 
     tiff_path = depth_tiff[0]
-    avg_img_lookup = depth_tiff[1]
-    page_lookup = depth_tiff[2]
-    metadata = depth_tiff[3]
+    raw_avg_img_lookup = depth_tiff[1]
+    avg_img_lookup = depth_tiff[2]
+    page_lookup = depth_tiff[3]
+    metadata = depth_tiff[4]
 
     n_z_per_roi = len(z_value_list) // n_rois
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
 
-        splitter = ScanImageTiffSplitter(tiff_path=tiff_path)
+        splitter = AvgImageTiffSplitter(tiff_path=tiff_path)
     for i_z, z_value in enumerate(z_value_list):
         i_roi = i_z//n_z_per_roi
         arr = splitter._get_pages(i_roi=i_roi,
@@ -167,8 +181,16 @@ def test_depth_splitter(tmp_path_factory,
             np.testing.assert_array_equal(expected,
                                           arr[i_page])
 
+        actual = splitter.get_avg_img(
+                    i_roi=i_roi,
+                    z_value=z_value)
+        np.testing.assert_allclose(
+                    actual,
+                    raw_avg_img_lookup[(i_roi, z_value)])
+
         tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
         tmp_path = pathlib.Path(tmp_path)
+
         splitter.write_output_file(i_roi=i_roi,
                                    z_value=z_value,
                                    output_path=tmp_path)
@@ -222,13 +244,13 @@ def test_splitter_manifest(tmp_path_factory,
                     is_surface=False)
 
     tiff_path = depth_tiff[0]
-    metadata = depth_tiff[3]
+    metadata = depth_tiff[4]
 
     n_z_per_roi = len(z_value_list) // n_rois
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
-        splitter = ScanImageTiffSplitter(tiff_path=tiff_path)
+        splitter = AvgImageTiffSplitter(tiff_path=tiff_path)
 
     assert splitter.n_pages == 5*len(z_value_list)
     assert splitter.n_valid_zs == len(z_value_list)
@@ -291,13 +313,14 @@ def test_surface_splitter(tmp_path_factory,
                     is_surface=True)
 
     tiff_path = surface_tiff[0]
-    avg_img_lookup = surface_tiff[1]
-    page_lookup = surface_tiff[2]
-    metadata = surface_tiff[3]
+    raw_avg_img_lookup = surface_tiff[1]
+    avg_img_lookup = surface_tiff[2]
+    page_lookup = surface_tiff[3]
+    metadata = surface_tiff[4]
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
-        splitter = ScanImageTiffSplitter(tiff_path=tiff_path)
+        splitter = AvgImageTiffSplitter(tiff_path=tiff_path)
 
     for i_z, z_value in enumerate(z_value_list):
         i_roi = i_z//n_z_per_roi
@@ -309,10 +332,18 @@ def test_surface_splitter(tmp_path_factory,
             np.testing.assert_array_equal(expected,
                                           arr[i_page])
 
+        actual = splitter.get_avg_img(
+                    i_roi=i_roi,
+                    z_value=None)
+
+        np.testing.assert_allclose(
+                actual,
+                raw_avg_img_lookup[(i_roi, z_value)])
+
         tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
         tmp_path = pathlib.Path(tmp_path)
         splitter.write_output_file(i_roi=i_roi,
-                                   z_value=z_value,
+                                   z_value=None,
                                    output_path=tmp_path)
         with tifffile.TiffFile(tmp_path, mode='rb') as tiff_file:
             assert len(tiff_file.pages) == 1
@@ -366,21 +397,28 @@ def test_time_splitter(tmp_path_factory,
                     is_surface=True)
 
     tiff_path = time_tiff[0]
-    page_lookup = time_tiff[2]
-    metadata = time_tiff[3]
+    page_lookup = time_tiff[3]
+    metadata = time_tiff[4]
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
         splitter = TimeSeriesSplitter(tiff_path=tiff_path)
 
+    output_path_map = dict()
     for i_z, z_value in enumerate(z_value_list):
         i_roi = i_z//n_z_per_roi
-        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.h5')[1]
-        tmp_path = pathlib.Path(tmp_path)
-        splitter.write_output_file(
-                        i_roi=i_roi,
-                        z_value=z_value,
-                        output_path=tmp_path)
+        output_path = pathlib.Path(
+                tempfile.mkstemp(dir=tmp_dir, suffix='.h5')[1])
+        output_path_map[(i_roi, z_value)] = output_path
+
+    splitter.write_output_files(
+            output_path_map=output_path_map,
+            tmp_dir=tmp_dir,
+            dump_every=5)
+
+    for i_z, z_value in enumerate(z_value_list):
+        i_roi = i_z//n_z_per_roi
+        tmp_path = output_path_map[(i_roi, z_value)]
         with h5py.File(tmp_path, 'r') as in_file:
             actual = in_file['data'][()]
         expected = np.stack(page_lookup[(i_roi, z_value)])
@@ -388,6 +426,7 @@ def test_time_splitter(tmp_path_factory,
 
         if tmp_path.is_file():
             tmp_path.unlink()
+
     if tiff_path.is_file():
         tiff_path.unlink()
 
@@ -445,7 +484,8 @@ def _create_z_stack_tiffs(
         for ii in range(len(z0_values)):
             z_values.append([z0_values[ii], z1_values[ii]])
 
-        metadata = [{z_key: z_values},
+        metadata = [{z_key: z_values,
+                     'SI.hChannels.channelSave': [1, 2]},
                     roi_metadata]
         str_path = str(stack_path.resolve().absolute())
         z_stack_path_to_metadata[str_path] = metadata

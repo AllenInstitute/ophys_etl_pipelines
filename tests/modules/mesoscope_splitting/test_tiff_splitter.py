@@ -436,6 +436,83 @@ def test_time_splitter(tmp_path_factory,
         tiff_path.unlink()
 
 
+def test_invalid_timeseries_output_map(
+        tmp_path_factory,
+        helper_functions):
+    """
+    Test that timeseries splitter raises expected errors
+    for invalid output map values
+    """
+
+    # construct a self-consistent timeseries TIFF with metadata
+    z_value_list = list(range(8))
+    n_rois = 2
+    use_zs = True
+    n_rois = len(z_value_list)
+    n_z_per_roi = 1
+
+    tmp_dir = pathlib.Path(
+            tmp_path_factory.mktemp('test_invalid_timeseries'))
+
+    time_tiff = _create_image_tiff(
+                    tmp_dir,
+                    z_value_list,
+                    n_rois,
+                    use_zs=use_zs,
+                    is_surface=True)
+
+    tiff_path = time_tiff[0]
+    metadata = time_tiff[4]
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        splitter = TimeSeriesSplitter(tiff_path=tiff_path)
+
+    output_path_map = dict()
+    for i_z, z_value in enumerate(z_value_list):
+        i_roi = i_z//n_z_per_roi
+        output_path = pathlib.Path(
+                tempfile.mkstemp(dir=tmp_dir, suffix='.h5')[1])
+        output_path_map[(i_roi, z_value)] = output_path
+
+    # test i_roi that is too large
+    output_path_map[(11, 2.0)] = tmp_dir / 'junk.h5'
+    with pytest.raises(ValueError, match='there are only'):
+        splitter.write_output_files(
+            output_path_map=output_path_map)
+    output_path_map.pop((11, 2.0))
+
+    # test i_roi < 0
+    z_value = z_value_list[1]
+    output_path_map[(-2, z_value)] = output_path_map[(1, z_value)]
+    with pytest.raises(ValueError, match='i_roi must be >= 0'):
+        splitter.write_output_files(
+            output_path_map=output_path_map)
+    output_path_map.pop((-2, z_value))
+
+    # test z value that does not match i_roi
+    output_path_map[(3, 11111.0)] = tmp_dir / 'junk.h5'
+    with pytest.raises(ValueError, match='is not a valid z value for ROI'):
+        splitter.write_output_files(
+            output_path_map=output_path_map)
+    output_path_map.pop((3, 11111.0))
+
+    # test when the file suffix is not .h5
+    z_value = z_value_list[0]
+    output_path_map[(0, z_value)] = tmp_dir / 'junk.json'
+    with pytest.raises(ValueError, match='expected HDF5 output path'):
+        splitter.write_output_files(
+            output_path_map=output_path_map)
+
+    # test when you haven't specified a path for every ROI
+    output_path_map.pop((0, z_value))
+    with pytest.raises(ValueError, match="says it contains"):
+        splitter.write_output_files(
+            output_path_map=output_path_map)
+
+    helper_functions.clean_up_dir(tmp_dir)
+
+
 def _create_z_stack_tiffs(
         tmpdir: pathlib.Path,
         roi_to_z_mapping: List[List[int]],

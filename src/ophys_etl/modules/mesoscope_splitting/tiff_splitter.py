@@ -525,6 +525,11 @@ class TimeSeriesSplitter(TiffSplitterBase):
             i_roi = key_pair[0]
             z_value = key_pair[1]
 
+            if i_roi < 0:
+                msg = f"You asked for ROI {i_roi}; "
+                msg += "i_roi must be >= 0"
+                raise ValueError(msg)
+
             if i_roi >= self.n_rois:
                 msg = f"You asked for ROI {i_roi}; "
                 msg += f"there are only {self.n_rois} ROIs "

@@ -287,10 +287,16 @@ def _gather_timeseries_caches(
     n_frames = 0
     fov_shape = None
     video_dtype = None
+    one_frame = None  # for calculating frame size in memory
+
     for file_path in file_path_list:
         with h5py.File(file_path, 'r') as in_file:
             n_frames += in_file['data'].shape[0]
             this_fov_shape = in_file['data'].shape[1:]
+
+            if one_frame is None:
+                one_frame = in_file['data'][0, :, :]
+
             if fov_shape is None:
                 fov_shape = this_fov_shape
                 video_dtype = in_file['data'].dtype
@@ -305,8 +311,6 @@ def _gather_timeseries_caches(
     # and set that as the maximum chunk size for the final
     # HDF5 file.
     three_gb = 3*1024**3
-    with h5py.File(file_path_list[0], 'r') as in_file:
-        one_frame = in_file['data'][0, :, :]
     bytes_per_frame = len(one_frame.tobytes())
     max_chunk_size = np.floor(three_gb/bytes_per_frame).astype(int)
 

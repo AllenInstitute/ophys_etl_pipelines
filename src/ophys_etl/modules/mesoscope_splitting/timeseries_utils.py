@@ -281,7 +281,7 @@ def _gather_timeseries_caches(
 
     # apparently, HDF5 chunks sizes must be less than 4 GB;
     # figure out how many frames fit in 3GB (just in case)
-    # and set that as the minimum chunk size for the final
+    # and set that as the maximum chunk size for the final
     # HDF5 file.
     three_gb = 3*1024**3
     with h5py.File(file_path_list[0], 'r') as in_file:

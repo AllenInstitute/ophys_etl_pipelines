@@ -77,6 +77,35 @@ def _insert_rois_into_surface_img(
         full_field_img: np.ndarray,
         full_field_metadata: ScanImageMetadata,
         avg_image_splitter: AvgImageTiffSplitter) -> np.ndarray:
+    """
+    Insert thumbnails from avg_image_splitter into a stitched
+    full field image.
+
+    Parameters
+    ----------
+    full_field_img: np.ndarray
+        The stitched full field image into which we are inserting
+        the ROI thumbnails
+
+    full_filed_metadata: ScanImageMetadata
+        Metadata read from the original full_field_img TIFF file
+
+    avg_image_splitter: AvgImageTiffSplitter
+        Splitter which will provide the ROI thumbnails (using
+        get_avg_img(i_roi=i_roi)
+
+    Returns
+    -------
+    output_img: np.ndarray
+        A copy of full_filed_img with the ROI thumbnails
+        from avg_image_splitter superimposed in the correct
+        location.
+
+    Notes
+    -----
+    One of the first steps is ot make a copy of full_field_img,
+    so this method does not alter full_filed_img in place.
+    """
 
     (ff_resolution,
      ff_size) = _validate_all_roi_same_size(full_field_metadata)

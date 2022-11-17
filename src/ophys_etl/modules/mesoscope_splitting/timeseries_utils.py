@@ -287,12 +287,15 @@ def _gather_timeseries_caches(
     with h5py.File(file_path_list[0], 'r') as in_file:
         one_frame = in_file['data'][0, :, :]
     bytes_per_frame = len(one_frame.tobytes())
-    min_chunk_size = np.floor(three_gb/bytes_per_frame).astype(int)
-    min_chunk_size = min(n_frames, min_chunk_size)
+    max_chunk_size = np.floor(three_gb/bytes_per_frame).astype(int)
 
     chunk_size = n_frames // 100
-    if chunk_size < min_chunk_size:
-        chunk_size = min_chunk_size
+
+    if chunk_size < n_frames:
+        chunk_size = n_frames
+
+    if chunk_size > max_chunk_size:
+        chunk_size = max_chunk_size
 
     with h5py.File(final_output_path, 'w') as out_file:
         out_file.create_dataset(

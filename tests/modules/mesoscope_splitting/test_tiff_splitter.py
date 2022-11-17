@@ -7,6 +7,7 @@ import pathlib
 import tempfile
 import tifffile
 import copy
+import json
 
 from ophys_etl.utils.array_utils import normalize_array
 
@@ -197,6 +198,10 @@ def test_depth_splitter(tmp_path_factory,
         with tifffile.TiffFile(tmp_path, mode='rb') as tiff_file:
             assert len(tiff_file.pages) == 1
             actual = tiff_file.pages[0].asarray()
+            output_metadata = tiff_file.shaped_metadata[0][
+                                           'scanimage_metadata']
+
+            assert output_metadata == metadata
 
         np.testing.assert_array_equal(actual,
                                       avg_img_lookup[(i_roi, z_value)])
@@ -431,6 +436,83 @@ def test_time_splitter(tmp_path_factory,
         tiff_path.unlink()
 
 
+def test_invalid_timeseries_output_map(
+        tmp_path_factory,
+        helper_functions):
+    """
+    Test that timeseries splitter raises expected errors
+    for invalid output map values
+    """
+
+    # construct a self-consistent timeseries TIFF with metadata
+    z_value_list = list(range(8))
+    n_rois = 2
+    use_zs = True
+    n_rois = len(z_value_list)
+    n_z_per_roi = 1
+
+    tmp_dir = pathlib.Path(
+            tmp_path_factory.mktemp('test_invalid_timeseries'))
+
+    time_tiff = _create_image_tiff(
+                    tmp_dir,
+                    z_value_list,
+                    n_rois,
+                    use_zs=use_zs,
+                    is_surface=True)
+
+    tiff_path = time_tiff[0]
+    metadata = time_tiff[4]
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        splitter = TimeSeriesSplitter(tiff_path=tiff_path)
+
+    output_path_map = dict()
+    for i_z, z_value in enumerate(z_value_list):
+        i_roi = i_z//n_z_per_roi
+        output_path = pathlib.Path(
+                tempfile.mkstemp(dir=tmp_dir, suffix='.h5')[1])
+        output_path_map[(i_roi, z_value)] = output_path
+
+    # test i_roi that is too large
+    output_path_map[(11, 2.0)] = tmp_dir / 'junk.h5'
+    with pytest.raises(ValueError, match='there are only'):
+        splitter.write_output_files(
+            output_path_map=output_path_map)
+    output_path_map.pop((11, 2.0))
+
+    # test i_roi < 0
+    z_value = z_value_list[1]
+    output_path_map[(-2, z_value)] = output_path_map[(1, z_value)]
+    with pytest.raises(ValueError, match='i_roi must be >= 0'):
+        splitter.write_output_files(
+            output_path_map=output_path_map)
+    output_path_map.pop((-2, z_value))
+
+    # test z value that does not match i_roi
+    output_path_map[(3, 11111.0)] = tmp_dir / 'junk.h5'
+    with pytest.raises(ValueError, match='is not a valid z value for ROI'):
+        splitter.write_output_files(
+            output_path_map=output_path_map)
+    output_path_map.pop((3, 11111.0))
+
+    # test when the file suffix is not .h5
+    z_value = z_value_list[0]
+    output_path_map[(0, z_value)] = tmp_dir / 'junk.json'
+    with pytest.raises(ValueError, match='expected HDF5 output path'):
+        splitter.write_output_files(
+            output_path_map=output_path_map)
+
+    # test when you haven't specified a path for every ROI
+    output_path_map.pop((0, z_value))
+    with pytest.raises(ValueError, match="says it contains"):
+        splitter.write_output_files(
+            output_path_map=output_path_map)
+
+    helper_functions.clean_up_dir(tmp_dir)
+
+
 def _create_z_stack_tiffs(
         tmpdir: pathlib.Path,
         roi_to_z_mapping: List[List[int]],
@@ -443,12 +525,14 @@ def _create_z_stack_tiffs(
     -------
     dict mapping z_stack_path to metadata
     dict mapping (i_roi, z_value) to tiff_pages_lookup
+    dict mapping (i_roi, z_value) to z_stack_path
     """
 
     rng = np.random.default_rng(662211)
 
     tiff_pages_lookup = dict()
     z_stack_path_to_metadata = dict()
+    tiff_path_lookup = dict()
 
     n_rois = len(roi_to_z_mapping)
 
@@ -497,6 +581,7 @@ def _create_z_stack_tiffs(
                     this_z = roi_to_z_mapping[i_roi][ii]
                     if (i_roi, this_z) not in tiff_pages_lookup:
                         tiff_pages_lookup[(i_roi, this_z)] = []
+                        tiff_path_lookup[(i_roi, this_z)] = str_path
                     page = rng.integers(0, 2**16-1, (24, 24)).astype(np.int16)
                     page[i_roi:i_roi+5, i_roi:i_roi+5] = 0
                     page[i_z:i_z+2, i_z:i_z+2] = 1000
@@ -506,7 +591,8 @@ def _create_z_stack_tiffs(
         tifffile.imsave(stack_path, this_tiff)
 
     return (z_stack_path_to_metadata,
-            tiff_pages_lookup)
+            tiff_pages_lookup,
+            tiff_path_lookup)
 
 
 @pytest.mark.parametrize(
@@ -552,6 +638,7 @@ def test_z_stack_splitter(tmp_path_factory,
 
     z_stack_path_to_metadata = dataset[0]
     tiff_pages_lookup = dataset[1]
+    tiff_path_lookup = dataset[2]
 
     def mock_read_metadata(tiff_path):
         str_path = str(tiff_path.resolve().absolute())
@@ -569,6 +656,10 @@ def test_z_stack_splitter(tmp_path_factory,
 
     for i_roi in range(n_rois):
         for z_value in roi_to_z_mapping[i_roi]:
+
+            expected_metadata = mock_read_metadata(
+                    pathlib.Path(tiff_path_lookup[(i_roi, z_value)]))
+
             actual = splitter._get_pages(
                                  i_roi=i_roi,
                                  z_value=z_value)
@@ -582,7 +673,11 @@ def test_z_stack_splitter(tmp_path_factory,
                             z_value=z_value,
                             output_path=tmp_h5)
             with h5py.File(tmp_h5, 'r') as in_file:
+                actual_metadata = json.loads(
+                            in_file['scanimage_metadata'][()].decode('utf-8'))
+                assert actual_metadata == expected_metadata
                 actual = in_file['data'][()]
+
             np.testing.assert_array_equal(actual, expected)
 
             if tmp_h5.is_file():

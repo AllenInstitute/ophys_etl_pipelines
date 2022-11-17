@@ -232,6 +232,22 @@ class TiffSplitterBase(IntFromZMapperMixin):
         """
         return self._metadata.roi_center(i_roi=i_roi)
 
+    def roi_size(
+            self,
+            i_roi: int) -> Tuple[float, float]:
+        """
+        The physical space size (x, y) of the i_roith ROI
+        """
+        return self._metadata.roi_size(i_roi=i_roi)
+
+    def roi_resolution(
+            self,
+            i_roi: int) -> Tuple[int, int]:
+        """
+        The pixel resolution of the i_roith ROI
+        """
+        return self._metadata.roi_resolution(i_roi=i_roi)
+
     def _get_offset(self, i_roi: int, z_value: float) -> int:
         """
         Get the first page associated with the specified
@@ -433,7 +449,11 @@ class AvgImageTiffSplitter(TiffSplitterBase):
                                   lower_cutoff=None,
                                   upper_cutoff=None)
 
-        tifffile.imsave(output_path, avg_img)
+        metadata = {'scanimage_metadata': self._metadata.raw_metadata}
+
+        tifffile.imsave(output_path,
+                        avg_img,
+                        metadata=metadata)
         return None
 
 
@@ -505,6 +525,11 @@ class TimeSeriesSplitter(TiffSplitterBase):
             i_roi = key_pair[0]
             z_value = key_pair[1]
 
+            if i_roi < 0:
+                msg = f"You asked for ROI {i_roi}; "
+                msg += "i_roi must be >= 0"
+                raise ValueError(msg)
+
             if i_roi >= self.n_rois:
                 msg = f"You asked for ROI {i_roi}; "
                 msg += f"there are only {self.n_rois} ROIs "
@@ -550,11 +575,14 @@ class TimeSeriesSplitter(TiffSplitterBase):
                     f"{self._file_path}")
             offset_to_path[offset] = output_path_map[key_pair]
 
+        metadata = self._metadata.raw_metadata
+
         split_timeseries_tiff(
                 tiff_path=self._file_path,
                 tmp_dir=tmp_dir,
                 offset_to_path=offset_to_path,
                 dump_every=dump_every,
-                logger=logger)
+                logger=logger,
+                metadata=metadata)
 
         return None

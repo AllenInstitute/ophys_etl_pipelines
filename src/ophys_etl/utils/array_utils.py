@@ -94,17 +94,19 @@ def normalize_array(
         lower_cutoff: Optional[float] = None,
         upper_cutoff: Optional[float] = None,
         dtype: type = np.uint8) -> np.ndarray:
-    """Normalize an array into uint8 with cutoff values
+    """
+    Normalize an array into an integer type with
+    cutoff values
 
     Parameters
     ----------
     array: numpy.ndarray (float)
         array to be normalized
     lower_cutoff: Optional[float]
-        threshold, below which will be = 0
+        threshold, below which will be = dtype.min
         (if None, will be set to array.min())
     upper_cutoff: Optional[float]
-        threshold, above which will be = 255
+        threshold, above which will be = dtype.max
         (if None, will be set to array.max())
     dtype: type
         The type (must be a numpy integer type)
@@ -114,8 +116,8 @@ def normalize_array(
 
     Returns
     -------
-    normalized: numpy.ndarray (uint8)
-        normalized array
+    normalized: numpy.ndarray
+        normalized array of the specified integer type
 
     """
     final_max = np.iinfo(dtype).max

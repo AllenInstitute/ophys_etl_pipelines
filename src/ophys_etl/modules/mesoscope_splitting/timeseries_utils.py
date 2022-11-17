@@ -7,6 +7,7 @@ import tempfile
 import datetime
 import os
 import shutil
+import json
 import time
 
 
@@ -15,7 +16,8 @@ def split_timeseries_tiff(
         offset_to_path: Dict,
         tmp_dir: Optional[pathlib.Path] = None,
         dump_every: int = 1000,
-        logger: Optional[callable] = None) -> None:
+        logger: Optional[callable] = None,
+        metadata: Optional[dict] = None) -> None:
     """
     Split a timeseries TIFF containing multiple mesoscope
     movies into individual HDF5 files.
@@ -45,6 +47,11 @@ def split_timeseries_tiff(
 
     logger: Optional[callable]
         Log statements will be written to logger.info()
+
+    metadata: Optional[dict]
+        The metadata read by tifffile.read_scanimage_metadata.
+        If not None, will be serialized and stored as a bytestring
+        in the HDF5 file.
 
     Returns
     -------
@@ -104,7 +111,8 @@ def split_timeseries_tiff(
             offset_to_tmp_files=offset_to_tmp_files,
             offset_to_tmp_dir=offset_to_tmp_dir,
             dump_every=dump_every,
-            logger=logger)
+            logger=logger,
+            metadata=metadata)
     finally:
         for offset in offset_to_tmp_files:
             for tmp_pth in offset_to_tmp_files[offset]:
@@ -123,7 +131,8 @@ def _split_timeseries_tiff(
         offset_to_tmp_files: Dict,
         offset_to_tmp_dir: Dict,
         dump_every: int = 1000,
-        logger: Optional[callable] = None) -> None:
+        logger: Optional[callable] = None,
+        metadata: Optional[dict] = None) -> None:
     """
     Method to do the work behind split_timeseries_tiff
 
@@ -150,6 +159,11 @@ def _split_timeseries_tiff(
 
     logger: Optional[callable]
         Log statements will be written to logger.info()
+
+    metadata: Optional[dict]
+        The metadata read by tifffile.read_scanimage_metadata.
+        If not None, will be serialized and stored as a bytestring
+        in the HDF5 file.
 
     Returns
     -------
@@ -222,7 +236,8 @@ def _split_timeseries_tiff(
     for offset in offset_to_tmp_files:
         _gather_timeseries_caches(
             file_path_list=offset_to_tmp_files[offset],
-            final_output_path=offset_to_path[offset])
+            final_output_path=offset_to_path[offset],
+            metadata=metadata)
         if logger is not None:
             duration = time.time()-t0
             msg = f"Wrote {offset_to_path[offset]} after "
@@ -237,7 +252,8 @@ def _split_timeseries_tiff(
 
 def _gather_timeseries_caches(
         file_path_list: List[pathlib.Path],
-        final_output_path: pathlib.Path) -> None:
+        final_output_path: pathlib.Path,
+        metadata: Optional[dict] = None) -> None:
     """
     Take a list of HDF5 files containing an array 'data' and
     join them into a single HDF5 file with an array 'data' that
@@ -251,6 +267,11 @@ def _gather_timeseries_caches(
     final_output_path: pathlib.Path
         Path to the HDF5 file that is produced by joining
         file_path_list
+
+    metadata: Optional[dict]
+        The metadata read by tifffile.read_scanimage_metadata.
+        If not None, will be serialized and stored as a bytestring
+        in the HDF5 file.
 
     Return
     ------
@@ -266,10 +287,16 @@ def _gather_timeseries_caches(
     n_frames = 0
     fov_shape = None
     video_dtype = None
+    one_frame = None  # for calculating frame size in memory
+
     for file_path in file_path_list:
         with h5py.File(file_path, 'r') as in_file:
             n_frames += in_file['data'].shape[0]
             this_fov_shape = in_file['data'].shape[1:]
+
+            if one_frame is None:
+                one_frame = in_file['data'][0, :, :]
+
             if fov_shape is None:
                 fov_shape = this_fov_shape
                 video_dtype = in_file['data'].dtype
@@ -284,8 +311,6 @@ def _gather_timeseries_caches(
     # and set that as the maximum chunk size for the final
     # HDF5 file.
     three_gb = 3*1024**3
-    with h5py.File(file_path_list[0], 'r') as in_file:
-        one_frame = in_file['data'][0, :, :]
     bytes_per_frame = len(one_frame.tobytes())
     max_chunk_size = np.floor(three_gb/bytes_per_frame).astype(int)
 
@@ -298,6 +323,13 @@ def _gather_timeseries_caches(
         chunk_size = max_chunk_size
 
     with h5py.File(final_output_path, 'w') as out_file:
+
+        if metadata is not None:
+            serialized_metadata = json.dumps(metadata).encode('utf-8')
+            out_file.create_dataset(
+                'scanimage_metadata',
+                data=serialized_metadata)
+
         out_file.create_dataset(
             'data',
             shape=(n_frames, fov_shape[0], fov_shape[1]),

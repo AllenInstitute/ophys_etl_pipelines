@@ -279,9 +279,20 @@ def _gather_timeseries_caches(
                         "Inconsistent FOV shape\n"
                         f"{fov_shape}\n{this_fov_shape}")
 
+    # apparently, HDF5 chunks sizes must be less than 4 GB;
+    # figure out how many frames fit in 3GB (just in case)
+    # and set that as the minimum chunk size for the final
+    # HDF5 file.
+    three_gb = 3*1024**3
+    with h5py.File(file_path_list[0], 'r') as in_file:
+        one_frame = in_file['data'][0, :, :]
+    bytes_per_frame = len(one_frame.tobytes())
+    min_chunk_size = np.floor(three_gb/bytes_per_frame).astype(int)
+    min_chunk_size = min(n_frames, min_chunk_size)
+
     chunk_size = n_frames // 100
-    if chunk_size < 100:
-        chunk_size = n_frames
+    if chunk_size < min_chunk_size:
+        chunk_size = min_chunk_size
 
     with h5py.File(final_output_path, 'w') as out_file:
         out_file.create_dataset(

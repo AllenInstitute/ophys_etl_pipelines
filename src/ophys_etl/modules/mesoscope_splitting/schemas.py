@@ -43,6 +43,15 @@ class PlaneGroup(DefaultSchema):
 
 class InputSchema(ArgSchema):
     log_level = Str(required=False, default="INFO")
+    platform_json_path = InputFile(
+        required=False,
+        description=("Full path to the platform.json file. "
+                     "This file actually contains all of the "
+                     "parameters needed to perform the TIFF "
+                     "splitting operation. In the future, we "
+                     "should be able to replace the other "
+                     "input parameters with code that reads "
+                     "them directly from this file"))
     depths_tif = InputFile(
         required=True,
         description="Full path to depth 2p tiff file.")

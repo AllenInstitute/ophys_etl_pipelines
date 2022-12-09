@@ -60,7 +60,8 @@ def test_splitter_4x2_with_repeats(
                       depth_fixture,
                       surface_fixture,
                       timeseries_fixture,
-                      zstack_fixture):
+                      zstack_fixture,
+                      full_field_2p_tiff_fixture):
 
     tmp_dir = tmp_path_factory.mktemp('cli_output_json_4x2_repeats')
     tmp_dir = pathlib.Path(tmp_dir)
@@ -73,6 +74,7 @@ def test_splitter_4x2_with_repeats(
                 depth_data=depth_fixture,
                 surface_data=surface_fixture,
                 timeseries_data=timeseries_fixture,
-                zstack_data=zstack_fixture)
+                zstack_data=zstack_fixture,
+                full_field_2p_tiff_data=full_field_2p_tiff_fixture)
 
     assert exp_ct == 8

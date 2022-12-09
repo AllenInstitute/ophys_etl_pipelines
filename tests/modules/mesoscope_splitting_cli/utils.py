@@ -18,7 +18,8 @@ def run_mesoscope_cli_test(
         depth_data,
         surface_data,
         timeseries_data,
-        zstack_data) -> int:
+        zstack_data,
+        full_field_2p_tiff_data) -> int:
     """
     This is a utility method to run the mesoscope CLI test using
     data generated in a self-consistent way by the pytest fixtures
@@ -57,6 +58,9 @@ def run_mesoscope_cli_test(
     zstack_data:
         The result of zstack_fixture
 
+    full_field_2p_tiff_data:
+        The result of full_field_2p_tiff_data
+
     Returns
     -------
     an integer indicating the number of simulated experiments that
@@ -68,10 +72,13 @@ def run_mesoscope_cli_test(
     input_json = copy.deepcopy(input_json)
     input_json['output_json'] = output_json
 
+    full_field_metadata = full_field_2p_tiff_data['metadata']
+
     metadata_lookup = copy.deepcopy(zstack_metadata)
     metadata_lookup[input_json['timeseries_tif']] = image_metadata
     metadata_lookup[input_json['depths_tif']] = image_metadata
     metadata_lookup[input_json['surface_tif']] = surface_metadata
+    metadata_lookup[full_field_2p_tiff_data['raw']] = full_field_metadata
 
     def mock_read_metadata(tiff_path):
         str_path = str(tiff_path.resolve().absolute())

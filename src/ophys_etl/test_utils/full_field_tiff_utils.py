@@ -81,7 +81,7 @@ def _create_roi_metadata(
         pixelResolutionXY[0] for each ROI
 
     roiy: int
-        pixelResoluitonXY[1] for each ROI
+        pixelResolutionXY[1] for each ROI
 
     sizex: float
         sizeXY[0] for each ROI

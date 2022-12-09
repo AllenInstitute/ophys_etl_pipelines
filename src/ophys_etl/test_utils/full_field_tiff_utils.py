@@ -85,7 +85,7 @@ def _create_roi_metadata(
         pixelResolutionXY[1] for each ROI
 
     sizex: float
-        sizeXY[0] for each ROI
+        sizeXY[0] for each ROI.
 
     sizey: float
         sizeXY[1] for each ROI
@@ -102,6 +102,9 @@ def _create_roi_metadata(
     ROIs will be given a centerXY value that is the same in y
     but increments in x. This is the arrangement of ROIs in the
     full field TIFF files we are meant to stitch together.
+
+    sizexy is the physical size of each ROI that makes up the
+    stitched image.
     """
 
     roi_metadata = {

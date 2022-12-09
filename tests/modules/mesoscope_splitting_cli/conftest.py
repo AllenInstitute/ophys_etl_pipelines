@@ -54,6 +54,39 @@ def _roi_index_to_centerxy(roi_index):
 
 
 @pytest.fixture
+def fullfield_roi_size_fixture():
+    """
+    Return a tuple representing the size of the ROIs that make up
+    the full field stitched image in physical coordinates
+    """
+    return (1.0, 1.0)
+
+
+@pytest.fixture
+def surface_roi_resolutionxy_fixture():
+    """
+    pixelResolutionXY for the average surface image ROIs
+    (these are the sizes of the ROIs in pixel coordinate)
+    """
+
+    # Note: if the size gets reduced to (4, 4),
+    # then tifffile will save all of the average_surface
+    # data to one page, which fouls up the tiff splitting
+    # module, causing the test to fail
+
+    return [5, 5]
+
+
+@pytest.fixture
+def surface_roi_sizexy_fixture():
+    """
+    sizeXY for the average surface image ROIs
+    (these are the sizes of the ROIs in physical coordinates)
+    """
+    return [0.1, 0.1]
+
+
+@pytest.fixture
 def z_to_stack_path_fixture(splitter_tmp_dir_fixture,
                             z_list_fixture):
     """
@@ -102,30 +135,6 @@ def image_metadata_fixture(z_list_fixture,
     metadata.append({'RoiGroups': {'imagingRoiGroup': {'rois': roi_list}}})
 
     return metadata
-
-
-@pytest.fixture
-def surface_roi_resolutionxy_fixture():
-    """
-    pixelResolutionXY for the average surface image ROIs
-    (these are the sizes of the ROIs in pixel coordinate)
-    """
-
-    # Note: if the size gets reduced to (4, 4),
-    # then tifffile will save all of the average_surface
-    # data to one page, which fouls up the tiff splitting
-    # module, causing the test to fail
-
-    return [5, 5]
-
-
-@pytest.fixture
-def surface_roi_sizexy_fixture():
-    """
-    sizeXY for the average surface image ROIs
-    (these are the sizes of the ROIs in physical coordinates)
-    """
-    return [0.1, 0.1]
 
 
 @pytest.fixture
@@ -423,7 +432,8 @@ def depth_fixture(splitter_tmp_dir_fixture,
 @pytest.fixture
 def full_field_2p_tiff_fixture(
         splitter_tmp_dir_fixture,
-        surface_roi_sizexy_fixture):
+        surface_roi_sizexy_fixture,
+        fullfield_roi_size_fixture):
     """
     Create a test full field TIFF image
 
@@ -454,8 +464,8 @@ def full_field_2p_tiff_fixture(
             nrois=nrois,
             roix=roix,
             roiy=roiy,
-            sizex=1.0,
-            sizey=1.0)
+            sizex=fullfield_roi_size_fixture[0],
+            sizey=fullfield_roi_size_fixture[1])
 
     metadata.append(roi_metadata)
 

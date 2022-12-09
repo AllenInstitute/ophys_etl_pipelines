@@ -4,6 +4,8 @@
 
 import pytest
 import pathlib
+import copy
+from itertools import product
 from utils import run_mesoscope_cli_test
 
 
@@ -51,6 +53,9 @@ def z_to_roi_index_fixture():
             (8, 2): 3}
 
 
+@pytest.mark.parametrize(
+        'use_platform_json, use_data_upload_dir',
+        product((True, False, None), (True, False, None)))
 def test_splitter_4x2_with_repeats(
                       input_json_fixture,
                       tmp_path_factory,
@@ -60,12 +65,31 @@ def test_splitter_4x2_with_repeats(
                       depth_fixture,
                       surface_fixture,
                       timeseries_fixture,
-                      zstack_fixture):
+                      zstack_fixture,
+                      full_field_2p_tiff_fixture,
+                      use_platform_json,
+                      use_data_upload_dir):
+
+    input_json_data = copy.deepcopy(input_json_fixture)
+    expect_full_field = True
+    if use_platform_json is None:
+        input_json_data['platform_json_path'] = None
+        expect_full_field = False
+    elif not use_platform_json:
+        input_json_data.pop('platform_json_path')
+        expect_full_field = False
+
+    if use_data_upload_dir is None:
+        input_json_data['data_upload_dir'] = None
+        expect_full_field = False
+    elif not use_data_upload_dir:
+        input_json_data.pop('data_upload_dir')
+        expect_full_field = False
 
     tmp_dir = tmp_path_factory.mktemp('cli_output_json_4x2_repeats')
     tmp_dir = pathlib.Path(tmp_dir)
     exp_ct = run_mesoscope_cli_test(
-                input_json=input_json_fixture,
+                input_json=input_json_data,
                 tmp_dir=tmp_dir,
                 zstack_metadata=zstack_metadata_fixture,
                 surface_metadata=surface_metadata_fixture,
@@ -73,6 +97,8 @@ def test_splitter_4x2_with_repeats(
                 depth_data=depth_fixture,
                 surface_data=surface_fixture,
                 timeseries_data=timeseries_fixture,
-                zstack_data=zstack_fixture)
+                zstack_data=zstack_fixture,
+                full_field_2p_tiff_data=full_field_2p_tiff_fixture,
+                expect_full_field=expect_full_field)
 
     assert exp_ct == 8

@@ -104,7 +104,7 @@ def _insert_rois_into_surface_img(
     Notes
     -----
     One of the first steps is ot make a copy of full_field_img,
-    so this method does not alter full_filed_img in place.
+    so this method does not alter full_field_img in place.
     """
 
     (ff_resolution,

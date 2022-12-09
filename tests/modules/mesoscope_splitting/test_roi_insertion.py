@@ -10,7 +10,7 @@ import numpy as np
 from skimage.transform import resize as skimage_resize
 from unittest.mock import Mock, patch
 
-from .utils import (
+from ophys_etl.test_utils.full_field_tiff_utils import (
     _create_full_field_tiff,
     _create_roi_metadata)
 

@@ -6,7 +6,7 @@ import tempfile
 import copy
 from itertools import product
 
-from .utils import (
+from ophys_etl.test_utils.full_field_tiff_utils import (
     _create_full_field_tiff,
     _create_roi_metadata)
 

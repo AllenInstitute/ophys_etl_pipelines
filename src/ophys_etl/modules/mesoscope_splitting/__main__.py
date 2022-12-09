@@ -3,6 +3,8 @@ from argschema import ArgSchemaParser
 import pathlib
 import numpy as np
 import time
+import json
+import h5py
 
 from ophys_etl.modules.mesoscope_splitting.schemas import (
     InputSchema, OutputSchema)
@@ -19,6 +21,10 @@ from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
 
 from ophys_etl.modules.mesoscope_splitting.output_json_sanitizer import (
     get_sanitized_json_data)
+
+from ophys_etl.modules.mesoscope_splitting.full_field_utils import (
+    stitch_full_field_tiff,
+    _insert_rois_into_surface_img)
 
 
 def get_valid_roi_centers(
@@ -248,6 +254,8 @@ class TiffSplitterCLI(ArgSchemaParser):
 
         output["ready_to_archive"] = list(ready_to_archive)
 
+        self.create_stitched_full_field_image()
+
         # record file metadata
         file_metadata = []
         for file_path in files_to_record:
@@ -262,6 +270,78 @@ class TiffSplitterCLI(ArgSchemaParser):
         self.output(get_sanitized_json_data(output), indent=1)
         duration = time.time()-t0
         self.logger.info(f"that took {duration:.2e} seconds")
+
+    def create_stitched_full_field_image(self):
+        stitch_full_field = True
+        platform_key = "platform_json_path"
+        if platform_key not in self.args or self.args[platform_key] is None:
+            self.logger.warn("platform_json_path not specified; "
+                             "skipping stitched full field image generation")
+            stitch_full_field = False
+
+        dir_key = "data_upload_dir"
+        if dir_key not in self.args or self.args[dir_key] is None:
+            self.logger.warn("data_upload_dir not specified; "
+                             "skipping stitched full field image generation")
+            stitch_full_field = False
+
+        if not stitch_full_field:
+            return
+
+        with open(self.args[platform_key], "rb") as in_file:
+            platform_json_data = json.load(in_file)
+
+        ff_key = "fullfield_2p_image"
+        if ff_key not in platform_json_data:
+            self.logger.warn(f"{ff_key} not present in "
+                             f"{self.args['platform_key']}; "
+                             "skipping stitched full field image generation")
+
+            return
+
+        upload_dir = pathlib.Path(self.args[dir_key])
+        full_field_path = upload_dir / platform_json_data[ff_key]
+        if not full_field_path.is_file():
+            self.logger.warn(f"{full_field_path.resolve().absolute()} "
+                             "does not exist; skipping full field image "
+                             "generation")
+            return
+
+        avg_path = self.args["surface_tif"]
+
+        full_field_metadata = ScanImageMetadata(full_field_path)
+        full_field_img = stitch_full_field_tiff(full_field_path)
+        avg_splitter = AvgImageTiffSplitter(avg_path)
+        with_rois = _insert_rois_into_surface_img(
+            full_field_img=full_field_img,
+            full_field_metadata=full_field_metadata,
+            avg_image_splitter=avg_splitter)
+
+        output_dir = pathlib.Path(self.args["storage_directory"])
+        session_id = output_dir.name.split('_')[-1]
+        output_path = output_dir / f"stitched_full_field_img_{session_id}.h5"
+        self.logger.info(f"Writing {output_path.resolve().absolute()}")
+        with h5py.File(output_path, "w") as out_file:
+
+            out_file.create_dataset(
+                "stitched_full_field",
+                data=full_field_img)
+
+            out_file.create_dataset(
+                "stitched_full_field_with_rois",
+                data=with_rois)
+
+            out_file.create_dataset(
+                "surface_roi_metadata",
+                data=json.dumps(avg_splitter.raw_metadata).encode('utf-8'))
+
+            ff_metadata = json.dumps(full_field_metadata.raw_metadata)
+            out_file.create_dataset(
+                "full_field_metadata",
+                data=ff_metadata.encode('utf-8'))
+
+        self.logger.info("Wrote full field stitched image to "
+                         f"{output_path.resolve().absolute()}")
 
 
 if __name__ == "__main__":

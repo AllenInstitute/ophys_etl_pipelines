@@ -226,7 +226,13 @@ def surface_fixture(splitter_tmp_dir_fixture,
 
     rng = np.random.default_rng(554433)
     for ii in range(n_rois):
-        this_data = rng.integers(0, 100, (n_pages, 24, 24))
+
+        # Note: if I reduce the size of each ROI to (4, 4),
+        # then all of the data gets save to a single page by
+        # tifffile, which causes our tiff splitter to fail,
+        # since each page is not a single ROI.
+        this_data = rng.integers(0, 100, (n_pages, 5, 5))
+
         this_expected = normalize_array(this_data.mean(axis=0))
         data_list.append(this_data)
         expected_img_list.append(this_expected)

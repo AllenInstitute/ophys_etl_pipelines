@@ -309,9 +309,13 @@ class TiffSplitterCLI(ArgSchemaParser):
 
         avg_path = self.args["surface_tif"]
 
-        full_field_metadata = ScanImageMetadata(full_field_path)
-        full_field_img = stitch_full_field_tiff(full_field_path)
-        avg_splitter = AvgImageTiffSplitter(avg_path)
+        full_field_metadata = ScanImageMetadata(
+                pathlib.Path(full_field_path))
+        full_field_img = stitch_full_field_tiff(
+                pathlib.Path(full_field_path))
+        avg_splitter = AvgImageTiffSplitter(
+                pathlib.Path(avg_path))
+
         with_rois = _insert_rois_into_surface_img(
             full_field_img=full_field_img,
             full_field_metadata=full_field_metadata,

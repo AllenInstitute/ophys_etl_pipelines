@@ -53,6 +53,7 @@ def _create_full_field_tiff(
     tiff_pages = [data[ii, :, :] for ii in range(data.shape[0])]
     tiff_path = pathlib.Path(
             tempfile.mkstemp(dir=output_dir,
+                             prefix='full_field_',
                              suffix='.tiff')[1])
     tifffile.imsave(tiff_path, tiff_pages)
     metadata = [{'SI.hStackManager.actualNumVolumes': numVolumes,

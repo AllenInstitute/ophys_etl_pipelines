@@ -347,7 +347,11 @@ def _stitch_full_field_tiff(
         tiff_metadata: ScanImageMetadata,
         avg_img: np.ndarray) -> np.ndarray:
     """
-    Stitch the full field TIFF into a single image
+    Stitch the full field TIFF into a single image, i.e.
+    take the image produced by _average_full_field_tiff
+    and rearrange its pixels to remove the artificial
+    gaps betwen ROIs and arrange the ROIs according
+    to their actual positions in physical space.
 
     Parameters
     ----------

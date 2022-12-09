@@ -1,6 +1,6 @@
 from argschema.schemas import ArgSchema, DefaultSchema
 from argschema.fields import (Int, Float, Str, Nested, InputFile, OutputDir,
-                              Dict, List)
+                              Dict, List, InputDir)
 
 
 class ExperimentPlane(DefaultSchema):
@@ -45,6 +45,8 @@ class InputSchema(ArgSchema):
     log_level = Str(required=False, default="INFO")
     platform_json_path = InputFile(
         required=False,
+        default=None,
+        allow_none=True,
         description=("Full path to the platform.json file. "
                      "This file actually contains all of the "
                      "parameters needed to perform the TIFF "
@@ -52,6 +54,15 @@ class InputSchema(ArgSchema):
                      "should be able to replace the other "
                      "input parameters with code that reads "
                      "them directly from this file"))
+    data_upload_dir = InputDir(
+        required=False,
+        default=None,
+        allow_none=True,
+        description=("Directory to which the raw data files "
+                     "are uploaded by the platform team for "
+                     "processing. The code will look in here "
+                     "for the data products specified in the "
+                     "platform.json file."))
     depths_tif = InputFile(
         required=True,
         description="Full path to depth 2p tiff file.")

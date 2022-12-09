@@ -33,6 +33,13 @@ class TiffSplitterBase(IntFromZMapperMixin):
         self._get_z_manifest()
         self._frame_shape = dict()
 
+    @property
+    def raw_metadata(self):
+        """
+        The ScanImage metadata as a dict
+        """
+        return self._metadata.raw_metadata
+
     def _validate_z_stack(self):
         """
         Make sure that the zsAllActuators are arranged the
@@ -449,7 +456,7 @@ class AvgImageTiffSplitter(TiffSplitterBase):
                                   lower_cutoff=None,
                                   upper_cutoff=None)
 
-        metadata = {'scanimage_metadata': self._metadata.raw_metadata}
+        metadata = {'scanimage_metadata': self.raw_metadata}
 
         tifffile.imsave(output_path,
                         avg_img,
@@ -575,14 +582,12 @@ class TimeSeriesSplitter(TiffSplitterBase):
                     f"{self._file_path}")
             offset_to_path[offset] = output_path_map[key_pair]
 
-        metadata = self._metadata.raw_metadata
-
         split_timeseries_tiff(
                 tiff_path=self._file_path,
                 tmp_dir=tmp_dir,
                 offset_to_path=offset_to_path,
                 dump_every=dump_every,
                 logger=logger,
-                metadata=metadata)
+                metadata=self.raw_metadata)
 
         return None

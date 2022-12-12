@@ -323,7 +323,14 @@ class TiffSplitterCLI(ArgSchemaParser):
             avg_image_splitter=avg_splitter)
 
         output_dir = pathlib.Path(self.args["storage_directory"])
-        session_id = output_dir.name.split('_')[-1]
+
+        session_id = self.args["session_id"]
+
+        # get session_id from the name of the directory where
+        # the output files are being written
+        if session_id is None:
+            session_id = output_dir.name.split('_')[-1]
+
         output_path = output_dir / f"{session_id}_stitched_full_field_img.h5"
         self.logger.info(f"Writing {output_path.resolve().absolute()}")
         with h5py.File(output_path, "w") as out_file:

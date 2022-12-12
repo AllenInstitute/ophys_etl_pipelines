@@ -63,6 +63,13 @@ class InputSchema(ArgSchema):
                      "processing. The code will look in here "
                      "for the data products specified in the "
                      "platform.json file."))
+    session_id = Int(
+        required=False,
+        default=None,
+        allow_none=True,
+        description=("ophys_session_id; used for naming output "
+                     "files whose names are not explicitly listed "
+                     "in the input.json"))
     depths_tif = InputFile(
         required=True,
         description="Full path to depth 2p tiff file.")

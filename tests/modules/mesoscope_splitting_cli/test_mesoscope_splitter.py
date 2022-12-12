@@ -41,7 +41,8 @@ def splitter_tmp_dir_fixture(flavor, tmp_path_factory):
 @pytest.fixture
 def z_to_exp_id_fixture(flavor):
     """
-    dict mapping z value to ophys_experiment_id
+    Returning a dict mapping (z0, z1) tuples to a dict
+    that maps individual  values to experiment_id
     """
     if flavor == '1x6':
         return {(2, 1): {2: 222, 1: 111},
@@ -76,6 +77,10 @@ def z_to_exp_id_fixture(flavor):
 
 @pytest.fixture
 def z_list_fixture(flavor):
+    """
+    Return the list you would expect to find in
+    SI.hStackManager.zsAllActuators in the ScanImage metadata
+    """
     if flavor == '1x6':
         z_list = [[2, 1], [3, 4], [6, 5]]
     elif flavor == '4x2':
@@ -94,6 +99,10 @@ def z_list_fixture(flavor):
 
 @pytest.fixture
 def roi_index_to_z_fixture(flavor):
+    """
+    Return a dict mapping roi_index
+    to the sub-list of z_values (as represented in z_list_fixture)
+    """
     if flavor == '1x6':
         return {0: [1, 2, 3, 4, 5, 6]}
     elif flavor == '4x2_floats':
@@ -119,6 +128,10 @@ def roi_index_to_z_fixture(flavor):
 
 @pytest.fixture
 def z_to_roi_index_fixture(flavor):
+    """
+    Returning a dict mapping a tuple of z values
+    to the roi_index to which those z-values belong
+    """
     if flavor == '1x6':
         return {(2, 1): 0,
                 (3, 4): 0,

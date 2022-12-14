@@ -54,7 +54,7 @@ def _roi_index_to_centerxy(roi_index):
 
 
 @pytest.fixture
-def fullfield_roi_size_fixture():
+def full_field_roi_size_fixture():
     """
     Return a tuple representing the size of the ROIs that make up
     the full field stitched image in physical coordinates
@@ -433,7 +433,7 @@ def depth_fixture(splitter_tmp_dir_fixture,
 def full_field_2p_tiff_fixture(
         splitter_tmp_dir_fixture,
         surface_roi_sizexy_fixture,
-        fullfield_roi_size_fixture):
+        full_field_roi_size_fixture):
     """
     Create a test full field TIFF image
 
@@ -464,8 +464,8 @@ def full_field_2p_tiff_fixture(
             nrois=nrois,
             roix=roix,
             roiy=roiy,
-            sizex=fullfield_roi_size_fixture[0],
-            sizey=fullfield_roi_size_fixture[1])
+            sizex=full_field_roi_size_fixture[0],
+            sizey=full_field_roi_size_fixture[1])
 
     metadata.append(roi_metadata)
 

@@ -171,9 +171,9 @@ def run_mesoscope_cli_test(
                 expected = in_file['data'][()]
             np.testing.assert_array_equal(actual, expected)
 
-    fullfield_path = storage_dir / f"{session_id}_stitched_full_field_img.h5"
+    full_field_path = storage_dir / f"{session_id}_stitched_full_field_img.h5"
     if expect_full_field:
-        assert fullfield_path.is_file()
+        assert full_field_path.is_file()
 
         # Use these user-facing utils to calculate the expected
         # results. These methods are independently tested in
@@ -199,7 +199,7 @@ def run_mesoscope_cli_test(
                 full_field_path=pathlib.Path(full_field_2p_tiff_data['raw']),
                 avg_surface_path=pathlib.Path(surface_data['raw']))
 
-        with h5py.File(fullfield_path, 'r') as in_file:
+        with h5py.File(full_field_path, 'r') as in_file:
             no_rois = in_file['stitched_full_field'][()]
             w_rois = in_file['stitched_full_field_with_rois'][()]
 
@@ -211,6 +211,6 @@ def run_mesoscope_cli_test(
                 w_rois,
                 expected_w_rois)
     else:
-        assert not fullfield_path.exists()
+        assert not full_field_path.exists()
 
     return exp_ct

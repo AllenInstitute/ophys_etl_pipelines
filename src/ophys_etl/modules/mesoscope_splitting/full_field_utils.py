@@ -87,7 +87,7 @@ def _insert_rois_into_surface_img(
         The stitched full field image into which we are inserting
         the ROI thumbnails
 
-    full_filed_metadata: ScanImageMetadata
+    full_field_metadata: ScanImageMetadata
         Metadata read from the original full_field_img TIFF file
 
     avg_image_splitter: AvgImageTiffSplitter
@@ -172,7 +172,7 @@ def _insert_rois_into_surface_img(
 def _average_full_field_tiff(
         tiff_path: pathlib.Path) -> np.ndarray:
     """
-    Read in the image data from a fullfield TIFF image and average
+    Read in the image data from a full field TIFF image and average
     over slices and volumes.
 
     Parameters

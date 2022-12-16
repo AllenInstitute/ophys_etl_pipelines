@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from argschema import ArgSchemaParser
 import pathlib
 import numpy as np
@@ -73,6 +73,59 @@ def get_nearest_roi_center(
         raise RuntimeError(msg)
 
     return ans
+
+
+def write_out_stitched_full_field_image(
+        path_to_avg_tiff: pathlib.Path,
+        path_to_full_field_tiff: pathlib.Path,
+        output_path: pathlib.Path):
+    """
+    Write out the stitched full field image with
+    and without ROIs to an HDF5 file
+
+    Parameters
+    ----------
+    path_to_avg_tiff: pathlib.Path
+        Path to the avaraged surface TIFF
+
+    path_to_full_field_tiff: pathlib.Path
+        Path to the raw full field TIFF
+
+    output_path: pathlib.Path
+        File to be written out
+    """
+
+    full_field_metadata = ScanImageMetadata(
+            path_to_full_field_tiff)
+    full_field_img = stitch_full_field_tiff(
+            path_to_full_field_tiff)
+
+    avg_splitter = AvgImageTiffSplitter(
+            path_to_avg_tiff)
+
+    with_rois = _insert_rois_into_surface_img(
+        full_field_img=full_field_img,
+        full_field_metadata=full_field_metadata,
+        avg_image_splitter=avg_splitter)
+
+    with h5py.File(output_path, "w") as out_file:
+
+        out_file.create_dataset(
+            "stitched_full_field",
+            data=full_field_img)
+
+        out_file.create_dataset(
+            "stitched_full_field_with_rois",
+            data=with_rois)
+
+        out_file.create_dataset(
+            "surface_roi_metadata",
+            data=json.dumps(avg_splitter.raw_metadata).encode('utf-8'))
+
+        ff_metadata = json.dumps(full_field_metadata.raw_metadata)
+        out_file.create_dataset(
+            "full_field_metadata",
+            data=ff_metadata.encode('utf-8'))
 
 
 class TiffSplitterCLI(ArgSchemaParser):
@@ -254,7 +307,30 @@ class TiffSplitterCLI(ArgSchemaParser):
 
         output["ready_to_archive"] = list(ready_to_archive)
 
-        self.create_stitched_full_field_image()
+        full_field_path = self.get_full_field_path()
+
+        if full_field_path is not None:
+            avg_path = self.args["surface_tif"]
+            output_dir = pathlib.Path(self.args["storage_directory"])
+
+            session_id = self.args["session_id"]
+
+            # get session_id from the name of the directory where
+            # the output files are being written
+            if session_id is None:
+                session_id = output_dir.name.split('_')[-1]
+
+            output_name = f"{session_id}_stitched_full_field_img.h5"
+            output_path = output_dir / output_name
+            self.logger.info(f"Writing {output_path.resolve().absolute()}")
+
+            write_out_stitched_full_field_image(
+                path_to_avg_tiff=pathlib.Path(avg_path),
+                path_to_full_field_tiff=full_field_path,
+                output_path=output_path)
+
+            self.logger.info("Wrote full field stitched image to "
+                             f"{output_path.resolve().absolute()}")
 
         # record file metadata
         file_metadata = []
@@ -271,7 +347,12 @@ class TiffSplitterCLI(ArgSchemaParser):
         duration = time.time()-t0
         self.logger.info(f"that took {duration:.2e} seconds")
 
-    def create_stitched_full_field_image(self):
+    def get_full_field_path(self) -> Optional[pathlib.Path]:
+        """
+        Get the path to the full field image, if it exists.
+        Return as a pathlib.Path.
+        If the image does not exist, log the reason and return None.
+        """
         stitch_full_field = True
         platform_key = "platform_json_path"
         if platform_key not in self.args or self.args[platform_key] is None:
@@ -286,7 +367,7 @@ class TiffSplitterCLI(ArgSchemaParser):
             stitch_full_field = False
 
         if not stitch_full_field:
-            return
+            return None
 
         with open(self.args[platform_key], "rb") as in_file:
             platform_json_data = json.load(in_file)
@@ -297,7 +378,7 @@ class TiffSplitterCLI(ArgSchemaParser):
                              f"{self.args['platform_key']}; "
                              "skipping stitched full field image generation")
 
-            return
+            return None
 
         upload_dir = pathlib.Path(self.args[dir_key])
         full_field_path = upload_dir / platform_json_data[ff_key]
@@ -305,55 +386,9 @@ class TiffSplitterCLI(ArgSchemaParser):
             self.logger.warn(f"{full_field_path.resolve().absolute()} "
                              "does not exist; skipping full field image "
                              "generation")
-            return
+            return None
 
-        avg_path = self.args["surface_tif"]
-
-        full_field_metadata = ScanImageMetadata(
-                pathlib.Path(full_field_path))
-        full_field_img = stitch_full_field_tiff(
-                pathlib.Path(full_field_path))
-
-        avg_splitter = AvgImageTiffSplitter(
-                pathlib.Path(avg_path))
-
-        with_rois = _insert_rois_into_surface_img(
-            full_field_img=full_field_img,
-            full_field_metadata=full_field_metadata,
-            avg_image_splitter=avg_splitter)
-
-        output_dir = pathlib.Path(self.args["storage_directory"])
-
-        session_id = self.args["session_id"]
-
-        # get session_id from the name of the directory where
-        # the output files are being written
-        if session_id is None:
-            session_id = output_dir.name.split('_')[-1]
-
-        output_path = output_dir / f"{session_id}_stitched_full_field_img.h5"
-        self.logger.info(f"Writing {output_path.resolve().absolute()}")
-        with h5py.File(output_path, "w") as out_file:
-
-            out_file.create_dataset(
-                "stitched_full_field",
-                data=full_field_img)
-
-            out_file.create_dataset(
-                "stitched_full_field_with_rois",
-                data=with_rois)
-
-            out_file.create_dataset(
-                "surface_roi_metadata",
-                data=json.dumps(avg_splitter.raw_metadata).encode('utf-8'))
-
-            ff_metadata = json.dumps(full_field_metadata.raw_metadata)
-            out_file.create_dataset(
-                "full_field_metadata",
-                data=ff_metadata.encode('utf-8'))
-
-        self.logger.info("Wrote full field stitched image to "
-                         f"{output_path.resolve().absolute()}")
+        return full_field_path
 
 
 if __name__ == "__main__":

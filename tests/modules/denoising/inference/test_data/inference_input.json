@@ -1,0 +1,18 @@
+{
+        "generator_params": {
+            "batch_size": 5,
+            "name": "OphysGenerator",
+            "start_frame": 0,
+            "data_path": ""
+        },
+        "inference_params": {
+            "model_source": {
+                "local_path": ""
+            },
+            "n_parallel_workers": 32,
+            "rescale": true,
+            "save_raw": false,
+            "output_file": ""
+        },
+        "run_uid": "1"
+}

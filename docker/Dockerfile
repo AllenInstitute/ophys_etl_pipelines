@@ -29,7 +29,8 @@ RUN apt-get -y update --allow-releaseinfo-change \
     && apt-get -y install clang libhdf5-serial-dev g++ \
     && rm -rf /var/lib/apt/* \
     && git clone -b ${OPHYS_ETL_TAG} https://github.com/AllenInstitute/ophys_etl_pipelines ./ophys_etl \
-    && conda update -n base -c defaults conda \
+    && echo "upgrading pip" \
+    && python -m pip install --upgrade pip \
     && conda create --prefix ${OPHYS_ETL_ENV} python=3.8 \
     # the following installs scipy/numpy with MKL backend,
     # if requirements.txt specifies a different version, these will get overwritten

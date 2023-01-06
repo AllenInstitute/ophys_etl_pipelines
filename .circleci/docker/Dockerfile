@@ -30,7 +30,8 @@ RUN apt-get -y update --allow-releaseinfo-change \
     # if requirements.txt specifies a different version, these will get overwritten
     # and some other BLAS backend will be used - speed will decrease
     && conda run --prefix ${OPHYS_ETL_ENV} conda install scipy \
-    && conda run --prefix ${OPHYS_ETL_ENV} pip install --no-cache ./ophys_etl \
+    && conda run --prefix ${OPHYS_ETL_ENV} pip install --verbose --no-cache ./ophys_etl \
+    && conda run --prefix ${OPHYS_ETL_ENV} pip install coverage \
     && echo "use for ophys_etl "$(conda run --prefix ${OPHYS_ETL_ENV} which python) \
     && conda clean --all
 

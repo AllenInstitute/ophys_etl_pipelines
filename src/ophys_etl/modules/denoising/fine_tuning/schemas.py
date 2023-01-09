@@ -31,7 +31,7 @@ class DataSplitterOutputSchema(argschema.ArgSchema):
         required=True,
         description='Std deviation of data. Used for normalization'
     )
-    path = argschema.fields.OutputFile(
+    path = argschema.fields.InputFile(
         required=True,
         description='Path to movie'
     )

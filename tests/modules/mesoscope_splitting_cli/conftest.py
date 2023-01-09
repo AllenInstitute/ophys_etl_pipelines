@@ -26,6 +26,7 @@ import tifffile
 import pathlib
 import h5py
 import tempfile
+import shutil
 import numpy as np
 from ophys_etl.utils.array_utils import normalize_array
 
@@ -59,6 +60,7 @@ def image_metadata_fixture(z_list_fixture,
     metadata = []
     si_metadata = dict()
     si_metadata['SI.hStackManager.zsAllActuators'] = z_list
+    si_metadata['SI.hChannels.channelSave'] = [1, 2]
     metadata.append(si_metadata)
 
     roi_list = []
@@ -86,6 +88,10 @@ def surface_metadata_fixture(image_metadata_fixture,
     ScanImage metadata for surface TIFFs
     """
     metadata = copy.deepcopy(image_metadata_fixture)
+
+    metadata[0].pop('SI.hChannels.channelSave')
+    metadata[0]['SI.hChannels.channelSave'] = 1
+
     n_rois = len(roi_index_to_z_fixture)
     z_list = []
     rois = metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
@@ -372,11 +378,15 @@ def input_json_fixture(
     """
     output_tmp_dir = tmp_path_factory.mktemp('splitter_cli_output')
     output_tmp_dir = pathlib.Path(output_tmp_dir)
+    timeseries_tmp_dir = pathlib.Path(
+            tmp_path_factory.mktemp('splitter_timeseries_temps'))
     params = dict()
+    params['dump_every'] = 5  # timeseries all have 13 frames
     params['depths_tif'] = depth_fixture['raw']
     params['surface_tif'] = surface_fixture['raw']
     params['timeseries_tif'] = timeseries_fixture['raw']
     params['storage_directory'] = str(output_tmp_dir.resolve().absolute())
+    params['tmp_dir'] = str(timeseries_tmp_dir.resolve().absolute())
 
     plane_groups = []
     for z_pair in z_to_stack_path_fixture:
@@ -429,3 +439,6 @@ def input_json_fixture(
                 if suffix == '.h5' or suffix == '.tiff' or suffix == '.tif':
                     if this_path.is_file():
                         this_path.unlink()
+
+    if timeseries_tmp_dir.exists():
+        shutil.rmtree(timeseries_tmp_dir)

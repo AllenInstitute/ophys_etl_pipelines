@@ -4,7 +4,7 @@ import pathlib
 import tempfile
 
 from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
-    ScanImageTiffSplitter)
+    AvgImageTiffSplitter)
 
 
 def test_repeated_z_error(
@@ -22,14 +22,15 @@ def test_repeated_z_error(
     img_grp = {'rois': roi_list}
     roi_grp = {'imagingRoiGroup': img_grp}
     roi_metadata = {'RoiGroups': roi_grp}
-    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
+    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup,
+                 'SI.hChannels.channelSave': [1, 2]},
                 roi_metadata]
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
 
         with pytest.raises(RuntimeError, match="has duplicate zs"):
-            ScanImageTiffSplitter(tiff_path=tmp_path)
+            AvgImageTiffSplitter(tiff_path=tmp_path)
 
 
 def test_roi_order_error(
@@ -47,7 +48,8 @@ def test_roi_order_error(
     img_grp = {'rois': roi_list}
     roi_grp = {'imagingRoiGroup': img_grp}
     roi_metadata = {'RoiGroups': roi_grp}
-    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
+    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup,
+                 'SI.hChannels.channelSave': [1, 2]},
                 roi_metadata]
 
     with patch('tifffile.read_scanimage_metadata',
@@ -55,7 +57,7 @@ def test_roi_order_error(
 
         with pytest.raises(RuntimeError,
                            match="not in correct order for ROIs"):
-            ScanImageTiffSplitter(tiff_path=tmp_path)
+            AvgImageTiffSplitter(tiff_path=tmp_path)
 
 
 def test_uneven_z_per_roi(
@@ -73,7 +75,8 @@ def test_uneven_z_per_roi(
     img_grp = {'rois': roi_list}
     roi_grp = {'imagingRoiGroup': img_grp}
     roi_metadata = {'RoiGroups': roi_grp}
-    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
+    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup,
+                 'SI.hChannels.channelSave': [1, 2]},
                 roi_metadata]
 
     with patch('tifffile.read_scanimage_metadata',
@@ -81,7 +84,7 @@ def test_uneven_z_per_roi(
 
         with pytest.raises(RuntimeError,
                            match="equal number of zs per ROI"):
-            ScanImageTiffSplitter(tiff_path=tmp_path)
+            AvgImageTiffSplitter(tiff_path=tmp_path)
 
 
 def test_zs_not_list(
@@ -98,7 +101,8 @@ def test_zs_not_list(
     img_grp = {'rois': roi_list}
     roi_grp = {'imagingRoiGroup': img_grp}
     roi_metadata = {'RoiGroups': roi_grp}
-    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
+    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup,
+                 'SI.hChannels.channelSave': [1, 2]},
                 roi_metadata]
 
     with patch('tifffile.read_scanimage_metadata',
@@ -106,30 +110,60 @@ def test_zs_not_list(
 
         with pytest.raises(RuntimeError,
                            match="Unclear how to split"):
-            ScanImageTiffSplitter(tiff_path=tmp_path)
+            AvgImageTiffSplitter(tiff_path=tmp_path)
 
 
-def test_zs_not_list_of_lists(
+def test_zs_no_placeholder(
         tmp_path_factory):
     """
-    Test that an error is raised if zsAllActuators is not a list
-    of lists
+    Test that error is raised if the placeholder zeros are missing
+    when SI.hChannels.channelSave == 1
     """
     tmp_dir = tmp_path_factory.mktemp('repeated_z_error')
     tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmp_dir,
                                              suffix='.tiff')[1])
 
-    z_lineup = [5, 4]
+    z_lineup = [[5, 4], [6, 7], [8, 9]]
     roi_list = [{'zs': [1, 2, 3]}, {'zs': [4, 5]}]
     img_grp = {'rois': roi_list}
     roi_grp = {'imagingRoiGroup': img_grp}
     roi_metadata = {'RoiGroups': roi_grp}
-    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup},
+    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup,
+                 'SI.hChannels.channelSave': 1},
                 roi_metadata]
 
     with patch('tifffile.read_scanimage_metadata',
                new=Mock(return_value=metadata)):
 
         with pytest.raises(RuntimeError,
-                           match="Unclear how to split"):
-            ScanImageTiffSplitter(tiff_path=tmp_path)
+                           match="channelSave==1"):
+            AvgImageTiffSplitter(tiff_path=tmp_path)
+
+
+@pytest.mark.parametrize("channelSave", [2, 3, [1, 5], [1, 2, 3]])
+def test_illegal_channelSave(
+        tmp_path_factory,
+        channelSave):
+    """
+    Test that error is raised if channelSave is of an unexpected
+    type
+    """
+    tmp_dir = tmp_path_factory.mktemp('repeated_z_error')
+    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmp_dir,
+                                             suffix='.tiff')[1])
+
+    z_lineup = [[5, 4], [6, 7], [8, 9]]
+    roi_list = [{'zs': [1, 2, 3]}, {'zs': [4, 5]}]
+    img_grp = {'rois': roi_list}
+    roi_grp = {'imagingRoiGroup': img_grp}
+    roi_metadata = {'RoiGroups': roi_grp}
+    metadata = [{'SI.hStackManager.zsAllActuators': z_lineup,
+                 'SI.hChannels.channelSave': channelSave},
+                roi_metadata]
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+
+        with pytest.raises(RuntimeError,
+                           match="Expect channelSave == 1 or"):
+            AvgImageTiffSplitter(tiff_path=tmp_path)

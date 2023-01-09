@@ -31,6 +31,12 @@ class ZStackSplitter(IntFromZMapperMixin):
             self._path_to_metadata[str_path] = ScanImageMetadata(
                                                 tiff_path=tiff_path)
 
+            if self._path_to_metadata[str_path].channelSave != [1, 2]:
+                raise RuntimeError(
+                    f"metadata for {str_path} has channelSave="
+                    f"{self._path_to_metadata[str_path].channelSave}\n"
+                    "can only handle channelSave==[1, 2]")
+
         # construct lookup tables to help us map ROI index and z-value
         # to a tiff path and an index in the z-array
 
@@ -146,14 +152,21 @@ class ZStackSplitter(IntFromZMapperMixin):
             page = tiff_file.pages[z_index].asarray()
         return page.shape
 
+    def _get_tiff_path(self, i_roi: int, z_value: float) -> pathlib.Path:
+        """
+        Return the tiff path corresponding to the (i_roi, z_value) pair
+        """
+        roi_z = (i_roi, self._int_from_z(z_value=z_value))
+        tiff_path = self._roi_z_int_to_path[roi_z]
+        return tiff_path
+
     def _get_pages(self, i_roi: int, z_value: float) -> np.ndarray:
         """
         Get all of the TIFF pages associated in this z-stack set with
         an (i_roi, z_value) pair. Return as a numpy array shaped like
         (n_pages, nrows, ncolumns)
         """
-        roi_z = (i_roi, self._int_from_z(z_value=z_value))
-        tiff_path = self._roi_z_int_to_path[roi_z]
+        tiff_path = self._get_tiff_path(i_roi=i_roi, z_value=z_value)
 
         path_z = (tiff_path, self._int_from_z(z_value=z_value))
         z_index = self._path_z_int_to_index[path_z]
@@ -162,13 +175,15 @@ class ZStackSplitter(IntFromZMapperMixin):
         n_pages = self._path_to_pages[tiff_path]
         baseline_shape = self.frame_shape(i_roi=i_roi, z_value=z_value)
         with tifffile.TiffFile(tiff_path, mode='rb') as tiff_file:
-            for i_page in range(z_index, n_pages, 2):
-                this_page = tiff_file.pages[i_page].asarray()
-                if this_page.shape != baseline_shape:
-                    msg = f"ROI {i_roi} z_value {z_value} "
-                    msg += "give inconsistent page shape"
-                    raise RuntimeError(msg)
-                data.append(this_page)
+            data = [tiff_file.pages[i_page].asarray()
+                    for i_page in range(z_index, n_pages, 2)]
+
+        for this_page in data:
+            if this_page.shape != baseline_shape:
+                msg = f"ROI {i_roi} z_value {z_value} "
+                msg += "give inconsistent page shape"
+                raise RuntimeError(msg)
+
         return np.stack(data)
 
     def write_output_file(self,
@@ -202,7 +217,17 @@ class ZStackSplitter(IntFromZMapperMixin):
             raise ValueError(msg)
 
         data = self._get_pages(i_roi=i_roi, z_value=z_value)
+
+        metadata = self._path_to_metadata[
+                        self._get_tiff_path(
+                            i_roi=i_roi,
+                            z_value=z_value)].raw_metadata
+
         with h5py.File(output_path, 'w') as out_file:
+            out_file.create_dataset(
+                    'scanimage_metadata',
+                    data=json.dumps(metadata).encode('utf-8'))
+
             out_file.create_dataset('data',
                                     data=data,
                                     chunks=(1, data.shape[1], data.shape[2]))

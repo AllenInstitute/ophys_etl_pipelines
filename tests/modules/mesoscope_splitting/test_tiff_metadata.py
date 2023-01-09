@@ -190,6 +190,35 @@ def test_all_zs(
             assert expected == metadata.all_zs()
 
 
+def test_raw_metadata(
+        tmp_path_factory,
+        mock_2x3_metadata_zs,
+        mock_2x3_metadata_zsAllActuators,
+        mock_1x3_metadata_zsAllActuators,
+        mock_3x1_metadata_zsAllActuators):
+    """
+    Test that ScanImageMetadata.raw_metadata returns the expected result
+    """
+
+    tmpdir = tmp_path_factory.mktemp('test_all_zs')
+    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    to_replace = 'ophys_etl.modules.mesoscope_splitting.'
+    to_replace += 'tiff_metadata._read_metadata'
+
+    for metadata_fixture in (mock_2x3_metadata_zs[0],
+                             mock_2x3_metadata_zsAllActuators[0],
+                             mock_1x3_metadata_zsAllActuators[0],
+                             mock_3x1_metadata_zsAllActuators[0]):
+
+        expected = metadata_fixture
+
+        with patch(to_replace,
+                   new=Mock(return_value=metadata_fixture)):
+            metadata = ScanImageMetadata(tiff_path=tmp_path)
+            assert expected == metadata.raw_metadata
+
+
 def test_all_zs_error(
         tmp_path_factory,
         mock_2x3_metadata_nozs):
@@ -270,3 +299,249 @@ def test_defined_rois(
                    new=Mock(return_value=metadata_fixture[0])):
             metadata = ScanImageMetadata(tiff_path=tmp_path)
             assert metadata.defined_rois == expected_rois
+
+
+@pytest.mark.parametrize(
+        "wrong_numVolumes",
+        [2.1, (1, 2, 3), [1, 2, 3], 'abcde'])
+def test_numVolumes_errors(
+        wrong_numVolumes,
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that errors are raised when
+    SI.hStackManager.actualNumVolumes is not an int
+    """
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('numVolumes_errors'))
+    tiff_path = pathlib.Path(
+                    tempfile.mkstemp(dir=tmpdir, suffix='tiff')[1])
+
+    metadata = [{'SI.hStackManager.actualNumVolumes': wrong_numVolumes}]
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        obj = ScanImageMetadata(tiff_path=tiff_path)
+        with pytest.raises(ValueError, match='expected int'):
+            obj.numVolumes
+
+    helper_functions.clean_up_dir(tmpdir=tmpdir)
+
+
+@pytest.mark.parametrize(
+        "wrong_numSlices",
+        [2.1, (1, 2, 3), [1, 2, 3], 'abcde'])
+def test_numSlices_errors(
+        wrong_numSlices,
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that errors are raised when
+    SI.hStackManager.actualNumSlices is not an int
+    """
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('numSlices_errors'))
+    tiff_path = pathlib.Path(
+                    tempfile.mkstemp(dir=tmpdir, suffix='tiff')[1])
+
+    metadata = [{'SI.hStackManager.actualNumSlices': wrong_numSlices}]
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        obj = ScanImageMetadata(tiff_path=tiff_path)
+        with pytest.raises(ValueError, match='expected int'):
+            obj.numSlices
+
+    helper_functions.clean_up_dir(tmpdir=tmpdir)
+
+
+def test_roi_size(
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that ScanImageMetadata.roi_size returns expected values
+    """
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('roi_size'))
+    tmp_path = pathlib.Path(
+        tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    roi_to_size = [
+        (10.1, 2.3),
+        (4.5, 6.1),
+        (8.3, 2.5)
+    ]
+
+    roi_list = [
+        {'scanfields': {'sizeXY': roi_to_size[0]}},
+        {'scanfields': [{'sizeXY': roi_to_size[1]},
+                        {'sizeXY': roi_to_size[1]}]},
+        {'scanfields': {'sizeXY': roi_to_size[2]}}]
+
+    metadata = ['nothing', dict()]
+    metadata[1]['RoiGroups'] = {
+        'imagingRoiGroup': {
+            'rois': roi_list}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path=tmp_path)
+    for ii in range(3):
+        assert tiff_metadata.roi_size(ii) == roi_to_size[ii]
+
+    with pytest.raises(ValueError, match="there are only 3"):
+        tiff_metadata.roi_size(3)
+
+    helper_functions.clean_up_dir(tmpdir)
+
+
+def test_roi_size_errors(
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that ScanImageMetadata.roi_size returns errors when scanfields
+    have inconsistent sizes
+    """
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('roi_size'))
+    tmp_path = pathlib.Path(
+        tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    roi_to_size = [
+        (10.1, 2.3),
+        (4.5, 6.1),
+        (8.3, 2.5)
+    ]
+
+    # test for error when an ROI has two conflicting values
+    # for scanfields:sizeXY
+
+    roi_list = [
+        {'scanfields': {'sizeXY': roi_to_size[0]}},
+        {'scanfields': [{'sizeXY': roi_to_size[1]},
+                        {'sizeXY': roi_to_size[2]}]},
+        {'scanfields': {'sizeXY': roi_to_size[2]}}]
+
+    metadata = ['nothing', dict()]
+    metadata[1]['RoiGroups'] = {
+        'imagingRoiGroup': {
+            'rois': roi_list}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path=tmp_path)
+        with pytest.raises(ValueError, match="differing sizeXY"):
+            tiff_metadata.roi_size(1)
+
+    # test for error when an ROI's scanfields are
+    # of the wrong datatype
+
+    roi_list = [
+        {'scanfields': {'sizeXY': roi_to_size[0]}},
+        {'scanfields': 'this is just a string, huh?'},
+        {'scanfields': {'sizeXY': roi_to_size[2]}}]
+
+    metadata = ['nothing', dict()]
+    metadata[1]['RoiGroups'] = {
+        'imagingRoiGroup': {
+            'rois': roi_list}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path=tmp_path)
+        with pytest.raises(RuntimeError, match="either a list or a dict"):
+            tiff_metadata.roi_size(1)
+
+    helper_functions.clean_up_dir(tmpdir)
+
+
+def test_roi_resolution(
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that ScanImageMetadata.roi_resolution returns expected values
+    """
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('roi_resolution'))
+    tmp_path = pathlib.Path(
+        tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    roi_to_res = [
+        (10, 2),
+        (4, 6),
+        (8, 2)
+    ]
+
+    roi_list = [
+        {'scanfields': {'pixelResolutionXY': roi_to_res[0]}},
+        {'scanfields': [{'pixelResolutionXY': roi_to_res[1]},
+                        {'pixelResolutionXY': roi_to_res[1]}]},
+        {'scanfields': {'pixelResolutionXY': roi_to_res[2]}}]
+
+    metadata = ['nothing', dict()]
+    metadata[1]['RoiGroups'] = {
+        'imagingRoiGroup': {
+            'rois': roi_list}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path=tmp_path)
+    for ii in range(3):
+        assert tiff_metadata.roi_resolution(ii) == roi_to_res[ii]
+
+    with pytest.raises(ValueError, match="there are only 3"):
+        tiff_metadata.roi_size(3)
+
+    helper_functions.clean_up_dir(tmpdir)
+
+
+def test_roi_resolution_errors(
+        tmpdir_factory,
+        helper_functions):
+    """
+    Test that ScanImageMetadata.roi_size returns errors when scanfields
+    have inconsistent sizes
+    """
+    tmpdir = pathlib.Path(tmpdir_factory.mktemp('roi_resolution'))
+    tmp_path = pathlib.Path(
+        tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+
+    roi_to_res = [
+        (10, 2),
+        (4, 6),
+        (8, 2)
+    ]
+
+    # test for error when an ROI has two conflicting values
+    # for scanfields:pixelResolutionXY
+
+    roi_list = [
+        {'scanfields': {'pixelResolutionXY': roi_to_res[0]}},
+        {'scanfields': [{'pixelResolutionXY': roi_to_res[1]},
+                        {'pixelResolutionXY': roi_to_res[2]}]},
+        {'scanfields': {'pixelResolutionXY': roi_to_res[2]}}]
+
+    metadata = ['nothing', dict()]
+    metadata[1]['RoiGroups'] = {
+        'imagingRoiGroup': {
+            'rois': roi_list}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path=tmp_path)
+        with pytest.raises(ValueError, match="differing pixelResolutionXY"):
+            tiff_metadata.roi_resolution(1)
+
+    # test for error when an ROI's scanfields are
+    # of the wrong datatype
+
+    roi_list = [
+        {'scanfields': {'sizeXY': roi_to_res[0]}},
+        {'scanfields': 'this is just a string, huh?'},
+        {'scanfields': {'sizeXY': roi_to_res[2]}}]
+
+    metadata = ['nothing', dict()]
+    metadata[1]['RoiGroups'] = {
+        'imagingRoiGroup': {
+            'rois': roi_list}}
+
+    with patch('tifffile.read_scanimage_metadata',
+               new=Mock(return_value=metadata)):
+        tiff_metadata = ScanImageMetadata(tiff_path=tmp_path)
+        with pytest.raises(RuntimeError, match="either a list or a dict"):
+            tiff_metadata.roi_resolution(1)
+
+    helper_functions.clean_up_dir(tmpdir)

@@ -2,6 +2,7 @@ import copy
 import tifffile
 import pathlib
 import h5py
+import json
 from unittest.mock import patch
 import numpy as np
 from ophys_etl.modules.mesoscope_splitting.__main__ import (
@@ -88,6 +89,7 @@ def run_mesoscope_cli_test(
 
     exp_ct = 0
     for plane_group in input_json['plane_groups']:
+        this_zstack_path = plane_group['local_z_stack_tif']
         for exp in plane_group['ophys_experiments']:
             exp_ct += 1
             exp_dir = exp['storage_directory']
@@ -95,7 +97,13 @@ def run_mesoscope_cli_test(
             exp_id = exp['experiment_id']
             ts_actual = exp_dir / f'{exp_id}.h5'
             with h5py.File(ts_actual, 'r') as in_file:
+                actual_timeseries_metadata = json.loads(
+                        in_file['scanimage_metadata'][()].decode('utf-8'))
+
+                assert actual_timeseries_metadata == image_metadata
+
                 actual = in_file['data'][()]
+
             ts_expected = timeseries_data[f'expected_{exp_id}']
             with h5py.File(ts_expected, 'r') as in_file:
                 expected = in_file['data'][()]
@@ -105,6 +113,10 @@ def run_mesoscope_cli_test(
             with tifffile.TiffFile(depth_actual, mode='rb') as in_file:
                 assert len(in_file.pages) == 1
                 actual = in_file.pages[0].asarray()
+                actual_depth_metadata = in_file.shaped_metadata[0][
+                                          'scanimage_metadata']
+                assert actual_depth_metadata == image_metadata
+
             depth_expected = depth_data[f'expected_{exp_id}']
             with tifffile.TiffFile(depth_expected, mode='rb') as in_file:
                 assert len(in_file.pages) == 1
@@ -115,6 +127,9 @@ def run_mesoscope_cli_test(
             with tifffile.TiffFile(surface_actual, mode='rb') as in_file:
                 assert len(in_file.pages) == 1
                 actual = in_file.pages[0].asarray()
+                actual_surface_metadata = in_file.shaped_metadata[0][
+                                           'scanimage_metadata']
+                assert actual_surface_metadata == surface_metadata
 
             roi_index = exp['roi_index']
             surface_expected = surface_data[f'expected_{roi_index}']
@@ -123,10 +138,14 @@ def run_mesoscope_cli_test(
                 expected = in_file.pages[0].asarray()
             np.testing.assert_array_equal(actual, expected)
 
+            stack_expected = zstack_data[f'expected_{exp_id}']
             stack_actual = exp_dir / f'{exp_id}_z_stack_local.h5'
+            expected_zstack_metadata = zstack_metadata[this_zstack_path]
             with h5py.File(stack_actual, 'r') as in_file:
                 actual = in_file['data'][()]
-            stack_expected = zstack_data[f'expected_{exp_id}']
+                actual_zstack_metadata = json.loads(
+                        in_file['scanimage_metadata'][()].decode('utf-8'))
+                assert actual_zstack_metadata == expected_zstack_metadata
             with h5py.File(stack_expected, 'r') as in_file:
                 expected = in_file['data'][()]
             np.testing.assert_array_equal(actual, expected)

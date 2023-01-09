@@ -31,7 +31,8 @@ def baseline_zstack_metadata():
     zz = []
     for z0, z1 in zip(z0_values, z1_values):
         zz.append([z0, z1])
-    return [{'SI.hStackManager.zsAllActuators': zz},
+    return [{'SI.hStackManager.zsAllActuators': zz,
+             'SI.hChannels.channelSave': [1, 2]},
             main_roi_metadata]
 
 
@@ -220,4 +221,48 @@ def test_roi_missing_tiff(
     with patch(to_replace, new=mock_read_metadata):
         with pytest.raises(RuntimeError,
                            match="are represented in the local z-stack"):
+            ZStackSplitter(tiff_path_list=tiff_path_list)
+
+
+@pytest.fixture(scope='session')
+def z_stack_bad_channelSave(tmp_path_factory,
+                            baseline_zstack_metadata):
+    """
+    Create a set of z_stacks, one of which has an invalid
+    value for channelSave
+    """
+
+    path_to_metadata = dict()
+    tmp_dir = tmp_path_factory.mktemp('z_stack_many')
+    for ii in range(3):
+        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
+        metadata = copy.deepcopy(baseline_zstack_metadata)
+        if ii == 1:
+            metadata[0]['SI.hChannels.channelSave'] = 1
+
+        path_to_metadata[tmp_path] = metadata
+
+    return path_to_metadata
+
+
+def test_zstack_bad_channelSave(
+        z_stack_bad_channelSave):
+    """
+    Test that an error is raised if a zstack file
+    does not have channelSave==[1, 2]
+    """
+    z_stack_path_to_metadata = z_stack_bad_channelSave
+
+    def mock_read_metadata(tiff_path):
+        str_path = str(tiff_path.resolve().absolute())
+        return z_stack_path_to_metadata[str_path]
+
+    tiff_path_list = [pathlib.Path(n)
+                      for n in z_stack_path_to_metadata.keys()]
+
+    to_replace = 'ophys_etl.modules.mesoscope_splitting.'
+    to_replace += 'tiff_metadata._read_metadata'
+    with patch(to_replace, new=mock_read_metadata):
+        with pytest.raises(RuntimeError,
+                           match="can only handle channelSave"):
             ZStackSplitter(tiff_path_list=tiff_path_list)

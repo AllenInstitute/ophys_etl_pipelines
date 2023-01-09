@@ -92,26 +92,37 @@ def downsample_array(
 def normalize_array(
         array: np.ndarray,
         lower_cutoff: Optional[float] = None,
-        upper_cutoff: Optional[float] = None) -> np.ndarray:
-    """Normalize an array into uint8 with cutoff values
+        upper_cutoff: Optional[float] = None,
+        dtype: type = np.uint8) -> np.ndarray:
+    """
+    Normalize an array into an integer type with
+    cutoff values
 
     Parameters
     ----------
     array: numpy.ndarray (float)
         array to be normalized
     lower_cutoff: Optional[float]
-        threshold, below which will be = 0
-        (if None, do not clip the array)
+        threshold, below which will be = dtype.min
+        (if None, will be set to array.min())
     upper_cutoff: Optional[float]
-        threshold, abovewhich will be = 255
-        (if None, do not clip the array)
+        threshold, above which will be = dtype.max
+        (if None, will be set to array.max())
+    dtype: type
+        The type (must be a numpy integer type)
+        to which to cast the array. The array
+        will be renormalized so that it's dynamic
+        range spans [np.iinfo(dtype).min, np.iinfo(dytpe).max]
 
     Returns
     -------
-    normalized: numpy.ndarray (uint8)
-        normalized array
+    normalized: numpy.ndarray
+        normalized array of the specified integer type
 
     """
+    final_max = np.iinfo(dtype).max
+    final_min = np.iinfo(dtype).min
+
     normalized = np.copy(array).astype(float)
     if lower_cutoff is not None:
         normalized[array < lower_cutoff] = lower_cutoff
@@ -124,11 +135,12 @@ def normalize_array(
         upper_cutoff = normalized.max()
 
     normalized -= lower_cutoff
-
     delta = upper_cutoff-lower_cutoff
-
-    normalized = np.round(normalized * 255 / delta)
-    normalized = normalized.astype(np.uint8)
+    normalized = normalized/delta
+    normalized *= (final_max-final_min)
+    normalized = np.round(normalized)
+    normalized += final_min
+    normalized = normalized.astype(dtype)
     return normalized
 
 

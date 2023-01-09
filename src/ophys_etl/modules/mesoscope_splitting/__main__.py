@@ -8,7 +8,7 @@ from ophys_etl.modules.mesoscope_splitting.schemas import (
     InputSchema, OutputSchema)
 
 from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
-    ScanImageTiffSplitter,
+    AvgImageTiffSplitter,
     TimeSeriesSplitter)
 
 from ophys_etl.modules.mesoscope_splitting.zstack_splitter import (
@@ -83,11 +83,11 @@ class TiffSplitterCLI(ArgSchemaParser):
         files_to_record.append(ts_path)
 
         depth_path = pathlib.Path(self.args["depths_tif"])
-        depth_splitter = ScanImageTiffSplitter(tiff_path=depth_path)
+        depth_splitter = AvgImageTiffSplitter(tiff_path=depth_path)
         files_to_record.append(depth_path)
 
         surface_path = pathlib.Path(self.args["surface_tif"])
-        surface_splitter = ScanImageTiffSplitter(tiff_path=surface_path)
+        surface_splitter = AvgImageTiffSplitter(tiff_path=surface_path)
         files_to_record.append(surface_path)
 
         zstack_path_list = []
@@ -152,22 +152,19 @@ class TiffSplitterCLI(ArgSchemaParser):
                      z_value,
                      output_name,
                      metadata_tag) in zip(
-                                          (depth_splitter,
-                                           surface_splitter,
-                                           zstack_splitter,
-                                           timeseries_splitter),
-                                          (scanfield_z,
-                                           None,
-                                           scanfield_z,
-                                           scanfield_z),
-                                          (f"{experiment_id}_depth.tif",
-                                           f"{experiment_id}_surface.tif",
-                                           f"{experiment_id}_z_stack_local.h5",
-                                           f"{experiment_id}.h5"),
-                                          ("depth_2p",
-                                           "surface_2p",
-                                           "local_z_stack",
-                                           "timeseries")):
+                                  (depth_splitter,
+                                   surface_splitter,
+                                   zstack_splitter),
+                                  (scanfield_z,
+                                   None,
+                                   scanfield_z,
+                                   scanfield_z),
+                                  (f"{experiment_id}_depth.tif",
+                                   f"{experiment_id}_surface.tif",
+                                   f"{experiment_id}_z_stack_local.h5"),
+                                  ("depth_2p",
+                                   "surface_2p",
+                                   "local_z_stack")):
 
                     output_path = experiment_dir / output_name
 
@@ -200,10 +197,46 @@ class TiffSplitterCLI(ArgSchemaParser):
                     this_exp_metadata[metadata_tag]['height'] = frame_shape[0]
                     this_exp_metadata[metadata_tag]['width'] = frame_shape[1]
 
+                    elapsed_time = time.time()-t0
+
                     self.logger.info("wrote "
-                                     f"{output_path.resolve().absolute()}")
+                                     f"{output_path.resolve().absolute()} "
+                                     f"after {elapsed_time:.2e} seconds")
 
                 experiment_metadata.append(this_exp_metadata)
+
+        # because the timeseries TIFFs are so big, we split
+        # them differently to avoid reading through the TIFFs
+        # more than once
+
+        output_path_lookup = dict()
+        for plane_group in self.args["plane_groups"]:
+            for experiment in plane_group["ophys_experiments"]:
+                exp_id = experiment["experiment_id"]
+                scanfield_z = experiment["scanfield_z"]
+                roi_index = experiment["roi_index"]
+                experiment_dir = pathlib.Path(experiment["storage_directory"])
+                fname = f"{exp_id}.h5"
+                output_path = experiment_dir / fname
+                output_path_lookup[(roi_index, scanfield_z)] = output_path
+
+                frame_shape = timeseries_splitter.frame_shape(
+                                       i_roi=roi_index,
+                                       z_value=scanfield_z)
+
+                str_path = str(output_path.resolve().absolute())
+
+                for metadata in experiment_metadata:
+                    if metadata["experiment_id"] == exp_id:
+                        metadata["timeseries"]["height"] = frame_shape[0]
+                        metadata["timeseries"]["width"] = frame_shape[1]
+                        metadata["timeseries"]["filename"] = str_path
+
+        timeseries_splitter.write_output_files(
+                output_path_map=output_path_lookup,
+                tmp_dir=self.args["tmp_dir"],
+                dump_every=self.args["dump_every"],
+                logger=self.logger)
 
         output["experiment_output"] = experiment_metadata
 

@@ -1,0 +1,4 @@
+simple_slurm
+sqlmodel
+PyYaml
+paramiko

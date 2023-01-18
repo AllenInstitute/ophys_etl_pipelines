@@ -3,6 +3,9 @@ from setuptools import setup, find_packages
 with open("requirements.txt", "r") as f:
     required = f.read().splitlines()
 
+with open("requirements-workflow.txt", "r") as f:
+    workflow_required = f.read().splitlines()
+
 setup(
     name="ophys_etl_pipelines",
     use_scm_version=True,
@@ -23,6 +26,7 @@ setup(
         ],
         'deepinterpolation': [
             'deepinterpolation @ git+https://github.com/danielsf/deepinterpolation@staging/ophys_etl'   # noqa E401
-        ]
+        ],
+        'workflow': workflow_required
     }
 )

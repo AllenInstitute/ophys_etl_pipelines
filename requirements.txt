@@ -13,3 +13,4 @@ tifffile
 scikit-image
 networkx<=2.8.8
 scikit-learn
+pydantic

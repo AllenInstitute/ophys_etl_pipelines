@@ -1,0 +1,37 @@
+{
+  "finetuning_params": {
+    "apply_learning_decay": false,
+    "caching_validation": false,
+    "epochs_drop": 5,
+    "learning_rate": 0.0001,
+    "loss": "mean_squared_error",
+    "model_source": {
+      "local_path": ""
+    },
+    "model_string": "",
+    "multi_gpus": false,
+    "name": "transfer_trainer",
+    "nb_times_through_data": 1,
+    "nb_workers": 15,
+    "output_dir": "",
+    "period_save": 1,
+    "steps_per_epoch": 20
+  },
+  "generator_params": {
+    "batch_size": 5,
+    "name": "MovieJSONGenerator",
+    "post_frame": 30,
+    "pre_frame": 30,
+    "pre_post_omission": 0
+  },
+  "log_level": "INFO",
+  "output_full_args": true,
+  "test_generator_params": {
+    "batch_size": 5,
+    "name": "MovieJSONGenerator",
+    "post_frame": 30,
+    "pre_frame": 30,
+    "pre_post_omission": 0
+  },
+  "run_uid": "1229768304"
+}

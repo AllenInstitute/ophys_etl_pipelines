@@ -2,16 +2,15 @@ numpy
 scipy
 imageio-ffmpeg
 pytest
-coverage
 argschema==2.0.2
 h5py
 matplotlib
 pandas
 moto
 boto3
-croissant-ml==0.0.3
 typing_extensions
 tifffile
 scikit-image
 networkx<=2.8.8
 suite2p==0.10.2
+deepinterpolation @ git+https://github.com/danielsf/deepinterpolation@staging/cleaner/ophys_etl

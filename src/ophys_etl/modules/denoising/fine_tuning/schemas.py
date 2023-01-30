@@ -16,7 +16,7 @@ class DataSplitterInputSchema(argschema.ArgSchema):
                     'be used for validation'
     )
     seed = argschema.fields.Int(
-        default=None,
+        default=1234,
         allow_none=True,
         description='Seed for train/val split reproducibility'
     )

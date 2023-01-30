@@ -35,6 +35,7 @@ RUN apt-get -y update --allow-releaseinfo-change \
     # and some other BLAS backend will be used - speed will decrease
     && conda run --prefix ${OPHYS_ETL_ENV} conda install scipy \
     && conda run --prefix ${OPHYS_ETL_ENV} pip install --no-cache ./ophys_etl \
+    && conda run --prefix ${OPHYS_ETL_ENV} pip install coverage \
     && echo "use for ophys_etl "$(conda run --prefix ${OPHYS_ETL_ENV} which python) \
     && conda create --prefix ${EVENT_DETECT_ENV} python=3.8 \
     && git clone https://github.com/jewellsean/FastLZeroSpikeInference ./lzero \

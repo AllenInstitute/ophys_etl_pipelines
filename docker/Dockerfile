@@ -47,6 +47,7 @@ RUN apt-get -y update --allow-releaseinfo-change \
     && cd /repos \
     && conda run --prefix ${EVENT_DETECT_ENV} pip install joblib \
     && conda run --prefix ${EVENT_DETECT_ENV} pip install --no-cache ./ophys_etl \
+    && conda run --prefix ${EVENT_DETECT_ENV} pip install coverage \
     && echo "use for event detection "$(conda run --prefix ${EVENT_DETECT_ENV} which python) \
     && conda clean --all \
     && rm -rf /repos/lzero \

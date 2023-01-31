@@ -36,6 +36,11 @@ class FinetuningRunner(argschema.ArgSchemaParser):
 
             del self.args['data_split_params']
 
+            # Removes args added in post_load, since they are not expected in
+            # the schema when `FineTuning` is called below
+            del self.args['generator_params']['steps_per_epoch']
+            del self.args['test_generator_params']['steps_per_epoch']
+
             fine_tuning_runner = FineTuning(input_data=self.args, args=[])
             fine_tuning_runner.run()
 

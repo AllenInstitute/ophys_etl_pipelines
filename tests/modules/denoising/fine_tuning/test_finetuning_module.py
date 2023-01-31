@@ -46,15 +46,13 @@ class TestFinetuningRunner:
                 }
             }
 
-        def dummy_init():
-            return None
-
-        with patch.object(FinetuningRunner, '__init__', wraps=dummy_init):
-            runner = FinetuningRunner()
-            runner.args = {
+        runner = FinetuningRunner(
+            input_data={
                 **finetuning_input,
                 **data_split_params
-            }
+            },
+            args=[]
+        )
         return runner
 
     @classmethod

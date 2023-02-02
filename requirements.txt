@@ -12,5 +12,4 @@ typing_extensions
 tifffile
 scikit-image
 networkx<=2.8.8
-suite2p==0.10.2
-deepinterpolation @ git+https://github.com/danielsf/deepinterpolation@staging/cleaner/ophys_etl
+scikit-learn

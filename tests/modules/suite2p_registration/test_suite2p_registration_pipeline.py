@@ -5,8 +5,11 @@ import tempfile
 from itertools import product
 import numpy as np
 
-from ophys_etl.modules.suite2p_registration.__main__ import (
-        Suite2PRegistration)
+try:
+    from ophys_etl.modules.suite2p_registration.__main__ import (
+            Suite2PRegistration)
+except ImportError:
+    pass
 
 
 @pytest.fixture(scope='session')

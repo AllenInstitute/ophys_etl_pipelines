@@ -5,9 +5,15 @@ from unittest.mock import patch
 import h5py
 import json
 import numpy as np
-from deepinterpolation.cli.fine_tuning import FineTuning
+import pytest
 
-from ophys_etl.modules.denoising.fine_tuning.__main__ import FinetuningRunner
+try:
+    from deepinterpolation.cli.fine_tuning import FineTuning
+
+    from ophys_etl.modules.denoising.fine_tuning.__main__ import \
+        FinetuningRunner
+except ImportError:
+    pass
 
 
 class TestFinetuningRunner:
@@ -59,6 +65,7 @@ class TestFinetuningRunner:
     def teardown_class(cls):
         cls.tmpdir.cleanup()
 
+    @pytest.mark.deepinterpolation_only
     def test_write_train_val_datasets(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             train_path = Path(tmpdir) / 'train.json'
@@ -68,6 +75,7 @@ class TestFinetuningRunner:
             assert train_path.exists()
             assert val_path.exists()
 
+    @pytest.mark.deepinterpolation_only
     def test_run(self):
         """Smoke test that the FineTuning interface can be called with
         test arguments"""

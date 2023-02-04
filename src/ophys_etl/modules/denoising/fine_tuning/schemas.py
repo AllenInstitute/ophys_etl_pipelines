@@ -10,6 +10,10 @@ class DataSplitterInputSchema(argschema.ArgSchema):
         required=True,
         description='Identifier for the ophys experiment'
     )
+    dataset_output_dir = argschema.fields.OutputDir(
+        required=True,
+        description='Where to write the train/val dataset metadata'
+    )
     movie_path = H5InputFile(
         required=True,
         description='Path to ophys movie'
@@ -60,6 +64,7 @@ class GeneratorSchemaPreDataSplit(GeneratorSchema):
 class FineTuningInputSchemaPreDataSplit(FineTuningInputSchema):
     """Same as `FineTuningInputSchema` except the data hasn't been split
     into train/val yet"""
+    log_level = argschema.fields.LogLevel(default="INFO")
     data_split_params = argschema.fields.Nested(
         DataSplitterInputSchema, default={}
     )

@@ -47,6 +47,7 @@ class TestFinetuningRunner:
             {
                 'data_split_params': {
                     'ophys_experiment_id': '1',
+                    'dataset_output_dir': cls.tmpdir.name,
                     'movie_path': str(cls.mov_path),
                     'seed': None,
                     'train_frac': 0.7

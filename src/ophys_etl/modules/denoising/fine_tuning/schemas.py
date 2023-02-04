@@ -6,6 +6,10 @@ from ophys_etl.schemas.fields import H5InputFile
 
 
 class DataSplitterInputSchema(argschema.ArgSchema):
+    ophys_experiment_id = argschema.fields.String(
+        required=True,
+        description='Identifier for the ophys experiment'
+    )
     movie_path = H5InputFile(
         required=True,
         description='Path to ophys movie'

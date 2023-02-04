@@ -4,6 +4,7 @@ from typing import Dict
 
 import argschema
 import h5py
+import json
 import numpy as np
 from deepinterpolation.cli.fine_tuning import FineTuning
 
@@ -76,13 +77,17 @@ class FinetuningRunner(argschema.ArgSchemaParser):
 
         for ds_out_path, ds in zip((train_out_path, val_out_path),
                                    (train, val)):
+            out = {
+                self.args['data_split_params']['ophys_experiment_id']:
+                    DataSplitterOutputSchema().dumps({
+                        'mean': mean,
+                        'std': std,
+                        'path': self.args['data_split_params']['movie_path'],
+                        'frames': list(ds)
+                    })
+            }
             with open(ds_out_path, 'w') as f:
-                f.write(DataSplitterOutputSchema().dumps({
-                    'mean': mean,
-                    'std': std,
-                    'path': self.args['data_split_params']['movie_path'],
-                    'frames': list(ds)
-                }, indent=2))
+                f.write(json.dumps(out, indent=2))
 
 
 def main():

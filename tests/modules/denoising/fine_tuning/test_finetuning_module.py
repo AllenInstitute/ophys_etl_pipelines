@@ -50,7 +50,8 @@ class TestFinetuningRunner:
                     'dataset_output_dir': cls.tmpdir.name,
                     'movie_path': str(cls.mov_path),
                     'seed': None,
-                    'train_frac': 0.7
+                    'train_frac': 0.7,
+                    'downsample_frac': 0.0
                 }
             }
 

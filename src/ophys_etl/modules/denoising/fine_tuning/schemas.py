@@ -23,6 +23,12 @@ class DataSplitterInputSchema(argschema.ArgSchema):
         description='Amount of data to set aside for training. The rest will '
                     'be used for validation'
     )
+    downsample_frac = argschema.fields.Float(
+        default=0.0,
+        description='Amount to downsample the data by. I.e. a downsample frac '
+                    'of 0.1 would reduce the dataset by 10%'
+    )
+
     seed = argschema.fields.Int(
         default=1234,
         allow_none=True,

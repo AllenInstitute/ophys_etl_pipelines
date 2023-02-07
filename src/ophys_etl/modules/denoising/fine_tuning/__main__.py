@@ -64,7 +64,8 @@ class FinetuningRunner(argschema.ArgSchemaParser):
         """
         data_splitter = DataSplitter(
             movie_path=self.args['data_split_params']['movie_path'],
-            seed=self.args['data_split_params']['seed']
+            seed=self.args['data_split_params']['seed'],
+            downsample_frac=self.args['data_split_params']['downsample_frac']
         )
         train, val = data_splitter.get_train_val_split(
             train_frac=self.args['data_split_params']['train_frac'],

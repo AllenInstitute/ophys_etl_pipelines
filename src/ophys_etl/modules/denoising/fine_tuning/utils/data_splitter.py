@@ -10,7 +10,9 @@ class DataSplitter:
     def __init__(
         self,
         movie_path: Union[str, Path],
-        seed: Optional[int] = None
+        seed: Optional[int] = None,
+        downsample_frac: float = 0.0
+
     ):
         """
 
@@ -20,9 +22,14 @@ class DataSplitter:
             Path to movie
         seed
             Seed for reproducibility
+        downsample_frac
+            Amount to downsample the data by. I.e. a downsample frac
+            of 0.1 would reduce the dataset by 10%. Default is no downsampling
+
         """
         self._movie_path = Path(movie_path)
         self._seed = seed
+        self._downsample_frac = downsample_frac
 
     def get_train_val_split(
             self,
@@ -44,6 +51,8 @@ class DataSplitter:
         -------
         Tuple of train, val center frame indices
         """
+        rng = np.random.default_rng(self._seed)
+
         with h5py.File(self._movie_path, 'r') as f:
             nframes = f['data'].shape[0]
 
@@ -51,6 +60,15 @@ class DataSplitter:
         # since the frame needs to have window_size before/after it
         all_frames = np.arange(window_size,
                                nframes - window_size)
+
+        all_frames = all_frames[
+            sorted(rng.choice(
+                a=np.arange(len(all_frames)),
+                size=(len(all_frames) -
+                      int(len(all_frames) * self._downsample_frac)),
+                replace=False
+            ))
+        ]
 
         n_train = int(len(all_frames) * train_frac)
 
@@ -68,7 +86,6 @@ class DataSplitter:
         # from 730 to 790
         val = all_frames[n_train + window_size * 2:]
 
-        rng = np.random.default_rng(self._seed)
         rng.shuffle(train)
 
         return train, val

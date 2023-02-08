@@ -1,13 +1,27 @@
 from typing import List
-from functools import partial
 import numpy as np
 from scipy.sparse import coo_matrix
-from scipy.ndimage.filters import median_filter
 
-# Partial for simplifying repeat median filter calls
-medfilt = partial(median_filter, mode='constant')
+def nanmedian_filter(x, filter_length):
+    """ 1D median filtering with np.nanmedian
+    Parameters
+    ----------
+    x: 1D trace to be filtered
+    filter_length: length of the filter
 
-
+    Return
+    ------
+    filtered_trace
+    """
+    half_length = int(filter_length/2)
+    # Create 'reflect' traces at the extrema
+    temp_trace = np.concatenate(
+        (np.flip(x[:half_length]), x, np.flip(x[-half_length:])))
+    filtered_trace = np.zeros_like(x)
+    for i in range(len(x)):
+        filtered_trace[i] = np.nanmedian(temp_trace[i:i+filter_length])
+    return filtered_trace
+    
 def robust_std(x: np.ndarray) -> float:
     """Compute the median absolute deviation assuming normally
     distributed data. This is a robust statistic.

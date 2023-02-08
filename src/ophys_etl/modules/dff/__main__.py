@@ -5,15 +5,18 @@ import h5py
 import numpy as np
 from functools import partial
 from pathlib import Path
+from scipy.ndimage.filters import median_filter, percentile_filter
 from typing import Tuple
 
 from ophys_etl.modules.dff.schemas import DffJobSchema, DffJobOutputSchema
-from ophys_etl.utils.traces import medfilt, noise_std
+from ophys_etl.utils.traces import noise_std, nanmedian_filter
 
 
 def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
                       long_filter_length: int,
-                      short_filter_length: int
+                      short_filter_length: int,
+                      inactive_percentile: int = 10,
+                      detrending: bool = False,
                       ) -> Tuple[np.ndarray, float, int]:
     """
     Compute the "delta F over F" from the fluorescence trace.
@@ -34,6 +37,13 @@ def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
     short_filter_length: int (default=31)
         Length (in number of elements) for a short median filter used
         for short timescale detrending.
+    inactive_percentile: int (default=10)
+        Percentile value that defines the inactive frames used for
+        calculating the baseline
+    detrending: bool (default=False)
+        Legacy parameter. This processing step has been removed after
+        it's been shown to cause negative values
+
     Returns
     -------
     np.ndarray:
@@ -46,22 +56,31 @@ def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
         `corrected_fluorescence_trace`.
     """
     sigma_f = noise_std(corrected_fluorescence_trace, short_filter_length)
-
+    inactive_trace = corrected_fluorescence_trace.copy()
     # Long timescale median filter for baseline subtraction
-    baseline = medfilt(corrected_fluorescence_trace, long_filter_length)
+    if inactive_percentile > 0 or inactive_percentile < 100:
+        low_baseline = percentile_filter(
+            corrected_fluorescence_trace, size=long_filter_length,
+            percentile=inactive_percentile,
+            )
+        active_mask = corrected_fluorescence_trace > (
+            low_baseline + 3 * sigma_f)
+        inactive_trace[active_mask] = float('nan')
+    baseline = nanmedian_filter(inactive_trace, long_filter_length)
     dff = ((corrected_fluorescence_trace - baseline)
            / np.maximum(baseline, sigma_f))
     num_small_baseline_frames = np.sum(baseline <= sigma_f)
 
     sigma_dff = noise_std(dff, short_filter_length)
 
-    # Short timescale detrending
-    filtered_dff = medfilt(dff, short_filter_length)
-    # Constrain to 2.5x the estimated noise of dff
-    filtered_dff = np.minimum(filtered_dff, 2.5*sigma_dff)
-    detrended_dff = dff - filtered_dff
+    if detrending:
+        # Short timescale detrending
+        filtered_dff = median_filter(dff, short_filter_length)
+        # Constrain to 2.5x the estimated noise of dff
+        filtered_dff = np.minimum(filtered_dff, 2.5*sigma_dff)
+        dff -= filtered_dff
 
-    return detrended_dff, sigma_dff, num_small_baseline_frames
+    return dff, sigma_dff, num_small_baseline_frames
 
 
 def job_call(index: int, input_file: Path, key: str,

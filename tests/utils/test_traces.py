@@ -29,7 +29,7 @@ def test_robust_std(x, expected):
     ])
 def test_noise_std(x, expected, monkeypatch):
     monkeypatch.setattr(tx, "robust_std", lambda x: x.max())
-    monkeypatch.setattr(tx, "medfilt", lambda x, y: x/2)
+    monkeypatch.setattr(tx, "median_filter", lambda x, y: x/2)
     np.testing.assert_equal(expected, tx.noise_std(x))
 
 

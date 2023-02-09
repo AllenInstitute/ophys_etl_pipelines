@@ -1,7 +1,7 @@
 from typing import List
 import numpy as np
 from scipy.sparse import coo_matrix
-
+from scipy.ndimage.filters import median_filter
 def nanmedian_filter(x, filter_length):
     """ 1D median filtering with np.nanmedian
     Parameters
@@ -21,7 +21,7 @@ def nanmedian_filter(x, filter_length):
     for i in range(len(x)):
         filtered_trace[i] = np.nanmedian(temp_trace[i:i+filter_length])
     return filtered_trace
-    
+
 def robust_std(x: np.ndarray) -> float:
     """Compute the median absolute deviation assuming normally
     distributed data. This is a robust statistic.
@@ -64,7 +64,7 @@ def noise_std(x: np.ndarray, filter_length: int = 31) -> float:
     """
     if any(np.isnan(x)):
         return np.NaN
-    noise = x - medfilt(x, filter_length)
+    noise = x - median_filter(x, filter_length)
     # first pass removing positive outlier peaks
     # TODO: Confirm with scientific team that this is really what they want
     # (method is fragile if possibly have 0 as min)

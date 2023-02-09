@@ -2,6 +2,8 @@ from typing import List
 import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.ndimage.filters import median_filter
+
+
 def nanmedian_filter(x, filter_length):
     """ 1D median filtering with np.nanmedian
     Parameters
@@ -21,6 +23,7 @@ def nanmedian_filter(x, filter_length):
     for i in range(len(x)):
         filtered_trace[i] = np.nanmedian(temp_trace[i:i+filter_length])
     return filtered_trace
+
 
 def robust_std(x: np.ndarray) -> float:
     """Compute the median absolute deviation assuming normally

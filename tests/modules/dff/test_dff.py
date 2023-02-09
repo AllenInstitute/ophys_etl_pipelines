@@ -54,10 +54,11 @@ def test_dff_trace(monkeypatch):
     logic pertains to filtering numpy arrays anyway.
     """
     monkeypatch.setattr(dff_main, "noise_std", lambda x, y: 1.0)
-    monkeypatch.setattr(dff_main, "medfilt", lambda x, y: x-1.0)
+    monkeypatch.setattr(dff_main, "nanmedian_filter", lambda x, y: x-1.0)
     f_trace = np.array([1.1, 2., 3., 3., 3., 11.])    # 2 "small baseline"
 
     dff, sigma, small_baseline = dff_main.compute_dff_trace(f_trace, 1, 1)
     assert 2 == small_baseline
     assert 1.0 == sigma     # monkeypatched noise_std
-    np.testing.assert_array_equal(np.ones(6), dff)
+    expected = np.array([1, 1, 0.5, 0.5, 0.5, 0.1])
+    np.testing.assert_array_equal(expected, dff)

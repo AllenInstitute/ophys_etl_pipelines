@@ -182,6 +182,10 @@ def zstack_metadata_fixture(splitter_tmp_dir_fixture,
     Dict mapping z-stack path to ScanImage metadata for
     the local_z_stack TIFFs
     """
+
+    # aritrary number of images taken in a z stack
+    n_z = 12
+
     n_rois = len(roi_index_to_z_fixture)
     result = dict()
     for pair in z_to_stack_path_fixture:
@@ -195,8 +199,8 @@ def zstack_metadata_fixture(splitter_tmp_dir_fixture,
             rois[roi_index]['discretePlaneMode'] = 0
         else:
             rois['discretePlaneMode'] = 0
-        z0_list = np.linspace(pair[0]-1, pair[0]+1, 13)
-        z1_list = np.linspace(pair[1]-1, pair[1]+1, 13)
+        z0_list = np.linspace(pair[0]-1, pair[0]+1, n_z)
+        z1_list = np.linspace(pair[1]-1, pair[1]+1, n_z)
         z_list = []
         for z0, z1 in zip(z0_list, z1_list):
             z_list.append([z0, z1])
@@ -219,9 +223,15 @@ def zstack_fixture(zstack_metadata_fixture,
     for individual experiments. Return a dict mapping experiment_id
     to the expected h5 file.
     """
+
     rng = np.random.default_rng(7123412)
     tmp_dir = splitter_tmp_dir_fixture
     n_pages = 10
+
+    # make it not a square so we can catch
+    # transposition errors
+    page_shape = (25, 24)
+
     exp_id_to_expected = dict()
     for tiff_path in zstack_metadata_fixture.keys():
         raw_data = dict()
@@ -236,11 +246,13 @@ def zstack_fixture(zstack_metadata_fixture,
                           np.round(z1, decimals=float_resolution_fixture))
                 zz = np.round(zz, decimals=float_resolution_fixture)
             else:
+                z0 = np.round(z0).astype(int)
+                z1 = np.round(z1).astype(int)
                 z_pair = (z0, z1)
-                zz = zz
+                zz = np.round(zz).astype(int)
             exp_id = z_to_exp_id_fixture[z_pair][zz]
             expected_path = tmp_dir / f'{exp_id}_expected_z_stack.h5'
-            data = rng.integers(0, 10*zz, (n_pages, 25, 24))
+            data = rng.integers(0, 10*zz, (n_pages, *page_shape))
             raw_data[zz] = data
             exp_id_to_expected[f'expected_{exp_id}'] = expected_path
             with h5py.File(expected_path, 'w') as out_file:
@@ -339,11 +351,16 @@ def timeseries_fixture(splitter_tmp_dir_fixture,
     z_list = image_metadata_fixture[0]['SI.hStackManager.zsAllActuators']
     z_to_data = dict()
     n_pages = 13
+
+    # make it not a square so we can catch transposition
+    # errors
+    page_shape = (17, 14)
+
     for z_pair in z_list:
         z_pair = tuple(z_pair)
         z_to_data[z_pair] = {}
         for zz in z_pair:
-            data = rng.integers(0, 255, (n_pages, 25, 24))
+            data = rng.integers(0, 255, (n_pages, *page_shape))
             z_to_data[z_pair][zz] = data
     tiff_data = []
     for i_page in range(n_pages):

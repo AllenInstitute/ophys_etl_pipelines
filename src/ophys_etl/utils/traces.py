@@ -4,11 +4,11 @@ from scipy.sparse import coo_matrix
 from scipy.ndimage.filters import median_filter
 
 
-def nanmedian_filter(x: np.ndarray, filter_length: int) -> np.array:
+def nanmedian_filter(input_arr: np.ndarray, filter_length: int) -> np.array:
     """ 1D median filtering with np.nanmedian
     Parameters
     ----------
-    x: np.ndarray
+    input_arr: np.ndarray
         1d array of signal
     filter_length: int
         Length of the median filter to compute a rolling baseline
@@ -20,20 +20,20 @@ def nanmedian_filter(x: np.ndarray, filter_length: int) -> np.array:
     half_length = int(filter_length/2)
     # Create 'reflect' traces at the extrema
     temp_trace = np.concatenate(
-        (np.flip(x[:half_length]), x, np.flip(x[-half_length:])))
-    filtered_trace = np.zeros_like(x)
-    for i in range(len(x)):
+        (np.flip(input_arr[:half_length]), input_arr, np.flip(input_arr[-half_length:])))
+    filtered_trace = np.zeros_like(input_arr)
+    for i in range(len(input_arr)):
         filtered_trace[i] = np.nanmedian(temp_trace[i:i+filter_length])
     return filtered_trace
 
 
-def robust_std(x: np.ndarray) -> float:
+def robust_std(input_arr: np.ndarray) -> float:
     """Compute the median absolute deviation assuming normally
     distributed data. This is a robust statistic.
 
     Parameters
     ----------
-    x: np.ndarray
+    input_arr: np.ndarray
         A numeric, 1d numpy array
     Returns
     -------
@@ -41,35 +41,35 @@ def robust_std(x: np.ndarray) -> float:
         A robust estimation of standard deviation.
     Notes
     -----
-    If `x` is an empty array or contains any NaNs, will return NaN.
+    If `input_arr` is an empty array or contains any NaNs, will return NaN.
     """
-    mad = np.median(np.abs(x - np.median(x)))
+    mad = np.median(np.abs(input_arr - np.median(input_arr)))
     return 1.4826*mad
 
 
-def noise_std(x: np.ndarray, filter_length: int = 31) -> float:
+def noise_std(input_arr: np.ndarray, filter_length: int = 31) -> float:
     """Compute a robust estimation of the standard deviation of the
-    noise in a signal `x`. The noise is left after subtracting
+    noise in a signal `input_arr`. The noise is left after subtracting
     a rolling median filter value from the signal. Outliers are removed
     in 2 stages to make the estimation robust.
 
     Parameters
     ----------
-    x: np.ndarray
+    input_arr: np.ndarray
         1d array of signal (perhaps with noise)
     filter_length: int (default=31)
         Length of the median filter to compute a rolling baseline,
-        which is subtracted from the signal `x`. Must be an odd number.
+        which is subtracted from the signal `input_arr`. Must be an odd number.
 
     Returns
     -------
     float:
         A robust estimation of the standard deviation of the noise.
-        If any valurs of `x` are NaN, returns NaN.
+        If any valurs of `input_arr` are NaN, returns NaN.
     """
-    if any(np.isnan(x)):
+    if any(np.isnan(input_arr)):
         return np.NaN
-    noise = x - median_filter(x, filter_length)
+    noise = input_arr - median_filter(input_arr, filter_length)
     # first pass removing positive outlier peaks
     # TODO: Confirm with scientific team that this is really what they want
     # (method is fragile if possibly have 0 as min)

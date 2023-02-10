@@ -70,7 +70,7 @@ def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
     else:
         baseline = median_filter(
             corrected_fluorescence_trace, long_filter_length)
-    
+
     dff = ((corrected_fluorescence_trace - baseline)
            / np.maximum(baseline, sigma_f))
     num_small_baseline_frames = np.sum(baseline <= sigma_f)

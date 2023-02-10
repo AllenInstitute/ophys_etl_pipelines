@@ -145,7 +145,8 @@ def _create_image_tiff(
 def test_depth_splitter(tmp_path_factory,
                         z_value_list,
                         n_rois,
-                        use_zs):
+                        use_zs,
+                        helper_functions):
     """
     Test that, when splitting a depth TIFF, _get_pages and
     write_output_file behave as expected
@@ -211,6 +212,8 @@ def test_depth_splitter(tmp_path_factory,
     if tiff_path.is_file():
         tiff_path.unlink()
 
+    helper_functions.clean_up_dir(tmp_dir)
+
 
 @pytest.mark.parametrize(
     "z_value_list, n_rois, use_zs",
@@ -233,7 +236,8 @@ def test_depth_splitter(tmp_path_factory,
 def test_splitter_manifest(tmp_path_factory,
                            z_value_list,
                            n_rois,
-                           use_zs):
+                           use_zs,
+                           helper_functions):
     """
     Test that the various methods characterizing legal
     combinations of i_roi and z behave as expected
@@ -286,6 +290,8 @@ def test_splitter_manifest(tmp_path_factory,
     if tiff_path.is_file():
         tiff_path.unlink()
 
+    helper_functions.clean_up_dir(tmp_dir)
+
 
 @pytest.mark.parametrize(
     "z_value_list, use_zs",
@@ -299,7 +305,8 @@ def test_splitter_manifest(tmp_path_factory,
      ((0, 5, 4), False)])
 def test_surface_splitter(tmp_path_factory,
                           z_value_list,
-                          use_zs):
+                          use_zs,
+                          helper_functions):
     """
     Test that, when splitting a surface TIFF, _get_pages and
     write_output_file behave as expected
@@ -361,6 +368,8 @@ def test_surface_splitter(tmp_path_factory,
     if tiff_path.is_file():
         tiff_path.unlink()
 
+    helper_functions.clean_up_dir(tmp_dir)
+
 
 @pytest.mark.parametrize(
     "z_value_list, n_rois, use_zs",
@@ -383,7 +392,8 @@ def test_surface_splitter(tmp_path_factory,
 def test_time_splitter(tmp_path_factory,
                        z_value_list,
                        n_rois,
-                       use_zs):
+                       use_zs,
+                       helper_functions):
 
     """
     Test that, when splitting a timeseries TIFF,
@@ -434,6 +444,8 @@ def test_time_splitter(tmp_path_factory,
 
     if tiff_path.is_file():
         tiff_path.unlink()
+
+    helper_functions.clean_up_dir(tmp_dir)
 
 
 def test_invalid_timeseries_output_map(
@@ -615,7 +627,8 @@ def _create_z_stack_tiffs(
      ((0, 4, 5, 2, 8, 7), False)])
 def test_z_stack_splitter(tmp_path_factory,
                           z_value_list,
-                          use_zs):
+                          use_zs,
+                          helper_functions):
     """
     Test that _get_pages and write_output_file behave properly
     for zstack_splitter
@@ -685,3 +698,5 @@ def test_z_stack_splitter(tmp_path_factory,
     for z_stack_path in z_stack_path_list:
         if z_stack_path.is_file():
             z_stack_path.unlink()
+
+    helper_functions.clean_up_dir(tmpdir)

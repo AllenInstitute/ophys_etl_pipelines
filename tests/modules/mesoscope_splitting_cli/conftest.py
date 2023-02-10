@@ -318,11 +318,6 @@ def surface_fixture(splitter_tmp_dir_fixture,
         result[f'expected_{ii}'] = str_path
     yield result
 
-    for key in result:
-        this_path = pathlib.Path(result[key])
-        if this_path.is_file():
-            this_path.unlink()
-
 
 @pytest.fixture
 def timeseries_fixture(splitter_tmp_dir_fixture,
@@ -369,11 +364,6 @@ def timeseries_fixture(splitter_tmp_dir_fixture,
             str_path = str(expected_path.resolve().absolute())
             result[f'expected_{exp_id}'] = str_path
     yield result
-
-    for key in result:
-        this_path = pathlib.Path(result[key])
-        if this_path.is_file():
-            this_path.unlink()
 
 
 @pytest.fixture
@@ -511,7 +501,8 @@ def input_json_fixture(
         tmp_path_factory,
         z_to_roi_index_fixture,
         zstack_fixture,
-        platform_json_fixture):
+        platform_json_fixture,
+        helper_functions):
     """
     Return dict of input data for Mesoscope TIFF splitting CLI
     """
@@ -583,5 +574,5 @@ def input_json_fixture(
                     if this_path.is_file():
                         this_path.unlink()
 
-    if timeseries_tmp_dir.exists():
-        shutil.rmtree(timeseries_tmp_dir)
+    helper_functions.clean_up_dir(timeseries_tmp_dir)
+    helper_functions.clean_up_dir(output_tmp_dir)

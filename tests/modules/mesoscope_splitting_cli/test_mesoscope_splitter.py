@@ -33,9 +33,11 @@ def float_resolution_fixture(flavor):
 
 
 @pytest.fixture
-def splitter_tmp_dir_fixture(flavor, tmp_path_factory):
+def splitter_tmp_dir_fixture(flavor, tmp_path_factory, helper_functions):
     tmp_dir = tmp_path_factory.mktemp(f'mesoscope_testing_{flavor}_')
-    return pathlib.Path(tmp_dir)
+    yield tmp_dir
+    helper_functions.clean_up_dir(tmp_dir)
+
 
 
 @pytest.fixture
@@ -204,7 +206,8 @@ def test_splitter_cli(input_json_fixture,
                       use_platform_json,
                       use_data_upload_dir,
                       expected_count,
-                      flavor):
+                      flavor,
+                      helper_functions):
 
     input_json_data = copy.deepcopy(input_json_fixture)
     expect_full_field = True
@@ -238,3 +241,4 @@ def test_splitter_cli(input_json_fixture,
                 expect_full_field=expect_full_field)
 
     assert actual_count == expected_count
+    helper_functions.clean_up_dir(tmp_dir)

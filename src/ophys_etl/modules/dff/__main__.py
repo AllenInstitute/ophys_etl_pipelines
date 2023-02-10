@@ -58,7 +58,7 @@ def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
     sigma_f = noise_std(corrected_fluorescence_trace, short_filter_length)
     inactive_trace = corrected_fluorescence_trace.copy()
     # Long timescale median filter for baseline subtraction
-    if inactive_percentile > 0 or inactive_percentile < 100:
+    if inactive_percentile > 0 and inactive_percentile < 100:
         low_baseline = percentile_filter(
             corrected_fluorescence_trace, size=long_filter_length,
             percentile=inactive_percentile,
@@ -66,7 +66,11 @@ def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
         active_mask = corrected_fluorescence_trace > (
             low_baseline + 3 * sigma_f)
         inactive_trace[active_mask] = float('nan')
-    baseline = nanmedian_filter(inactive_trace, long_filter_length)
+        baseline = nanmedian_filter(inactive_trace, long_filter_length)
+    else:
+        baseline = median_filter(
+            corrected_fluorescence_trace, long_filter_length)
+    
     dff = ((corrected_fluorescence_trace - baseline)
            / np.maximum(baseline, sigma_f))
     num_small_baseline_frames = np.sum(baseline <= sigma_f)

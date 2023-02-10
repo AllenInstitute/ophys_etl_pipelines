@@ -1,10 +1,10 @@
 import pytest
-import tempfile
 import copy
 from unittest.mock import patch, Mock
 import pathlib
 from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
     ScanImageMetadata)
+from ophys_etl.utils.tempfile_util import mkstemp_clean
 
 
 @pytest.fixture(scope='session')
@@ -170,7 +170,7 @@ def test_all_zs(
     """
 
     tmpdir = tmp_path_factory.mktemp('test_all_zs')
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     expected = [[1, 4, 2], [9, 5, 11], [2, 6, 1]]
 
@@ -201,7 +201,7 @@ def test_raw_metadata(
     """
 
     tmpdir = tmp_path_factory.mktemp('test_all_zs')
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     to_replace = 'ophys_etl.modules.mesoscope_splitting.'
     to_replace += 'tiff_metadata._read_metadata'
@@ -228,7 +228,7 @@ def test_all_zs_error(
     """
 
     tmpdir = tmp_path_factory.mktemp('test_all_zs')
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     to_replace = 'ophys_etl.modules.mesoscope_splitting.'
     to_replace += 'tiff_metadata._read_metadata'
@@ -250,7 +250,7 @@ def test_zs_for_roi(
     Test behavior of ScanImageMetadata.zs_for_roi
     """
     tmpdir = tmp_path_factory.mktemp('test_all_zs')
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     to_replace = 'ophys_etl.modules.mesoscope_splitting.'
     to_replace += 'tiff_metadata._read_metadata'
@@ -283,7 +283,7 @@ def test_defined_rois(
     Test that ScanImageMetadata.defined_rois returns the expected resuls
     """
     tmpdir = tmp_path_factory.mktemp('test_all_zs')
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     to_replace = 'ophys_etl.modules.mesoscope_splitting.'
     to_replace += 'tiff_metadata._read_metadata'
@@ -314,7 +314,7 @@ def test_numVolumes_errors(
     """
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('numVolumes_errors'))
     tiff_path = pathlib.Path(
-                    tempfile.mkstemp(dir=tmpdir, suffix='tiff')[1])
+                    mkstemp_clean(dir=tmpdir, suffix='tiff'))
 
     metadata = [{'SI.hStackManager.actualNumVolumes': wrong_numVolumes}]
     with patch('tifffile.read_scanimage_metadata',
@@ -339,7 +339,7 @@ def test_numSlices_errors(
     """
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('numSlices_errors'))
     tiff_path = pathlib.Path(
-                    tempfile.mkstemp(dir=tmpdir, suffix='tiff')[1])
+                    mkstemp_clean(dir=tmpdir, suffix='tiff'))
 
     metadata = [{'SI.hStackManager.actualNumSlices': wrong_numSlices}]
     with patch('tifffile.read_scanimage_metadata',
@@ -359,7 +359,7 @@ def test_roi_size(
     """
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('roi_size'))
     tmp_path = pathlib.Path(
-        tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+        mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     roi_to_size = [
         (10.1, 2.3),
@@ -399,7 +399,7 @@ def test_roi_size_errors(
     """
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('roi_size'))
     tmp_path = pathlib.Path(
-        tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+        mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     roi_to_size = [
         (10.1, 2.3),
@@ -457,7 +457,7 @@ def test_roi_resolution(
     """
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('roi_resolution'))
     tmp_path = pathlib.Path(
-        tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+        mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     roi_to_res = [
         (10, 2),
@@ -497,7 +497,7 @@ def test_roi_resolution_errors(
     """
     tmpdir = pathlib.Path(tmpdir_factory.mktemp('roi_resolution'))
     tmp_path = pathlib.Path(
-        tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+        mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     roi_to_res = [
         (10, 2),

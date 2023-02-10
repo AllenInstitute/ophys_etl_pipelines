@@ -1,9 +1,11 @@
 import pytest
 import copy
-import tempfile
 import pathlib
 import numpy as np
 from unittest.mock import patch
+
+from ophys_etl.utils.tempfile_util import (
+    mkstemp_clean)
 
 from ophys_etl.modules.mesoscope_splitting.zstack_splitter import (
     ZStackSplitter)
@@ -47,7 +49,7 @@ def z_stack_many_discrete_plane_zero(tmp_path_factory,
     path_to_metadata = dict()
     tmp_dir = tmp_path_factory.mktemp('z_stack_many')
     for ii in range(3):
-        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
+        tmp_path = mkstemp_clean(dir=tmp_dir, suffix='.tiff')
         metadata = copy.deepcopy(baseline_zstack_metadata)
         rois = metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
         if ii == 0:
@@ -95,7 +97,7 @@ def z_stack_no_discrete_plane_zero(tmp_path_factory,
     path_to_metadata = dict()
     tmp_dir = tmp_path_factory.mktemp('z_stack_none')
     for ii in range(3):
-        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
+        tmp_path = mkstemp_clean(dir=tmp_dir, suffix='.tiff')
         metadata = copy.deepcopy(baseline_zstack_metadata)
         rois = metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
         if ii != 1:
@@ -139,7 +141,7 @@ def z_stack_z_array_odd_shape(tmp_path_factory,
     path_to_metadata = dict()
     tmp_dir = tmp_path_factory.mktemp('z_stack_none')
     for ii in range(3):
-        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
+        tmp_path = mkstemp_clean(dir=tmp_dir, suffix='.tiff')
         metadata = copy.deepcopy(baseline_zstack_metadata)
         rois = metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
         rois[ii]['discretePlaneMode'] = 0
@@ -188,7 +190,7 @@ def z_stack_roi_missing_tiff(tmp_path_factory,
     path_to_metadata = dict()
     tmp_dir = tmp_path_factory.mktemp('z_stack_many')
     for ii in range(3):
-        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
+        tmp_path = mkstemp_clean(dir=tmp_dir, suffix='.tiff')
         metadata = copy.deepcopy(baseline_zstack_metadata)
         rois = metadata[1]['RoiGroups']['imagingRoiGroup']['rois']
         if ii == 0 or ii == 1:
@@ -235,7 +237,7 @@ def z_stack_bad_channelSave(tmp_path_factory,
     path_to_metadata = dict()
     tmp_dir = tmp_path_factory.mktemp('z_stack_many')
     for ii in range(3):
-        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
+        tmp_path = mkstemp_clean(dir=tmp_dir, suffix='.tiff')
         metadata = copy.deepcopy(baseline_zstack_metadata)
         if ii == 1:
             metadata[0]['SI.hChannels.channelSave'] = 1

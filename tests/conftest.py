@@ -15,6 +15,24 @@ from scipy.sparse import coo_matrix
 from ophys_etl.utils.roi_masks import RoiMask
 
 
+def _clean_up_dir(tmpdir: Union[str, Path]):
+    """
+    Attempt to clean up all of the files in a specified
+    directory. If a file cannot be deleted, just catch the
+    exception and move on.
+
+    Attempt to remove the dir after cleanup.
+    """
+    tmpdir = Path(tmpdir)
+    path_list = [n for n in tmpdir.iterdir()]
+    for this_path in path_list:
+        if this_path.is_file():
+            this_path.unlink()
+        else:
+            _clean_up_dir(tmpdir=this_path)
+    tmpdir.rmdir()
+
+
 class HelperFunctions(object):
     @staticmethod
     def clean_up_dir(tmpdir: Union[str, Path]):
@@ -26,17 +44,7 @@ class HelperFunctions(object):
         Attempt to remove the dir after cleanup.
         """
         tmpdir = Path(tmpdir)
-        path_list = [n for n in tmpdir.rglob('*')]
-        for this_path in path_list:
-            if this_path.is_file():
-                try:
-                    this_path.unlink()
-                except Exception:
-                    pass
-        try:
-            shutil.rmtree(tmpdir)
-        except Exception:
-            pass
+        _clean_up_dir(tmpdir=tmpdir)
 
 
 @pytest.fixture

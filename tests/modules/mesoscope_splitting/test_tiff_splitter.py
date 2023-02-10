@@ -4,12 +4,13 @@ from unittest.mock import patch, Mock
 import numpy as np
 import h5py
 import pathlib
-import tempfile
 import tifffile
 import copy
 import json
 
 from ophys_etl.utils.array_utils import normalize_array
+
+from ophys_etl.utils.tempfile_util import mkstemp_clean
 
 from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
     AvgImageTiffSplitter,
@@ -71,7 +72,7 @@ def _create_image_tiff(
             page[i_z:i_z+2, i_z:i_z+2] = 0
             tiff_pages.append(page)
             page_lookup[(i_roi, z_value)].append(page)
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmp_dir, suffix='tiff')[1])
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmp_dir, suffix='tiff'))
     tifffile.imsave(tmp_path, tiff_pages)
 
     tiff_pages = np.array(tiff_pages)
@@ -190,7 +191,7 @@ def test_depth_splitter(tmp_path_factory,
                     actual,
                     raw_avg_img_lookup[(i_roi, z_value)])
 
-        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
+        tmp_path = mkstemp_clean(dir=tmp_dir, suffix='.tiff')
         tmp_path = pathlib.Path(tmp_path)
 
         splitter.write_output_file(i_roi=i_roi,
@@ -352,7 +353,7 @@ def test_surface_splitter(tmp_path_factory,
                 actual,
                 raw_avg_img_lookup[(i_roi, z_value)])
 
-        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
+        tmp_path = mkstemp_clean(dir=tmp_dir, suffix='.tiff')
         tmp_path = pathlib.Path(tmp_path)
         splitter.write_output_file(i_roi=i_roi,
                                    z_value=None,
@@ -423,7 +424,7 @@ def test_time_splitter(tmp_path_factory,
     for i_z, z_value in enumerate(z_value_list):
         i_roi = i_z//n_z_per_roi
         output_path = pathlib.Path(
-                tempfile.mkstemp(dir=tmp_dir, suffix='.h5')[1])
+                mkstemp_clean(dir=tmp_dir, suffix='.h5'))
         output_path_map[(i_roi, z_value)] = output_path
 
     splitter.write_output_files(
@@ -484,7 +485,7 @@ def test_invalid_timeseries_output_map(
     for i_z, z_value in enumerate(z_value_list):
         i_roi = i_z//n_z_per_roi
         output_path = pathlib.Path(
-                tempfile.mkstemp(dir=tmp_dir, suffix='.h5')[1])
+                mkstemp_clean(dir=tmp_dir, suffix='.h5'))
         output_path_map[(i_roi, z_value)] = output_path
 
     # test i_roi that is too large
@@ -565,9 +566,9 @@ def _create_z_stack_tiffs(
     n_repeats = 5
 
     for i_roi in range(n_rois):
-        stack_path = pathlib.Path(tempfile.mkstemp(
+        stack_path = pathlib.Path(mkstemp_clean(
                                        dir=tmpdir,
-                                       suffix='.tiff')[1])
+                                       suffix='.tiff'))
         roi_metadata = copy.deepcopy(main_roi_metadata)
         rois = roi_metadata['RoiGroups']['imagingRoiGroup']['rois']
         rois[i_roi]['discretePlaneMode'] = 0
@@ -679,7 +680,7 @@ def test_z_stack_splitter(tmp_path_factory,
             expected = np.stack(tiff_pages_lookup[(i_roi, z_value)])
             np.testing.assert_array_equal(actual, expected)
 
-            tmp_h5 = tempfile.mkstemp(dir=tmpdir, suffix='.h5')[1]
+            tmp_h5 = mkstemp_clean(dir=tmpdir, suffix='.h5')
             tmp_h5 = pathlib.Path(tmp_h5)
             splitter.write_output_file(
                             i_roi=i_roi,

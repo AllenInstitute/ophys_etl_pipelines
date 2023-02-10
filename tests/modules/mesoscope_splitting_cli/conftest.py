@@ -25,9 +25,11 @@ import copy
 import tifffile
 import pathlib
 import h5py
-import tempfile
 import numpy as np
 import json
+
+from ophys_etl.utils.tempfile_util import (
+    mkstemp_clean)
 
 from ophys_etl.test_utils.full_field_tiff_utils import (
     _create_full_field_tiff,
@@ -95,8 +97,8 @@ def z_to_stack_path_fixture(splitter_tmp_dir_fixture,
     tmp_dir = splitter_tmp_dir_fixture
     result = dict()
     for pair in z_list_fixture:
-        path = tempfile.mkstemp(dir=tmp_dir,
-                                suffix='_z_stack.tiff')[1]
+        path = mkstemp_clean(dir=tmp_dir,
+                             suffix='_z_stack.tiff')
         result[tuple(pair)] = path
 
     return result
@@ -277,8 +279,8 @@ def surface_fixture(splitter_tmp_dir_fixture,
     """
     n_rois = len(roi_index_to_z_fixture)
     tmp_dir = splitter_tmp_dir_fixture
-    raw_tiff_path = tempfile.mkstemp(dir=tmp_dir,
-                                     suffix='_surface.tiff')[1]
+    raw_tiff_path = mkstemp_clean(dir=tmp_dir,
+                                  suffix='_surface.tiff')
     expected_path_list = []
     for ii in range(n_rois):
         expected_path = tmp_dir / f'expected_surface_{ii}.tiff'
@@ -349,7 +351,7 @@ def timeseries_fixture(splitter_tmp_dir_fixture,
             z_pair = tuple(z_pair)
             for zz in z_pair:
                 tiff_data.append(z_to_data[z_pair][zz][i_page, :, :])
-    raw_path = tempfile.mkstemp(dir=tmp_dir, suffix='_timeseries.tiff')[1]
+    raw_path = mkstemp_clean(dir=tmp_dir, suffix='_timeseries.tiff')
     tifffile.imsave(raw_path, tiff_data)
     result = dict()
     result['raw'] = raw_path
@@ -396,7 +398,7 @@ def depth_fixture(splitter_tmp_dir_fixture,
             z_pair = tuple(z_pair)
             for zz in z_pair:
                 tiff_data.append(z_to_data[z_pair][zz][i_page, :, :])
-    raw_path = tempfile.mkstemp(dir=tmp_dir, suffix='_depth.tiff')[1]
+    raw_path = mkstemp_clean(dir=tmp_dir, suffix='_depth.tiff')
     tifffile.imsave(raw_path, tiff_data)
     result = dict()
     result['raw'] = raw_path

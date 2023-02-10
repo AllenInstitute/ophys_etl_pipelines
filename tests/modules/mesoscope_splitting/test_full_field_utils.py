@@ -2,9 +2,10 @@ import pytest
 from unittest.mock import Mock, patch
 import numpy as np
 import pathlib
-import tempfile
 import copy
 from itertools import product
+
+from ophys_etl.utils.tempfile_util import mkstemp_clean
 
 from ophys_etl.test_utils.full_field_tiff_utils import (
     _create_full_field_tiff,
@@ -329,7 +330,7 @@ def test_stitch_full_field_tiff(
     tmpdir = pathlib.Path(
             tmpdir_factory.mktemp('stitch_full_field'))
     tiff_path = pathlib.Path(
-            tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+            mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     with patch("tifffile.read_scanimage_metadata",
                new=Mock(return_value=metadata)):
@@ -405,7 +406,7 @@ def test_user_facing_stitch_full_field_tiff(
     tmpdir = pathlib.Path(
             tmpdir_factory.mktemp('stitch_full_field'))
     tiff_path = pathlib.Path(
-            tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+            mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     with patch("tifffile.read_scanimage_metadata",
                new=Mock(return_value=metadata)):
@@ -436,9 +437,9 @@ def test_get_origin(
     tmpdir = pathlib.Path(
             tmpdir_factory.mktemp('get_origin'))
     tiff_path = pathlib.Path(
-            tempfile.mkstemp(
+            mkstemp_clean(
                 dir=tmpdir,
-                suffix='.tiff')[1])
+                suffix='.tiff'))
 
     metadata = ['nothing',
                 dict()]
@@ -473,7 +474,7 @@ def test_validate_all_roi_same_size(
     tmpdir = pathlib.Path(
             tmpdir_factory.mktemp('validate_roi_size'))
     tiff_path = pathlib.Path(
-            tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+            mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     metadata = ['nothing',
                 None]

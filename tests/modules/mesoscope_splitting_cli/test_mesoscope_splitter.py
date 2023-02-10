@@ -39,7 +39,6 @@ def splitter_tmp_dir_fixture(flavor, tmp_path_factory, helper_functions):
     helper_functions.clean_up_dir(tmp_dir)
 
 
-
 @pytest.fixture
 def z_to_exp_id_fixture(flavor):
     """

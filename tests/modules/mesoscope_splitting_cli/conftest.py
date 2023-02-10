@@ -26,7 +26,6 @@ import tifffile
 import pathlib
 import h5py
 import tempfile
-import shutil
 import numpy as np
 import json
 

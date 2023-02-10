@@ -7,7 +7,6 @@ import pandas as pd
 from numpy.random import seed, uniform
 import pytest
 import json
-import shutil
 
 import numpy as np
 from scipy.sparse import coo_matrix

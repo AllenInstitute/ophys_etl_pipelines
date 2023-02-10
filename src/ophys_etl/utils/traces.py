@@ -4,12 +4,14 @@ from scipy.sparse import coo_matrix
 from scipy.ndimage.filters import median_filter
 
 
-def nanmedian_filter(x, filter_length):
+def nanmedian_filter(x: np.ndarray, filter_length: int) -> np.array:
     """ 1D median filtering with np.nanmedian
     Parameters
     ----------
-    x: 1D trace to be filtered
-    filter_length: length of the filter
+    x: np.ndarray
+        1d array of signal
+    filter_length: int
+        Length of the median filter to compute a rolling baseline
 
     Return
     ------

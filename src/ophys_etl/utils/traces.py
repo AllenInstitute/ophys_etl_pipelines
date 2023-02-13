@@ -17,13 +17,18 @@ def nanmedian_filter(input_arr: np.ndarray, filter_length: int) -> np.array:
     ------
     filtered_trace
     """
+
     half_length = int(filter_length/2)
     # Create 'reflect' traces at the extrema
     temp_trace = np.concatenate(
         (np.flip(input_arr[:half_length]), input_arr, np.flip(input_arr[-half_length:])))
     filtered_trace = np.zeros_like(input_arr)
     for i in range(len(input_arr)):
-        filtered_trace[i] = np.nanmedian(temp_trace[i:i+filter_length])
+        median = np.nanmedian(temp_trace[i:i+filter_length])
+        if np.isnan(median) and i>0:
+            filtered_trace[i] = filtered_trace[i-1]
+        else:
+            filtered_trace[i] = median
     return filtered_trace
 
 

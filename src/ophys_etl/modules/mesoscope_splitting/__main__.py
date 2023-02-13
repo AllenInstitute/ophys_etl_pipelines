@@ -171,7 +171,7 @@ class TiffSplitterCLI(ArgSchemaParser):
             if "column_z_stack_tif" in plane_group:
                 msg = "'column_z_stack_tif' detected in 'plane_groups'; "
                 msg += "the TIFF splitting code no longer handles that file."
-                self.logger.warn(msg)
+                self.logger.warning(msg)
 
         # There are cases where the centers for ROIs are not
         # exact across modalities, so we cannot demand that the
@@ -356,14 +356,16 @@ class TiffSplitterCLI(ArgSchemaParser):
         stitch_full_field = True
         platform_key = "platform_json_path"
         if platform_key not in self.args or self.args[platform_key] is None:
-            self.logger.warn("platform_json_path not specified; "
-                             "skipping stitched full field image generation")
+            self.logger.warning(
+                "platform_json_path not specified; "
+                "skipping stitched full field image generation")
             stitch_full_field = False
 
         dir_key = "data_upload_dir"
         if dir_key not in self.args or self.args[dir_key] is None:
-            self.logger.warn("data_upload_dir not specified; "
-                             "skipping stitched full field image generation")
+            self.logger.warning(
+                "data_upload_dir not specified; "
+                "skipping stitched full field image generation")
             stitch_full_field = False
 
         if not stitch_full_field:
@@ -374,18 +376,19 @@ class TiffSplitterCLI(ArgSchemaParser):
 
         ff_key = "fullfield_2p_image"
         if ff_key not in platform_json_data:
-            self.logger.warn(f"{ff_key} not present in "
-                             f"{self.args['platform_key']}; "
-                             "skipping stitched full field image generation")
+            self.logger.warning(
+                f"{ff_key} not present in "
+                f"{self.args['platform_key']}; "
+                "skipping stitched full field image generation")
 
             return None
 
         upload_dir = pathlib.Path(self.args[dir_key])
         full_field_path = upload_dir / platform_json_data[ff_key]
         if not full_field_path.is_file():
-            self.logger.warn(f"{full_field_path.resolve().absolute()} "
-                             "does not exist; skipping full field image "
-                             "generation")
+            self.logger.warning(f"{full_field_path.resolve().absolute()} "
+                                "does not exist; skipping full field image "
+                                "generation")
             return None
 
         return full_field_path

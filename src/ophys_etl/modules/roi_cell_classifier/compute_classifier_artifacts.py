@@ -187,7 +187,7 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         roi_id = ophys_roi.roi_id
         if mask_thumbnail.sum() <= 0:
             msg = f"{exp_id}_{roi_id} has bad mask {mask_thumbnail.shape}"
-            self.logger.warn(msg)
+            self.logger.warning(msg)
         for img, name in zip((max_thumbnail, avg_thumbnail,
                               corr_thumbnail, mask_thumbnail),
                              (f"max_{exp_id}_{roi_id}.png",

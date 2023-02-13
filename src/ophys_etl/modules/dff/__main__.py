@@ -88,11 +88,13 @@ def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
 
     return dff, sigma_dff, num_small_baseline_frames
 
+
 def _check_kernel(kernel_size, data_size):
     if kernel_size % 2 == 0 or kernel_size <= 0 or kernel_size >= data_size:
         raise ValueError("Invalid kernel length {} for data length {}. Kernel "
                          "length must be positive and odd, and less than data "
                          "length.".format(kernel_size, data_size))
+
 
 def job_call(index: int, input_file: Path, key: str,
              long_filter: int, short_filter: int):

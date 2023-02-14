@@ -64,9 +64,11 @@ def test_dff_trace(monkeypatch):
     np.testing.assert_array_equal(expected, dff)
 
     with pytest.raises(ValueError):
-        dff_main.compute_dff_trace(f_trace, long_filter_length=2, short_filter_length=1)
+        dff_main.compute_dff_trace(
+            f_trace, long_filter_length=2, short_filter_length=1)
     with pytest.raises(ValueError):
-        dff_main.compute_dff_trace(f_trace, long_filter_length=3, short_filter_length=2)
+        dff_main.compute_dff_trace(
+            f_trace, long_filter_length=3, short_filter_length=2)
     with pytest.raises(ValueError):
-        dff_main.compute_dff_trace(f_trace, long_filter_length=7, short_filter_length=1)
-
+        dff_main.compute_dff_trace(
+            f_trace, long_filter_length=7, short_filter_length=1)

@@ -29,7 +29,7 @@ def nanmedian_filter(input_arr: np.ndarray, filter_length: int) -> np.array:
     filtered_trace = np.zeros_like(input_arr)
     for i in range(len(input_arr)):
         median = np.nanmedian(temp_trace[i:i+filter_length])
-        if np.isnan(median) and i>0:
+        if np.isnan(median) and i > 0:
             filtered_trace[i] = filtered_trace[i-1]
         else:
             filtered_trace[i] = median

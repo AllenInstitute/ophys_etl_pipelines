@@ -2,7 +2,7 @@ import numpy as np
 import h5py
 import json
 import time
-
+import pytest
 import ophys_etl.modules.dff.__main__ as dff_main
 from ophys_etl.modules.dff.__main__ import DffJob
 
@@ -62,3 +62,11 @@ def test_dff_trace(monkeypatch):
     assert 1.0 == sigma     # monkeypatched noise_std
     expected = np.array([1, 1, 0.5, 0.5, 0.5, 0.1])
     np.testing.assert_array_equal(expected, dff)
+
+    with pytest.raises(ValueError):
+        dff_main.compute_dff_trace(f_trace, long_filter_length=2, short_filter_length=1)
+    with pytest.raises(ValueError):
+        dff_main.compute_dff_trace(f_trace, long_filter_length=3, short_filter_length=2)
+    with pytest.raises(ValueError):
+        dff_main.compute_dff_trace(f_trace, long_filter_length=7, short_filter_length=1)
+

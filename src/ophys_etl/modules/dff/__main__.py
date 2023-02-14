@@ -55,8 +55,8 @@ def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
         filter) was less than or equal to the estimated noise of the
         `corrected_fluorescence_trace`.
     """
-    _check_kernel(long_filter_length, corrected_fluorescence_trace)
-    _check_kernel(short_filter_length, corrected_fluorescence_trace)
+    _check_kernel(long_filter_length, corrected_fluorescence_trace.shape[0])
+    _check_kernel(short_filter_length, corrected_fluorescence_trace.shape[0])
     sigma_f = noise_std(corrected_fluorescence_trace, short_filter_length)
     inactive_trace = corrected_fluorescence_trace.copy()
     # Long timescale median filter for baseline subtraction

@@ -52,10 +52,10 @@ class _Denoising(_PipelineStep):
                     'finetuning'
     )
     downsample_frac: Optional[float] = Field(
-        default=0.0,
+        default=None,
         description='Amount to downsample the training data by. '
-                    'I.e. a downsample frac of 0.1 would reduce the dataset '
-                    'by 10%'
+                    'I.e. a downsample frac of 0.1 would randomly sample 10% '
+                    'of the data'
     )
 
 

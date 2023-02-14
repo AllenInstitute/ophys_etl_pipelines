@@ -1,6 +1,6 @@
 FROM tensorflow/tensorflow:2.5.1-gpu
 
-LABEL maintainer="nicholas.mei@alleninstitute.org"
+LABEL maintainer="pika@alleninstitute.onmicrosoft.com"
 LABEL version=1.0
 LABEL description="This dockerfile provides a working environment for \
                     running the deepinterpolation CLI"

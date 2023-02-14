@@ -1,6 +1,6 @@
 FROM continuumio/miniconda3:4.8.2
 
-LABEL maintainer="nicholas.mei@alleninstitute.org"
+LABEL maintainer="pika@alleninstitute.onmicrosoft.com"
 LABEL version=1.0
 LABEL description="This dockerfile provides a working environment for \
                    Allen Institute for Brain Science optical physiology data \

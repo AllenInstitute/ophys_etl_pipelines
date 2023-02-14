@@ -1,0 +1,47 @@
+FROM tensorflow/tensorflow:2.5.1-gpu
+
+LABEL maintainer="pika@alleninstitute.onmicrosoft.com"
+LABEL version=1.0
+LABEL description="This dockerfile provides a working environment for \
+                    running the deepinterpolation CLI"
+
+ARG OPHYS_ETL_TAG=main
+ARG OPHYS_ETL_COMMIT_SHA="unknown build"
+ARG PYTHON_VERSION
+
+ENV OPHYS_ETL_COMMIT_SHA=${OPHYS_ETL_COMMIT_SHA}
+ENV CONDA_ENV=/envs/ophys_etl
+
+RUN mkdir /envs
+
+# NOTE: To install into conda environments during docker build we need to
+# use "conda run -n <my_env> subsequent commands". For details see:
+# https://pythonspeed.com/articles/activate-conda-dockerfile/
+
+WORKDIR /repos
+
+# Fixes an issue The repository 'https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64  InRelease' is no longer signed.
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
+
+RUN apt-get -y update --allow-releaseinfo-change
+
+RUN apt-get -y install git
+RUN apt-get -y install wget
+
+# install conda
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
+RUN bash ~/miniconda.sh -b -p ~/miniconda
+
+# activate conda
+RUN eval "$(~/miniconda/bin/conda shell.bash hook)"
+ENV PATH="~/miniconda/bin:${PATH}"
+ARG PATH="~/miniconda/bin:${PATH}"
+RUN conda init
+
+
+RUN git clone -b ${OPHYS_ETL_TAG} https://github.com/AllenInstitute/ophys_etl_pipelines ./ophys_etl
+RUN conda create --prefix ${CONDA_ENV} python=${PYTHON_VERSION} && \
+    conda run --prefix ${CONDA_ENV} pip install --no-cache ./ophys_etl[deepinterpolation] && \
+    conda run --prefix ${CONDA_ENV} pip install coverage
+
+ENTRYPOINT ["/bin/bash", "-c", "$@", "--"]

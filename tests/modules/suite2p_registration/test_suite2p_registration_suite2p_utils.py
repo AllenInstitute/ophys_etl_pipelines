@@ -5,10 +5,13 @@ from pathlib import Path
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 
-from ophys_etl.modules.suite2p_registration.suite2p_utils import (  # noqa: E402, E501
-    compute_reference, load_initial_frames, compute_acutance,
-    add_required_parameters, create_ave_image, optimize_motion_parameters,
-    remove_extrema_frames, load_representative_sub_frames)
+try:
+    from ophys_etl.modules.suite2p_registration.suite2p_utils import (  # noqa: E402, E501
+        compute_reference, load_initial_frames, compute_acutance,
+        add_required_parameters, create_ave_image, optimize_motion_parameters,
+        remove_extrema_frames, load_representative_sub_frames)
+except ImportError:
+    pass
 
 
 # Mock function to return just the first frame as the reference. We

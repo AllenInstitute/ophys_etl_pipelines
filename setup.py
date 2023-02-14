@@ -15,4 +15,14 @@ setup(
     packages=find_packages(where="src"),
     setup_requires=["setuptools_scm"],
     install_requires=required,
+    extras_require={
+        # Separating out dependencies with pytorch and tensorflow, since
+        # they don't play nice together. Install them separately
+        'suite2p': [
+            'suite2p==0.10.2'
+        ],
+        'deepinterpolation': [
+            'deepinterpolation @ git+https://github.com/danielsf/deepinterpolation@staging/ophys_etl'   # noqa E401
+        ]
+    }
 )

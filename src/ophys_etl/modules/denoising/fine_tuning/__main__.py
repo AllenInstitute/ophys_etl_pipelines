@@ -1,9 +1,9 @@
-import tempfile
 from pathlib import Path
 from typing import Dict
 
 import argschema
 import h5py
+import json
 import numpy as np
 from deepinterpolation.cli.fine_tuning import FineTuning
 
@@ -23,26 +23,30 @@ class FinetuningRunner(argschema.ArgSchemaParser):
     args: Dict
 
     def run(self):
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            train_out_path = Path(tmp_dir) / 'train.json'
-            val_out_path = Path(tmp_dir) / 'val.json'
+        self.logger.name = type(self).__name__
 
-            self._write_train_val_datasets(
-                train_out_path=train_out_path,
-                val_out_path=val_out_path
-            )
-            self.args['generator_params']['data_path'] = str(train_out_path)
-            self.args['test_generator_params']['data_path'] = str(val_out_path)
+        train_out_path = Path(
+            self.args['data_split_params']['dataset_output_dir']) / \
+            'train.json'
+        val_out_path = Path(
+            self.args['data_split_params']['dataset_output_dir']) / 'val.json'
 
-            del self.args['data_split_params']
+        self._write_train_val_datasets(
+            train_out_path=train_out_path,
+            val_out_path=val_out_path
+        )
+        self.args['generator_params']['data_path'] = str(train_out_path)
+        self.args['test_generator_params']['data_path'] = str(val_out_path)
 
-            # Removes args added in post_load, since they are not expected in
-            # the schema when `FineTuning` is called below
-            del self.args['generator_params']['steps_per_epoch']
-            del self.args['test_generator_params']['steps_per_epoch']
+        del self.args['data_split_params']
 
-            fine_tuning_runner = FineTuning(input_data=self.args, args=[])
-            fine_tuning_runner.run()
+        # Removes args added in post_load, since they are not expected in
+        # the schema when `FineTuning` is called below
+        del self.args['generator_params']['steps_per_epoch']
+        del self.args['test_generator_params']['steps_per_epoch']
+
+        fine_tuning_runner = FineTuning(input_data=self.args, args=[])
+        fine_tuning_runner.run()
 
     def _write_train_val_datasets(
             self,
@@ -60,7 +64,8 @@ class FinetuningRunner(argschema.ArgSchemaParser):
         """
         data_splitter = DataSplitter(
             movie_path=self.args['data_split_params']['movie_path'],
-            seed=self.args['data_split_params']['seed']
+            seed=self.args['data_split_params']['seed'],
+            downsample_frac=self.args['data_split_params']['downsample_frac']
         )
         train, val = data_splitter.get_train_val_split(
             train_frac=self.args['data_split_params']['train_frac'],
@@ -74,15 +79,23 @@ class FinetuningRunner(argschema.ArgSchemaParser):
             mean = f['data'][np.sort(train)].mean()
             std = f['data'][np.sort(train)].std()
 
-        for ds_out_path, ds in zip((train_out_path, val_out_path),
-                                   (train, val)):
+        for ds_out_path, ds, ds_name in zip(
+                (train_out_path, val_out_path),
+                (train, val),
+                ('train', 'val')
+        ):
+            out = {
+                self.args['data_split_params']['ophys_experiment_id']:
+                    DataSplitterOutputSchema().load({
+                        'mean': mean,
+                        'std': std,
+                        'path': self.args['data_split_params']['movie_path'],
+                        'frames': list(ds)
+                    })
+            }
             with open(ds_out_path, 'w') as f:
-                f.write(DataSplitterOutputSchema().dumps({
-                    'mean': mean,
-                    'std': std,
-                    'path': self.args['data_split_params']['movie_path'],
-                    'frames': list(ds)
-                }, indent=2))
+                f.write(json.dumps(out, indent=2))
+            self.logger.info(f'Wrote {ds_name} set to {ds_out_path}')
 
 
 def main():

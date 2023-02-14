@@ -24,10 +24,13 @@ class TestDataSplitter:
     def teardown_class(cls):
         cls.tmpdir.cleanup()
 
+    @pytest.mark.parametrize('downsample_frac', (None, 0.1))
     @pytest.mark.parametrize('train_frac', (0.5, 0.7))
-    def test_data_splitter(self, train_frac):
+    def test_data_splitter(self, train_frac, downsample_frac):
         data_splitter = DataSplitter(
-            movie_path=self.mov_path
+            movie_path=self.mov_path,
+            downsample_frac=downsample_frac
+
         )
         train, val = data_splitter.get_train_val_split(
             train_frac=train_frac,
@@ -41,11 +44,16 @@ class TestDataSplitter:
         # Buffer around last training example and first val example
         val_buffer = self.window_size * 2
 
-        assert len(train) == int(train_frac *
-                                 (self.mov_length -
-                                  bookend_len))
-        assert len(val) == int((1 - train_frac) *
-                               (self.mov_length -
-                                bookend_len) -
-                               val_buffer)
+        # subtract bookends
+        mov_len = self.mov_length - bookend_len
+
+        if downsample_frac is not None:
+            # downsample
+            mov_len = int(mov_len * downsample_frac)
+
+        expected_train_len = int(mov_len * train_frac)
+        expected_val_len = mov_len - expected_train_len - val_buffer
+
+        assert len(train) == expected_train_len
+        assert len(val) == expected_val_len
         assert len(set(train).intersection(val)) == 0

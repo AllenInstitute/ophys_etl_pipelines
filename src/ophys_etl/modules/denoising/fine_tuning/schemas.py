@@ -24,9 +24,11 @@ class DataSplitterInputSchema(argschema.ArgSchema):
                     'be used for validation'
     )
     downsample_frac = argschema.fields.Float(
-        default=0.0,
+        default=None,
+        allow_none=True,
         description='Amount to downsample the data by. I.e. a downsample frac '
-                    'of 0.1 would reduce the dataset by 10%'
+                    'of 0.1 would randomly sample 10% of the data. The '
+                    'default is no downsampling'
     )
 
     seed = argschema.fields.Int(

@@ -11,7 +11,7 @@ class DataSplitter:
         self,
         movie_path: Union[str, Path],
         seed: Optional[int] = None,
-        downsample_frac: float = 0.0
+        downsample_frac: Optional[float] = None
 
     ):
         """
@@ -24,7 +24,8 @@ class DataSplitter:
             Seed for reproducibility
         downsample_frac
             Amount to downsample the data by. I.e. a downsample frac
-            of 0.1 would reduce the dataset by 10%. Default is no downsampling
+            of 0.1 would randomly sample 10% of the data. Default is no
+            downsampling
 
         """
         self._movie_path = Path(movie_path)
@@ -61,14 +62,14 @@ class DataSplitter:
         all_frames = np.arange(window_size,
                                nframes - window_size)
 
-        all_frames = all_frames[
-            sorted(rng.choice(
-                a=np.arange(len(all_frames)),
-                size=(len(all_frames) -
-                      int(len(all_frames) * self._downsample_frac)),
-                replace=False
-            ))
-        ]
+        if self._downsample_frac is not None:
+            all_frames = all_frames[
+                sorted(rng.choice(
+                    a=np.arange(len(all_frames)),
+                    size=int(len(all_frames) * self._downsample_frac),
+                    replace=False
+                ))
+            ]
 
         n_train = int(len(all_frames) * train_frac)
 

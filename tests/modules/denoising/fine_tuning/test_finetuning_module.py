@@ -51,7 +51,7 @@ class TestFinetuningRunner:
                     'movie_path': str(cls.mov_path),
                     'seed': None,
                     'train_frac': 0.7,
-                    'downsample_frac': 0.0
+                    'downsample_frac': None
                 }
             }
 

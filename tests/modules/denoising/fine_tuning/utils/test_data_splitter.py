@@ -24,7 +24,7 @@ class TestDataSplitter:
     def teardown_class(cls):
         cls.tmpdir.cleanup()
 
-    @pytest.mark.parametrize('downsample_frac', (0.0, 0.1))
+    @pytest.mark.parametrize('downsample_frac', (None, 0.1))
     @pytest.mark.parametrize('train_frac', (0.5, 0.7))
     def test_data_splitter(self, train_frac, downsample_frac):
         data_splitter = DataSplitter(
@@ -47,8 +47,9 @@ class TestDataSplitter:
         # subtract bookends
         mov_len = self.mov_length - bookend_len
 
-        # downsample
-        mov_len -= int(mov_len * downsample_frac)
+        if downsample_frac is not None:
+            # downsample
+            mov_len = int(mov_len * downsample_frac)
 
         expected_train_len = int(mov_len * train_frac)
         expected_val_len = mov_len - expected_train_len - val_buffer

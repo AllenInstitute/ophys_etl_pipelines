@@ -101,6 +101,13 @@ def test_extract_traces(frames, rois, normalize_by_roi_size, expected):
         np.array([1, 2, 3, np.nan, np.nan, np.nan, 3, 2, 1]),
         3,
         np.array([1, 2, 2.5, 3, 3, 3, 2.5, 2, 1]),
+    ),
+    # If block of nan values is as large filter size, fill in with previous
+    # value
+    (
+        np.array([np.nan, np.nan, np.nan, 5, 4, 3, 2, 1]),
+        3,
+        np.array([5, 5, 5, 4.5, 4, 3, 2, 1]),
     )
 ])
 def test_nanmedian_filter(input_arr, size, expected):

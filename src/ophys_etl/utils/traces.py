@@ -17,7 +17,15 @@ def nanmedian_filter(input_arr: np.ndarray, filter_length: int) -> np.array:
     ------
     filtered_trace
     """
-
+    def fill_nan(input_arr: np.ndarray) -> np.ndarray: 
+        nan_mask = np.isnan(input_arr)
+        nan_indices = np.where(nan_mask)[0]
+        no_nan_indices = np.where(~nan_mask)[0]
+        interpolated_values = np.interp(
+            nan_indices, no_nan_indices, input_arr[no_nan_indices])
+        input_arr[nan_mask] = interpolated_values
+        return input_arr
+    
     half_length = int(filter_length/2)
     # Create 'reflect' traces at the extrema
     temp_trace = np.concatenate(
@@ -28,11 +36,9 @@ def nanmedian_filter(input_arr: np.ndarray, filter_length: int) -> np.array:
         )
     filtered_trace = np.zeros_like(input_arr)
     for i in range(len(input_arr)):
-        median = np.nanmedian(temp_trace[i:i+filter_length])
-        if np.isnan(median) and i > 0:
-            filtered_trace[i] = filtered_trace[i-1]
-        else:
-            filtered_trace[i] = median
+        filtered_trace[i] = np.nanmedian(temp_trace[i:i+filter_length])
+    if np.isnan(filtered_trace).any():
+        filtered_trace = fill_nan(filtered_trace)
     return filtered_trace
 
 

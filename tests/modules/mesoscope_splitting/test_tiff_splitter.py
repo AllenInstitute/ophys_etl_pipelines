@@ -73,7 +73,7 @@ def _create_image_tiff(
             tiff_pages.append(page)
             page_lookup[(i_roi, z_value)].append(page)
     tmp_path = pathlib.Path(mkstemp_clean(dir=tmp_dir, suffix='tiff'))
-    tifffile.imsave(tmp_path, tiff_pages)
+    tifffile.imwrite(tmp_path, tiff_pages)
 
     tiff_pages = np.array(tiff_pages)
 
@@ -601,7 +601,7 @@ def _create_z_stack_tiffs(
                     tiff_pages_lookup[(i_roi, this_z)].append(page)
                     this_tiff.append(page)
 
-        tifffile.imsave(stack_path, this_tiff)
+        tifffile.imwrite(stack_path, this_tiff)
 
     return (z_stack_path_to_metadata,
             tiff_pages_lookup,

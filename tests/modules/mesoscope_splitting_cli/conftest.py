@@ -55,6 +55,34 @@ def _roi_index_to_centerxy(roi_index):
 
 
 @pytest.fixture
+def upload_directory_fixture(
+       tmp_path_factory,
+       helper_functions):
+    """
+    The 'data_upload_dir' key in the mesoscope splitter
+    input_json
+    """
+    output_tmp_dir = tmp_path_factory.mktemp('splitter_cli_upload')
+    output_tmp_dir = pathlib.Path(output_tmp_dir)
+    yield output_tmp_dir
+    helper_functions.clean_up_dir(output_tmp_dir)
+
+
+@pytest.fixture
+def storage_directory_fixture(
+       tmp_path_factory,
+       helper_functions):
+    """
+    The 'storage_directory' key in the mesoscope splitter
+    input_json
+    """
+    output_tmp_dir = tmp_path_factory.mktemp('splitter_cli_output')
+    output_tmp_dir = pathlib.Path(output_tmp_dir)
+    yield output_tmp_dir
+    helper_functions.clean_up_dir(output_tmp_dir)
+
+
+@pytest.fixture
 def full_field_roi_size_fixture():
     """
     Return a tuple representing the size of the ROIs that make up
@@ -88,13 +116,13 @@ def surface_roi_sizexy_fixture():
 
 
 @pytest.fixture
-def z_to_stack_path_fixture(splitter_tmp_dir_fixture,
+def z_to_stack_path_fixture(upload_directory_fixture,
                             z_list_fixture):
     """
     Return a dict mapping a tuple of z-values to the path
     to local_z_stack.tiff corresponding to those z-values
     """
-    tmp_dir = splitter_tmp_dir_fixture
+    tmp_dir = upload_directory_fixture
     result = dict()
     for pair in z_list_fixture:
         path = mkstemp_clean(dir=tmp_dir,
@@ -173,8 +201,7 @@ def surface_metadata_fixture(image_metadata_fixture,
 
 
 @pytest.fixture
-def zstack_metadata_fixture(splitter_tmp_dir_fixture,
-                            image_metadata_fixture,
+def zstack_metadata_fixture(image_metadata_fixture,
                             z_to_stack_path_fixture,
                             z_to_roi_index_fixture,
                             roi_index_to_z_fixture):
@@ -213,7 +240,7 @@ def zstack_metadata_fixture(splitter_tmp_dir_fixture,
 @pytest.fixture
 def zstack_fixture(zstack_metadata_fixture,
                    z_to_exp_id_fixture,
-                   splitter_tmp_dir_fixture,
+                   upload_directory_fixture,
                    float_resolution_fixture):
     """
     Create z-stack tiff files at paths specified in
@@ -225,7 +252,7 @@ def zstack_fixture(zstack_metadata_fixture,
     """
 
     rng = np.random.default_rng(7123412)
-    tmp_dir = splitter_tmp_dir_fixture
+    tmp_dir = upload_directory_fixture
     n_pages = 10
 
     # make it not a square so we can catch
@@ -265,7 +292,7 @@ def zstack_fixture(zstack_metadata_fixture,
                     zz = np.round(zz, decimals=float_resolution_fixture)
                 tiff_data.append(raw_data[zz][i_page, :, :])
 
-        tifffile.imsave(tmp_dir / tiff_path, tiff_data)
+        tifffile.imwrite(tmp_dir / tiff_path, tiff_data)
 
     yield exp_id_to_expected
 
@@ -276,7 +303,7 @@ def zstack_fixture(zstack_metadata_fixture,
 
 
 @pytest.fixture
-def surface_fixture(splitter_tmp_dir_fixture,
+def surface_fixture(upload_directory_fixture,
                     roi_index_to_z_fixture,
                     surface_roi_resolutionxy_fixture):
     """
@@ -290,7 +317,7 @@ def surface_fixture(splitter_tmp_dir_fixture,
     for an individual experiment
     """
     n_rois = len(roi_index_to_z_fixture)
-    tmp_dir = splitter_tmp_dir_fixture
+    tmp_dir = upload_directory_fixture
     raw_tiff_path = mkstemp_clean(dir=tmp_dir,
                                   suffix='_surface.tiff')
     expected_path_list = []
@@ -319,10 +346,10 @@ def surface_fixture(splitter_tmp_dir_fixture,
         for ii in range(n_rois):
             tiff_data.append(data_list[ii][i_page, :, :])
 
-    tifffile.imsave(raw_tiff_path, tiff_data)
+    tifffile.imwrite(raw_tiff_path, tiff_data)
     for expected_path, expected_img in zip(expected_path_list,
                                            expected_img_list):
-        tifffile.imsave(expected_path, expected_img)
+        tifffile.imwrite(expected_path, expected_img)
 
     result = dict()
     result['raw'] = raw_tiff_path
@@ -333,7 +360,7 @@ def surface_fixture(splitter_tmp_dir_fixture,
 
 
 @pytest.fixture
-def timeseries_fixture(splitter_tmp_dir_fixture,
+def timeseries_fixture(upload_directory_fixture,
                        image_metadata_fixture,
                        z_to_exp_id_fixture):
     """
@@ -347,7 +374,7 @@ def timeseries_fixture(splitter_tmp_dir_fixture,
     experiment
     """
     rng = np.random.default_rng(6123512)
-    tmp_dir = splitter_tmp_dir_fixture
+    tmp_dir = upload_directory_fixture
     z_list = image_metadata_fixture[0]['SI.hStackManager.zsAllActuators']
     z_to_data = dict()
     n_pages = 13
@@ -369,7 +396,7 @@ def timeseries_fixture(splitter_tmp_dir_fixture,
             for zz in z_pair:
                 tiff_data.append(z_to_data[z_pair][zz][i_page, :, :])
     raw_path = mkstemp_clean(dir=tmp_dir, suffix='_timeseries.tiff')
-    tifffile.imsave(raw_path, tiff_data)
+    tifffile.imwrite(raw_path, tiff_data)
     result = dict()
     result['raw'] = raw_path
     for z_pair in z_list:
@@ -385,7 +412,7 @@ def timeseries_fixture(splitter_tmp_dir_fixture,
 
 
 @pytest.fixture
-def depth_fixture(splitter_tmp_dir_fixture,
+def depth_fixture(upload_directory_fixture,
                   image_metadata_fixture,
                   z_to_exp_id_fixture):
     """
@@ -399,7 +426,7 @@ def depth_fixture(splitter_tmp_dir_fixture,
     for an individual experiment
     """
     rng = np.random.default_rng(334422)
-    tmp_dir = splitter_tmp_dir_fixture
+    tmp_dir = upload_directory_fixture
     z_list = image_metadata_fixture[0]['SI.hStackManager.zsAllActuators']
     z_to_data = dict()
     n_pages = 11
@@ -416,7 +443,7 @@ def depth_fixture(splitter_tmp_dir_fixture,
             for zz in z_pair:
                 tiff_data.append(z_to_data[z_pair][zz][i_page, :, :])
     raw_path = mkstemp_clean(dir=tmp_dir, suffix='_depth.tiff')
-    tifffile.imsave(raw_path, tiff_data)
+    tifffile.imwrite(raw_path, tiff_data)
     result = dict()
     result['raw'] = raw_path
     for z_pair in z_list:
@@ -426,7 +453,7 @@ def depth_fixture(splitter_tmp_dir_fixture,
             expected_path = tmp_dir / f'expected_{exp_id}_depth.tiff'
             expected_data = np.mean(z_to_data[z_pair][zz], axis=0)
             expected_data = normalize_array(array=expected_data)
-            tifffile.imsave(expected_path, expected_data)
+            tifffile.imwrite(expected_path, expected_data)
             str_path = str(expected_path.resolve().absolute())
             result[f'expected_{exp_id}'] = str_path
     yield result
@@ -439,9 +466,11 @@ def depth_fixture(splitter_tmp_dir_fixture,
 
 @pytest.fixture
 def full_field_2p_tiff_fixture(
-        splitter_tmp_dir_fixture,
+        upload_directory_fixture,
+        storage_directory_fixture,
         surface_roi_sizexy_fixture,
-        full_field_roi_size_fixture):
+        full_field_roi_size_fixture,
+        request):
     """
     Create a test full field TIFF image
 
@@ -449,7 +478,22 @@ def full_field_2p_tiff_fixture(
     Return a dict with
     'raw' -> the path to the raw tiff image
     'metadata' -> the metadata dict that goes with this file
+
+    if request.param is 'storage', put the file in
+    storage_directory_fixture
+
+    if request.param is 'upload', but the file in
+    upload_directory_fixture
     """
+    if request.param == 'storage':
+        output_dir = storage_directory_fixture
+    elif request.param == 'upload':
+        output_dir = upload_directory_fixture
+    else:
+        raise RuntimeError(
+            "not sure how to handle request.param "
+            f"{request.param}")
+
     gap = 1
     nrois = 3
     roix = 24
@@ -464,7 +508,7 @@ def full_field_2p_tiff_fixture(
         numVolumes=4,
         numSlices=3,
         seed=1123,
-        output_dir=splitter_tmp_dir_fixture,
+        output_dir=output_dir,
         nrows=nrows,
         ncols=ncols)
 
@@ -488,14 +532,23 @@ def full_field_2p_tiff_fixture(
 
 @pytest.fixture
 def platform_json_fixture(
-        splitter_tmp_dir_fixture,
-        full_field_2p_tiff_fixture):
+        upload_directory_fixture,
+        full_field_2p_tiff_fixture,
+        request):
     """
     Write out a platform.json file; return the path to it
+
+    If request.param is True, include the fullfield_2p_image path
+    in the input json. If not, do not.
     """
-    platform_path = splitter_tmp_dir_fixture / 'platform.json'
-    str_path = full_field_2p_tiff_fixture['raw']
-    json_data = {'fullfield_2p_image': str_path}
+    platform_path = upload_directory_fixture / 'platform.json'
+
+    if request.param:
+        str_path = full_field_2p_tiff_fixture['raw']
+        json_data = {'fullfield_2p_image': pathlib.Path(str_path).name}
+    else:
+        json_data = {'nonsense': 1}
+
     with open(platform_path, 'w') as out_file:
         out_file.write(json.dumps(json_data))
 
@@ -507,6 +560,8 @@ def platform_json_fixture(
 
 @pytest.fixture
 def input_json_fixture(
+        storage_directory_fixture,
+        upload_directory_fixture,
         depth_fixture,
         surface_fixture,
         timeseries_fixture,
@@ -515,7 +570,6 @@ def input_json_fixture(
         z_to_exp_id_fixture,
         z_to_stack_path_fixture,
         roi_index_to_z_fixture,
-        splitter_tmp_dir_fixture,
         tmp_path_factory,
         z_to_roi_index_fixture,
         zstack_fixture,
@@ -524,8 +578,6 @@ def input_json_fixture(
     """
     Return dict of input data for Mesoscope TIFF splitting CLI
     """
-    output_tmp_dir = tmp_path_factory.mktemp('splitter_cli_output')
-    output_tmp_dir = pathlib.Path(output_tmp_dir)
     timeseries_tmp_dir = pathlib.Path(
             tmp_path_factory.mktemp('splitter_timeseries_temps'))
     params = dict()
@@ -533,12 +585,13 @@ def input_json_fixture(
     params['depths_tif'] = depth_fixture['raw']
     params['surface_tif'] = surface_fixture['raw']
     params['timeseries_tif'] = timeseries_fixture['raw']
-    params['storage_directory'] = str(output_tmp_dir.resolve().absolute())
+    params['storage_directory'] = str(
+            storage_directory_fixture.resolve().absolute())
     params['tmp_dir'] = str(timeseries_tmp_dir.resolve().absolute())
     params['platform_json_path'] = str(
             platform_json_fixture.resolve().absolute())
     params['data_upload_dir'] = str(
-            splitter_tmp_dir_fixture.resolve().absolute())
+            upload_directory_fixture.resolve().absolute())
 
     plane_groups = []
     for z_pair in z_to_stack_path_fixture:
@@ -550,7 +603,7 @@ def input_json_fixture(
         for zz in z_pair:
             this_experiment = dict()
             exp_id = z_to_exp_id_fixture[z_pair][zz]
-            exp_dir = output_tmp_dir / f'{exp_id}_dir'
+            exp_dir = storage_directory_fixture / f'{exp_id}_dir'
             if not exp_dir.exists():
                 exp_dir.mkdir()
             exp_dir = str(exp_dir.resolve().absolute())
@@ -593,4 +646,3 @@ def input_json_fixture(
                         this_path.unlink()
 
     helper_functions.clean_up_dir(timeseries_tmp_dir)
-    helper_functions.clean_up_dir(output_tmp_dir)

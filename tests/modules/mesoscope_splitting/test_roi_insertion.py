@@ -83,7 +83,7 @@ def _create_avg_surface_tiff(
         for i_page in range(i_roi, n_pages_per_roi*n_rois, n_rois):
             data[i_page, :, :] = this_data[i_page//n_rois, :, :]
 
-    tifffile.imsave(tiff_path, data)
+    tifffile.imwrite(tiff_path, data)
 
     metadata[0][
         'SI.hStackManager.zsAllActuators'] = [[i_roi, 0]

@@ -458,9 +458,9 @@ class AvgImageTiffSplitter(TiffSplitterBase):
 
         metadata = {'scanimage_metadata': self.raw_metadata}
 
-        tifffile.imsave(output_path,
-                        avg_img,
-                        metadata=metadata)
+        tifffile.imwrite(output_path,
+                         avg_img,
+                         metadata=metadata)
         return None
 
 

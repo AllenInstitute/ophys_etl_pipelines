@@ -489,13 +489,22 @@ def full_field_2p_tiff_fixture(
 @pytest.fixture
 def platform_json_fixture(
         splitter_tmp_dir_fixture,
-        full_field_2p_tiff_fixture):
+        full_field_2p_tiff_fixture,
+        request):
     """
     Write out a platform.json file; return the path to it
+
+    If request.param is True, include the fullfield_2p_image path
+    in the input json. If not, do not.
     """
     platform_path = splitter_tmp_dir_fixture / 'platform.json'
-    str_path = full_field_2p_tiff_fixture['raw']
-    json_data = {'fullfield_2p_image': str_path}
+
+    if request.param:
+        str_path = full_field_2p_tiff_fixture['raw']
+        json_data = {'fullfield_2p_image': str_path}
+    else:
+        json_data = {'nonsense': 1}
+
     with open(platform_path, 'w') as out_file:
         out_file.write(json.dumps(json_data))
 

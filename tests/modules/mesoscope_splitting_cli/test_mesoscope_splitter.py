@@ -10,6 +10,7 @@
 
 import pytest
 import pathlib
+import json
 import copy
 from itertools import product
 from utils import run_mesoscope_cli_test
@@ -185,13 +186,15 @@ def expected_count(flavor):
 
 
 @pytest.mark.parametrize(
-        'use_platform_json, use_data_upload_dir, flavor',
+        'use_platform_json, use_data_upload_dir, '
+        'platform_json_fixture, flavor',
         product((True, False, None),
                 (True, False, None),
+                (True, False),
                 ('1x6', '4x2', '4x2_floats',
                  '2x4_repeats', '2x4',
                  '4x2_repeats')),
-        indirect=['flavor'])
+        indirect=['flavor', 'platform_json_fixture'])
 def test_splitter_cli(input_json_fixture,
                       tmp_path_factory,
                       zstack_metadata_fixture,
@@ -216,6 +219,10 @@ def test_splitter_cli(input_json_fixture,
     elif not use_platform_json:
         input_json_data.pop('platform_json_path')
         expect_full_field = False
+    else:
+        data = json.load(open(input_json_data['platform_json_path'], 'rb'))
+        if 'fullfield_2p_image' not in data:
+            expect_full_field = False
 
     if use_data_upload_dir is None:
         input_json_data['data_upload_dir'] = None

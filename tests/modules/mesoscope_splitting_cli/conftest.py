@@ -292,7 +292,7 @@ def zstack_fixture(zstack_metadata_fixture,
                     zz = np.round(zz, decimals=float_resolution_fixture)
                 tiff_data.append(raw_data[zz][i_page, :, :])
 
-        tifffile.imsave(tmp_dir / tiff_path, tiff_data)
+        tifffile.imwrite(tmp_dir / tiff_path, tiff_data)
 
     yield exp_id_to_expected
 
@@ -346,10 +346,10 @@ def surface_fixture(upload_directory_fixture,
         for ii in range(n_rois):
             tiff_data.append(data_list[ii][i_page, :, :])
 
-    tifffile.imsave(raw_tiff_path, tiff_data)
+    tifffile.imwrite(raw_tiff_path, tiff_data)
     for expected_path, expected_img in zip(expected_path_list,
                                            expected_img_list):
-        tifffile.imsave(expected_path, expected_img)
+        tifffile.imwrite(expected_path, expected_img)
 
     result = dict()
     result['raw'] = raw_tiff_path
@@ -396,7 +396,7 @@ def timeseries_fixture(upload_directory_fixture,
             for zz in z_pair:
                 tiff_data.append(z_to_data[z_pair][zz][i_page, :, :])
     raw_path = mkstemp_clean(dir=tmp_dir, suffix='_timeseries.tiff')
-    tifffile.imsave(raw_path, tiff_data)
+    tifffile.imwrite(raw_path, tiff_data)
     result = dict()
     result['raw'] = raw_path
     for z_pair in z_list:
@@ -443,7 +443,7 @@ def depth_fixture(upload_directory_fixture,
             for zz in z_pair:
                 tiff_data.append(z_to_data[z_pair][zz][i_page, :, :])
     raw_path = mkstemp_clean(dir=tmp_dir, suffix='_depth.tiff')
-    tifffile.imsave(raw_path, tiff_data)
+    tifffile.imwrite(raw_path, tiff_data)
     result = dict()
     result['raw'] = raw_path
     for z_pair in z_list:
@@ -453,7 +453,7 @@ def depth_fixture(upload_directory_fixture,
             expected_path = tmp_dir / f'expected_{exp_id}_depth.tiff'
             expected_data = np.mean(z_to_data[z_pair][zz], axis=0)
             expected_data = normalize_array(array=expected_data)
-            tifffile.imsave(expected_path, expected_data)
+            tifffile.imwrite(expected_path, expected_data)
             str_path = str(expected_path.resolve().absolute())
             result[f'expected_{exp_id}'] = str_path
     yield result

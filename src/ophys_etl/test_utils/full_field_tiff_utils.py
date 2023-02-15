@@ -55,7 +55,7 @@ def _create_full_field_tiff(
             tempfile.mkstemp(dir=output_dir,
                              prefix='full_field_',
                              suffix='.tiff')[1])
-    tifffile.imsave(tiff_path, tiff_pages)
+    tifffile.imwrite(tiff_path, tiff_pages)
     metadata = [{'SI.hStackManager.actualNumVolumes': numVolumes,
                  'SI.hStackManager.actualNumSlices': numSlices}]
 

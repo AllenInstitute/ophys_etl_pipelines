@@ -501,7 +501,7 @@ def platform_json_fixture(
 
     if request.param:
         str_path = full_field_2p_tiff_fixture['raw']
-        json_data = {'fullfield_2p_image': str_path}
+        json_data = {'fullfield_2p_image': pathlib.Path(str_path).name}
     else:
         json_data = {'nonsense': 1}
 

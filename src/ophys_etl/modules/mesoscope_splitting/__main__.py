@@ -353,22 +353,11 @@ class TiffSplitterCLI(ArgSchemaParser):
         Return as a pathlib.Path.
         If the image does not exist, log the reason and return None.
         """
-        stitch_full_field = True
         platform_key = "platform_json_path"
         if platform_key not in self.args or self.args[platform_key] is None:
             self.logger.warning(
                 "platform_json_path not specified; "
                 "skipping stitched full field image generation")
-            stitch_full_field = False
-
-        dir_key = "data_upload_dir"
-        if dir_key not in self.args or self.args[dir_key] is None:
-            self.logger.warning(
-                "data_upload_dir not specified; "
-                "skipping stitched full field image generation")
-            stitch_full_field = False
-
-        if not stitch_full_field:
             return None
 
         with open(self.args[platform_key], "rb") as in_file:
@@ -383,14 +372,33 @@ class TiffSplitterCLI(ArgSchemaParser):
 
             return None
 
-        upload_dir = pathlib.Path(self.args[dir_key])
-        full_field_path = upload_dir / platform_json_data[ff_key]
-        if not full_field_path.is_file():
-            self.logger.warning(f"{full_field_path.resolve().absolute()} "
-                                "does not exist; skipping full field image "
-                                "generation")
+        ff_name = platform_json_data[ff_key]
+
+        paths_to_check = []
+        paths_to_check.append(
+                pathlib.Path(self.args['storage_directory']) / ff_name)
+
+        upload_dir_key = "data_upload_dir"
+        if upload_dir_key in self.args:
+            if self.args[upload_dir_key] is not None:
+                paths_to_check.append(
+                    pathlib.Path(self.args[upload_dir_key]) / ff_name)
+
+        full_field_path = None
+        for pth in paths_to_check:
+            if pth.is_file():
+                full_field_path = pth
+                break
+
+        if full_field_path is None:
+            msg = "full field image file does not exist; tried\n"
+            for pth in paths_to_check:
+                msg += f"{pth.resolve().absolute()}\n"
+            self.logger.warning(msg)
             return None
 
+        self.logger.info("Getting fullfield_2p image from "
+                         f"{full_field_path.resolve().absolute()}")
         return full_field_path
 
 

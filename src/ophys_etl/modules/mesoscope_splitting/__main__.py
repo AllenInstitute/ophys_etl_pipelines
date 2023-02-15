@@ -378,7 +378,7 @@ class TiffSplitterCLI(ArgSchemaParser):
         if ff_key not in platform_json_data:
             self.logger.warning(
                 f"{ff_key} not present in "
-                f"{self.args['platform_key']}; "
+                f"{self.args[platform_key]}; "
                 "skipping stitched full field image generation")
 
             return None

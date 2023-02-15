@@ -187,15 +187,20 @@ def expected_count(flavor):
 
 @pytest.mark.parametrize(
         'use_platform_json, use_data_upload_dir, '
-        'platform_json_fixture, flavor',
+        'platform_json_fixture, full_field_2p_tiff_fixture, '
+        'flavor',
         product((True, False, None),
                 (True, False, None),
                 (True, False),
+                ('upload', 'storage'),
                 ('1x6', '4x2', '4x2_floats',
                  '2x4_repeats', '2x4',
                  '4x2_repeats')),
-        indirect=['flavor', 'platform_json_fixture'])
-def test_splitter_cli(input_json_fixture,
+        indirect=['flavor',
+                  'platform_json_fixture',
+                  'full_field_2p_tiff_fixture'])
+def test_splitter_cli(upload_directory_fixture,
+                      input_json_fixture,
                       tmp_path_factory,
                       zstack_metadata_fixture,
                       surface_metadata_fixture,
@@ -210,9 +215,10 @@ def test_splitter_cli(input_json_fixture,
                       expected_count,
                       flavor,
                       helper_functions):
-
     input_json_data = copy.deepcopy(input_json_fixture)
     expect_full_field = True
+
+    # remove platform_json_path from input_json, if specified
     if use_platform_json is None:
         input_json_data['platform_json_path'] = None
         expect_full_field = False
@@ -220,16 +226,26 @@ def test_splitter_cli(input_json_fixture,
         input_json_data.pop('platform_json_path')
         expect_full_field = False
     else:
-        data = json.load(open(input_json_data['platform_json_path'], 'rb'))
-        if 'fullfield_2p_image' not in data:
+        platform_data = json.load(
+                            open(input_json_data['platform_json_path'],
+                                 'rb'))
+        if 'fullfield_2p_image' not in platform_data:
             expect_full_field = False
 
+    # remove upload_data_dir from input_json, if specified
     if use_data_upload_dir is None:
         input_json_data['data_upload_dir'] = None
-        expect_full_field = False
     elif not use_data_upload_dir:
         input_json_data.pop('data_upload_dir')
-        expect_full_field = False
+
+    # if upload_data_dir was removed from input_json and that is
+    # where the full field image was stored, set
+    # expect_full_field to False
+    if use_data_upload_dir is None or not use_data_upload_dir:
+        ff_parent = pathlib.Path(full_field_2p_tiff_fixture['raw']).parent
+        ff_parent = ff_parent.resolve().absolute()
+        if ff_parent == upload_directory_fixture.resolve().absolute():
+            expect_full_field = False
 
     tmp_dir = tmp_path_factory.mktemp('cli_output_json_1x6')
     tmp_dir = pathlib.Path(tmp_dir)

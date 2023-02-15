@@ -5,6 +5,7 @@ import numpy as np
 import time
 import json
 import h5py
+import logging
 
 from ophys_etl.modules.mesoscope_splitting.schemas import (
     InputSchema, OutputSchema)
@@ -126,6 +127,77 @@ def write_out_stitched_full_field_image(
         out_file.create_dataset(
             "full_field_metadata",
             data=ff_metadata.encode('utf-8'))
+
+
+def get_full_field_path(
+        runner_args: dict,
+        logger: logging.Logger) -> Optional[pathlib.Path]:
+    """
+    Get the path to the full field image, if it exists.
+    Return as a pathlib.Path.
+    If the image does not exist, log the reason and return None.
+
+    Parameters
+    ----------
+    runner_args: dict
+        self.args from the mesoscope file splitting runner
+
+    logger: logging.Logger
+        self.logger from the mesoscope file splitting runner
+
+    Returns
+    -------
+    full_field_path: Optional[pathilb.Path]
+        The path to the full field 2p image (return None
+        if the path cannot be found or does not exist)
+    """
+    platform_key = "platform_json_path"
+    if platform_key not in runner_args or runner_args[platform_key] is None:
+        logger.warning(
+            "platform_json_path not specified; "
+            "skipping stitched full field image generation")
+        return None
+
+    with open(runner_args[platform_key], "rb") as in_file:
+        platform_json_data = json.load(in_file)
+
+    ff_key = "fullfield_2p_image"
+    if ff_key not in platform_json_data:
+        logger.warning(
+            f"{ff_key} not present in "
+            f"{runner_args[platform_key]}; "
+            "skipping stitched full field image generation")
+
+        return None
+
+    ff_name = platform_json_data[ff_key]
+
+    paths_to_check = []
+    paths_to_check.append(
+            pathlib.Path(runner_args['storage_directory']) / ff_name)
+
+    upload_dir_key = "data_upload_dir"
+    if upload_dir_key in runner_args:
+        if runner_args[upload_dir_key] is not None:
+            paths_to_check.append(
+                pathlib.Path(runner_args[upload_dir_key]) / ff_name)
+
+    full_field_path = None
+    for pth in paths_to_check:
+        if pth.is_file():
+            full_field_path = pth
+            break
+
+    if full_field_path is None:
+        msg = "full field image file does not exist; tried\n"
+        for pth in paths_to_check:
+            msg += f"{pth.resolve().absolute()}\n"
+        logger.warning(msg)
+        return None
+
+    logger.info("Getting fullfield_2p image from "
+                f"{full_field_path.resolve().absolute()}")
+    return full_field_path
 
 
 class TiffSplitterCLI(ArgSchemaParser):
@@ -307,7 +379,9 @@ class TiffSplitterCLI(ArgSchemaParser):
 
         output["ready_to_archive"] = list(ready_to_archive)
 
-        full_field_path = self.get_full_field_path()
+        full_field_path = get_full_field_path(
+                                runner_args=self.args,
+                                logger=self.logger)
 
         if full_field_path is not None:
             avg_path = self.args["surface_tif"]
@@ -346,60 +420,6 @@ class TiffSplitterCLI(ArgSchemaParser):
         self.output(get_sanitized_json_data(output), indent=1)
         duration = time.time()-t0
         self.logger.info(f"that took {duration:.2e} seconds")
-
-    def get_full_field_path(self) -> Optional[pathlib.Path]:
-        """
-        Get the path to the full field image, if it exists.
-        Return as a pathlib.Path.
-        If the image does not exist, log the reason and return None.
-        """
-        platform_key = "platform_json_path"
-        if platform_key not in self.args or self.args[platform_key] is None:
-            self.logger.warning(
-                "platform_json_path not specified; "
-                "skipping stitched full field image generation")
-            return None
-
-        with open(self.args[platform_key], "rb") as in_file:
-            platform_json_data = json.load(in_file)
-
-        ff_key = "fullfield_2p_image"
-        if ff_key not in platform_json_data:
-            self.logger.warning(
-                f"{ff_key} not present in "
-                f"{self.args[platform_key]}; "
-                "skipping stitched full field image generation")
-
-            return None
-
-        ff_name = platform_json_data[ff_key]
-
-        paths_to_check = []
-        paths_to_check.append(
-                pathlib.Path(self.args['storage_directory']) / ff_name)
-
-        upload_dir_key = "data_upload_dir"
-        if upload_dir_key in self.args:
-            if self.args[upload_dir_key] is not None:
-                paths_to_check.append(
-                    pathlib.Path(self.args[upload_dir_key]) / ff_name)
-
-        full_field_path = None
-        for pth in paths_to_check:
-            if pth.is_file():
-                full_field_path = pth
-                break
-
-        if full_field_path is None:
-            msg = "full field image file does not exist; tried\n"
-            for pth in paths_to_check:
-                msg += f"{pth.resolve().absolute()}\n"
-            self.logger.warning(msg)
-            return None
-
-        self.logger.info("Getting fullfield_2p image from "
-                         f"{full_field_path.resolve().absolute()}")
-        return full_field_path
 
 
 if __name__ == "__main__":

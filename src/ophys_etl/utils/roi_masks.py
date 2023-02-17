@@ -339,8 +339,9 @@ class NeuropilMask(Mask):
 
 
 def validate_mask(mask):
-    '''Check a given roi or neuropil mask for (a subset of) disqualifying
-     problems.
+    '''
+    Check a given roi or neuropil mask for (a subset of)
+    disqualifying problems.
     '''
 
     exclusions = []

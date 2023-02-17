@@ -41,7 +41,7 @@ def timeseries_tiff_fixture(
                 all_data.append(timeseries_fixtures[offset][ii, :, :])
 
     all_data = np.stack(all_data)
-    tifffile.imsave(tiff_path, all_data)
+    tifffile.imwrite(tiff_path, all_data)
 
     yield tiff_path
 

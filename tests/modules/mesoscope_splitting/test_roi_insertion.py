@@ -3,19 +3,21 @@
 # full field images
 
 import pytest
-import tempfile
 import pathlib
 import tifffile
 import numpy as np
 from skimage.transform import resize as skimage_resize
 from unittest.mock import Mock, patch
 
-from .utils import (
+from ophys_etl.test_utils.full_field_tiff_utils import (
     _create_full_field_tiff,
     _create_roi_metadata)
 
 from ophys_etl.utils.array_utils import (
     normalize_array)
+
+from ophys_etl.utils.tempfile_util import (
+    mkstemp_clean)
 
 from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
     ScanImageMetadata)
@@ -61,7 +63,7 @@ def _create_avg_surface_tiff(
     rng = np.random.default_rng(562132)
 
     tiff_path = pathlib.Path(
-           tempfile.mkstemp(dir=output_dir, suffix='.tiff')[1])
+           mkstemp_clean(dir=output_dir, suffix='.tiff'))
 
     metadata = [dict(), dict()]
     avg_images = []
@@ -81,7 +83,7 @@ def _create_avg_surface_tiff(
         for i_page in range(i_roi, n_pages_per_roi*n_rois, n_rois):
             data[i_page, :, :] = this_data[i_page//n_rois, :, :]
 
-    tifffile.imsave(tiff_path, data)
+    tifffile.imwrite(tiff_path, data)
 
     metadata[0][
         'SI.hStackManager.zsAllActuators'] = [[i_roi, 0]
@@ -161,7 +163,7 @@ def test_insertion_worker(
                                     origin_y+0.5*sizexy[1]]}}]}}
 
     nonsense_path = pathlib.Path(
-            tempfile.mkstemp(dir=tmpdir, suffix='.tiff')[1])
+            mkstemp_clean(dir=tmpdir, suffix='.tiff'))
 
     with patch("tifffile.read_scanimage_metadata",
                new=Mock(return_value=bckgd_metadata)):

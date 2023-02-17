@@ -52,11 +52,21 @@ class DataSplitter:
         all_frames = np.arange(window_size,
                                nframes - window_size)
 
-        # Reserving the last (1 - train_frac) frames for validation
         n_train = int(len(all_frames) * train_frac)
 
         train = all_frames[:n_train]
-        val = all_frames[n_train:]
+
+        # To be careful, we are ensuring that no frames of the movie in train
+        # are in val. We ensure this by creating a window * 2 buffer between
+        # train and val
+
+        # example:
+        # n_train = 700
+        # window = 30
+        # The last training example extends from 669 to 729
+        # We want the first val example to start at 760 so that it extends
+        # from 730 to 790
+        val = all_frames[n_train + window_size * 2:]
 
         rng = np.random.default_rng(self._seed)
         rng.shuffle(train)

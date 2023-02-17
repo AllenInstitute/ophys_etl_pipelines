@@ -1,7 +1,7 @@
 import pytest
 import numpy as np
 from scipy.sparse import coo_matrix
-
+from scipy.ndimage.filters import median_filter
 import ophys_etl.utils.traces as tx
 
 
@@ -29,7 +29,7 @@ def test_robust_std(x, expected):
     ])
 def test_noise_std(x, expected, monkeypatch):
     monkeypatch.setattr(tx, "robust_std", lambda x: x.max())
-    monkeypatch.setattr(tx, "medfilt", lambda x, y: x/2)
+    monkeypatch.setattr(tx, "median_filter", lambda x, y: x/2)
     np.testing.assert_equal(expected, tx.noise_std(x))
 
 
@@ -86,3 +86,30 @@ def test_extract_traces(frames, rois, normalize_by_roi_size, expected):
     obtained = tx.extract_traces(frames, rois, normalize_by_roi_size)
 
     assert np.allclose(obtained, expected)
+
+
+@pytest.mark.parametrize("input_arr, size, expected", [
+    # Equal to median_filter with reflect mode when no nans are present
+    (
+        np.arange(100),
+        5,
+        median_filter(np.arange(100), 5, mode='reflect'),
+    ),
+    # If block of nan values is as large filter size, fill in with previous
+    # value
+    (
+        np.array([1, 2, 3, np.nan, np.nan, np.nan, 3, 2, 1]),
+        3,
+        np.array([1, 2, 2.5, 3, 3, 3, 2.5, 2, 1]),
+    ),
+    # If block of nan values is as large filter size, fill in with previous
+    # value
+    (
+        np.array([np.nan, np.nan, np.nan, 5, 4, 3, 2, 1]),
+        3,
+        np.array([5, 5, 5, 4.5, 4, 3, 2, 1]),
+    )
+])
+def test_nanmedian_filter(input_arr, size, expected):
+    obtained = tx.nanmedian_filter(input_arr, size)
+    np.testing.assert_equal(obtained, expected)

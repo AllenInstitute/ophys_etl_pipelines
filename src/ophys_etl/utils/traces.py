@@ -17,15 +17,7 @@ def nanmedian_filter(input_arr: np.ndarray, filter_length: int) -> np.array:
     ------
     filtered_trace
     """
-    def fill_nan(input_arr: np.ndarray) -> np.ndarray: 
-        nan_mask = np.isnan(input_arr)
-        nan_indices = np.where(nan_mask)[0]
-        no_nan_indices = np.where(~nan_mask)[0]
-        interpolated_values = np.interp(
-            nan_indices, no_nan_indices, input_arr[no_nan_indices])
-        input_arr[nan_mask] = interpolated_values
-        return input_arr
-    
+
     half_length = int(filter_length/2)
     # Create 'reflect' traces at the extrema
     temp_trace = np.concatenate(
@@ -38,8 +30,29 @@ def nanmedian_filter(input_arr: np.ndarray, filter_length: int) -> np.array:
     for i in range(len(input_arr)):
         filtered_trace[i] = np.nanmedian(temp_trace[i:i+filter_length])
     if np.isnan(filtered_trace).any():
-        filtered_trace = fill_nan(filtered_trace)
+        filtered_trace = _fill_nan(filtered_trace)
     return filtered_trace
+
+
+def _fill_nan(input_arr: np.ndarray) -> np.ndarray:
+    """Fill nan values in an array with interpolation
+    Parameters
+    ----------
+    input_arr: np.ndarray
+        1d array of signal containing nan values
+
+    Returns
+    -------
+    np.ndarray
+        array with filled nan values
+    """
+    nan_mask = np.isnan(input_arr)
+    nan_indices = np.where(nan_mask)[0]
+    no_nan_indices = np.where(~nan_mask)[0]
+    interpolated_values = np.interp(
+        nan_indices, no_nan_indices, input_arr[no_nan_indices])
+    input_arr[nan_mask] = interpolated_values
+    return input_arr
 
 
 def robust_std(input_arr: np.ndarray) -> float:

@@ -1,3 +1,4 @@
+"""Database interface"""
 import datetime
 import json
 import logging

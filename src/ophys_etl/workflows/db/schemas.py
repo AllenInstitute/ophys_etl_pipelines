@@ -1,3 +1,4 @@
+"""App database schemas"""
 import datetime
 from typing import Optional
 

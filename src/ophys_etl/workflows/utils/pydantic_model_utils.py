@@ -1,3 +1,4 @@
+"""Pydantic utilities"""
 from pydantic import BaseModel, Extra
 
 

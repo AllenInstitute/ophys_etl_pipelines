@@ -1,3 +1,4 @@
+"""JSON utilities"""
 import dataclasses
 import json
 from enum import Enum

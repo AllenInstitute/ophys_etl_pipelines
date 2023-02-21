@@ -1,3 +1,4 @@
+"""Interface to the LIMS database"""
 from typing import List, Dict
 
 from sqlalchemy import create_engine

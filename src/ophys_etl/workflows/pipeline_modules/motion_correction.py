@@ -1,3 +1,4 @@
+"""Motion correction pipeline module"""
 from typing import List
 
 from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile

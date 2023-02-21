@@ -1,3 +1,4 @@
+"""Denoising finetuning pipeline module"""
 from typing import List
 
 from ophys_etl.workflows.app_config.app_config import app_config

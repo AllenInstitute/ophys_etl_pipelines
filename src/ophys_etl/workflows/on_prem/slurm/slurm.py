@@ -1,3 +1,4 @@
+"""Slurm interface"""
 import os
 import re
 from dataclasses import dataclass

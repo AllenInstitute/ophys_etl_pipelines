@@ -1,3 +1,4 @@
+"""Denoisig inference pipeline module"""
 from typing import List, Dict
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment

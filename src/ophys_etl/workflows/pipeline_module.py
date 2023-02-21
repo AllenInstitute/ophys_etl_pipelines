@@ -1,3 +1,4 @@
+"""Pipeline module"""
 import abc
 import os
 from dataclasses import dataclass

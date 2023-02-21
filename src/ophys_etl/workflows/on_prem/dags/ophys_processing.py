@@ -1,3 +1,4 @@
+"""Ophys processing DAG"""
 import datetime
 from pathlib import Path
 from typing import Type, Optional, Dict, Any

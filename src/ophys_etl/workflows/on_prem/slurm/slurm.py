@@ -45,7 +45,10 @@ def _exec_slurm_command(command: str) -> str:
 
 
 class SlurmState(Enum):
-    """States that a slurm job can be in"""
+    """States that a slurm job can be in
+
+    Source: https://slurm.schedmd.com/squeue.html#SECTION_JOB-STATE-CODES
+    """
     COMPLETED = 'COMPLETED'
     FAILED = 'FAILED'
     RUNNING = 'RUNNING'

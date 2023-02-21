@@ -2,18 +2,22 @@ PYTEST_MARK=${1}
 PYTHON_VERSION=${2}
 ENV_SPECIFICATION=${3}  # which conda environment to run in
 OUTPUT_XML=${4}    # the name of the coverage xml file (not its full path)
+IGNORE_GLOB=${5}
 
 echo "mark: "${PYTEST_MARK}
 echo "version: "${PYTHON_VERSION}
 echo "env: "${ENV_SPECIFICATION}
 echo "xml: "${OUTPUT_XML}
+echo "ignore-glob": ${IGNORE_GLOB}
 
 set -e
 export COVERAGE_FILE=/tmp/.coverage_${ENV_SPECIFICATION}_${PYTHON_VERSION}
 echo "COVERAGE_FILE set to "${COVERAGE_FILE}
 cd /repos/ophys_etl/
 /envs/${ENV_SPECIFICATION}/bin/coverage run --rcfile .circleci/coveragerc_file --concurrency=multiprocessing -m \
-    pytest --verbose -s -m "${PYTEST_MARK}" \
+    pytest --verbose \
+    ${IGNORE_GLOB:+--ignore-glob $IGNORE_GLOB} \
+    -s -m "${PYTEST_MARK}" \
     tests
 
 /envs/${ENV_SPECIFICATION}/bin/coverage combine --data-file=${COVERAGE_FILE} --rcfile .circleci/coveragerc_file

@@ -1,0 +1,3 @@
+cpus_per_task: 32
+mem: 250
+time: '8:00:00'

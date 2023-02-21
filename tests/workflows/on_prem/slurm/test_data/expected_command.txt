@@ -1,0 +1,1 @@
+SINGULARITY_TMPDIR=/scratch/fast/${SLURM_JOB_ID} singularity run     --bind /allen:/allen,/scratch/fast/${SLURM_JOB_ID}:/tmp          docker://alleninstitutepika/ophys_etl_pipelines:main     /envs/ophys_etl/bin/python -m ophys_etl.modules.suite2p_registration      --input_json input.json --output_json output.json

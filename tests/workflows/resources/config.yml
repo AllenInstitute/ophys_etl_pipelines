@@ -1,0 +1,16 @@
+app_db:
+  conn_string: ''
+output_dir: '/tmp'
+lims_db:
+  username: 'foo'
+  password: 'bar'
+singularity:
+  username: 'foo'
+  password: 'bar'
+pipeline_steps:
+  denoising:
+    base_model_path: ''
+    docker_tag: 'deepinterpolation_develop'
+  motion_correction:
+    docker_tag: 'develop'
+

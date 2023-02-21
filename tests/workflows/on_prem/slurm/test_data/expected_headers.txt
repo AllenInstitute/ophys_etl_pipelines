@@ -1,0 +1,13 @@
+#!/bin/sh
+
+#SBATCH --cpus-per-task       32
+#SBATCH --gpus                0
+#SBATCH --job-name            SUITE2P_MOTION_CORRECTION_QUEUE_1
+#SBATCH --mail-type           NONE
+#SBATCH --mem                 250G
+#SBATCH --nodes               1
+#SBATCH --output              log_path.log
+#SBATCH --partition           braintv
+#SBATCH --qos                 production
+#SBATCH --time                5:00:00
+#SBATCH --tmp                 55G

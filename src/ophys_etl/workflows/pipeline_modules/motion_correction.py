@@ -1,0 +1,94 @@
+"""Motion correction pipeline module"""
+from typing import List
+
+from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile
+from ophys_etl.workflows.well_known_file_types import \
+    WellKnownFileType
+
+
+class MotionCorrectionModule(PipelineModule):
+    """Wrapper around motion correction module"""
+
+    @property
+    def _executable(self) -> str:
+        return 'ophys_etl.modules.suite2p_registration'
+
+    @property
+    def queue_name(self):
+        return 'SUITE2P_MOTION_CORRECTION_QUEUE'
+
+    @property
+    def inputs(self):
+        module_args = {
+            'movie_frame_rate_hz': self._ophys_experiment.movie_frame_rate_hz,
+            'suite2p_args': {
+                'h5py': str(self._ophys_experiment.storage_directory /
+                            self._ophys_experiment.raw_movie_filename)
+            },
+            'motion_corrected_output': (
+                str(self.output_path /
+                    f'{self._ophys_experiment.id}_suite2p_motion_output.h5')),
+            'motion_diagnostics_output': (
+                str(self.output_path /
+                    f'{self._ophys_experiment.id}_'
+                    f'suite2p_rigid_motion_transform.csv')),
+            'max_projection_output': (
+                str(self.output_path / f'{self._ophys_experiment.id}_'
+                                       f'suite2p_maximum_projection.png')),
+            'avg_projection_output': (
+                str(self.output_path / f'{self._ophys_experiment.id}_'
+                                       f'suite2p_average_projection.png')),
+            'registration_summary_output': (
+                str(self.output_path / f'{self._ophys_experiment.id}_'
+                                       f'suite2p_registration_summary.png')),
+            'motion_correction_preview_output': (
+                str(self.output_path / f'{self._ophys_experiment.id}_'
+                                       f'suite2p_motion_preview.webm'))
+        }
+        return module_args
+
+    @property
+    def outputs(self) -> List[OutputFile]:
+        return [
+            OutputFile(
+                well_known_file_type=(
+                    WellKnownFileType.MOTION_CORRECTED_IMAGE_STACK),
+                path=(self.output_path /
+                      f'{self._ophys_experiment.id}_suite2p_motion_output.h5')
+            ),
+            OutputFile(
+                well_known_file_type=(
+                    WellKnownFileType.MAX_INTENSITY_PROJECTION_IMAGE),
+                path=(self.output_path /
+                      f'{self._ophys_experiment.id}_'
+                      f'suite2p_maximum_projection.png')
+            ),
+            OutputFile(
+                well_known_file_type=(
+                    WellKnownFileType.MOTION_X_Y_OFFSET_DATA),
+                path=(self.output_path /
+                      f'{self._ophys_experiment.id}_'
+                      f'suite2p_rigid_motion_transform.csv')
+            ),
+            OutputFile(
+                well_known_file_type=(
+                    WellKnownFileType.AVG_INTENSITY_PROJECTION_IMAGE),
+                path=(self.output_path /
+                      f'{self._ophys_experiment.id}_'
+                      f'suite2p_average_projection.png')
+            ),
+            OutputFile(
+                well_known_file_type=(
+                    WellKnownFileType.REGISTRATION_SUMMARY_IMAGE),
+                path=(self.output_path /
+                      f'{self._ophys_experiment.id}_'
+                      f'suite2p_registration_summary.png')
+            ),
+            OutputFile(
+                well_known_file_type=(
+                    WellKnownFileType.MOTION_PREVIEW),
+                path=(self.output_path /
+                      f'{self._ophys_experiment.id}_'
+                      f'suite2p_motion_preview.webm')
+            ),
+        ]

@@ -12,11 +12,13 @@ from sqlmodel import Session
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db as \
     _save_job_run_to_db
 from ophys_etl.workflows.pipeline_module import OutputFile
+from ophys_etl.workflows.well_known_file_types import WellKnownFileType
+from ophys_etl.workflows.workflow_steps import WorkflowStep
 
 
 @task
 def save_job_run_to_db(
-        workflow_step_name: str,
+        workflow_step_name: WorkflowStep,
         job_finish_res: str,
         **context
 ) -> Dict[str, OutputFile]:
@@ -55,10 +57,16 @@ def save_job_run_to_db(
     ophys_experiment_id = context['params']['ophys_experiment_id']
 
     module_outputs = job_finish_res['module_outputs']
+
     module_outputs = [
         OutputFile(
             path=Path(x['path']),
-            well_known_file_type=x['well_known_file_type']
+            # serialize to WellKnownFileType
+            well_known_file_type=getattr(
+                WellKnownFileType,
+                # Unfortunately airflow deserializes Enum to "<class>.<value>"
+                # split off the value
+                x['well_known_file_type'].split('.')[-1])
         ) for x in module_outputs]
 
     hook = SqliteHook(sqlite_conn_id='ophys_workflow_db')
@@ -76,5 +84,5 @@ def save_job_run_to_db(
             validate_files_exist=not context['params']['debug']
         )
     return {
-        x.well_known_file_type: x for x in module_outputs
+        x.well_known_file_type.value: x for x in module_outputs
     }

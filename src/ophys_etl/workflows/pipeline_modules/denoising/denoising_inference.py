@@ -4,6 +4,7 @@ from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.pipeline_module import OutputFile
 from ophys_etl.workflows.pipeline_modules.denoising._denoising import \
     _DenoisingModule
+from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 
 
 class DenoisingInferenceModule(_DenoisingModule):
@@ -57,7 +58,8 @@ class DenoisingInferenceModule(_DenoisingModule):
     def outputs(self) -> List[OutputFile]:
         return [
             OutputFile(
-                well_known_file_type='DeepInterpolationDenoisedOphysMovie',
+                well_known_file_type=(
+                    WellKnownFileType.DEEPINTERPOLATION_DENOISED_MOVIE),
                 path=(self.output_path /
                       f'{self.ophys_experiment.id}_denoised_video.h5')
             )

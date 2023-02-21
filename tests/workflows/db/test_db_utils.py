@@ -7,8 +7,11 @@ from pathlib import Path
 import pytest
 from ophys_etl.workflows.db.schemas import WorkflowStepRun, WellKnownFile, \
     WellKnownFileType
+from ophys_etl.workflows.well_known_file_types import \
+    WellKnownFileType as WellKnownFileTypeEnum
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
+from ophys_etl.workflows.workflow_steps import WorkflowStep
 
 setup_app_config(
     ophys_workflow_app_config_path=(
@@ -55,17 +58,18 @@ class TestDBUtils:
         with Session(self._engine) as session:
             step = _get_workflow_step_by_name(
                 session=session,
-                name='motion_correction'
+                name=WorkflowStep.MOTION_CORRECTION
             )
-        assert step.name == 'motion_correction'
+        assert step.name == WorkflowStep.MOTION_CORRECTION
 
     def test__get_well_known_file_type(self):
         with Session(self._engine) as session:
             wkft = _get_well_known_file_type(
                 session=session,
-                name='MotionCorrectedImageStack'
+                name=WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK
             )
-        assert wkft.name == 'MotionCorrectedImageStack'
+        assert wkft.name == \
+               WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK
 
     @pytest.mark.parametrize('out_file_exists', (True, False))
     def test__save_job_run_to_db(self, out_file_exists):
@@ -75,11 +79,14 @@ class TestDBUtils:
         output_files = [
             OutputFile(
                 path=self._tmp_dir / 'out1',
-                well_known_file_type='MotionCorrectedImageStack'
+                well_known_file_type=(
+                    WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK)
             ),
             OutputFile(
                 path=self._tmp_dir / 'out2',
-                well_known_file_type='OphysMotionXyOffsetData'
+                well_known_file_type=(
+                    WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA
+                )
             )
         ]
 
@@ -90,7 +97,7 @@ class TestDBUtils:
 
         def save_job_run():
             save_job_run_to_db(
-                workflow_step_name='motion_correction',
+                workflow_step_name=WorkflowStep.MOTION_CORRECTION,
                 start=start,
                 end=end,
                 module_outputs=output_files,

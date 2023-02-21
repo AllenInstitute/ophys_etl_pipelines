@@ -20,12 +20,14 @@ from ophys_etl.workflows.pipeline_modules.denoising.denoising_inference \
     DenoisingInferenceModule
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
+from ophys_etl.workflows.well_known_file_types import WellKnownFileType
+from ophys_etl.workflows.workflow_steps import WorkflowStep
 
 
 def _run_workflow_step(
     slurm_config_filename: str,
     module: Type[PipelineModule],
-    workflow_step_name: str,
+    workflow_step_name: WorkflowStep,
     docker_tag: str,
     module_kwargs: Optional[Dict] = None
 ) -> Any:
@@ -66,7 +68,6 @@ def _run_workflow_step(
         storage_directory=job_submit_res['storage_directory'],
         module_outputs=(
             job_submit_res['module_outputs'])
-
     )
     module_outputs = save_job_run_to_db(
         workflow_step_name=workflow_step_name,
@@ -111,10 +112,11 @@ def ophys_processing():
         module_outputs = _run_workflow_step(
             slurm_config_filename='motion_correction.yml',
             module=MotionCorrectionModule,
-            workflow_step_name='motion_correction',
+            workflow_step_name=WorkflowStep.MOTION_CORRECTION,
             docker_tag=app_config.pipeline_steps.motion_correction.docker_tag
         )
-        return module_outputs['MotionCorrectedImageStack']
+        return module_outputs[
+            WellKnownFileType.MOTION_CORRECTED_IMAGE_STACK.value]
 
     @task_group
     def denoising(
@@ -126,14 +128,15 @@ def ophys_processing():
             module_outputs = _run_workflow_step(
                 slurm_config_filename='denoising_finetuning.yml',
                 module=DenoisingFinetuningModule,
-                workflow_step_name='denoising_finetuning',
+                workflow_step_name=WorkflowStep.DENOISING_FINETUNING,
                 docker_tag=app_config.pipeline_steps.denoising.docker_tag,
                 module_kwargs={
                     'motion_corrected_ophys_movie_file':
                         motion_corrected_ophys_movie_file
                 }
             )
-            return module_outputs['DeepInterpolationFinetunedModel']
+            return module_outputs[
+                WellKnownFileType.DEEPINTERPOLATION_FINETUNED_MODEL.value]
 
         @task_group
         def denoising_inference(
@@ -144,7 +147,7 @@ def ophys_processing():
             module_outputs = _run_workflow_step(
                 slurm_config_filename='denoising_inference.yml',
                 module=DenoisingInferenceModule,
-                workflow_step_name='denoising_inference',
+                workflow_step_name=WorkflowStep.DENOISING_INFERENCE,
                 docker_tag=app_config.pipeline_steps.denoising.docker_tag,
                 module_kwargs={
                     'motion_corrected_ophys_movie_file':
@@ -153,7 +156,8 @@ def ophys_processing():
                         trained_denoising_model_file
                 }
             )
-            return module_outputs['DeepInterpolationDenoisedOphysMovie']
+            return module_outputs[
+                WellKnownFileType.DEEPINTERPOLATION_DENOISED_MOVIE.value]
 
         trained_denoising_model_file = denoising_finetuning(
             motion_corrected_ophys_movie_file=(

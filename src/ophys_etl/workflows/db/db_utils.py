@@ -5,11 +5,15 @@ from pathlib import Path
 from typing import List, Union
 
 from sqlalchemy import event, create_engine
+from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db.schemas import WorkflowStepRun, WellKnownFile, \
     WellKnownFileType, WorkflowStep
+from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
+from ophys_etl.workflows.well_known_file_types import WellKnownFileType as \
+    WellKnownFileTypeEnum
 from ophys_etl.workflows.pipeline_module import OutputFile
 
 logger = logging.getLogger('airflow.task')
@@ -36,7 +40,7 @@ def enable_fk_if_sqlite():
 
 
 def save_job_run_to_db(
-        workflow_step_name: str,
+        workflow_step_name: WorkflowStepEnum,
         start: datetime.datetime,
         end: datetime.datetime,
         ophys_experiment_id: str,
@@ -111,23 +115,31 @@ def save_job_run_to_db(
 
 def _get_workflow_step_by_name(
     session,
-    name: str
+    name: WorkflowStepEnum
 ) -> WorkflowStep:
     statement = (
         select(WorkflowStep)
         .where(WorkflowStep.name == name))
     results = session.exec(statement)
-    workflow_step = results.one()
+    try:
+        workflow_step = results.one()
+    except NoResultFound:
+        logger.error(f'Workflow step {name} not found')
+        raise
     return workflow_step
 
 
 def _get_well_known_file_type(
     session,
-    name: str
+    name: WellKnownFileTypeEnum
 ) -> WellKnownFileType:
     statement = (
         select(WellKnownFileType)
         .where(WellKnownFileType.name == name))
     results = session.exec(statement)
-    wkft = results.one()
+    try:
+        wkft = results.one()
+    except NoResultFound:
+        logger.error(f'Well-known file type {name} not found')
+        raise
     return wkft

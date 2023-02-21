@@ -1,0 +1,8 @@
+"""workflow steps"""
+from enum import Enum
+
+
+class WorkflowStep(Enum):
+    MOTION_CORRECTION = 'MOTION_CORRECTION'
+    DENOISING_FINETUNING = 'DENOISING_FINETUNING'
+    DENOISING_INFERENCE = 'DENOISING_INFERENCE'

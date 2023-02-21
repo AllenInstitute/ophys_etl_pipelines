@@ -1,3 +1,4 @@
+import os
 import re
 from dataclasses import dataclass
 from datetime import datetime
@@ -195,6 +196,8 @@ class Slurm:
         self._ophys_experiment_id = ophys_experiment_id
         self._job: Optional[SlurmJob] = None
         self._slurm_settings = read_config(config_path=config_path)
+
+        os.makedirs(log_path.parent, exist_ok=True)
 
         self._slurm_headers = self._get_slurm_script_headers(
             job_name=f'{pipeline_module.queue_name}_{ophys_experiment_id}',

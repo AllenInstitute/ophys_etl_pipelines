@@ -1,8 +1,12 @@
 import datetime
 from typing import Optional
 
-from sqlalchemy import Column, String
+from sqlalchemy import Column, String, Enum
 from sqlmodel import SQLModel, Field
+
+from ophys_etl.workflows.well_known_file_types import WellKnownFileType as \
+    WellKnownFileTypeEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
 
 
 class Workflow(SQLModel, table=True):
@@ -16,7 +20,8 @@ class WorkflowStep(SQLModel, table=True):
     __tablename__ = 'workflow_step'
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    name: str = Field(sa_column=Column('name', String, unique=True))
+    name: str = Field(sa_column=Column('name', Enum(WorkflowStepEnum),
+                                       unique=True))
     workflow_id: int = Field(foreign_key='workflow.id')
 
 
@@ -36,7 +41,8 @@ class WellKnownFileType(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     workflow_step_id: int = Field(foreign_key='workflow_step.id')
-    name: str = Field(sa_column=Column('name', String, unique=True))
+    name: str = Field(sa_column=Column(
+        'name', Enum(WellKnownFileTypeEnum)))
 
 
 class WellKnownFile(SQLModel, table=True):

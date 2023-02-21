@@ -1,6 +1,8 @@
 from typing import List
 
 from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile
+from ophys_etl.workflows.well_known_file_types import \
+    WellKnownFileType
 
 
 class MotionCorrectionModule(PipelineModule):
@@ -48,36 +50,42 @@ class MotionCorrectionModule(PipelineModule):
     def outputs(self) -> List[OutputFile]:
         return [
             OutputFile(
-                well_known_file_type='MotionCorrectedImageStack',
+                well_known_file_type=(
+                    WellKnownFileType.MOTION_CORRECTED_IMAGE_STACK),
                 path=(self.output_path /
                       f'{self._ophys_experiment.id}_suite2p_motion_output.h5')
             ),
             OutputFile(
-                well_known_file_type='OphysMaxIntImage',
+                well_known_file_type=(
+                    WellKnownFileType.MAX_INTENSITY_PROJECTION_IMAGE),
                 path=(self.output_path /
                       f'{self._ophys_experiment.id}_'
                       f'suite2p_maximum_projection.png')
             ),
             OutputFile(
-                well_known_file_type='OphysMotionXyOffsetData',
+                well_known_file_type=(
+                    WellKnownFileType.MOTION_X_Y_OFFSET_DATA),
                 path=(self.output_path /
                       f'{self._ophys_experiment.id}_'
                       f'suite2p_rigid_motion_transform.csv')
             ),
             OutputFile(
-                well_known_file_type='OphysAverageIntensityProjectionImage',
+                well_known_file_type=(
+                    WellKnownFileType.AVG_INTENSITY_PROJECTION_IMAGE),
                 path=(self.output_path /
                       f'{self._ophys_experiment.id}_'
                       f'suite2p_average_projection.png')
             ),
             OutputFile(
-                well_known_file_type='OphysRegistrationSummaryImage',
+                well_known_file_type=(
+                    WellKnownFileType.REGISTRATION_SUMMARY_IMAGE),
                 path=(self.output_path /
                       f'{self._ophys_experiment.id}_'
                       f'suite2p_registration_summary.png')
             ),
             OutputFile(
-                well_known_file_type='OphysMotionPreview',
+                well_known_file_type=(
+                    WellKnownFileType.MOTION_PREVIEW),
                 path=(self.output_path /
                       f'{self._ophys_experiment.id}_'
                       f'suite2p_motion_preview.webm')

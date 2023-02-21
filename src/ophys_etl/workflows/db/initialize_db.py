@@ -8,6 +8,9 @@ from sqlmodel import SQLModel, Session
 from ophys_etl.workflows.db.db_utils import fk_pragma_on_connect
 from ophys_etl.workflows.db.schemas import Workflow, WorkflowStep, \
     WellKnownFileType
+from ophys_etl.workflows.well_known_file_types import WellKnownFileType as \
+    WellKnownFileTypeEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
 
 
 class InitializeDBSchema(argschema.ArgSchema):
@@ -34,27 +37,15 @@ def _create_workflow_steps(session, workflow: Workflow):
     """Adds workflow steps"""
     workflow_steps = {
         'motion_correction': WorkflowStep(
-            name='motion_correction',
+            name=WorkflowStepEnum.MOTION_CORRECTION.value,
             workflow_id=workflow.id
         ),
         'denoising_finetuning': WorkflowStep(
-            name='denoising_finetuning',
+            name=WorkflowStepEnum.DENOISING_FINETUNING.value,
             workflow_id=workflow.id
         ),
         'denoising_inference': WorkflowStep(
-            name='denoising_inference',
-            workflow_id=workflow.id
-        ),
-        'segmentation': WorkflowStep(
-            name='segmentation',
-            workflow_id=workflow.id
-        ),
-        'roi_classification': WorkflowStep(
-            name='roi_classification',
-            workflow_id=workflow.id
-        ),
-        'trace_extraction': WorkflowStep(
-            name='trace_extraction',
+            name=WorkflowStepEnum.DENOISING_INFERENCE.value,
             workflow_id=workflow.id
         )
     }
@@ -70,27 +61,28 @@ def _create_motion_correction_well_known_file_types(
 ):
     well_known_file_types = [
         WellKnownFileType(
-            name='OphysMaxIntImage',
+            name=WellKnownFileTypeEnum.MAX_INTENSITY_PROJECTION_IMAGE.value,
             workflow_step_id=workflow_steps['motion_correction'].id
         ),
         WellKnownFileType(
-            name='OphysAverageIntensityProjectionImage',
+            name=WellKnownFileTypeEnum.AVG_INTENSITY_PROJECTION_IMAGE.value,
             workflow_step_id=workflow_steps['motion_correction'].id
         ),
         WellKnownFileType(
-            name='OphysRegistrationSummaryImage',
+            name=WellKnownFileTypeEnum.REGISTRATION_SUMMARY_IMAGE.value,
             workflow_step_id=workflow_steps['motion_correction'].id
         ),
         WellKnownFileType(
-            name='MotionCorrectedImageStack',
+            name=(WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK
+                  .value),
             workflow_step_id=workflow_steps['motion_correction'].id
         ),
         WellKnownFileType(
-            name='OphysMotionXyOffsetData',
+            name=WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA.value,
             workflow_step_id=workflow_steps['motion_correction'].id
         ),
         WellKnownFileType(
-            name='OphysMotionPreview',
+            name=WellKnownFileTypeEnum.MOTION_PREVIEW.value,
             workflow_step_id=workflow_steps['motion_correction'].id
         )
     ]
@@ -104,11 +96,11 @@ def _create_denoising_well_known_file_types(
 ):
     well_known_file_types = [
         WellKnownFileType(
-            name='DeepInterpolationFinetunedModel',
+            name=WellKnownFileTypeEnum.DEEPINTERPOLATION_FINETUNED_MODEL.value,
             workflow_step_id=workflow_steps['denoising_finetuning'].id
         ),
         WellKnownFileType(
-            name='DeepInterpolationDenoisedOphysMovie',
+            name=WellKnownFileTypeEnum.DEEPINTERPOLATION_DENOISED_MOVIE.value,
             workflow_step_id=workflow_steps['denoising_inference'].id
         )
     ]

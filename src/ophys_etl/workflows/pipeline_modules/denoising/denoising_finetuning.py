@@ -4,6 +4,7 @@ from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.pipeline_module import OutputFile
 from ophys_etl.workflows.pipeline_modules.denoising._denoising import \
     _DenoisingModule
+from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 
 
 class DenoisingFinetuningModule(_DenoisingModule):
@@ -68,7 +69,8 @@ class DenoisingFinetuningModule(_DenoisingModule):
     def outputs(self) -> List[OutputFile]:
         return [
             OutputFile(
-                well_known_file_type='DeepInterpolationFinetunedModel',
+                well_known_file_type=(
+                    WellKnownFileType.DEEPINTERPOLATION_FINETUNED_MODEL),
                 path=(self.output_path /
                       f'{self.ophys_experiment.id}_'
                       f'mean_squared_error_transfer_model.h5')

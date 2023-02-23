@@ -13,15 +13,15 @@ from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 
 
-class ModuleOutputFileExistsError(Exception):
-    pass
-
-
 @dataclass
 class OutputFile:
     """File output by module"""
     path: Path
     well_known_file_type: WellKnownFileType
+
+
+class ModuleOutputFileExistsError(Exception):
+    pass
 
 
 class PipelineModule:

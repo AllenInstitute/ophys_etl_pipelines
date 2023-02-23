@@ -12,7 +12,7 @@ from paramiko import AuthenticationException
 from ophys_etl.workflows.on_prem.slurm.slurm import SlurmJob, logger, \
     SlurmJobFailedException, Slurm
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
-from ophys_etl.workflows.pipeline_module import OutputFile, PipelineModule
+from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile
 from ophys_etl.workflows.utils.json_utils import EnhancedJSONEncoder
 
 

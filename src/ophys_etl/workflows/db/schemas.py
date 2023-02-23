@@ -37,6 +37,19 @@ class WorkflowStepRun(SQLModel, table=True):
     end: datetime.datetime
 
 
+class MotionCorrectionRun(SQLModel, table=True):
+    __tablename__ = 'motion_correction_run'
+
+    workflow_step_run_id: int = Field(
+        foreign_key='workflow_step_run.id',
+        primary_key=True
+    )
+    max_correction_up: float
+    max_correction_down: float
+    max_correction_right: float
+    max_correction_left: float
+
+
 class WellKnownFileType(SQLModel, table=True):
     __tablename__ = 'well_known_file_type'
 

@@ -64,10 +64,15 @@ class _MotionCorrection(_PipelineStep):
     pass
 
 
+class _Segmentation(_PipelineStep):
+    pass
+
+
 class _PipelineSteps(ImmutableBaseModel):
     """All pipeline steps configs"""
     denoising: _Denoising
     motion_correction: _MotionCorrection
+    segmentation: _Segmentation
 
 
 class AppConfig(ImmutableBaseModel):

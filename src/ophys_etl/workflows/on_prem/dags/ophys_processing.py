@@ -20,6 +20,8 @@ from ophys_etl.workflows.pipeline_modules.denoising.denoising_inference \
     DenoisingInferenceModule
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
+from ophys_etl.workflows.pipeline_modules.segmentation import \
+    SegmentationModule
 from ophys_etl.workflows.tasks import save_job_run_to_db
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 from ophys_etl.workflows.workflow_steps import WorkflowStep
@@ -172,9 +174,26 @@ def ophys_processing():
             trained_denoising_model_file=trained_denoising_model_file)
         return denoised_movie
 
+    @task_group
+    def segmentation(denoised_ophys_movie_file):
+        module_outputs = _run_workflow_step(
+            slurm_config_filename='segmentation.yml',
+            module=SegmentationModule,
+            workflow_step_name=WorkflowStep.SEGMENTATION,
+            docker_tag=app_config.pipeline_steps.segmentation.docker_tag,
+            additional_db_inserts=SegmentationModule.save_rois_to_db,
+            module_kwargs={
+                'denoised_ophys_movie_file':
+                    denoised_ophys_movie_file
+            }
+        )
+        return module_outputs[
+            WellKnownFileType.OPHYS_ROIS.value]
+
     motion_corrected_ophys_movie_file = motion_correction()
-    denoising(
+    denoised_movie = denoising(
         motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file)
+    segmentation(denoised_ophys_movie_file=denoised_movie)
 
 
 enable_fk_if_sqlite()

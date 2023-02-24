@@ -103,6 +103,18 @@ class MotionCorrectionModule(PipelineModule):
             session: Session,
             run_id: int
     ):
+        """
+        Saves motion correction run results to db
+
+        Parameters
+        ----------
+        output_files
+            Files output by this module
+        session
+            sqlalchemy session
+        run_id
+            workflow step run id
+        """
         offset_file_path = \
             output_files[WellKnownFileType.MOTION_X_Y_OFFSET_DATA.value].path
         maximum_motion_shift = get_max_correction_from_file(

@@ -38,6 +38,7 @@ class WorkflowStepRun(SQLModel, table=True):
 
 
 class MotionCorrectionRun(SQLModel, table=True):
+    """Motion correction run"""
     __tablename__ = 'motion_correction_run'
 
     workflow_step_run_id: int = Field(
@@ -48,6 +49,32 @@ class MotionCorrectionRun(SQLModel, table=True):
     max_correction_down: float
     max_correction_right: float
     max_correction_left: float
+
+
+class OphysROI(SQLModel, table=True):
+    """Ophys ROI"""
+    __tablename__ = 'ophys_roi'
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    workflow_step_run_id: int = Field(
+        foreign_key='workflow_step_run.id'
+    )
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+class OphysROIMaskValue(SQLModel, table=True):
+    """Stores a single value of an ROI mask as row, col"""
+    __tablename__ = 'ophys_roi_mask_value'
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ophys_roi_id: int = Field(
+        foreign_key='ophys_roi.id'
+    )
+    row_index: int
+    col_index: int
 
 
 class WellKnownFileType(SQLModel, table=True):

@@ -13,4 +13,6 @@ pipeline_steps:
     docker_tag: 'deepinterpolation_develop'
   motion_correction:
     docker_tag: 'develop'
+  segmentation:
+    docker_tag: 'develop'
 

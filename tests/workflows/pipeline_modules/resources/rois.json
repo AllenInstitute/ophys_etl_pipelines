@@ -1,0 +1,26 @@
+[
+  {
+    "x": 19,
+    "y": 326,
+    "width": 14,
+    "height": 15,
+    "mask_matrix": [
+      [
+        true,
+        false
+      ]
+    ]
+  },
+  {
+    "x": 20,
+    "y": 328,
+    "width": 20,
+    "height": 20,
+    "mask_matrix": [
+      [
+        false,
+        true
+      ]
+    ]
+  }
+]

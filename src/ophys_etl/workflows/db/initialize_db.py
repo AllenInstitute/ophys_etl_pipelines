@@ -47,6 +47,10 @@ def _create_workflow_steps(session, workflow: Workflow):
         'denoising_inference': WorkflowStep(
             name=WorkflowStepEnum.DENOISING_INFERENCE.value,
             workflow_id=workflow.id
+        ),
+        'segmentation': WorkflowStep(
+            name=WorkflowStepEnum.SEGMENTATION.value,
+            workflow_id=workflow.id
         )
     }
     for workflow_step in workflow_steps.values():
@@ -108,6 +112,20 @@ def _create_denoising_well_known_file_types(
         session.add(wkft)
 
 
+def _create_segmentation_well_known_file_types(
+    session,
+    workflow_steps: Dict[str, WorkflowStep]
+):
+    well_known_file_types = [
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.OPHYS_ROIS.value,
+            workflow_step_id=workflow_steps['segmentation'].id
+        )
+    ]
+    for wkft in well_known_file_types:
+        session.add(wkft)
+
+
 def _create_well_known_file_types(
         session,
         workflow_steps: Dict[str, WorkflowStep]
@@ -118,6 +136,10 @@ def _create_well_known_file_types(
         workflow_steps=workflow_steps
     )
     _create_denoising_well_known_file_types(
+        session=session,
+        workflow_steps=workflow_steps
+    )
+    _create_segmentation_well_known_file_types(
         session=session,
         workflow_steps=workflow_steps
     )

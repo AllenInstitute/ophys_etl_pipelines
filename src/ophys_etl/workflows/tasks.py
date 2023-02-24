@@ -3,7 +3,7 @@
 import datetime
 import json
 from pathlib import Path
-from typing import Dict, Union, Optional, Callable
+from typing import Dict, Optional, Callable
 
 from airflow.decorators import task
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook

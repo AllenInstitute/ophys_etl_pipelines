@@ -22,7 +22,7 @@ def save_job_run_to_db(
         job_finish_res: str,
         additional_steps: Optional[Callable] = None,
         **context
-) -> Dict[str, Union[int, Dict[str, OutputFile]]]:
+) -> Dict[str, OutputFile]:
     """
     Finalizes job by persisting output data to a database
 

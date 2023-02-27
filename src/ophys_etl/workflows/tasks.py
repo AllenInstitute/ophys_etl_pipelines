@@ -3,7 +3,7 @@
 import datetime
 import json
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional, Callable
 
 from airflow.decorators import task
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
@@ -20,6 +20,7 @@ from ophys_etl.workflows.workflow_steps import WorkflowStep
 def save_job_run_to_db(
         workflow_step_name: WorkflowStep,
         job_finish_res: str,
+        additional_steps: Optional[Callable] = None,
         **context
 ) -> Dict[str, OutputFile]:
     """
@@ -43,6 +44,8 @@ def save_job_run_to_db(
             - end
                 When did this step of the workflow run end. Uses encoding
                 %Y-%m-%d %H:%M:%S
+    additional_steps
+        See `ophys_etl.workflows.db.db_utils.save_job_run_to_db for details
 
     Returns
     -------
@@ -81,7 +84,8 @@ def save_job_run_to_db(
             ophys_experiment_id=ophys_experiment_id,
             sqlalchemy_session=session,
             storage_directory=job_finish_res['storage_directory'],
-            validate_files_exist=not context['params']['debug']
+            validate_files_exist=not context['params']['debug'],
+            additional_steps=additional_steps
         )
     return {
         x.well_known_file_type.value: x for x in module_outputs

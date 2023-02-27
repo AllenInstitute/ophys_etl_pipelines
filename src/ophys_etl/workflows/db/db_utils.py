@@ -3,7 +3,7 @@ import datetime
 import json
 import logging
 from pathlib import Path
-from typing import List, Union
+from typing import List, Union, Optional, Callable
 
 from sqlalchemy import event, create_engine
 from sqlalchemy.exc import NoResultFound
@@ -49,6 +49,7 @@ def save_job_run_to_db(
         sqlalchemy_session: Session,
         storage_directory: Union[Path, str],
         validate_files_exist: bool = True,
+        additional_steps: Optional[Callable] = None
 ):
     """
     Inserts job run in db
@@ -71,7 +72,12 @@ def save_job_run_to_db(
         Session to use for inserting into DB
     storage_directory
         Where `ophys_experiment_id` is saving data to
-
+    additional_steps
+        A function which inserts additional data into the database
+        Needs to have signature:
+            - session: sqlalchemy Session,
+            - output_files: dict mapping well known file type to OutputFile
+            - run_id: workflow step run id, int
     """
 
     if validate_files_exist:
@@ -111,6 +117,15 @@ def save_job_run_to_db(
             path=str(out.path)
         )
         sqlalchemy_session.add(wkf)
+
+    if additional_steps is not None:
+        additional_steps(
+            session=sqlalchemy_session,
+            output_files={
+                x.well_known_file_type.value: x for x in module_outputs
+            },
+            run_id=workflow_step_run.id
+        )
     sqlalchemy_session.commit()
 
 

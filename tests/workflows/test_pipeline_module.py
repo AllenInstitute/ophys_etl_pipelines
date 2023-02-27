@@ -19,8 +19,8 @@ from typing import List, Dict   # noqa #402
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
     OphysSession, Specimen  # noqa #402
-from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile, \
-    ModuleOutputFileExistsError # noqa #402
+from ophys_etl.workflows.pipeline_module import PipelineModule, \
+    ModuleOutputFileExistsError, OutputFile  # noqa #402
 
 
 class _DummyMod(PipelineModule):

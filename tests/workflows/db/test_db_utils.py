@@ -20,10 +20,10 @@ setup_app_config(
                              'di_model.h5')
 )
 
-from ophys_etl.workflows.pipeline_module import OutputFile  # noqa #402
+from ophys_etl.workflows.pipeline_module import OutputFile  # noqa E402
 from ophys_etl.workflows.db.db_utils import _get_workflow_step_by_name, \
     _get_well_known_file_type, save_job_run_to_db, \
-    ModuleOutputFileDoesNotExistException   # noqa #402
+    ModuleOutputFileDoesNotExistException  # noqa #402
 from sqlalchemy import create_engine    # noqa #402
 from sqlmodel import Session, select    # noqa #402
 

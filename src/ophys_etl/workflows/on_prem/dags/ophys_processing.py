@@ -1,7 +1,7 @@
 """Ophys processing DAG"""
 import datetime
 from pathlib import Path
-from typing import Type, Optional, Dict, Any
+from typing import Type, Optional, Dict, Any, Callable
 
 from airflow.decorators import task_group
 from airflow.models import Param
@@ -9,7 +9,6 @@ from airflow.models.dag import dag
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db.db_utils import enable_fk_if_sqlite
-from ophys_etl.workflows.tasks import save_job_run_to_db
 from ophys_etl.workflows.on_prem.tasks import submit_job, \
     wait_for_job_to_finish
 from ophys_etl.workflows.pipeline_module import PipelineModule
@@ -21,6 +20,9 @@ from ophys_etl.workflows.pipeline_modules.denoising.denoising_inference \
     DenoisingInferenceModule
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
+from ophys_etl.workflows.pipeline_modules.segmentation import \
+    SegmentationModule
+from ophys_etl.workflows.tasks import save_job_run_to_db
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 
@@ -30,7 +32,8 @@ def _run_workflow_step(
     module: Type[PipelineModule],
     workflow_step_name: WorkflowStep,
     docker_tag: str,
-    module_kwargs: Optional[Dict] = None
+    module_kwargs: Optional[Dict] = None,
+    additional_db_inserts: Optional[Callable] = None
 ) -> Any:
     """
     Runs a single workflow step
@@ -70,12 +73,13 @@ def _run_workflow_step(
         module_outputs=(
             job_submit_res['module_outputs'])
     )
-    module_outputs = save_job_run_to_db(
+    run = save_job_run_to_db(
         workflow_step_name=workflow_step_name,
-        job_finish_res=job_finish_res
+        job_finish_res=job_finish_res,
+        additional_steps=additional_db_inserts
     )
 
-    return module_outputs
+    return run['output_files']
 
 
 @dag(
@@ -114,7 +118,8 @@ def ophys_processing():
             slurm_config_filename='motion_correction.yml',
             module=MotionCorrectionModule,
             workflow_step_name=WorkflowStep.MOTION_CORRECTION,
-            docker_tag=app_config.pipeline_steps.motion_correction.docker_tag
+            docker_tag=app_config.pipeline_steps.motion_correction.docker_tag,
+            additional_db_inserts=MotionCorrectionModule.save_metadata_to_db
         )
         return module_outputs[
             WellKnownFileType.MOTION_CORRECTED_IMAGE_STACK.value]
@@ -169,9 +174,26 @@ def ophys_processing():
             trained_denoising_model_file=trained_denoising_model_file)
         return denoised_movie
 
+    @task_group
+    def segmentation(denoised_ophys_movie_file):
+        module_outputs = _run_workflow_step(
+            slurm_config_filename='segmentation.yml',
+            module=SegmentationModule,
+            workflow_step_name=WorkflowStep.SEGMENTATION,
+            docker_tag=app_config.pipeline_steps.segmentation.docker_tag,
+            additional_db_inserts=SegmentationModule.save_rois_to_db,
+            module_kwargs={
+                'denoised_ophys_movie_file':
+                    denoised_ophys_movie_file
+            }
+        )
+        return module_outputs[
+            WellKnownFileType.OPHYS_ROIS.value]
+
     motion_corrected_ophys_movie_file = motion_correction()
-    denoising(
+    denoised_movie = denoising(
         motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file)
+    segmentation(denoised_ophys_movie_file=denoised_movie)
 
 
 enable_fk_if_sqlite()

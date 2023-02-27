@@ -1,6 +1,10 @@
 """Motion correction pipeline module"""
-from typing import List
+from typing import List, Dict
 
+from sqlmodel import Session
+
+from ophys_etl.utils.motion_border import get_max_correction_from_file
+from ophys_etl.workflows.db.schemas import MotionCorrectionRun
 from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile
 from ophys_etl.workflows.well_known_file_types import \
     WellKnownFileType
@@ -92,3 +96,35 @@ class MotionCorrectionModule(PipelineModule):
                       f'suite2p_motion_preview.webm')
             ),
         ]
+
+    @staticmethod
+    def save_metadata_to_db(
+            output_files: Dict[str, OutputFile],
+            session: Session,
+            run_id: int
+    ):
+        """
+        Saves motion correction run results to db
+
+        Parameters
+        ----------
+        output_files
+            Files output by this module
+        session
+            sqlalchemy session
+        run_id
+            workflow step run id
+        """
+        offset_file_path = \
+            output_files[WellKnownFileType.MOTION_X_Y_OFFSET_DATA.value].path
+        maximum_motion_shift = get_max_correction_from_file(
+            input_csv=offset_file_path
+        )
+        run = MotionCorrectionRun(
+            workflow_step_run_id=run_id,
+            max_correction_up=maximum_motion_shift.up,
+            max_correction_down=maximum_motion_shift.down,
+            max_correction_left=maximum_motion_shift.left,
+            max_correction_right=maximum_motion_shift.right
+        )
+        session.add(run)

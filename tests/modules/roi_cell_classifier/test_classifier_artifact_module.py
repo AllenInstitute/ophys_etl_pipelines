@@ -8,11 +8,13 @@ from unittest.mock import Mock, patch
 import h5py
 import numpy as np
 from PIL import Image
+from deepcell.datasets.channel import Channel
 
 from ophys_etl.types import ExtractROI
 from \
     ophys_etl.modules.roi_cell_classifier.compute_classifier_artifacts import \
     ClassifierArtifactsGenerator
+from ophys_etl.utils.rois import extract_roi_to_ophys_roi
 
 
 class TestComputeClassifierArtifacts(unittest.TestCase):
@@ -57,6 +59,10 @@ class TestComputeClassifierArtifacts(unittest.TestCase):
         self.args = {'video_path': self.video_path,
                      'roi_path': self.video_path,
                      'graph_path': self.video_path,
+                     'channels': [
+                         Channel.CORRELATION_PROJECTION.value,
+                         Channel.MAX_PROJECTION.value,
+                         Channel.MASK.value],
                      'out_dir': self.output_path,
                      'low_quantile': 0.2,
                      'high_quantile': 0.99,
@@ -99,16 +105,19 @@ class TestComputeClassifierArtifacts(unittest.TestCase):
             classArtifacts.run()
 
         output_file_list = np.sort(glob(f'{self.output_path}/*.png'))
-        self.assertEqual(len(output_file_list), 4)
+        self.assertEqual(len(output_file_list), len(self.args['channels']))
 
-        for output_file, test_file in zip(output_file_list, self.test_files):
-            image = Image.open(output_file)
-            test = Image.open(test_file)
-            np.testing.assert_array_equal(np.array(image),
-                                          np.array(test))
+        for output_file in output_file_list:
+            for test_file in self.test_files:
+                if pathlib.Path(test_file).name == \
+                        pathlib.Path(output_file).name:
+                    image = Image.open(output_file)
+                    test = Image.open(test_file)
+                    np.testing.assert_array_equal(np.array(image),
+                                                  np.array(test))
 
     def test_no_selected_roi(self):
-        """Test that and ROI is not written when its id is not specified.
+        """Test that an ROI is not written when its id is not specified.
         """
         # Select a roi that is not in the list if input ROIs
         self.args['selected_rois'] = [self.extract_roi['id'] + 1]
@@ -150,12 +159,24 @@ class TestComputeClassifierArtifacts(unittest.TestCase):
 
         classArtifacts = ClassifierArtifactsGenerator(args=[],
                                                       input_data=self.args)
+
+        roi = extract_roi_to_ophys_roi(roi=self.extract_roi)
+
+        mask = classArtifacts._generate_mask_image(
+            roi=roi
+        )
+
+        imgs = {
+            Channel.MAX_PROJECTION: max_img,
+            Channel.AVG_PROJECTION: avg_img,
+            Channel.CORRELATION_PROJECTION: corr_img,
+            Channel.MASK: mask
+        }
+
         classArtifacts._write_thumbnails(
-            extract_roi=self.extract_roi,
-            max_img=max_img,
-            avg_img=avg_img,
-            corr_img=corr_img,
-            exp_id=self.exp_id)
+            roi=roi,
+            imgs=imgs,
+            exp_id=str(self.exp_id))
 
         output_file_list = np.sort(glob(f'{self.output_path}/*.png'))
-        self.assertEqual(len(output_file_list), 4)
+        self.assertEqual(len(output_file_list), len(self.args['channels']))

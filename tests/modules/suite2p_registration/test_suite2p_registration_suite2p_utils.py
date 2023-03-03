@@ -7,8 +7,9 @@ from unittest.mock import MagicMock, Mock, patch
 
 from ophys_etl.modules.suite2p_registration.suite2p_utils import (  # noqa: E402, E501
     compute_reference, load_initial_frames, compute_acutance,
-    add_required_parameters, create_ave_image, optimize_motion_parameters,
-    remove_extrema_frames, load_representative_sub_frames)
+    add_modify_required_parameters, create_ave_image,
+    optimize_motion_parameters, remove_extrema_frames,
+    load_representative_sub_frames)
 
 
 # Mock function to return just the first frame as the reference. We
@@ -287,7 +288,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                         'h5py_key': 'input_frames',
                         'smooth_sigma': 1.15,
                         'smooth_sigma_time': 1.0}
-        add_required_parameters(suite2p_args)
+        add_modify_required_parameters(suite2p_args)
         mock_frames = np.ones((self.n_frames,
                                self.xy_shape,
                                self.xy_shape),
@@ -333,7 +334,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
                         'maxregshift': 0.2,
                         'smooth_sigma': 1.15,
                         'smooth_sigma_time': 1.0}
-        add_required_parameters(suite2p_args)
+        add_modify_required_parameters(suite2p_args)
         mock_frames = load_representative_sub_frames(suite2p_args['h5py'],
                                                      suite2p_args['h5py_key'])
         result = create_ave_image(
@@ -350,7 +351,7 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         """
         suite2p_args = {'smooth_sigma': 1.15}
         # Test that parameters are added correct.
-        add_required_parameters(suite2p_args)
+        add_modify_required_parameters(suite2p_args)
         self.assertFalse(suite2p_args['1Preg'])
         self.assertFalse(suite2p_args['bidiphase'])
         self.assertFalse(suite2p_args['nonrigid'])
@@ -361,10 +362,10 @@ class TestRegistrationSuite2pUtils(unittest.TestCase):
         suite2p_args['bidiphase'] = True
         suite2p_args['nonrigid'] = True
         suite2p_args['norm_frames'] = False
-        add_required_parameters(suite2p_args)
+        add_modify_required_parameters(suite2p_args)
         self.assertTrue(suite2p_args['1Preg'])
         self.assertTrue(suite2p_args['bidiphase'])
-        self.assertTrue(suite2p_args['nonrigid'])
+        self.assertFalse(suite2p_args['nonrigid'])
         self.assertFalse(suite2p_args['norm_frames'])
 
     def test_acutance_calculation(self):

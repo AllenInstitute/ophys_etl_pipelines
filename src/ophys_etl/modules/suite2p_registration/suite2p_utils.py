@@ -430,7 +430,7 @@ def create_ave_image(ref_image: np.ndarray,
     min_x = 0
     max_x = 0
     tot_frames = input_frames.shape[0]
-    add_required_parameters(suite2p_args)
+    add_modify_required_parameters(suite2p_args)
     for start_idx in np.arange(0, tot_frames, batch_size):
         end_idx = start_idx + batch_size
         if end_idx > tot_frames:
@@ -452,9 +452,12 @@ def create_ave_image(ref_image: np.ndarray,
             'max_x': int(max_x)}
 
 
-def add_required_parameters(suite2p_args: dict):
+def add_modify_required_parameters(suite2p_args: dict):
     """Check that minimum parameters needed by suite2p registration are
     available. If not add them to the suite2p_args dict.
+
+    Additionally, make sure that nonrigid is set to false as are gridsearch
+    of parameters above is not setup to use nonrigid.
 
     Parameters
     ----------
@@ -469,6 +472,8 @@ def add_required_parameters(suite2p_args: dict):
         suite2p_args['nonrigid'] = False
     if suite2p_args.get('norm_frames') is None:
         suite2p_args['norm_frames'] = True
+    # Don't use nonrigid for parameter search.
+    suite2p_args['nonrigid'] = False
 
 
 def compute_acutance(image: np.ndarray,

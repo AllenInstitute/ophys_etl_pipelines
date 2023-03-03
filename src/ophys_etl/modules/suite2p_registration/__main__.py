@@ -61,10 +61,8 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                 n_frames=suite2p_args['nimg_init'],
                 trim_frames_start=self.args['trim_frames_start'],
                 trim_frames_end=self.args['trim_frames_end'])
-            # Optimizing motion parameters is only available for nonrigid
-            # settings.
-            if self.args['do_optimize_motion_params'] and \
-               not suite2p_args['nonrigid']:
+
+            if self.args['do_optimize_motion_params']:
                 self.logger.info("Attempting to optimize registration "
                                  "parameters Using:")
                 self.logger.info(
@@ -173,8 +171,9 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         if suite2p_args['nonrigid']:
             self.logger.info('nonrigid motion correction is enabled in '
                              'suite2p. Skipping test of corrected movie '
-                             'against raw as nonrigid does not conserve '
-                             'flux.')
+                             'against raw as nonrigid does not guarantee '
+                             'the pixel values in the output will be the '
+                             'same as the input.')
         else:
             self.logger.info('Testing raw frames against motion corrected '
                              'frames.')
@@ -193,10 +192,14 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         # from clipping, for example, if Suite2P moved a frame
         # by 100 pixels, and we have clipped that to 30, this will
         # move it -70 pixels
-        for frame_index in clipped_indices:
-            dx = delta_x[frame_index] - ops.item()['xoff'][frame_index]
-            dy = delta_y[frame_index] - ops.item()['yoff'][frame_index]
-            data[frame_index] = shift_frame(data[frame_index], dy, dx)
+        if not suite2p_args['nonrigid']:
+            # If using non-rigid, we can't modify the output frames and have
+            # the shifts make sense. Hence we don't calculate which shifts
+            # to clip given that the shift will no longer make sense.
+            for frame_index in clipped_indices:
+                dx = delta_x[frame_index] - ops.item()['xoff'][frame_index]
+                dy = delta_y[frame_index] - ops.item()['yoff'][frame_index]
+                data[frame_index] = shift_frame(data[frame_index], dy, dx)
 
         # If we found frames that are empty at the end and beginning of the
         # movie, we reset their motion shift and set their shifts to 0.
@@ -250,22 +253,55 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
         # with current ophys processing pipeline. In the future this output
         # should be removed and a better data storage format used.
         # 01/25/2021 - NJM
-        motion_offset_df = pd.DataFrame({
-            "framenumber": list(range(ops.item()["nframes"])),
-            "x": delta_x,
-            "y": delta_y,
-            "x_pre_clip": ops.item()['xoff'],
-            "y_pre_clip": ops.item()['yoff'],
-            "correlation": ops.item()["corrXY"],
-            "is_valid": is_valid,
-        })
+        if suite2p_args['nonrigid']:
+            # Convert data to string for storage in the CSV output.
+            nonrigid_x = [
+                np.array2string(arr,
+                                separator=',',
+                                suppress_small=True,
+                                max_line_width=4096)
+                for arr in ops.item()['xoff1']]
+            nonrigid_y = [
+                np.array2string(arr,
+                                separator=',',
+                                suppress_small=True,
+                                max_line_width=4096)
+                for arr in ops.item()['yoff1']]
+            nonrigid_corr = [
+                np.array2string(arr,
+                                separator=',',
+                                suppress_small=True,
+                                max_line_width=4096)
+                for arr in ops.item()['corrXY1']]
+            motion_offset_df = pd.DataFrame({
+                "framenumber": list(range(ops.item()["nframes"])),
+                "x": ops.item()['xoff'],
+                "y": ops.item()['yoff'],
+                "x_pre_clip": ops.item()['xoff'],
+                "y_pre_clip": ops.item()['yoff'],
+                "correlation": ops.item()["corrXY"],
+                "is_valid": is_valid,
+                "nonrigid_x": nonrigid_x,
+                "nonrigid_y": nonrigid_y,
+                "nonrigid_corr": nonrigid_corr,
+            })
+        else:
+            motion_offset_df = pd.DataFrame({
+                "framenumber": list(range(ops.item()["nframes"])),
+                "x": delta_x,
+                "y": delta_y,
+                "x_pre_clip": ops.item()['xoff'],
+                "y_pre_clip": ops.item()['yoff'],
+                "correlation": ops.item()["corrXY"],
+                "is_valid": is_valid,
+            })
         motion_offset_df.to_csv(
             path_or_buf=self.args['motion_diagnostics_output'],
             index=False)
         self.logger.info(
             f"Writing the LIMS expected 'OphysMotionXyOffsetData' "
             f"csv file to: {self.args['motion_diagnostics_output']}")
-        if len(clipped_indices) != 0:
+        if len(clipped_indices) != 0 and not suite2p_args['nonrigid']:
             self.logger.warning(
                 "some offsets have been clipped and the values "
                 "for 'correlation' in "

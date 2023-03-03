@@ -4,6 +4,7 @@ import pathlib
 import tempfile
 from itertools import product
 import numpy as np
+import pandas as pd
 
 from ophys_etl.modules.suite2p_registration.__main__ import (
         Suite2PRegistration)
@@ -129,6 +130,14 @@ def test_suite2p_motion_correction(
     runner = Suite2PRegistration(args=[],
                                  input_data=args)
     runner.run()
+
+    mo_corr_output = pd.read_csv(diagnostics_path)
+    mo_corr_cols = mo_corr_output.columns
+    expected_cols = ['framenumber', 'x', 'y', 'x_pre_clip', 'y_pre_clip',
+                     'correlation', 'is_valid']
+    if nonrigid:
+        expected_cols.extend(['nonrigid_x', 'nonrigid_y', 'nonrigid_corr'])
+    np.testing.assert_array_equal(expected_cols, mo_corr_cols.to_list())
 
     with h5py.File(corr_video_path, 'r') as in_file:
         corrected_video = in_file['data'][()]

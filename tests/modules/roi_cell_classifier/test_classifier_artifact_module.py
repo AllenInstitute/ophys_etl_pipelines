@@ -8,12 +8,13 @@ from unittest.mock import Mock, patch
 import h5py
 import numpy as np
 from PIL import Image
-from deepcell.datasets.channel import Channel
+from deepcell.datasets.channel import Channel, channel_filename_prefix_map
 
 from ophys_etl.types import ExtractROI
 from \
     ophys_etl.modules.roi_cell_classifier.compute_classifier_artifacts import \
     ClassifierArtifactsGenerator
+from ophys_etl.utils.array_utils import normalize_array
 from ophys_etl.utils.rois import extract_roi_to_ophys_roi
 
 
@@ -180,3 +181,67 @@ class TestComputeClassifierArtifacts(unittest.TestCase):
 
         output_file_list = np.sort(glob(f'{self.output_path}/*.png'))
         self.assertEqual(len(output_file_list), len(self.args['channels']))
+
+    def test__generate_max_activation_image(self):
+        """Test that max activation image is generated correctly"""
+        roi = extract_roi_to_ophys_roi(roi=self.extract_roi)
+        fov_shape = (512, 512)
+        mov = np.zeros((5, *fov_shape))
+        mov[3] = 1
+        max_activation = \
+            ClassifierArtifactsGenerator._generate_max_activation_image(
+                mov=mov,
+                roi=roi
+            )
+        np.testing.assert_array_equal(max_activation, np.ones(fov_shape))
+
+    def test__write_thumbnails_max_activation(self):
+        """Tests that max activation thumbnail written correctly"""
+        args = self.args
+        args['low_quantile'] = 0
+        args['high_quantile'] = 1
+        args['channels'] = [Channel.MAX_ACTIVATION.value]
+        gen = ClassifierArtifactsGenerator(
+            input_data=args,
+            args=[]
+        )
+        roi = self.extract_roi
+        roi['x'] = 200
+        roi['y'] = 200
+        roi = extract_roi_to_ophys_roi(roi=self.extract_roi)
+
+        fov_shape = (512, 512)
+        mov = np.zeros((5, *fov_shape))
+        mov[3] = np.random.random((fov_shape))
+        imgs = {
+            Channel.MAX_ACTIVATION: (
+                ClassifierArtifactsGenerator._generate_max_activation_image(
+                    mov=mov,
+                    roi=roi
+                )
+            )
+        }
+
+        exp_id = '0'
+        gen._write_thumbnails(
+            roi=roi,
+            exp_id=exp_id,
+            imgs=imgs
+        )
+        filename = \
+            f'{channel_filename_prefix_map[Channel.MAX_ACTIVATION]}_{exp_id}_' \
+            f'{roi.roi_id}.png'
+        img = Image.open(pathlib.Path(self.output_path) / filename)
+        img = np.array(img)
+
+        expected = normalize_array(
+            roi.get_centered_cutout(
+                image=mov[3],
+                height=self.args['cutout_size'],
+                width=self.args['cutout_size ']
+            )
+        )
+        np.testing.assert_array_equal(
+            img,
+            expected
+        )

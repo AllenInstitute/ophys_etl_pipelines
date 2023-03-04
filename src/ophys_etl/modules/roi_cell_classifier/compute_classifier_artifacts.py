@@ -5,6 +5,7 @@ import time
 import json
 from typing import Dict
 
+import h5py
 import numpy as np
 import PIL
 
@@ -15,7 +16,7 @@ from marshmallow import validates_schema, ValidationError
 
 from ophys_etl.modules.segmentation.graph_utils.conversion import \
     graph_to_img
-from ophys_etl.types import ExtractROI, OphysROI
+from ophys_etl.types import OphysROI
 from ophys_etl.utils.array_utils import normalize_array
 from ophys_etl.utils.video_utils import get_max_and_avg
 from ophys_etl.utils.rois import (
@@ -33,6 +34,11 @@ class ClassifierArtifactsInputSchema(ArgSchema):
         required=True,
         description="Path to json file containing detected ROIs",
     )
+    channels = fields.List(
+        ChannelField(),
+        required=True,
+        description="List of channels to generate thumbnails for"
+    )
     graph_path = fields.InputFile(
         required=False,
         allow_none=True,
@@ -41,12 +47,6 @@ class ClassifierArtifactsInputSchema(ArgSchema):
                     "Required only if correlation projection is given in "
                     "`channels`",
     )
-    channels = fields.List(
-        ChannelField(),
-        required=True,
-        description="List of channels to generate thumbnails for",
-    )
-
     # Output Artifact location.
     out_dir = fields.OutputDir(
         required=True,
@@ -91,6 +91,13 @@ class ClassifierArtifactsInputSchema(ArgSchema):
                 raise ValidationError('graph_path needs to be provided if '
                                       'passed as a channel')
 
+    @validates_schema
+    def validate_traces_path(self, data):
+        if Channel.MAX_ACTIVATION.value in data['channels']:
+            if data['graph_path'] is None:
+                raise ValidationError('traces_path needs to be provided if '
+                                      'passed as a channel')
+
 
 class ClassifierArtifactsGenerator(ArgSchemaParser):
     """Create cutouts from the average, max, correlation projects for each
@@ -118,7 +125,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
 
         imgs = {}
 
-        proj = get_max_and_avg(video_path)
+        with h5py.File(video_path, 'r') as f:
+            mov = f['data'][()]
+        proj = get_max_and_avg(video=mov)
         self.logger.info("Calculated mean and max images...")
 
         imgs[Channel.MAX_PROJECTION] = proj['max']
@@ -129,13 +138,11 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             imgs[Channel.CORRELATION_PROJECTION] = corr_img
             self.logger.info("Calculated correlation image...")
 
-        quantiles = (self.args["low_quantile"], self.args["high_quantile"])
         for channel, img in imgs.items():
-            q0, q1 = np.quantile(img, quantiles)
-            imgs[channel] = normalize_array(
-                array=img,
-                lower_cutoff=q0,
-                upper_cutoff=q1
+            imgs[channel] = self._normalize_image(
+                img=img,
+                low_cutoff=self.args["low_quantile"],
+                high_cutoff=self.args["high_quantile"]
             )
 
         self.logger.info("Normalized images...")
@@ -159,12 +166,49 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                 roi=roi
             )
 
+            imgs[Channel.MAX_ACTIVATION] = \
+                self._generate_max_activation_image(
+                    mov=mov,
+                    roi=roi
+                )
+
             self._write_thumbnails(roi=roi,
                                    imgs=imgs,
                                    exp_id=exp_id)
 
         self.logger.info(f"Created ROI artifacts in {time.time()-t0:.0f} "
                          "seconds.")
+
+    @staticmethod
+    def _normalize_image(
+        img: np.ndarray,
+        low_cutoff: float,
+        high_cutoff: float
+    ):
+        """Normalize image to between low_cutoff and high_cutoff quantiles
+        and then cast to uint8
+
+        Parameters
+        ----------
+        img
+            Image to normalize
+        low_cutoff
+            Low quantile
+        high_cutoff
+            High quantile
+
+        Returns
+        -------
+        np.ndarray normalized between low_cutoff and high_cutoff and cast
+        as uint8
+
+        """
+        q0, q1 = np.quantile(img, (low_cutoff, high_cutoff))
+        return normalize_array(
+            array=img,
+            lower_cutoff=q0,
+            upper_cutoff=q1
+        )
 
     def _generate_mask_image(
         self,
@@ -188,6 +232,32 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         mask[pixel_array[0], pixel_array[1]] = 255
 
         return mask
+
+    @staticmethod
+    def _generate_max_activation_image(
+        mov: np.ndarray,
+        roi: OphysROI
+    ) -> np.ndarray:
+        """
+        Generates "max activation" image which is the frame of peak brightness
+        for `roi`
+
+        Parameters
+        ----------
+        mov
+            Ophys movie
+        roi
+            `OphysROI`
+
+        Returns
+        -------
+        np.ndarray of shape fov_shape
+        """
+        trace = mov[:,
+                    roi.global_pixel_array[:, 0],
+                    roi.global_pixel_array[:, 1]].mean(axis=1)
+        img = mov[trace.argmax()]
+        return img
 
     def _write_thumbnails(self,
                           roi: OphysROI,
@@ -215,6 +285,14 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                 height=self.args['cutout_size'],
                 width=self.args['cutout_size']
             )
+
+            # For max activation, need to normalize the thumbnail
+            if channel == Channel.MAX_ACTIVATION:
+                thumbnail = self._normalize_image(
+                    img=thumbnail,
+                    low_cutoff=self.args["low_quantile"],
+                    high_cutoff=self.args["high_quantile"]
+                )
 
             # Store the ROI cutouts to disk.
             roi_id = roi.roi_id

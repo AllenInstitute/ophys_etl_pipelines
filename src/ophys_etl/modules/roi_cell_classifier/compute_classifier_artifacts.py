@@ -3,11 +3,12 @@ import os
 import time
 
 import json
-from typing import Dict
+from typing import Dict, List
 
 import h5py
 import numpy as np
 import PIL
+import pandas as pd
 
 from argschema import ArgSchema, ArgSchemaParser, fields
 from deepcell.cli.schemas.data import ChannelField
@@ -25,6 +26,10 @@ from ophys_etl.utils.rois import (
 
 
 class ClassifierArtifactsInputSchema(ArgSchema):
+    experiment_id = fields.Str(
+        required=True,
+        description='Experiment id to generate classifier inputs for'
+    )
     # Input data locations.
     video_path = fields.InputFile(
         required=True,
@@ -69,14 +74,18 @@ class ClassifierArtifactsInputSchema(ArgSchema):
         default=128,
         description="Size of square cutout in pixels.",
     )
-    selected_rois = fields.List(
-        fields.Int,
+    is_training = fields.Boolean(
+        required=True,
+        description='Whether generating inputs for training or inference.'
+                    'If training, will limit to only labeled ROIs'
+    )
+    labels_path = fields.InputFile(
         required=False,
         allow_none=True,
         default=None,
-        description="Specific subset of ROIs by ROI id in the experiment FOV "
-                    "to produce artifacts for. Only ROIs specified in this "
-                    "will have artifacts output.",
+        description='Path to labels in csv format, as output by '
+                    'deepcell.cli.modules.create_dataset.construct_dataset.'
+                    'Must contain fields "experiment_id" and "roi_id"'
     )
     fov_shape = fields.Tuple(
         (fields.Int(), fields.Int()),
@@ -92,11 +101,9 @@ class ClassifierArtifactsInputSchema(ArgSchema):
                                       'passed as a channel')
 
     @validates_schema
-    def validate_traces_path(self, data):
-        if Channel.MAX_ACTIVATION.value in data['channels']:
-            if data['graph_path'] is None:
-                raise ValidationError('traces_path needs to be provided if '
-                                      'passed as a channel')
+    def validate_labels_path(self, data):
+        if data['is_training'] and data['labels_path'] is None:
+            raise ValidationError('Must provide labels_path if is_training')
 
 
 class ClassifierArtifactsGenerator(ArgSchemaParser):
@@ -151,8 +158,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             extract_roi_list = sanitize_extract_roi_list(
                 json.load(in_file))
 
-        selected_rois = self.args['selected_rois']
-        if selected_rois is None:
+        if self.args['is_training']:
+            selected_rois = self._get_labeled_rois_for_experiment()
+        else:
             selected_rois = [roi['id'] for roi in extract_roi_list]
         selected_rois = set(selected_rois)
 
@@ -258,6 +266,25 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                     roi.global_pixel_array[:, 1]].mean(axis=1)
         img = mov[trace.argmax()]
         return img
+
+    def _get_labeled_rois_for_experiment(self) -> List[int]:
+        """Get labeled rois for experiment"""
+        if self.args['labels_path'] is None:
+            raise ValueError('labels_path needed to get labeled rois')
+        labels = pd.read_csv(self.args['labels_path'],
+                             dtype={'experiment_id': str})
+        labels = labels.set_index('experiment_id')
+        if self.args['experiment_id'] not in labels.index:
+            raise ValueError(
+                f'No labeled rois for {self.args["experiment_id"]}')
+        exp_labels = labels.loc[self.args['experiment_id']]
+        roi_ids = exp_labels['roi_id']
+        if isinstance(exp_labels, pd.Series):
+            # just 1 roi exists
+            roi_ids = [roi_ids]
+        else:
+            roi_ids = roi_ids.tolist()
+        return roi_ids
 
     def _write_thumbnails(self,
                           roi: OphysROI,

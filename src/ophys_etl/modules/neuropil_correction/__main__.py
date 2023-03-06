@@ -1,16 +1,20 @@
 #!/usr/bin/python
-import logging
-import numpy as np
-import h5py
 import copy
+import logging
 import os
 import shutil
+
+import h5py
+import numpy as np
 from argschema import ArgSchemaParser
-from ophys_etl.modules.neuropil_correction.utils import (
-    estimate_contamination_ratios,
-    debug_plot,
+
+from ophys_etl.modules.neuropil_correction.schemas import (
+    NeuropilCorrectionJobSchema,
 )
-from ophys_etl.modules.neuropil_correction.schemas import NeuropilCorrectionJobSchema
+from ophys_etl.modules.neuropil_correction.utils import (
+    debug_plot,
+    estimate_contamination_ratios,
+)
 
 
 class NeuropilCorrectionRunner(ArgSchemaParser):
@@ -43,7 +47,9 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
         try:
             roi_traces = h5py.File(trace_file, "r")
         except:
-            logging.error("Error: unable to open ROI trace file '%s'", trace_file)
+            logging.error(
+                "Error: unable to open ROI trace file '%s'", trace_file
+            )
             raise
 
         try:
@@ -67,9 +73,13 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
         n_id = neuropil_traces["roi_names"][:].astype(str)
         r_id = roi_traces["roi_names"][:].astype(str)
         logging.info("Processing %d traces", len(n_id))
-        assert len(n_id) == len(r_id), "Input trace files are not aligned (ROI count)"
+        assert len(n_id) == len(
+            r_id
+        ), "Input trace files are not aligned (ROI count)"
         for i in range(len(n_id)):
-            assert n_id[i] == r_id[i], "Input trace files are not aligned (ROI IDs)"
+            assert (
+                n_id[i] == r_id[i]
+            ), "Input trace files are not aligned (ROI IDs)"
         """
         initialize storage variables and analysis routine
         """
@@ -84,11 +94,15 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
             neuropil = neuropil_traces["data"][n]
 
             if np.any(np.isnan(neuropil)):
-                logging.warning("neuropil trace for roi %d contains NaNs, skipping", n)
+                logging.warning(
+                    "neuropil trace for roi %d contains NaNs, skipping", n
+                )
                 continue
 
             if np.any(np.isnan(roi)):
-                logging.warning("roi trace for roi %d contains NaNs, skipping", n)
+                logging.warning(
+                    "roi trace for roi %d contains NaNs, skipping", n
+                )
                 continue
 
             r = None
@@ -96,7 +110,10 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
             logging.info("Correcting trace %d (roi %s)", n, str(n_id[n]))
             results = estimate_contamination_ratios(roi, neuropil)
             logging.info(
-                "r=%f err=%f it=%d", results["r"], results["err"], results["it"]
+                "r=%f err=%f it=%d",
+                results["r"],
+                results["err"],
+                results["it"],
             )
 
             r = results["r"]
@@ -119,7 +136,9 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
                 r_list[n] = r
                 corrected[n, :] = fc
             else:
-                logging.warning("fc has negative baseline, skipping this r value")
+                logging.warning(
+                    "fc has negative baseline, skipping this r value"
+                )
 
         # compute mean valid r value
         r_mean = np.array([r for r in r_list if r is not None]).mean()
@@ -130,7 +149,9 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
             neuropil = neuropil_traces["data"][n]
 
             if r_list[n] is None:
-                logging.warning("Error estimated r for trace %d. Setting to zero.", n)
+                logging.warning(
+                    "Error estimated r for trace %d. Setting to zero.", n
+                )
                 r_list[n] = 0
                 corrected[n, :] = roi
 
@@ -147,7 +168,8 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
             eps = -0.0001
             if np.mean(corrected[n, :]) < eps:
                 raise Exception(
-                    "Trace %d baseline is still negative value after correction" % n
+                    "Trace %d baseline is still negative value after correction"
+                    % n
                 )
 
             if r_list[n] < 0.0:

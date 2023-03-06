@@ -1,13 +1,14 @@
 import matplotlib
 
 matplotlib.use("agg")
+import logging
+from pathlib import Path
+from typing import Union
+
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse as sparse
 from scipy.linalg import solve_banded
-import logging
-from typing import Union
-from pathlib import Path
 
 
 def debug_plot(
@@ -126,7 +127,11 @@ def error_calc_outlier(
     ind_outlier = np.where(F_M > mean_F_M + 2.0 * std_F_M)
 
     er = np.sqrt(
-        np.mean(np.square(F_C[ind_outlier] - (F_M[ind_outlier] - r * F_N[ind_outlier])))
+        np.mean(
+            np.square(
+                F_C[ind_outlier] - (F_M[ind_outlier] - r * F_N[ind_outlier])
+            )
+        )
     ) / np.mean(F_M[ind_outlier])
 
     return er
@@ -134,7 +139,9 @@ def error_calc_outlier(
 
 def ab_from_T(T, lam, dt):
     # using csr because multiplication is fast
-    Ls = -sparse.eye(T - 1, T, format="csr") + sparse.eye(T - 1, T, 1, format="csr")
+    Ls = -sparse.eye(T - 1, T, format="csr") + sparse.eye(
+        T - 1, T, 1, format="csr"
+    )
     Ls /= dt
     Ls2 = Ls.T.dot(Ls)
 
@@ -228,7 +235,8 @@ class NeuropilSubtract(object):
 
         if F_M_len != F_N_len:
             raise Exception(
-                "F_M and F_N must have the same length (%d vs %d)" % (F_M_len, F_N_len)
+                "F_M and F_N must have the same length (%d vs %d)"
+                % (F_M_len, F_N_len)
             )
 
         if self.T != F_M_len:
@@ -315,17 +323,25 @@ class NeuropilSubtract(object):
                 global_min_r = rs[min_i]
 
             logging.debug(
-                "iteration %d, r=%0.4f, e=%.6e", it, global_min_r, global_min_error
+                "iteration %d, r=%0.4f, e=%.6e",
+                it,
+                global_min_r,
+                global_min_error,
             )
 
             # if the minimum error is on the upper boundary,
             # extend the boundary and redo this iteration
             if min_i == len(it_errors) - 1:
-                logging.debug("minimum error found on upper r bound, extending range")
+                logging.debug(
+                    "minimum error found on upper r bound, extending range"
+                )
                 it_range = [rs[-1], rs[-1] + (rs[-1] - rs[0])]
             else:
                 # error is somewhere on either side of the minimum error index
-                it_range = [rs[max(min_i - 1, 0)], rs[min(min_i + 1, len(rs) - 1)]]
+                it_range = [
+                    rs[max(min_i - 1, 0)],
+                    rs[min(min_i + 1, len(rs) - 1)],
+                ]
                 it_dr *= dr_factor
                 it += 1
 
@@ -348,7 +364,14 @@ class NeuropilSubtract(object):
 
 
 def estimate_contamination_ratios(
-    F_M, F_N, lam=0.05, folds=4, iterations=3, r_range=[0.0, 2.0], dr=0.1, dr_factor=0.1
+    F_M,
+    F_N,
+    lam=0.05,
+    folds=4,
+    iterations=3,
+    r_range=[0.0, 2.0],
+    dr=0.1,
+    dr_factor=0.1,
 ):
     """Calculates neuropil contamination of ROI
 

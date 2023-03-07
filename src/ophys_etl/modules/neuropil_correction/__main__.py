@@ -1,5 +1,3 @@
-#!/usr/bin/python
-import copy
 import logging
 import os
 import shutil

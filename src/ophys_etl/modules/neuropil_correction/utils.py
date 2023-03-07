@@ -3,7 +3,7 @@ import matplotlib
 matplotlib.use("agg")
 import logging
 from pathlib import Path
-from typing import Union
+from typing import Union, List
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -109,35 +109,31 @@ def error_calc(
     F_C: np.ndarray,
     r: float,
 ) -> float:
+    """Calculate root mean square error between corrected trace and roi trace with
+    subtracted neuropil contamination.
 
+    Parameters
+    -----------
+    F_M: np.ndarray
+        ROI trace
+    F_N: np.ndarray
+        neuropil trace
+    F_C: np.ndarray
+        neuropil corrected trace
+    r: float
+        contamination ratio
+
+    Returns
+    --------
+    er: float
+        RMSE
+    """
     er = np.sqrt(np.mean(np.square(F_C - (F_M - r * F_N)))) / np.mean(F_M)
 
     return er
 
 
-def error_calc_outlier(
-    F_M: np.ndarray,
-    F_N: np.ndarray,
-    F_C: np.ndarray,
-    r: float,
-) -> float:
-
-    std_F_M = np.std(F_M)
-    mean_F_M = np.mean(F_M)
-    ind_outlier = np.where(F_M > mean_F_M + 2.0 * std_F_M)
-
-    er = np.sqrt(
-        np.mean(
-            np.square(
-                F_C[ind_outlier] - (F_M[ind_outlier] - r * F_N[ind_outlier])
-            )
-        )
-    ) / np.mean(F_M[ind_outlier])
-
-    return er
-
-
-def ab_from_T(T, lam, dt):
+def ab_from_T(T: int, lam: float, dt: float):
     # using csr because multiplication is fast
     Ls = -sparse.eye(T - 1, T, format="csr") + sparse.eye(
         T - 1, T, 1, format="csr"
@@ -152,63 +148,25 @@ def ab_from_T(T, lam, dt):
     return ab
 
 
-def normalize_F(F_M, F_N):
-    F_N_min, F_N_max = float(np.amin(F_N)), float(np.amax(F_N))
-
-    # rescale so F_N is [0,1]
-    F_M_s = (F_M - F_N_min) / (F_N_max - F_N_min)
-    F_N_s = (F_N - F_N_min) / (F_N_max - F_N_min)
-
-    return F_M_s, F_N_s
-
-
-def alpha_filter(A=1.0, alpha=0.05, beta=0.25, T=100):
-    return A * np.exp(-alpha * np.arange(T)) - np.exp(-beta * np.arange(T))
-
-
-def validate_with_synthetic_F(T, N):
-    """Compute N synthetic traces of length T with known values of r, then estimate r.
-    TODO: docs
-    """
-    af1 = alpha_filter()
-    af2 = alpha_filter(alpha=0.1, beta=0.5)
-
-    r_truth_vals = []
-    r_est_vals = []
-
-    for n in range(N):
-        F_M_truth, F_N_truth, F_C_truth, r_truth = synthesize_F(T, af1, af2)
-        results = estimate_contamination_ratios(F_M_truth, F_N_truth)
-
-        r_est = results["r"]
-
-        r_truth_vals.append(r_truth)
-        r_est_vals.append(r_est)
-
-    return r_truth_vals, r_est_vals
-
-
-def synthesize_F(T, af1, af2, p1=0.05, p2=0.1):
-    """Build a synthetic F_C, F_M, F_N, and r of length T
-    TODO: docs
-    """
-    x1 = np.random.random(T) < p1
-    F_C = np.convolve(af1, x1, mode="full")[:T]
-
-    x2 = np.random.random(T) < p2
-    F_N = np.convolve(af2, x2, mode="full")[:T]
-
-    r = 2.0 * np.random.random()
-
-    F_M = F_C + r * F_N
-
-    return F_M, F_N, F_C, r
-
-
 class NeuropilSubtract(object):
-    """TODO: docs"""
+    """Class to jointly estimate the corrected fluorescence
+    trace (F_C) and the R contamination value given
+    a neuropil trace and ROI trace
 
-    def __init__(self, lam=0.05, dt=1.0, folds=4):
+    The estimation is performed with a gradient descent to
+    minimize a loss function:
+
+    E = (F_C - (F_M - r*F_n))**2 + lam*dt*F_C
+
+    Parameters
+    ----------
+    lam: float
+        lambda weight
+    dt: float
+    folds int
+    """
+
+    def __init__(self, lam: float = 0.05, dt: float = 1.0, folds: int = 4):
         self.lam = lam
         self.dt = dt
         self.folds = folds
@@ -225,7 +183,7 @@ class NeuropilSubtract(object):
         self.r = None
         self.error = None
 
-    def set_F(self, F_M, F_N):
+    def set_F(self, F_M: np.ndarray, F_N: np.ndarray) -> None:
         """Break the F_M and F_N traces into the number of folds specified
         in the class constructor and normalize each fold of F_M and R_N relative to F_N.
         """
@@ -249,12 +207,12 @@ class NeuropilSubtract(object):
         self.F_N = []
 
         for fi in range(self.folds):
-            # F_M_i_s, F_N_i_s = normalize_F(F_M[fi*self.T_f:(fi+1)*self.T_f],
-            #                               F_N[fi*self.T_f:(fi+1)*self.T_f])
             self.F_M.append(F_M[fi * self.T_f : (fi + 1) * self.T_f])
             self.F_N.append(F_N[fi * self.T_f : (fi + 1) * self.T_f])
 
-    def fit_block_coordinate_desc(self, r_init=5.0, min_delta_r=0.00000001):
+    def fit_block_coordinate_desc(
+        self, r_init: float = 5.0, min_delta_r: float = 0.00000001
+    ) -> None:
         F_M = np.concatenate(self.F_M)
         F_N = np.concatenate(self.F_N)
 
@@ -285,7 +243,13 @@ class NeuropilSubtract(object):
         self.r = r_vals[-1]
         self.error = error_vals.min()
 
-    def fit(self, r_range=[0.0, 2.0], iterations=3, dr=0.1, dr_factor=0.1):
+    def fit(
+        self,
+        r_range: List[float, float] = [0.0, 2.0],
+        iterations: int = 3,
+        dr: float = 0.1,
+        dr_factor: float = 0.1,
+    ) -> None:
         """Estimate error values for a range of r values.  Identify a new r range
         around the minimum error values and repeat multiple times.
         TODO: docs
@@ -350,7 +314,7 @@ class NeuropilSubtract(object):
         self.r = global_min_r
         self.error = global_min_error
 
-    def estimate_error(self, r):
+    def estimate_error(self, r: float) -> float:
         """Estimate error values for a given r for each fold and return the mean."""
 
         errors = np.zeros(self.folds)
@@ -364,14 +328,14 @@ class NeuropilSubtract(object):
 
 
 def estimate_contamination_ratios(
-    F_M,
-    F_N,
-    lam=0.05,
-    folds=4,
-    iterations=3,
-    r_range=[0.0, 2.0],
-    dr=0.1,
-    dr_factor=0.1,
+    F_M: np.ndarray,
+    F_N: np.ndarray,
+    lam: float = 0.05,
+    folds: int = 4,
+    iterations: int = 3,
+    r_range: List[float, float] = [0.0, 2.0],
+    dr: float = 0.1,
+    dr_factor: float = 0.1,
 ):
     """Calculates neuropil contamination of ROI
 

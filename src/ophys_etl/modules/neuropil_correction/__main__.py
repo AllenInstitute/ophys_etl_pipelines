@@ -12,6 +12,7 @@ from ophys_etl.modules.neuropil_correction.schemas import (
 from ophys_etl.modules.neuropil_correction.utils import (
     debug_plot,
     estimate_contamination_ratios,
+    fill_unconverged_r,
 )
 
 
@@ -81,8 +82,8 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
         """
         initialize storage variables and analysis routine
         """
-        r_list = [None] * num_traces
-        RMSE_list = [-1] * num_traces
+        r_array = np.array([None] * num_traces)
+        RMSE_array = np.ones(num_traces, dtype=float) * -1
         roi_names = n_id
         corrected = np.zeros((num_traces, T_orig))
         r_vals = [None] * num_traces
@@ -116,9 +117,11 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
 
             r = results["r"]
             fc = roi - r * neuropil
-            RMSE_list[n] = results["err"]
+            RMSE_array[n] = results["err"]
             r_vals[n] = results["r_vals"]
 
+            if r > 1:
+                logging.info(f"Estimated r value > 1, r = {r}")
             debug_plot(
                 os.path.join(plot_dir, "initial_%04d.png" % n),
                 roi,
@@ -131,7 +134,7 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
 
             # mean of the corrected trace must be positive
             if fc.mean() > 0:
-                r_list[n] = r
+                r_array[n] = r
                 corrected[n, :] = fc
             else:
                 logging.warning(
@@ -139,18 +142,18 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
                 )
 
         # compute mean valid r value
-        r_mean = np.array([r for r in r_list if r is not None]).mean()
+        r_mean = np.array([r for r in r_array if r is not None]).mean()
 
         # fill in empty r values
         for n in range(num_traces):
             roi = roi_traces["data"][n]
             neuropil = neuropil_traces["data"][n]
 
-            if r_list[n] is None:
+            if r_array[n] is None:
                 logging.warning(
                     "Error estimated r for trace %d. Setting to zero.", n
                 )
-                r_list[n] = 0
+                r_array[n] = 0
                 corrected[n, :] = roi
 
             # save a debug plot
@@ -159,7 +162,7 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
                 roi,
                 neuropil,
                 corrected[n, :],
-                r_list[n],
+                r_array[n],
             )
 
             # one last sanity check
@@ -170,20 +173,35 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
                     % n
                 )
 
-            if r_list[n] < 0.0:
+            if r_array[n] < 0.0:
                 raise Exception("Trace %d ended with negative r" % n)
+        
+        r_array = r_array.astype(float)
+
+        # flag cells with unconverged r values (r>1) and fill in with
+        # mean r value across all other cells of the same experiment.
+        # recalculate neuropil_corrected trace and RMSE
+        if any(r_array > 1):
+            logging.info(f"Unconverged r values > 1: {sum(r_array > 1)}")
+            logging.info(f"Filling in unconverged r values with mean r value")
+            logging.info(f"Recalculating corrected trace and RMSE")
+            corrected_filled, r_array, RMSE_array = fill_unconverged_r(
+                corrected,
+                roi_traces["data"][()],
+                neuropil_traces["data"][()],
+                r_array,
+            )
 
         ########################################################################
         # write out processed data
-
         try:
             self.args["neuropil_correction"] = os.path.join(
                 storage_dir, "neuropil_correction.h5"
             )
             hf = h5py.File(self.args["neuropil_correction"], "w")
-            hf.create_dataset("r", data=r_list)
-            hf.create_dataset("RMSE", data=RMSE_list)
-            hf.create_dataset("FC", data=corrected, compression="gzip")
+            hf.create_dataset("r", data=r_array)
+            hf.create_dataset("RMSE", data=RMSE_array)
+            hf.create_dataset("FC", data=corrected_filled, compression="gzip")
             hf.create_dataset("roi_names", data=roi_names.astype(np.string_))
 
             for n in range(num_traces):
@@ -197,7 +215,6 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
 
         roi_traces.close()
         neuropil_traces.close()
-
         self.output(
             {
                 "neuropil_file": neuropil_file,

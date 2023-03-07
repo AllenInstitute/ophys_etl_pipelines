@@ -3,7 +3,7 @@ import matplotlib
 matplotlib.use("agg")
 import logging
 from pathlib import Path
-from typing import Union, List
+from typing import Union, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -114,7 +114,7 @@ def error_calc(
 
     Parameters
     -----------
-    F_M: np.ndarray
+    F_M_array: np.ndarray
         ROI trace
     F_N: np.ndarray
         neuropil trace
@@ -146,6 +146,33 @@ def ab_from_T(T: int, lam: float, dt: float):
     ab = ab_from_diagonals(mat_dict)
 
     return ab
+
+
+def fill_unconverged_r(
+    corrected_neuropil_traces: np.ndarray,
+    roi_traces: np.ndarray,
+    neuropil_traces: np.ndarray,
+    r_array: np.ndarray,
+    flag_threshold: float = 1.0,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """R values that are unconverged as defined by values that exceed 1.0
+    are filled in with the mean value of all other cells from the same
+    experiment. The corrected fluorescence trace is recalculated with the
+    adjusted R value.
+    """
+    flagged_mask = r_array > flag_threshold
+    fill_r_val = r_array[(~flagged_mask) & (r_array > 0)].mean()
+    r_array[flagged_mask] = fill_r_val
+    corrected_neuropil_traces[flagged_mask] = (
+        roi_traces[flagged_mask] - fill_r_val * neuropil_traces[flagged_mask]
+    )
+    rmse = [
+        error_calc(F_M, F_N, F_C, r)
+        for F_M, F_N, F_C, r in zip(
+            roi_traces, neuropil_traces, corrected_neuropil_traces, r_array
+        )
+    ]
+    return corrected_neuropil_traces, r_array, np.array(rmse)
 
 
 class NeuropilSubtract(object):
@@ -245,7 +272,7 @@ class NeuropilSubtract(object):
 
     def fit(
         self,
-        r_range: List[float, float] = [0.0, 2.0],
+        r_range: List[float] = [0.0, 2.0],
         iterations: int = 3,
         dr: float = 0.1,
         dr_factor: float = 0.1,
@@ -333,7 +360,7 @@ def estimate_contamination_ratios(
     lam: float = 0.05,
     folds: int = 4,
     iterations: int = 3,
-    r_range: List[float, float] = [0.0, 2.0],
+    r_range: List[float] = [0.0, 2.0],
     dr: float = 0.1,
     dr_factor: float = 0.1,
 ):

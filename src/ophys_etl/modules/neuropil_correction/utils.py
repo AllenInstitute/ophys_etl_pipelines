@@ -3,7 +3,7 @@ import matplotlib
 matplotlib.use("agg")
 import logging
 from pathlib import Path
-from typing import Union, List, Tuple
+from typing import List, Tuple, Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -166,12 +166,11 @@ def fill_unconverged_r(
     corrected_neuropil_traces[flagged_mask] = (
         roi_traces[flagged_mask] - fill_r_val * neuropil_traces[flagged_mask]
     )
-    rmse = [
-        error_calc(F_M, F_N, F_C, r)
-        for F_M, F_N, F_C, r in zip(
-            roi_traces, neuropil_traces, corrected_neuropil_traces, r_array
-        )
-    ]
+    rmse = []
+    for F_M, F_N, r in zip(roi_traces, neuropil_traces, r_array):
+        ns = NeuropilSubtract()
+        ns.set_F(F_M, F_N)
+        rmse.append(ns.estimate_error(r))
     return corrected_neuropil_traces, r_array, np.array(rmse)
 
 

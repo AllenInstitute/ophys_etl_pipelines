@@ -175,7 +175,7 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
 
             if r_array[n] < 0.0:
                 raise Exception("Trace %d ended with negative r" % n)
-        
+
         r_array = r_array.astype(float)
 
         # flag cells with unconverged r values (r>1) and fill in with
@@ -185,7 +185,7 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
             logging.info(f"Unconverged r values > 1: {sum(r_array > 1)}")
             logging.info(f"Filling in unconverged r values with mean r value")
             logging.info(f"Recalculating corrected trace and RMSE")
-            corrected_filled, r_array, RMSE_array = fill_unconverged_r(
+            corrected, r_array, RMSE_array = fill_unconverged_r(
                 corrected,
                 roi_traces["data"][()],
                 neuropil_traces["data"][()],
@@ -201,7 +201,7 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
             hf = h5py.File(self.args["neuropil_correction"], "w")
             hf.create_dataset("r", data=r_array)
             hf.create_dataset("RMSE", data=RMSE_array)
-            hf.create_dataset("FC", data=corrected_filled, compression="gzip")
+            hf.create_dataset("FC", data=corrected, compression="gzip")
             hf.create_dataset("roi_names", data=roi_names.astype(np.string_))
 
             for n in range(num_traces):
@@ -217,11 +217,11 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
         neuropil_traces.close()
         self.output(
             {
-                "neuropil_file": neuropil_file,
+                "neuropil_trace_file": neuropil_file,
                 "storage_directory": storage_dir,
                 "motion_corrected_stack": self.args["motion_corrected_stack"],
                 "roi_trace_file": trace_file,
-                "neuropil_corrected_file": self.args["neuropil_correction"],
+                "neuropil_correction": self.args["neuropil_correction"],
             }
         )
 

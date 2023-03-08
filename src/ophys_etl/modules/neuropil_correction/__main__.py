@@ -22,7 +22,7 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
 
     def run(self):
 
-        ########################################################################
+        #######################################################################
         # prelude -- get processing metadata
 
         trace_file = self.args["roi_trace_file"]
@@ -33,29 +33,26 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
         if os.path.exists(plot_dir):
             shutil.rmtree(plot_dir)
 
-        try:
-            os.makedirs(plot_dir)
-        except:
-            pass
+        os.makedirs(plot_dir)
 
         logging.info("Neuropil correcting '%s'", trace_file)
 
-        ########################################################################
+        #######################################################################
         # process data
 
         try:
             roi_traces = h5py.File(trace_file, "r")
-        except:
+        except Exception as e:
             logging.error(
-                "Error: unable to open ROI trace file '%s'", trace_file
+                f"Error: unable to open ROI trace file {trace_file}", e
             )
             raise
 
         try:
             neuropil_traces = h5py.File(neuropil_file, "r")
-        except:
+        except Exception as e:
             logging.error(
-                "Error: unable to open neuropil trace file '%s'", neuropil_file
+                f"Error: unable to open neuropil trace file {neuropil_file}", e
             )
             raise
 
@@ -141,9 +138,6 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
                     "fc has negative baseline, skipping this r value"
                 )
 
-        # compute mean valid r value
-        r_mean = np.array([r for r in r_array if r is not None]).mean()
-
         # fill in empty r values
         for n in range(num_traces):
             roi = roi_traces["data"][n]
@@ -169,7 +163,8 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
             eps = -0.0001
             if np.mean(corrected[n, :]) < eps:
                 raise Exception(
-                    "Trace %d baseline is still negative value after correction"
+                    "Trace %d baseline is still negative value after"
+                    "correction"
                     % n
                 )
 
@@ -182,9 +177,11 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
         # mean r value across all other cells of the same experiment.
         # recalculate neuropil_corrected trace and RMSE
         if any(r_array > 1):
-            logging.info(f"Unconverged r values > 1: {sum(r_array > 1)}")
-            logging.info(f"Filling in unconverged r values with mean r value")
-            logging.info(f"Recalculating corrected trace and RMSE")
+            logging.info(
+                f"Number of unconverged r values > 1: {sum(r_array > 1)}"
+                "Filling in unconverged r values with mean r value"
+                "Recalculating corrected trace and RMSE"
+            )
             corrected, r_array, RMSE_array = fill_unconverged_r(
                 corrected,
                 roi_traces["data"][()],
@@ -192,7 +189,7 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
                 r_array,
             )
 
-        ########################################################################
+        ######################################################################
         # write out processed data
         try:
             self.args["neuropil_correction"] = os.path.join(
@@ -209,8 +206,8 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
                 if r is not None:
                     hf.create_dataset("r_vals/%d" % n, data=r)
             hf.close()
-        except:
-            logging.error("Error creating output h5 file")
+        except Exception as e:
+            logging.error("Error creating output h5 file", e)
             raise
 
         roi_traces.close()

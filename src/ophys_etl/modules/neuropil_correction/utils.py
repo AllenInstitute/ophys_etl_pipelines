@@ -1,14 +1,14 @@
-import matplotlib
-
-matplotlib.use("agg")
 import logging
 from pathlib import Path
 from typing import List, Tuple, Union
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse as sparse
 from scipy.linalg import solve_banded
+
+matplotlib.use("agg")
 
 
 def debug_plot(
@@ -89,12 +89,12 @@ def ab_from_diagonals(mat_dict: dict) -> np.ndarray:
         value for scipy.linalg.solve_banded
     """
     offsets = list(mat_dict.keys())
-    l = -np.min(offsets)
+    ll = -np.min(offsets)
     u = np.max(offsets)
 
     T = mat_dict[offsets[0]].shape[0]
 
-    ab = np.zeros([l + u + 1, T])
+    ab = np.zeros([ll + u + 1, T])
 
     for o in offsets:
         index = u - o
@@ -109,8 +109,8 @@ def error_calc(
     F_C: np.ndarray,
     r: float,
 ) -> float:
-    """Calculate root mean square error between corrected trace and roi trace with
-    subtracted neuropil contamination.
+    """Calculate root mean square error between corrected trace
+    and roi trace with subtracted neuropil contamination.
 
     Parameters
     -----------
@@ -211,7 +211,8 @@ class NeuropilSubtract(object):
 
     def set_F(self, F_M: np.ndarray, F_N: np.ndarray) -> None:
         """Break the F_M and F_N traces into the number of folds specified
-        in the class constructor and normalize each fold of F_M and R_N relative to F_N.
+        in the class constructor and normalize each fold of F_M and R_N
+        relative to F_N.
         """
 
         F_M_len = len(F_M)
@@ -233,8 +234,8 @@ class NeuropilSubtract(object):
         self.F_N = []
 
         for fi in range(self.folds):
-            self.F_M.append(F_M[fi * self.T_f : (fi + 1) * self.T_f])
-            self.F_N.append(F_N[fi * self.T_f : (fi + 1) * self.T_f])
+            self.F_M.append(F_M[fi * self.T_f: (fi + 1) * self.T_f])
+            self.F_N.append(F_N[fi * self.T_f: (fi + 1) * self.T_f])
 
     def fit_block_coordinate_desc(
         self, r_init: float = 5.0, min_delta_r: float = 0.00000001
@@ -276,8 +277,9 @@ class NeuropilSubtract(object):
         dr: float = 0.1,
         dr_factor: float = 0.1,
     ) -> None:
-        """Estimate error values for a range of r values.  Identify a new r range
-        around the minimum error values and repeat multiple times.
+        """Estimate error values for a range of r values.
+        Identify a new r range around the minimum error
+        values and repeat multiple times.
         TODO: docs
         """
         global_min_error = None
@@ -341,7 +343,8 @@ class NeuropilSubtract(object):
         self.error = global_min_error
 
     def estimate_error(self, r: float) -> float:
-        """Estimate error values for a given r for each fold and return the mean."""
+        """Estimate error values for a given r for each fold
+        and return the mean."""
 
         errors = np.zeros(self.folds)
         for fi in range(self.folds):

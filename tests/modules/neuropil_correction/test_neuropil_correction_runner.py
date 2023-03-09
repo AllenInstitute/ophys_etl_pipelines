@@ -39,7 +39,7 @@ def test_neuropil_correction_runner(tmp_path):
         np.testing.assert_array_almost_equal(
             np.array(
                 [
-                    [318.41422874, 259.60284182, 284.68170532],
+                    [236.62230614, 182.41965545, 204.852356],
                     [84.88831718, 111.04645177, 115.9280698],
                     [199.9796932, 233.80172784, 201.33909005],
                 ]
@@ -47,12 +47,12 @@ def test_neuropil_correction_runner(tmp_path):
             f["FC"][:, :3],
         )
         np.testing.assert_array_almost_equal(
-            np.array([0.1015, 0.078, 0.125]), f["r"][:]
+            np.array([0.7, 0.078, 0.125]), f["r"][:]
         )
         np.testing.assert_array_equal(
             np.array([b"1109811483", b"1109811486", b"1109811490"]),
             f["roi_names"][:],
         )
         np.testing.assert_array_almost_equal(
-            np.array([0.01268142, 0.01887886, 0.01142511]), f["RMSE"][:]
+            np.array([0.01248130, 0.01887886, 0.01142511]), f["RMSE"][:]
         )

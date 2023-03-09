@@ -20,7 +20,25 @@ def debug_plot(
     r_vals: np.ndarray = None,
     err_vals: np.ndarray = None,
 ) -> None:
-    """Create debug plot for neuropil correction"""
+    """Create debug plot for neuropil correction
+
+    Parameters
+    -----------
+    file_name: Union[str, Path]
+        path to output plot image
+    roi_trace: np.ndarray
+        roi trace for a single roi
+    neuropil_trace: np.ndarray
+        neuropil trace for a single roi
+    corrected_trace: np.ndarray
+        corrected trace for a single roi
+    r: float
+        r contamination value
+    r_vals: np.ndarray
+        range of r values fitted
+    err_vals: np.ndarray
+        error values associated with range of r values
+    """
     fig = plt.figure(figsize=(15, 10))
 
     ax = fig.add_subplot(211)
@@ -133,7 +151,8 @@ def error_calc(
     return er
 
 
-def ab_from_T(T: int, lam: float, dt: float):
+def ab_from_T(T: int, lam: float, dt: float) -> np.ndarray:
+    """ """
     # using csr because multiplication is fast
     Ls = -sparse.eye(T - 1, T, format="csr") + sparse.eye(
         T - 1, T, 1, format="csr"
@@ -160,6 +179,25 @@ def fill_unconverged_r(
     are filled in with the mean value of all other cells from the same
     experiment. The corrected fluorescence trace is recalculated with the
     adjusted R value.
+
+    Parameters
+    ----------
+    corrected_neuropil_traces: np.ndarray
+        corrected traces for all ROIs in an experiment
+    roi_traces: np.ndarray
+        ROI traces for all ROIs in an experiment
+    neuropil_traces: np.ndarray
+        neuropil traces for all ROIs in an experiment
+    r_array: np.ndarray
+        array of r values for all ROIs in an experiment
+    flag_threshold: float = 1.0
+        threshold r value to flag for filling
+    fill_r_val: float = 0.7
+        default fill value if less than 5 ROIs with r<1
+
+    Returns
+    -------
+
     """
     flagged_mask = r_array > flag_threshold
     if r_array[(~flagged_mask) & (r_array > 0)].shape[0] >= 5:
@@ -215,6 +253,13 @@ class NeuropilSubtract(object):
         """Break the F_M and F_N traces into the number of folds specified
         in the class constructor and normalize each fold of F_M and R_N
         relative to F_N.
+
+        Parameters:
+        -----------
+        F_M: np.ndarray
+            ROI trace
+        F_N: np.ndarray
+            neuropil trace
         """
 
         F_M_len = len(F_M)
@@ -236,41 +281,8 @@ class NeuropilSubtract(object):
         self.F_N = []
 
         for fi in range(self.folds):
-            self.F_M.append(F_M[fi * self.T_f: (fi + 1) * self.T_f])
-            self.F_N.append(F_N[fi * self.T_f: (fi + 1) * self.T_f])
-
-    def fit_block_coordinate_desc(
-        self, r_init: float = 5.0, min_delta_r: float = 0.00000001
-    ) -> None:
-        F_M = np.concatenate(self.F_M)
-        F_N = np.concatenate(self.F_N)
-
-        r_vals = []
-        error_vals = []
-        r = r_init
-
-        delta_r = None
-        it = 0
-
-        ab = ab_from_T(self.T, self.lam, self.dt)
-        while delta_r is None or delta_r > min_delta_r:
-            F_C = solve_banded((1, 1), ab, F_M - r * F_N)
-            new_r = -np.sum((F_C - F_M) * F_N) / np.sum(np.square(F_N))
-            error = self.estimate_error(new_r)
-
-            error_vals.append(error)
-            r_vals.append(new_r)
-
-            if r is not None:
-                delta_r = np.abs(r - new_r) / r
-
-            r = new_r
-            it += 1
-
-        self.r_vals = r_vals
-        self.error_vals = error_vals
-        self.r = r_vals[-1]
-        self.error = error_vals.min()
+            self.F_M.append(F_M[fi * self.T_f : (fi + 1) * self.T_f])
+            self.F_N.append(F_N[fi * self.T_f : (fi + 1) * self.T_f])
 
     def fit(
         self,
@@ -282,7 +294,32 @@ class NeuropilSubtract(object):
         """Estimate error values for a range of r values.
         Identify a new r range around the minimum error
         values and repeat multiple times.
-        TODO: docs
+
+        Parameters:
+        -----------
+        r_range: List[float]
+            range of r values to search for minimized error
+        iterations: int = 3
+            number of iterations to search with lowered
+            step size
+        dr: float = 0.1
+            initial step size
+        dr_factor: float = 0.1
+            step size factor for each iteration
+
+        Returns
+        --------
+        None
+
+        Function sets instance variables
+        self.r_vals: list
+            r values searched in fitting
+        self.error_vals: list
+            errors for each r value searched
+        self.r: float
+            r value at the global minimum within r_range
+        self.error: float
+            error at global minimum r
         """
         global_min_error = None
         global_min_r = None
@@ -346,7 +383,16 @@ class NeuropilSubtract(object):
 
     def estimate_error(self, r: float) -> float:
         """Estimate error values for a given r for each fold
-        and return the mean."""
+        and return the mean.
+
+        Parameters
+        ----------
+        r: float
+
+        Returns
+        --------
+        error: float
+        """
 
         errors = np.zeros(self.folds)
         for fi in range(self.folds):
@@ -372,16 +418,35 @@ def estimate_contamination_ratios(
 
     Parameters
     ----------
-       F_M: ROI trace
-       F_N: Neuropil trace
+    F_M: np.ndarray
+        roi trace
+    F_N: np.ndarray
+        neuropil trace
+    lam: float = 0.05
+        weight of smoothness constraint of loss function
+    folds: int = 4
+        number of folds to split data
+    iterations: int = 3
+        number of iterations to search with lowered
+        step size
+    r_range: List[float]
+        range of r values to search for minimized error
+    dr: float = 0.1
+        initial step size
+    dr_factor: float = 0.1
+        step size factor for each iteration
 
     Returns
     -------
-    dictionary: key-value pairs
-        * 'r': the contamination ratio -- corrected trace = M - r*N
-        * 'err': RMS error
-        * 'min_error': minimum error
-        * 'bounds_error': boolean. True if error or R are outside tolerance
+    dict: key-value pairs
+        r: the contamination ratio -- corrected trace = M - r*N
+        r_vals: range of r values fitted
+        err_vals: error values associated with range of r values
+        err: error at r
+        min_error: minimum error = error at r
+        it: number of iterations
+
+
     """
 
     ns = NeuropilSubtract(lam=lam, folds=folds)
@@ -389,8 +454,6 @@ def estimate_contamination_ratios(
     ns.set_F(F_M, F_N)
 
     ns.fit(r_range=r_range, iterations=iterations, dr=dr, dr_factor=dr_factor)
-
-    # ns.fit_block_coordinate_desc()
 
     if ns.r < 0:
         logging.warning("r is negative (%f). return 0.0.", ns.r)

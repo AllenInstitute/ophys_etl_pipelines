@@ -39,7 +39,6 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
 
         #######################################################################
         # process data
-
         try:
             roi_traces = h5py.File(trace_file, "r")
         except Exception as e:
@@ -56,9 +55,7 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
             )
             raise
 
-        """
-        get number of traces, length, etc.
-        """
+        # get number of traces, length, etc.
         num_traces, T = roi_traces["data"].shape
         T_orig = T
         T_cross_val = int(T / 2)
@@ -76,10 +73,9 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
             assert (
                 n_id[i] == r_id[i]
             ), "Input trace files are not aligned (ROI IDs)"
-        """
-        initialize storage variables and analysis routine
-        """
-        r_array = np.array([None] * num_traces)
+
+        # initialize storage variables and analysis routine
+        r_array = np.empty(num_traces)
         RMSE_array = np.ones(num_traces, dtype=float) * -1
         roi_names = n_id
         corrected = np.zeros((num_traces, T_orig))
@@ -101,7 +97,7 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
                 )
                 continue
 
-            r = None
+            r = np.nan
 
             logging.info("Correcting trace %d (roi %s)", n, str(n_id[n]))
             results = estimate_contamination_ratios(roi, neuropil)
@@ -143,9 +139,9 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
             roi = roi_traces["data"][n]
             neuropil = neuropil_traces["data"][n]
 
-            if r_array[n] is None:
+            if r_array[n] is np.nan:
                 logging.warning(
-                    "Error estimated r for trace %d. Setting to zero.", n
+                    "fc had negative baseline %d. Setting r to zero.", n
                 )
                 r_array[n] = 0
                 corrected[n, :] = roi
@@ -164,8 +160,7 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
             if np.mean(corrected[n, :]) < eps:
                 raise Exception(
                     "Trace %d baseline is still negative value after"
-                    "correction"
-                    % n
+                    "correction" % n
                 )
 
             if r_array[n] < 0.0:

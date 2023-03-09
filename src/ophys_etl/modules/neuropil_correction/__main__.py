@@ -189,10 +189,10 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
         ######################################################################
         # write out processed data
         try:
-            self.args["neuropil_correction"] = os.path.join(
+            neuropil_correction_output = os.path.join(
                 storage_dir, "neuropil_correction.h5"
             )
-            hf = h5py.File(self.args["neuropil_correction"], "w")
+            hf = h5py.File(neuropil_correction_output, "w")
             hf.create_dataset("r", data=r_array)
             hf.create_dataset("RMSE", data=RMSE_array)
             hf.create_dataset("FC", data=corrected, compression="gzip")
@@ -215,7 +215,7 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
                 "storage_directory": storage_dir,
                 "motion_corrected_stack": self.args["motion_corrected_stack"],
                 "roi_trace_file": trace_file,
-                "neuropil_correction": self.args["neuropil_correction"],
+                "neuropil_correction": neuropil_correction_output,
             }
         )
 

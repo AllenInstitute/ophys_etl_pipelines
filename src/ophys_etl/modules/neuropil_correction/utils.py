@@ -66,107 +66,6 @@ def debug_plot(
     plt.close()
 
 
-def get_diagonals_from_sparse(mat: sparse) -> dict:
-    """Returns a dictionary of diagonals keyed by offsets
-
-    Parameters
-    ----------
-    mat: scipy.sparse
-        matrix
-
-    Returns
-    -------
-    dict:
-        diagonals keyed by offsets
-    """
-
-    mat_dia = mat.todia()  # make sure the matrix is in diagonal format
-
-    offsets = mat_dia.offsets
-    diagonals = mat_dia.data
-
-    mat_dict = {}
-
-    for i, o in enumerate(offsets):
-        mat_dict[o] = diagonals[i]
-
-    return mat_dict
-
-
-def ab_from_diagonals(mat_dict: dict) -> np.ndarray:
-    """Constructs value for scipy.linalg.solve_banded
-
-    Parameters
-    ----------
-    mat_dict: dict
-        dictionary of diagonals keyed by offsets
-
-    Returns
-    -------
-    ab: np.ndarray
-        value for scipy.linalg.solve_banded
-    """
-    offsets = list(mat_dict.keys())
-    ll = -np.min(offsets)
-    u = np.max(offsets)
-
-    T = mat_dict[offsets[0]].shape[0]
-
-    ab = np.zeros([ll + u + 1, T])
-
-    for o in offsets:
-        index = u - o
-        ab[index] = mat_dict[o]
-
-    return ab
-
-
-def error_calc(
-    F_M: np.ndarray,
-    F_N: np.ndarray,
-    F_C: np.ndarray,
-    r: float,
-) -> float:
-    """Calculate root mean square error between corrected trace
-    and roi trace with subtracted neuropil contamination.
-
-    Parameters
-    -----------
-    F_M_array: np.ndarray
-        ROI trace
-    F_N: np.ndarray
-        neuropil trace
-    F_C: np.ndarray
-        neuropil corrected trace
-    r: float
-        contamination ratio
-
-    Returns
-    --------
-    er: float
-        RMSE
-    """
-    er = np.sqrt(np.mean(np.square(F_C - (F_M - r * F_N)))) / np.mean(F_M)
-
-    return er
-
-
-def ab_from_T(T: int, lam: float, dt: float) -> np.ndarray:
-    """ """
-    # using csr because multiplication is fast
-    Ls = -sparse.eye(T - 1, T, format="csr") + sparse.eye(
-        T - 1, T, 1, format="csr"
-    )
-    Ls /= dt
-    Ls2 = Ls.T.dot(Ls)
-
-    M = sparse.eye(T) + lam * Ls2
-    mat_dict = get_diagonals_from_sparse(M)
-    ab = ab_from_diagonals(mat_dict)
-
-    return ab
-
-
 def fill_unconverged_r(
     corrected_neuropil_traces: np.ndarray,
     roi_traces: np.ndarray,
@@ -249,6 +148,119 @@ class NeuropilSubtract(object):
         self.r = None
         self.error = None
 
+    def get_diagonals_from_sparse(self, mat: sparse) -> dict:
+        """Returns a dictionary of diagonals keyed by offsets
+
+        Parameters
+        ----------
+        mat: scipy.sparse
+            matrix
+
+        Returns
+        -------
+        dict:
+            diagonals keyed by offsets
+        """
+
+        mat_dia = mat.todia()  # make sure the matrix is in diagonal format
+
+        offsets = mat_dia.offsets
+        diagonals = mat_dia.data
+
+        mat_dict = {}
+
+        for i, o in enumerate(offsets):
+            mat_dict[o] = diagonals[i]
+
+        return mat_dict
+
+
+    def ab_from_diagonals(self, mat_dict: dict) -> np.ndarray:
+        """Constructs value for scipy.linalg.solve_banded
+
+        Parameters
+        ----------
+        mat_dict: dict
+            dictionary of diagonals keyed by offsets
+
+        Returns
+        -------
+        ab: np.ndarray
+            value for scipy.linalg.solve_banded
+        """
+        offsets = list(mat_dict.keys())
+        ll = -np.min(offsets)
+        u = np.max(offsets)
+
+        T = mat_dict[offsets[0]].shape[0]
+
+        ab = np.zeros([ll + u + 1, T])
+
+        for o in offsets:
+            index = u - o
+            ab[index] = mat_dict[o]
+
+        return ab
+
+
+    def error_calc(
+        self,
+        F_M: np.ndarray,
+        F_N: np.ndarray,
+        F_C: np.ndarray,
+        r: float,
+    ) -> float:
+        """Calculate root mean square error between corrected trace
+        and roi trace with subtracted neuropil contamination.
+
+        Parameters
+        -----------
+        F_M_array: np.ndarray
+            ROI trace
+        F_N: np.ndarray
+            neuropil trace
+        F_C: np.ndarray
+            neuropil corrected trace
+        r: float
+            contamination ratio
+
+        Returns
+        --------
+        er: float
+            RMSE
+        """
+        er = np.sqrt(np.mean(np.square(F_C - (F_M - r * F_N)))) / np.mean(F_M)
+
+        return er
+
+
+    def ab_from_T(self, T: int, lam: float, dt: float) -> np.ndarray:
+        """
+        
+        Parameters
+        ----------
+        T: int
+        lam: float
+        dt: float
+
+        Returns
+        -------
+        np.ndarray
+        """
+        # using csr because multiplication is fast
+        Ls = -sparse.eye(T - 1, T, format="csr") + sparse.eye(
+            T - 1, T, 1, format="csr"
+        )
+        Ls /= dt
+        Ls2 = Ls.T.dot(Ls)
+
+        M = sparse.eye(T) + lam * Ls2
+        mat_dict = self.get_diagonals_from_sparse(M)
+        ab = self.ab_from_diagonals(mat_dict)
+
+        return ab
+    
+
     def set_F(self, F_M: np.ndarray, F_N: np.ndarray) -> None:
         """Break the F_M and F_N traces into the number of folds specified
         in the class constructor and normalize each fold of F_M and R_N
@@ -275,7 +287,7 @@ class NeuropilSubtract(object):
             logging.debug("updating ab matrix for new T=%d", F_M_len)
             self.T = F_M_len
             self.T_f = int(self.T / self.folds)
-            self.ab = ab_from_T(self.T_f, self.lam, self.dt)
+            self.ab = self.ab_from_T(self.T_f, self.lam, self.dt)
 
         self.F_M = []
         self.F_N = []
@@ -399,7 +411,7 @@ class NeuropilSubtract(object):
             F_M = self.F_M[fi]
             F_N = self.F_N[fi]
             F_C = solve_banded((1, 1), self.ab, F_M - r * F_N)
-            errors[fi] = abs(error_calc(F_M, F_N, F_C, r))
+            errors[fi] = abs(self.error_calc(F_M, F_N, F_C, r))
 
         return np.mean(errors)
 

@@ -8,6 +8,7 @@ from argschema import ArgSchemaParser
 
 from ophys_etl.modules.neuropil_correction.schemas import (
     NeuropilCorrectionJobSchema,
+    NeuropilCorrectionJobOutputSchema,
 )
 from ophys_etl.modules.neuropil_correction.utils import (
     debug_plot,
@@ -19,6 +20,7 @@ from ophys_etl.modules.neuropil_correction.utils import (
 class NeuropilCorrectionRunner(ArgSchemaParser):
 
     default_schema = NeuropilCorrectionJobSchema
+    default_output_schema = NeuropilCorrectionJobOutputSchema
 
     def run(self):
 

@@ -154,6 +154,7 @@ def fill_unconverged_r(
     neuropil_traces: np.ndarray,
     r_array: np.ndarray,
     flag_threshold: float = 1.0,
+    fill_r_val: float = 0.7,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """R values that are unconverged as defined by values that exceed 1.0
     are filled in with the mean value of all other cells from the same
@@ -161,7 +162,8 @@ def fill_unconverged_r(
     adjusted R value.
     """
     flagged_mask = r_array > flag_threshold
-    fill_r_val = r_array[(~flagged_mask) & (r_array > 0)].mean()
+    if r_array[(~flagged_mask) & (r_array > 0)].shape[0] >= 5:
+        fill_r_val = r_array[(~flagged_mask) & (r_array > 0)].mean()
     r_array[flagged_mask] = fill_r_val
     corrected_neuropil_traces[flagged_mask] = (
         roi_traces[flagged_mask] - fill_r_val * neuropil_traces[flagged_mask]

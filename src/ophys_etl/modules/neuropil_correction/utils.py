@@ -174,7 +174,6 @@ class NeuropilSubtract(object):
 
         return mat_dict
 
-
     def ab_from_diagonals(self, mat_dict: dict) -> np.ndarray:
         """Constructs value for scipy.linalg.solve_banded
 
@@ -201,7 +200,6 @@ class NeuropilSubtract(object):
             ab[index] = mat_dict[o]
 
         return ab
-
 
     def __error_calc(
         self,
@@ -233,10 +231,9 @@ class NeuropilSubtract(object):
 
         return er
 
-
     def __ab_from_T(self, T: int, lam: float, dt: float) -> np.ndarray:
         """
-        
+
         Parameters
         ----------
         T: int
@@ -259,7 +256,6 @@ class NeuropilSubtract(object):
         ab = self.ab_from_diagonals(mat_dict)
 
         return ab
-    
 
     def set_F(self, F_M: np.ndarray, F_N: np.ndarray) -> None:
         """Break the F_M and F_N traces into the number of folds specified
@@ -293,8 +289,8 @@ class NeuropilSubtract(object):
         self.F_N = []
 
         for fi in range(self.folds):
-            self.F_M.append(F_M[fi * self.T_f: (fi + 1) * self.T_f])
-            self.F_N.append(F_N[fi * self.T_f: (fi + 1) * self.T_f])
+            self.F_M.append(F_M[fi * self.T_f : (fi + 1) * self.T_f]) # noqa
+            self.F_N.append(F_N[fi * self.T_f : (fi + 1) * self.T_f]) # noqa
 
     def fit(
         self,

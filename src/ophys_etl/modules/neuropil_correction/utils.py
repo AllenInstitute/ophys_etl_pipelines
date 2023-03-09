@@ -148,7 +148,7 @@ class NeuropilSubtract(object):
         self.r = None
         self.error = None
 
-    def get_diagonals_from_sparse(self, mat: sparse) -> dict:
+    def __get_diagonals_from_sparse(self, mat: sparse) -> dict:
         """Returns a dictionary of diagonals keyed by offsets
 
         Parameters
@@ -203,7 +203,7 @@ class NeuropilSubtract(object):
         return ab
 
 
-    def error_calc(
+    def __error_calc(
         self,
         F_M: np.ndarray,
         F_N: np.ndarray,
@@ -234,7 +234,7 @@ class NeuropilSubtract(object):
         return er
 
 
-    def ab_from_T(self, T: int, lam: float, dt: float) -> np.ndarray:
+    def __ab_from_T(self, T: int, lam: float, dt: float) -> np.ndarray:
         """
         
         Parameters
@@ -255,7 +255,7 @@ class NeuropilSubtract(object):
         Ls2 = Ls.T.dot(Ls)
 
         M = sparse.eye(T) + lam * Ls2
-        mat_dict = self.get_diagonals_from_sparse(M)
+        mat_dict = self.__get_diagonals_from_sparse(M)
         ab = self.ab_from_diagonals(mat_dict)
 
         return ab
@@ -287,7 +287,7 @@ class NeuropilSubtract(object):
             logging.debug("updating ab matrix for new T=%d", F_M_len)
             self.T = F_M_len
             self.T_f = int(self.T / self.folds)
-            self.ab = self.ab_from_T(self.T_f, self.lam, self.dt)
+            self.ab = self.__ab_from_T(self.T_f, self.lam, self.dt)
 
         self.F_M = []
         self.F_N = []
@@ -411,7 +411,7 @@ class NeuropilSubtract(object):
             F_M = self.F_M[fi]
             F_N = self.F_N[fi]
             F_C = solve_banded((1, 1), self.ab, F_M - r * F_N)
-            errors[fi] = abs(self.error_calc(F_M, F_N, F_C, r))
+            errors[fi] = abs(self.__error_calc(F_M, F_N, F_C, r))
 
         return np.mean(errors)
 

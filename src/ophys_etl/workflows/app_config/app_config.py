@@ -45,8 +45,9 @@ class _Singularity(ImmutableBaseModel):
 
 class _PipelineStep(ImmutableBaseModel):
     """A pipeline step config"""
-    docker_tag: StrictStr = Field(
-        description='Docker tag to use to run pipeline step'
+    docker_tag: Optional[StrictStr] = Field(
+        description='Docker tag to use to run pipeline step. '
+                    'Overrides default_docker_tag'
     )
 
 
@@ -82,14 +83,17 @@ class _GenerateThumbnails(_PipelineStep):
 
 class _ROIClassification(ImmutableBaseModel):
     generate_correlation_projection: _GenerateCorrelationProjection
-    generate_thumbnails: _GenerateThumbnails
+    generate_thumbnails: Optional[_GenerateThumbnails]
 
 
 class _PipelineSteps(ImmutableBaseModel):
     """All pipeline steps configs"""
+    default_docker_tag: StrictStr = Field(
+        description='Docker tag to use to run pipeline steps. '
+    )
     denoising: _Denoising
-    motion_correction: _MotionCorrection
-    segmentation: _Segmentation
+    motion_correction: Optional[_MotionCorrection]
+    segmentation: Optional[_Segmentation]
     roi_classification: _ROIClassification
 
 ##################

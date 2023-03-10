@@ -5,7 +5,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import json
-from typing import Dict, List
+from typing import Dict, List, Optional
+
+from ophys_etl.workflows.app_config.app_config import app_config
 
 from ophys_etl.workflows.utils.json_utils import EnhancedJSONEncoder
 
@@ -31,7 +33,7 @@ class PipelineModule:
             ophys_experiment: OphysExperiment,
             debug: bool = False,
             prevent_file_overwrites: bool = True,
-            docker_tag: str = 'main',
+            docker_tag: Optional[str] = None,
             **module_args
     ):
         """
@@ -45,14 +47,16 @@ class PipelineModule:
         prevent_file_overwrites
             Whether to allow files output by module to be overwritten
         docker_tag
-            What docker tag to use to run module
+            What docker tag to use to run module.
+            Defaults to default_docker_tag from the app config if not provided
         """
         output_dir = ophys_experiment.output_dir / self.queue_name
         os.makedirs(output_dir, exist_ok=True)
 
         self._ophys_experiment = ophys_experiment
         self._debug = debug
-        self._docker_tag = docker_tag
+        self._docker_tag = docker_tag if docker_tag is not None else \
+            app_config.pipeline_steps.default_docker_tag
 
         if prevent_file_overwrites:
             self._validate_file_overwrite()

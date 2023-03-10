@@ -8,16 +8,10 @@ singularity:
   username: 'foo'
   password: 'bar'
 pipeline_steps:
+  default_docker_tag: 'main'
   denoising:
     base_model_path: ''
     docker_tag: 'deepinterpolation_develop'
-  motion_correction:
-    docker_tag: 'develop'
-  segmentation:
-    docker_tag: 'develop'
   roi_classification:
     generate_correlation_projection:
-      docker_tag: 'develop'
       n_workers: 1
-    generate_thumbnails:
-      docker_tag: 'develop'

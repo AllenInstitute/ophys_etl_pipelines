@@ -80,7 +80,7 @@ def test__estimate_contamination_ratios__returns_correct_dict(
 
 
 @pytest.mark.parametrize(
-    "repeat_number, expected_corrected_traces_sliced, expected_r_array, expected_rmse_array", # noqa
+    "repeat_number, expected_corrected_traces_sliced, expected_r_array, expected_rmse_array",  # noqa
     [
         (
             1,

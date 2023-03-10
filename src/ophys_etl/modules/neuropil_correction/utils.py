@@ -289,8 +289,8 @@ class NeuropilSubtract(object):
         self.F_N = []
 
         for fi in range(self.folds):
-            self.F_M.append(F_M[fi * self.T_f : (fi + 1) * self.T_f]) # noqa
-            self.F_N.append(F_N[fi * self.T_f : (fi + 1) * self.T_f]) # noqa
+            self.F_M.append(F_M[fi * self.T_f : (fi + 1) * self.T_f])  # noqa
+            self.F_N.append(F_N[fi * self.T_f : (fi + 1) * self.T_f])  # noqa
 
     def fit(
         self,

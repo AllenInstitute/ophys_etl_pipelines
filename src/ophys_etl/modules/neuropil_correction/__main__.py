@@ -211,9 +211,7 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
         neuropil_traces.close()
         self.output(
             {
-                "neuropil_trace_file": neuropil_file,
-                "storage_directory": storage_dir,
-                "roi_trace_file": trace_file,
+                "neuropil_subtraction_plots": plot_dir,
                 "neuropil_correction_trace_file": neuropil_correction_output,
             }
         )

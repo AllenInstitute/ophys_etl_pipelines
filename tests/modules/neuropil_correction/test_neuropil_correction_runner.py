@@ -19,10 +19,14 @@ def test_neuropil_correction_runner(tmp_path):
         "storage_directory": str(tmp_path),
         "output_json": os.path.join(tmp_path, "output.json"),
     }
-    expected_output_json = {k: args[k] for k in list(args.keys())[:-1]}
-    expected_output_json["neuropil_correction_trace_file"] = str(
-        tmp_path / "neuropil_correction.h5"
-    )
+    expected_output_json = {
+        "neuropil_correction_trace_file": str(
+            tmp_path / "neuropil_correction.h5"
+        ),
+        "neuropil_subtraction_plots": str(
+            tmp_path / "neuropil_subtraction_plots"
+        ),
+    }
 
     neuropil_correction = NeuropilCorrectionRunner(input_data=args, args=[])
     neuropil_correction.run()

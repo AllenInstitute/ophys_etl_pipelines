@@ -1,0 +1,2 @@
+from generate_correlation_projection import GenerateCorrelationProjectionModule
+from generate_thumbnails import GenerateThumbnailsModule

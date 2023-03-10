@@ -76,8 +76,13 @@ class _GenerateCorrelationProjection(_PipelineStep):
     n_workers: int
 
 
+class _GenerateThumbnails(_PipelineStep):
+    pass
+
+
 class _ROIClassification(ImmutableBaseModel):
     generate_correlation_projection: _GenerateCorrelationProjection
+    generate_thumbnails: _GenerateThumbnails
 
 
 class _PipelineSteps(ImmutableBaseModel):

@@ -19,3 +19,5 @@ pipeline_steps:
     generate_correlation_projection:
       docker_tag: 'develop'
       n_workers: 1
+    generate_thumbnails:
+      docker_tag: 'develop'

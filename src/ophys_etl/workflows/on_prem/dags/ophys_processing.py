@@ -12,6 +12,7 @@ from ophys_etl.workflows.db.db_utils import enable_fk_if_sqlite
 from ophys_etl.workflows.on_prem.tasks import submit_job, \
     wait_for_job_to_finish
 from ophys_etl.workflows.pipeline_module import PipelineModule
+from ophys_etl.workflows.pipeline_modules import roi_classification
 from ophys_etl.workflows.pipeline_modules.denoising.denoising_finetuning \
     import \
     DenoisingFinetuningModule
@@ -20,9 +21,6 @@ from ophys_etl.workflows.pipeline_modules.denoising.denoising_inference \
     DenoisingInferenceModule
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
-from ophys_etl.workflows.pipeline_modules.roi_classification\
-    .generate_correlation_projection import \
-    GenerateCorrelationProjectionModule
 from ophys_etl.workflows.pipeline_modules.segmentation import \
     SegmentationModule
 from ophys_etl.workflows.tasks import save_job_run_to_db
@@ -194,12 +192,15 @@ def ophys_processing():
             WellKnownFileType.OPHYS_ROIS.value]
 
     @task_group
-    def roi_classification(denoised_ophys_movie_file):
+    def classify_rois(
+        denoised_ophys_movie_file,
+        rois_file
+    ):
         @task_group
-        def correlation_projection_generation(denoised_ophys_movie_file):
+        def correlation_projection_generation():
             module_outputs = _run_workflow_step(
                 slurm_config_filename='correlation_projection.yml',
-                module=GenerateCorrelationProjectionModule,
+                module=roi_classification.GenerateCorrelationProjectionModule,
                 workflow_step_name=(
                     WorkflowStep.
                     ROI_CLASSIFICATION_GENERATE_CORRELATION_PROJECTION_GRAPH),
@@ -211,16 +212,43 @@ def ophys_processing():
                 }
             )
             return module_outputs[
-                WellKnownFileType.CORRELATION_PROJECTION_GRAPH.value]
+                WellKnownFileType.
+                ROI_CLASSIFICATION_CORRELATION_PROJECTION_GRAPH.value]
 
-        correlation_projection_generation(
+        @task_group
+        def generate_thumbnails(
+            correlation_graph_file
+        ):
+            module_outputs = _run_workflow_step(
+                slurm_config_filename='correlation_projection.yml',
+                module=roi_classification.GenerateThumbnailsModule,
+                workflow_step_name=(
+                    WorkflowStep.ROI_CLASSIFICATION_GENERATE_THUMBNAILS),
+                docker_tag=(app_config.pipeline_steps.roi_classification.
+                            generate_thumbnails.docker_tag),
+                module_kwargs={
+                    'denoised_ophys_movie_file':
+                        denoised_ophys_movie_file,
+                    'rois_file': rois_file,
+                    'correlation_projection_graph_file': correlation_graph_file
+                }
+            )
+            return module_outputs[
+                WellKnownFileType.ROI_CLASSIFICATION_THUMBNAIL_IMAGES]
+
+        correlation_graph_file = correlation_projection_generation(
             denoised_ophys_movie_file=denoised_ophys_movie_file)
+        generate_thumbnails(
+            correlation_graph_file=correlation_graph_file)
 
     motion_corrected_ophys_movie_file = motion_correction()
-    denoised_movie = denoising(
+    denoised_movie_file = denoising(
         motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file)
-    segmentation(denoised_ophys_movie_file=denoised_movie)
-    roi_classification(denoised_ophys_movie_file=denoised_movie)
+    rois_file = segmentation(denoised_ophys_movie_file=denoised_movie_file)
+    classify_rois(
+        denoised_ophys_movie_file=denoised_movie_file,
+        rois_file=rois_file
+    )
 
 
 enable_fk_if_sqlite()

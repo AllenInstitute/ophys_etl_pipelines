@@ -17,3 +17,6 @@ class WellKnownFileType(Enum):
 
     # segmentation
     OPHYS_ROIS = 'OPHYS_ROIS'
+
+    # ROI classification
+    CORRELATION_PROJECTION_GRAPH = 'CORRELATION_PROJECTION_GRAPH'

@@ -15,4 +15,7 @@ pipeline_steps:
     docker_tag: 'develop'
   segmentation:
     docker_tag: 'develop'
-
+  roi_classification:
+    generate_correlation_projection:
+      docker_tag: 'develop'
+      n_workers: 1

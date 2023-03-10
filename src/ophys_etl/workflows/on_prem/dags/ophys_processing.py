@@ -20,6 +20,9 @@ from ophys_etl.workflows.pipeline_modules.denoising.denoising_inference \
     DenoisingInferenceModule
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
+from ophys_etl.workflows.pipeline_modules.roi_classification\
+    .generate_correlation_projection import \
+    GenerateCorrelationProjectionModule
 from ophys_etl.workflows.pipeline_modules.segmentation import \
     SegmentationModule
 from ophys_etl.workflows.tasks import save_job_run_to_db
@@ -190,10 +193,34 @@ def ophys_processing():
         return module_outputs[
             WellKnownFileType.OPHYS_ROIS.value]
 
+    @task_group
+    def roi_classification(denoised_ophys_movie_file):
+        @task_group
+        def correlation_projection_generation(denoised_ophys_movie_file):
+            module_outputs = _run_workflow_step(
+                slurm_config_filename='correlation_projection.yml',
+                module=GenerateCorrelationProjectionModule,
+                workflow_step_name=(
+                    WorkflowStep.
+                    ROI_CLASSIFICATION_GENERATE_CORRELATION_PROJECTION_GRAPH),
+                docker_tag=(app_config.pipeline_steps.roi_classification.
+                            generate_correlation_projection.docker_tag),
+                module_kwargs={
+                    'denoised_ophys_movie_file':
+                        denoised_ophys_movie_file
+                }
+            )
+            return module_outputs[
+                WellKnownFileType.CORRELATION_PROJECTION_GRAPH.value]
+
+        correlation_projection_generation(
+            denoised_ophys_movie_file=denoised_ophys_movie_file)
+
     motion_corrected_ophys_movie_file = motion_correction()
     denoised_movie = denoising(
         motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file)
     segmentation(denoised_ophys_movie_file=denoised_movie)
+    roi_classification(denoised_ophys_movie_file=denoised_movie)
 
 
 enable_fk_if_sqlite()

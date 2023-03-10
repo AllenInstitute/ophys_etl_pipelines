@@ -39,6 +39,10 @@ class _Singularity(ImmutableBaseModel):
     )
 
 
+##################
+# Pipeline steps
+##################
+
 class _PipelineStep(ImmutableBaseModel):
     """A pipeline step config"""
     docker_tag: StrictStr = Field(
@@ -68,11 +72,22 @@ class _Segmentation(_PipelineStep):
     pass
 
 
+class _GenerateCorrelationProjection(_PipelineStep):
+    n_workers: int
+
+
+class _ROIClassification(ImmutableBaseModel):
+    generate_correlation_projection: _GenerateCorrelationProjection
+
+
 class _PipelineSteps(ImmutableBaseModel):
     """All pipeline steps configs"""
     denoising: _Denoising
     motion_correction: _MotionCorrection
     segmentation: _Segmentation
+    roi_classification: _ROIClassification
+
+##################
 
 
 class AppConfig(ImmutableBaseModel):

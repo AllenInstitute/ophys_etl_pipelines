@@ -17,11 +17,10 @@ def test_neuropil_correction_runner(tmp_path):
         "neuropil_trace_file": str(test_path / "neuropil_traces.h5"),
         "roi_trace_file": str(test_path / "demix_traces.h5"),
         "storage_directory": str(tmp_path),
-        "motion_corrected_stack": str(test_path / "demix_traces.h5"),
         "output_json": os.path.join(tmp_path, "output.json"),
     }
     expected_output_json = {k: args[k] for k in list(args.keys())[:-1]}
-    expected_output_json["neuropil_correction"] = str(
+    expected_output_json["neuropil_correction_trace_file"] = str(
         tmp_path / "neuropil_correction.h5"
     )
 
@@ -35,7 +34,7 @@ def test_neuropil_correction_runner(tmp_path):
         k: v for k, v in args_out.items() if k in expected_output_json
     }
 
-    with h5py.File(args_out["neuropil_correction"], "r") as f:
+    with h5py.File(args_out["neuropil_correction_trace_file"], "r") as f:
         np.testing.assert_array_almost_equal(
             np.array(
                 [

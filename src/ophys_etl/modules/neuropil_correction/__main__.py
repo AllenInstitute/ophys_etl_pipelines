@@ -213,9 +213,8 @@ class NeuropilCorrectionRunner(ArgSchemaParser):
             {
                 "neuropil_trace_file": neuropil_file,
                 "storage_directory": storage_dir,
-                "motion_corrected_stack": self.args["motion_corrected_stack"],
                 "roi_trace_file": trace_file,
-                "neuropil_correction": neuropil_correction_output,
+                "neuropil_correction_trace_file": neuropil_correction_output,
             }
         )
 

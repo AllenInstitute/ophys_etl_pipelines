@@ -18,14 +18,9 @@ class NeuropilCorrectionJobSchema(ArgSchema):
         required=True, description=("Path to output directory")
     )
 
-    motion_corrected_stack = H5InputFile(
-        required=True,
-        description=("Path to motion corrected movie"),
-    )
-
 
 class NeuropilCorrectionJobOutputSchema(NeuropilCorrectionJobSchema):
-    neuropil_correction = H5InputFile(
+    neuropil_correction_trace_file = H5InputFile(
         required=True,
         description=(
             "Path to output h5 file containing neuropil corrected traces"

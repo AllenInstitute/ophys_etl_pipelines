@@ -98,12 +98,6 @@ def _run_workflow_step(
             description='identifier for ophys experiment',
             default=None
         ),
-        'debug': Param(
-            description='If True, will not actually run the modules, but '
-                        'will run a dummy command instead to test the '
-                        'workflow',
-            default=False
-        ),
         'prevent_file_overwrites': Param(
             description='If True, will fail job run if a file output by '
                         'module already exists',

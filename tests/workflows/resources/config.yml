@@ -13,5 +13,6 @@ pipeline_steps:
     base_model_path: ''
     docker_tag: 'deepinterpolation_develop'
   roi_classification:
+    input_channels: ['MASK', 'MAX_PROJECTION']
     generate_correlation_projection:
       n_workers: 1

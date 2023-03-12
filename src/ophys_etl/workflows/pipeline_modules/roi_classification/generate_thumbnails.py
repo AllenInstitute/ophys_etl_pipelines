@@ -2,6 +2,8 @@ from typing import List, Dict
 
 import json
 from deepcell.datasets.channel import Channel, channel_filename_prefix_map
+from ophys_etl.workflows.app_config.app_config import app_config
+
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
@@ -46,10 +48,8 @@ class GenerateThumbnailsModule(PipelineModule):
             'roi_path': self._rois_file,
             'graph_path': self._correlation_graph_file,
             'out_dir': self.output_path / 'thumbnails',
-            'channels': [
-                Channel.CORRELATION_PROJECTION.value,
-                Channel.MAX_PROJECTION.value,
-                Channel.MASK.value]
+            'channels': (
+                app_config.pipeline_steps.roi_classification.input_channels)
         }
 
     @property

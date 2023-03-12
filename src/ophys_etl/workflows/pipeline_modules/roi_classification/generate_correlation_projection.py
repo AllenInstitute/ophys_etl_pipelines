@@ -14,13 +14,11 @@ class GenerateCorrelationProjectionModule(PipelineModule):
     def __init__(
         self,
         ophys_experiment: OphysExperiment,
-        debug: bool = False,
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
         super().__init__(
             ophys_experiment=ophys_experiment,
-            debug=debug,
             prevent_file_overwrites=prevent_file_overwrites,
             **kwargs
         )

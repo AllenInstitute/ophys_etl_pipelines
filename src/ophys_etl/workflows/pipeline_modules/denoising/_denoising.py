@@ -9,14 +9,12 @@ class _DenoisingModule(PipelineModule, ABC):
     def __init__(
         self,
         ophys_experiment: OphysExperiment,
-        debug: bool = False,
         prevent_file_overwrites: bool = True,
         docker_tag: str = 'main',
         **kwargs
     ):
         super().__init__(
             ophys_experiment=ophys_experiment,
-            debug=debug,
             prevent_file_overwrites=prevent_file_overwrites,
             docker_tag=docker_tag
         )

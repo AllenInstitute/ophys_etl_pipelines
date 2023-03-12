@@ -89,7 +89,6 @@ def submit_job(
     oe = OphysExperiment.from_id(id=ophys_experiment_id)
     mod = module(
         ophys_experiment=oe,
-        debug=context['params']['debug'],
         prevent_file_overwrites=context['params']['prevent_file_overwrites'],
         docker_tag=docker_tag,
         **module_kwargs

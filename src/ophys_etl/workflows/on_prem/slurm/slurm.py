@@ -234,7 +234,7 @@ class Slurm:
         """
         args = ' '.join([f'{x}' for x in args])
         kwargs = ' '.join([f'--{k} {v}' for k, v in kwargs.items()])
-        if self._pipeline_module.debug:
+        if app_config.is_debug:
             cmd = f'{self._pipeline_module.executable} {args} {kwargs}'
         else:
             docker_tag = self._pipeline_module.docker_tag
@@ -317,21 +317,21 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
         -------
         The slurm script headers
         """
-        if self._pipeline_module.debug:
+        if app_config.is_debug:
             tmp = 0
         else:
             tmp = self._get_tmp_storage(
                 adjustment_factor=tmp_storage_adjustment_factor)
         cpus_per_task = \
-            1 if self._pipeline_module.debug else \
+            1 if app_config.is_debug else \
             self._slurm_settings.cpus_per_task
         mem = \
-            1 if self._pipeline_module.debug else self._slurm_settings.mem
+            1 if app_config.is_debug else self._slurm_settings.mem
         time = \
-            '00:10:00' if self._pipeline_module.debug else \
+            '00:10:00' if app_config.is_debug else \
             self._slurm_settings.time
         gpus = \
-            0 if self._pipeline_module.debug else \
+            0 if app_config.is_debug else \
             self._slurm_settings.gpus
         s = SimpleSlurm(
             partition='braintv',

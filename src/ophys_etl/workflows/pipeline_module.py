@@ -31,7 +31,6 @@ class PipelineModule:
     def __init__(
             self,
             ophys_experiment: OphysExperiment,
-            debug: bool = False,
             prevent_file_overwrites: bool = True,
             docker_tag: Optional[str] = None,
             **module_args
@@ -42,8 +41,6 @@ class PipelineModule:
         ----------
         ophys_experiment
             `OphysExperiment` instance
-        debug
-            Whether to run a dummy executable instead of actual one
         prevent_file_overwrites
             Whether to allow files output by module to be overwritten
         docker_tag
@@ -54,7 +51,6 @@ class PipelineModule:
         os.makedirs(output_dir, exist_ok=True)
 
         self._ophys_experiment = ophys_experiment
-        self._debug = debug
         self._docker_tag = docker_tag if docker_tag is not None else \
             app_config.pipeline_steps.default_docker_tag
 
@@ -71,11 +67,6 @@ class PipelineModule:
     def docker_tag(self) -> str:
         """What docker tag to use to run module"""
         return self._docker_tag
-
-    @property
-    def debug(self) -> bool:
-        """Whether module is being run in debug mode"""
-        return self._debug
 
     @property
     def ophys_experiment(self) -> OphysExperiment:
@@ -97,7 +88,7 @@ class PipelineModule:
     @property
     def executable(self) -> str:
         """Fully qualified path to executable this module runs"""
-        return 'sleep' if self._debug else self._executable
+        return 'sleep' if app_config.is_debug else self._executable
 
     @property
     @abc.abstractmethod
@@ -108,7 +99,7 @@ class PipelineModule:
     @property
     def executable_args(self) -> Dict:
         """Returns arguments to send to `executable`"""
-        if self._debug:
+        if app_config.is_debug:
             res = {
                 'args': [60],    # i.e. will run sleep 60
                 'kwargs': {}

@@ -118,6 +118,12 @@ class _PipelineSteps(ImmutableBaseModel):
 
 class AppConfig(ImmutableBaseModel):
     """Workflow config"""
+    is_debug: bool = Field(
+        default=False,
+        description='If True, will not actually run the modules, but '
+                    'will run a dummy command instead to test the '
+                    'workflow'
+    )
     app_db: _AppDB
     output_dir: Path = Field(
         description='Root dir to output files'

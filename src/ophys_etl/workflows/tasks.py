@@ -7,6 +7,7 @@ from typing import Dict, Optional, Callable
 
 from airflow.decorators import task
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+from ophys_etl.workflows.app_config.app_config import app_config
 from sqlmodel import Session
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db as \
@@ -84,7 +85,7 @@ def save_job_run_to_db(
             ophys_experiment_id=ophys_experiment_id,
             sqlalchemy_session=session,
             storage_directory=job_finish_res['storage_directory'],
-            validate_files_exist=not context['params']['debug'],
+            validate_files_exist=not app_config.is_debug,
             additional_steps=additional_steps
         )
     return {

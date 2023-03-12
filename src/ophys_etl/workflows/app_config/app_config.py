@@ -1,9 +1,10 @@
 """App config"""
 import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 import yaml
+from deepcell.datasets.channel import Channel
 from pydantic import StrictStr, SecretStr, FilePath, Field
 
 from ophys_etl.workflows.utils.pydantic_model_utils import ImmutableBaseModel
@@ -81,9 +82,25 @@ class _GenerateThumbnails(_PipelineStep):
     pass
 
 
+class _ROIClassifierInference(_PipelineStep):
+    mlflow_tracking_server_uri: StrictStr = Field(
+        description='The mlfow tracker server uri used to store run metadata'
+                    'for a trained model'
+    )
+    mlflow_run_name: StrictStr = Field(
+        description='The run name for the model run we are using for inference'
+    )
+    mlflow_experiment_id: StrictStr = Field(
+        description='The mlflow experiment name which stores the run we are '
+                    'using'
+    )
+
+
 class _ROIClassification(ImmutableBaseModel):
+    input_channels: List[Channel]
     generate_correlation_projection: _GenerateCorrelationProjection
     generate_thumbnails: Optional[_GenerateThumbnails]
+    inference: _ROIClassifierInference
 
 
 class _PipelineSteps(ImmutableBaseModel):

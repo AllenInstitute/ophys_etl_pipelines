@@ -1,21 +1,31 @@
-import h5py
-from itertools import product
 import logging
+import warnings
+from itertools import product
+from time import time
+
+import h5py
 import numpy as np
 from scipy.stats import sigmaclip
-from time import time
-from suite2p.registration.register import (pick_initial_reference,
-                                           register_frames)
-from suite2p.registration.rigid import (apply_masks, compute_masks, phasecorr,
-                                        phasecorr_reference, shift_frame)
-import warnings
+from suite2p.registration.register import (
+    pick_initial_reference,
+    register_frames,
+)
+from suite2p.registration.rigid import (
+    apply_masks,
+    compute_masks,
+    phasecorr,
+    phasecorr_reference,
+    shift_frame,
+)
 
 
-def load_initial_frames(file_path: str,
-                        h5py_key: str,
-                        n_frames: int,
-                        trim_frames_start: int = 0,
-                        trim_frames_end: int = 0) -> np.ndarray:
+def load_initial_frames(
+    file_path: str,
+    h5py_key: str,
+    n_frames: int,
+    trim_frames_start: int = 0,
+    trim_frames_end: int = 0,
+) -> np.ndarray:
     """Load a subset of frames from the hdf5 data specified by file_path.
 
     Only loads frames between trim_frames_start and n_frames - trim_frames_end
@@ -37,28 +47,29 @@ def load_initial_frames(file_path: str,
         time axis. If n_frames > tot_frames, a number of frames equal to
         tot_frames is returned.
     """
-    with h5py.File(file_path, 'r') as hdf5_file:
+    with h5py.File(file_path, "r") as hdf5_file:
         # Load all frames as fancy indexing is slower than loading the full
         # data.
         max_frame = hdf5_file[h5py_key].shape[0] - trim_frames_end
         frame_window = hdf5_file[h5py_key][trim_frames_start:max_frame]
         # Total number of frames in the movie.
         tot_frames = frame_window.shape[0]
-        requested_frames = np.linspace(0,
-                                       tot_frames,
-                                       1 + min(n_frames, tot_frames),
-                                       dtype=int)[:-1]
+        requested_frames = np.linspace(
+            0, tot_frames, 1 + min(n_frames, tot_frames), dtype=int
+        )[:-1]
         frames = frame_window[requested_frames]
     return frames
 
 
-def compute_reference(input_frames: np.ndarray,
-                      niter: int,
-                      maxregshift: float,
-                      smooth_sigma: float,
-                      smooth_sigma_time: float,
-                      mask_slope_factor: float = 3,
-                      logger: callable = None) -> np.ndarray:
+def compute_reference(
+    input_frames: np.ndarray,
+    niter: int,
+    maxregshift: float,
+    smooth_sigma: float,
+    smooth_sigma_time: float,
+    mask_slope_factor: float = 3,
+    logger: callable = None,
+) -> np.ndarray:
     """Computes a stacked reference image from the input frames.
 
     Modified version of Suite2P's compute_reference function with no updating
@@ -109,16 +120,21 @@ def compute_reference(input_frames: np.ndarray,
     for idx in range(niter):
         # Compute the number of frames to select in creating the reference
         # image. At most we select half to the input frames.
-        nmax = int(frames.shape[0] * (1. + idx) / (2 * niter))
+        nmax = int(frames.shape[0] * (1.0 + idx) / (2 * niter))
 
         # rigid Suite2P phase registration.
         ymax, xmax, cmax = phasecorr(
-            data=apply_masks(frames,
-                             *compute_masks(refImg=ref_image,
-                                            maskSlope=3 * smooth_sigma,)),
+            data=apply_masks(
+                frames,
+                *compute_masks(
+                    refImg=ref_image,
+                    maskSlope=3 * smooth_sigma,
+                ),
+            ),
             cfRefImg=phasecorr_reference(
                 refImg=ref_image,
-                smooth_sigma=smooth_sigma,),
+                smooth_sigma=smooth_sigma,
+            ),
             maxregshift=maxregshift,
             smooth_sigma_time=smooth_sigma_time,
         )
@@ -134,13 +150,14 @@ def compute_reference(input_frames: np.ndarray,
         max_corr_frames = np.pad(
             array=frames[isort].astype(float),
             pad_width=((0, 0), (pad_y, pad_y), (pad_x, pad_x)),
-            constant_values=np.nan)
+            constant_values=np.nan,
+        )
         max_corr_xmax = xmax[isort]
         max_corr_ymax = ymax[isort]
         # Apply shift to the copy of the frames.
-        for frame, dy, dx in zip(max_corr_frames,
-                                 max_corr_ymax,
-                                 max_corr_xmax):
+        for frame, dy, dx in zip(
+            max_corr_frames, max_corr_ymax, max_corr_xmax
+        ):
             frame[:] = shift_frame(frame=frame, dy=dy, dx=dx)
 
         # Create a new reference image from the highest correlated data.
@@ -148,14 +165,14 @@ def compute_reference(input_frames: np.ndarray,
             # Assuming the motion correction went well, there should be a lot
             # of empty values in the padded area around the frames. We suppress
             # warnings for these "Empty Slices" as they are expected.
-            warnings.filterwarnings('ignore', 'Mean of empty slice')
+            warnings.filterwarnings("ignore", "Mean of empty slice")
             ref_image = np.nanmean(max_corr_frames, axis=0)
         # Shift reference image to position of mean shifts to remove any bulk
         # displacement.
         ref_image = shift_frame(
             frame=ref_image,
             dy=int(np.round(-max_corr_ymax.mean())),
-            dx=int(np.round(-max_corr_xmax.mean()))
+            dx=int(np.round(-max_corr_xmax.mean())),
         )
         # Clip the reference image back down to the original size and remove
         # any NaNs remaining. Throw warning if a NaN is found.
@@ -170,17 +187,19 @@ def compute_reference(input_frames: np.ndarray,
                     f"Warning: {np.isnan(ref_image).sum()} NaN pixels were "
                     "found in the reference image on the final iteration. "
                     "Likely the image quality is low and shifting frames "
-                    "failed. Setting NaN values to the image mean.")
-            ref_image = np.nan_to_num(ref_image,
-                                      nan=np.nanmean(ref_image),
-                                      copy=False)
+                    "failed. Setting NaN values to the image mean."
+                )
+            ref_image = np.nan_to_num(
+                ref_image, nan=np.nanmean(ref_image), copy=False
+            )
         ref_image = ref_image.astype(frames_dtype)
 
     return ref_image
 
 
-def remove_extrema_frames(input_frames: np.ndarray,
-                          n_sigma: float = 3) -> np.ndarray:
+def remove_extrema_frames(
+    input_frames: np.ndarray, n_sigma: float = 3
+) -> np.ndarray:
     """Remove frames with extremum mean values from the frames used in
     reference image processing/creation.
 
@@ -203,19 +222,22 @@ def remove_extrema_frames(input_frames: np.ndarray,
     """
     frame_means = np.mean(input_frames, axis=(1, 2))
     _, low_cut, high_cut = sigmaclip(frame_means, low=n_sigma, high=n_sigma)
-    trimmed_frames = input_frames[np.logical_and(frame_means > low_cut,
-                                                 frame_means < high_cut)]
+    trimmed_frames = input_frames[
+        np.logical_and(frame_means > low_cut, frame_means < high_cut)
+    ]
     return trimmed_frames
 
 
-def optimize_motion_parameters(initial_frames: np.ndarray,
-                               smooth_sigmas: np.array,
-                               smooth_sigma_times: np.array,
-                               suite2p_args: dict,
-                               trim_frames_start: int = 0,
-                               trim_frames_end: int = 0,
-                               n_batches: int = 20,
-                               logger: callable = None) -> dict:
+def optimize_motion_parameters(
+    initial_frames: np.ndarray,
+    smooth_sigmas: np.array,
+    smooth_sigma_times: np.array,
+    suite2p_args: dict,
+    trim_frames_start: int = 0,
+    trim_frames_end: int = 0,
+    n_batches: int = 20,
+    logger: callable = None,
+) -> dict:
     """Loop over a range of parameters and select the best set from the
     max acutance of the final, average image.
 
@@ -269,73 +291,88 @@ def optimize_motion_parameters(initial_frames: np.ndarray,
             Value of ``smooth_sigma_time`` found to yield the best acutance
             (float).
     """
-    best_results = {'acutance': 1e-16,
-                    'ave_image': np.array([]),
-                    'ref_image': np.array([]),
-                    'smooth_sigma': -1,
-                    'smooth_sigma_time': -1}
-    logger('Starting search for best smoothing parameters...')
+    best_results = {
+        "acutance": 1e-16,
+        "ave_image": np.array([]),
+        "ref_image": np.array([]),
+        "smooth_sigma": -1,
+        "smooth_sigma_time": -1,
+    }
+    logger("Starting search for best smoothing parameters...")
     sub_frames = load_representative_sub_frames(
-        suite2p_args['h5py'],
-        suite2p_args['h5py_key'],
+        suite2p_args["h5py"],
+        suite2p_args["h5py_key"],
         trim_frames_start,
         trim_frames_end,
         n_batches=n_batches,
-        batch_size=suite2p_args['batch_size'])
+        batch_size=suite2p_args["batch_size"],
+    )
     start_time = time()
-    for param_spatial, param_time in product(smooth_sigmas,
-                                             smooth_sigma_times):
+    for param_spatial, param_time in product(
+        smooth_sigmas, smooth_sigma_times
+    ):
         current_args = suite2p_args.copy()
-        current_args['smooth_sigma'] = param_spatial
-        current_args['smooth_sigma_time'] = param_time
+        current_args["smooth_sigma"] = param_spatial
+        current_args["smooth_sigma_time"] = param_time
 
         if logger:
             logger(
                 f'\tTrying: smooth_sigma={current_args["smooth_sigma"]}, '
-                f'smooth_sigma_time={current_args["smooth_sigma_time"]}')
+                f'smooth_sigma_time={current_args["smooth_sigma_time"]}'
+            )
 
-        ref_image = compute_reference(initial_frames,
-                                      8,
-                                      current_args['maxregshift'],
-                                      current_args['smooth_sigma'],
-                                      current_args['smooth_sigma_time'])
-        image_results = create_ave_image(ref_image,
-                                         sub_frames.copy(),
-                                         current_args,
-                                         batch_size=suite2p_args['batch_size'])
-        ave_image = image_results['ave_image']
+        ref_image = compute_reference(
+            initial_frames,
+            8,
+            current_args["maxregshift"],
+            current_args["smooth_sigma"],
+            current_args["smooth_sigma_time"],
+        )
+        image_results = create_ave_image(
+            ref_image,
+            sub_frames.copy(),
+            current_args,
+            batch_size=suite2p_args["batch_size"],
+        )
+        ave_image = image_results["ave_image"]
         # Compute the acutance ignoring the motion border. Sharp motion
         # borders can potentially get rewarded with high acutance.
-        current_acu = compute_acutance(ave_image,
-                                       image_results["min_y"],
-                                       image_results["max_y"],
-                                       image_results["min_x"],
-                                       image_results["max_x"])
+        current_acu = compute_acutance(
+            ave_image,
+            image_results["min_y"],
+            image_results["max_y"],
+            image_results["min_x"],
+            image_results["max_x"],
+        )
 
-        if current_acu > best_results['acutance']:
-            best_results['acutance'] = current_acu
-            best_results['ave_image'] = ave_image
-            best_results['ref_image'] = ref_image
-            best_results['smooth_sigma'] = current_args['smooth_sigma']
-            best_results['smooth_sigma_time'] = \
-                current_args['smooth_sigma_time']
+        if current_acu > best_results["acutance"]:
+            best_results["acutance"] = current_acu
+            best_results["ave_image"] = ave_image
+            best_results["ref_image"] = ref_image
+            best_results["smooth_sigma"] = current_args["smooth_sigma"]
+            best_results["smooth_sigma_time"] = current_args[
+                "smooth_sigma_time"
+            ]
         if logger:
-            logger(f'\t\tResulting acutance={current_acu:.4f}')
+            logger(f"\t\tResulting acutance={current_acu:.4f}")
     if logger:
         logger(
-            f'Found best motion parameters in {time() - start_time:.0f} '
+            f"Found best motion parameters in {time() - start_time:.0f} "
             f'seconds, with image acutance={best_results["acutance"]:.4f}, '
             f'for parameters: smooth_sigma={best_results["smooth_sigma"]}, '
-            f'smooth_sigma_time={best_results["smooth_sigma_time"]}')
+            f'smooth_sigma_time={best_results["smooth_sigma_time"]}'
+        )
     return best_results
 
 
-def load_representative_sub_frames(h5py_name,
-                                   h5py_key,
-                                   trim_frames_start: int = 0,
-                                   trim_frames_end: int = 0,
-                                   n_batches: int = 20,
-                                   batch_size: int = 500):
+def load_representative_sub_frames(
+    h5py_name,
+    h5py_key,
+    trim_frames_start: int = 0,
+    trim_frames_end: int = 0,
+    n_batches: int = 20,
+    batch_size: int = 500,
+):
     """Load a subset of frames spanning the full movie.
 
     Parameters
@@ -360,21 +397,25 @@ def load_representative_sub_frames(h5py_name,
     """
     output_frames = []
     frame_fracts = np.arange(0, 1, 1 / n_batches)
-    with h5py.File(h5py_name, 'r') as h5_file:
+    with h5py.File(h5py_name, "r") as h5_file:
         dataset = h5_file[h5py_key]
         total_frames = dataset.shape[0] - trim_frames_start - trim_frames_end
         if total_frames < n_batches * batch_size:
             return dataset[:]
         for percent_start in frame_fracts:
             frame_start = int(percent_start * total_frames + trim_frames_start)
-            output_frames.append(dataset[frame_start:frame_start + batch_size])
+            output_frames.append(
+                dataset[frame_start:frame_start + batch_size]
+            )
     return np.concatenate(output_frames)
 
 
-def create_ave_image(ref_image: np.ndarray,
-                     input_frames: np.ndarray,
-                     suite2p_args: dict,
-                     batch_size: int = 500) -> dict:
+def create_ave_image(
+    ref_image: np.ndarray,
+    input_frames: np.ndarray,
+    suite2p_args: dict,
+    batch_size: int = 500,
+) -> dict:
     """Run suite2p image motion correction over a full movie.
 
     Parameters
@@ -423,59 +464,67 @@ def create_ave_image(ref_image: np.ndarray,
             Maximum x allowed value in image array. Above this is motion
             border.
     """
-    ave_frame = np.zeros((ref_image.shape[0],
-                          ref_image.shape[1]))
+    ave_frame = np.zeros((ref_image.shape[0], ref_image.shape[1]))
     min_y = 0
     max_y = 0
     min_x = 0
     max_x = 0
     tot_frames = input_frames.shape[0]
-    add_required_parameters(suite2p_args)
+    add_modify_required_parameters(suite2p_args)
     for start_idx in np.arange(0, tot_frames, batch_size):
         end_idx = start_idx + batch_size
         if end_idx > tot_frames:
             end_idx = tot_frames
         frames = input_frames[start_idx:end_idx]
-        frames, dy, dx, _, _, _, _ = register_frames(refAndMasks=ref_image,
-                                                     frames=frames,
-                                                     ops=suite2p_args)
+        frames, dy, dx, _, _, _, _ = register_frames(
+            refAndMasks=ref_image, frames=frames, ops=suite2p_args
+        )
         min_y = min(min_y, dy.min())
         max_y = max(max_y, dy.max())
         min_x = min(min_x, dx.min())
         max_x = max(max_x, dx.max())
         ave_frame += frames.sum(axis=0) / tot_frames
 
-    return {'ave_image': ave_frame,
-            'min_y': int(np.fabs(min_y)),
-            'max_y': int(max_y),
-            'min_x': int(np.fabs(min_x)),
-            'max_x': int(max_x)}
+    return {
+        "ave_image": ave_frame,
+        "min_y": int(np.fabs(min_y)),
+        "max_y": int(max_y),
+        "min_x": int(np.fabs(min_x)),
+        "max_x": int(max_x),
+    }
 
 
-def add_required_parameters(suite2p_args: dict):
+def add_modify_required_parameters(suite2p_args: dict):
     """Check that minimum parameters needed by suite2p registration are
     available. If not add them to the suite2p_args dict.
+
+    Additionally, make sure that nonrigid is set to false as are gridsearch
+    of parameters above is not setup to use nonrigid.
 
     Parameters
     ----------
     suite2p_args : dict
         Suite2p ops dictionary with potentially missing values.
     """
-    if suite2p_args.get('1Preg') is None:
-        suite2p_args['1Preg'] = False
-    if suite2p_args.get('bidiphase') is None:
-        suite2p_args['bidiphase'] = False
-    if suite2p_args.get('nonrigid') is None:
-        suite2p_args['nonrigid'] = False
-    if suite2p_args.get('norm_frames') is None:
-        suite2p_args['norm_frames'] = True
+    if suite2p_args.get("1Preg") is None:
+        suite2p_args["1Preg"] = False
+    if suite2p_args.get("bidiphase") is None:
+        suite2p_args["bidiphase"] = False
+    if suite2p_args.get("nonrigid") is None:
+        suite2p_args["nonrigid"] = False
+    if suite2p_args.get("norm_frames") is None:
+        suite2p_args["norm_frames"] = True
+    # Don't use nonrigid for parameter search.
+    suite2p_args["nonrigid"] = False
 
 
-def compute_acutance(image: np.ndarray,
-                     min_cut_y: int = 0,
-                     max_cut_y: int = 0,
-                     min_cut_x: int = 0,
-                     max_cut_x: int = 0) -> float:
+def compute_acutance(
+    image: np.ndarray,
+    min_cut_y: int = 0,
+    max_cut_y: int = 0,
+    min_cut_x: int = 0,
+    max_cut_x: int = 0,
+) -> float:
     """Compute the acutance (sharpness) of an image.
 
     Parameters
@@ -498,7 +547,8 @@ def compute_acutance(image: np.ndarray,
     """
     im_max_y, im_max_x = image.shape
 
-    cut_image = image[min_cut_y:im_max_y - max_cut_y,
-                      min_cut_x:im_max_x - max_cut_x]
+    cut_image = image[
+        min_cut_y:im_max_y - max_cut_y, min_cut_x:im_max_x - max_cut_x
+    ]
     grady, gradx = np.gradient(cut_image)
-    return (grady ** 2 + gradx ** 2).mean()
+    return (grady**2 + gradx**2).mean()

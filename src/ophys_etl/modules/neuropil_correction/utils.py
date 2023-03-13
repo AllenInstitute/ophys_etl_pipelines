@@ -125,10 +125,18 @@ class NeuropilSubtract(object):
 
     Parameters
     ----------
+    F_M_array: np.ndarray
+        ROI trace
+    F_N: np.ndarray
+        neuropil trace
+    F_C: np.ndarray
+        neuropil corrected trace
+    r: float
+        contamination ratio
     lam: float
         lambda weight
     dt: float
-    folds int
+    folds: int
     """
 
     def __init__(self, lam: float = 0.05, dt: float = 1.0, folds: int = 4):

@@ -81,9 +81,9 @@ class ExtractROISchema(Schema):
 
 class ROIMasksSchema(ExtractROISchema):
     exclusion_labels = List(
-        str(),
+        Str,
         required=True,
-        description=("a report of roi-wise problems detected " "during extraction"),
+        description=("a report of roi-wise problems detected during extraction"),
     )
 
     @post_load
@@ -91,7 +91,7 @@ class ROIMasksSchema(ExtractROISchema):
         failed_labels = [label for label in data if label not in EXCLUDE_LABELS]
         if failed_labels:
             raise ValidationError(
-                f"Invalid exclusion_label(s): {failed_labels}, please check against valid EXCLUDE_LABEL: {EXCLUDE_LABELS}"
+                f"Invalid exclusion_label(s): {failed_labels}, please check against valid EXCLUDE_LABELS: {EXCLUDE_LABELS}"
             )
 
 

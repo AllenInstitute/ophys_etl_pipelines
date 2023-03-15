@@ -13,6 +13,13 @@ pipeline_steps:
     base_model_path: ''
     docker_tag: 'deepinterpolation_develop'
   roi_classification:
+    cell_labeling_app_host: 'foo'
     input_channels: ['MASK', 'MAX_PROJECTION']
     generate_correlation_projection:
       n_workers: 1
+    training:
+      s3:
+        bucket_name: 'foo'
+      tracking:
+        mlflow_server_uri: 'foo'
+        mlflow_experiment_name: 'foo'

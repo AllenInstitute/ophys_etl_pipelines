@@ -5,7 +5,8 @@ from typing import Optional, List
 
 import yaml
 from deepcell.datasets.channel import Channel
-from pydantic import StrictStr, SecretStr, FilePath, Field
+from pydantic import StrictStr, SecretStr, FilePath, Field, StrictFloat, \
+    StrictInt
 
 from ophys_etl.workflows.utils.pydantic_model_utils import ImmutableBaseModel
 
@@ -82,25 +83,76 @@ class _GenerateThumbnails(_PipelineStep):
     pass
 
 
+class _ROIClassifierTraining(_PipelineStep):
+    class TrainTestSplit(ImmutableBaseModel):
+        test_size: StrictFloat = Field(
+            description='Fraction of the experiments to reserve for the test '
+                        'sample.',
+            default=0.3
+        )
+
+    class ModelParams(ImmutableBaseModel):
+        freeze_to_layer: Optional[StrictInt] = Field(
+            description='See deepcell.models.classifier.Classifier.'
+                        'freeze_up_to_layer',
+            default=None
+        )
+        truncate_to_layer: Optional[StrictInt] = Field(
+            description='See deepcell.models.classifier.Classifier.'
+                        'truncate_to_layer',
+            default=None
+        )
+
+    class DockerParams(ImmutableBaseModel):
+        image_uri: Optional[StrictStr] = Field(
+            default=None,
+            description='URI to a prebuilt docker container on AWS ECR to use '
+                        'for training'
+        )
+
+    class S3Params(ImmutableBaseModel):
+        bucket_name: StrictStr = Field(
+            description='The bucket to upload data to'
+        )
+        data_key: Optional[StrictStr] = Field(
+            description='If provided, will pull data from this key on s3, '
+                        'rather than uploading it. Should be what comes after '
+                        'input_data/. i.e. s3://<bucket>/input_data/foo would '
+                        'be "foo',
+            default=None
+        )
+
+    class TrackingParams(ImmutableBaseModel):
+        mlflow_server_uri: StrictStr = Field(
+            description='MLFlow server uri to use for tracking'
+        )
+        mlflow_experiment_name: StrictStr = Field(
+            description='MLFlow experiment name to use to track training run',
+            default='deepcell-train'
+        )
+
+    train_test_split: Optional[TrainTestSplit]
+    model: Optional[ModelParams]
+    docker: Optional[DockerParams]
+    s3: S3Params
+    n_folds: StrictInt = Field(
+        default=5,
+        description='Number of folds for cross validation'
+    )
+    tracking: TrackingParams
+
+
 class _ROIClassifierInference(_PipelineStep):
-    mlflow_tracking_server_uri: StrictStr = Field(
-        description='The mlfow tracker server uri used to store run metadata'
-                    'for a trained model'
-    )
-    mlflow_run_name: StrictStr = Field(
-        description='The run name for the model run we are using for inference'
-    )
-    mlflow_experiment_id: StrictStr = Field(
-        description='The mlflow experiment name which stores the run we are '
-                    'using'
-    )
+    pass
 
 
 class _ROIClassification(ImmutableBaseModel):
     input_channels: List[Channel]
+    cell_labeling_app_host: StrictStr
     generate_correlation_projection: _GenerateCorrelationProjection
     generate_thumbnails: Optional[_GenerateThumbnails]
-    inference: _ROIClassifierInference
+    training: _ROIClassifierTraining
+    # inference: _ROIClassifierInference
 
 
 class _PipelineSteps(ImmutableBaseModel):

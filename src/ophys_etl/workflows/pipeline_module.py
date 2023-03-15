@@ -1,11 +1,15 @@
 """Pipeline module"""
 import abc
+import datetime
+import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
 import json
 from typing import Dict, List, Optional
+
+from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
 
 from ophys_etl.workflows.app_config.app_config import app_config
 
@@ -26,11 +30,14 @@ class ModuleOutputFileExistsError(Exception):
     pass
 
 
+logger = logging.getLogger(__name__)
+
+
 class PipelineModule:
     """Pipeline module"""
     def __init__(
             self,
-            ophys_experiment: OphysExperiment,
+            ophys_experiment: Optional[OphysExperiment],
             prevent_file_overwrites: bool = True,
             docker_tag: Optional[str] = None,
             **module_args
@@ -40,26 +47,28 @@ class PipelineModule:
         Parameters
         ----------
         ophys_experiment
-            `OphysExperiment` instance
+            `OphysExperiment` instance.
+            If pipeline module does not run on a specific ophys experiment,
+            this can be None
         prevent_file_overwrites
             Whether to allow files output by module to be overwritten
         docker_tag
             What docker tag to use to run module.
             Defaults to default_docker_tag from the app config if not provided
         """
-        output_dir = ophys_experiment.output_dir / self.queue_name
-        os.makedirs(output_dir, exist_ok=True)
 
         self._ophys_experiment = ophys_experiment
         self._docker_tag = docker_tag if docker_tag is not None else \
             app_config.pipeline_steps.default_docker_tag
+
+        os.makedirs(self.output_path, exist_ok=True)
 
         if prevent_file_overwrites:
             self._validate_file_overwrite()
 
     @property
     @abc.abstractmethod
-    def queue_name(self) -> str:
+    def queue_name(self) -> WorkflowStepEnum:
         """Identifier for 'queue' this module runs"""
         raise NotImplementedError
 
@@ -69,8 +78,9 @@ class PipelineModule:
         return self._docker_tag
 
     @property
-    def ophys_experiment(self) -> OphysExperiment:
-        """The `OphysExperiment` we are running the module on"""
+    def ophys_experiment(self) -> Optional[OphysExperiment]:
+        """The `OphysExperiment` we are running the module on.
+        None if not running on a specific ophys experiment"""
         return self._ophys_experiment
 
     @property
@@ -117,13 +127,19 @@ class PipelineModule:
     @property
     def output_path(self) -> Path:
         """Where module is writing outputs to"""
-        return self._ophys_experiment.output_dir / self.queue_name
+        if self._ophys_experiment is None:
+            path = app_config.output_dir / self.queue_name.value
+        else:
+            path = self._ophys_experiment.output_dir / self.queue_name.value
+
+        path = path / datetime.datetime.now().strftime('%Y-%m-%d_%H:%m:%S-%f')
+        return path
 
     @property
     def output_metadata_path(self) -> Path:
         """Where to write output metadata to"""
         path = self.output_path / \
-            f'{self.queue_name}_' \
+            f'{self.queue_name.value}_' \
             f'{self._ophys_experiment.id}_output.json'
         return path
 
@@ -131,7 +147,7 @@ class PipelineModule:
     def input_args_path(self) -> Path:
         """Path to input arguments json file on disk"""
         args_path = self.output_path / \
-            f'{self.queue_name}_' \
+            f'{self.queue_name.value}_' \
             f'{self._ophys_experiment.id}_input.json'
         return args_path
 

@@ -11,6 +11,7 @@ from ophys_etl.workflows.well_known_file_types import \
     WellKnownFileType as WellKnownFileTypeEnum
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
+from ophys_etl.workflows.workflow_names import WorkflowName
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 
 setup_app_config(
@@ -21,9 +22,9 @@ setup_app_config(
 )
 
 from ophys_etl.workflows.pipeline_module import OutputFile  # noqa E402
-from ophys_etl.workflows.db.db_utils import _get_workflow_step_by_name, \
-    _get_well_known_file_type, save_job_run_to_db, \
-    ModuleOutputFileDoesNotExistException  # noqa #402
+from ophys_etl.workflows.db.db_utils import get_workflow_step_by_name, \
+    get_well_known_file_type, save_job_run_to_db, \
+    ModuleOutputFileDoesNotExistException, _validate_files_exist  # noqa #402
 from sqlalchemy import create_engine    # noqa #402
 from sqlmodel import Session, select    # noqa #402
 
@@ -32,7 +33,7 @@ from ophys_etl.workflows.db.initialize_db import IntializeDBRunner  # noqa #402
 
 class TestDBUtils:
     @classmethod
-    def setup_class(cls):
+    def _initialize_db(cls):
         cls._tmp_dir = Path(tempfile.TemporaryDirectory().name)
         cls._db_path = cls._tmp_dir / 'app.db'
         os.makedirs(cls._db_path.parent, exist_ok=True)
@@ -45,31 +46,58 @@ class TestDBUtils:
             args=[]).run()
         cls._engine = create_engine(db_url)
 
-    @classmethod
-    def teardown_class(cls):
-        shutil.rmtree(cls._tmp_dir)
+    def setup(self):
+        self._initialize_db()
 
     def teardown_method(self):
-        for file in os.listdir(self._tmp_dir):
-            if Path(file).suffix != '.db':
-                os.remove(self._tmp_dir / file)
+        shutil.rmtree(self._tmp_dir)
 
     def test__get_workflow_step_by_name(self):
         with Session(self._engine) as session:
-            step = _get_workflow_step_by_name(
+            step = get_workflow_step_by_name(
                 session=session,
-                name=WorkflowStep.MOTION_CORRECTION
+                name=WorkflowStep.MOTION_CORRECTION,
+                workflow=WorkflowName.OPHYS_PROCESSING
             )
         assert step.name == WorkflowStep.MOTION_CORRECTION
 
     def test__get_well_known_file_type(self):
         with Session(self._engine) as session:
-            wkft = _get_well_known_file_type(
+            wkft = get_well_known_file_type(
                 session=session,
-                name=WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK
+                name=WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK,
+                workflow_step_name=WorkflowStep.MOTION_CORRECTION,
+                workflow=WorkflowName.OPHYS_PROCESSING
             )
         assert wkft.name == \
                WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK
+
+    @pytest.mark.parametrize('file_type', ('file', 'dir'))
+    def test__validate_files_exists(self, file_type):
+        """test that _validate_files_exists works for both file and dir
+        and that error is raised when dir is empty"""
+        if file_type == 'file':
+            path = self._tmp_dir / 'foo.txt'
+        else:
+            path = self._tmp_dir / 'foo'
+            os.makedirs(path)
+        files = [
+            OutputFile(
+                path=path,
+                well_known_file_type=(
+                    WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK))
+        ]
+        with pytest.raises(ModuleOutputFileDoesNotExistException):
+            _validate_files_exist(output_files=files)
+
+        if file_type == 'file':
+            with open(path, 'w') as f:
+                f.write('')
+        else:
+            with open(path / 'foo.txt', 'w') as f:
+                f.write('')
+
+        _validate_files_exist(output_files=files)
 
     @pytest.mark.parametrize('out_file_exists', (True, False))
     def test__save_job_run_to_db(self, out_file_exists):

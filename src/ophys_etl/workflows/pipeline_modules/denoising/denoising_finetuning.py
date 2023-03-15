@@ -1,6 +1,8 @@
 """Denoising finetuning pipeline module"""
 from typing import List
 
+from ophys_etl.workflows.workflow_steps import WorkflowStep
+
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.pipeline_module import OutputFile
 from ophys_etl.workflows.pipeline_modules.denoising._denoising import \
@@ -15,8 +17,8 @@ class DenoisingFinetuningModule(_DenoisingModule):
         return 'ophys_etl.modules.denoising.fine_tuning'
 
     @property
-    def queue_name(self) -> str:
-        return 'DEEPINTERPOLATION_FINETUNING'
+    def queue_name(self) -> WorkflowStep:
+        return WorkflowStep.DENOISING_FINETUNING
 
     @property
     def inputs(self):

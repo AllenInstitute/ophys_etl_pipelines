@@ -12,7 +12,6 @@ from ophys_etl.modules.demix.schemas import (
     DemixJobSchema,
 )
 
-
 class DemixJob(ArgSchemaParser):
 
     default_schema = DemixJobSchema
@@ -33,7 +32,7 @@ class DemixJob(ArgSchemaParser):
 
         return path
 
-    def __parse_input(self, args, exclude_labels=[]):
+    def __parse_input(self, args, exclude_labels):
         movie_h5 = self.__get_path(args, "movie_h5", True)
         traces_h5 = self.__get_path(args, "traces_h5", True)
         output_h5 = self.__get_path(args, "output_file", False)
@@ -91,8 +90,8 @@ class DemixJob(ArgSchemaParser):
             movie_h5,
             output_h5,
         ) = self.__parse_input(
-            self.args
-        )  # , self.args.exclude_labels)
+            self.args, 
+            self.args.exclude_labels)
         traces
         logging.debug(
             "excluded masks: %s",

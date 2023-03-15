@@ -1,17 +1,6 @@
 from marshmallow import Schema, post_load, ValidationError
 from marshmallow.fields import List, Str, Float, Int, Bool
 
-EXCLUDE_LABELS = [
-    "union",
-    "duplicate",
-    "motion_border",
-    "decrosstalk_ghost",
-    "decrosstalk_invalid_raw",
-    "decrosstalk_invalid_raw_active",
-    "decrosstalk_invalid_unmixed",
-    "decrosstalk_invalid_unmixed_active",
-]
-
 
 class ExtractROISchema(Schema):
     """This ROI format is the expected input of AllenSDK's extract_traces
@@ -85,14 +74,6 @@ class ROIMasksSchema(ExtractROISchema):
         required=True,
         description=("a report of roi-wise problems detected during extraction"),
     )
-
-    @post_load
-    def validate_exclusion_labels(self, data, **kwargs):
-        failed_labels = [label for label in data if label not in EXCLUDE_LABELS]
-        if failed_labels:
-            raise ValidationError(
-                f"Invalid exclusion_label(s): {failed_labels}, please check against valid EXCLUDE_LABELS: {EXCLUDE_LABELS}"
-            )
 
 
 class DenseROISchema(Schema):

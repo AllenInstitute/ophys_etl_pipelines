@@ -3,14 +3,14 @@ from typing import List, Dict
 
 import json
 
-import requests
 from deepcell.datasets.model_input import ModelInput
 from ophys_etl.workflows.app_config.app_config import app_config
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
 from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile
-from ophys_etl.workflows.pipeline_modules.roi_classification.mlflow_utils \
+from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
+    .mlflow_utils \
     import \
     MLFlowRun
 
@@ -113,8 +113,10 @@ class InferenceModule(PipelineModule):
         Dict
             The params used to train the model
         """
-        run = MLFlowRun()
-        params = run.run_params
+        run = MLFlowRun(
+            run_name=app_config.pipeline_steps.roi_classification.tracking.mlflow_run_name
+        )
+        params = run.run.data.params
 
         model_params = {
             param['key'].replace('model_params_', ''): param['value']

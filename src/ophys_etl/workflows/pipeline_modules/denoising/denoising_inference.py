@@ -1,6 +1,8 @@
 """Denoisig inference pipeline module"""
 from typing import List, Dict
 
+from ophys_etl.workflows.workflow_steps import WorkflowStep
+
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.pipeline_module import OutputFile
 from ophys_etl.workflows.pipeline_modules.denoising._denoising import \
@@ -27,8 +29,8 @@ class DenoisingInferenceModule(_DenoisingModule):
         self._trained_model_path = str(trained_model_file.path)
 
     @property
-    def queue_name(self) -> str:
-        return 'DEEPINTERPOLATION_INFERENCE'
+    def queue_name(self) -> WorkflowStep:
+        return WorkflowStep.DENOISING_INFERENCE
 
     @property
     def inputs(self) -> Dict:

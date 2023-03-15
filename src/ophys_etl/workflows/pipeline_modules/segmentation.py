@@ -2,6 +2,8 @@ import logging
 from typing import List, Dict
 
 import json
+
+from ophys_etl.workflows.workflow_steps import WorkflowStep
 from sqlmodel import Session
 
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
@@ -30,8 +32,8 @@ class SegmentationModule(PipelineModule):
         self._denoised_ophys_movie_file = str(denoised_ophys_movie_file.path)
 
     @property
-    def queue_name(self) -> str:
-        return 'SUITE2P_SEGMENTATION_QUEUE'
+    def queue_name(self) -> WorkflowStep:
+        return WorkflowStep.SEGMENTATION
 
     @property
     def inputs(self) -> Dict:

@@ -11,7 +11,7 @@ import logging
 
 import yaml
 from paramiko import SSHClient
-from pydantic import StrictInt, StrictStr, Field
+from pydantic import StrictInt, StrictStr, Field, StrictBool
 from simple_slurm import Slurm as SimpleSlurm
 
 from ophys_etl.workflows.app_config.app_config import app_config
@@ -28,6 +28,10 @@ class _SlurmSettings(ImmutableBaseModel):
     gpus: Optional[StrictInt] = Field(
         description='Number of GPUs',
         default=0
+    )
+    request_additional_tmp_storage: StrictBool = Field(
+        default=False,
+        description='If True, creates additional tmp storage'
     )
 
 
@@ -194,7 +198,8 @@ class Slurm:
             Where to write slurm job logs to
         tmp_storage_adjustment_factor
             Multiplies the ophys experiment file size by this amount to give
-            some breathing room to the amount of tmp storage to reserve
+            some breathing room to the amount of tmp storage to reserve.
+            Not used if request_additional_tmp_storage is False
         """
         self._pipeline_module = pipeline_module
         self._ophys_experiment_id = ophys_experiment_id
@@ -312,12 +317,14 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
             Where to write slurm job logs to
         tmp_storage_adjustment_factor
             Multiplies the ophys experiment file size by this amount to give
-            some breathing room to the amount of tmp storage to reserve
+            some breathing room to the amount of tmp storage to reserve.
+            Not used if request_additional_tmp_storage is False
         Returns
         -------
         The slurm script headers
         """
-        if app_config.is_debug:
+        if app_config.is_debug or \
+                not self._slurm_settings.request_additional_tmp_storage:
             tmp = 0
         else:
             tmp = self._get_tmp_storage(

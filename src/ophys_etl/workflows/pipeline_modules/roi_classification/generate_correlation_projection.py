@@ -1,5 +1,7 @@
 from typing import List, Dict
 
+from ophys_etl.workflows.workflow_steps import WorkflowStep
+
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 
 from ophys_etl.workflows.app_config.app_config import app_config
@@ -28,8 +30,9 @@ class GenerateCorrelationProjectionModule(PipelineModule):
         self._denoised_ophys_movie_file = str(denoised_ophys_movie_file.path)
 
     @property
-    def queue_name(self) -> str:
-        return 'ROI_CLASSIFICATION_GENERATE_CORRELATION_PROJECTION'
+    def queue_name(self) -> WorkflowStep:
+        return (WorkflowStep.
+                ROI_CLASSIFICATION_GENERATE_CORRELATION_PROJECTION_GRAPH)
 
     @property
     def inputs(self) -> Dict:

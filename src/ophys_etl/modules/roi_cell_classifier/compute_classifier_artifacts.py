@@ -11,6 +11,7 @@ import PIL
 import pandas as pd
 
 from argschema import ArgSchema, ArgSchemaParser, fields
+from deepcell.cli.modules.create_dataset import construct_dataset
 from deepcell.cli.schemas.data import ChannelField
 from deepcell.datasets.channel import Channel, channel_filename_prefix_map
 from marshmallow import validates_schema, ValidationError
@@ -79,13 +80,11 @@ class ClassifierArtifactsInputSchema(ArgSchema):
         description='Whether generating inputs for training or inference.'
                     'If training, will limit to only labeled ROIs'
     )
-    labels_path = fields.InputFile(
+    cell_labeling_app_host = fields.Str(
         required=False,
         allow_none=True,
         default=None,
-        description='Path to labels in csv format, as output by '
-                    'deepcell.cli.modules.create_dataset.construct_dataset.'
-                    'Must contain fields "experiment_id" and "roi_id"'
+        description='Cell labeling app host, in order to pull labels'
     )
     fov_shape = fields.Tuple(
         (fields.Int(), fields.Int()),
@@ -101,9 +100,10 @@ class ClassifierArtifactsInputSchema(ArgSchema):
                                       'passed as a channel')
 
     @validates_schema
-    def validate_labels_path(self, data):
-        if data['is_training'] and data['labels_path'] is None:
-            raise ValidationError('Must provide labels_path if is_training')
+    def validate_cell_labeling_app_host(self, data):
+        if data['is_training'] and data['cell_labeling_app_host'] is None:
+            raise ValidationError('Must provide cell_labeling_app_host if '
+                                  'is_training')
 
 
 class ClassifierArtifactsGenerator(ArgSchemaParser):
@@ -269,10 +269,13 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
 
     def _get_labeled_rois_for_experiment(self) -> List[int]:
         """Get labeled rois for experiment"""
-        if self.args['labels_path'] is None:
-            raise ValueError('labels_path needed to get labeled rois')
-        labels = pd.read_csv(self.args['labels_path'],
-                             dtype={'experiment_id': str})
+        if self.args['cell_labeling_app_host'] is None:
+            raise ValueError('cell_labeling_app_host needed to get '
+                             'labeled rois')
+        labels = construct_dataset(
+            cell_labeling_app_host=self.args['cell_labeling_app_host']
+        )
+
         labels = labels.set_index('experiment_id')
         if self.args['experiment_id'] not in labels.index:
             raise ValueError(

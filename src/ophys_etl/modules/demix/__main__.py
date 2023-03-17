@@ -68,7 +68,8 @@ class DemixJob(ArgSchemaParser):
                 ridx = trace_ids.index(rid)
             except ValueError as e:
                 raise ValueError(
-                    "Could not find cell roi id %d in roi traces file" % rid
+                    "Could not find cell roi id %d in roi traces file" % rid,
+                    e
                 )
 
             masks[ridx, :, :] = mask

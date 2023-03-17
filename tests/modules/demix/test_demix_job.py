@@ -103,6 +103,5 @@ class TestDemixJob(TestCase):
 
                 self.assertEqual(output_data["negative_transient_roi_ids"], [])
                 self.assertEqual(output_data["negative_baseline_roi_ids"], [])
-            
-            self.delete_files
 
+            self.delete_files

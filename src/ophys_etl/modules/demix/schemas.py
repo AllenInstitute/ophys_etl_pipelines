@@ -1,4 +1,3 @@
-import numpy as np
 from argschema import ArgSchema, fields
 
 from ophys_etl.schemas import ROIMasksSchema

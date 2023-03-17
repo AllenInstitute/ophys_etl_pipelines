@@ -184,7 +184,7 @@ def plot_negative_baselines(
     demix_traces: np.ndarray
         demix_traces for an array of ROIs
     mask_array: np.ndarray
-        array of 2D arrays of masks for the array of ROIs 
+        array of 2D arrays of masks for the array of ROIs
     roi_ids_mask: np.ndarray
         array of ROI IDs
     plot_dir: Union[str, Path]
@@ -195,7 +195,7 @@ def plot_negative_baselines(
     Returns
     -------
     Set[int]
-        set of overlapping ROI indices 
+        set of overlapping ROI indices
     """
     N, T = raw_traces.shape
     _, x, y = mask_array.shape
@@ -246,6 +246,25 @@ def plot_negative_transients(
 ) -> List[int]:
     """Plot negative transients
 
+    Parameters
+    ----------
+    raw_traces: np.ndarray
+        raw traces for an array of ROIs
+    demix_traces: np.ndarray
+        demix_traces for an array of ROIs
+    mask_array: np.ndarray
+        array of 2D arrays of masks for the array of ROIs
+    roi_ids_mask: np.ndarray
+        array of ROI IDs
+    plot_dir: Union[str, Path]
+        path to save plot
+    ext: str
+        extension of plot image format, e.g. png
+
+    Returns
+    -------
+    List[int]
+        list of overlapping ROI indices
     """
     N, T = raw_traces.shape
     _, x, y = mask_array.shape
@@ -314,11 +333,19 @@ def plot_negative_transients(
 
 
 def rolling_window(trace: np.ndarray, window: int = 500) -> np.ndarray:
-    """
+    """Calculates the rolling window
 
-    :param trace:
-    :param window:
-    :return:
+    Parameters
+    -----------
+    trace: nd.array
+        roi trace
+    window: int
+        window for computing rolling window
+
+    Returns
+    --------
+    np.ndarray:
+        rolling window
     """
 
     shape = trace.shape[:-1] + (trace.shape[-1] - window + 1, window)
@@ -327,15 +354,40 @@ def rolling_window(trace: np.ndarray, window: int = 500) -> np.ndarray:
     return np.lib.stride_tricks.as_strided(trace, shape=shape, strides=strides)
 
 
-def find_negative_baselines(trace):
+def find_negative_baselines(trace: np.ndarray) -> np.ndarray:
+    """Given a trace, find indices with negative baseline
+
+    Parameters
+    -----------
+    trace: np.ndarray
+        roi trace
+
+    Returns
+    -------
+    np.ndarray
+        array of indices where trace[indices]
+        are negative baselines
+    """
     means = trace.mean(axis=1)
     stds = trace.std(axis=1)
     return np.where((means + stds) < 0)
 
 
 def find_negative_transients_threshold(
-    trace, window=500, length=10, std_devs=3
-):
+    trace: np.ndarray, window: int = 500, length: int = 10, std_devs: int = 3
+) -> np.ndarray:
+    """Given a trace, find indices containing negative transients
+
+    Parameters
+    -----------
+    trace: np.ndarray
+        roi trace
+    window: int
+        window for computing rolling window
+    length: int
+    std_devs: int
+    """
+
     trace = np.pad(
         trace,
         pad_width=(window - 1, 0),
@@ -364,6 +416,20 @@ def plot_overlap_masks_lengthOne(
     weighted: bool = False,
 ) -> np.ndarray:
 
+    """Plot overlap masks of length one
+
+    Parameters
+    ----------
+    roi_ind: np.ndarray
+    masks: np.ndarray
+    savefile: Union[str, Path] = None
+    weighted: bool = False
+
+    Returns
+    --------
+    np.ndarray
+        indices of rois that overlap
+    """
     masks = np.array(masks).astype(float)
     N, x, y = masks.shape
     if np.sum(masks[-1]) == x * y:
@@ -436,6 +502,22 @@ def plot_transients(
     savefile: Union[str, Path],
 ) -> None:
 
+    """Plot transients
+
+    Parameters
+    -----------
+    roi_ind: np.ndarray
+    t_trans: int
+    masks: np.ndarray
+    traces: np.ndarray
+    demix_traces: np.ndarray
+    savefile: Union[str, Path]
+
+    Returns
+    --------
+    None
+
+    """
     masks = np.array(masks).astype(float)
     N, x, y = masks.shape
     _, Nt = traces.shape

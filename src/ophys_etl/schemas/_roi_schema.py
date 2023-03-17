@@ -9,10 +9,18 @@ class ExtractROISchema(Schema):
 
     id = Int(
         required=True,
-        description=("Unique ID of the ROI, gets overwritten writting " "to LIMS"),
+        description=(
+            "Unique ID of the ROI, gets overwritten writting " "to LIMS"
+        ),
     )
-    x = Int(required=True, description="X location of top left corner of ROI in pixels")
-    y = Int(required=True, description="Y location of top left corner of ROI in pixels")
+    x = Int(
+        required=True,
+        description="X location of top left corner of ROI in pixels",
+    )
+    y = Int(
+        required=True,
+        description="Y location of top left corner of ROI in pixels",
+    )
     width = Int(required=True, description="Width of the ROI in pixels")
     height = Int(required=True, description="Height of the ROI in pixels")
     mask = List(
@@ -61,7 +69,9 @@ class ExtractROISchema(Schema):
                 raise ValidationError(f"one of {k1} or {k2} needed")
             if (k1 in data) & (k2 in data):
                 if data[k1] != data[k2]:
-                    raise ValidationError(f"{k1} and {k2} provided, " "but they differ")
+                    raise ValidationError(
+                        f"{k1} and {k2} provided, " "but they differ"
+                    )
 
         check("valid_roi", "valid")
         check("mask_matrix", "mask")
@@ -72,7 +82,9 @@ class ROIMasksSchema(ExtractROISchema):
     exclusion_labels = List(
         Str,
         required=True,
-        description=("a report of roi-wise problems detected during extraction"),
+        description=(
+            "a report of roi-wise problems detected during extraction"
+        ),
     )
 
 
@@ -83,15 +95,25 @@ class DenseROISchema(Schema):
 
     id = Int(
         required=True,
-        description=("Unique ID of the ROI, gets overwritten writting " "to LIMS"),
+        description=(
+            "Unique ID of the ROI, gets overwritten writting " "to LIMS"
+        ),
     )
-    x = Int(required=True, description="X location of top left corner of ROI in pixels")
-    y = Int(required=True, description="Y location of top left corner of ROI in pixels")
+    x = Int(
+        required=True,
+        description="X location of top left corner of ROI in pixels",
+    )
+    y = Int(
+        required=True,
+        description="Y location of top left corner of ROI in pixels",
+    )
     width = Int(required=True, description="Width of the ROI in pixels")
     height = Int(required=True, description="Height of the ROI in pixels")
     valid_roi = Bool(
         required=True,
-        description=("Boolean indicating if the ROI is a valid " "cell or not"),
+        description=(
+            "Boolean indicating if the ROI is a valid " "cell or not"
+        ),
     )
     mask_matrix = List(
         List(Bool),
@@ -102,13 +124,16 @@ class DenseROISchema(Schema):
         ),
     )
     max_correction_up = Float(
-        required=True, description=("Max correction in pixels in the " "up direction")
+        required=True,
+        description=("Max correction in pixels in the " "up direction"),
     )
     max_correction_down = Float(
-        required=True, description=("Max correction in pixels in the " "down direction")
+        required=True,
+        description=("Max correction in pixels in the " "down direction"),
     )
     max_correction_left = Float(
-        required=True, description=("Max correction in pixels in the " "left direction")
+        required=True,
+        description=("Max correction in pixels in the " "left direction"),
     )
     max_correction_right = Float(
         required=True,

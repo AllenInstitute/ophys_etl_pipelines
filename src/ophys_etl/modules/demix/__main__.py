@@ -12,12 +12,13 @@ from ophys_etl.modules.demix.schemas import (
     DemixJobSchema,
 )
 
+
 class DemixJob(ArgSchemaParser):
 
     default_schema = DemixJobSchema
     default_output_schema = DemixJobOutputSchema
 
-    def __assert_exists(file_name):
+    def __assert_exists(self, file_name):
         if not os.path.exists(file_name):
             raise IOError("file does not exist: %s" % file_name)
 
@@ -89,9 +90,7 @@ class DemixJob(ArgSchemaParser):
             trace_ids,
             movie_h5,
             output_h5,
-        ) = self.__parse_input(
-            self.args, 
-            self.args.exclude_labels)
+        ) = self.__parse_input(self.args, self.args["exclude_labels"])
         traces
         logging.debug(
             "excluded masks: %s",

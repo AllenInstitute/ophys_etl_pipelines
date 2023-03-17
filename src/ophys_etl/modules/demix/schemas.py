@@ -15,6 +15,7 @@ EXCLUDE_LABELS = [
     "decrosstalk_invalid_unmixed_active",
 ]
 
+
 class DemixJobOutputSchema(ArgSchema):
     negative_transient_roi_ids = fields.List(
         fields.Float,
@@ -61,10 +62,11 @@ class DemixJobSchema(ArgSchema):
     )
     exclude_labels = fields.List(
         fields.Str,
+        required=False,
         many=True,
         default=EXCLUDE_LABELS,
         description=(
             "List of exlusion labels that will invalidate an ROI if an ROI"
             "is tagged with an exclusion_label from this list."
-            ),
-        )
+        ),
+    )

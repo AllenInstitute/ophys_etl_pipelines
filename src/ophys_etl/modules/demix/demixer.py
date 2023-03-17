@@ -246,7 +246,6 @@ def plot_negative_transients(
             else:
                 trans_list.append(demix_traces[roi_ind, : i + 100])
 
-        # trans_list = [demix_traces[roi_ind, i-100:i+100] for i in trans_ind_list if i > 100 and i < Nt]
         Ntrans = len(trans_list)
         biggest_trans = 0
         for i in range(1, Ntrans):
@@ -254,9 +253,6 @@ def plot_negative_transients(
                 biggest_trans = i
 
         trans_ind = trans_ind_list[biggest_trans]
-
-        # trans_ind_list = np.concatenate((trans_ind_list1[roi_ind][0], trans_ind_list2[roi_ind][0]))
-        # trans_list_min = np.where(demix_traces[roi_ind, trans_ind_list] == min(demix_traces[roi_ind, trans_ind_list]))[0]
 
         if np.sum(overlap[roi_ind]) > 0:
 

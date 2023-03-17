@@ -107,9 +107,8 @@ class DemixJob(ArgSchemaParser):
             movie = f["data"][()]
 
         # only demix non-union, non-duplicate ROIs
-        valid_idxs = np.where(valid)
-        demix_traces = traces[valid_idxs]
-        demix_masks = masks[valid_idxs]
+        demix_traces = traces[valid]
+        demix_masks = masks[valid]
 
         logging.debug("demixing")
         demixed_traces, drop_frames = demixer.demix_time_dep_masks(
@@ -119,36 +118,35 @@ class DemixJob(ArgSchemaParser):
         nt_inds = demixer.plot_negative_transients(
             demix_traces,
             demixed_traces,
-            valid[valid_idxs],
             demix_masks,
-            trace_ids[valid_idxs],
+            trace_ids[valid],
             plot_dir,
         )
 
         logging.debug(
             "rois with negative transients: %s",
-            str(trace_ids[valid_idxs][nt_inds]),
+            str(trace_ids[valid][nt_inds]),
         )
 
         nb_inds = demixer.plot_negative_baselines(
             demix_traces,
             demixed_traces,
             demix_masks,
-            trace_ids[valid_idxs],
+            trace_ids[valid],
             plot_dir,
         )
 
         # negative baseline rois (and those that overlap with them) become nans
         logging.debug(
             "rois with negative baselines (or overlap with them): %s",
-            str(trace_ids[valid_idxs][nb_inds]),
+            str(trace_ids[valid][nb_inds]),
         )
         demixed_traces[nb_inds, :] = np.nan
 
         logging.info("Saving output")
         out_traces = np.zeros(traces.shape, dtype=demix_traces.dtype)
         out_traces[:] = np.nan
-        out_traces[valid_idxs] = demixed_traces
+        out_traces[valid] = demixed_traces
 
         with h5py.File(output_h5, "w") as f:
             f.create_dataset("data", data=out_traces, compression="gzip")
@@ -159,8 +157,8 @@ class DemixJob(ArgSchemaParser):
 
         self.output(
             dict(
-                negative_transient_roi_ids=trace_ids[valid_idxs][nt_inds],
-                negative_baseline_roi_ids=trace_ids[valid_idxs][nb_inds],
+                negative_transient_roi_ids=trace_ids[valid][nt_inds],
+                negative_baseline_roi_ids=trace_ids[valid][nb_inds],
             )
         )
 

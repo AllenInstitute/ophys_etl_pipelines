@@ -35,6 +35,18 @@ class TestDemixJob(TestCase):
 
         return movie_h5, traces_h5, output_json, output_h5
 
+    def delete_files(self, tmp_path):
+        movie_h5 = os.path.join(tmp_path, "mock_movie.h5")
+        traces_h5 = os.path.join(tmp_path, "mock_traces.h5")
+        output_json = os.path.join(tmp_path, "mock_output.json")
+        output_h5 = os.path.join(tmp_path, "mock_output.h5")
+        os.remove(movie_h5)
+        os.remove(traces_h5)
+        if os.path.exists(output_json):
+            os.remove(output_json)
+        if os.path.exists(output_h5):
+            os.remove(output_h5)
+
     def test_run(self):
         with TemporaryDirectory() as tmp_dir, patch(
             "ophys_etl.modules.demix.demixer.demix_time_dep_masks"
@@ -91,3 +103,6 @@ class TestDemixJob(TestCase):
 
                 self.assertEqual(output_data["negative_transient_roi_ids"], [])
                 self.assertEqual(output_data["negative_baseline_roi_ids"], [])
+            
+            self.delete_files
+

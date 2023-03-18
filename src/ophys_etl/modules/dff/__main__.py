@@ -55,6 +55,9 @@ def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
         filter) was less than or equal to the estimated noise of the
         `corrected_fluorescence_trace`.
     """
+    valid_trace = corrected_fluorescence_trace[~np.isnan(corrected_fluorescence_trace)]
+    if valid_trace.shape[0] == 0:
+        return corrected_fluorescence_trace, float('nan'), 0
     _check_kernel(long_filter_length, corrected_fluorescence_trace.shape[0])
     _check_kernel(short_filter_length, corrected_fluorescence_trace.shape[0])
     sigma_f = noise_std(corrected_fluorescence_trace, short_filter_length)

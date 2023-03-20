@@ -1,8 +1,7 @@
 import pickle
 from pathlib import Path
-from unittest.mock import patch, create_autospec
+from unittest.mock import patch
 
-import botocore
 import pytest
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config

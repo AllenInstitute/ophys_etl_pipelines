@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import json
+from types import ModuleType
 from typing import Dict, List, Optional
 
 from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
@@ -98,12 +99,12 @@ class PipelineModule:
     @property
     def executable(self) -> str:
         """Fully qualified path to executable this module runs"""
-        return 'sleep' if app_config.is_debug else self._executable
+        return 'sleep' if app_config.is_debug else self._executable.__name__
 
     @property
     @abc.abstractmethod
-    def _executable(self) -> str:
-        """Fully qualified path to executable this module runs"""
+    def _executable(self) -> ModuleType:
+        """Module to run"""
         raise NotImplementedError
 
     @property

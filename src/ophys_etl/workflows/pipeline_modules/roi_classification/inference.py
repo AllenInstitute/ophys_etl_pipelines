@@ -114,7 +114,8 @@ class InferenceModule(PipelineModule):
             The params used to train the model
         """
         run = MLFlowRun(
-            run_name=app_config.pipeline_steps.roi_classification.tracking.mlflow_run_name
+            run_name=(app_config.pipeline_steps.roi_classification.tracking.
+                      mlflow_run_name)
         )
         params = run.run.data.params
 

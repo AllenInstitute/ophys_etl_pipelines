@@ -1,4 +1,7 @@
+from types import ModuleType
 from typing import List, Dict
+
+from ophys_etl.modules.segmentation.modules import calculate_edges
 
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 
@@ -60,5 +63,5 @@ class GenerateCorrelationProjectionModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> str:
-        return 'ophys_etl.modules.segmentation.modules.calculate_edges'
+    def _executable(self) -> ModuleType:
+        return calculate_edges

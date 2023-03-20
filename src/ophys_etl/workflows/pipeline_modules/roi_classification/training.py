@@ -1,5 +1,7 @@
+from types import ModuleType
 from typing import List, Dict
 
+from deepcell.cloud import train
 from sqlmodel import Session
 
 from ophys_etl.workflows.db.schemas import ROIClassifierEnsemble, \
@@ -86,8 +88,8 @@ class TrainingModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> str:
-        return 'deepcell.cli.modules.cloud.train'
+    def _executable(self) -> ModuleType:
+        return train
 
     @staticmethod
     def save_trained_model_to_db(

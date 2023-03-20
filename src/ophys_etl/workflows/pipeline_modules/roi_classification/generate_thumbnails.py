@@ -1,4 +1,7 @@
+from types import ModuleType
 from typing import List, Dict
+
+from ophys_etl.modules.roi_cell_classifier import compute_classifier_artifacts
 
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 
@@ -69,5 +72,5 @@ class GenerateThumbnailsModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> str:
-        return 'ophys_etl.modules.roi_cell_classifier.compute_classifier_artifacts' # noqa E402
+    def _executable(self) -> ModuleType:
+        return compute_classifier_artifacts

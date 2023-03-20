@@ -4,7 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import List, Union, Optional, Callable
+from typing import List, Union, Optional, Callable, Dict
 
 from sqlalchemy import event, create_engine
 from sqlalchemy.exc import NoResultFound
@@ -52,7 +52,8 @@ def save_job_run_to_db(
         storage_directory: Union[Path, str],
         ophys_experiment_id: Optional[str] = None,
         validate_files_exist: bool = True,
-        additional_steps: Optional[Callable] = None
+        additional_steps: Optional[Callable] = None,
+        additional_steps_kwargs: Optional[Dict] = None
 ):
     """
     Inserts job run in db
@@ -85,6 +86,8 @@ def save_job_run_to_db(
             - session: sqlalchemy Session,
             - output_files: dict mapping well known file type to OutputFile
             - run_id: workflow step run id, int
+    additional_steps_kwargs
+        Kwargs to send to `additional_steps`
     """
 
     if validate_files_exist:
@@ -132,7 +135,9 @@ def save_job_run_to_db(
             output_files={
                 x.well_known_file_type.value: x for x in module_outputs
             },
-            run_id=workflow_step_run.id
+            run_id=workflow_step_run.id,
+            **additional_steps_kwargs if additional_steps_kwargs is not None
+            else {}
         )
     sqlalchemy_session.commit()
 

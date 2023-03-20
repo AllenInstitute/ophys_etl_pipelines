@@ -108,7 +108,8 @@ class ROIClassifierTrainingRun(SQLModel, table=True):
     )
     mlflow_run_id: str = Field(
         description='mlflow run id. MLFlow is used for tracking training '
-                    'metadata'
+                    'metadata',
+        primary_key=True
     )
     sagemaker_job_id: str = Field(
         description='sagemaker job id. Model is trained on sagemaker.'

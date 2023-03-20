@@ -23,12 +23,12 @@ from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
 class TestMLFlowUtils:
     @classmethod
     def setup_class(cls):
-        with open(Path(__file__).parent / 'resources' /
+        with open(Path(__file__).parent.parent / 'resources' /
                   'mlflow_search_runs.pkl', 'rb') as f:
             # created using  mlflow.search_runs(..., output_format='list')
             cls._dummy_mlflow_search_runs_res = pickle.load(f)
 
-        with open(Path(__file__).parent / 'resources' /
+        with open(Path(__file__).parent.parent / 'resources' /
                   'sagemaker_describe_training_job.pkl', 'rb') as f:
             # created using  sagemaker.describe_training_job(
             # TrainingJobName=...)

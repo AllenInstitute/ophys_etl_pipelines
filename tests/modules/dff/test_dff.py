@@ -72,3 +72,9 @@ def test_dff_trace(monkeypatch):
     with pytest.raises(ValueError):
         dff_main.compute_dff_trace(
             f_trace, long_filter_length=7, short_filter_length=1)
+
+    f_trace = np.array([np.nan]*10)
+    dff, sigma, small_baseline = dff_main.compute_dff_trace(f_trace, 1, 1)
+    assert 0 == small_baseline
+    assert np.isnan(sigma)
+    np.testing.assert_array_equal(f_trace, dff)

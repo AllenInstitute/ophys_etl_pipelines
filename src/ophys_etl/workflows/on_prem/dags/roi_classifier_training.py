@@ -176,7 +176,11 @@ def roi_classifier_training():
             workflow_step_name=WorkflowStep.ROI_CLASSIFICATION_TRAINING,
             job_finish_res=job_finish_res,
             additional_steps=(
-                roi_classification.TrainingModule.save_trained_model_to_db)
+                roi_classification.TrainingModule.save_trained_model_to_db),
+            additional_steps_kwargs={
+                'mlflow_parent_run_name': mlflow_run_name
+            }
+
         )
 
     correlation_projection_graphs = generate_correlation_projections()

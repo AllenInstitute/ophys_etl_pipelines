@@ -6,6 +6,7 @@ from pathlib import Path
 import tempfile
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
+from ophys_etl.workflows.workflow_names import WorkflowName
 
 setup_app_config(
     ophys_workflow_app_config_path=(
@@ -63,7 +64,8 @@ class TestSegmentation:
                 ophys_experiment_id='1',
                 sqlalchemy_session=session,
                 storage_directory='/foo',
-                additional_steps=SegmentationModule.save_rois_to_db
+                additional_steps=SegmentationModule.save_rois_to_db,
+                workflow_name=WorkflowName.OPHYS_PROCESSING
             )
         with Session(self._engine) as session:
             rois = session.exec(select(OphysROI)).all()

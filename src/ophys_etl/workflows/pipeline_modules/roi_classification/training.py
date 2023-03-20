@@ -96,18 +96,18 @@ class TrainingModule(PipelineModule):
         output_files: Dict[str, OutputFile],
         session: Session,
         run_id: int,
-        mlflow_parent_run_id: str
+        mlflow_parent_run_name: str
     ):
         mlflow_run = MLFlowRun(
             mlflow_experiment_name=(
                 app_config.pipeline_steps.roi_classification.training.
                 tracking.mlflow_experiment_name),
-            run_id=mlflow_parent_run_id
+            run_name=mlflow_parent_run_name
         )
 
         ensemble = ROIClassifierEnsemble(
             workflow_step_run_id=run_id,
-            mlflow_run_id=mlflow_parent_run_id
+            mlflow_run_id=mlflow_run.run.info.run_id
         )
         session.add(ensemble)
 
@@ -118,6 +118,6 @@ class TrainingModule(PipelineModule):
             training_run = ROIClassifierTrainingRun(
                 ensemble_id=ensemble.id,
                 mlflow_run_id=child_run.run.info.run_id,
-                sagemaker_job_name=child_run.sagemaker_job_id
+                sagemaker_job_id=child_run.sagemaker_job_id
             )
             session.add(training_run)

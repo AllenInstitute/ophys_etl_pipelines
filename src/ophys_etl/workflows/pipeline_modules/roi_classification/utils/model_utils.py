@@ -36,31 +36,35 @@ def download_trained_model(
 
     mlflow_parent_run = MLFlowRun(
         mlflow_experiment_name=(
-            app_config.pipeline_steps.roi_classification.tracking.
+            app_config.pipeline_steps.roi_classification.training.tracking.
             mlflow_experiment_name),
         run_name=mlflow_run_name
     )
 
+    os.makedirs(model_dest.path, exist_ok=True)
+
     for run in mlflow_parent_run.child_runs:
         model_s3_bucket, model_s3_key = run.s3_model_save_path
-        with tempfile.TemporaryDirectory() as temp_dir:
-            # 1. Download compressed file to tmp dir
-            tmp_dest = str(Path(temp_dir) / Path(model_s3_key).name)
-            s3.download_file(
-                Bucket=model_s3_bucket,
-                Key=model_s3_key,
-                Filename=tmp_dest
-            )
+        s3.download_file(
+            Bucket=model_s3_bucket,
+            Key=model_s3_key,
+            # this is a compressed file ending in .tar.gz
+            Filename=model_dest.path / Path(model_s3_key).name
+        )
 
-            # 2. Unpack compressed file
-            shutil.unpack_archive(filename=tmp_dest,
-                                  extract_dir=temp_dir)
+        # this will create a directory with the name of the fold with a file
+        # <fold>.pt beneath it
+        shutil.unpack_archive(
+            filename=model_dest.path / Path(model_s3_key).name,
+            extract_dir=model_dest.path)
 
-            # 3. Move expected output files to permanent location
-            os.makedirs(model_dest.path, exist_ok=True)
-            shutil.move(
-                src=Path(temp_dir) / run.fold / f'{run.fold}.pt',
-                dst=model_dest.path)
+        # move the model file to model_dest.path
+        shutil.move(str(model_dest.path / run.fold / f'{run.fold}.pt'),
+                    str(model_dest.path))
+
+        # cleanup
+        os.remove(str(model_dest.path / Path(model_s3_key).name))
+        shutil.rmtree(str(model_dest.path / run.fold))
 
     assert len(os.listdir(model_dest.path)) == \
            app_config.pipeline_steps.roi_classification.training.n_folds, \

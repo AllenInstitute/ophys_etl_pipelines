@@ -25,6 +25,7 @@ def save_job_run_to_db(
         workflow_step_name: WorkflowStep,
         job_finish_res: str,
         additional_steps: Optional[Callable] = None,
+        additional_steps_kwargs: Optional[Dict] = None,
         **context
 ) -> Dict[str, OutputFile]:
     """
@@ -52,6 +53,8 @@ def save_job_run_to_db(
                 %Y-%m-%d %H:%M:%S
     additional_steps
         See `ophys_etl.workflows.db.db_utils.save_job_run_to_db for details
+    additional_steps_kwargs
+        Kwargs to send to `additional_steps`
 
     Returns
     -------
@@ -89,7 +92,8 @@ def save_job_run_to_db(
             sqlalchemy_session=session,
             storage_directory=job_finish_res['storage_directory'],
             validate_files_exist=not app_config.is_debug,
-            additional_steps=additional_steps
+            additional_steps=additional_steps,
+            additional_steps_kwargs=additional_steps_kwargs
         )
     return {
         x.well_known_file_type.value: x for x in module_outputs

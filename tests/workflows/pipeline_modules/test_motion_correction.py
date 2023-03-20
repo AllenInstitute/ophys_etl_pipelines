@@ -9,6 +9,7 @@ from sqlalchemy import create_engine
 from sqlmodel import select, Session
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
+from ophys_etl.workflows.workflow_names import WorkflowName
 
 setup_app_config(
     ophys_workflow_app_config_path=(
@@ -63,7 +64,8 @@ class TestMotionCorrectionModule:
                 ophys_experiment_id='1',
                 sqlalchemy_session=session,
                 storage_directory='/foo',
-                additional_steps=MotionCorrectionModule.save_metadata_to_db
+                additional_steps=MotionCorrectionModule.save_metadata_to_db,
+                workflow_name=WorkflowName.OPHYS_PROCESSING
             )
         with Session(self._engine) as session:
             statement = select(MotionCorrectionRun)

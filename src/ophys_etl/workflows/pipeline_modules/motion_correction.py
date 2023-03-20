@@ -1,6 +1,8 @@
 """Motion correction pipeline module"""
+from types import ModuleType
 from typing import List, Dict
 
+from ophys_etl.modules import suite2p_registration
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 from sqlmodel import Session
 
@@ -15,8 +17,8 @@ class MotionCorrectionModule(PipelineModule):
     """Wrapper around motion correction module"""
 
     @property
-    def _executable(self) -> str:
-        return 'ophys_etl.modules.suite2p_registration'
+    def _executable(self) -> ModuleType:
+        return suite2p_registration
 
     @property
     def queue_name(self) -> WorkflowStep:

@@ -1,8 +1,10 @@
 import logging
+from types import ModuleType
 from typing import List, Dict
 
 import json
 
+from ophys_etl.modules import segment_postprocess
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 from sqlmodel import Session
 
@@ -56,8 +58,8 @@ class SegmentationModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> str:
-        return 'ophys_etl.modules.segment_postprocess'
+    def _executable(self) -> ModuleType:
+        return segment_postprocess
 
     @staticmethod
     def save_rois_to_db(

@@ -1,5 +1,8 @@
-"""Denoisig inference pipeline module"""
+"""Denoising inference pipeline module"""
+from types import ModuleType
 from typing import List, Dict
+
+from ophys_etl.modules.denoising import inference
 
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 
@@ -67,5 +70,5 @@ class DenoisingInferenceModule(_DenoisingModule):
         ]
 
     @property
-    def _executable(self) -> str:
-        return 'ophys_etl.modules.denoising.inference'
+    def _executable(self) -> ModuleType:
+        return inference

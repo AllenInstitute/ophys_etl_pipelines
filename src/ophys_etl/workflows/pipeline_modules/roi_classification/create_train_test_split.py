@@ -1,4 +1,7 @@
+from types import ModuleType
 from typing import List, Dict
+
+from deepcell.cli.modules import create_dataset
 
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 
@@ -64,5 +67,5 @@ class CreateTrainTestSplitModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> str:
-        return 'deepcell.cli.modules.create_dataset'
+    def _executable(self) -> ModuleType:
+        return create_dataset

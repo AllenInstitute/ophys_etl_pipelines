@@ -95,15 +95,15 @@ def test_extract_traces(frames, rois, normalize_by_roi_size, expected):
         5,
         median_filter(np.arange(100), 5, mode='reflect'),
     ),
-    # If block of nan values is as large filter size, fill in with previous
-    # value
+    # If block of nan values is as large filter size, fill in with
+    # interpolated value
     (
         np.array([1, 2, 3, np.nan, np.nan, np.nan, 3, 2, 1]),
         3,
         np.array([1, 2, 2.5, 3, 3, 3, 2.5, 2, 1]),
     ),
-    # If block of nan values is as large filter size, fill in with previous
-    # value
+    # If block of nan values is as large filter size, fill in
+    # interpolated value
     (
         np.array([np.nan, np.nan, np.nan, 5, 4, 3, 2, 1]),
         3,

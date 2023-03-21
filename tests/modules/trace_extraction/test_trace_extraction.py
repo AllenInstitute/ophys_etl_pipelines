@@ -40,13 +40,9 @@ def test_TraceExtraction(tmpdir, monkeypatch):
         npfile = tmpdir / "nptraces.h5"
         with h5py.File(npfile, "w") as f:
             f.create_dataset("data", data=0)
-        np_mask_file = tmpdir / "npmasktraces.h5"
-        with h5py.File(np_mask_file, "w") as f:
-            f.create_dataset("data", data=0)
         val = {
                 "neuropil_trace_file": str(npfile),
                 "roi_trace_file": str(tfile),
-                "neuropil_mask_file": str(np_mask_file),
                 "exclusion_labels": []}
         return val
     monkeypatch.setattr(temod, "extract_traces", mock_extract_traces)
@@ -58,4 +54,3 @@ def test_TraceExtraction(tmpdir, monkeypatch):
         j = json.load(f)
     assert Path(j['roi_trace_file']).is_file()
     assert Path(j['neuropil_trace_file']).is_file()
-    assert Path(j['neuropil_mask_file']).is_file()

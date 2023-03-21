@@ -49,7 +49,7 @@ def test_calculate_traces(video, roi_mask_list):
 # roi_mask_list, motion_border fixture from tests/conftest.py
 def test_calculate_roi_and_neuropil_traces(
         h5video, roi_mask_list, motion_border):
-    roi_traces, neuropil_traces, neuropil_masks, exclusions = \
+    roi_traces, neuropil_traces, exclusions = \
             calculate_roi_and_neuropil_traces(h5video,
                                               roi_mask_list,
                                               motion_border)

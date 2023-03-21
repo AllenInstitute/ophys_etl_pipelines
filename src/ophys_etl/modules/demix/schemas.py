@@ -19,18 +19,12 @@ class DemixJobOutputSchema(ArgSchema):
     negative_transient_roi_ids = fields.List(
         fields.Float,
         required=True,
-        description=(
-            "Path to output h5 file containing the demix traces for "
-            "each ROI."
-        ),
+        description=("ROI IDs detected to contain negative transients"),
     )
     negative_baseline_roi_ids = fields.List(
         fields.Float,
         required=True,
-        description=(
-            "Path to output h5 file containing the demix traces for "
-            "each ROI."
-        ),
+        description=("ROI IDs detected to contain a negative baseline"),
     )
 
 
@@ -42,9 +36,9 @@ class DemixJobSchema(ArgSchema):
     traces_h5 = H5InputFile(
         required=True,
         description=(
-            "Input h5 file containing fluorescence traces and the "
+            "Input h5 file containing fluorescence traces and their "
             "associated ROI IDs (in datasets specified by the keys "
-            "'input_dataset' and 'roi_field', respectively."
+            "'data' and 'roi_names', respectively."
         ),
     )
     output_file = fields.OutputFile(

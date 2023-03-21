@@ -46,8 +46,8 @@ class DemixJob(ArgSchemaParser):
             trace_ids = [int(rid) for rid in f["roi_names"][()]]
 
         rois = self.__get_path(args, "roi_masks", False)
-        masks = None
-        valid = None
+        masks = np.zeros((len(rois), mask.shape[0], mask.shape[1]), dtype=bool)
+        valid = np.ones(len(rois), dtype=bool)
 
         for roi in rois:
             mask = np.zeros(movie_shape, dtype=bool)
@@ -57,27 +57,20 @@ class DemixJob(ArgSchemaParser):
                 roi["x"] : roi["x"] + roi["width"],
             ] = mask_matrix
 
-            if masks is None:
-                masks = np.zeros(
-                    (len(rois), mask.shape[0], mask.shape[1]), dtype=bool
-                )
-                valid = np.zeros(len(rois), dtype=bool)
-
             rid = int(roi["id"])
             try:
                 ridx = trace_ids.index(rid)
             except ValueError as e:
                 raise ValueError(
-                    "Could not find cell roi id %d in roi traces file" % rid,
-                    e
+                    "Could not find cell roi id %d in roi traces file" % rid, e
                 )
-
             masks[ridx, :, :] = mask
-
-            valid[ridx] = (
+            exclude_match = (
                 len(set(exclude_labels) & set(roi.get("exclusion_labels", [])))
-                == 0
+                > 0
             )
+            if exclude_match:
+                valid[ridx] = False
 
         return traces, masks, valid, np.array(trace_ids), movie_h5, output_h5
 
@@ -92,7 +85,6 @@ class DemixJob(ArgSchemaParser):
             movie_h5,
             output_h5,
         ) = self.__parse_input(self.args, self.args["exclude_labels"])
-        traces
         logging.debug(
             "excluded masks: %s",
             str(zip(np.where(~valid)[0], trace_ids[~valid])),

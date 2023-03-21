@@ -111,9 +111,7 @@ class DenseROISchema(Schema):
     height = Int(required=True, description="Height of the ROI in pixels")
     valid_roi = Bool(
         required=True,
-        description=(
-            "Boolean indicating if the ROI is a valid " "cell or not"
-        ),
+        description=("Boolean indicating if the ROI is a valid cell or not"),
     )
     mask_matrix = List(
         List(Bool),

@@ -16,25 +16,30 @@ def _demix_point(
     flat_masks: sparse,
     pixels_per_mask: np.ndarray,
 ) -> Optional[np.ndarray]:
-    """
-    Helper function to run demixing for single point in time for a
+    """Helper function to run demixing for single point in time for a
     source with overlapping traces.
 
     Parameters
-    ==========
-    source_frame: values of movie source at the single time point,
-    unraveled in the x-y dimension (1d array of length HxW )
-    flat_masks: 2d-array of binary masks unraveled in the x-y dimension
-    mask traces: values of mask trace at single time point (1d-array of
+    ----------
+    source_frame: np.ndarray
+        values of movie source at the single time point,
+        unraveled in the x-y dimension (1d array of length HxW )
+    mask traces: np.ndarray
+        values of mask trace at single time point (1d-array of
         length n, where `n` is number of masks)
-    pixels_per_mask: Number of pixels for each mask associated with
+    flat_masks: sparse
+        2d-array of binary masks unraveled in the x-y dimension
+    pixels_per_mask: np.ndarray
+        Number of pixels for each mask associated with
         trace (1d-array of length `n`)
 
     Returns
-    =======
-    Array of demixed trace values for each mask if all trace data is
-    nonzero. Otherwise, returns None.
+    -------
+    Optional[np.ndarray]
+        Array of demixed trace values for each mask if all
+        trace data is nonzero. Otherwise, returns None.
     """
+
     mask_weighted_trace = mask_traces * pixels_per_mask
 
     # Skip if there is zero signal anywhere in one of the traces
@@ -61,22 +66,33 @@ def demix_time_dep_masks(
     masks: np.ndarray,
     max_block_size: int = 1000,
 ) -> Tuple[np.ndarray, list]:
-    """
-    Demix traces of potentially overlapping masks extraced from a single
+    """Demix traces of potentially overlapping masks extraced from a single
     2p recording.
 
-    :param raw_traces: 2d array of traces for each mask, of dimensions
+    Parameters
+    ----------
+    raw_traces: np.ndarray
+        2d array of traces for each mask, of dimensions
         (n, t), where `t` is the number of time points and `n` is the
         number of masks.
-    :param stack: 3d array representing a 1p recording movie, of
+    stack: np.ndarray
+        3d array representing a 1p recording movie, of
         dimensions (t, H, W) or corresponding hdf5 dataset.
-    :param masks: 3d array of binary roi masks, of shape (n, H, W),
+    masks: np.ndarray
+        3d array of binary roi masks, of shape (n, H, W),
         where `n` is the number of masks, and HW are the dimensions of
         an individual frame in the movie `stack`.
-    :max_block_size: int representing maximum number of movie frames to read
+    max_block_size: int
+        representing maximum number of movie frames to read
         at a time (-1 for full length `t` of `stack`) (the default is 1000)
-    :return: Tuple of demixed traces and whether each frame was skipped
-        in the demixing calculation.
+
+    Returns
+    -------
+    Tuple[np.ndarray, list]
+        demix_traces: np.ndarray
+            demixed trace
+        drop_frames: list
+            whether each frame was skipped in the demixing calculation
     """
     N, T = raw_traces.shape
     _, x, y = masks.shape
@@ -127,7 +143,7 @@ def plot_traces(
     roi_ind: int,
     save_file: Union[str, Path],
 ) -> None:
-    """Plot traces
+    """Plot raw and demix traces for a given ROI
 
     Parameters
     ----------
@@ -153,7 +169,7 @@ def find_zero_baselines(traces: np.ndarray) -> np.ndarray:
     with zero baselines.
 
     Parameters
-    -----------
+    ----------
     traces: np.ndarray
 
     Returns

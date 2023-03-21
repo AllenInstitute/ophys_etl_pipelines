@@ -57,12 +57,12 @@ def test_demix_point(
 def test_demix_raises_warning_for_singular_matrix(
     source_frame, mask_traces, flat_masks, pixels_per_mask, expected, caplog
 ):
-    result = dmx._demix_point(
-        source_frame, mask_traces, flat_masks, pixels_per_mask
-    )
     with caplog.at_level(logging.WARNING):
+        result = dmx._demix_point(
+            source_frame, mask_traces, flat_masks, pixels_per_mask
+        )
         assert caplog.records[0].msg == (
-            "Singular matrix, using least squares to " "solve."
+            "Singular matrix, using least squares to solve."
         )
         assert caplog.records[0].levelno == logging.WARNING
     np.testing.assert_equal(expected, result)

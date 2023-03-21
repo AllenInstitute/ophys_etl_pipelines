@@ -14,5 +14,3 @@ scikit-image~=0.19.3
 networkx<=2.8.8
 scikit-learn
 pydantic
-suite2p==0.10.2
-deepcell @ git+https://github.com/AllenInstitute/DeepCell.git

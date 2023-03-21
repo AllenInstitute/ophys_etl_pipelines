@@ -46,7 +46,7 @@ class DemixJob(ArgSchemaParser):
             trace_ids = [int(rid) for rid in f["roi_names"][()]]
 
         rois = self.__get_path(args, "roi_masks", False)
-        masks = np.zeros((len(rois), mask.shape[0], mask.shape[1]), dtype=bool)
+        masks = np.zeros((len(rois), movie_shape[0], movie_shape[1]), dtype=bool)
         valid = np.ones(len(rois), dtype=bool)
 
         for roi in rois:

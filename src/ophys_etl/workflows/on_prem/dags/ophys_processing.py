@@ -24,15 +24,14 @@ from ophys_etl.workflows.pipeline_modules.segmentation import \
     SegmentationModule
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 from ophys_etl.workflows.workflow_names import WorkflowName
-from ophys_etl.workflows.workflow_step_runs import \
-    get_well_known_file_for_latest_run, get_latest_run
+from ophys_etl.workflows.workflow_step_runs import get_latest_run
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 
 
 WORKFLOW_NAME = WorkflowName.OPHYS_PROCESSING
 
 
-def _get_most_recent_roi_classifier() -> int:
+def _get_roi_classifier() -> int:
     with Session(engine) as session:
         roi_classifier_training_run = get_latest_run(
             session=session,
@@ -202,7 +201,7 @@ def ophys_processing():
 
         @task_group
         def run_inference():
-            ensemble_id = _get_most_recent_roi_classifier()
+            ensemble_id = _get_roi_classifier()
             run_workflow_step(
                 module=roi_classification.InferenceModule,
                 workflow_step_name=(

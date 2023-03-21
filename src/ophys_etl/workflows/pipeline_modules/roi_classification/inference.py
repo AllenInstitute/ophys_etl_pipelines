@@ -57,8 +57,8 @@ class InferenceModule(PipelineModule):
         )
 
     @property
-    def queue_name(self) -> str:
-        return 'ROI_CLASSIFICATION_INFERENCE'
+    def queue_name(self) -> WorkflowStep:
+        return WorkflowStep.ROI_CLASSIFICATION_INFERENCE
 
     @property
     def inputs(self) -> Dict:

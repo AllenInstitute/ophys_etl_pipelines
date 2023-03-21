@@ -41,8 +41,7 @@ class WorkflowStep(SQLModel, table=True):
         # since we don't want to allow a given workflow to contain the same
         # workflow step multiple times
         UniqueConstraint(
-            'name', 'workflow_id', name='workflow_workflow_step_name_uc')
-        , )
+            'name', 'workflow_id', name='workflow_workflow_step_name_uc'), )
 
 
 class WorkflowStepRun(SQLModel, table=True):

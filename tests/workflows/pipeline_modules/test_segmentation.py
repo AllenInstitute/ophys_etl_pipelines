@@ -36,12 +36,11 @@ class TestSegmentation:
         os.makedirs(cls._db_path.parent, exist_ok=True)
 
         db_url = f'sqlite:///{cls._db_path}'
-        IntializeDBRunner(
+        cls._engine = IntializeDBRunner(
             input_data={
                 'db_url': db_url
             },
             args=[]).run()
-        cls._engine = create_engine(db_url)
         cls._rois_path = \
             Path(__file__).parent / 'resources' / 'rois.json'
 

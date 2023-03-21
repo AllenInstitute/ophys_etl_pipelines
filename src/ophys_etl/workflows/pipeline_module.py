@@ -1,6 +1,5 @@
 """Pipeline module"""
 import abc
-import datetime
 import logging
 import os
 from dataclasses import dataclass
@@ -133,7 +132,10 @@ class PipelineModule:
         else:
             path = self._ophys_experiment.output_dir / self.queue_name.value
 
-        path = path / datetime.datetime.now().strftime('%Y-%m-%d_%H:%m:%S-%f')
+        # TODO add timestamp to path
+        # path = path / datetime.datetime.now().
+        # strftime('%Y-%m-%d_%H:%m:%S-%f')
+
         return path
 
     @property

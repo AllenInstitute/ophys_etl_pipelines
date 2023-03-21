@@ -1,6 +1,3 @@
-import json
-from json import JSONDecodeError
-
 from sqlalchemy import event
 
 from ophys_etl.workflows.app_config.app_config import app_config

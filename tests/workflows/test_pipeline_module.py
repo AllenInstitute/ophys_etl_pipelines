@@ -5,6 +5,7 @@ from pathlib import Path
 import json
 
 import pytest
+from ophys_etl.workflows.workflow_steps import WorkflowStep
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
 
@@ -27,8 +28,8 @@ class _DummyMod(PipelineModule):
     _temp_out = tempfile.TemporaryDirectory()
 
     @property
-    def queue_name(self) -> str:
-        return 'queue_name'
+    def queue_name(self) -> WorkflowStep:
+        return WorkflowStep.ROI_CLASSIFICATION_INFERENCE
 
     @property
     def inputs(self) -> Dict:
@@ -74,17 +75,19 @@ class TestPipelineModule:
     def test_output_path(self):
         assert self._dummy_mod.output_path == \
                Path('/tmp') / 'specimen_3' / 'session_2' / 'experiment_1' / \
-               'queue_name'
+               self._dummy_mod.queue_name.value
 
     def test_output_metadata_path(self):
         assert self._dummy_mod.output_metadata_path == \
                Path('/tmp') / 'specimen_3' / 'session_2' / 'experiment_1' / \
-               'queue_name' / 'queue_name_1_output.json'
+               self._dummy_mod.queue_name.value / \
+               f'{self._dummy_mod.queue_name.value}_1_output.json'
 
     def test_input_args_path(self):
         assert self._dummy_mod.input_args_path == \
                Path('/tmp') / 'specimen_3' / 'session_2' / 'experiment_1' / \
-               'queue_name' / 'queue_name_1_input.json'
+               self._dummy_mod.queue_name.value / \
+               f'{self._dummy_mod.queue_name.value}_1_input.json'
 
     def test_write_input_args(self):
         self._dummy_mod.write_input_args()

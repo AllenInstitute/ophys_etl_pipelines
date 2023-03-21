@@ -17,18 +17,18 @@ setup_app_config(
                              'resources' / 'di_model.h5')
 )
 
-from ophys_etl.workflows.app_config.app_config import app_config
+from ophys_etl.workflows.app_config.app_config import app_config    # noqa E402
 
 from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     .mlflow_utils import \
-    MLFlowRun
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
+    MLFlowRun   # noqa E402
+from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
 
-from ophys_etl.workflows.pipeline_module import OutputFile
+from ophys_etl.workflows.pipeline_module import OutputFile  # noqa E402
 
 from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     .model_utils import \
-    download_trained_model
+    download_trained_model  # noqa E402
 
 
 class TestModelUtils:

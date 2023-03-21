@@ -76,7 +76,9 @@ def submit_job_and_wait_to_finish(
     module_kwargs: Optional[Dict] = None
 ) -> str:
     """
-
+    Submits slurm job and periodically checks whether it is finished by
+    reading the output of sacct command
+    
     Parameters
     ----------
     module

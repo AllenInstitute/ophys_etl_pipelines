@@ -1,3 +1,4 @@
+"""ROI classifier training DAG"""
 import datetime
 import json
 import time
@@ -37,6 +38,7 @@ def _download_trained_model(
     job_finish_res: str,
     mlflow_run_name: str
 ):
+    """Downloads trained model from s3 to local disk"""
     job_finish_res = json.loads(job_finish_res)
     trained_model_dest: OutputFile = (
         job_finish_res['module_outputs']

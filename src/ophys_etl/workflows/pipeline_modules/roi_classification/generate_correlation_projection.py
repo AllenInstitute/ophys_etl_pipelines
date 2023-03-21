@@ -56,7 +56,8 @@ class GenerateCorrelationProjectionModule(PipelineModule):
         return [
             OutputFile(
                 well_known_file_type=(
-                    WellKnownFileType.ROI_CLASSIFICATION_CORRELATION_PROJECTION_GRAPH),
+                    WellKnownFileType.
+                    ROI_CLASSIFICATION_CORRELATION_PROJECTION_GRAPH),
                 path=(self.output_path /
                       f'{self._ophys_experiment.id}_correlation_graph.pkl')
             )

@@ -2,8 +2,6 @@ import os
 import shutil
 from pathlib import Path
 
-import tempfile
-
 import boto3
 from ophys_etl.workflows.app_config.app_config import app_config
 

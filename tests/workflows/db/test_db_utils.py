@@ -39,12 +39,11 @@ class TestDBUtils:
         os.makedirs(cls._db_path.parent, exist_ok=True)
 
         db_url = f'sqlite:///{cls._db_path}'
-        IntializeDBRunner(
+        cls._engine = IntializeDBRunner(
             input_data={
                 'db_url': db_url
             },
             args=[]).run()
-        cls._engine = create_engine(db_url)
 
     def setup(self):
         self._initialize_db()
@@ -131,7 +130,8 @@ class TestDBUtils:
                 module_outputs=output_files,
                 ophys_experiment_id='1',
                 sqlalchemy_session=session,
-                storage_directory='/foo'
+                storage_directory='/foo',
+                workflow_name=WorkflowName.OPHYS_PROCESSING
             )
 
         with Session(self._engine) as session:

@@ -15,19 +15,19 @@ setup_app_config(
     test_di_base_model_path=Path(__file__).parent / 'resources' / 'di_model.h5'
 )
 
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
+from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
 
-from ophys_etl.workflows.pipeline_module import OutputFile
+from ophys_etl.workflows.pipeline_module import OutputFile  # noqa E402
 from ophys_etl.workflows.workflow_step_runs import get_latest_run, \
-    get_well_known_file_for_latest_run
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+    get_well_known_file_for_latest_run  # noqa E402
+from ophys_etl.workflows.workflow_steps import WorkflowStep # noqa E402
 
-from ophys_etl.workflows.db.db_utils import save_job_run_to_db
+from ophys_etl.workflows.db.db_utils import save_job_run_to_db  # noqa E402
 
-from ophys_etl.workflows.db.initialize_db import IntializeDBRunner
-from sqlmodel import create_engine, Session
+from ophys_etl.workflows.db.initialize_db import IntializeDBRunner  # noqa E402
+from sqlmodel import Session    # noqa E402
 
-from ophys_etl.workflows.workflow_names import WorkflowName
+from ophys_etl.workflows.workflow_names import WorkflowName # noqa E402
 
 
 class TestWorkflowStepRuns:
@@ -38,12 +38,11 @@ class TestWorkflowStepRuns:
         os.makedirs(cls._db_path.parent, exist_ok=True)
 
         db_url = f'sqlite:///{cls._db_path}'
-        IntializeDBRunner(
+        cls._engine = IntializeDBRunner(
             input_data={
                 'db_url': db_url
             },
             args=[]).run()
-        cls._engine = create_engine(db_url)
 
     def setup(self):
         self._initialize_db()

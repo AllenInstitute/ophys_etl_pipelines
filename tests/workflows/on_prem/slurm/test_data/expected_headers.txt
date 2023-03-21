@@ -2,7 +2,7 @@
 
 #SBATCH --cpus-per-task       32
 #SBATCH --gpus                0
-#SBATCH --job-name            SUITE2P_MOTION_CORRECTION_QUEUE_1
+#SBATCH --job-name            WorkflowStep.MOTION_CORRECTION_1
 #SBATCH --mail-type           NONE
 #SBATCH --mem                 250G
 #SBATCH --nodes               1

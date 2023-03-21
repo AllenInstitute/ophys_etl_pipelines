@@ -57,7 +57,7 @@ class MLFlowRun:
             )
         else:
             raise ValueError('provide either run_name or run_id')
-            
+
         self._run = run
 
     @staticmethod
@@ -118,7 +118,7 @@ class MLFlowRun:
         MLFlow run
         """
         return self._run
-    
+
     @property
     def child_runs(self) -> List["MLFlowRun"]:
         """
@@ -181,7 +181,7 @@ class MLFlowRun:
         model_path = urlparse(url=model_path)
         key = Path(model_path.path.lstrip('/'))
         return model_path.netloc, str(key)
-    
+
     @property
     def fold(self) -> str:
         """Return fold this model run was trained on

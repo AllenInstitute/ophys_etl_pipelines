@@ -1,16 +1,13 @@
 """Database interface"""
 import datetime
-import json
 import logging
 import os
 from pathlib import Path
 from typing import List, Union, Optional, Callable, Dict
 
-from sqlalchemy import event, create_engine
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select
 
-from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db.schemas import WorkflowStepRun, WellKnownFile, \
     WellKnownFileType, WorkflowStep, Workflow
 from ophys_etl.workflows.workflow_names import WorkflowName
@@ -149,7 +146,6 @@ def get_workflow_step_by_name(
     """
     statement = (
         select(WorkflowStep)
-        # .join(Workflow, Workflow.id == WorkflowStep.workflow_id)
         .where(WorkflowStep.name == name, Workflow.name == workflow))
     results = session.exec(statement)
     try:

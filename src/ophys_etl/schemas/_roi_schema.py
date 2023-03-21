@@ -10,7 +10,7 @@ class ExtractROISchema(Schema):
     id = Int(
         required=True,
         description=(
-            "Unique ID of the ROI, gets overwritten writting " "to LIMS"
+            "Unique ID of the ROI, gets overwritten writting to LIMS"
         ),
     )
     x = Int(

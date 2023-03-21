@@ -1,10 +1,28 @@
 from pathlib import Path
+from types import ModuleType
 from typing import List, Dict
 
 import json
 
+import pandas as pd
+from deepcell.cli.modules import inference
 from deepcell.datasets.model_input import ModelInput
+
+from ophys_etl.workflows.workflow_names import WorkflowName
+from ophys_etl.workflows.workflow_step_runs import get_latest_run
+from ophys_etl.workflows.workflow_steps import WorkflowStep
+
+from ophys_etl.workflows.well_known_file_types import WellKnownFileType
+
+from ophys_etl.workflows.db.db_utils import get_well_known_file_type
+
+from ophys_etl.workflows.db.schemas import ROIClassifierEnsemble, \
+    WellKnownFile, ROIClassifierInferenceResults, OphysROI
+from sqlalchemy import select
+from sqlmodel import Session
+
 from ophys_etl.workflows.app_config.app_config import app_config
+from ophys_etl.workflows.db import engine
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
@@ -30,10 +48,11 @@ class InferenceModule(PipelineModule):
         )
 
         thumbnails_dir: OutputFile = kwargs['thumbnails_dir']
-        rois_file: OutputFile = kwargs['rois_file']
+
+        self._ensemble = self._get_model_ensemble(
+            ensemble_id=kwargs['ensemble_id'])
 
         self._model_inputs_path = self._write_model_inputs_to_disk(
-            rois_path=rois_file.path,
             thumbnails_dir=thumbnails_dir.path
         )
 
@@ -50,28 +69,37 @@ class InferenceModule(PipelineModule):
                 'use_pretrained_model': model_params['use_pretrained_model'],
                 'model_architecture': model_params['model_architecture'],
                 'truncate_to_layer': model_params['truncate_to_layer']
-            }
+            },
+            'model_load_path': self._ensemble.path,
+            'save_path': self.output_path,
+            'mode': 'production',
+            'experiment_id': self.ophys_experiment.id
         }
 
     @property
     def outputs(self) -> List[OutputFile]:
-        pass
+        return [
+            OutputFile(
+                well_known_file_type=(
+                    WellKnownFileType.
+                    ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS),
+                path=(self.output_path /
+                      f'{self.ophys_experiment.id}_inference.csv')
+            )
+        ]
 
     @property
-    def _executable(self) -> str:
-        pass
+    def _executable(self) -> ModuleType:
+        return inference
 
     def _write_model_inputs_to_disk(
         self,
-        rois_path: Path,
         thumbnails_dir: Path
     ) -> Path:
         """Creates and writes model inputs to disk
 
         Parameters
         ----------
-        rois_path
-            Path to rois
         thumbnails_dir
             Path to classifier thumbnail images directory
 
@@ -80,14 +108,12 @@ class InferenceModule(PipelineModule):
         Path
             Path where model inputs file is saved
         """
-        with open(rois_path) as f:
-            rois = json.load(f)
-
+        rois = self._get_rois()
         model_inputs = [
             ModelInput.from_data_dir(
                 data_dir=thumbnails_dir,
                 experiment_id=self.ophys_experiment.id,
-                roi_id=roi['id'],
+                roi_id=str(roi.id),
                 channels=(
                     app_config.pipeline_steps.roi_classification.
                     input_channels)
@@ -104,7 +130,51 @@ class InferenceModule(PipelineModule):
         return out_path
 
     @staticmethod
-    def _get_mlflow_model_params() -> Dict:
+    def save_predictions_to_db(
+        output_files: Dict[str, OutputFile],
+        session: Session,
+        run_id: int,
+        ensemble_id: int
+    ):
+        preds_file = output_files[
+            WellKnownFileType.ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS.value]
+        preds = pd.read_csv(preds_file.path)
+
+        # renaming so that hyphen doesn't cause problems
+        preds.rename(columns={'roi-id': 'roi_id'}, inplace=True)
+
+        for pred in preds.itertuples(index=False):
+            inference_res = ROIClassifierInferenceResults(
+                roi_id=pred.roi_id,
+                ensemble_id=ensemble_id,
+                score=pred.y_score
+            )
+            session.add(inference_res)
+
+    @staticmethod
+    def _get_model_ensemble(
+            ensemble_id: int
+    ):
+        with Session(engine) as session:
+            model_file = get_well_known_file_type(
+                session=session,
+                name=WellKnownFileType.ROI_CLASSIFICATION_TRAINED_MODEL,
+                workflow=WorkflowName.ROI_CLASSIFIER_TRAINING,
+                workflow_step_name=WorkflowStep.ROI_CLASSIFICATION_TRAINING
+            )
+            statement = (
+                select(ROIClassifierEnsemble, WellKnownFile.path)
+                .where(
+                    ROIClassifierEnsemble.id == ensemble_id,
+                    WellKnownFile.workflow_step_run_id ==
+                    ROIClassifierEnsemble.workflow_step_run_id,
+                    WellKnownFile.well_known_file_type_id == model_file.id
+                )
+            )
+            res = session.exec(statement=statement).one()
+        return res
+
+    def _get_mlflow_model_params(self) -> Dict:
         """Pulls the mlflow run for `run_id` and fetches the params used
         for that run
 
@@ -114,8 +184,11 @@ class InferenceModule(PipelineModule):
             The params used to train the model
         """
         run = MLFlowRun(
-            run_name=(app_config.pipeline_steps.roi_classification.tracking.
-                      mlflow_run_name)
+            mlflow_experiment_name=(
+                app_config.pipeline_steps.roi_classification.training.tracking.
+                mlflow_experiment_name
+            ),
+            run_id=self._ensemble.mlflow_run_id
         )
         params = run.run.data.params
 
@@ -125,3 +198,23 @@ class InferenceModule(PipelineModule):
             if param['key'].startswith('model_params')
         }
         return model_params
+
+    def _get_rois(self) -> List[OphysROI]:
+        """
+        Returns
+        -------
+        ROIs from most recent segmentation run for `self.ophys_experiment.id`
+        """
+        with Session(engine) as session:
+            segmentation_run_id = get_latest_run(
+                session=session,
+                workflow_name=WorkflowName.OPHYS_PROCESSING,
+                workflow_step=WorkflowStep.SEGMENTATION,
+                ophys_experiment_id=self.ophys_experiment.id
+            )
+
+            rois = session.exec(
+                select(OphysROI)
+                .where(OphysROI.workflow_step_run_id == segmentation_run_id)
+            ).all()
+            return rois

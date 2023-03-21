@@ -26,22 +26,6 @@ class ModuleOutputFileDoesNotExistException(Exception):
     pass
 
 
-def fk_pragma_on_connect(dbapi_con, con_record):
-    """Needed for sqlite to enforce foreign key constraint"""
-    dbapi_con.execute('pragma foreign_keys=ON')
-
-
-def enable_fk_if_sqlite():
-    """Needed for sqlite to enforce foreign key constraint"""
-    db_conn = app_config.app_db.conn_string
-    db_conn = json.loads(db_conn)
-
-    if db_conn['conn_type'] == 'sqlite':
-        # enable foreign key constraint
-        engine = create_engine(f'sqlite:///{db_conn["host"]}')
-        event.listen(engine, 'connect', fk_pragma_on_connect)
-
-
 def save_job_run_to_db(
         workflow_name: WorkflowName,
         workflow_step_name: WorkflowStepEnum,

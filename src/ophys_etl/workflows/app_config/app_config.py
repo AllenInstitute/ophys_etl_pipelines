@@ -152,7 +152,7 @@ class _ROIClassification(ImmutableBaseModel):
     generate_correlation_projection: _GenerateCorrelationProjection
     generate_thumbnails: Optional[_GenerateThumbnails]
     training: _ROIClassifierTraining
-    # inference: _ROIClassifierInference
+    inference: Optional[_ROIClassifierInference]
 
 
 class _PipelineSteps(ImmutableBaseModel):
@@ -206,10 +206,4 @@ def load_config() -> AppConfig:
     return config
 
 
-def _set_environment_variables(config: AppConfig):
-    """Sets environment variables"""
-    os.environ['AIRFLOW_CONN_OPHYS_WORKFLOW_DB'] = config.app_db.conn_string
-
-
 app_config = load_config()
-_set_environment_variables(config=app_config)

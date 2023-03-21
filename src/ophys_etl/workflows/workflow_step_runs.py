@@ -46,7 +46,7 @@ def get_well_known_file_for_latest_run(
         path of well_known_file_type
     """
     with Session(engine) as session:
-        workflow_step_run_id = _get_latest_run(
+        workflow_step_run_id = get_latest_run(
             session=session,
             workflow_step=workflow_step,
             workflow_name=workflow_name,
@@ -77,7 +77,7 @@ def get_well_known_file_for_latest_run(
     return Path(well_known_file_path)
 
 
-def _get_latest_run(
+def get_latest_run(
     session: Session,
     workflow_step: WorkflowStepEnum,
     workflow_name: WorkflowName,

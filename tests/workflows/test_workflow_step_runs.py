@@ -18,7 +18,7 @@ setup_app_config(
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 
 from ophys_etl.workflows.pipeline_module import OutputFile
-from ophys_etl.workflows.workflow_step_runs import _get_latest_run, \
+from ophys_etl.workflows.workflow_step_runs import get_latest_run, \
     get_well_known_file_for_latest_run
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 
@@ -69,7 +69,7 @@ class TestWorkflowStepRuns:
                     workflow_name=workflow_name,
                     workflow_step_name=workflow_step_name
                 )
-                latest_run = _get_latest_run(
+                latest_run = get_latest_run(
                     session=session,
                     workflow_name=workflow_name,
                     workflow_step=workflow_step_name

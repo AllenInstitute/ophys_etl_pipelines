@@ -2,10 +2,9 @@
 from typing import Dict
 
 import argschema
-from sqlalchemy import create_engine, event
 from sqlmodel import SQLModel, Session
 
-from ophys_etl.workflows.db.db_utils import fk_pragma_on_connect
+from ophys_etl.workflows.db import get_engine
 from ophys_etl.workflows.db.schemas import Workflow, WorkflowStep, \
     WellKnownFileType
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType as \
@@ -74,6 +73,10 @@ def _create_workflow_steps_for_ophys_processing(
         ),
         'roi_classification_generate_thumbnails': WorkflowStep(
             name=WorkflowStepEnum.ROI_CLASSIFICATION_GENERATE_THUMBNAILS.value,
+            workflow_id=workflow.id
+        ),
+        'roi_classification_inference': WorkflowStep(
+            name=WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE.value,
             workflow_id=workflow.id
         )
     }
@@ -195,6 +198,11 @@ def _create_roi_classification_inference_well_known_file_types(
                   .ROI_CLASSIFICATION_THUMBNAIL_IMAGES.value),
             workflow_step_id=workflow_steps[
                 'roi_classification_generate_thumbnails'].id
+        ),
+        WellKnownFileType(
+            name=(WellKnownFileTypeEnum.
+                  ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS.value),
+            workflow_step_id=workflow_steps['roi_classification_inference'].id
         )
     ]
     for wkft in well_known_file_types:
@@ -306,13 +314,10 @@ class IntializeDBRunner(argschema.ArgSchemaParser):
     default_schema = InitializeDBSchema
 
     def run(self):
-        engine = create_engine(self.args['db_url'])
-        if self.args['db_url'].startswith('sqlite'):
-            # enable foreign key constraint
-            event.listen(engine, 'connect', fk_pragma_on_connect)
-
+        engine = get_engine(db_conn=self.args['db_url'])
         create_db_and_tables(engine)
         _populate_db(engine)
+        return engine
 
 
 if __name__ == "__main__":

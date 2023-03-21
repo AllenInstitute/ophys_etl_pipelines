@@ -1,5 +1,5 @@
 app_db:
-  conn_string: ''
+  conn_string: 'sqlite:////tmp/workflow.db'
 output_dir: '/tmp'
 lims_db:
   username: 'foo'

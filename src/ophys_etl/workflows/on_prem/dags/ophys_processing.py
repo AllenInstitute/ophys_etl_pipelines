@@ -4,9 +4,12 @@ import datetime
 from airflow.decorators import task_group
 from airflow.models import Param
 from airflow.models.dag import dag
+from ophys_etl.workflows.db.schemas import ROIClassifierEnsemble
+from sqlalchemy import select
+from sqlmodel import Session
 
 from ophys_etl.workflows.app_config.app_config import app_config
-from ophys_etl.workflows.db.db_utils import enable_fk_if_sqlite
+from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.on_prem.workflow_utils import run_workflow_step
 from ophys_etl.workflows.pipeline_modules import roi_classification
 from ophys_etl.workflows.pipeline_modules.denoising.denoising_finetuning \
@@ -21,10 +24,27 @@ from ophys_etl.workflows.pipeline_modules.segmentation import \
     SegmentationModule
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 from ophys_etl.workflows.workflow_names import WorkflowName
+from ophys_etl.workflows.workflow_step_runs import \
+    get_well_known_file_for_latest_run, get_latest_run
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 
 
 WORKFLOW_NAME = WorkflowName.OPHYS_PROCESSING
+
+
+def _get_most_recent_roi_classifier() -> int:
+    with Session(engine) as session:
+        roi_classifier_training_run = get_latest_run(
+            session=session,
+            workflow_name=WorkflowName.ROI_CLASSIFIER_TRAINING,
+            workflow_step=WorkflowStep.ROI_CLASSIFICATION_TRAINING
+        )
+        ensemble_id = session.exec(
+            select(ROIClassifierEnsemble.id)
+            .where(ROIClassifierEnsemble.workflow_step_run_id ==
+                   roi_classifier_training_run)
+        ).one()
+        return ensemble_id
 
 
 @dag(
@@ -180,10 +200,26 @@ def ophys_processing():
             return module_outputs[
                 WellKnownFileType.ROI_CLASSIFICATION_THUMBNAIL_IMAGES]
 
+        @task_group
+        def run_inference():
+            ensemble_id = _get_most_recent_roi_classifier()
+            run_workflow_step(
+                module=roi_classification.InferenceModule,
+                workflow_step_name=(
+                    WorkflowStep.ROI_CLASSIFICATION_INFERENCE),
+                workflow_name=WORKFLOW_NAME,
+                docker_tag=(app_config.pipeline_steps.roi_classification.
+                            inference.docker_tag),
+                module_kwargs={
+                    'ensemble_id': ensemble_id
+                }
+            )
+
         correlation_graph_file = correlation_projection_generation(
             denoised_ophys_movie_file=denoised_ophys_movie_file)
-        generate_thumbnails(
+        thumbnail_dir = generate_thumbnails(
             correlation_graph_file=correlation_graph_file)
+        thumbnail_dir >> run_inference()
 
     motion_corrected_ophys_movie_file = motion_correction()
     denoised_movie_file = denoising(
@@ -194,7 +230,5 @@ def ophys_processing():
         rois_file=rois_file
     )
 
-
-enable_fk_if_sqlite()
 
 ophys_processing()

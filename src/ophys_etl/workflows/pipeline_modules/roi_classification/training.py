@@ -1,7 +1,7 @@
 from types import ModuleType
 from typing import List, Dict
 
-from deepcell.cloud import train
+from deepcell.cli.modules.cloud import train
 from sqlmodel import Session
 
 from ophys_etl.workflows.db.schemas import ROIClassifierEnsemble, \

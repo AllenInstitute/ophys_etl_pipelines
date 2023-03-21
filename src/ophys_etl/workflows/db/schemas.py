@@ -76,6 +76,7 @@ class OphysROI(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     workflow_step_run_id: int = Field(
+        index=True,
         foreign_key='workflow_step_run.id'
     )
     x: int
@@ -102,14 +103,14 @@ class ROIClassifierTrainingRun(SQLModel, table=True):
     workflow_step_run_id since we train an ensemble"""
     __tablename__ = 'roi_classifier_training_run'
 
-    ensemble_id: int = Field(
-        foreign_key='roi_classifier_ensemble.id',
-        primary_key=True
-    )
     mlflow_run_id: str = Field(
         description='mlflow run id. MLFlow is used for tracking training '
                     'metadata',
         primary_key=True
+    )
+    ensemble_id: int = Field(
+        foreign_key='roi_classifier_ensemble.id',
+        index=True
     )
     sagemaker_job_id: str = Field(
         description='sagemaker job id. Model is trained on sagemaker.'
@@ -127,6 +128,21 @@ class ROIClassifierEnsemble(SQLModel, table=True):
     mlflow_run_id: str = Field(
         description='mlflow parent run for the ensemble training run'
     )
+
+
+class ROIClassifierInferenceResults(SQLModel, table=True):
+    """Each row is classifier prediction for a single ROI"""
+
+    __tablename__ = 'roi_classifier_inference_results'
+
+    roi_id: int = Field(primary_key=True,
+                        foreign_key='ophys_roi.id')
+    ensemble_id: int = Field(
+        primary_key=True,
+        foreign_key='roi_classifier_ensemble.id'
+    )
+    score: float = Field(
+        description='Classifier confidence that this ROI is a cell')
 
 
 class WellKnownFileType(SQLModel, table=True):

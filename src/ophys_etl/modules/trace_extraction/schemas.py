@@ -56,6 +56,9 @@ class TraceExtractionOutputSchema(DefaultSchema):
     roi_trace_file = H5FileExists(
         required=True,
         description="path to output h5 file containing roi traces")
+    neuropil_mask_file = H5FileExists(
+        required=True,
+        description="path to output h5 file containing neuropil masks")
     exclusion_labels = Nested(
         ExclusionLabel,
         many=True,

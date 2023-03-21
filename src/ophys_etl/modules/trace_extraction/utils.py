@@ -135,7 +135,7 @@ def calculate_roi_and_neuropil_traces(
     roi_traces = traces[:num_rois]
     neuropil_traces = traces[num_rois:]
 
-    return roi_traces, neuropil_traces, exclusions
+    return roi_traces, neuropil_traces, neuropil_masks, exclusions
 
 
 def write_trace_file(data, names, path):
@@ -197,7 +197,7 @@ def extract_traces(motion_corrected_stack: Union[str, Path],
     roi_names = [roi.label for roi in roi_mask_list]
 
     # extract traces
-    roi_traces, neuropil_traces, exclusions = \
+    roi_traces, neuropil_traces, neuropil_masks, exclusions = \
         calculate_roi_and_neuropil_traces(
             motion_corrected_stack, roi_mask_list, border)
 
@@ -207,8 +207,11 @@ def extract_traces(motion_corrected_stack: Union[str, Path],
     np_file = Path(storage_directory) / "neuropil_traces.h5"
     write_trace_file(neuropil_traces, roi_names, np_file)
 
+    np_mask_file = Path(storage_directory) / "neuropil_masks.h5"
+    write_trace_file(neuropil_masks, roi_names, np_mask_file)
     return {
         'neuropil_trace_file': str(np_file),
         'roi_trace_file': str(roi_file),
+        'neuropil_mask_file': str(np_mask_file),
         'exclusion_labels': exclusions
     }

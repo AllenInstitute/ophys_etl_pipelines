@@ -138,22 +138,26 @@ def calculate_roi_and_neuropil_traces(
     return roi_traces, neuropil_traces, neuropil_masks, exclusions
 
 
-def write_trace_file(data, names, path):
+def write_trace_file(data: np.ndarray, names: List[str], path: str):
     logging.debug("Writing {}".format(path))
 
     utf_dtype = h5py.special_dtype(vlen=str)
-    with h5py.File(path, 'w') as fil:
+    with h5py.File(path, "w") as fil:
         fil["data"] = data
-        fil.create_dataset("roi_names",
-                           data=np.array(names).astype(np.string_),
-                           dtype=utf_dtype)
+        fil.create_dataset(
+            "roi_names",
+            data=np.array(names).astype(np.string_),
+            dtype=utf_dtype,
+        )
 
 
-def write_mask_file(mask_objs_list, names, path):
+def write_mask_file(
+    mask_objs_list: List[NeuropilMask], names: List[str], path: str
+):
     logging.debug("Writing {}".format(path))
     names = np.array(names).astype(np.string_)
-    with h5py.File(path, 'w') as fil:
-        group = fil.create_group('masks')
+    with h5py.File(path, "w") as fil:
+        group = fil.create_group("masks")
         for name, mask_obj in zip(names, mask_objs_list):
             group.create_dataset(name, data=mask_obj.mask)
 

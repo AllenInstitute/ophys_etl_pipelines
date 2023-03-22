@@ -23,7 +23,7 @@ setup(
         # they don't play nice together. Install them separately
         'pytorch_deps': [
             'suite2p==0.10.2',
-            'deepcell @ git+https://github.com/AllenInstitute/DeepCell.git'
+            # 'deepcell @ git+https://github.com/AllenInstitute/DeepCell.git'
         ],
         'deepinterpolation': [
             'deepinterpolation @ git+https://github.com/danielsf/deepinterpolation@staging/ophys_etl'   # noqa E401

@@ -28,6 +28,6 @@ coverage_file_list=($(ls /tmp/.coverage_${ENV_SPECIFICATION}_${PYTHON_VERSION}*)
 echo "after combining "
 echo ${coverage_file_list[@]}
 
-/envs/${ENV_SPECIFICATION}/bin/coverage xml --data-file=${COVERAGE_FILE} \
--o /coverage_outputs_${PYTHON_VERSION}/${OUTPUT_XML} \
---rcfile .circleci/coveragerc_file
+#/envs/${ENV_SPECIFICATION}/bin/coverage xml --data-file=${COVERAGE_FILE} \
+#-o /coverage_outputs_${PYTHON_VERSION}/${OUTPUT_XML} \
+#--rcfile .circleci/coveragerc_file

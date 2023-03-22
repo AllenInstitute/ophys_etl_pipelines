@@ -45,16 +45,16 @@ RUN echo "use for ophys_etl "$(conda run --prefix ${OPHYS_ETL_ENV} which python)
 
 
 RUN conda create --prefix ${EVENT_DETECT_ENV} python=${PYTHON_VERSION}
-RUN git clone https://github.com/jewellsean/FastLZeroSpikeInference ./lzero \
+RUN git clone https://github.com/jewellsean/FastLZeroSpikeInference ./lzero
 RUN cd /repos/lzero && \
   git checkout ${LZEROCOMMIT} && \
   cd python && \
   ./make.sh
 RUN cd /repos
-RUN conda run --prefix ${EVENT_DETECT_ENV} pip install joblib \
-RUN conda run --prefix ${EVENT_DETECT_ENV} pip install --no-cache ./ophys_etl[workflow] \
-RUN conda run --prefix ${EVENT_DETECT_ENV} pip install coverage \
-RUN echo "use for event detection "$(conda run --prefix ${EVENT_DETECT_ENV} which python) \
+RUN conda run --prefix ${EVENT_DETECT_ENV} pip install joblib
+RUN conda run --prefix ${EVENT_DETECT_ENV} pip install --no-cache ./ophys_etl[workflow]
+RUN conda run --prefix ${EVENT_DETECT_ENV} pip install coverage
+RUN echo "use for event detection "$(conda run --prefix ${EVENT_DETECT_ENV} which python)
 RUN conda clean --all && \
   rm -rf /repos/lzero && \
   rm -rf /repos/suite2p

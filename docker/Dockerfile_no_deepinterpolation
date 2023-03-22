@@ -34,6 +34,7 @@ RUN apt-get -y install clang libhdf5-serial-dev g++ && \
     rm -rf /var/lib/apt/*
 
 RUN git clone -b ${OPHYS_ETL_TAG} https://github.com/AllenInstitute/ophys_etl_pipelines ./ophys_etl
+RUN conda update -n base -c defaults conda
 RUN conda create --prefix ${OPHYS_ETL_ENV} python=${PYTHON_VERSION} && \
     conda run --prefix ${OPHYS_ETL_ENV} conda install scipy && \
     # the following installs scipy/numpy with MKL backend,
@@ -44,8 +45,6 @@ RUN conda create --prefix ${OPHYS_ETL_ENV} python=${PYTHON_VERSION} && \
     conda run --prefix ${OPHYS_ETL_ENV} pip install coverage && \
     echo "use for ophys_etl "$(conda run --prefix ${OPHYS_ETL_ENV} which python)
 
-# fix issue `import cv2` raises ImportError: libGL.so.1: cannot open shared object file: No such file or directory
-RUN conda run --prefix ${OPHYS_ETL_ENV} conda install -c conda-forge opencv
 
 RUN conda create --prefix ${EVENT_DETECT_ENV} python=${PYTHON_VERSION} \
     && git clone https://github.com/jewellsean/FastLZeroSpikeInference ./lzero \

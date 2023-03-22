@@ -33,6 +33,9 @@ RUN apt-get -y update --allow-releaseinfo-change
 RUN apt-get -y install clang libhdf5-serial-dev g++ && \
     rm -rf /var/lib/apt/*
 
+# Fixes issue ImportError: libGL.so.1: cannot open shared object file: No such file or directory
+RUN apt-get update && apt-get install -y python3-opencv
+
 RUN git clone -b ${OPHYS_ETL_TAG} https://github.com/AllenInstitute/ophys_etl_pipelines ./ophys_etl
 RUN conda create --prefix ${OPHYS_ETL_ENV} python=${PYTHON_VERSION} && \
     conda run --prefix ${OPHYS_ETL_ENV} conda install scipy && \

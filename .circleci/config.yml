@@ -86,7 +86,6 @@ commands:
           docker_tag: deepinterpolation_${CIRCLE_SHA1}
           pytest_mark: deepinterpolation_only
           conda_env: ophys_etl
-          # ignore these tests since workflows deps not installed in this image
           test_directory: tests/modules/denoising/
       - test:
           test_name: "general"

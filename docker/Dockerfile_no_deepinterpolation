@@ -39,7 +39,7 @@ RUN conda run --prefix ${OPHYS_ETL_ENV} conda install scipy
 # if requirements.txt specifies a different version, these will get overwritten
 # and some other BLAS backend will be used - speed will decrease
 RUN conda run --prefix ${OPHYS_ETL_ENV} conda install scipy
-RUN conda run --prefix ${OPHYS_ETL_ENV} pip install --no-cache ./ophys_etl[workflow]
+RUN conda run --prefix ${OPHYS_ETL_ENV} pip install --no-cache ./ophys_etl[workflow,pytorch_deps]
 RUN conda run --prefix ${OPHYS_ETL_ENV} pip install coverage
 RUN echo "use for ophys_etl "$(conda run --prefix ${OPHYS_ETL_ENV} which python)
 

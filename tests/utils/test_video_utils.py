@@ -2,9 +2,7 @@ from collections import defaultdict
 
 import h5py
 import numpy as np
-import pathlib
 import pytest
-import tempfile
 
 import imageio_ffmpeg as mpg
 from ophys_etl.types import ExtractROI

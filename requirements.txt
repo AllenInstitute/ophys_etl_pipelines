@@ -10,7 +10,7 @@ moto
 boto3
 typing_extensions
 tifffile
-scikit-image
+scikit-image~=0.19.3
 networkx<=2.8.8
 scikit-learn
 pydantic

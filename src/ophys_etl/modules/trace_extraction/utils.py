@@ -149,6 +149,15 @@ def write_trace_file(data, names, path):
                            dtype=utf_dtype)
 
 
+def write_mask_file(mask_objs_list, names, path):
+    logging.debug("Writing {}".format(path))
+    names = np.array(names).astype(np.string_)
+    with h5py.File(path, 'w') as fil:
+        group = fil.create_group('masks')
+        for name, mask_obj in zip(names, mask_objs_list):
+            group.create_dataset(name, data=mask_obj.mask)
+
+
 def extract_traces(motion_corrected_stack: Union[str, Path],
                    motion_border: Dict,
                    storage_directory: Union[str, Path],
@@ -208,7 +217,8 @@ def extract_traces(motion_corrected_stack: Union[str, Path],
     write_trace_file(neuropil_traces, roi_names, np_file)
 
     np_mask_file = Path(storage_directory) / "neuropil_masks.h5"
-    write_trace_file(neuropil_masks, roi_names, np_mask_file)
+    write_mask_file(neuropil_masks, roi_names, np_mask_file)
+
     return {
         'neuropil_trace_file': str(np_file),
         'roi_trace_file': str(roi_file),

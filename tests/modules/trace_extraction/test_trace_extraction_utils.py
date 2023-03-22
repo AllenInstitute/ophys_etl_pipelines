@@ -49,7 +49,7 @@ def test_calculate_traces(video, roi_mask_list):
 # roi_mask_list, motion_border fixture from tests/conftest.py
 def test_calculate_roi_and_neuropil_traces(
         h5video, roi_mask_list, motion_border):
-    roi_traces, neuropil_traces, exclusions = \
+    roi_traces, neuropil_traces, neuropil_masks, exclusions = \
             calculate_roi_and_neuropil_traces(h5video,
                                               roi_mask_list,
                                               motion_border)
@@ -87,7 +87,7 @@ def test_extract_traces(h5video, roi_list_of_dicts,
                                   pd.DataFrame(output["exclusion_labels"]),
                                   check_like=True)
 
-    for k in ["neuropil_trace_file", "roi_trace_file"]:
+    for k in ["neuropil_trace_file", "roi_trace_file", "neuropil_mask_file"]:
         assert k in output
         assert Path(output[k]).exists()
         assert Path(output[k]).is_file()
@@ -99,5 +99,14 @@ def test_extract_traces(h5video, roi_list_of_dicts,
     with h5py.File(output["roi_trace_file"], "r") as f:
         r_names = f["roi_names"][()]
         r_traces = f["data"][()]
+    with h5py.File(output["neuropil_mask_file"], "r") as f:
+        nm_names = np.array(
+            list(f['masks'].keys()), dtype=np.string_).astype(object)
+        nmasks = [f['masks'][name][()] for name in nm_names]
+
     np.testing.assert_array_equal(n_names, r_names)
+    np.testing.assert_array_equal(nm_names, n_names)
     assert n_traces.shape == r_traces.shape
+    for mask in nmasks:
+        assert isinstance(mask, np.ndarray)
+        assert len(mask.shape) == 2

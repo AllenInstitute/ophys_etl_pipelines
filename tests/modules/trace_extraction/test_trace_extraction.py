@@ -42,7 +42,7 @@ def test_TraceExtraction(tmpdir, monkeypatch):
             f.create_dataset("data", data=0)
         np_mask_file = tmpdir / "npmasktraces.h5"
         with h5py.File(np_mask_file, "w") as f:
-            f.create_dataset("data", data=0)
+            f.create_dataset("mask", data=0)
         val = {
                 "neuropil_trace_file": str(npfile),
                 "roi_trace_file": str(tfile),

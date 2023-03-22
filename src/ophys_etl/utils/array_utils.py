@@ -126,16 +126,20 @@ def normalize_array(
     normalized = np.copy(array).astype(float)
     if lower_cutoff is not None:
         normalized[array < lower_cutoff] = lower_cutoff
+    else:
+        lower_cutoff = normalized.min()
 
     if upper_cutoff is not None:
         normalized[array > upper_cutoff] = upper_cutoff
+    else:
+        upper_cutoff = normalized.max()
 
-    max_ = normalized.max()
-    min_ = normalized.min()
-
-    normalized = (normalized - min_) / (max_ - min_)
+    normalized -= lower_cutoff
+    delta = upper_cutoff-lower_cutoff
+    normalized = normalized/delta
     normalized *= (final_max-final_min)
     normalized = np.round(normalized)
+    normalized += final_min
     normalized = normalized.astype(dtype)
     return normalized
 

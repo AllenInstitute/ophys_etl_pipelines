@@ -180,15 +180,6 @@ def test_get_max_and_mean():
                               frames_image_size),
                         dtype=int)
 
-    _, video_path = tempfile.mkstemp(
-        suffix='.h5')
-    video_path = pathlib.Path(video_path)
-
-    with h5py.File(video_path, 'w') as h5_file:
-        h5_file.create_dataset(name='data', data=data)
-
-    result = transformations.get_max_and_avg(video_path)
+    result = transformations.get_max_and_avg(data)
     np.testing.assert_array_equal(result['max'], 1)
     np.testing.assert_allclose(result['avg'], data.mean(axis=0))
-
-    video_path.unlink()

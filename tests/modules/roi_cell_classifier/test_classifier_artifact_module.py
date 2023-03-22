@@ -6,6 +6,7 @@ from unittest.mock import Mock, patch
 
 import h5py
 import numpy as np
+import pandas as pd
 import pytest
 from PIL import Image
 from deepcell.datasets.channel import Channel, channel_filename_prefix_map
@@ -84,13 +85,14 @@ class TestComputeClassifierArtifacts:
         args = self.args
         if is_training:
             args['is_training'] = True
-            args['labels_path'] = str(pathlib.Path(__file__).parent /
-                                      'resources' / 'labels.csv')
+            args['cell_labeling_app_host'] = 'foo'
         image_value = 100
 
         corr_img = np.ones((self.frames_image_size, self.frames_image_size))
         corr_img[self.centroid, self.centroid] = image_value
 
+        labels = pd.read_csv(pathlib.Path(__file__).parent / 'resources' /
+                             'labels.csv', dtype={'experiment_id': str})
         with patch('ophys_etl.modules.roi_cell_classifier.'
                    'compute_classifier_artifacts.graph_to_img',
                    Mock(return_value=corr_img)), \
@@ -99,7 +101,10 @@ class TestComputeClassifierArtifacts:
                       Mock(return_value=[self.extract_roi])), \
                 patch('ophys_etl.modules.roi_cell_classifier.'
                       'compute_classifier_artifacts.json.loads',
-                      Mock()):
+                      Mock()), \
+                patch('ophys_etl.modules.roi_cell_classifier.'
+                      'compute_classifier_artifacts.construct_dataset',
+                      Mock(return_value=labels)):
             classArtifacts = ClassifierArtifactsGenerator(
                 args=[], input_data=args)
             classArtifacts.run()
@@ -153,7 +158,7 @@ class TestComputeClassifierArtifacts:
             exp_id=str(self.exp_id))
 
         output_file_list = np.sort(glob(f'{self.output_path}/*.png'))
-        self.assertEqual(len(output_file_list), len(self.args['channels']))
+        assert len(output_file_list) == len(self.args['channels'])
 
     def test__generate_max_activation_image(self):
         """Test that max activation image is generated correctly"""
@@ -212,7 +217,7 @@ class TestComputeClassifierArtifacts:
             roi.get_centered_cutout(
                 image=mov[3],
                 height=self.args['cutout_size'],
-                width=self.args['cutout_size ']
+                width=self.args['cutout_size']
             )
         )
         np.testing.assert_array_equal(

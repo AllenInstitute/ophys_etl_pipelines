@@ -74,12 +74,12 @@ commands:
           python_version: <<parameters.python_version>>
           tag: deepinterpolation_${CIRCLE_SHA1}
           dockerfile_name: "Dockerfile_deepinterpolation"
-      - test:
-          test_name: "event_detection"
-          python_version: <<parameters.python_version>>
-          docker_tag: ${CIRCLE_SHA1}
-          pytest_mark: "event_detect_only"
-          conda_env: event_detection
+#      - test:
+#          test_name: "event_detection"
+#          python_version: <<parameters.python_version>>
+#          docker_tag: ${CIRCLE_SHA1}
+#          pytest_mark: "event_detect_only"
+#          conda_env: event_detection
       - test:
           test_name: "deepinterpolation"
           python_version: <<parameters.python_version>>

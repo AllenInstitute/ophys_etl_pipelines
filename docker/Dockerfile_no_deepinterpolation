@@ -33,7 +33,6 @@ RUN apt-get -y update --allow-releaseinfo-change
 RUN apt-get -y install g++
 
 RUN git clone -b ${OPHYS_ETL_TAG} https://github.com/AllenInstitute/ophys_etl_pipelines ./ophys_etl
-RUN conda update -n base -c defaults conda
 RUN conda create --prefix ${OPHYS_ETL_ENV} python=${PYTHON_VERSION}
 RUN conda run --prefix ${OPHYS_ETL_ENV} conda install scipy
 # the following installs scipy/numpy with MKL backend,

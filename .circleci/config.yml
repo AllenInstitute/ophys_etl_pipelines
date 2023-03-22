@@ -53,6 +53,7 @@ commands:
               --entrypoint /bin/bash \
               --read-only \
               --tmpfs /tmp \
+              --mount type=bind \
               -v $PWD/coverage_outputs_<<parameters.python_version>>:/coverage_outputs_<<parameters.python_version>> \
               alleninstitutepika/ophys_etl_pipelines:<<parameters.docker_tag>> \
               /repos/ophys_etl/.circleci/scripts/run_and_test.sh "<<parameters.pytest_mark>>" <<parameters.python_version>> <<parameters.conda_env>> <<parameters.test_name>>.xml <<parameters.test_directory>>

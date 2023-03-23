@@ -1,3 +1,4 @@
 [flake8]
+extend-ignore = E203
 per-file-ignores =
     src/ophys_etl/modules/event_detection/resources/event_decay_time_lookup.py:E501

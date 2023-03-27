@@ -1,5 +1,10 @@
-"""Denoisig inference pipeline module"""
+"""Denoising inference pipeline module"""
+from types import ModuleType
 from typing import List, Dict
+
+from ophys_etl.modules.denoising import inference
+
+from ophys_etl.workflows.workflow_steps import WorkflowStep
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.pipeline_module import OutputFile
@@ -13,13 +18,11 @@ class DenoisingInferenceModule(_DenoisingModule):
     def __init__(
         self,
         ophys_experiment: OphysExperiment,
-        debug: bool = False,
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
         super().__init__(
             ophys_experiment=ophys_experiment,
-            debug=debug,
             prevent_file_overwrites=prevent_file_overwrites,
             **kwargs
         )
@@ -29,8 +32,8 @@ class DenoisingInferenceModule(_DenoisingModule):
         self._trained_model_path = str(trained_model_file.path)
 
     @property
-    def queue_name(self) -> str:
-        return 'DEEPINTERPOLATION_INFERENCE'
+    def queue_name(self) -> WorkflowStep:
+        return WorkflowStep.DENOISING_INFERENCE
 
     @property
     def inputs(self) -> Dict:
@@ -67,5 +70,5 @@ class DenoisingInferenceModule(_DenoisingModule):
         ]
 
     @property
-    def _executable(self) -> str:
-        return 'ophys_etl.modules.denoising.inference'
+    def _executable(self) -> ModuleType:
+        return inference

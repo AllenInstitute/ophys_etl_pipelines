@@ -1,6 +1,9 @@
 """Motion correction pipeline module"""
+from types import ModuleType
 from typing import List, Dict
 
+from ophys_etl.modules import suite2p_registration
+from ophys_etl.workflows.workflow_steps import WorkflowStep
 from sqlmodel import Session
 
 from ophys_etl.utils.motion_border import get_max_correction_from_file
@@ -14,12 +17,12 @@ class MotionCorrectionModule(PipelineModule):
     """Wrapper around motion correction module"""
 
     @property
-    def _executable(self) -> str:
-        return 'ophys_etl.modules.suite2p_registration'
+    def _executable(self) -> ModuleType:
+        return suite2p_registration
 
     @property
-    def queue_name(self):
-        return 'SUITE2P_MOTION_CORRECTION_QUEUE'
+    def queue_name(self) -> WorkflowStep:
+        return WorkflowStep.MOTION_CORRECTION
 
     @property
     def inputs(self):

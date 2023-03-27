@@ -11,7 +11,7 @@ import logging
 
 import yaml
 from paramiko import SSHClient
-from pydantic import StrictInt, StrictStr, Field
+from pydantic import StrictInt, StrictStr, Field, StrictBool
 from simple_slurm import Slurm as SimpleSlurm
 
 from ophys_etl.workflows.app_config.app_config import app_config
@@ -28,6 +28,10 @@ class _SlurmSettings(ImmutableBaseModel):
     gpus: Optional[StrictInt] = Field(
         description='Number of GPUs',
         default=0
+    )
+    request_additional_tmp_storage: StrictBool = Field(
+        default=False,
+        description='If True, creates additional tmp storage'
     )
 
 
@@ -194,7 +198,8 @@ class Slurm:
             Where to write slurm job logs to
         tmp_storage_adjustment_factor
             Multiplies the ophys experiment file size by this amount to give
-            some breathing room to the amount of tmp storage to reserve
+            some breathing room to the amount of tmp storage to reserve.
+            Not used if request_additional_tmp_storage is False
         """
         self._pipeline_module = pipeline_module
         self._ophys_experiment_id = ophys_experiment_id
@@ -234,7 +239,7 @@ class Slurm:
         """
         args = ' '.join([f'{x}' for x in args])
         kwargs = ' '.join([f'--{k} {v}' for k, v in kwargs.items()])
-        if self._pipeline_module.debug:
+        if app_config.is_debug:
             cmd = f'{self._pipeline_module.executable} {args} {kwargs}'
         else:
             docker_tag = self._pipeline_module.docker_tag
@@ -312,26 +317,28 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
             Where to write slurm job logs to
         tmp_storage_adjustment_factor
             Multiplies the ophys experiment file size by this amount to give
-            some breathing room to the amount of tmp storage to reserve
+            some breathing room to the amount of tmp storage to reserve.
+            Not used if request_additional_tmp_storage is False
         Returns
         -------
         The slurm script headers
         """
-        if self._pipeline_module.debug:
+        if app_config.is_debug or \
+                not self._slurm_settings.request_additional_tmp_storage:
             tmp = 0
         else:
             tmp = self._get_tmp_storage(
                 adjustment_factor=tmp_storage_adjustment_factor)
         cpus_per_task = \
-            1 if self._pipeline_module.debug else \
+            1 if app_config.is_debug else \
             self._slurm_settings.cpus_per_task
         mem = \
-            1 if self._pipeline_module.debug else self._slurm_settings.mem
+            1 if app_config.is_debug else self._slurm_settings.mem
         time = \
-            '00:10:00' if self._pipeline_module.debug else \
+            '00:10:00' if app_config.is_debug else \
             self._slurm_settings.time
         gpus = \
-            0 if self._pipeline_module.debug else \
+            0 if app_config.is_debug else \
             self._slurm_settings.gpus
         s = SimpleSlurm(
             partition='braintv',

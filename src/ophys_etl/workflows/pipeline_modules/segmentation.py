@@ -1,7 +1,11 @@
 import logging
+from types import ModuleType
 from typing import List, Dict
 
 import json
+
+from ophys_etl.modules import segment_postprocess
+from ophys_etl.workflows.workflow_steps import WorkflowStep
 from sqlmodel import Session
 
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
@@ -16,13 +20,11 @@ class SegmentationModule(PipelineModule):
     def __init__(
         self,
         ophys_experiment: OphysExperiment,
-        debug: bool = False,
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
         super().__init__(
             ophys_experiment=ophys_experiment,
-            debug=debug,
             prevent_file_overwrites=prevent_file_overwrites,
             **kwargs
         )
@@ -32,8 +34,8 @@ class SegmentationModule(PipelineModule):
         self._denoised_ophys_movie_file = str(denoised_ophys_movie_file.path)
 
     @property
-    def queue_name(self) -> str:
-        return 'SUITE2P_SEGMENTATION_QUEUE'
+    def queue_name(self) -> WorkflowStep:
+        return WorkflowStep.SEGMENTATION
 
     @property
     def inputs(self) -> Dict:
@@ -56,8 +58,8 @@ class SegmentationModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> str:
-        return 'ophys_etl.modules.segment_postprocess'
+    def _executable(self) -> ModuleType:
+        return segment_postprocess
 
     @staticmethod
     def save_rois_to_db(

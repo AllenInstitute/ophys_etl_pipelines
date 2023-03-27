@@ -1,5 +1,5 @@
 app_db:
-  conn_string: ''
+  conn_string: 'sqlite:////tmp/workflow.db'
 output_dir: '/tmp'
 lims_db:
   username: 'foo'
@@ -8,11 +8,18 @@ singularity:
   username: 'foo'
   password: 'bar'
 pipeline_steps:
+  default_docker_tag: 'main'
   denoising:
     base_model_path: ''
     docker_tag: 'deepinterpolation_develop'
-  motion_correction:
-    docker_tag: 'develop'
-  segmentation:
-    docker_tag: 'develop'
-
+  roi_classification:
+    cell_labeling_app_host: 'foo'
+    input_channels: ['MASK', 'MAX_PROJECTION']
+    generate_correlation_projection:
+      n_workers: 1
+    training:
+      s3:
+        bucket_name: 'foo'
+      tracking:
+        mlflow_server_uri: 'foo'
+        mlflow_experiment_name: 'foo'

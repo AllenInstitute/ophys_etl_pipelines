@@ -35,9 +35,9 @@ commands:
         type: string
       conda_env:
         type: string
-      ignore_glob:
+      test_directory:
         type: string
-        default: ""
+        default: tests
     steps:
       - run:
           name: Run docker image << parameters.test_name >> tests
@@ -55,7 +55,7 @@ commands:
               --tmpfs /tmp \
               -v $PWD/coverage_outputs_<<parameters.python_version>>:/coverage_outputs_<<parameters.python_version>> \
               alleninstitutepika/ophys_etl_pipelines:<<parameters.docker_tag>> \
-              /repos/ophys_etl/.circleci/scripts/run_and_test.sh "<<parameters.pytest_mark>>" <<parameters.python_version>> <<parameters.conda_env>> <<parameters.test_name>>.xml <<parameters.ignore_glob>>
+              /repos/ophys_etl/.circleci/scripts/run_and_test.sh "<<parameters.pytest_mark>>" <<parameters.python_version>> <<parameters.conda_env>> <<parameters.test_name>>.xml <<parameters.test_directory>>
 
 
   build_and_test:
@@ -86,8 +86,7 @@ commands:
           docker_tag: deepinterpolation_${CIRCLE_SHA1}
           pytest_mark: deepinterpolation_only
           conda_env: ophys_etl
-          # ignore these tests since workflows deps not installed in this image
-          ignore_glob: tests/workflows/
+          test_directory: tests/modules/denoising/
       - test:
           test_name: "general"
           python_version: <<parameters.python_version>>

@@ -1,17 +1,16 @@
 """Database interface"""
 import datetime
-import json
 import logging
+import os
 from pathlib import Path
-from typing import List, Union, Optional, Callable
+from typing import List, Union, Optional, Callable, Dict
 
-from sqlalchemy import event, create_engine
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select
 
-from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db.schemas import WorkflowStepRun, WellKnownFile, \
-    WellKnownFileType, WorkflowStep
+    WellKnownFileType, WorkflowStep, Workflow
+from ophys_etl.workflows.workflow_names import WorkflowName
 from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType as \
     WellKnownFileTypeEnum
@@ -24,38 +23,26 @@ class ModuleOutputFileDoesNotExistException(Exception):
     pass
 
 
-def fk_pragma_on_connect(dbapi_con, con_record):
-    """Needed for sqlite to enforce foreign key constraint"""
-    dbapi_con.execute('pragma foreign_keys=ON')
-
-
-def enable_fk_if_sqlite():
-    """Needed for sqlite to enforce foreign key constraint"""
-    db_conn = app_config.app_db.conn_string
-    db_conn = json.loads(db_conn)
-
-    if db_conn['conn_type'] == 'sqlite':
-        # enable foreign key constraint
-        engine = create_engine(f'sqlite:///{db_conn["host"]}')
-        event.listen(engine, 'connect', fk_pragma_on_connect)
-
-
 def save_job_run_to_db(
+        workflow_name: WorkflowName,
         workflow_step_name: WorkflowStepEnum,
         start: datetime.datetime,
         end: datetime.datetime,
-        ophys_experiment_id: str,
         module_outputs: List[OutputFile],
         sqlalchemy_session: Session,
         storage_directory: Union[Path, str],
+        ophys_experiment_id: Optional[str] = None,
         validate_files_exist: bool = True,
-        additional_steps: Optional[Callable] = None
+        additional_steps: Optional[Callable] = None,
+        additional_steps_kwargs: Optional[Dict] = None
 ):
     """
     Inserts job run in db
 
     Parameters
     ----------
+    workflow_name
+        Name of the workflow
     workflow_step_name
         Name of the workflow step to log data for
     start
@@ -63,7 +50,9 @@ def save_job_run_to_db(
     end
         End datetime of workflow step run
     ophys_experiment_id
-        Identifier for experiment associated with this workflow step run
+        Identifier for experiment associated with this workflow step run.
+        None if this workflow step is not associated with a specific
+        ophys experiment
     module_outputs
         What files are output by this workflow step run
     validate_files_exist
@@ -78,20 +67,21 @@ def save_job_run_to_db(
             - session: sqlalchemy Session,
             - output_files: dict mapping well known file type to OutputFile
             - run_id: workflow step run id, int
+    additional_steps_kwargs
+        Kwargs to send to `additional_steps`
     """
 
     if validate_files_exist:
-        for out in module_outputs:
-            if not Path(out.path).exists():
-                raise ModuleOutputFileDoesNotExistException(
-                    f'Expected {out.well_known_file_type} to '
-                    f'exist at {out.path} but it did not')
+        _validate_files_exist(
+            output_files=module_outputs
+        )
     logger.info(f'Logging output data to database for workflow step '
                 f'{workflow_step_name}')
 
     # 1. get the workflow step
-    workflow_step = _get_workflow_step_by_name(
+    workflow_step = get_workflow_step_by_name(
         session=sqlalchemy_session,
+        workflow=workflow_name,
         name=workflow_step_name
     )
 
@@ -107,9 +97,11 @@ def save_job_run_to_db(
 
     # 3. add well known files for each output file
     for out in module_outputs:
-        wkft = _get_well_known_file_type(
+        wkft = get_well_known_file_type(
             session=sqlalchemy_session,
-            name=out.well_known_file_type
+            name=out.well_known_file_type,
+            workflow=workflow_name,
+            workflow_step_name=workflow_step_name
         )
         wkf = WellKnownFile(
             workflow_step_run_id=workflow_step_run.id,
@@ -124,38 +116,112 @@ def save_job_run_to_db(
             output_files={
                 x.well_known_file_type.value: x for x in module_outputs
             },
-            run_id=workflow_step_run.id
+            run_id=workflow_step_run.id,
+            **additional_steps_kwargs if additional_steps_kwargs is not None
+            else {}
         )
     sqlalchemy_session.commit()
 
 
-def _get_workflow_step_by_name(
+def get_workflow_step_by_name(
     session,
-    name: WorkflowStepEnum
+    name: WorkflowStepEnum,
+    workflow: WorkflowName
 ) -> WorkflowStep:
+    """
+    Get workflow step by name
+
+    Parameters
+    ----------
+    session
+        sqlalchemy session
+    name
+        workflow step name
+    workflow
+        workflow name
+
+    Returns
+    -------
+    WorkflowStep
+    """
     statement = (
         select(WorkflowStep)
-        .where(WorkflowStep.name == name))
+        .where(WorkflowStep.name == name, Workflow.name == workflow))
     results = session.exec(statement)
     try:
         workflow_step = results.one()
     except NoResultFound:
-        logger.error(f'Workflow step {name} not found')
+        logger.error(f'Workflow step {name} not found for workflow {workflow}')
         raise
     return workflow_step
 
 
-def _get_well_known_file_type(
+def get_well_known_file_type(
     session,
-    name: WellKnownFileTypeEnum
+    name: WellKnownFileTypeEnum,
+    workflow_step_name: WorkflowStepEnum,
+    workflow: WorkflowName
 ) -> WellKnownFileType:
+    """
+    Get well known file type by name
+
+    Parameters
+    ----------
+    session
+        sqlalchemy session
+    name
+        well known file type name
+    workflow_step_name
+        workflow step name
+    workflow
+        workflow name
+
+    Returns
+    -------
+    WellKnownFileType
+    """
+    workflow_step = get_workflow_step_by_name(
+        session=session,
+        name=workflow_step_name,
+        workflow=workflow
+    )
     statement = (
         select(WellKnownFileType)
-        .where(WellKnownFileType.name == name))
+        .where(WellKnownFileType.name == name,
+               WellKnownFileType.workflow_step_id == workflow_step.id))
     results = session.exec(statement)
     try:
         wkft = results.one()
     except NoResultFound:
-        logger.error(f'Well-known file type {name} not found')
+        logger.error(f'Well-known file type {name} not found for workflow '
+                     f'step {workflow_step_name}, workflow {workflow}')
         raise
     return wkft
+
+
+def _validate_files_exist(
+        output_files: List[OutputFile]
+):
+    """Checks that all output files exist.
+    If an output file is a directory, makes sure that it is not empty
+
+    Parameters
+    ----------
+    output_files
+        List of output files to check
+
+    Raises
+    ------
+    `ModuleOutputFileDoesNotExistException`
+        If any of the files don't exist or dir is empty
+    """
+    for out in output_files:
+        if Path(out.path).is_dir():
+            if len(os.listdir(out.path)) == 0:
+                raise ModuleOutputFileDoesNotExistException(
+                    f'Directory {out.path} is empty'
+                )
+        if not Path(out.path).exists():
+            raise ModuleOutputFileDoesNotExistException(
+                f'Expected {out.well_known_file_type} to '
+                f'exist at {out.path} but it did not')

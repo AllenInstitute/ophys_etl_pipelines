@@ -78,18 +78,45 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
 def submit_job(
         module: Type[PipelineModule],
         config_path: str,
+        ophys_experiment_id: Optional[str] = None,
         module_kwargs: Optional[Dict] = None,
         docker_tag: str = 'main',
         **context
 ) -> Dict:
+    """
+
+    Parameters
+    ----------
+    module
+        `PipelineModule` to submit job for
+    config_path
+        Path to slurm config for this job
+    ophys_experiment_id
+        Optional ophys experiment id. If not given, will try to pull from
+        airflow params
+    module_kwargs
+        Optional kwargs to send to `PipelineModule`
+    docker_tag
+        Docker tag to use to run job
+    context
+        airflow context
+
+    Returns
+    -------
+    Dict with keys
+        - job_id: slurm job id
+        - module_outputs: Expected List[OutputFile] for module
+        - storage_directory: where module is writing outputs to
+    """
     if module_kwargs is None:
         module_kwargs = {}
 
-    ophys_experiment_id = context['params']['ophys_experiment_id']
-    oe = OphysExperiment.from_id(id=ophys_experiment_id)
+    if ophys_experiment_id is None:
+        ophys_experiment_id = context['params'].get('ophys_experiment_id')
+    oe = OphysExperiment.from_id(id=ophys_experiment_id) \
+        if ophys_experiment_id is not None else None
     mod = module(
         ophys_experiment=oe,
-        debug=context['params']['debug'],
         prevent_file_overwrites=context['params']['prevent_file_overwrites'],
         docker_tag=docker_tag,
         **module_kwargs

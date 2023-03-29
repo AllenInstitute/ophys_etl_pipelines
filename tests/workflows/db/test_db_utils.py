@@ -131,6 +131,7 @@ class TestDBUtils:
                 ophys_experiment_id='1',
                 sqlalchemy_session=session,
                 storage_directory='/foo',
+                log_path='/foo',
                 workflow_name=WorkflowName.OPHYS_PROCESSING
             )
 

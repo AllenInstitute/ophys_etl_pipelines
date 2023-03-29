@@ -91,6 +91,7 @@ class TestTraining:
                 ophys_experiment_id='1',
                 sqlalchemy_session=session,
                 storage_directory='/foo',
+                log_path='/foo',
                 additional_steps=TrainingModule.save_trained_model_to_db,
                 additional_steps_kwargs={
                   'mlflow_parent_run_name': mlflow_parent_run_name

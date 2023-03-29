@@ -65,6 +65,7 @@ class TestWorkflowStepRuns:
                     sqlalchemy_session=session,
                     ophys_experiment_id=ophys_experiment_id,
                     storage_directory='foo',
+                    log_path='foo',
                     workflow_name=workflow_name,
                     workflow_step_name=workflow_step_name
                 )
@@ -101,6 +102,7 @@ class TestWorkflowStepRuns:
                     sqlalchemy_session=session,
                     ophys_experiment_id=ophys_experiment_id,
                     storage_directory='foo',
+                    log_path='foo',
                     workflow_name=workflow_name,
                     workflow_step_name=workflow_step_name
                 )

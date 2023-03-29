@@ -110,6 +110,7 @@ class TestInference:
                 ophys_experiment_id='1',
                 sqlalchemy_session=session,
                 storage_directory='/foo',
+                log_path='/foo',
                 additional_steps=InferenceModule.save_predictions_to_db,
                 additional_steps_kwargs={
                     # only 1 inserted, so we can assume id is 1
@@ -138,6 +139,7 @@ class TestInference:
                 ophys_experiment_id='1',
                 sqlalchemy_session=session,
                 storage_directory='/foo',
+                log_path='/foo',
                 additional_steps=SegmentationModule.save_rois_to_db,
                 workflow_name=WorkflowName.OPHYS_PROCESSING
             )
@@ -165,6 +167,7 @@ class TestInference:
                 ophys_experiment_id='1',
                 sqlalchemy_session=session,
                 storage_directory='/foo',
+                log_path='/foo',
                 additional_steps=TrainingModule.save_trained_model_to_db,
                 additional_steps_kwargs={
                   'mlflow_parent_run_name': cls._mlflow_parent_run_name

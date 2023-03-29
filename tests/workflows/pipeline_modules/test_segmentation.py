@@ -63,6 +63,7 @@ class TestSegmentation:
                 ophys_experiment_id='1',
                 sqlalchemy_session=session,
                 storage_directory='/foo',
+                log_path='/foo',
                 additional_steps=SegmentationModule.save_rois_to_db,
                 workflow_name=WorkflowName.OPHYS_PROCESSING
             )

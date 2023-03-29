@@ -115,6 +115,7 @@ def submit_job_and_wait_to_finish(
     )(
         job_id=job_submit_res['job_id'],
         storage_directory=job_submit_res['storage_directory'],
+        log_path=job_submit_res['log_path'],
         module_outputs=(
             job_submit_res['module_outputs'])
     )

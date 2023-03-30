@@ -1,6 +1,7 @@
 import h5py
+import json
 import numpy as np
-
+from pathlib import Path
 import ophys_etl.modules.trace_extraction.__main__ as temod
 
 
@@ -52,3 +53,10 @@ def test_TraceExtraction(tmpdir, monkeypatch):
     monkeypatch.setattr(temod, "extract_traces", mock_extract_traces)
     te = temod.TraceExtraction(input_data=args, args=[])
     te.run()
+
+    assert Path(outj).is_file()
+    with open(outj, "r") as f:
+        j = json.load(f)
+    assert Path(j['roi_trace_file']).is_file()
+    assert Path(j['neuropil_trace_file']).is_file()
+    assert Path(j['neuropil_mask_file']).is_file()

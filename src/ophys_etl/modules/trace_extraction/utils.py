@@ -4,15 +4,19 @@ import h5py
 import numpy as np
 from typing import List, Union, Dict, Tuple
 from pathlib import Path
-import pandas as pd
 
-from ophys_etl.utils.roi_masks import (NeuropilMask, create_roi_mask_array,
-                                       validate_mask, create_roi_masks, Mask)
+from ophys_etl.utils.roi_masks import (
+    NeuropilMask,
+    create_roi_mask_array,
+    validate_mask,
+    create_roi_masks,
+    Mask,
+)
 
 
-def calculate_traces(stack: np.ndarray,
-                     mask_list: List[Mask],
-                     block_size: int = 1000) -> Tuple[np.ndarray, List[Dict]]:
+def calculate_traces(
+    stack: np.ndarray, mask_list: List[Mask], block_size: int = 1000
+) -> Tuple[np.ndarray, List[Dict]]:
     """
     Calculates the average response of the specified masks in the
     image stack
@@ -48,10 +52,13 @@ def calculate_traces(stack: np.ndarray,
             traces[i, :] = np.nan
             valid_masks[i] = False
             exclusions.extend(current_exclusions)
-            reasons = ", ".join([item["exclusion_label_name"]
-                                 for item in current_exclusions])
-            logging.warning("unable to extract traces for mask "
-                            "\"{}\": {} ".format(mask.label, reasons))
+            reasons = ", ".join(
+                [item["exclusion_label_name"] for item in current_exclusions]
+            )
+            logging.warning(
+                "unable to extract traces for mask "
+                '"{}": {} '.format(mask.label, reasons)
+            )
             continue
 
         if not isinstance(mask.mask, np.ndarray):
@@ -62,25 +69,30 @@ def calculate_traces(stack: np.ndarray,
     for frame_num in range(0, num_frames, block_size):
         if frame_num % block_size == 0:
             logging.debug("frame " + str(frame_num) + " of " + str(num_frames))
-        frames = stack[frame_num:frame_num+block_size]
+        frames = stack[frame_num : frame_num + block_size]
 
         for i in range(len(mask_list)):
             if not valid_masks[i]:
                 continue
 
             mask = mask_list[i]
-            subframe = frames[:, mask.y:mask.y + mask.height,
-                              mask.x:mask.x + mask.width]
+            subframe = frames[
+                :, mask.y : mask.y + mask.height, mask.x : mask.x + mask.width
+            ]
 
             total = subframe[:, mask.mask].sum(axis=1)
-            traces[i, frame_num:frame_num+block_size] = total / mask_areas[i]
+            traces[i, frame_num : frame_num + block_size] = (
+                total / mask_areas[i]
+            )
 
     return traces, exclusions
 
 
 def calculate_roi_and_neuropil_traces(
-        movie_h5: Union[str, Path, np.ndarray], roi_mask_list: List[Mask],
-        motion_border: List[int]) -> Tuple[np.ndarray, np.ndarray, List[Dict]]:
+    movie_h5: Union[str, Path, np.ndarray],
+    roi_mask_list: List[Mask],
+    motion_border: List[int],
+) -> Tuple[np.ndarray, np.ndarray, List[Dict]]:
     """
     calculates neuropil masks for each ROI and then calculates both ROI trace
     and neuropil trace
@@ -115,9 +127,9 @@ def calculate_roi_and_neuropil_traces(
     # create neuropil masks for the central ROIs
     neuropil_mask_list = []
     for m in roi_mask_list:
-        nmask = NeuropilMask.create_neuropil_mask(m, motion_border,
-                                                  combined_mask,
-                                                  "neuropil for " + m.label)
+        nmask = NeuropilMask.create_neuropil_mask(
+            m, motion_border, combined_mask, "neuropil for " + m.label
+        )
         neuropil_mask_list.append(nmask)
 
     num_rois = len(roi_mask_list)
@@ -152,6 +164,7 @@ def write_trace_file(data: np.ndarray, names: List[str], path: str):
             dtype=utf_dtype,
         )
 
+
 def create_roi_dict(id, x, y, width, height, mask):
     return {
         "id": id,
@@ -159,8 +172,9 @@ def create_roi_dict(id, x, y, width, height, mask):
         "y": int(y),
         "width": int(width),
         "height": int(height),
-        "mask": mask.astype(int).tolist()
-        }
+        "mask": mask.astype(int).tolist(),
+    }
+
 
 def write_mask_file(
     neuropil_mask_list: List[NeuropilMask], ids: List[str], path: str
@@ -171,19 +185,24 @@ def write_mask_file(
     y_coordinates = [mask.y for mask in neuropil_mask_list]
     widths = [mask.width for mask in neuropil_mask_list]
     heights = [mask.height for mask in neuropil_mask_list]
-    output = {'neuropils': [create_roi_dict(
-        id, x, y, width, height, mask
-        ) for id, x, y, width, height, mask in zip(
-        ids, x_coordinates, y_coordinates, widths, heights, masks)]}
-    with open(path, 'w') as f:
+    output = {
+        "neuropils": [
+            create_roi_dict(id, x, y, width, height, mask)
+            for id, x, y, width, height, mask in zip(
+                ids, x_coordinates, y_coordinates, widths, heights, masks
+            )
+        ]
+    }
+    with open(path, "w") as f:
         json.dump(output, f)
-        
 
 
-def extract_traces(motion_corrected_stack: Union[str, Path],
-                   motion_border: Dict,
-                   storage_directory: Union[str, Path],
-                   rois: List[Dict]) -> Dict:
+def extract_traces(
+    motion_corrected_stack: Union[str, Path],
+    motion_border: Dict,
+    storage_directory: Union[str, Path],
+    rois: List[Dict],
+) -> Dict:
     """
     calculates neuropil masks for ROIs (LIMS format),
     calculates both ROI trace and neuropil trace,
@@ -220,7 +239,7 @@ def extract_traces(motion_corrected_stack: Union[str, Path],
         motion_border["x0"],
         motion_border["x1"],
         motion_border["y0"],
-        motion_border["y1"]
+        motion_border["y1"],
     ]
 
     # create roi mask objects
@@ -228,9 +247,14 @@ def extract_traces(motion_corrected_stack: Union[str, Path],
     roi_names = [roi.label for roi in roi_mask_list]
 
     # extract traces
-    roi_traces, neuropil_traces, neuropil_mask_list, exclusions = \
-        calculate_roi_and_neuropil_traces(
-            motion_corrected_stack, roi_mask_list, border)
+    (
+        roi_traces,
+        neuropil_traces,
+        neuropil_mask_list,
+        exclusions,
+    ) = calculate_roi_and_neuropil_traces(
+        motion_corrected_stack, roi_mask_list, border
+    )
 
     roi_file = Path(storage_directory) / "roi_traces.h5"
     write_trace_file(roi_traces, roi_names, roi_file)
@@ -242,8 +266,8 @@ def extract_traces(motion_corrected_stack: Union[str, Path],
     write_mask_file(neuropil_mask_list, roi_names, np_mask_file)
 
     return {
-        'neuropil_trace_file': str(np_file),
-        'roi_trace_file': str(roi_file),
-        'neuropil_mask_file': str(np_mask_file),
-        'exclusion_labels': exclusions
+        "neuropil_trace_file": str(np_file),
+        "roi_trace_file": str(roi_file),
+        "neuropil_mask_file": str(np_mask_file),
+        "exclusion_labels": exclusions,
     }

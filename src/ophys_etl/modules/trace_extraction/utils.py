@@ -1,8 +1,10 @@
+import json
 import logging
 import h5py
 import numpy as np
 from typing import List, Union, Dict, Tuple
 from pathlib import Path
+import pandas as pd
 
 from ophys_etl.utils.roi_masks import (NeuropilMask, create_roi_mask_array,
                                        validate_mask, create_roi_masks, Mask)
@@ -111,16 +113,16 @@ def calculate_roi_and_neuropil_traces(
     logging.info("%d total ROIs" % len(roi_mask_list))
 
     # create neuropil masks for the central ROIs
-    neuropil_masks = []
+    neuropil_mask_list = []
     for m in roi_mask_list:
         nmask = NeuropilMask.create_neuropil_mask(m, motion_border,
                                                   combined_mask,
                                                   "neuropil for " + m.label)
-        neuropil_masks.append(nmask)
+        neuropil_mask_list.append(nmask)
 
     num_rois = len(roi_mask_list)
     # read the large image stack only once
-    combined_list = roi_mask_list + neuropil_masks
+    combined_list = roi_mask_list + neuropil_mask_list
 
     if isinstance(movie_h5, np.ndarray):
         # decrosstalk/ophys_plane was using a version of this function
@@ -135,7 +137,7 @@ def calculate_roi_and_neuropil_traces(
     roi_traces = traces[:num_rois]
     neuropil_traces = traces[num_rois:]
 
-    return roi_traces, neuropil_traces, neuropil_masks, exclusions
+    return roi_traces, neuropil_traces, neuropil_mask_list, exclusions
 
 
 def write_trace_file(data: np.ndarray, names: List[str], path: str):
@@ -150,16 +152,32 @@ def write_trace_file(data: np.ndarray, names: List[str], path: str):
             dtype=utf_dtype,
         )
 
+def create_roi_dict(id, x, y, width, height, mask):
+    return {
+        "id": id,
+        "x": int(x),
+        "y": int(y),
+        "width": int(width),
+        "height": int(height),
+        "mask": mask.astype(int).tolist()
+        }
 
 def write_mask_file(
-    mask_objs_list: List[NeuropilMask], names: List[str], path: str
+    neuropil_mask_list: List[NeuropilMask], ids: List[str], path: str
 ):
     logging.debug("Writing {}".format(path))
-    names = np.array(names).astype(np.string_)
-    with h5py.File(path, "w") as fil:
-        group = fil.create_group("masks")
-        for name, mask_obj in zip(names, mask_objs_list):
-            group.create_dataset(name, data=mask_obj.mask)
+    masks = [mask.mask for mask in neuropil_mask_list]
+    x_coordinates = [mask.x for mask in neuropil_mask_list]
+    y_coordinates = [mask.y for mask in neuropil_mask_list]
+    widths = [mask.width for mask in neuropil_mask_list]
+    heights = [mask.height for mask in neuropil_mask_list]
+    output = {'neuropils': [create_roi_dict(
+        id, x, y, width, height, mask
+        ) for id, x, y, width, height, mask in zip(
+        ids, x_coordinates, y_coordinates, widths, heights, masks)]}
+    with open(path, 'w') as f:
+        json.dump(output, f)
+        
 
 
 def extract_traces(motion_corrected_stack: Union[str, Path],
@@ -210,7 +228,7 @@ def extract_traces(motion_corrected_stack: Union[str, Path],
     roi_names = [roi.label for roi in roi_mask_list]
 
     # extract traces
-    roi_traces, neuropil_traces, neuropil_masks, exclusions = \
+    roi_traces, neuropil_traces, neuropil_mask_list, exclusions = \
         calculate_roi_and_neuropil_traces(
             motion_corrected_stack, roi_mask_list, border)
 
@@ -220,8 +238,8 @@ def extract_traces(motion_corrected_stack: Union[str, Path],
     np_file = Path(storage_directory) / "neuropil_traces.h5"
     write_trace_file(neuropil_traces, roi_names, np_file)
 
-    np_mask_file = Path(storage_directory) / "neuropil_masks.h5"
-    write_mask_file(neuropil_masks, roi_names, np_mask_file)
+    np_mask_file = Path(storage_directory) / "neuropil_masks.json"
+    write_mask_file(neuropil_mask_list, roi_names, np_mask_file)
 
     return {
         'neuropil_trace_file': str(np_file),

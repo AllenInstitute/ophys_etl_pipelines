@@ -1,3 +1,4 @@
+import json
 import pytest
 import h5py
 import numpy as np
@@ -99,14 +100,15 @@ def test_extract_traces(h5video, roi_list_of_dicts,
     with h5py.File(output["roi_trace_file"], "r") as f:
         r_names = f["roi_names"][()]
         r_traces = f["data"][()]
-    with h5py.File(output["neuropil_mask_file"], "r") as f:
+    with open(output["neuropil_mask_file"], "r") as f:
+        neuropil_dict = json.load(f)
         nm_names = np.array(
-            list(f['masks'].keys()), dtype=np.string_).astype(object)
-        nmasks = [f['masks'][name][()] for name in nm_names]
+            [bytes(neuropil['id'], 'utf-8') for neuropil in neuropil_dict['neuropils']]).astype(object)
+        masks = [neuropil['mask'] for neuropil in neuropil_dict['neuropils']]
 
     np.testing.assert_array_equal(n_names, r_names)
     np.testing.assert_array_equal(nm_names, n_names)
     assert n_traces.shape == r_traces.shape
-    for mask in nmasks:
-        assert isinstance(mask, np.ndarray)
-        assert len(mask.shape) == 2
+    for mask in masks:
+        assert isinstance(mask, list)
+        assert isinstance(mask[0], list)

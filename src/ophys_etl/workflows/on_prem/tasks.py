@@ -39,7 +39,8 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
     def wait_for_job_to_finish(
             job_id: str,
             module_outputs: List[OutputFile],
-            storage_directory: str
+            storage_directory: str,
+            log_path: str
     ):
         try:
             job = SlurmJob.from_job_id(job_id=job_id)
@@ -62,6 +63,7 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
             xcom_value = {
                 'module_outputs': module_outputs,
                 'storage_directory': storage_directory,
+                'log_path': log_path,
                 'start': str(job.start),
                 'end': str(job.end)
             }
@@ -107,6 +109,7 @@ def submit_job(
         - job_id: slurm job id
         - module_outputs: Expected List[OutputFile] for module
         - storage_directory: where module is writing outputs to
+        - log_path: where logs are being saved for this run
     """
     if module_kwargs is None:
         module_kwargs = {}
@@ -123,11 +126,13 @@ def submit_job(
     )
     mod.write_input_args()
 
+    log_path = _get_log_path(task_instance=context['task_instance'])
+
     slurm = Slurm(
         pipeline_module=mod,
         ophys_experiment_id=ophys_experiment_id,
         config_path=Path(config_path),
-        log_path=_get_log_path(task_instance=context['task_instance'])
+        log_path=log_path
     )
 
     slurm.submit_job(
@@ -139,6 +144,7 @@ def submit_job(
         'job_id': slurm.job.id,
         'module_outputs': mod.outputs,
         'storage_directory': str(mod.output_path),
+        'log_path': str(log_path)
     }
 
 

@@ -62,6 +62,7 @@ class TestMotionCorrectionModule:
                 ophys_experiment_id='1',
                 sqlalchemy_session=session,
                 storage_directory='/foo',
+                log_path='/foo',
                 additional_steps=MotionCorrectionModule.save_metadata_to_db,
                 workflow_name=WorkflowName.OPHYS_PROCESSING
             )

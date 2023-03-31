@@ -50,6 +50,7 @@ class WorkflowStepRun(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     ophys_experiment_id: Optional[str] = Field(index=True)
     workflow_step_id: int = Field(foreign_key='workflow_step.id')
+    log_path: str
     storage_directory: str
     start: datetime.datetime
     end: datetime.datetime

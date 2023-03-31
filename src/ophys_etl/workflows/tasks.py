@@ -45,6 +45,8 @@ def save_job_run_to_db(
                 Maps well known file type name to path
             - storage_directory
                 Root dir where all files for this job run are written
+            - log_path
+                Path where logs for this run are saved
             - start
                 When did this step of the workflow run start. Uses encoding
                 %Y-%m-%d %H:%M:%S
@@ -91,6 +93,7 @@ def save_job_run_to_db(
             ophys_experiment_id=ophys_experiment_id,
             sqlalchemy_session=session,
             storage_directory=job_finish_res['storage_directory'],
+            log_path=job_finish_res['log_path'],
             validate_files_exist=not app_config.is_debug,
             additional_steps=additional_steps,
             additional_steps_kwargs=additional_steps_kwargs

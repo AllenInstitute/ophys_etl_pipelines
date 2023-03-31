@@ -1,8 +1,10 @@
+import datetime
 import os
 import shutil
 from pathlib import Path
 
 import json
+from unittest.mock import patch
 
 import pytest
 from ophys_etl.workflows.workflow_steps import WorkflowStep
@@ -55,16 +57,21 @@ class _DummyMod(PipelineModule):
 class TestPipelineModule:
     @classmethod
     def setup_class(cls):
-        cls._dummy_mod = _DummyMod(
-            ophys_experiment=OphysExperiment(
-                id='1',
-                session=OphysSession(id='2'),
-                specimen=Specimen(id='3'),
-                storage_directory=Path('/storage_dir'),
-                raw_movie_filename=Path('mov.h5'),
-                movie_frame_rate_hz=11.0
+        cls._now = datetime.datetime(year=2023, month=1, day=1, hour=1,
+                                     minute=1, second=1, microsecond=1)
+
+        with patch('datetime.datetime', wraps=datetime.datetime) as mock_dt:
+            mock_dt.now.return_value = cls._now
+            cls._dummy_mod = _DummyMod(
+                ophys_experiment=OphysExperiment(
+                    id='1',
+                    session=OphysSession(id='2'),
+                    specimen=Specimen(id='3'),
+                    storage_directory=Path('/storage_dir'),
+                    raw_movie_filename=Path('mov.h5'),
+                    movie_frame_rate_hz=11.0
+                )
             )
-        )
 
     @classmethod
     def teardown_class(cls):
@@ -72,24 +79,38 @@ class TestPipelineModule:
             os.remove(cls._dummy_mod.input_args_path)
         shutil.rmtree(cls._dummy_mod._temp_out.name)
 
-    def test_output_path(self):
+    @patch('datetime.datetime', wraps=datetime.datetime)
+    def test_output_path(self, mock_dt):
+        mock_dt.now.return_value = self._now
+
         assert self._dummy_mod.output_path == \
                Path('/tmp') / 'specimen_3' / 'session_2' / 'experiment_1' / \
-               self._dummy_mod.queue_name.value
+               self._dummy_mod.queue_name.value / '2023-01-01_01-01-01-000001'
 
-    def test_output_metadata_path(self):
+    @patch('datetime.datetime', wraps=datetime.datetime)
+    def test_output_metadata_path(self, mock_dt):
+        mock_dt.now.return_value = self._now
+
         assert self._dummy_mod.output_metadata_path == \
                Path('/tmp') / 'specimen_3' / 'session_2' / 'experiment_1' / \
                self._dummy_mod.queue_name.value / \
+               '2023-01-01_01-01-01-000001' / \
                f'{self._dummy_mod.queue_name.value}_1_output.json'
 
-    def test_input_args_path(self):
+    @patch('datetime.datetime', wraps=datetime.datetime)
+    def test_input_args_path(self, mock_dt):
+        mock_dt.now.return_value = self._now
+
         assert self._dummy_mod.input_args_path == \
                Path('/tmp') / 'specimen_3' / 'session_2' / 'experiment_1' / \
                self._dummy_mod.queue_name.value / \
+               '2023-01-01_01-01-01-000001' / \
                f'{self._dummy_mod.queue_name.value}_1_input.json'
 
-    def test_write_input_args(self):
+    @patch('datetime.datetime', wraps=datetime.datetime)
+    def test_write_input_args(self, mock_dt):
+        mock_dt.now.return_value = self._now
+
         self._dummy_mod.write_input_args()
         with open(self._dummy_mod.input_args_path) as f:
             input_args = json.load(f)

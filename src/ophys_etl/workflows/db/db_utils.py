@@ -31,6 +31,7 @@ def save_job_run_to_db(
         module_outputs: List[OutputFile],
         sqlalchemy_session: Session,
         storage_directory: Union[Path, str],
+        log_path: Union[Path, str],
         ophys_experiment_id: Optional[str] = None,
         validate_files_exist: bool = True,
         additional_steps: Optional[Callable] = None,
@@ -61,6 +62,8 @@ def save_job_run_to_db(
         Session to use for inserting into DB
     storage_directory
         Where `ophys_experiment_id` is saving data to
+    log_path
+        Path where logs for this run are saved
     additional_steps
         A function which inserts additional data into the database
         Needs to have signature:
@@ -89,6 +92,7 @@ def save_job_run_to_db(
     workflow_step_run = WorkflowStepRun(
         workflow_step_id=workflow_step.id,
         storage_directory=str(storage_directory),
+        log_path=str(log_path),
         ophys_experiment_id=ophys_experiment_id,
         start=start,
         end=end

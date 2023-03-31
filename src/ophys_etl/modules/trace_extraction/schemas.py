@@ -1,7 +1,7 @@
 from argschema import ArgSchema
 from argschema.schemas import DefaultSchema
 from argschema.fields import (LogLevel, String, Nested, Float,
-                              OutputDir, InputFile)
+                              OutputDir, InputFile, OutputFile)
 
 from ophys_etl.schemas.fields import H5InputFile
 from ophys_etl.schemas import ExtractROISchema
@@ -56,6 +56,9 @@ class TraceExtractionOutputSchema(DefaultSchema):
     roi_trace_file = H5FileExists(
         required=True,
         description="path to output h5 file containing roi traces")
+    neuropil_mask_file = OutputFile(
+        required=True,
+        description="path to output h5 file containing neuropil masks")
     exclusion_labels = Nested(
         ExclusionLabel,
         many=True,

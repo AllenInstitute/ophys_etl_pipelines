@@ -307,7 +307,6 @@ class TiffSplitterCLI(ArgSchemaParser):
                                    zstack_splitter),
                                   (scanfield_z,
                                    None,
-                                   scanfield_z,
                                    scanfield_z),
                                   (f"{experiment_id}_depth.tif",
                                    f"{experiment_id}_surface.tif",

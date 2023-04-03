@@ -41,6 +41,16 @@ class _Singularity(ImmutableBaseModel):
     )
 
 
+class _Slurm(ImmutableBaseModel):
+    """Slurm config"""
+    username: StrictStr = Field(
+        description='Username to run jobs under'
+    )
+    api_token: SecretStr = Field(
+        description='api token, generated using scontrol token'
+    )
+
+
 ##################
 # Pipeline steps
 ##################
@@ -187,6 +197,7 @@ class AppConfig(ImmutableBaseModel):
     lims_db: _LimsDB
     singularity: _Singularity
     pipeline_steps: _PipelineSteps
+    slurm: _Slurm
 
 
 def load_config() -> AppConfig:

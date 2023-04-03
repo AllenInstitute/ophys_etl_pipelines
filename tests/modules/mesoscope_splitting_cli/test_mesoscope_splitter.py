@@ -192,7 +192,7 @@ def expected_count(flavor):
         product((True, False, None),
                 (True, False, None),
                 (True, False),
-                ('upload', 'storage'),
+                ('upload', 'storage', 'corrupt'),
                 ('1x6', '4x2', '4x2_floats',
                  '2x4_repeats', '2x4',
                  '4x2_repeats')),
@@ -231,6 +231,11 @@ def test_splitter_cli(upload_directory_fixture,
                                  'rb'))
         if 'fullfield_2p_image' not in platform_data:
             expect_full_field = False
+
+    # Full field image generation should fail, but the
+    # overarching TIFF splitting job should pass
+    if full_field_2p_tiff_fixture['metadata'][0]['is_corrupt']:
+        expect_full_field = False
 
     # remove upload_data_dir from input_json, if specified
     if use_data_upload_dir is None:

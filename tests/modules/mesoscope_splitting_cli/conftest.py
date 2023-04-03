@@ -484,11 +484,20 @@ def full_field_2p_tiff_fixture(
 
     if request.param is 'upload', but the file in
     upload_directory_fixture
+
+    if request.param is 'corrupt', alter the metadata
+    so that full field tiff generation will fail (so
+    we can test to see if the rest of the TIFF splitting
+    job passed, anyway)
     """
+    corrupt_metadata = False
     if request.param == 'storage':
         output_dir = storage_directory_fixture
     elif request.param == 'upload':
         output_dir = upload_directory_fixture
+    elif request.param == 'corrupt':
+        output_dir = storage_directory_fixture
+        corrupt_metadata = True
     else:
         raise RuntimeError(
             "not sure how to handle request.param "
@@ -511,6 +520,12 @@ def full_field_2p_tiff_fixture(
         output_dir=output_dir,
         nrows=nrows,
         ncols=ncols)
+
+    if corrupt_metadata:
+        metadata[0]['SI.hStackManager.actualNumVolumes'] = 13
+        metadata[0]['is_corrupt'] = True
+    else:
+        metadata[0]['is_corrupt'] = False
 
     roi_metadata = _create_roi_metadata(
             nrois=nrois,

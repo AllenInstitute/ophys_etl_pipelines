@@ -6,6 +6,7 @@ import time
 import json
 import h5py
 import logging
+import traceback
 
 from ophys_etl.modules.mesoscope_splitting.schemas import (
     InputSchema, OutputSchema)
@@ -79,7 +80,8 @@ def get_nearest_roi_center(
 def write_out_stitched_full_field_image(
         path_to_avg_tiff: pathlib.Path,
         path_to_full_field_tiff: pathlib.Path,
-        output_path: pathlib.Path):
+        output_path: pathlib.Path,
+        logger: Optional[logging.Logger] = None):
     """
     Write out the stitched full field image with
     and without ROIs to an HDF5 file
@@ -94,39 +96,56 @@ def write_out_stitched_full_field_image(
 
     output_path: pathlib.Path
         File to be written out
+
+    logger: Optional[logging.Logger]
+        Logger to record traceback if the process fails
+
+    Notes
+    -----
+    If full field image generation fails, the traceback will
+    be written to the logger, but the overall process will
+    not fail so that the ophys session can continue to be
+    processed in LIMS
     """
 
-    full_field_metadata = ScanImageMetadata(
-            path_to_full_field_tiff)
-    full_field_img = stitch_full_field_tiff(
-            path_to_full_field_tiff)
+    try:
+        full_field_metadata = ScanImageMetadata(
+                path_to_full_field_tiff)
+        full_field_img = stitch_full_field_tiff(
+                path_to_full_field_tiff)
 
-    avg_splitter = AvgImageTiffSplitter(
-            path_to_avg_tiff)
+        avg_splitter = AvgImageTiffSplitter(
+                path_to_avg_tiff)
 
-    with_rois = _insert_rois_into_surface_img(
-        full_field_img=full_field_img,
-        full_field_metadata=full_field_metadata,
-        avg_image_splitter=avg_splitter)
+        with_rois = _insert_rois_into_surface_img(
+            full_field_img=full_field_img,
+            full_field_metadata=full_field_metadata,
+            avg_image_splitter=avg_splitter)
 
-    with h5py.File(output_path, "w") as out_file:
+        with h5py.File(output_path, "w") as out_file:
 
-        out_file.create_dataset(
-            "stitched_full_field",
-            data=full_field_img)
+            out_file.create_dataset(
+                "stitched_full_field",
+                data=full_field_img)
 
-        out_file.create_dataset(
-            "stitched_full_field_with_rois",
-            data=with_rois)
+            out_file.create_dataset(
+                "stitched_full_field_with_rois",
+                data=with_rois)
 
-        out_file.create_dataset(
-            "surface_roi_metadata",
-            data=json.dumps(avg_splitter.raw_metadata).encode('utf-8'))
+            out_file.create_dataset(
+                "surface_roi_metadata",
+                data=json.dumps(avg_splitter.raw_metadata).encode('utf-8'))
 
-        ff_metadata = json.dumps(full_field_metadata.raw_metadata)
-        out_file.create_dataset(
-            "full_field_metadata",
-            data=ff_metadata.encode('utf-8'))
+            ff_metadata = json.dumps(full_field_metadata.raw_metadata)
+            out_file.create_dataset(
+                "full_field_metadata",
+                data=ff_metadata.encode('utf-8'))
+    except Exception:
+        if logger is not None:
+            msg = "Full field TIFF generation failed. Traceback:\n"
+            msg += f"{traceback.format_exc()}\n"
+            msg += "TIFF splitting job will pass, regardless."
+            logger.warning(msg)
 
 
 def get_full_field_path(
@@ -401,10 +420,12 @@ class TiffSplitterCLI(ArgSchemaParser):
             write_out_stitched_full_field_image(
                 path_to_avg_tiff=pathlib.Path(avg_path),
                 path_to_full_field_tiff=full_field_path,
-                output_path=output_path)
+                output_path=output_path,
+                logger=self.logger)
 
-            self.logger.info("Wrote full field stitched image to "
-                             f"{output_path.resolve().absolute()}")
+            if output_path.is_file():
+                self.logger.info("Wrote full field stitched image to "
+                                 f"{output_path.resolve().absolute()}")
 
         # record file metadata
         file_metadata = []

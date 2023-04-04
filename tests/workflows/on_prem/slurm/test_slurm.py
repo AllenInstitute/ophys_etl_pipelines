@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytz
+
 from ophys_etl.test_utils.workflow_utils import setup_app_config
 
 setup_app_config(
@@ -51,9 +53,12 @@ class TestSlurmJob:
         if has_job_started:
             assert job.state == SlurmState.COMPLETED
             assert job.start == datetime.datetime(
-                year=2023, month=4, day=3, hour=14, minute=30, second=40)
+                year=2023, month=4, day=3, hour=21, minute=30, second=40,
+                tzinfo=pytz.UTC)
             assert job.end == datetime.datetime(
-                year=2023, month=4, day=3, hour=14, minute=31, second=58)
+                year=2023, month=4, day=3, hour=21, minute=31, second=58,
+                tzinfo=pytz.UTC
+            )
         else:
             assert job.state is None
             assert job.start is None

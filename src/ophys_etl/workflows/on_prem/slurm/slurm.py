@@ -10,6 +10,7 @@ import logging
 
 import json
 
+import pytz
 import requests
 import yaml
 from paramiko import SSHClient
@@ -138,8 +139,8 @@ class SlurmJob:
         return cls(
             id=job_id,
             state=job['job_state'],
-            start=datetime.fromtimestamp(job['start_time']),
-            end=datetime.fromtimestamp(job['end_time'])
+            start=datetime.fromtimestamp(job['start_time'], tz=pytz.UTC),
+            end=datetime.fromtimestamp(job['end_time'], tz=pytz.UTC)
         )
 
     def is_done(self) -> bool:

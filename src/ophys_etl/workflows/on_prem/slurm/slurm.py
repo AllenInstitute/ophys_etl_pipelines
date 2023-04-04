@@ -231,7 +231,7 @@ class Slurm:
                 app_config.singularity.password.get_secret_value()
 
             request_gpu = self._slurm_settings.gpus > 0
-            script = f'''
+            script = f'''#! /bin/bash
 # Adds mksquashfs (needed for singularity) to $PATH
 source /etc/profile
 
@@ -272,7 +272,7 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
                 'cpus_per_task': cpus_per_task,
                 'gpus': gpus,
                 'memory_per_node': mem * 1024,  # MB
-                'time': time,
+                'time_limit': time,
                 'name': job_name,
                 'temporary_disk_per_node': f'{tmp}G',
                 'standard_output': str(self._log_path),

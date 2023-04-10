@@ -3,27 +3,28 @@ import os
 import time
 
 import json
-from typing import Dict, List
+from typing import List, Tuple
 
+import cv2
 import h5py
 import numpy as np
-import PIL
 import pandas as pd
 
 from argschema import ArgSchema, ArgSchemaParser, fields
-from deepcell.cli.modules.create_dataset import construct_dataset
-from deepcell.cli.schemas.data import ChannelField
-from deepcell.datasets.channel import Channel, channel_filename_prefix_map
+from deepcell.cli.modules.create_dataset import construct_dataset, \
+    VoteTallyingStrategy
 from marshmallow import validates_schema, ValidationError
 
-from ophys_etl.modules.segmentation.graph_utils.conversion import \
-    graph_to_img
 from ophys_etl.types import OphysROI
 from ophys_etl.utils.array_utils import normalize_array
-from ophys_etl.utils.video_utils import get_max_and_avg
 from ophys_etl.utils.rois import (
     sanitize_extract_roi_list,
     extract_roi_to_ophys_roi)
+
+
+class _EmptyMaskException(Exception):
+    """Raised if mask is empty"""
+    pass
 
 
 class ClassifierArtifactsInputSchema(ArgSchema):
@@ -39,19 +40,6 @@ class ClassifierArtifactsInputSchema(ArgSchema):
     roi_path = fields.InputFile(
         required=True,
         description="Path to json file containing detected ROIs",
-    )
-    channels = fields.List(
-        ChannelField(),
-        required=True,
-        description="List of channels to generate thumbnails for"
-    )
-    graph_path = fields.InputFile(
-        required=False,
-        allow_none=True,
-        default=None,
-        description="Path to pickle file containing full movie graph."
-                    "Required only if correlation projection is given in "
-                    "`channels`",
     )
     # Output Artifact location.
     out_dir = fields.OutputDir(
@@ -75,6 +63,18 @@ class ClassifierArtifactsInputSchema(ArgSchema):
         default=128,
         description="Size of square cutout in pixels.",
     )
+    n_frames = fields.Int(
+        default=16,
+        description='Total number of frames to generate surrounding peak '
+                    'activation for ROI'
+    )
+    temporal_downsampling_factor = fields.Int(
+        default=1,
+        description='Evenly sample every nth frame so that we '
+                    'have `n_frames` total frames. I.e. If it is 4, then'
+                    'we start with 4 * `n_frames frames around peak and '
+                    'sample every 4th frame'
+    )
     is_training = fields.Boolean(
         required=True,
         description='Whether generating inputs for training or inference.'
@@ -91,13 +91,6 @@ class ClassifierArtifactsInputSchema(ArgSchema):
         default=(512, 512),
         description='field of view shape'
     )
-
-    @validates_schema
-    def validate_graph_path(self, data):
-        if Channel.CORRELATION_PROJECTION.value in data['channels']:
-            if data['graph_path'] is None:
-                raise ValidationError('graph_path needs to be provided if '
-                                      'passed as a channel')
 
     @validates_schema
     def validate_cell_labeling_app_host(self, data):
@@ -127,32 +120,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         exp_id = video_path.name.split("_")[0]
 
         roi_path = pathlib.Path(self.args["roi_path"])
-        graph_path = pathlib.Path(self.args["graph_path"]) \
-            if self.args["graph_path"] is not None else None
-
-        imgs = {}
 
         with h5py.File(video_path, 'r') as f:
             mov = f['data'][()]
-        proj = get_max_and_avg(video=mov)
-        self.logger.info("Calculated mean and max images...")
-
-        imgs[Channel.MAX_PROJECTION] = proj['max']
-        imgs[Channel.AVG_PROJECTION] = proj['avg']
-
-        if Channel.CORRELATION_PROJECTION.value in self.args['channels']:
-            corr_img = graph_to_img(graph_path)
-            imgs[Channel.CORRELATION_PROJECTION] = corr_img
-            self.logger.info("Calculated correlation image...")
-
-        for channel, img in imgs.items():
-            imgs[channel] = self._normalize_image(
-                img=img,
-                low_cutoff=self.args["low_quantile"],
-                high_cutoff=self.args["high_quantile"]
-            )
-
-        self.logger.info("Normalized images...")
 
         with open(roi_path, "rb") as in_file:
             extract_roi_list = sanitize_extract_roi_list(
@@ -170,102 +140,13 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                 continue
 
             roi = extract_roi_to_ophys_roi(roi=roi)
-            imgs[Channel.MASK] = self._generate_mask_image(
-                roi=roi
-            )
 
-            imgs[Channel.MAX_ACTIVATION] = \
-                self._generate_max_activation_image(
-                    mov=mov,
-                    roi=roi
-                )
-
-            self._write_thumbnails(roi=roi,
-                                   imgs=imgs,
-                                   exp_id=exp_id)
+            self._write_frames(roi=roi,
+                               mov=mov,
+                               exp_id=exp_id)
 
         self.logger.info(f"Created ROI artifacts in {time.time()-t0:.0f} "
                          "seconds.")
-
-    @staticmethod
-    def _normalize_image(
-        img: np.ndarray,
-        low_cutoff: float,
-        high_cutoff: float
-    ):
-        """Normalize image to between low_cutoff and high_cutoff quantiles
-        and then cast to uint8
-
-        Parameters
-        ----------
-        img
-            Image to normalize
-        low_cutoff
-            Low quantile
-        high_cutoff
-            High quantile
-
-        Returns
-        -------
-        np.ndarray normalized between low_cutoff and high_cutoff and cast
-        as uint8
-
-        """
-        q0, q1 = np.quantile(img, (low_cutoff, high_cutoff))
-        return normalize_array(
-            array=img,
-            lower_cutoff=q0,
-            upper_cutoff=q1
-        )
-
-    def _generate_mask_image(
-        self,
-        roi: OphysROI
-    ) -> np.ndarray:
-        """
-        Generate mask image from `roi`
-
-        Parameters
-        ----------
-        roi
-            `OphysROI`
-
-        Returns
-        -------
-        uint8 np.ndarray with masked region set to 255
-        """
-        pixel_array = roi.global_pixel_array.transpose()
-
-        mask = np.zeros(self.args['fov_shape'], dtype=np.uint8)
-        mask[pixel_array[0], pixel_array[1]] = 255
-
-        return mask
-
-    @staticmethod
-    def _generate_max_activation_image(
-        mov: np.ndarray,
-        roi: OphysROI
-    ) -> np.ndarray:
-        """
-        Generates "max activation" image which is the frame of peak brightness
-        for `roi`
-
-        Parameters
-        ----------
-        mov
-            Ophys movie
-        roi
-            `OphysROI`
-
-        Returns
-        -------
-        np.ndarray of shape fov_shape
-        """
-        trace = mov[:,
-                    roi.global_pixel_array[:, 0],
-                    roi.global_pixel_array[:, 1]].mean(axis=1)
-        img = mov[trace.argmax()]
-        return img
 
     def _get_labeled_rois_for_experiment(self) -> List[int]:
         """Get labeled rois for experiment"""
@@ -273,7 +154,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             raise ValueError('cell_labeling_app_host needed to get '
                              'labeled rois')
         labels = construct_dataset(
-            cell_labeling_app_host=self.args['cell_labeling_app_host']
+            cell_labeling_app_host=self.args['cell_labeling_app_host'],
+            vote_tallying_strategy=(VoteTallyingStrategy.MAJORITY
+                                    if self.args['is_training'] else None)
         )
 
         labels = labels.set_index('experiment_id')
@@ -282,6 +165,7 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                 f'No labeled rois for {self.args["experiment_id"]}')
         exp_labels = labels.loc[self.args['experiment_id']]
         roi_ids = exp_labels['roi_id']
+        roi_ids = roi_ids.astype(int)
         if isinstance(exp_labels, pd.Series):
             # just 1 roi exists
             roi_ids = [roi_ids]
@@ -289,56 +173,186 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             roi_ids = roi_ids.tolist()
         return roi_ids
 
-    def _write_thumbnails(self,
-                          roi: OphysROI,
-                          imgs: Dict[Channel, np.ndarray],
-                          exp_id: str):
-        """Compute image cutout artifacts for an ROI.
+    def _write_frames(self,
+                      mov: np.ndarray,
+                      roi: OphysROI,
+                      exp_id: str):
+        """Write sequence of frames for ROI to disk
 
         Parameters
         ----------
+        mov : np.ndarray
+            Ophys movie
         roi : ophys_etl.types.OphysROI
             ROI containing bounding box size and location.
-        imgs
-            Map between `deepcell.datasets.channel.Channel` and img
         exp_id : str
             Id of experiment where these ROIs and images come from.
         """
         desired_shape = (self.args['cutout_size'], self.args['cutout_size'])
 
-        # Get cutouts
-        for channel in self.args['channels']:
-            channel = getattr(Channel, channel)
-            img = imgs[channel]
-            thumbnail = roi.get_centered_cutout(
-                image=img,
-                height=self.args['cutout_size'],
-                width=self.args['cutout_size']
-            )
+        trace = mov[:,
+                    roi.global_pixel_array[:, 0],
+                    roi.global_pixel_array[:, 1]].mean(axis=1)
+        peak_activation_frame = trace.argmax()
 
-            # For max activation, need to normalize the thumbnail
-            if channel == Channel.MAX_ACTIVATION:
-                thumbnail = self._normalize_image(
-                    img=thumbnail,
-                    low_cutoff=self.args["low_quantile"],
-                    high_cutoff=self.args["high_quantile"]
-                )
+        n_frames = \
+            self.args['n_frames'] * self.args['temporal_downsampling_factor']
+        nframes_before_after = int(n_frames/2)
+        frames = mov[
+                 max(0, peak_activation_frame - nframes_before_after):
+                 peak_activation_frame + nframes_before_after]
 
-            # Store the ROI cutouts to disk.
-            roi_id = roi.roi_id
-            if channel == Channel.MASK:
-                if thumbnail.sum() <= 0:
-                    msg = f"{exp_id}_{roi_id} has bad mask {thumbnail.shape}"
-                    self.logger.warn(msg)
+        frames = _pad_frames(
+            desired_seq_len=n_frames,
+            frames=frames
+        )
 
-            name = f'{channel_filename_prefix_map[channel]}_{exp_id}_' \
-                   f'{roi_id}.png'
-            if thumbnail.shape != desired_shape:
-                msg = f"{name} has shape {thumbnail.shape}"
-                raise RuntimeError(msg)
-            thumbnail = PIL.Image.fromarray(thumbnail)
-            out_path = pathlib.Path(self.args['out_dir']) / name
-            thumbnail.save(out_path)
+        frames = _crop_frames(
+            frames=frames,
+            roi=roi,
+            desired_shape=desired_shape
+        )
+
+        frames = _downsample_frames(
+            frames=frames,
+            downsampling_factor=self.args['temporal_downsampling_factor']
+        )
+
+        frames = normalize_array(
+            array=frames,
+            lower_cutoff=np.quantile(frames, self.args['low_quantile']),
+            upper_cutoff=np.quantile(frames, self.args['high_quantile'])
+        )
+
+        frames = _draw_mask_outline_on_frames(
+            roi=roi,
+            cutout_size=self.args['cutout_size'],
+            fov_shape=self.args['fov_shape'],
+            frames=frames
+        )
+        name = f'{exp_id}_{roi.roi_id}.npy'
+
+        if frames.shape[1:] != (*desired_shape, 3):
+            msg = f"{exp_id}_{roi.roi_id} has shape {frames.shape}"
+            raise RuntimeError(msg)
+
+        out_path = pathlib.Path(self.args['out_dir']) / name
+
+        np.save(str(out_path), frames)
+
+
+def _generate_mask_image(
+    fov_shape: Tuple[int, int],
+    roi: OphysROI,
+    cutout_size: int,
+) -> np.ndarray:
+    """
+    Generate mask image from `roi`, cropped to cutout_size X cutout_size
+
+    Parameters
+    ----------
+    roi
+        `OphysROI`
+
+    Returns
+    -------
+    uint8 np.ndarray with masked region set to 255
+    """
+    pixel_array = roi.global_pixel_array.transpose()
+
+    mask = np.zeros(fov_shape, dtype=np.uint8)
+    mask[pixel_array[0], pixel_array[1]] = 255
+
+    mask = roi.get_centered_cutout(
+            image=mask,
+            height=cutout_size,
+            width=cutout_size
+    )
+
+    if mask.sum() == 0:
+        raise _EmptyMaskException(f'Mask for roi {roi.roi_id} is empty')
+
+    return mask
+
+
+def _pad_frames(
+    desired_seq_len: int,
+    frames: np.ndarray,
+) -> np.ndarray:
+    """
+    If the peak activation frame happens too close to the beginning
+    or end of the movie, then we pad with black in order to have
+    self.args['n_frames'] total frames
+
+    Parameters
+    ----------
+    desired_seq_len
+        Desired number of frames surrounding `peak_activation_frame_idx`
+    frames
+        Frames
+    Returns
+    -------
+    frames, potentially padded
+    """
+    n_pad = desired_seq_len - len(frames)
+    frames = np.concatenate([
+        frames,
+        np.zeros((n_pad, *frames.shape[1:]), dtype=frames.dtype),
+    ])
+    return frames
+
+
+def _draw_mask_outline_on_frames(
+    roi: OphysROI,
+    frames: np.ndarray,
+    fov_shape: Tuple[int, int],
+    cutout_size: int
+) -> np.ndarray:
+    mask = _generate_mask_image(
+        fov_shape=fov_shape,
+        roi=roi,
+        cutout_size=cutout_size
+    )
+    contours, _ = cv2.findContours(mask,
+                                   cv2.RETR_EXTERNAL,
+                                   cv2.CHAIN_APPROX_NONE)
+    # Make it into 3 channels, to draw a colored contour on it
+    frames = np.stack([frames, frames, frames], axis=-1)
+
+    for frame in frames:
+        cv2.drawContours(frame, contours, -1,
+                         color=(0, 255, 0),
+                         thickness=1)
+    return frames
+
+
+def _crop_frames(
+    frames: np.ndarray,
+    roi: OphysROI,
+    desired_shape: Tuple[int, int]
+) -> np.ndarray:
+    frames_cropped = np.zeros_like(frames,
+                                   shape=(frames.shape[0], *desired_shape))
+    for i, frame in enumerate(frames):
+        frames_cropped[i] = roi.get_centered_cutout(
+            image=frames[i],
+            height=desired_shape[0],
+            width=desired_shape[1]
+        )
+    return frames_cropped
+
+
+def _downsample_frames(
+    frames: np.ndarray,
+    downsampling_factor: int
+) -> np.ndarray:
+    """Samples every `downsampling_factor` frame from `frames`"""
+    frames = frames[
+        np.arange(0,
+                  len(frames),
+                  downsampling_factor)
+    ]
+    return frames
 
 
 if __name__ == "__main__":

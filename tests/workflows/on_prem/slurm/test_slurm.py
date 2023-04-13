@@ -35,7 +35,7 @@ class TestSlurmJob:
                     return {
                         'jobs': [
                             {
-                                'job_state': SlurmState.COMPLETED,
+                                'state': {'current': SlurmState.COMPLETED},
                                 'start_time': 1680557440,
                                 'end_time': 1680557518
                             }

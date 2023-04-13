@@ -116,7 +116,7 @@ class SlurmJob:
 
         """
         r = requests.get(
-            url=f'http://slurm/api/slurm/v0.0.36/job/{job_id}',
+            url=f'http://slurm/api/slurmdb/v0.0.36/job/{job_id}',
             headers={
                 'X-SLURM-USER-NAME': app_config.slurm.username,
                 'X-SLURM-USER-TOKEN': (
@@ -138,7 +138,7 @@ class SlurmJob:
 
         return cls(
             id=job_id,
-            state=job['job_state'],
+            state=job['state']['current'],
             start=datetime.fromtimestamp(job['start_time'], tz=pytz.UTC),
             end=datetime.fromtimestamp(job['end_time'], tz=pytz.UTC)
         )

@@ -1,6 +1,5 @@
 """Slurm interface"""
 import os
-import re
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -9,10 +8,13 @@ from typing import Optional
 
 import logging
 
+import json
+
+import pytz
+import requests
 import yaml
 from paramiko import SSHClient
-from pydantic import StrictInt, StrictStr, Field, StrictBool
-from simple_slurm import Slurm as SimpleSlurm
+from pydantic import StrictInt, Field, StrictBool
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.pipeline_module import PipelineModule
@@ -23,8 +25,8 @@ logger = logging.getLogger('airflow.task')
 
 class _SlurmSettings(ImmutableBaseModel):
     cpus_per_task: StrictInt
-    mem: StrictInt
-    time: StrictStr = Field(description='Timeout, use format H:M:S')
+    mem: StrictInt = Field(description='Memory per node in GB')
+    time: StrictInt = Field(description='Time limit in minutes')
     gpus: Optional[StrictInt] = Field(
         description='Number of GPUs',
         default=0
@@ -106,58 +108,39 @@ class SlurmJob:
             cls,
             job_id: str,
     ) -> "SlurmJob":
-        """Parses job metadata from sacct command
-        The output should look like
-
-        JobID             State               Start                 End
-        ------------ ---------- ------------------- -------------------
-        7353332       COMPLETED 2023-01-18T15:24:52 2023-01-18T15:24:57
-        7353332.bat+  COMPLETED 2023-01-18T15:24:52 2023-01-18T15:24:57
-        7353332.ext+  COMPLETED 2023-01-18T15:24:52 2023-01-18T15:24:58
+        """Fetches job status and instantiates `SlurmJob`
 
         Returns
         -------
         If job id `job_id` found, returns `SlurmJob` instance
 
         """
-        output = cls._get_job_meta(job_id=job_id)
-        lines = output.splitlines()
-        lines = lines[2:]
-        lines = [line.split() for line in lines]
-        job_metas = [{
-            'job_id': job_id,
-            'state': state,
-            'start': cls._try_parse_datetime(datetime_string=start),
-            'end': cls._try_parse_datetime(datetime_string=end)
-        } for job_id, state, start, end in lines]
-        for job_meta in job_metas:
-            if job_meta['job_id'] == job_id:
-                job = cls(
-                    id=job_meta['job_id'],
-                    state=SlurmState(job_meta['state']),
-                    start=job_meta['start'],
-                    end=job_meta['end']
-                )
-                return job
-
-        # If we got here it means the job has not started yet
-        return cls(
-            id=job_id
+        r = requests.get(
+            url=f'http://slurm/api/slurmdb/v0.0.36/job/{job_id}',
+            headers={
+                'X-SLURM-USER-NAME': app_config.slurm.username,
+                'X-SLURM-USER-TOKEN': (
+                    app_config.slurm.api_token.get_secret_value()),
+            }
         )
+        response = r.json()
 
-    @staticmethod
-    def _get_job_meta(job_id) -> str:
-        stdout = _exec_slurm_command(
-            command=f'sacct --format JobID,State,Start,End --job={job_id}')
-        return stdout
+        if len(response['jobs']) == 0:
+            # If we got here it means the job has not started yet
+            return cls(
+                id=job_id
+            )
+        elif len(response['jobs']) > 1:
+            raise RuntimeError(f'Expected 1 job to be returned but '
+                               f'{len(response["jobs"])} were returned)')
+        job = response['jobs'][0]
 
-    @staticmethod
-    def _try_parse_datetime(datetime_string: str) -> Optional[datetime]:
-        try:
-            res = datetime.strptime(datetime_string, '%Y-%m-%dT%H:%M:%S')
-        except ValueError:
-            res = None
-        return res
+        return cls(
+            id=job_id,
+            state=job['state']['current'],
+            start=datetime.fromtimestamp(job['start_time'], tz=pytz.UTC),
+            end=datetime.fromtimestamp(job['end_time'], tz=pytz.UTC)
+        )
 
     def is_done(self) -> bool:
         """Whether the job is done"""
@@ -182,8 +165,7 @@ class Slurm:
         ophys_experiment_id: str,
         pipeline_module: PipelineModule,
         config_path: Path,
-        log_path: Path,
-        tmp_storage_adjustment_factor: int = 3
+        log_path: Path
     ):
         """
         Parameters
@@ -196,42 +178,42 @@ class Slurm:
             Path to slurm settings
         log_path
             Where to write slurm job logs to
-        tmp_storage_adjustment_factor
-            Multiplies the ophys experiment file size by this amount to give
-            some breathing room to the amount of tmp storage to reserve.
-            Not used if request_additional_tmp_storage is False
         """
         self._pipeline_module = pipeline_module
         self._ophys_experiment_id = ophys_experiment_id
         self._job: Optional[SlurmJob] = None
         self._slurm_settings = read_config(config_path=config_path)
+        self._log_path = log_path
 
         os.makedirs(log_path.parent, exist_ok=True)
-
-        self._slurm_headers = self._get_slurm_script_headers(
-            job_name=f'{pipeline_module.queue_name}_{ophys_experiment_id}',
-            log_path=log_path,
-            tmp_storage_adjustment_factor=tmp_storage_adjustment_factor
-        )
 
     @property
     def job(self) -> SlurmJob:
         return self._job
 
-    def _write_script(
+    def _write_job_to_disk(
             self,
+            job_name: str,
+            tmp_storage_adjustment_factor: int = 3,
             *args,
             **kwargs
     ) -> Path:
         """
-        Adds cmd to slurm headers, and writes script to disk
+        Construct slurm job request and write to disk
 
         Parameters
         ----------
+        job_name
+            slurm job name
+        tmp_storage_adjustment_factor
+            Multiplies the ophys experiment file size by this amount to give
+            some breathing room to the amount of tmp storage to reserve.
+            Not used if request_additional_tmp_storage is False
         args
             positional args to pass to command
         kwargs
             keyword args to pass to command
+
 
         Returns
         -------
@@ -240,7 +222,7 @@ class Slurm:
         args = ' '.join([f'{x}' for x in args])
         kwargs = ' '.join([f'--{k} {v}' for k, v in kwargs.items()])
         if app_config.is_debug:
-            cmd = f'{self._pipeline_module.executable} {args} {kwargs}'
+            script = f'{self._pipeline_module.executable} {args} {kwargs}'
         else:
             docker_tag = self._pipeline_module.docker_tag
             singularity_username = \
@@ -249,7 +231,7 @@ class Slurm:
                 app_config.singularity.password.get_secret_value()
 
             request_gpu = self._slurm_settings.gpus > 0
-            cmd = f'''
+            script = f'''#! /bin/bash
 # Adds mksquashfs (needed for singularity) to $PATH
 source /etc/profile
 
@@ -263,14 +245,52 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
     /envs/ophys_etl/bin/python -m {self._pipeline_module.executable} {args} \
     {kwargs}
             '''
-        slurm_script = f'{self._slurm_headers}\n\n{cmd}'
+
+        if app_config.is_debug or \
+                not self._slurm_settings.request_additional_tmp_storage:
+            tmp = 0
+        else:
+            tmp = self._get_tmp_storage(
+                adjustment_factor=tmp_storage_adjustment_factor)
+        cpus_per_task = \
+            1 if app_config.is_debug else \
+            self._slurm_settings.cpus_per_task
+        mem = \
+            1 if app_config.is_debug else self._slurm_settings.mem
+        time = \
+            10 if app_config.is_debug else \
+            self._slurm_settings.time
+        gpus = \
+            0 if app_config.is_debug else \
+            self._slurm_settings.gpus
+
+        job = {
+            'job': {
+                'qos': 'production',
+                'partition': 'braintv',
+                'nodes': 1,
+                'cpus_per_task': cpus_per_task,
+                'gpus': gpus,
+                'memory_per_node': mem * 1024,  # MB
+                'time_limit': time,
+                'name': job_name,
+                'temporary_disk_per_node': f'{tmp}G',
+                'standard_output': str(self._log_path),
+                'standard_error': str(self._log_path),
+                "environment": {
+                    "PATH": "/bin:/usr/bin/:/usr/local/bin/",
+                    "LD_LIBRARY_PATH": "/lib/:/lib64/:/usr/local/lib"
+                }
+            },
+            'script': script
+        }
 
         out = self._pipeline_module.output_path / \
-            f'{self._ophys_experiment_id}.slurm'
+            f'{self._ophys_experiment_id}.json'
 
         with open(out, 'w') as f:
-            f.write(slurm_script)
-        logger.info(f'Wrote slurm script to {out}')
+            f.write(json.dumps(job, indent=2))
+        logger.info(f'Wrote slurm job payload to {out}')
         return Path(out)
 
     def submit_job(
@@ -292,68 +312,26 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
         -------
         slurm job id
         """
-        script_path = self._write_script(*args, **kwargs)
-        stdout = _exec_slurm_command(command=f'sbatch {script_path}')
-        job_id = _parse_job_id_from_sbatch_output(
-            output=stdout)
+        request_path = self._write_job_to_disk(*args, **kwargs)
+        with open(request_path) as f:
+            data = json.load(f)
+
+        r = requests.post(
+            url='http://slurm/api/slurm/v0.0.36/job/submit',
+            headers={
+                'X-SLURM-USER-NAME': app_config.slurm.username,
+                'X-SLURM-USER-TOKEN': (
+                    app_config.slurm.api_token.get_secret_value()),
+                'Content-type': 'application/json'
+            },
+            data=json.dumps(data)
+        )
+        response = r.json()
+        job_id = response.get('job_id')
         job = SlurmJob.from_job_id(job_id=job_id)
-        logger.info(stdout)
+        logger.info(response)
         self._job = job
         return job_id
-
-    def _get_slurm_script_headers(
-        self,
-        job_name: str,
-        log_path: Path,
-        tmp_storage_adjustment_factor: int = 3
-    ) -> str:
-        """
-
-        Parameters
-        ----------
-        job_name
-            slurm job name
-        log_path
-            Where to write slurm job logs to
-        tmp_storage_adjustment_factor
-            Multiplies the ophys experiment file size by this amount to give
-            some breathing room to the amount of tmp storage to reserve.
-            Not used if request_additional_tmp_storage is False
-        Returns
-        -------
-        The slurm script headers
-        """
-        if app_config.is_debug or \
-                not self._slurm_settings.request_additional_tmp_storage:
-            tmp = 0
-        else:
-            tmp = self._get_tmp_storage(
-                adjustment_factor=tmp_storage_adjustment_factor)
-        cpus_per_task = \
-            1 if app_config.is_debug else \
-            self._slurm_settings.cpus_per_task
-        mem = \
-            1 if app_config.is_debug else self._slurm_settings.mem
-        time = \
-            '00:10:00' if app_config.is_debug else \
-            self._slurm_settings.time
-        gpus = \
-            0 if app_config.is_debug else \
-            self._slurm_settings.gpus
-        s = SimpleSlurm(
-            partition='braintv',
-            qos='production',
-            nodes=1,
-            cpus_per_task=cpus_per_task,
-            gpus=gpus,
-            mem=f'{mem}G',
-            time=time,
-            job_name=job_name,
-            mail_type='NONE',
-            tmp=f'{tmp}G',
-            out=log_path
-        )
-        return str(s)
 
     def _get_tmp_storage(
         self,
@@ -401,13 +379,3 @@ def read_config(config_path: Path) -> _SlurmSettings:
         config = yaml.safe_load(f)
     config = _SlurmSettings(**config)
     return config
-
-
-def _parse_job_id_from_sbatch_output(output: str) -> str:
-    match = re.findall(r'\d+', output)
-    if len(match) == 0:
-        raise RuntimeError('Could not parse job id from sbatch command')
-    if len(match) > 1:
-        raise RuntimeError(f'Got unexpected output from sbatch command: '
-                           f'{output}')
-    return match[0]

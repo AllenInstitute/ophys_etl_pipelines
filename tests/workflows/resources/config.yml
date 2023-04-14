@@ -7,6 +7,9 @@ lims_db:
 singularity:
   username: 'foo'
   password: 'bar'
+slurm:
+  username: 'foo'
+  api_token: 'foo'
 pipeline_steps:
   default_docker_tag: 'main'
   denoising:

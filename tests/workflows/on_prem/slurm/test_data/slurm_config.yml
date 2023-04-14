@@ -1,4 +1,4 @@
 cpus_per_task: 32
 mem: 250
-time: '5:00:00'
+time: 300
 request_additional_tmp_storage: true

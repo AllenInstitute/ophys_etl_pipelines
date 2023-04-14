@@ -1,4 +1,4 @@
 cpus_per_task: 17
 mem: 85
-time: '8:00:00'
+time: 480
 gpus: 1

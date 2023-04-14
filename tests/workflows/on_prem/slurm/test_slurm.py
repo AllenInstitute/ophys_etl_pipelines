@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytz
+
 from ophys_etl.test_utils.workflow_utils import setup_app_config
 
 setup_app_config(
@@ -17,44 +19,50 @@ from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
     OphysSession, Specimen  # noqa #402
 
 from ophys_etl.workflows.on_prem.slurm.slurm import SlurmJob, SlurmState, \
-    Slurm, _parse_job_id_from_sbatch_output # noqa #402
+    Slurm # noqa #402
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule  # noqa #402
 
 
 class TestSlurmJob:
+    @patch('requests.get')
     @pytest.mark.parametrize('has_job_started', (True, False))
-    def test_from_job_id(self, has_job_started):
-        meta = 'job_meta.txt' if has_job_started else \
-            'job_meta_not_started.txt'
-        with open(Path(__file__).parent / 'test_data' / meta) as f:
-            dummy_job_meta = f.read()
+    def test_from_job_id(self, get, has_job_started):
+        class DummyResponse:
+            @staticmethod
+            def json():
+                if has_job_started:
+                    return {
+                        'jobs': [
+                            {
+                                'state': {'current': SlurmState.COMPLETED},
+                                'start_time': 1680557440,
+                                'end_time': 1680557518
+                            }
+                        ]
+                    }
+                else:
+                    return {
+                        'jobs': []
+                    }
+        get.return_value = DummyResponse
 
-        with patch.object(SlurmJob, '_get_job_meta',
-                          wraps=lambda job_id: dummy_job_meta):
-            job = SlurmJob.from_job_id(job_id='7353332')
+        job = SlurmJob.from_job_id(job_id='7353332')
         assert job.id == '7353332'
 
         if has_job_started:
             assert job.state == SlurmState.COMPLETED
             assert job.start == datetime.datetime(
-                year=2023, month=1, day=18, hour=15, minute=24, second=52)
+                year=2023, month=4, day=3, hour=21, minute=30, second=40,
+                tzinfo=pytz.UTC)
             assert job.end == datetime.datetime(
-                year=2023, month=1, day=18, hour=15, minute=24, second=57)
+                year=2023, month=4, day=3, hour=21, minute=31, second=58,
+                tzinfo=pytz.UTC
+            )
         else:
             assert job.state is None
             assert job.start is None
             assert job.end is None
-
-    @pytest.mark.parametrize('valid', (True, False))
-    def test_try_parse_datetime(self, valid):
-        if valid:
-            assert SlurmJob._try_parse_datetime('2023-01-18T15:24:57') == \
-                   datetime.datetime(
-                       year=2023, month=1, day=18, hour=15, minute=24,
-                       second=57)
-        else:
-            assert SlurmJob._try_parse_datetime('') is None
 
     @pytest.mark.parametrize('job_state',
                              (SlurmState.COMPLETED, SlurmState.RUNNING))
@@ -91,44 +99,27 @@ class TestSlurm:
                 movie_frame_rate_hz=11.0
             )
         )
-        with patch.object(Slurm, '_get_tmp_storage',
-                          wraps=lambda adjustment_factor: 55):
-            cls._slurm = Slurm(
-                ophys_experiment_id='1',
-                pipeline_module=mod,
-                config_path=Path(__file__).parent / 'test_data' /
-                'slurm_config.yml',
-                log_path=Path('log_path.log')
-            )
+        cls._slurm = Slurm(
+            ophys_experiment_id='1',
+            pipeline_module=mod,
+            config_path=Path(__file__).parent / 'test_data' /
+            'slurm_config.yml',
+            log_path=Path('log_path.log')
+        )
 
-    def test_get_slurm_script_headers(self):
-        with open(Path(__file__).parent / 'test_data' /
-                  'expected_headers.txt') as f:
-            expected_headers = f.read()
-        assert self._slurm._slurm_headers == expected_headers
-
-    def test_write_script(self):
-        self._slurm._write_script(
-            input_json='input.json', output_json='output.json')
+    @patch.object(Slurm, '_get_tmp_storage',
+                  wraps=lambda adjustment_factor: 55)
+    def test_write_job_to_disk(self, _):
+        self._slurm._write_job_to_disk(
+            input_json='input.json', output_json='output.json',
+            job_name='test_job'
+        )
         with open(self._slurm._pipeline_module.output_path /
-                  f'{self._slurm._ophys_experiment_id}.slurm') as f:
-            script = f.read()
+                  f'{self._slurm._ophys_experiment_id}.json') as f:
+            job = f.read()
 
         with open(Path(__file__).parent / 'test_data' /
-                  'expected_command.txt') as f:
-            expected_cmd = f.read()
+                  'expected_job.json') as f:
+            expected_job = f.read()
 
-        cmd = script.splitlines()[-2]
-        assert cmd == expected_cmd
-
-
-def test_parse_job_id_from_sbatch_output_valid():
-    output = 'submitted batch job with id 1234'
-    job_id = _parse_job_id_from_sbatch_output(output=output)
-    assert job_id == '1234'
-
-
-@pytest.mark.parametrize('output', ('', '1234 1234'))
-def test_parse_job_id_from_sbatch_output_invalid(output):
-    with pytest.raises(RuntimeError):
-        _parse_job_id_from_sbatch_output(output=output)
+        assert job == expected_job

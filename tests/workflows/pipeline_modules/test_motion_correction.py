@@ -24,30 +24,14 @@ from ophys_etl.workflows.db.initialize_db import IntializeDBRunner # noqa E402
 from ophys_etl.workflows.db.schemas import MotionCorrectionRun # noqa E402
 from ophys_etl.workflows.pipeline_module import OutputFile  # noqa E402
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
-from ophys_etl.workflows.workflow_steps import WorkflowStep # noqa E402
+from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.test_utils.db_utils import MockSQLiteDB
 
-
-class TestMotionCorrectionModule:
-    @classmethod
-    def setup_class(cls):
-        cls._tmp_dir = Path(tempfile.TemporaryDirectory().name)
-        cls._db_path = cls._tmp_dir / 'app.db'
-        os.makedirs(cls._db_path.parent, exist_ok=True)
-
-        db_url = f'sqlite:///{cls._db_path}'
-        cls._engine = IntializeDBRunner(
-            input_data={
-                'db_url': db_url
-            },
-            args=[]).run()
-        cls._xy_offset_path = \
-            Path(__file__).parent / 'resources' / 'rigid_motion_transform.csv'
-
-    @classmethod
-    def teardown_class(cls):
-        shutil.rmtree(cls._tmp_dir)
+class TestMotionCorrectionModule(MockSQLiteDB):
 
     def test_save_metadata_to_db(self):
+        _xy_offset_path = \
+            Path(__file__).parent / 'resources' / 'rigid_motion_transform.csv'
         with Session(self._engine) as session:
             save_job_run_to_db(
                 workflow_step_name=WorkflowStep.MOTION_CORRECTION,
@@ -56,7 +40,7 @@ class TestMotionCorrectionModule:
                 module_outputs=[OutputFile(
                         well_known_file_type=(
                             WellKnownFileType.MOTION_X_Y_OFFSET_DATA),
-                        path=self._xy_offset_path
+                        path=_xy_offset_path
                     )
                 ],
                 ophys_experiment_id='1',

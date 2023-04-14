@@ -78,6 +78,10 @@ def _create_workflow_steps_for_ophys_processing(
         'roi_classification_inference': WorkflowStep(
             name=WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE.value,
             workflow_id=workflow.id
+        ),
+        'trace_extraction': WorkflowStep(
+            name=WorkflowStepEnum.TRACE_EXTRACTION.value,
+            workflow_id=workflow.id
         )
     }
     for workflow_step in workflow_steps.values():
@@ -265,6 +269,10 @@ def _create_well_known_file_types_for_ophys_processing(
         session=session,
         workflow_steps=workflow_steps
     )
+    _create_trace_extraction_well_known_file_types(
+        session=session,
+        workflow_steps=workflow_steps
+    )
     _create_roi_classification_inference_well_known_file_types(
         session=session,
         workflow_steps=workflow_steps
@@ -282,6 +290,27 @@ def _create_well_known_file_types_for_roi_classifier_training(
         workflow_steps=workflow_steps
     )
     session.commit()
+
+def _create_trace_extraction_well_known_file_types(
+    session,
+    workflow_steps: Dict[str, WorkflowStep]
+):
+    well_known_file_types = [
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.NEUROPIL_TRACE.value,
+            workflow_step_id=workflow_steps['trace_extraction'].id
+        ),
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.ROI_TRACE.value,
+            workflow_step_id=workflow_steps['trace_extraction'].id
+        ),
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.EXCLUSION_LABELS.value,
+            workflow_step_id=workflow_steps['trace_extraction'].id
+        )
+    ]
+    for wkft in well_known_file_types:
+        session.add(wkft)
 
 
 def _populate_db(engine):

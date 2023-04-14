@@ -84,6 +84,8 @@ class _MotionCorrection(_PipelineStep):
 class _Segmentation(_PipelineStep):
     pass
 
+class _TraceExtraction(_PipelineStep):
+    pass
 
 class _GenerateCorrelationProjection(_PipelineStep):
     n_workers: int
@@ -173,6 +175,7 @@ class _PipelineSteps(ImmutableBaseModel):
     denoising: _Denoising
     motion_correction: Optional[_MotionCorrection]
     segmentation: Optional[_Segmentation]
+    trace_extraction: Optional[_TraceExtraction]
     roi_classification: _ROIClassification
 
 ##################

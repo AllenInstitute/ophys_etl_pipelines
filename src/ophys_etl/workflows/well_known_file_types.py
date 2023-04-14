@@ -25,6 +25,12 @@ class WellKnownFileType(Enum):
     OPHYS_ROIS = 'OPHYS_ROIS'
 
     ########
+    # trace extraction
+    ########
+    NEUROPIL_TRACE = 'NEUROPIL_TRACE'
+    ROI_TRACE = 'ROI_TRACE'
+
+    ########
     # ROI classification
     ########
     ROI_CLASSIFICATION_CORRELATION_PROJECTION_GRAPH = \

@@ -22,6 +22,8 @@ from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
 from ophys_etl.workflows.pipeline_modules.segmentation import \
     SegmentationModule
+from ophys_etl.workflows.pipeline_modules.trace_extraction import \
+    TraceExtractionModule
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 from ophys_etl.workflows.workflow_names import WorkflowName
 from ophys_etl.workflows.workflow_step_runs import get_latest_run
@@ -220,6 +222,24 @@ def ophys_processing():
             correlation_graph_file=correlation_graph_file)
         thumbnail_dir >> run_inference()
 
+    @task_group
+    def trace_extraction(motion_corrected_ophys_movie_file,
+                         rois_file):
+        module_outputs = run_workflow_step(
+            slurm_config_filename='trace_extraction.yml',
+            module=TraceExtractionModule,
+            workflow_step_name=WorkflowStep.TRACE_EXTRACTION,
+            workflow_name=WORKFLOW_NAME,
+            docker_tag=app_config.pipeline_steps.segmentation.docker_tag,
+            additional_db_inserts=SegmentationModule.save_rois_to_db,
+            module_kwargs={
+                'motion_corrected_ophys_movie_file':
+                    motion_corrected_ophys_movie_file,
+                'rois_file': rois_file,
+            }
+        )
+        return module_outputs[
+            WellKnownFileType.OPHYS_ROIS.value]
     motion_corrected_ophys_movie_file = motion_correction()
     denoised_movie_file = denoising(
         motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file)

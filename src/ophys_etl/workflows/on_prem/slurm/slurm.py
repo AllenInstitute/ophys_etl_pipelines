@@ -130,8 +130,7 @@ class SlurmJob:
             return cls(
                 id=job_id
             )
-
-        if len(response['jobs']) > 1:
+        elif len(response['jobs']) > 1:
             raise RuntimeError(f'Expected 1 job to be returned but '
                                f'{len(response["jobs"])} were returned)')
         job = response['jobs'][0]

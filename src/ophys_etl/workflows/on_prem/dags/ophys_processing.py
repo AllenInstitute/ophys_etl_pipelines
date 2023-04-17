@@ -234,12 +234,14 @@ def ophys_processing():
             additional_db_inserts=SegmentationModule.save_rois_to_db,
             module_kwargs={
                 'motion_corrected_ophys_movie_file':
-                    motion_corrected_ophys_movie_file,
-                'rois_file': rois_file,
+                    motion_corrected_ophys_movie_file
             }
         )
         return module_outputs[
-            WellKnownFileType.OPHYS_ROIS.value]
+            WellKnownFileType.TRACE_EXTRACTION_EXCLUSION_LABELS.value,
+            WellKnownFileType.ROI_TRACE.value,
+            WellKnownFileType.NEUROPIL_TRACE.value]
+    
     motion_corrected_ophys_movie_file = motion_correction()
     denoised_movie_file = denoising(
         motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file)
@@ -248,6 +250,7 @@ def ophys_processing():
         denoised_ophys_movie_file=denoised_movie_file,
         rois_file=rois_file
     )
+    
 
 
 ophys_processing()

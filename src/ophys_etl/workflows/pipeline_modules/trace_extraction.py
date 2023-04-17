@@ -8,7 +8,9 @@ from ophys_etl.modules import segment_postprocess
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 from sqlmodel import Session
 
-from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
+from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValueDB
+from ophys_etl.workflows.db.db_utils import get_ophys_experiment_roi_metadata, \
+get_ophys_experiment_motion_border
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
 from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile
@@ -37,28 +39,28 @@ class TraceExtractionModule(PipelineModule):
         return WorkflowStep.TRACE_EXTRACTION
 
     @property
-    def inputs(self) -> Dict:
+    def inputs(self, session: Session) -> Dict:
         return {
             #TODO add inputs
             'log_level': logging.DEBUG,
             'storage_directory': self.output_path,
-            'motion_border': {
-                'y1': 0,
-                'y0': 0,
-                'x0': 0,
-                'x1': 0,
-            },
-            'motion_corrected_stack': self._motion_corrected_ophys_movie_file
+            'motion_border': get_ophys_experiment_motion_border(
+            self.ophys_experiment.id, session),
+            'motion_corrected_stack': self._motion_corrected_ophys_movie_file,
+            'rois': get_ophys_experiment_roi_metadata(self.ophys_experiment.id,
+                                                      session),
         }
 
     @property
     def outputs(self) -> List[OutputFile]:
         return [
             OutputFile(
-                well_known_file_type=WellKnownFileType.NEUROPIL_TRACE,
+                well_known_file_type=WellKnownFileType.TRACE_EXTRACTION_EXCLUSION_LABELS,
+                path=self.output_metadata_path),
+            OutputFile(
+                well_known_file_type=WellKnownFileType.ROI_TRACE,
                 path=self.output_path),
              OutputFile(
                 well_known_file_type=WellKnownFileType.NEUROPIL_TRACE,
                 path=self.output_path)
         ]
-

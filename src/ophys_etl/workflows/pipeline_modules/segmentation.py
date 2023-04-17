@@ -8,7 +8,7 @@ from ophys_etl.modules import segment_postprocess
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 from sqlmodel import Session
 
-from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
+from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValueDB
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
 from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile
@@ -103,7 +103,7 @@ class SegmentationModule(PipelineModule):
             for i in range(len(mask)):
                 for j in range(len(mask[i])):
                     if mask[i][j]:
-                        mask_val = OphysROIMaskValue(
+                        mask_val = OphysROIMaskValueDB(
                             ophys_roi_id=roi.id,
                             row_index=i,
                             col_index=j

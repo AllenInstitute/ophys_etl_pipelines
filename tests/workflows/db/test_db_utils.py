@@ -13,8 +13,7 @@ setup_app_config(
                              'di_model.h5')
 )
 
-from ophys_etl.workflows.db.schemas import MotionCorrectionRunDB, OphysROI, \
-    OphysROIMaskValueDB, WorkflowDB, WorkflowStepDB, WorkflowStepRunDB, \
+from ophys_etl.workflows.db.schemas import WorkflowStep, WorkflowStepRun, \
     WellKnownFile, WellKnownFileType
 from ophys_etl.workflows.well_known_file_types import \
     WellKnownFileType as WellKnownFileTypeEnum
@@ -25,12 +24,10 @@ from ophys_etl.workflows.workflow_steps import WorkflowStep
 
 
 
-from ophys_etl.workflows.pipeline_module import OutputFile  # noqa E402
-from ophys_etl.workflows.db.db_utils import get_ophys_experiment_motion_border, \
-    get_ophys_experiment_roi_metadata, \
-    get_workflow_step_by_name, get_well_known_file_type, save_job_run_to_db, \
+from ophys_etl.workflows.output_file import OutputFile  # noqa E402
+from ophys_etl.workflows.db.db_utils import get_workflow_step_by_name, \
+    get_well_known_file_type, save_job_run_to_db, \
     ModuleOutputFileDoesNotExistException, _validate_files_exist  # noqa #402
-from sqlalchemy import create_engine    # noqa #402
 from sqlmodel import Session, select    # noqa #402
 
 from ophys_etl.workflows.db.initialize_db import InitializeDBRunner  # noqa #402
@@ -49,96 +46,11 @@ class TestDBUtils:
             },
             args=[]).run()
 
-    def _create_mock_data(self):
-        
-        workflow_name = WorkflowName.OPHYS_PROCESSING
-        workflow_step_name = WorkflowStep.SEGMENTATION
-        ophys_experiment_id="ophys_experiment_1"
-        with Session(self._engine) as session:
-            workflow = WorkflowDB(
-                id=1,
-                name=workflow_name,
-            )
-            session.add(workflow)
-            
-            workflow_step = WorkflowStepDB(
-                id=100,
-                name=workflow_step_name,
-                workflow_name=workflow_name,
-            )
-            session.add(workflow_step)
-
-            workflow_step_run = WorkflowStepRunDB(
-                id=1,
-                ophys_experiment_id=ophys_experiment_id,
-                workflow_step_id=100,
-                log_path="log_path",
-                storage_directory="storage_directory",
-                start="2023-04-01 00:00:00",
-                end="2023-04-01 01:00:00",
-            )
-            session.add(workflow_step_run)
-
-            motion_correction = MotionCorrectionRunDB(
-                workflow_step_run_id=1,
-                max_correction_left=10,
-                max_correction_right=20,
-                max_correction_up=30,
-                max_correction_down=40,
-            )
-            session.add(motion_correction)
-
-            ophys_roi = OphysROI(
-                id=1,
-                workflow_step_run_id=1,
-                x=10,
-                y=20,
-                width=30,
-                height=40,
-            )
-            session.add(ophys_roi)
-
-            ophys_roi_mask_value = OphysROIMaskValueDB(
-                id=1,
-                ophys_roi_id=1,
-                row_index=5,
-                col_index=6,
-            )
-            session.add(ophys_roi_mask_value)
-            session.commit()
-
     def setup(self):
         self._initialize_db()
-        self._create_mock_data()
 
     def teardown_method(self):
         shutil.rmtree(self._tmp_dir)
-
-    def test__get_ophys_experiment_roi_metadata(self):
-        self._create_mock_data()
-        with Session(self._engine) as session:
-            roi_metadata = get_ophys_experiment_roi_metadata(
-                session=session,
-                ophys_experiment_id="ophys_experiment_1",
-                workflow_step_name=WorkflowStep.MOTION_CORRECTION,
-                workflow=WorkflowName.OPHYS_PROCESSING
-            )
-        assert roi_metadata["x"] == 10
-        assert roi_metadata["y"] == 20
-        assert roi_metadata["width"] == 30
-        assert roi_metadata["height"] == 40
-        assert roi_metadata["mask_matrix"][5][6] == 1
-
-    def test_get_ophys_experiment_motion_border(self):
-        with Session(self._engine) as session:
-            motion_border = get_ophys_experiment_motion_border(
-                ophys_experiment_id="ophys_experiment_1",
-                session=session
-            )
-        assert motion_border['x0'] == 10
-        assert motion_border['x1'] == 20
-        assert motion_border['y0'] == 30
-        assert motion_border['y1'] == 40
 
     def test__get_workflow_step_by_name(self):
         with Session(self._engine) as session:
@@ -232,7 +144,7 @@ class TestDBUtils:
                 return
 
             save_job_run()
-            stmt = select(WorkflowStepRunDB)
+            stmt = select(WorkflowStepRun)
             runs = session.exec(stmt).all()
 
             # check 1 run inserted

@@ -2,10 +2,15 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-
+from sqlmodel import Session, select
+from typing import Dict, List
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
-
+from ophys_etl.workflows.workflow_step_runs import get_latest_run
+from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
+from ophys_etl.workflows.workflow_names import WorkflowName
+from ophys_etl.workflows.db.schemas import MotionCorrectionRun, OphysROI, \
+    OphysROIMaskValue
 
 @dataclass
 class OphysSession:
@@ -85,3 +90,89 @@ class OphysExperiment:
             session=session,
             specimen=specimen
         )
+
+    def get_ophys_experiment_motion_border(self,
+            session: Session) -> Dict:
+        """
+        Get motion border for an ophys experiment
+
+        Parameters
+        ----------
+        ophys_experiment_id
+            The ophys experiment id
+        session
+            The database session
+
+        Returns
+        -------
+        Dict[int]
+            A dictionary containing motion border data
+        """
+
+        workflow_step_run_id = get_latest_run(session,
+                                              WorkflowStepEnum.MOTION_CORRECTION,
+                                              WorkflowName.OPHYS_PROCESSING,
+                                              )
+        query = (
+            select(
+                MotionCorrectionRun,
+            )
+            .where(MotionCorrectionRun.workflow_step_run_id == workflow_step_run_id) 
+        )
+
+        result = session.execute(query).all()
+        motion_border = result[0][1]
+        return {
+            "x0": motion_border.max_correction_left,
+            "x1": motion_border.max_correction_right,
+            "y0": motion_border.max_correction_up,
+            "y1": motion_border.max_correction_down
+        }
+
+
+    def get_ophys_experiment_roi_metadata(
+            self,
+            session: Session) -> List[Dict]:
+        """
+        Get ROI metadata for an ophys experiment
+        
+        Parameters
+        ----------
+        ophys_experiment_id
+            The ophys experiment id
+        session
+            The database session
+
+        Returns
+        -------
+        List[Dict]
+            A list of dictionaries containing ROI metadata
+        """
+        workflow_step_run_id = get_latest_run(session,
+                                              WorkflowStepEnum.MOTION_CORRECTION,
+                                              WorkflowName.OPHYS_PROCESSING,
+                                              self.ophys_experiment_id,
+                                              )
+        query = (
+            select(
+                OphysROI,
+                OphysROIMaskValue,
+            )
+            .join(OphysROIMaskValue, OphysROIMaskValue.ophys_roi_id == OphysROI.id)
+            .where(OphysROI.workflow_step_run_id == workflow_step_run_id)
+        )
+
+        result = session.execute(query).all()
+        roi_metadata = []
+        for row in result:
+            ophys_roi, ophys_roi_mask_value = row
+            roi_metadata.append({
+                'id': ophys_roi.id,
+                'x': ophys_roi.x,
+                'y': ophys_roi.y,
+                'width': ophys_roi.width,
+                'height': ophys_roi.height,
+                'mask': ophys_roi_mask_value.mask,
+                'mask_matrix': ophys_roi_mask_value.mask_matrix
+            })
+        return roi_metadata

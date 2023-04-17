@@ -8,8 +8,9 @@ from typing import List, Union, Optional, Callable, Dict
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select
 
-from ophys_etl.workflows.db.schemas import WorkflowStepRun, WellKnownFile, \
-    WellKnownFileType, WorkflowStep, Workflow
+from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValueDB, \
+    MotionCorrectionRunDB, WorkflowStepRunDB, WellKnownFile, \
+    WellKnownFileType, WorkflowStepDB, WorkflowDB
 from ophys_etl.workflows.workflow_names import WorkflowName
 from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType as \
@@ -89,7 +90,7 @@ def save_job_run_to_db(
     )
 
     # 2. add a run for this workflow step
-    workflow_step_run = WorkflowStepRun(
+    workflow_step_run = WorkflowStepRunDB(
         workflow_step_id=workflow_step.id,
         storage_directory=str(storage_directory),
         log_path=str(log_path),
@@ -131,7 +132,7 @@ def get_workflow_step_by_name(
     session,
     name: WorkflowStepEnum,
     workflow: WorkflowName
-) -> WorkflowStep:
+) -> WorkflowStepEnum:
     """
     Get workflow step by name
 
@@ -146,11 +147,11 @@ def get_workflow_step_by_name(
 
     Returns
     -------
-    WorkflowStep
+    WorkflowStepEnum
     """
     statement = (
-        select(WorkflowStep)
-        .where(WorkflowStep.name == name, Workflow.name == workflow))
+        select(WorkflowStepDB)
+        .where(WorkflowStepDB.name == name, WorkflowDB.name == workflow))
     results = session.exec(statement)
     try:
         workflow_step = results.one()
@@ -202,6 +203,96 @@ def get_well_known_file_type(
         raise
     return wkft
 
+
+def get_ophys_experiment_motion_border(
+        ophys_experiment_id: int,
+        session: Session) -> Dict:
+    """
+    Get motion border for an ophys experiment
+
+    Parameters
+    ----------
+    ophys_experiment_id
+        The ophys experiment id
+    session
+        The database session
+
+    Returns
+    -------
+    Dict[int]
+        A dictionary containing motion border data
+    """
+
+    query = (
+        select(
+            WorkflowStepRunDB,
+            MotionCorrectionRunDB,
+        )
+        .join(MotionCorrectionRunDB, MotionCorrectionRunDB.workflow_step_run_id == WorkflowStepRunDB.id)
+        .where(WorkflowStepRunDB.ophys_experiment_id == ophys_experiment_id)
+    )
+
+    result = session.execute(query).all()
+
+    if len(result) == 0:
+        raise ValueError(f"No motion correction run found for ophys experiment {ophys_experiment_id}")
+    
+    if len(result) > 1:
+        raise ValueError(f"Multiple motion correction runs found for ophys experiment {ophys_experiment_id}")
+    
+    motion_border = result[0][1].motion_border
+    return {
+        "x0": motion_border.max_correction_left,
+        "x1": motion_border.max_correction_right,
+        "y0": motion_border.max_correction_up,
+        "y1": motion_border.max_correction_down
+    }
+
+
+def get_ophys_experiment_roi_metadata(
+        ophys_experiment_id: int,
+        session: Session) -> List[Dict]:
+    """
+    Get ROI metadata for an ophys experiment
+    
+    Parameters
+    ----------
+    ophys_experiment_id
+        The ophys experiment id
+    session
+        The database session
+
+    Returns
+    -------
+    List[Dict]
+        A list of dictionaries containing ROI metadata
+    """
+
+    query = (
+        select(
+            WorkflowStepRunDB,
+            OphysROI,
+            OphysROIMaskValueDB,
+        )
+        .join(OphysROI, OphysROI.workflow_step_run_id == WorkflowStepRunDB.id)
+        .join(OphysROIMaskValueDB, OphysROIMaskValueDB.ophys_roi_id == OphysROI.id)
+        .where(WorkflowStepRunDB.ophys_experiment_id == ophys_experiment_id)
+    )
+
+    result = session.execute(query).all()
+    roi_metadata = []
+    for row in result:
+        workflow_step_run, ophys_roi, ophys_roi_mask_value = row
+        roi_metadata.append({
+            'id': ophys_roi.id,
+            'x': ophys_roi.x,
+            'y': ophys_roi.y,
+            'width': ophys_roi.width,
+            'height': ophys_roi.height,
+            'mask': ophys_roi_mask_value.mask,
+            'mask_matrix': ophys_roi_mask_value.mask_matrix
+        })
+    return roi_metadata
 
 def _validate_files_exist(
         output_files: List[OutputFile]

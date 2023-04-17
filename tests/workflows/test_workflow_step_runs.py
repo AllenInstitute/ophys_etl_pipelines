@@ -1,9 +1,5 @@
 import datetime
-import os
-import shutil
 from pathlib import Path
-
-import tempfile
 
 import pytest
 
@@ -23,32 +19,12 @@ from ophys_etl.workflows.workflow_step_runs import get_latest_run, \
 from ophys_etl.workflows.workflow_steps import WorkflowStep # noqa E402
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db  # noqa E402
-
-from ophys_etl.workflows.db.initialize_db import InitializeDBRunner  # noqa E402
 from sqlmodel import Session    # noqa E402
 
 from ophys_etl.workflows.workflow_names import WorkflowName # noqa E402
+from ophys_etl.test_utils.db_base import MockSQLiteDB
 
-
-class TestWorkflowStepRuns:
-    @classmethod
-    def _initialize_db(cls):
-        cls._tmp_dir = Path(tempfile.TemporaryDirectory().name)
-        cls._db_path = cls._tmp_dir / 'app.db'
-        os.makedirs(cls._db_path.parent, exist_ok=True)
-
-        db_url = f'sqlite:///{cls._db_path}'
-        cls._engine = InitializeDBRunner(
-            input_data={
-                'db_url': db_url
-            },
-            args=[]).run()
-
-    def setup(self):
-        self._initialize_db()
-
-    def teardown_method(self):
-        shutil.rmtree(self._tmp_dir)
+class TestWorkflowStepRuns(MockSQLiteDB):
 
     @pytest.mark.parametrize('ophys_experiment_id', (None, '1'))
     def test__get_latest_run(self, ophys_experiment_id):

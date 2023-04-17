@@ -335,7 +335,7 @@ def _populate_db(engine):
         )
 
 
-class IntializeDBRunner(argschema.ArgSchemaParser):
+class InitializeDBRunner(argschema.ArgSchemaParser):
     default_schema = InitializeDBSchema
 
     def run(self):
@@ -346,5 +346,5 @@ class IntializeDBRunner(argschema.ArgSchemaParser):
 
 
 if __name__ == "__main__":
-    init_db = IntializeDBRunner()
+    init_db = InitializeDBRunner()
     init_db.run()

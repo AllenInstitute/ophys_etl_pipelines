@@ -5,7 +5,7 @@ from pathlib import Path
 import boto3
 from ophys_etl.workflows.app_config.app_config import app_config
 
-from ophys_etl.workflows.pipeline_module import OutputFile
+from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     .mlflow_utils \
     import MLFlowRun

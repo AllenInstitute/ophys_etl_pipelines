@@ -17,15 +17,8 @@ from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.utils.json_utils import EnhancedJSONEncoder
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 
-
-@dataclass
-class OutputFile:
-    """File output by module"""
-    path: Path
-    well_known_file_type: WellKnownFileType
-
+from ophys_etl.workflows.output_file import OutputFile
 
 class ModuleOutputFileExistsError(Exception):
     pass

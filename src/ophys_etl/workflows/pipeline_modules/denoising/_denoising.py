@@ -1,7 +1,8 @@
 from abc import ABC
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
-from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile
+from ophys_etl.workflows.output_file import OutputFile
+from ophys_etl.workflows.pipeline_module import PipelineModule
 
 
 class _DenoisingModule(PipelineModule, ABC):

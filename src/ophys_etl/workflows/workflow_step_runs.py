@@ -1,7 +1,7 @@
 """Functions relating to workflow step runs"""
 from pathlib import Path
 from typing import Optional
-
+import logging
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select, col
@@ -10,12 +10,12 @@ from ophys_etl.workflows.db.db_utils import get_workflow_step_by_name, \
     get_well_known_file_type
 from ophys_etl.workflows.db.schemas import WorkflowStepRun, WorkflowStep, \
     WellKnownFile
-from ophys_etl.workflows.pipeline_module import logger
 
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 from ophys_etl.workflows.workflow_names import WorkflowName
 from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
 
+logger = logging.getLogger(__name__)
 
 def get_well_known_file_for_latest_run(
     engine: Engine,

@@ -8,7 +8,8 @@ from sqlmodel import Session
 
 from ophys_etl.utils.motion_border import get_max_correction_from_file
 from ophys_etl.workflows.db.schemas import MotionCorrectionRun
-from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile
+from ophys_etl.workflows.output_file import OutputFile
+from ophys_etl.workflows.pipeline_module import PipelineModule
 from ophys_etl.workflows.well_known_file_types import \
     WellKnownFileType
 

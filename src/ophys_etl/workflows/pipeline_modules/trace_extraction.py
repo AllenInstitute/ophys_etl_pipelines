@@ -8,12 +8,10 @@ from ophys_etl.modules import segment_postprocess
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 from sqlmodel import Session
 
-from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValueDB
-from ophys_etl.workflows.db.db_utils import get_ophys_experiment_roi_metadata, \
-get_ophys_experiment_motion_border
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
-from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile
+from ophys_etl.workflows.output_file import OutputFile
+from ophys_etl.workflows.pipeline_module import PipelineModule
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 
 class TraceExtractionModule(PipelineModule):
@@ -44,10 +42,10 @@ class TraceExtractionModule(PipelineModule):
             #TODO add inputs
             'log_level': logging.DEBUG,
             'storage_directory': self.output_path,
-            'motion_border': get_ophys_experiment_motion_border(
-            self.ophys_experiment.id, session),
+            'motion_border': self.ophys_experiment.get_ophys_experiment_motion_border(
+            session),
             'motion_corrected_stack': self._motion_corrected_ophys_movie_file,
-            'rois': get_ophys_experiment_roi_metadata(self.ophys_experiment.id,
+            'rois': self.ophys_experiment.get_ophys_experiment_roi_metadata(
                                                       session),
         }
 

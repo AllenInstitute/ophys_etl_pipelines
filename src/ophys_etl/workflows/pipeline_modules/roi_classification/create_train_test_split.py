@@ -8,8 +8,8 @@ from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 
 from ophys_etl.workflows.app_config.app_config import app_config
-
-from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile
+from ophys_etl.workflows.output_file import OutputFile
+from ophys_etl.workflows.pipeline_module import PipelineModule
 
 
 class CreateTrainTestSplitModule(PipelineModule):

@@ -10,7 +10,7 @@ from airflow.models.dag import dag
 from deepcell.cli.modules.create_dataset import construct_dataset
 from ophys_etl.workflows.tasks import save_job_run_to_db
 
-from ophys_etl.workflows.pipeline_module import OutputFile
+from ophys_etl.workflows.output_file import OutputFile
 
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.pipeline_modules import roi_classification

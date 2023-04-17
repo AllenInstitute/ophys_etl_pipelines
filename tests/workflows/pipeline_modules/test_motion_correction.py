@@ -21,8 +21,8 @@ from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule # noqa E402
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db # noqa E402
 from ophys_etl.workflows.db.initialize_db import InitializeDBRunner # noqa E402
-from ophys_etl.workflows.db.schemas import MotionCorrectionRunDB # noqa E402
-from ophys_etl.workflows.pipeline_module import OutputFile  # noqa E402
+from ophys_etl.workflows.db.schemas import MotionCorrectionRun # noqa E402
+from ophys_etl.workflows.output_file import OutputFile  # noqa E402
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 from ophys_etl.test_utils.db_utils import MockSQLiteDB
@@ -51,7 +51,7 @@ class TestMotionCorrectionModule(MockSQLiteDB):
                 workflow_name=WorkflowName.OPHYS_PROCESSING
             )
         with Session(self._engine) as session:
-            statement = select(MotionCorrectionRunDB)
+            statement = select(MotionCorrectionRun)
             run = session.exec(statement).one()
 
         assert run.workflow_step_run_id == 1

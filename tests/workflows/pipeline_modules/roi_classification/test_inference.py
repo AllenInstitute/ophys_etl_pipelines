@@ -32,12 +32,12 @@ from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     MLFlowRun   # noqa E402
 from ophys_etl.workflows.app_config.app_config import app_config    # noqa E402
 from ophys_etl.workflows.workflow_names import WorkflowName # noqa E402
-from ophys_etl.workflows.pipeline_module import OutputFile  # noqa E402
+from ophys_etl.workflows.output_file import OutputFile  # noqa E402
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db  # noqa E402
 from sqlmodel import create_engine, Session, select # noqa E402
 
-from ophys_etl.workflows.db.initialize_db import IntializeDBRunner  # noqa E402
+from ophys_etl.workflows.db.initialize_db import InitializeDBRunner  # noqa E402
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
 from ophys_etl.workflows.workflow_steps import WorkflowStep # noqa E402
 
@@ -51,7 +51,7 @@ class TestInference:
         os.makedirs(cls._db_path.parent, exist_ok=True)
 
         db_url = f'sqlite:///{cls._db_path}'
-        cls._engine = IntializeDBRunner(
+        cls._engine = InitializeDBRunner(
             input_data={
                 'db_url': db_url
             },

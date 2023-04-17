@@ -29,6 +29,7 @@ class WellKnownFileType(Enum):
     ########
     NEUROPIL_TRACE = 'NEUROPIL_TRACE'
     ROI_TRACE = 'ROI_TRACE'
+    TRACE_EXTRACTION_EXCLUSION_LABELS = 'TRACE_EXTRACTION_EXCLUSION_LABELS'
 
     ########
     # ROI classification

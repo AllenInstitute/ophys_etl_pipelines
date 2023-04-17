@@ -13,7 +13,7 @@ from sqlmodel import Session
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db as \
     _save_job_run_to_db
-from ophys_etl.workflows.pipeline_module import OutputFile
+from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType
 from ophys_etl.workflows.workflow_names import WorkflowName
 from ophys_etl.workflows.workflow_steps import WorkflowStep

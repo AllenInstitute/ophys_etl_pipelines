@@ -7,7 +7,7 @@ from ophys_etl.modules.denoising import inference
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
-from ophys_etl.workflows.pipeline_module import OutputFile
+from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_modules.denoising._denoising import \
     _DenoisingModule
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType

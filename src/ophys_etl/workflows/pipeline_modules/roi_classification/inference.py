@@ -26,7 +26,9 @@ from ophys_etl.workflows.db import engine
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
-from ophys_etl.workflows.pipeline_module import PipelineModule, OutputFile
+from ophys_etl.workflows.output_file import OutputFile
+
+from ophys_etl.workflows.pipeline_module import PipelineModule
 from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     .mlflow_utils \
     import \

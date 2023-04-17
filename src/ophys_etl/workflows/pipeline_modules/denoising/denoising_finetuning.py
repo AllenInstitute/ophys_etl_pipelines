@@ -6,7 +6,7 @@ from ophys_etl.modules.denoising import fine_tuning
 from ophys_etl.workflows.workflow_steps import WorkflowStep
 
 from ophys_etl.workflows.app_config.app_config import app_config
-from ophys_etl.workflows.pipeline_module import OutputFile
+from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_modules.denoising._denoising import \
     _DenoisingModule
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType

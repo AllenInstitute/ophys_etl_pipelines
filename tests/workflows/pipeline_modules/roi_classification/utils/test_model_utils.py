@@ -24,7 +24,7 @@ from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     MLFlowRun   # noqa E402
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
 
-from ophys_etl.workflows.pipeline_module import OutputFile  # noqa E402
+from ophys_etl.workflows.output_file import OutputFile  # noqa E402
 
 from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     .model_utils import \

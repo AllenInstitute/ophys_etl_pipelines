@@ -304,6 +304,14 @@ def _create_trace_extraction_well_known_file_types(
             name=WellKnownFileTypeEnum.ROI_TRACE.value,
             workflow_step_id=workflow_steps['trace_extraction'].id
         ),
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.NEUROPIL_MASK.value,
+            workflow_step_id=workflow_steps['trace_extraction'].id
+        ),
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.TRACE_EXTRACTION_EXCLUSION_LABELS.value,
+            workflow_step_id=workflow_steps['trace_extraction'].id
+        ),
     ]
     for wkft in well_known_file_types:
         session.add(wkft)

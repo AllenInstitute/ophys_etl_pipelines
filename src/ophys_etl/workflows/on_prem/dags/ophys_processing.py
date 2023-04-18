@@ -240,7 +240,8 @@ def ophys_processing():
         return module_outputs[
             WellKnownFileType.TRACE_EXTRACTION_EXCLUSION_LABELS.value,
             WellKnownFileType.ROI_TRACE.value,
-            WellKnownFileType.NEUROPIL_TRACE.value]
+            WellKnownFileType.NEUROPIL_TRACE.value,
+            WellKnownFileType.NEUROPIL_MASK.value,]
     
     motion_corrected_ophys_movie_file = motion_correction()
     denoised_movie_file = denoising(
@@ -250,6 +251,8 @@ def ophys_processing():
         denoised_ophys_movie_file=denoised_movie_file,
         rois_file=rois_file
     )
+    trace_extraction_outputs = trace_extraction(
+        motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file)
     
 
 

@@ -39,7 +39,6 @@ class TraceExtractionModule(PipelineModule):
     @property
     def inputs(self, session: Session) -> Dict:
         return {
-            #TODO add inputs
             'log_level': logging.DEBUG,
             'storage_directory': self.output_path,
             'motion_border': self.ophys_experiment.get_ophys_experiment_motion_border(
@@ -60,5 +59,8 @@ class TraceExtractionModule(PipelineModule):
                 path=self.output_path),
              OutputFile(
                 well_known_file_type=WellKnownFileType.NEUROPIL_TRACE,
-                path=self.output_path)
+                path=self.output_path),
+            OutputFile(
+                well_known_file_type=WellKnownFileType.NEUROPIL_MASK,
+                path=self.output_path),
         ]

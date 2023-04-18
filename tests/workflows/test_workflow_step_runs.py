@@ -11,17 +11,17 @@ setup_app_config(
     test_di_base_model_path=Path(__file__).parent / 'resources' / 'di_model.h5'
 )
 
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum # noqa E402
 
 from ophys_etl.workflows.output_file import OutputFile  # noqa E402
 from ophys_etl.workflows.workflow_step_runs import get_latest_run, \
     get_well_known_file_for_latest_run  # noqa E402
-from ophys_etl.workflows.workflow_steps import WorkflowStep # noqa E402
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum # noqa E402
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db  # noqa E402
 from sqlmodel import Session    # noqa E402
 
-from ophys_etl.workflows.workflow_names import WorkflowName # noqa E402
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum # noqa E402
 from ophys_etl.test_utils.db_base import MockSQLiteDB
 
 class TestWorkflowStepRuns(MockSQLiteDB):
@@ -29,8 +29,8 @@ class TestWorkflowStepRuns(MockSQLiteDB):
     @pytest.mark.parametrize('ophys_experiment_id', (None, '1'))
     def test__get_latest_run(self, ophys_experiment_id):
         """Test that the latest run is the most recently added"""
-        workflow_name = WorkflowName.OPHYS_PROCESSING
-        workflow_step_name = WorkflowStep.SEGMENTATION
+        workflow_name = WorkflowNameEnum.OPHYS_PROCESSING
+        workflow_step_name = WorkflowStepEnum.SEGMENTATION
 
         with Session(self._engine) as session:
             for i in range(1, 3):
@@ -54,9 +54,9 @@ class TestWorkflowStepRuns(MockSQLiteDB):
 
     @pytest.mark.parametrize('ophys_experiment_id', (None, '1'))
     def test_get_well_known_file_for_latest_run(self, ophys_experiment_id):
-        workflow_name = WorkflowName.OPHYS_PROCESSING
-        workflow_step_name = WorkflowStep.SEGMENTATION
-        well_known_file_type = WellKnownFileType.OPHYS_ROIS
+        workflow_name = WorkflowNameEnum.OPHYS_PROCESSING
+        workflow_step_name = WorkflowStepEnum.SEGMENTATION
+        well_known_file_type = WellKnownFileTypeEnum.OPHYS_ROIS
 
         paths = []
         with Session(self._engine) as session:

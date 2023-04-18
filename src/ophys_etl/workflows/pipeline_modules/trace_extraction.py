@@ -5,14 +5,14 @@ from typing import List, Dict
 import json
 
 from ophys_etl.modules import segment_postprocess
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from sqlmodel import Session
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 
 class TraceExtractionModule(PipelineModule):
     """Trace extraction module"""
@@ -33,8 +33,8 @@ class TraceExtractionModule(PipelineModule):
         self._motion_corrected_ophys_movie_file = str(motion_corrected_ophys_movie_file.path)
 
     @property
-    def queue_name(self) -> WorkflowStep:
-        return WorkflowStep.TRACE_EXTRACTION
+    def queue_name(self) -> WorkflowStepEnum:
+        return WorkflowStepEnum.TRACE_EXTRACTION
 
     @property
     def inputs(self, session: Session) -> Dict:
@@ -52,15 +52,15 @@ class TraceExtractionModule(PipelineModule):
     def outputs(self) -> List[OutputFile]:
         return [
             OutputFile(
-                well_known_file_type=WellKnownFileType.TRACE_EXTRACTION_EXCLUSION_LABELS,
+                well_known_file_type=WellKnownFileTypeEnum.TRACE_EXTRACTION_EXCLUSION_LABELS,
                 path=self.output_metadata_path),
             OutputFile(
-                well_known_file_type=WellKnownFileType.ROI_TRACE,
+                well_known_file_type=WellKnownFileTypeEnum.ROI_TRACE,
                 path=self.output_path),
              OutputFile(
-                well_known_file_type=WellKnownFileType.NEUROPIL_TRACE,
+                well_known_file_type=WellKnownFileTypeEnum.NEUROPIL_TRACE,
                 path=self.output_path),
             OutputFile(
-                well_known_file_type=WellKnownFileType.NEUROPIL_MASK,
+                well_known_file_type=WellKnownFileTypeEnum.NEUROPIL_MASK,
                 path=self.output_path),
         ]

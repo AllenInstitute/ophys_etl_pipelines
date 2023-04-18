@@ -7,7 +7,7 @@ import json
 from unittest.mock import patch
 
 import pytest
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
 
@@ -31,8 +31,8 @@ class _DummyMod(PipelineModule):
     _temp_out = tempfile.TemporaryDirectory()
 
     @property
-    def queue_name(self) -> WorkflowStep:
-        return WorkflowStep.ROI_CLASSIFICATION_INFERENCE
+    def queue_name(self) -> WorkflowStepEnum:
+        return WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE
 
     @property
     def inputs(self) -> Dict:

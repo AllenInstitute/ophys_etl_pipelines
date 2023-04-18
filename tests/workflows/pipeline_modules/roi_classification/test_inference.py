@@ -31,15 +31,15 @@ from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     .mlflow_utils import \
     MLFlowRun   # noqa E402
 from ophys_etl.workflows.app_config.app_config import app_config    # noqa E402
-from ophys_etl.workflows.workflow_names import WorkflowName # noqa E402
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum # noqa E402
 from ophys_etl.workflows.output_file import OutputFile  # noqa E402
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db  # noqa E402
 from sqlmodel import create_engine, Session, select # noqa E402
 
 from ophys_etl.workflows.db.initialize_db import InitializeDBRunner  # noqa E402
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
-from ophys_etl.workflows.workflow_steps import WorkflowStep # noqa E402
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum # noqa E402
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum # noqa E402
 
 
 class TestInference:
@@ -97,12 +97,12 @@ class TestInference:
 
         with Session(self._engine) as session:
             save_job_run_to_db(
-                workflow_step_name=WorkflowStep.ROI_CLASSIFICATION_INFERENCE,
+                workflow_step_name=WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE,
                 start=datetime.datetime.now(),
                 end=datetime.datetime.now(),
                 module_outputs=[OutputFile(
                         well_known_file_type=(
-                            WellKnownFileType.
+                            WellKnownFileTypeEnum.
                             ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS),
                         path=self._preds_path
                     )
@@ -116,7 +116,7 @@ class TestInference:
                     # only 1 inserted, so we can assume id is 1
                     'ensemble_id': 1
                 },
-                workflow_name=WorkflowName.OPHYS_PROCESSING
+                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING
             )
 
     @classmethod
@@ -127,12 +127,12 @@ class TestInference:
 
         with Session(cls._engine) as session:
             save_job_run_to_db(
-                workflow_step_name=WorkflowStep.SEGMENTATION,
+                workflow_step_name=WorkflowStepEnum.SEGMENTATION,
                 start=datetime.datetime.now(),
                 end=datetime.datetime.now(),
                 module_outputs=[OutputFile(
                         well_known_file_type=(
-                            WellKnownFileType.OPHYS_ROIS),
+                            WellKnownFileTypeEnum.OPHYS_ROIS),
                         path=rois_path
                     )
                 ],
@@ -141,7 +141,7 @@ class TestInference:
                 storage_directory='/foo',
                 log_path='/foo',
                 additional_steps=SegmentationModule.save_rois_to_db,
-                workflow_name=WorkflowName.OPHYS_PROCESSING
+                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING
             )
         return rois
 
@@ -154,12 +154,12 @@ class TestInference:
 
         with Session(cls._engine) as session:
             save_job_run_to_db(
-                workflow_step_name=WorkflowStep.ROI_CLASSIFICATION_TRAINING,
+                workflow_step_name=WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING,
                 start=datetime.datetime.now(),
                 end=datetime.datetime.now(),
                 module_outputs=[OutputFile(
                         well_known_file_type=(
-                            WellKnownFileType.
+                            WellKnownFileTypeEnum.
                             ROI_CLASSIFICATION_TRAINED_MODEL),
                         path=cls._model_path
                     )
@@ -172,5 +172,5 @@ class TestInference:
                 additional_steps_kwargs={
                   'mlflow_parent_run_name': cls._mlflow_parent_run_name
                 },
-                workflow_name=WorkflowName.ROI_CLASSIFIER_TRAINING
+                workflow_name=WorkflowNameEnum.ROI_CLASSIFIER_TRAINING
             )

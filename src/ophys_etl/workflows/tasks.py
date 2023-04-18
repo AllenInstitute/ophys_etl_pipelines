@@ -14,15 +14,15 @@ from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db as \
     _save_job_run_to_db
 from ophys_etl.workflows.output_file import OutputFile
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
-from ophys_etl.workflows.workflow_names import WorkflowName
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
 @task
 def save_job_run_to_db(
-        workflow_name: WorkflowName,
-        workflow_step_name: WorkflowStep,
+        workflow_name: WorkflowNameEnum,
+        workflow_step_name: WorkflowStepEnum,
         job_finish_res: str,
         additional_steps: Optional[Callable] = None,
         additional_steps_kwargs: Optional[Dict] = None,
@@ -75,9 +75,9 @@ def save_job_run_to_db(
     module_outputs = [
         OutputFile(
             path=Path(x['path']),
-            # serialize to WellKnownFileType
+            # serialize to WellKnownFileTypeEnum
             well_known_file_type=getattr(
-                WellKnownFileType,
+                WellKnownFileTypeEnum,
                 # Unfortunately airflow deserializes Enum to "<class>.<value>"
                 # split off the value
                 x['well_known_file_type'].split('.')[-1])

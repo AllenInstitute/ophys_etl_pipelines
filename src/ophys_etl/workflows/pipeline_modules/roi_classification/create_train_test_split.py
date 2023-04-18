@@ -3,9 +3,9 @@ from typing import List, Dict
 
 from deepcell.cli.modules import create_dataset
 
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.output_file import OutputFile
@@ -31,8 +31,8 @@ class CreateTrainTestSplitModule(PipelineModule):
         self._thumbnail_dirs = thumbnail_dirs
 
     @property
-    def queue_name(self) -> WorkflowStep:
-        return WorkflowStep.ROI_CLASSIFICATION_CREATE_TRAIN_TEST_SPLIT
+    def queue_name(self) -> WorkflowStepEnum:
+        return WorkflowStepEnum.ROI_CLASSIFICATION_CREATE_TRAIN_TEST_SPLIT
 
     @property
     def inputs(self) -> Dict:
@@ -56,12 +56,12 @@ class CreateTrainTestSplitModule(PipelineModule):
         return [
             OutputFile(
                 well_known_file_type=(
-                    WellKnownFileType.ROI_CLASSIFICATION_TRAIN_SET),
+                    WellKnownFileTypeEnum.ROI_CLASSIFICATION_TRAIN_SET),
                 path=self.output_path / 'train_rois.json'
             ),
             OutputFile(
                 well_known_file_type=(
-                    WellKnownFileType.ROI_CLASSIFICATION_TEST_SET),
+                    WellKnownFileTypeEnum.ROI_CLASSIFICATION_TEST_SET),
                 path=self.output_path / 'test_rois.json'
             )
         ]

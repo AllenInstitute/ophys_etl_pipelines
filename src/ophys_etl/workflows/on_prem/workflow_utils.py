@@ -6,14 +6,14 @@ from ophys_etl.workflows.on_prem.tasks import submit_job, \
     wait_for_job_to_finish
 from ophys_etl.workflows.pipeline_module import PipelineModule
 from ophys_etl.workflows.tasks import save_job_run_to_db
-from ophys_etl.workflows.workflow_names import WorkflowName
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
 def run_workflow_step(
     module: Type[PipelineModule],
-    workflow_name: WorkflowName,
-    workflow_step_name: WorkflowStep,
+    workflow_name: WorkflowNameEnum,
+    workflow_step_name: WorkflowStepEnum,
     docker_tag: Optional[str] = None,
     experiment_id: Optional[str] = None,
     slurm_config_filename: Optional[str] = None,

@@ -18,19 +18,19 @@ from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     .model_utils \
     import \
     download_trained_model
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 
-from ophys_etl.workflows.workflow_names import WorkflowName
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import \
     get_well_known_file_for_latest_run
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 from ophys_etl.workflows.app_config.app_config import app_config
 
 from ophys_etl.workflows.on_prem.workflow_utils import run_workflow_step, \
     submit_job_and_wait_to_finish
 
-WORKFLOW_NAME = WorkflowName.ROI_CLASSIFIER_TRAINING
+WORKFLOW_NAME = WorkflowNameEnum.ROI_CLASSIFIER_TRAINING
 
 
 @task
@@ -42,7 +42,7 @@ def _download_trained_model(
     job_finish_res = json.loads(job_finish_res)
     trained_model_dest: OutputFile = (
         job_finish_res['module_outputs']
-        [WellKnownFileType.ROI_CLASSIFICATION_TRAINED_MODEL])
+        [WellKnownFileTypeEnum.ROI_CLASSIFICATION_TRAINED_MODEL])
 
     download_trained_model(
         mlflow_run_name=mlflow_run_name,
@@ -72,9 +72,9 @@ def roi_classifier_training():
             denoised_ophys_movie_file = get_well_known_file_for_latest_run(
                 engine=engine,
                 well_known_file_type=(
-                    WellKnownFileType.DEEPINTERPOLATION_DENOISED_MOVIE),
+                    WellKnownFileTypeEnum.DEEPINTERPOLATION_DENOISED_MOVIE),
                 workflow_name=WORKFLOW_NAME,
-                workflow_step=WorkflowStep.DENOISING_INFERENCE,
+                workflow_step=WorkflowStepEnum.DENOISING_INFERENCE,
                 ophys_experiment_id=experiment_id
             )
 
@@ -82,7 +82,7 @@ def roi_classifier_training():
                 slurm_config_filename='correlation_projection.yml',
                 module=roi_classification.GenerateCorrelationProjectionModule,
                 workflow_step_name=(
-                    WorkflowStep.
+                    WorkflowStepEnum.
                     ROI_CLASSIFICATION_GENERATE_CORRELATION_PROJECTION_GRAPH),
                 workflow_name=WORKFLOW_NAME,
                 docker_tag=(app_config.pipeline_steps.roi_classification.
@@ -94,7 +94,7 @@ def roi_classifier_training():
             )
             runs[experiment_id] = (
                 module_outputs[
-                    WellKnownFileType.
+                    WellKnownFileTypeEnum.
                     ROI_CLASSIFICATION_CORRELATION_PROJECTION_GRAPH])
         return runs
 
@@ -112,21 +112,21 @@ def roi_classifier_training():
             denoised_ophys_movie_file = get_well_known_file_for_latest_run(
                 engine=engine,
                 well_known_file_type=(
-                    WellKnownFileType.DEEPINTERPOLATION_DENOISED_MOVIE),
+                    WellKnownFileTypeEnum.DEEPINTERPOLATION_DENOISED_MOVIE),
                 workflow_name=WORKFLOW_NAME,
-                workflow_step=WorkflowStep.DENOISING_INFERENCE,
+                workflow_step=WorkflowStepEnum.DENOISING_INFERENCE,
                 ophys_experiment_id=experiment_id
             )
             rois_file = get_well_known_file_for_latest_run(
                 engine=engine,
-                well_known_file_type=WellKnownFileType.OPHYS_ROIS,
+                well_known_file_type=WellKnownFileTypeEnum.OPHYS_ROIS,
                 workflow_name=WORKFLOW_NAME,
-                workflow_step=WorkflowStep.SEGMENTATION,
+                workflow_step=WorkflowStepEnum.SEGMENTATION,
                 ophys_experiment_id=experiment_id
             )
             module_outputs = run_workflow_step(
                 workflow_step_name=(
-                    WorkflowStep.ROI_CLASSIFICATION_GENERATE_THUMBNAILS),
+                    WorkflowStepEnum.ROI_CLASSIFICATION_GENERATE_THUMBNAILS),
                 module=roi_classification.GenerateThumbnailsModule,
                 workflow_name=WORKFLOW_NAME,
                 experiment_id=experiment_id,
@@ -140,7 +140,7 @@ def roi_classifier_training():
             )
             thumbnail_dirs[experiment_id] = \
                 module_outputs[
-                    WellKnownFileType.ROI_CLASSIFICATION_THUMBNAIL_IMAGES]
+                    WellKnownFileTypeEnum.ROI_CLASSIFICATION_THUMBNAIL_IMAGES]
         return thumbnail_dirs
 
     @task_group
@@ -149,13 +149,13 @@ def roi_classifier_training():
         module_outputs = run_workflow_step(
             module=roi_classification.CreateTrainTestSplitModule,
             workflow_step_name=(
-                WorkflowStep.ROI_CLASSIFICATION_CREATE_TRAIN_TEST_SPLIT),
+                WorkflowStepEnum.ROI_CLASSIFICATION_CREATE_TRAIN_TEST_SPLIT),
             workflow_name=WORKFLOW_NAME,
             module_kwargs={
                 'thumbnail_dirs': thumbnail_dirs
             }
         )
-        return module_outputs[WellKnownFileType.ROI_CLASSIFICATION_TRAIN_SET]
+        return module_outputs[WellKnownFileTypeEnum.ROI_CLASSIFICATION_TRAIN_SET]
 
     @task_group
     def train_model(train_set_path):
@@ -175,7 +175,7 @@ def roi_classifier_training():
 
         save_job_run_to_db(
             workflow_name=WORKFLOW_NAME,
-            workflow_step_name=WorkflowStep.ROI_CLASSIFICATION_TRAINING,
+            workflow_step_name=WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING,
             job_finish_res=job_finish_res,
             additional_steps=(
                 roi_classification.TrainingModule.save_trained_model_to_db),

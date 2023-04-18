@@ -7,10 +7,9 @@ from sqlmodel import SQLModel, Session
 from ophys_etl.workflows.db import get_engine
 from ophys_etl.workflows.db.schemas import Workflow, WorkflowStep, \
     WellKnownFileType
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType as \
-    WellKnownFileTypeEnum
-from ophys_etl.workflows.workflow_names import WorkflowName
-from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
 class InitializeDBSchema(argschema.ArgSchema):
@@ -28,13 +27,13 @@ def create_db_and_tables(engine):
 def _create_workflows(session):
     ophys_processing = _create_workflow(
         session=session,
-        workflow=Workflow(name=WorkflowName.OPHYS_PROCESSING.value))
+        workflow=Workflow(name=WorkflowNameEnum.OPHYS_PROCESSING.value))
     roi_classifier_training = _create_workflow(
         session=session,
-        workflow=Workflow(name=WorkflowName.ROI_CLASSIFIER_TRAINING.value))
+        workflow=Workflow(name=WorkflowNameEnum.ROI_CLASSIFIER_TRAINING.value))
     return {
-        WorkflowName.OPHYS_PROCESSING: ophys_processing,
-        WorkflowName.ROI_CLASSIFIER_TRAINING: roi_classifier_training
+        WorkflowNameEnum.OPHYS_PROCESSING: ophys_processing,
+        WorkflowNameEnum.ROI_CLASSIFIER_TRAINING: roi_classifier_training
     }
 
 
@@ -326,7 +325,7 @@ def _populate_db(engine):
         ophys_processing_workflow_steps = \
             _create_workflow_steps_for_ophys_processing(
                 session=session,
-                workflow=workflows[WorkflowName.OPHYS_PROCESSING])
+                workflow=workflows[WorkflowNameEnum.OPHYS_PROCESSING])
         _create_well_known_file_types_for_ophys_processing(
             session=session,
             workflow_steps=ophys_processing_workflow_steps)
@@ -336,7 +335,7 @@ def _populate_db(engine):
         roi_classifier_training_workflow_steps = \
             _create_workflow_steps_for_roi_classifier_training(
                 session=session,
-                workflow=workflows[WorkflowName.ROI_CLASSIFIER_TRAINING])
+                workflow=workflows[WorkflowNameEnum.ROI_CLASSIFIER_TRAINING])
         _create_well_known_file_types_for_roi_classifier_training(
             session=session,
             workflow_steps=roi_classifier_training_workflow_steps

@@ -2,7 +2,7 @@
 from enum import Enum
 
 
-class WellKnownFileType(Enum):
+class WellKnownFileTypeEnum(Enum):
     ########
     # motion correction
     ########

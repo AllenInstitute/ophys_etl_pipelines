@@ -5,7 +5,7 @@ from typing import List, Dict
 import json
 
 from ophys_etl.modules import segment_postprocess
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from sqlmodel import Session
 
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
@@ -13,7 +13,7 @@ from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 
 
 class SegmentationModule(PipelineModule):
@@ -35,8 +35,8 @@ class SegmentationModule(PipelineModule):
         self._denoised_ophys_movie_file = str(denoised_ophys_movie_file.path)
 
     @property
-    def queue_name(self) -> WorkflowStep:
-        return WorkflowStep.SEGMENTATION
+    def queue_name(self) -> WorkflowStepEnum:
+        return WorkflowStepEnum.SEGMENTATION
 
     @property
     def inputs(self) -> Dict:
@@ -54,7 +54,7 @@ class SegmentationModule(PipelineModule):
     def outputs(self) -> List[OutputFile]:
         return [
             OutputFile(
-                well_known_file_type=WellKnownFileType.OPHYS_ROIS,
+                well_known_file_type=WellKnownFileTypeEnum.OPHYS_ROIS,
                 path=self.output_metadata_path)
         ]
 
@@ -81,7 +81,7 @@ class SegmentationModule(PipelineModule):
             workflow step run id
         """
         rois_file_path = \
-            output_files[WellKnownFileType.OPHYS_ROIS.value].path
+            output_files[WellKnownFileTypeEnum.OPHYS_ROIS.value].path
         with open(rois_file_path) as f:
             rois = json.load(f)
 

@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
-from ophys_etl.workflows.workflow_names import WorkflowName
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 
 setup_app_config(
     ophys_workflow_app_config_path=(
@@ -24,8 +24,8 @@ from sqlmodel import create_engine, Session, select # noqa E402
 from ophys_etl.workflows.db.initialize_db import InitializeDBRunner  # noqa E402
 from ophys_etl.workflows.pipeline_modules.segmentation import \
     SegmentationModule  # noqa E402
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
-from ophys_etl.workflows.workflow_steps import WorkflowStep # noqa E402
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum # noqa E402
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum # noqa E402
 from ophys_etl.test_utils.db_base import MockSQLiteDB
 
 class TestSegmentation(MockSQLiteDB):
@@ -35,12 +35,12 @@ class TestSegmentation(MockSQLiteDB):
             Path(__file__).parent / 'resources' / 'rois.json'
         with Session(self._engine) as session:
             save_job_run_to_db(
-                workflow_step_name=WorkflowStep.SEGMENTATION,
+                workflow_step_name=WorkflowStepEnum.SEGMENTATION,
                 start=datetime.datetime.now(),
                 end=datetime.datetime.now(),
                 module_outputs=[OutputFile(
                         well_known_file_type=(
-                            WellKnownFileType.OPHYS_ROIS),
+                            WellKnownFileTypeEnum.OPHYS_ROIS),
                         path=_rois_path
                     )
                 ],
@@ -49,7 +49,7 @@ class TestSegmentation(MockSQLiteDB):
                 storage_directory='/foo',
                 log_path='/foo',
                 additional_steps=SegmentationModule.save_rois_to_db,
-                workflow_name=WorkflowName.OPHYS_PROCESSING
+                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING
             )
         with Session(self._engine) as session:
             rois = session.exec(select(OphysROI)).all()

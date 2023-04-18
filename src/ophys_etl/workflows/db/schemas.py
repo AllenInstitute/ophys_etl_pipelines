@@ -5,10 +5,9 @@ from typing import Optional
 from sqlalchemy import Column, Enum, UniqueConstraint
 from sqlmodel import SQLModel, Field
 
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType as \
-    WellKnownFileTypeEnum
-from ophys_etl.workflows.workflow_names import WorkflowName
-from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
 class Workflow(SQLModel, table=True):
@@ -17,7 +16,7 @@ class Workflow(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(
         sa_column=Column(
-            'name', Enum(WorkflowName),
+            'name', Enum(WorkflowNameEnum),
             unique=True,
             nullable=False
         )

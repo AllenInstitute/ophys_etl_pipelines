@@ -8,7 +8,7 @@ import tempfile
 from sqlmodel import select, Session
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
-from ophys_etl.workflows.workflow_names import WorkflowName
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 
 setup_app_config(
     ophys_workflow_app_config_path=(
@@ -23,8 +23,8 @@ from ophys_etl.workflows.db.db_utils import save_job_run_to_db # noqa E402
 from ophys_etl.workflows.db.initialize_db import InitializeDBRunner # noqa E402
 from ophys_etl.workflows.db.schemas import MotionCorrectionRun # noqa E402
 from ophys_etl.workflows.output_file import OutputFile  # noqa E402
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum # noqa E402
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from ophys_etl.test_utils.db_base import MockSQLiteDB
 
 class TestMotionCorrectionModule(MockSQLiteDB):
@@ -34,12 +34,12 @@ class TestMotionCorrectionModule(MockSQLiteDB):
             Path(__file__).parent / 'resources' / 'rigid_motion_transform.csv'
         with Session(self._engine) as session:
             save_job_run_to_db(
-                workflow_step_name=WorkflowStep.MOTION_CORRECTION,
+                workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
                 start=datetime.datetime.now(),
                 end=datetime.datetime.now(),
                 module_outputs=[OutputFile(
                         well_known_file_type=(
-                            WellKnownFileType.MOTION_X_Y_OFFSET_DATA),
+                            WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA),
                         path=_xy_offset_path
                     )
                 ],
@@ -48,7 +48,7 @@ class TestMotionCorrectionModule(MockSQLiteDB):
                 storage_directory='/foo',
                 log_path='/foo',
                 additional_steps=MotionCorrectionModule.save_metadata_to_db,
-                workflow_name=WorkflowName.OPHYS_PROCESSING
+                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING
             )
         with Session(self._engine) as session:
             statement = select(MotionCorrectionRun)

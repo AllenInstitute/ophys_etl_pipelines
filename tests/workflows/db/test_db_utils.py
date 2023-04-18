@@ -16,11 +16,11 @@ setup_app_config(
 from ophys_etl.workflows.db.schemas import WorkflowStep, WorkflowStepRun, \
     WellKnownFile, WellKnownFileType
 from ophys_etl.workflows.well_known_file_types import \
-    WellKnownFileType as WellKnownFileTypeEnum
+    WellKnownFileTypeEnum
 
 
-from ophys_etl.workflows.workflow_names import WorkflowName
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
 
@@ -56,18 +56,18 @@ class TestDBUtils:
         with Session(self._engine) as session:
             step = get_workflow_step_by_name(
                 session=session,
-                name=WorkflowStep.MOTION_CORRECTION,
-                workflow=WorkflowName.OPHYS_PROCESSING
+                name=WorkflowStepEnum.MOTION_CORRECTION,
+                workflow=WorkflowNameEnum.OPHYS_PROCESSING
             )
-        assert step.name == WorkflowStep.MOTION_CORRECTION
+        assert step.name == WorkflowStepEnum.MOTION_CORRECTION
 
     def test__get_well_known_file_type(self):
         with Session(self._engine) as session:
             wkft = get_well_known_file_type(
                 session=session,
                 name=WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK,
-                workflow_step_name=WorkflowStep.MOTION_CORRECTION,
-                workflow=WorkflowName.OPHYS_PROCESSING
+                workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
+                workflow=WorkflowNameEnum.OPHYS_PROCESSING
             )
         assert wkft.name == \
                WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK
@@ -126,7 +126,7 @@ class TestDBUtils:
 
         def save_job_run():
             save_job_run_to_db(
-                workflow_step_name=WorkflowStep.MOTION_CORRECTION,
+                workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
                 start=start,
                 end=end,
                 module_outputs=output_files,
@@ -134,7 +134,7 @@ class TestDBUtils:
                 sqlalchemy_session=session,
                 storage_directory='/foo',
                 log_path='/foo',
-                workflow_name=WorkflowName.OPHYS_PROCESSING
+                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING
             )
 
         with Session(self._engine) as session:

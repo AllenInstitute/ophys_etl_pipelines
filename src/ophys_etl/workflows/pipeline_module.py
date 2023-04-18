@@ -10,7 +10,7 @@ import json
 from types import ModuleType
 from typing import Dict, List, Optional
 
-from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 from ophys_etl.workflows.app_config.app_config import app_config
 

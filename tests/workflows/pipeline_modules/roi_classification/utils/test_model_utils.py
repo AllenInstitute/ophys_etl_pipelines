@@ -22,7 +22,7 @@ from ophys_etl.workflows.app_config.app_config import app_config    # noqa E402
 from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     .mlflow_utils import \
     MLFlowRun   # noqa E402
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum # noqa E402
 
 from ophys_etl.workflows.output_file import OutputFile  # noqa E402
 
@@ -63,7 +63,7 @@ class TestModelUtils:
         with tempfile.TemporaryDirectory() as tmp_dir:
             model_dest = OutputFile(
                 well_known_file_type=(
-                    WellKnownFileType.ROI_CLASSIFICATION_TRAINED_MODEL),
+                    WellKnownFileTypeEnum.ROI_CLASSIFICATION_TRAINED_MODEL),
                 path=Path(tmp_dir) / 'model'
             )
 

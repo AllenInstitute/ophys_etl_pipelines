@@ -22,7 +22,7 @@ from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
 from ophys_etl.workflows.app_config.app_config import app_config    # noqa E402
 from ophys_etl.workflows.pipeline_modules.roi_classification import \
     TrainingModule  # noqa E402
-from ophys_etl.workflows.workflow_names import WorkflowName # noqa E402
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum # noqa E402
 from ophys_etl.workflows.db.schemas import \
     ROIClassifierEnsemble, ROIClassifierTrainingRun  # noqa E402
 from ophys_etl.workflows.output_file import OutputFile  # noqa E402
@@ -31,8 +31,8 @@ from ophys_etl.workflows.db.db_utils import save_job_run_to_db  # noqa E402
 from sqlmodel import create_engine, Session, select # noqa E402
 
 from ophys_etl.workflows.db.initialize_db import InitializeDBRunner  # noqa E402
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
-from ophys_etl.workflows.workflow_steps import WorkflowStep # noqa E402
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum # noqa E402
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum # noqa E402
 
 
 class TestTraining:
@@ -78,12 +78,12 @@ class TestTraining:
 
         with Session(self._engine) as session:
             save_job_run_to_db(
-                workflow_step_name=WorkflowStep.ROI_CLASSIFICATION_TRAINING,
+                workflow_step_name=WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING,
                 start=datetime.datetime.now(),
                 end=datetime.datetime.now(),
                 module_outputs=[OutputFile(
                         well_known_file_type=(
-                            WellKnownFileType.
+                            WellKnownFileTypeEnum.
                             ROI_CLASSIFICATION_TRAINED_MODEL),
                         path=self._model_path
                     )
@@ -96,7 +96,7 @@ class TestTraining:
                 additional_steps_kwargs={
                   'mlflow_parent_run_name': mlflow_parent_run_name
                 },
-                workflow_name=WorkflowName.ROI_CLASSIFIER_TRAINING
+                workflow_name=WorkflowNameEnum.ROI_CLASSIFIER_TRAINING
             )
         with Session(self._engine) as session:
             ensembles = session.exec(select(ROIClassifierEnsemble)).all()

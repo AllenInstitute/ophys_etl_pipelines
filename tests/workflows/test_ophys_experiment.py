@@ -17,8 +17,8 @@ from sqlmodel import Session
 from ophys_etl.test_utils.db_base import MockSQLiteDB
 from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
     OphysSession, Specimen
-from ophys_etl.workflows.workflow_names import WorkflowName
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from ophys_etl.workflows.workflow_step_runs import get_workflow_step_by_name
 from ophys_etl.workflows.db.schemas import WorkflowStepRun, MotionCorrectionRun, \
     OphysROI, OphysROIMaskValue
@@ -40,8 +40,8 @@ class TestOphysExperiment:
 
     
     def _create_mock_data(self):
-        workflow_name = WorkflowName.OPHYS_PROCESSING.value
-        workflow_step_name = WorkflowStep.SEGMENTATION.value
+        workflow_name = WorkflowNameEnum.OPHYS_PROCESSING.value
+        workflow_step_name = WorkflowStepEnum.SEGMENTATION.value
         ophys_experiment_id="1"
         with Session(self._engine) as session:
 

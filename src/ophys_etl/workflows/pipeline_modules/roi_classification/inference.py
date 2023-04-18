@@ -8,11 +8,11 @@ import pandas as pd
 from deepcell.cli.modules import inference
 from deepcell.datasets.model_input import ModelInput
 
-from ophys_etl.workflows.workflow_names import WorkflowName
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_latest_run
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 
 from ophys_etl.workflows.db.db_utils import get_well_known_file_type
 
@@ -59,8 +59,8 @@ class InferenceModule(PipelineModule):
         )
 
     @property
-    def queue_name(self) -> WorkflowStep:
-        return WorkflowStep.ROI_CLASSIFICATION_INFERENCE
+    def queue_name(self) -> WorkflowStepEnum:
+        return WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE
 
     @property
     def inputs(self) -> Dict:
@@ -83,7 +83,7 @@ class InferenceModule(PipelineModule):
         return [
             OutputFile(
                 well_known_file_type=(
-                    WellKnownFileType.
+                    WellKnownFileTypeEnum.
                     ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS),
                 path=(self.output_path /
                       f'{self.ophys_experiment.id}_inference.csv')
@@ -139,7 +139,7 @@ class InferenceModule(PipelineModule):
         ensemble_id: int
     ):
         preds_file = output_files[
-            WellKnownFileType.ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS.value]
+            WellKnownFileTypeEnum.ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS.value]
         preds = pd.read_csv(preds_file.path)
 
         # renaming so that hyphen doesn't cause problems
@@ -160,9 +160,9 @@ class InferenceModule(PipelineModule):
         with Session(engine) as session:
             model_file = get_well_known_file_type(
                 session=session,
-                name=WellKnownFileType.ROI_CLASSIFICATION_TRAINED_MODEL,
-                workflow=WorkflowName.ROI_CLASSIFIER_TRAINING,
-                workflow_step_name=WorkflowStep.ROI_CLASSIFICATION_TRAINING
+                name=WellKnownFileTypeEnum.ROI_CLASSIFICATION_TRAINED_MODEL,
+                workflow=WorkflowNameEnum.ROI_CLASSIFIER_TRAINING,
+                workflow_step_name=WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING
             )
             statement = (
                 select(ROIClassifierEnsemble, WellKnownFile.path)
@@ -210,8 +210,8 @@ class InferenceModule(PipelineModule):
         with Session(engine) as session:
             segmentation_run_id = get_latest_run(
                 session=session,
-                workflow_name=WorkflowName.OPHYS_PROCESSING,
-                workflow_step=WorkflowStep.SEGMENTATION,
+                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                workflow_step=WorkflowStepEnum.SEGMENTATION,
                 ophys_experiment_id=self.ophys_experiment.id
             )
 

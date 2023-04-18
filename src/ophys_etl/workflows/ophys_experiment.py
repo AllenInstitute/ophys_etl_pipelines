@@ -8,8 +8,8 @@ from typing import Dict, List
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 from ophys_etl.workflows.workflow_step_runs import get_latest_run
-from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
-from ophys_etl.workflows.workflow_names import WorkflowName
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.db.schemas import MotionCorrectionRun, OphysROI, \
     OphysROIMaskValue
 
@@ -112,7 +112,7 @@ class OphysExperiment:
 
         workflow_step_run_id = get_latest_run(session,
                                               WorkflowStepEnum.MOTION_CORRECTION,
-                                              WorkflowName.OPHYS_PROCESSING,
+                                              WorkflowNameEnum.OPHYS_PROCESSING,
                                               )
         query = (
             select(
@@ -171,7 +171,7 @@ class OphysExperiment:
         """
         workflow_step_run_id = get_latest_run(session,
                                               WorkflowStepEnum.MOTION_CORRECTION,
-                                              WorkflowName.OPHYS_PROCESSING,
+                                              WorkflowNameEnum.OPHYS_PROCESSING,
                                               self.id,
                                               )
         query = (

@@ -10,13 +10,13 @@ from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     .mlflow_utils \
     import \
     MLFlowRun
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 
 from ophys_etl.workflows.app_config.app_config import app_config
 
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
-from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
 class TrainingModule(PipelineModule):
@@ -83,7 +83,7 @@ class TrainingModule(PipelineModule):
         return [
             OutputFile(
                 well_known_file_type=(
-                    WellKnownFileType.ROI_CLASSIFICATION_TRAINED_MODEL),
+                    WellKnownFileTypeEnum.ROI_CLASSIFICATION_TRAINED_MODEL),
                 path=self.output_path / 'model'
             )
         ]

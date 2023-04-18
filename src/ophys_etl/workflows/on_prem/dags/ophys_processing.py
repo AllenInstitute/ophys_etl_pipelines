@@ -24,21 +24,21 @@ from ophys_etl.workflows.pipeline_modules.segmentation import \
     SegmentationModule
 from ophys_etl.workflows.pipeline_modules.trace_extraction import \
     TraceExtractionModule
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
-from ophys_etl.workflows.workflow_names import WorkflowName
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_latest_run
-from ophys_etl.workflows.workflow_steps import WorkflowStep
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
-WORKFLOW_NAME = WorkflowName.OPHYS_PROCESSING
+WORKFLOW_NAME = WorkflowNameEnum.OPHYS_PROCESSING
 
 
 def _get_roi_classifier() -> int:
     with Session(engine) as session:
         roi_classifier_training_run = get_latest_run(
             session=session,
-            workflow_name=WorkflowName.ROI_CLASSIFIER_TRAINING,
-            workflow_step=WorkflowStep.ROI_CLASSIFICATION_TRAINING
+            workflow_name=WorkflowNameEnum.ROI_CLASSIFIER_TRAINING,
+            workflow_step=WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING
         )
         ensemble_id = session.exec(
             select(ROIClassifierEnsemble.id)
@@ -77,13 +77,13 @@ def ophys_processing():
         module_outputs = run_workflow_step(
             slurm_config_filename='motion_correction.yml',
             module=MotionCorrectionModule,
-            workflow_step_name=WorkflowStep.MOTION_CORRECTION,
+            workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
             workflow_name=WORKFLOW_NAME,
             docker_tag=app_config.pipeline_steps.motion_correction.docker_tag,
             additional_db_inserts=MotionCorrectionModule.save_metadata_to_db
         )
         return module_outputs[
-            WellKnownFileType.MOTION_CORRECTED_IMAGE_STACK.value]
+            WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK.value]
 
     @task_group
     def denoising(
@@ -95,7 +95,7 @@ def ophys_processing():
             module_outputs = run_workflow_step(
                 slurm_config_filename='denoising_finetuning.yml',
                 module=DenoisingFinetuningModule,
-                workflow_step_name=WorkflowStep.DENOISING_FINETUNING,
+                workflow_step_name=WorkflowStepEnum.DENOISING_FINETUNING,
                 workflow_name=WORKFLOW_NAME,
                 docker_tag=app_config.pipeline_steps.denoising.docker_tag,
                 module_kwargs={
@@ -104,7 +104,7 @@ def ophys_processing():
                 }
             )
             return module_outputs[
-                WellKnownFileType.DEEPINTERPOLATION_FINETUNED_MODEL.value]
+                WellKnownFileTypeEnum.DEEPINTERPOLATION_FINETUNED_MODEL.value]
 
         @task_group
         def denoising_inference(
@@ -115,7 +115,7 @@ def ophys_processing():
             module_outputs = run_workflow_step(
                 slurm_config_filename='denoising_inference.yml',
                 module=DenoisingInferenceModule,
-                workflow_step_name=WorkflowStep.DENOISING_INFERENCE,
+                workflow_step_name=WorkflowStepEnum.DENOISING_INFERENCE,
                 workflow_name=WORKFLOW_NAME,
                 docker_tag=app_config.pipeline_steps.denoising.docker_tag,
                 module_kwargs={
@@ -126,7 +126,7 @@ def ophys_processing():
                 }
             )
             return module_outputs[
-                WellKnownFileType.DEEPINTERPOLATION_DENOISED_MOVIE.value]
+                WellKnownFileTypeEnum.DEEPINTERPOLATION_DENOISED_MOVIE.value]
 
         trained_denoising_model_file = denoising_finetuning(
             motion_corrected_ophys_movie_file=(
@@ -142,7 +142,7 @@ def ophys_processing():
         module_outputs = run_workflow_step(
             slurm_config_filename='segmentation.yml',
             module=SegmentationModule,
-            workflow_step_name=WorkflowStep.SEGMENTATION,
+            workflow_step_name=WorkflowStepEnum.SEGMENTATION,
             workflow_name=WORKFLOW_NAME,
             docker_tag=app_config.pipeline_steps.segmentation.docker_tag,
             additional_db_inserts=SegmentationModule.save_rois_to_db,
@@ -152,7 +152,7 @@ def ophys_processing():
             }
         )
         return module_outputs[
-            WellKnownFileType.OPHYS_ROIS.value]
+            WellKnownFileTypeEnum.OPHYS_ROIS.value]
 
     @task_group
     def classify_rois(
@@ -165,7 +165,7 @@ def ophys_processing():
                 slurm_config_filename='correlation_projection.yml',
                 module=roi_classification.GenerateCorrelationProjectionModule,
                 workflow_step_name=(
-                    WorkflowStep.
+                    WorkflowStepEnum.
                     ROI_CLASSIFICATION_GENERATE_CORRELATION_PROJECTION_GRAPH),
                 workflow_name=WORKFLOW_NAME,
                 docker_tag=(app_config.pipeline_steps.roi_classification.
@@ -176,7 +176,7 @@ def ophys_processing():
                 }
             )
             return module_outputs[
-                WellKnownFileType.
+                WellKnownFileTypeEnum.
                 ROI_CLASSIFICATION_CORRELATION_PROJECTION_GRAPH.value]
 
         @task_group
@@ -187,7 +187,7 @@ def ophys_processing():
                 slurm_config_filename='correlation_projection.yml',
                 module=roi_classification.GenerateThumbnailsModule,
                 workflow_step_name=(
-                    WorkflowStep.ROI_CLASSIFICATION_GENERATE_THUMBNAILS),
+                    WorkflowStepEnum.ROI_CLASSIFICATION_GENERATE_THUMBNAILS),
                 workflow_name=WORKFLOW_NAME,
                 docker_tag=(app_config.pipeline_steps.roi_classification.
                             generate_thumbnails.docker_tag),
@@ -199,7 +199,7 @@ def ophys_processing():
                 }
             )
             return module_outputs[
-                WellKnownFileType.ROI_CLASSIFICATION_THUMBNAIL_IMAGES]
+                WellKnownFileTypeEnum.ROI_CLASSIFICATION_THUMBNAIL_IMAGES]
 
         @task_group
         def run_inference():
@@ -207,7 +207,7 @@ def ophys_processing():
             run_workflow_step(
                 module=roi_classification.InferenceModule,
                 workflow_step_name=(
-                    WorkflowStep.ROI_CLASSIFICATION_INFERENCE),
+                    WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE),
                 workflow_name=WORKFLOW_NAME,
                 docker_tag=(app_config.pipeline_steps.roi_classification.
                             inference.docker_tag),
@@ -228,7 +228,7 @@ def ophys_processing():
         module_outputs = run_workflow_step(
             slurm_config_filename='trace_extraction.yml',
             module=TraceExtractionModule,
-            workflow_step_name=WorkflowStep.TRACE_EXTRACTION,
+            workflow_step_name=WorkflowStepEnum.TRACE_EXTRACTION,
             workflow_name=WORKFLOW_NAME,
             docker_tag=app_config.pipeline_steps.segmentation.docker_tag,
             additional_db_inserts=SegmentationModule.save_rois_to_db,
@@ -238,10 +238,10 @@ def ophys_processing():
             }
         )
         return module_outputs[
-            WellKnownFileType.TRACE_EXTRACTION_EXCLUSION_LABELS.value,
-            WellKnownFileType.ROI_TRACE.value,
-            WellKnownFileType.NEUROPIL_TRACE.value,
-            WellKnownFileType.NEUROPIL_MASK.value,]
+            WellKnownFileTypeEnum.TRACE_EXTRACTION_EXCLUSION_LABELS.value,
+            WellKnownFileTypeEnum.ROI_TRACE.value,
+            WellKnownFileTypeEnum.NEUROPIL_TRACE.value,
+            WellKnownFileTypeEnum.NEUROPIL_MASK.value,]
     
     motion_corrected_ophys_movie_file = motion_correction()
     denoised_movie_file = denoising(

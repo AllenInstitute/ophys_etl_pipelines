@@ -10,10 +10,9 @@ from sqlmodel import Session, select
 
 from ophys_etl.workflows.db.schemas import  WorkflowStepRun, WellKnownFile, \
     WellKnownFileType, WorkflowStep, Workflow
-from ophys_etl.workflows.workflow_names import WorkflowName
-from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType as \
-    WellKnownFileTypeEnum
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.output_file import OutputFile
 
 logger = logging.getLogger('airflow.task')
@@ -24,7 +23,7 @@ class ModuleOutputFileDoesNotExistException(Exception):
 
 
 def save_job_run_to_db(
-        workflow_name: WorkflowName,
+        workflow_name: WorkflowNameEnum,
         workflow_step_name: WorkflowStepEnum,
         start: datetime.datetime,
         end: datetime.datetime,
@@ -130,7 +129,7 @@ def save_job_run_to_db(
 def get_workflow_step_by_name(
     session,
     name: WorkflowStepEnum,
-    workflow: WorkflowName
+    workflow: WorkflowNameEnum
 ) -> WorkflowStepEnum:
     """
     Get workflow step by name
@@ -164,7 +163,7 @@ def get_well_known_file_type(
     session,
     name: WellKnownFileTypeEnum,
     workflow_step_name: WorkflowStepEnum,
-    workflow: WorkflowName
+    workflow: WorkflowNameEnum
 ) -> WellKnownFileType:
     """
     Get well known file type by name

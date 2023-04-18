@@ -11,17 +11,17 @@ from ophys_etl.workflows.db.db_utils import get_workflow_step_by_name, \
 from ophys_etl.workflows.db.schemas import WorkflowStepRun, WorkflowStep, \
     WellKnownFile
 
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
-from ophys_etl.workflows.workflow_names import WorkflowName
-from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 logger = logging.getLogger(__name__)
 
 def get_well_known_file_for_latest_run(
     engine: Engine,
     workflow_step: WorkflowStepEnum,
-    workflow_name: WorkflowName,
-    well_known_file_type: WellKnownFileType,
+    workflow_name: WorkflowNameEnum,
+    well_known_file_type: WellKnownFileTypeEnum,
     ophys_experiment_id: Optional[str] = None
 ):
     """
@@ -34,7 +34,7 @@ def get_well_known_file_for_latest_run(
     workflow_step
         `WorkflowStep` enum
     workflow_name
-        `WorkflowName` enum
+        `WorkflowNameEnum` enum
     ophys_experiment_id
         Optional ophys experiment id
     well_known_file_type
@@ -80,7 +80,7 @@ def get_well_known_file_for_latest_run(
 def get_latest_run(
     session: Session,
     workflow_step: WorkflowStepEnum,
-    workflow_name: WorkflowName,
+    workflow_name: WorkflowNameEnum,
     ophys_experiment_id: Optional[str] = None
 ) -> int:
     """
@@ -95,7 +95,7 @@ def get_latest_run(
     workflow_step
         `WorkflowStep` enum
     workflow_name
-        `WorkflowName` enum
+        `WorkflowNameEnum` enum
     ophys_experiment_id
         Optional ophys experiment id
 

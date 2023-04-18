@@ -1,4 +1,5 @@
 """Ophys experiment"""
+import numpy as np
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -121,7 +122,7 @@ class OphysExperiment:
         )
 
         result = session.execute(query).all()
-        motion_border = result[0][1]
+        motion_border = result[0][0]
         return {
             "x0": motion_border.max_correction_left,
             "x1": motion_border.max_correction_right,
@@ -129,7 +130,27 @@ class OphysExperiment:
             "y1": motion_border.max_correction_down
         }
 
+    def _generate_binary_mask(self, ophys_roi: OphysROI, ophys_roi_mask_values: List[OphysROIMaskValue]) -> List[List[bool]]:
+        """
+        Generate binary mask for an ROI
 
+        Parameters
+        ----------
+        ophys_roi
+            The ophys ROI
+        ophys_roi_mask_values
+            The ophys ROI mask values
+
+        Returns
+        -------
+        List[List[bool]]
+            A list of lists of booleans representing the binary mask
+        """
+        mask = np.zeros((ophys_roi.height, ophys_roi.width), dtype=bool)
+        for ophys_roi_mask_value in ophys_roi_mask_values:
+            mask[ophys_roi_mask_value.row_index, ophys_roi_mask_value.col_index] = True
+        return mask.tolist()
+    
     def get_ophys_experiment_roi_metadata(
             self,
             session: Session) -> List[Dict]:
@@ -151,28 +172,33 @@ class OphysExperiment:
         workflow_step_run_id = get_latest_run(session,
                                               WorkflowStepEnum.MOTION_CORRECTION,
                                               WorkflowName.OPHYS_PROCESSING,
-                                              self.ophys_experiment_id,
+                                              self.id,
                                               )
         query = (
             select(
-                OphysROI,
-                OphysROIMaskValue,
+                OphysROI
             )
-            .join(OphysROIMaskValue, OphysROIMaskValue.ophys_roi_id == OphysROI.id)
             .where(OphysROI.workflow_step_run_id == workflow_step_run_id)
         )
 
         result = session.execute(query).all()
         roi_metadata = []
-        for row in result:
-            ophys_roi, ophys_roi_mask_value = row
+        for ophys_roi in result:
+            ophys_roi = ophys_roi[0]
+            query = (
+            select(
+                OphysROIMaskValue
+            )
+            .where(OphysROIMaskValue.ophys_roi_id == ophys_roi.id)
+            )
+            masks_list = session.execute(query).all()
+            masks_list = [mask[0] for mask in masks_list]
             roi_metadata.append({
-                'id': ophys_roi.id,
-                'x': ophys_roi.x,
-                'y': ophys_roi.y,
-                'width': ophys_roi.width,
-                'height': ophys_roi.height,
-                'mask': ophys_roi_mask_value.mask,
-                'mask_matrix': ophys_roi_mask_value.mask_matrix
+                "id": ophys_roi.id,
+                "x": ophys_roi.x,
+                "y": ophys_roi.y,
+                "width": ophys_roi.width,
+                "height": ophys_roi.height,
+                "mask": self._generate_binary_mask(ophys_roi, masks_list)
             })
         return roi_metadata

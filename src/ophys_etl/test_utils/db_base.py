@@ -6,14 +6,14 @@ import tempfile
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
 
+pkg_root = Path(__file__).parent.parent.parent.parent
 setup_app_config(
     ophys_workflow_app_config_path=(
-            Path(__file__).parent.parent / 'resources' / 'config.yml'),
-    test_di_base_model_path=Path(__file__).parent.parent / 'resources' /
+            pkg_root / 'tests' / 'workflows' / 'resources' / 'config.yml'),
+    test_di_base_model_path = pkg_root / 'tests' /  'workflows' / 'resources' /
     'di_model.h5'
 )
 
-from ophys_etl.workflows.db.db_utils import save_job_run_to_db # noqa E402
 from ophys_etl.workflows.db.initialize_db import InitializeDBRunner # noqa E402
 
 

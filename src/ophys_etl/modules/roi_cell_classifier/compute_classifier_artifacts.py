@@ -266,7 +266,8 @@ def _generate_mask_image(
     mask = roi.get_centered_cutout(
             image=mask,
             height=cutout_size,
-            width=cutout_size
+            width=cutout_size,
+            pad_mode='constant'
     )
 
     if mask.sum() == 0:
@@ -337,7 +338,8 @@ def _crop_frames(
         frames_cropped[i] = roi.get_centered_cutout(
             image=frames[i],
             height=desired_shape[0],
-            width=desired_shape[1]
+            width=desired_shape[1],
+            pad_mode='symmetric'
         )
     return frames_cropped
 

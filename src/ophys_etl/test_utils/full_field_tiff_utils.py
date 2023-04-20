@@ -1,7 +1,7 @@
 import numpy as np
 import tifffile
 import pathlib
-import tempfile
+from ophys_etl.utils.tempfile_util import mkstemp_clean
 
 
 def _create_full_field_tiff(
@@ -52,9 +52,10 @@ def _create_full_field_tiff(
     avg_img = data.mean(axis=0)
     tiff_pages = [data[ii, :, :] for ii in range(data.shape[0])]
     tiff_path = pathlib.Path(
-            tempfile.mkstemp(dir=output_dir,
-                             suffix='.tiff')[1])
-    tifffile.imsave(tiff_path, tiff_pages)
+            mkstemp_clean(dir=output_dir,
+                          prefix='full_field_',
+                          suffix='.tiff'))
+    tifffile.imwrite(tiff_path, tiff_pages)
     metadata = [{'SI.hStackManager.actualNumVolumes': numVolumes,
                  'SI.hStackManager.actualNumSlices': numSlices}]
 
@@ -81,10 +82,10 @@ def _create_roi_metadata(
         pixelResolutionXY[0] for each ROI
 
     roiy: int
-        pixelResoluitonXY[1] for each ROI
+        pixelResolutionXY[1] for each ROI
 
     sizex: float
-        sizeXY[0] for each ROI
+        sizeXY[0] for each ROI.
 
     sizey: float
         sizeXY[1] for each ROI
@@ -101,6 +102,9 @@ def _create_roi_metadata(
     ROIs will be given a centerXY value that is the same in y
     but increments in x. This is the arrangement of ROIs in the
     full field TIFF files we are meant to stitch together.
+
+    sizexy is the physical size of each ROI that makes up the
+    stitched image.
     """
 
     roi_metadata = {

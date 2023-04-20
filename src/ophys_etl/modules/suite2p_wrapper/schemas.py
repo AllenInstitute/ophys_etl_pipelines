@@ -76,6 +76,26 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
         default=False,
         required=False,
         description=("Turns on Suite2P's non-rigid registration algorithm"))
+    block_size = argschema.fields.List(
+        argschema.fields.Int,
+        default=[128, 128],
+        required=False,
+        description=("Block dimensions in y, x in pixels. Must be a multiple "
+                     "of 2. block_size=[128, 128] will yield 16 blocks for a "
+                     "512x512 movie."))
+    snr_thresh = argschema.fields.Float(
+        default=1.2,
+        required=False,
+        description=("If a block is below the above snr threshold. Apply "
+                     "smoothing to the block. SNR is calculated on the "
+                     "value of the phase correlation of the blocks."))
+    maxregshiftNR = argschema.fields.Int(
+        default=5,
+        required=False,
+        description=("Maximum shift allowed in pixels for a block in "
+                     "rigid registration. This value is relative to the "
+                     "rigid shift."))
+
     refImg = argschema.fields.NumpyArray(
         default=[],
         required=False,

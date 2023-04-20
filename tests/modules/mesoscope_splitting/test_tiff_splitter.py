@@ -4,12 +4,13 @@ from unittest.mock import patch, Mock
 import numpy as np
 import h5py
 import pathlib
-import tempfile
 import tifffile
 import copy
 import json
 
 from ophys_etl.utils.array_utils import normalize_array
+
+from ophys_etl.utils.tempfile_util import mkstemp_clean
 
 from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
     AvgImageTiffSplitter,
@@ -71,8 +72,8 @@ def _create_image_tiff(
             page[i_z:i_z+2, i_z:i_z+2] = 0
             tiff_pages.append(page)
             page_lookup[(i_roi, z_value)].append(page)
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmp_dir, suffix='tiff')[1])
-    tifffile.imsave(tmp_path, tiff_pages)
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmp_dir, suffix='tiff'))
+    tifffile.imwrite(tmp_path, tiff_pages)
 
     tiff_pages = np.array(tiff_pages)
 
@@ -145,7 +146,8 @@ def _create_image_tiff(
 def test_depth_splitter(tmp_path_factory,
                         z_value_list,
                         n_rois,
-                        use_zs):
+                        use_zs,
+                        helper_functions):
     """
     Test that, when splitting a depth TIFF, _get_pages and
     write_output_file behave as expected
@@ -189,7 +191,7 @@ def test_depth_splitter(tmp_path_factory,
                     actual,
                     raw_avg_img_lookup[(i_roi, z_value)])
 
-        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
+        tmp_path = mkstemp_clean(dir=tmp_dir, suffix='.tiff')
         tmp_path = pathlib.Path(tmp_path)
 
         splitter.write_output_file(i_roi=i_roi,
@@ -210,6 +212,8 @@ def test_depth_splitter(tmp_path_factory,
             tmp_path.unlink()
     if tiff_path.is_file():
         tiff_path.unlink()
+
+    helper_functions.clean_up_dir(tmp_dir)
 
 
 @pytest.mark.parametrize(
@@ -233,7 +237,8 @@ def test_depth_splitter(tmp_path_factory,
 def test_splitter_manifest(tmp_path_factory,
                            z_value_list,
                            n_rois,
-                           use_zs):
+                           use_zs,
+                           helper_functions):
     """
     Test that the various methods characterizing legal
     combinations of i_roi and z behave as expected
@@ -286,6 +291,8 @@ def test_splitter_manifest(tmp_path_factory,
     if tiff_path.is_file():
         tiff_path.unlink()
 
+    helper_functions.clean_up_dir(tmp_dir)
+
 
 @pytest.mark.parametrize(
     "z_value_list, use_zs",
@@ -299,7 +306,8 @@ def test_splitter_manifest(tmp_path_factory,
      ((0, 5, 4), False)])
 def test_surface_splitter(tmp_path_factory,
                           z_value_list,
-                          use_zs):
+                          use_zs,
+                          helper_functions):
     """
     Test that, when splitting a surface TIFF, _get_pages and
     write_output_file behave as expected
@@ -345,7 +353,7 @@ def test_surface_splitter(tmp_path_factory,
                 actual,
                 raw_avg_img_lookup[(i_roi, z_value)])
 
-        tmp_path = tempfile.mkstemp(dir=tmp_dir, suffix='.tiff')[1]
+        tmp_path = mkstemp_clean(dir=tmp_dir, suffix='.tiff')
         tmp_path = pathlib.Path(tmp_path)
         splitter.write_output_file(i_roi=i_roi,
                                    z_value=None,
@@ -360,6 +368,8 @@ def test_surface_splitter(tmp_path_factory,
             tmp_path.unlink()
     if tiff_path.is_file():
         tiff_path.unlink()
+
+    helper_functions.clean_up_dir(tmp_dir)
 
 
 @pytest.mark.parametrize(
@@ -383,7 +393,8 @@ def test_surface_splitter(tmp_path_factory,
 def test_time_splitter(tmp_path_factory,
                        z_value_list,
                        n_rois,
-                       use_zs):
+                       use_zs,
+                       helper_functions):
 
     """
     Test that, when splitting a timeseries TIFF,
@@ -413,7 +424,7 @@ def test_time_splitter(tmp_path_factory,
     for i_z, z_value in enumerate(z_value_list):
         i_roi = i_z//n_z_per_roi
         output_path = pathlib.Path(
-                tempfile.mkstemp(dir=tmp_dir, suffix='.h5')[1])
+                mkstemp_clean(dir=tmp_dir, suffix='.h5'))
         output_path_map[(i_roi, z_value)] = output_path
 
     splitter.write_output_files(
@@ -434,6 +445,8 @@ def test_time_splitter(tmp_path_factory,
 
     if tiff_path.is_file():
         tiff_path.unlink()
+
+    helper_functions.clean_up_dir(tmp_dir)
 
 
 def test_invalid_timeseries_output_map(
@@ -472,7 +485,7 @@ def test_invalid_timeseries_output_map(
     for i_z, z_value in enumerate(z_value_list):
         i_roi = i_z//n_z_per_roi
         output_path = pathlib.Path(
-                tempfile.mkstemp(dir=tmp_dir, suffix='.h5')[1])
+                mkstemp_clean(dir=tmp_dir, suffix='.h5'))
         output_path_map[(i_roi, z_value)] = output_path
 
     # test i_roi that is too large
@@ -553,9 +566,9 @@ def _create_z_stack_tiffs(
     n_repeats = 5
 
     for i_roi in range(n_rois):
-        stack_path = pathlib.Path(tempfile.mkstemp(
+        stack_path = pathlib.Path(mkstemp_clean(
                                        dir=tmpdir,
-                                       suffix='.tiff')[1])
+                                       suffix='.tiff'))
         roi_metadata = copy.deepcopy(main_roi_metadata)
         rois = roi_metadata['RoiGroups']['imagingRoiGroup']['rois']
         rois[i_roi]['discretePlaneMode'] = 0
@@ -588,7 +601,7 @@ def _create_z_stack_tiffs(
                     tiff_pages_lookup[(i_roi, this_z)].append(page)
                     this_tiff.append(page)
 
-        tifffile.imsave(stack_path, this_tiff)
+        tifffile.imwrite(stack_path, this_tiff)
 
     return (z_stack_path_to_metadata,
             tiff_pages_lookup,
@@ -615,7 +628,8 @@ def _create_z_stack_tiffs(
      ((0, 4, 5, 2, 8, 7), False)])
 def test_z_stack_splitter(tmp_path_factory,
                           z_value_list,
-                          use_zs):
+                          use_zs,
+                          helper_functions):
     """
     Test that _get_pages and write_output_file behave properly
     for zstack_splitter
@@ -666,7 +680,7 @@ def test_z_stack_splitter(tmp_path_factory,
             expected = np.stack(tiff_pages_lookup[(i_roi, z_value)])
             np.testing.assert_array_equal(actual, expected)
 
-            tmp_h5 = tempfile.mkstemp(dir=tmpdir, suffix='.h5')[1]
+            tmp_h5 = mkstemp_clean(dir=tmpdir, suffix='.h5')
             tmp_h5 = pathlib.Path(tmp_h5)
             splitter.write_output_file(
                             i_roi=i_roi,
@@ -685,3 +699,5 @@ def test_z_stack_splitter(tmp_path_factory,
     for z_stack_path in z_stack_path_list:
         if z_stack_path.is_file():
             z_stack_path.unlink()
+
+    helper_functions.clean_up_dir(tmpdir)

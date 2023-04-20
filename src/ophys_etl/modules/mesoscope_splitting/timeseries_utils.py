@@ -3,12 +3,15 @@ import tifffile
 import h5py
 import pathlib
 import numpy as np
-import tempfile
 import datetime
 import os
 import shutil
 import json
 import time
+import tempfile
+
+from ophys_etl.utils.tempfile_util import (
+    mkstemp_clean)
 
 
 def split_timeseries_tiff(
@@ -393,11 +396,11 @@ def _dump_timeseries_caches(
             continue
         cache = offset_to_cache[offset][:valid, :, :]
 
-        tmp_path = tempfile.mkstemp(
+        tmp_path = mkstemp_clean(
                         dir=tmp_dir,
                         suffix='.h5')
 
-        tmp_path = pathlib.Path(tmp_path[1])
+        tmp_path = pathlib.Path(tmp_path)
 
         # append path first so the code knows to clean up
         # the file in case file-creation gets interrupted

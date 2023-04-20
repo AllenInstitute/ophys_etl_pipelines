@@ -5,8 +5,13 @@ import h5py
 import json
 from unittest.mock import patch
 import numpy as np
+
 from ophys_etl.modules.mesoscope_splitting.__main__ import (
     TiffSplitterCLI)
+
+from ophys_etl.modules.mesoscope_splitting.full_field_utils import (
+    stitch_full_field_tiff,
+    stitch_tiff_with_rois)
 
 
 def run_mesoscope_cli_test(
@@ -18,7 +23,9 @@ def run_mesoscope_cli_test(
         depth_data,
         surface_data,
         timeseries_data,
-        zstack_data) -> int:
+        zstack_data,
+        full_field_2p_tiff_data,
+        expect_full_field=True) -> int:
     """
     This is a utility method to run the mesoscope CLI test using
     data generated in a self-consistent way by the pytest fixtures
@@ -57,6 +64,14 @@ def run_mesoscope_cli_test(
     zstack_data:
         The result of zstack_fixture
 
+    full_field_2p_tiff_data:
+        The result of full_field_2p_tiff_data
+
+    expect_full_field:
+       If True, test for existence and consistency of
+       full field 2 photon image. If False, verify that no
+       full field image file was written.
+
     Returns
     -------
     an integer indicating the number of simulated experiments that
@@ -68,10 +83,16 @@ def run_mesoscope_cli_test(
     input_json = copy.deepcopy(input_json)
     input_json['output_json'] = output_json
 
+    storage_dir = pathlib.Path(input_json['storage_directory'])
+    session_id = storage_dir.name.split('_')[-1]
+
+    full_field_metadata = full_field_2p_tiff_data['metadata']
+
     metadata_lookup = copy.deepcopy(zstack_metadata)
     metadata_lookup[input_json['timeseries_tif']] = image_metadata
     metadata_lookup[input_json['depths_tif']] = image_metadata
     metadata_lookup[input_json['surface_tif']] = surface_metadata
+    metadata_lookup[full_field_2p_tiff_data['raw']] = full_field_metadata
 
     def mock_read_metadata(tiff_path):
         str_path = str(tiff_path.resolve().absolute())
@@ -149,4 +170,47 @@ def run_mesoscope_cli_test(
             with h5py.File(stack_expected, 'r') as in_file:
                 expected = in_file['data'][()]
             np.testing.assert_array_equal(actual, expected)
+
+    full_field_path = storage_dir / f"{session_id}_stitched_full_field_img.h5"
+    if expect_full_field:
+        assert full_field_path.is_file()
+
+        # Use these user-facing utils to calculate the expected
+        # results. These methods are independently tested in
+        # tests/modules/mesoscope_splitting/test_full_field_utils.py
+
+        metadata_lookup = {
+            full_field_2p_tiff_data['raw']:
+                full_field_2p_tiff_data['metadata'],
+            surface_data['raw']:
+                surface_metadata}
+
+        def mock_metadata(file_path):
+            return metadata_lookup[str(file_path.resolve().absolute())]
+
+        to_patch = 'ophys_etl.modules.mesoscope_splitting.'
+        to_patch += 'tiff_metadata._read_metadata'
+        with patch(to_patch, new=mock_metadata):
+
+            expected_no_rois = stitch_full_field_tiff(
+                pathlib.Path(full_field_2p_tiff_data['raw']))
+
+            expected_w_rois = stitch_tiff_with_rois(
+                full_field_path=pathlib.Path(full_field_2p_tiff_data['raw']),
+                avg_surface_path=pathlib.Path(surface_data['raw']))
+
+        with h5py.File(full_field_path, 'r') as in_file:
+            no_rois = in_file['stitched_full_field'][()]
+            w_rois = in_file['stitched_full_field_with_rois'][()]
+
+            np.testing.assert_allclose(
+                no_rois,
+                expected_no_rois)
+
+            np.testing.assert_allclose(
+                w_rois,
+                expected_w_rois)
+    else:
+        assert not full_field_path.exists()
+
     return exp_ct

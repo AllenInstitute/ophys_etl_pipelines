@@ -57,9 +57,10 @@ class _Slurm(ImmutableBaseModel):
 
 class _PipelineStep(ImmutableBaseModel):
     """A pipeline step config"""
-    docker_tag: Optional[StrictStr] = Field(
-        description='Docker tag to use to run pipeline step. '
-                    'Overrides default_docker_tag'
+    docker_tag: StrictStr = Field(
+        default='main',
+        description='Docker tag to use to run pipeline step. Defaults to '
+                    '"main"'
     )
 
 
@@ -160,19 +161,24 @@ class _ROIClassification(ImmutableBaseModel):
     input_channels: List[Channel]
     cell_labeling_app_host: StrictStr
     generate_correlation_projection: _GenerateCorrelationProjection
-    generate_thumbnails: Optional[_GenerateThumbnails]
+    generate_thumbnails: _GenerateThumbnails = Field(
+        default=_GenerateThumbnails()
+    )
     training: _ROIClassifierTraining
-    inference: Optional[_ROIClassifierInference]
+    inference: _ROIClassifierInference = Field(
+        default=_ROIClassifierInference()
+    )
 
 
 class _PipelineSteps(ImmutableBaseModel):
     """All pipeline steps configs"""
-    default_docker_tag: StrictStr = Field(
-        description='Docker tag to use to run pipeline steps. '
-    )
     denoising: _Denoising
-    motion_correction: Optional[_MotionCorrection]
-    segmentation: Optional[_Segmentation]
+    motion_correction: _MotionCorrection = Field(
+        default=_MotionCorrection()
+    )
+    segmentation: _Segmentation = Field(
+        default=_Segmentation()
+    )
     roi_classification: _ROIClassification
 
 ##################

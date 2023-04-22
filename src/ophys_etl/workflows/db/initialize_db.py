@@ -1,23 +1,69 @@
 """Script to create and populate tables"""
-from typing import Dict
+import datetime
+from pathlib import Path
+from typing import Dict, Optional
 
 import argschema
+import marshmallow
+from ophys_etl.workflows.pipeline_modules import roi_classification
+
+from ophys_etl.workflows.pipeline_module import OutputFile
+
+from ophys_etl.workflows.db.db_utils import save_job_run_to_db
 from sqlmodel import SQLModel, Session
 
 from ophys_etl.workflows.db import get_engine
 from ophys_etl.workflows.db.schemas import Workflow, WorkflowStep, \
     WellKnownFileType
+from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
+    .model_utils import \
+    download_trained_model
 from ophys_etl.workflows.well_known_file_types import WellKnownFileType as \
     WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowName
 from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
 
 
+class _TrainedROIClassifierSchema(argschema.ArgSchema):
+    """In production, the trained ROI classifier should be saved through the
+    `roi_classifier_training` workflow. However, in development, we can add
+    an roi classifier training run manually by specifying values for this
+    schema"""
+    mlflow_parent_run_name = argschema.fields.String(
+        required=True,
+        description='MLFlow parent run name for the training run'
+    )
+    trained_model_dest = argschema.fields.OutputDir(
+        required=True,
+        description='Where to save trained model'
+    )
+
+
 class InitializeDBSchema(argschema.ArgSchema):
     db_url = argschema.fields.String(
         required=True,
-        description='db url'
+        description='db url, see '
+                    'https://docs.sqlalchemy.org/en/20/core/engines.html'
     )
+    add_roi_classifier_training_run = argschema.fields.Boolean(
+        default=False,
+        description='Whether to add roi classifier training run. Needed for '
+                    'development when testing out `ophys_processing` workflow'
+    )
+    roi_classifier_args = argschema.fields.Nested(
+        _TrainedROIClassifierSchema,
+        default={}
+    )
+
+    @marshmallow.pre_load
+    def validate_roi_classifier_args(self, data: dict, **kwargs):
+        if data['add_roi_classifier_training_run']:
+            if not data['roi_classifier_args']:
+                raise ValueError(
+                    'If `add_roi_classifier_training_run`, then '
+                    'this is a dev database. Specify `roi_classifier_args` '
+                    'to manually add an roi classifier training run')
+        return data
 
 
 def create_db_and_tables(engine):
@@ -284,8 +330,79 @@ def _create_well_known_file_types_for_roi_classifier_training(
     session.commit()
 
 
-def _populate_db(engine):
-    """Populates tables"""
+def _add_roi_classifier_training_run(
+    session: Session,
+    mlflow_parent_run_name: str,
+    trained_model_dest: OutputFile,
+    logger
+):
+    """Manually adds roi classifier training run
+
+    Parameters
+    ----------
+    mlflow_parent_run_name
+        MLFlow parent run name for the training run
+    trained_model_dest
+        Where to save trained model
+    logger
+        Logger
+    """
+    logger.info(f'Downloading trained roi classifier model to '
+                f'{trained_model_dest.path}')
+    download_trained_model(
+        mlflow_run_name=mlflow_parent_run_name,
+        model_dest=trained_model_dest
+    )
+    save_job_run_to_db(
+        workflow_name=WorkflowName.ROI_CLASSIFIER_TRAINING,
+        workflow_step_name=WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING,
+        start=datetime.datetime.now(),
+        end=datetime.datetime.now(),
+        module_outputs=[trained_model_dest],
+        sqlalchemy_session=session,
+        storage_directory=trained_model_dest.path.parent,
+        log_path='',
+        validate_files_exist=True,
+        additional_steps=(
+            roi_classification.TrainingModule.save_trained_model_to_db),
+        additional_steps_kwargs={
+            'mlflow_parent_run_name': mlflow_parent_run_name
+        }
+    )
+
+
+def _populate_db(
+    engine,
+    logger,
+    add_roi_classifier_training_run: bool = False,
+    mlflow_parent_run_name: Optional[str] = None,
+    trained_model_dest: Optional[OutputFile] = None
+):
+    """Populates tables
+
+    Parameters
+    ----------
+    engine:
+        Sqlalchemy engine
+    logger:
+        Logger
+    add_roi_classifier_training_run
+        Whether to add roi classifier training run (needed for development)
+    mlflow_parent_run_name
+        MLFlow parent run name for the training run. Only needed if
+        `add_roi_classifier_training_run`
+    trained_model_dest
+        Where to save trained model. Only needed if
+        `add_roi_classifier_training_run`
+
+    """
+    if add_roi_classifier_training_run:
+        if mlflow_parent_run_name is None:
+            raise ValueError('Specify mlflow_parent_run_name if '
+                             'add_roi_classifier_training_run')
+        if trained_model_dest is None:
+            raise ValueError('Specify trained_model_dest if '
+                             'add_roi_classifier_training_run')
     with Session(engine) as session:
         workflows = _create_workflows(session=session)
 
@@ -309,6 +426,14 @@ def _populate_db(engine):
             workflow_steps=roi_classifier_training_workflow_steps
         )
 
+        if add_roi_classifier_training_run:
+            _add_roi_classifier_training_run(
+                session=session,
+                mlflow_parent_run_name=mlflow_parent_run_name,
+                trained_model_dest=trained_model_dest,
+                logger=logger
+            )
+
 
 class IntializeDBRunner(argschema.ArgSchemaParser):
     default_schema = InitializeDBSchema
@@ -316,7 +441,21 @@ class IntializeDBRunner(argschema.ArgSchemaParser):
     def run(self):
         engine = get_engine(db_conn=self.args['db_url'])
         create_db_and_tables(engine)
-        _populate_db(engine)
+        _populate_db(
+            engine,
+            add_roi_classifier_training_run=(
+                self.args['add_roi_classifier_training_run']),
+            mlflow_parent_run_name=(
+                self.args['roi_classifier_args'].get('mlflow_parent_run_name')
+            ),
+            trained_model_dest=OutputFile(
+                path=Path(self.args['roi_classifier_args']
+                          .get('trained_model_dest')),
+                well_known_file_type=(
+                    WellKnownFileTypeEnum.ROI_CLASSIFICATION_TRAINED_MODEL)
+            ),
+            logger=self.logger
+        )
         return engine
 
 

@@ -52,13 +52,14 @@ class InitializeDBSchema(argschema.ArgSchema):
     )
     roi_classifier_args = argschema.fields.Nested(
         _TrainedROIClassifierSchema,
-        default={}
+        default=None,
+        allow_none=True
     )
 
     @marshmallow.pre_load
     def validate_roi_classifier_args(self, data: dict, **kwargs):
         if data['add_roi_classifier_training_run']:
-            if not data['roi_classifier_args']:
+            if data['roi_classifier_args'] is None:
                 raise ValueError(
                     'If `add_roi_classifier_training_run`, then '
                     'this is a dev database. Specify `roi_classifier_args` '
@@ -441,16 +442,22 @@ class IntializeDBRunner(argschema.ArgSchemaParser):
     def run(self):
         engine = get_engine(db_conn=self.args['db_url'])
         create_db_and_tables(engine)
+        if self.args['roi_classifier_args'] is None:
+            roi_classifier_args = {}
+        else:
+            roi_classifier_args = self.args['roi_classifier_args']
+
         _populate_db(
             engine,
             add_roi_classifier_training_run=(
                 self.args['add_roi_classifier_training_run']),
             mlflow_parent_run_name=(
-                self.args['roi_classifier_args'].get('mlflow_parent_run_name')
+                roi_classifier_args.get('mlflow_parent_run_name')
             ),
             trained_model_dest=OutputFile(
-                path=Path(self.args['roi_classifier_args']
-                          .get('trained_model_dest')),
+                path=(
+                    Path(roi_classifier_args.get('trained_model_dest'))
+                    if roi_classifier_args else None),
                 well_known_file_type=(
                     WellKnownFileTypeEnum.ROI_CLASSIFICATION_TRAINED_MODEL)
             ),

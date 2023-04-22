@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Optional, List
 
 import yaml
+from deepcell.cli.modules.create_dataset import VoteTallyingStrategy
 from deepcell.datasets.channel import Channel
 from pydantic import StrictStr, SecretStr, FilePath, Field, StrictFloat, \
     StrictInt
@@ -151,6 +152,7 @@ class _ROIClassifierTraining(_PipelineStep):
         description='Number of folds for cross validation'
     )
     tracking: TrackingParams
+    voting_strategy: VoteTallyingStrategy = VoteTallyingStrategy.MAJORITY
 
 
 class _ROIClassifierInference(_PipelineStep):

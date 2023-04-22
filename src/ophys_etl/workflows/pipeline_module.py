@@ -39,8 +39,8 @@ class PipelineModule:
     def __init__(
             self,
             ophys_experiment: Optional[OphysExperiment],
+            docker_tag: str,
             prevent_file_overwrites: bool = True,
-            docker_tag: Optional[str] = None,
             **module_args
     ):
         """
@@ -55,12 +55,10 @@ class PipelineModule:
             Whether to allow files output by module to be overwritten
         docker_tag
             What docker tag to use to run module.
-            Defaults to default_docker_tag from the app config if not provided
         """
 
         self._ophys_experiment = ophys_experiment
-        self._docker_tag = docker_tag if docker_tag is not None else \
-            app_config.pipeline_steps.default_docker_tag
+        self._docker_tag = docker_tag
         self._now = datetime.datetime.now()
 
         os.makedirs(self.output_path, exist_ok=True)

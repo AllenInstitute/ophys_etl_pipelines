@@ -17,7 +17,7 @@ from unittest.mock import patch # noqa #402
 import pytest   # noqa #402
 from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
     OphysSession, Specimen  # noqa #402
-from ophys_etl.workflows.app_config.app_config import app_config
+from ophys_etl.workflows.app_config.app_config import app_config    # noqa #E402
 
 from ophys_etl.workflows.on_prem.slurm.slurm import SlurmJob, SlurmState, \
     Slurm # noqa #402

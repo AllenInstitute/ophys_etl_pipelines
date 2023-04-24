@@ -51,13 +51,13 @@ def download_trained_model(
         )
 
         # this will create a directory with the name of the fold with a file
-        # <fold>.pt beneath it
+        # <fold>_model.pt beneath it
         shutil.unpack_archive(
             filename=model_dest.path / Path(model_s3_key).name,
             extract_dir=model_dest.path)
 
         # move the model file to model_dest.path
-        shutil.move(str(model_dest.path / run.fold / f'{run.fold}.pt'),
+        shutil.move(str(model_dest.path / run.fold / f'{run.fold}_model.pt'),
                     str(model_dest.path))
 
         # cleanup

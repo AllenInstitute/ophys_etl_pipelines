@@ -64,7 +64,10 @@ def roi_classifier_training():
         labels = construct_dataset(
             cell_labeling_app_host=(
                 app_config.pipeline_steps.roi_classification.
-                cell_labeling_app_host)
+                cell_labeling_app_host),
+            vote_tallying_strategy=(
+                app_config.pipeline_steps.roi_classification.training.
+                voting_strategy)
         )
         experiment_ids = labels['experiment_id'].tolist()
         runs = {}
@@ -104,7 +107,10 @@ def roi_classifier_training():
         labels = construct_dataset(
             cell_labeling_app_host=(
                 app_config.pipeline_steps.roi_classification.
-                cell_labeling_app_host)
+                cell_labeling_app_host),
+            vote_tallying_strategy=(
+                app_config.pipeline_steps.roi_classification.training.
+                voting_strategy)
         )
         thumbnail_dirs = {}
         experiment_ids = labels['experiment_id'].tolist()
@@ -191,3 +197,6 @@ def roi_classifier_training():
             correlation_projection_graphs=correlation_projection_graphs)
     train_set_path = create_train_test_split(thumbnail_dirs=thumbnail_dirs)
     train_model(train_set_path=train_set_path)
+
+
+roi_classifier_training()

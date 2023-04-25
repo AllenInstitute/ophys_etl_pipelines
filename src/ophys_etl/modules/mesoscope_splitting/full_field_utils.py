@@ -87,7 +87,7 @@ def _insert_rois_into_surface_img(
         The stitched full field image into which we are inserting
         the ROI thumbnails
 
-    full_filed_metadata: ScanImageMetadata
+    full_field_metadata: ScanImageMetadata
         Metadata read from the original full_field_img TIFF file
 
     avg_image_splitter: AvgImageTiffSplitter
@@ -104,7 +104,7 @@ def _insert_rois_into_surface_img(
     Notes
     -----
     One of the first steps is ot make a copy of full_field_img,
-    so this method does not alter full_filed_img in place.
+    so this method does not alter full_field_img in place.
     """
 
     (ff_resolution,
@@ -172,7 +172,7 @@ def _insert_rois_into_surface_img(
 def _average_full_field_tiff(
         tiff_path: pathlib.Path) -> np.ndarray:
     """
-    Read in the image data from a fullfield TIFF image and average
+    Read in the image data from a full field TIFF image and average
     over slices and volumes.
 
     Parameters
@@ -347,7 +347,11 @@ def _stitch_full_field_tiff(
         tiff_metadata: ScanImageMetadata,
         avg_img: np.ndarray) -> np.ndarray:
     """
-    Stitch the full field TIFF into a single image
+    Stitch the full field TIFF into a single image, i.e.
+    take the image produced by _average_full_field_tiff
+    and rearrange its pixels to remove the artificial
+    gaps betwen ROIs and arrange the ROIs according
+    to their actual positions in physical space.
 
     Parameters
     ----------

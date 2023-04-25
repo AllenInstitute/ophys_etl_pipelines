@@ -7,7 +7,6 @@ h5py
 matplotlib
 pandas
 moto
-boto3
 typing_extensions
 tifffile
 scikit-image~=0.19.3

@@ -114,3 +114,6 @@ def ophys_processing_trigger():
                 }
             ).execute(context=get_current_context())
     trigger()
+
+
+ophys_processing_trigger()

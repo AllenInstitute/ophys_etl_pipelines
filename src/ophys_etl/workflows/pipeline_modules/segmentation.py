@@ -88,13 +88,17 @@ class SegmentationModule(PipelineModule):
 
         for roi in rois:
             # 1. Add ROI
-            mask = roi["mask_matrix"]
+            mask = roi['mask_matrix']
+            motion_border = 'motion_border' in roi['exclusion_labels']
+            small_size = 'small_size' in roi['exclusion_labels']
             roi = OphysROI(
-                x=roi["x"],
-                y=roi["y"],
-                width=roi["width"],
-                height=roi["height"],
+                x=roi['x'],
+                y=roi['y'],
+                width=roi['width'],
+                height=roi['height'],
                 workflow_step_run_id=run_id,
+                is_in_motion_border=motion_border,
+                is_small_size=small_size,
             )
             session.add(roi)
 

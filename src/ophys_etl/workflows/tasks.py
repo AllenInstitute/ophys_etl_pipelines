@@ -64,10 +64,10 @@ def save_job_run_to_db(
     """
     job_finish_res = json.loads(job_finish_res)
     start = datetime.datetime.strptime(
-        job_finish_res["start"], "%Y-%m-%d %H:%M:%S"
+        job_finish_res["start"], "%Y-%m-%d %H:%M:%S%z"
     )
     end = datetime.datetime.strptime(
-        job_finish_res["end"], "%Y-%m-%d %H:%M:%S"
+        job_finish_res["end"], "%Y-%m-%d %H:%M:%S%z"
     )
 
     ophys_experiment_id = context["params"].get("ophys_experiment_id", None)

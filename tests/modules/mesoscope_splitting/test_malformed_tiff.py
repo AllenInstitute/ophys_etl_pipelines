@@ -1,7 +1,9 @@
 import pytest
 from unittest.mock import patch, Mock
 import pathlib
-import tempfile
+
+from ophys_etl.utils.tempfile_util import (
+    mkstemp_clean)
 
 from ophys_etl.modules.mesoscope_splitting.tiff_splitter import (
     AvgImageTiffSplitter)
@@ -14,8 +16,8 @@ def test_repeated_z_error(
     an error is raised upon metadata validation
     """
     tmp_dir = tmp_path_factory.mktemp('repeated_z_error')
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmp_dir,
-                                             suffix='.tiff')[1])
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmp_dir,
+                                          suffix='.tiff'))
 
     z_lineup = [[1, 2], [3, 4]]
     roi_list = [{'zs': [1, 1]}, {'zs': [3, 4]}]
@@ -40,8 +42,8 @@ def test_roi_order_error(
     are not listed in ROI order, an error is raised
     """
     tmp_dir = tmp_path_factory.mktemp('repeated_z_error')
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmp_dir,
-                                             suffix='.tiff')[1])
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmp_dir,
+                                          suffix='.tiff'))
 
     z_lineup = [[1, 2], [3, 4]]
     roi_list = [{'zs': [1, 3]}, {'zs': [2, 4]}]
@@ -67,8 +69,8 @@ def test_uneven_z_per_roi(
     of zs per ROI
     """
     tmp_dir = tmp_path_factory.mktemp('repeated_z_error')
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmp_dir,
-                                             suffix='.tiff')[1])
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmp_dir,
+                                          suffix='.tiff'))
 
     z_lineup = [[1, 2, 3], [4, 5]]
     roi_list = [{'zs': [1, 2, 3]}, {'zs': [4, 5]}]
@@ -93,8 +95,8 @@ def test_zs_not_list(
     Test that an error is raised if zsAllActuators is not a list
     """
     tmp_dir = tmp_path_factory.mktemp('repeated_z_error')
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmp_dir,
-                                             suffix='.tiff')[1])
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmp_dir,
+                                          suffix='.tiff'))
 
     z_lineup = 5
     roi_list = [{'zs': [1, 2, 3]}, {'zs': [4, 5]}]
@@ -120,8 +122,8 @@ def test_zs_no_placeholder(
     when SI.hChannels.channelSave == 1
     """
     tmp_dir = tmp_path_factory.mktemp('repeated_z_error')
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmp_dir,
-                                             suffix='.tiff')[1])
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmp_dir,
+                                          suffix='.tiff'))
 
     z_lineup = [[5, 4], [6, 7], [8, 9]]
     roi_list = [{'zs': [1, 2, 3]}, {'zs': [4, 5]}]
@@ -149,8 +151,8 @@ def test_illegal_channelSave(
     type
     """
     tmp_dir = tmp_path_factory.mktemp('repeated_z_error')
-    tmp_path = pathlib.Path(tempfile.mkstemp(dir=tmp_dir,
-                                             suffix='.tiff')[1])
+    tmp_path = pathlib.Path(mkstemp_clean(dir=tmp_dir,
+                                          suffix='.tiff'))
 
     z_lineup = [[5, 4], [6, 7], [8, 9]]
     roi_list = [{'zs': [1, 2, 3]}, {'zs': [4, 5]}]

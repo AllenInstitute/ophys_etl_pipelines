@@ -11,7 +11,6 @@ slurm:
   username: 'foo'
   api_token: 'foo'
 pipeline_steps:
-  default_docker_tag: 'main'
   denoising:
     base_model_path: ''
     docker_tag: 'deepinterpolation_develop'

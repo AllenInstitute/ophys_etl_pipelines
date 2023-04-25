@@ -158,7 +158,7 @@ def ophys_processing():
         rois_file
     ):
         @task_group
-        def correlation_projection_generation():
+        def correlation_projection_generation(denoised_ophys_movie_file):
             module_outputs = run_workflow_step(
                 slurm_config_filename='correlation_projection.yml',
                 module=roi_classification.GenerateCorrelationProjectionModule,
@@ -197,7 +197,7 @@ def ophys_processing():
                 }
             )
             return module_outputs[
-                WellKnownFileType.ROI_CLASSIFICATION_THUMBNAIL_IMAGES]
+                WellKnownFileType.ROI_CLASSIFICATION_THUMBNAIL_IMAGES.value]
 
         @task_group
         def run_inference():

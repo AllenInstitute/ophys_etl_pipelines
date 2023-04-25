@@ -150,6 +150,7 @@ def get_workflow_step_by_name(
     """
     statement = (
         select(WorkflowStep)
+        .join(Workflow, onclause=WorkflowStep.workflow_id == Workflow.id)
         .where(WorkflowStep.name == name, Workflow.name == workflow))
     results = session.exec(statement)
     try:

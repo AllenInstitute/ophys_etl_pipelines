@@ -1,8 +1,12 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from argschema import ArgSchemaParser
 import pathlib
 import numpy as np
 import time
+import json
+import h5py
+import logging
+import traceback
 
 from ophys_etl.modules.mesoscope_splitting.schemas import (
     InputSchema, OutputSchema)
@@ -19,6 +23,10 @@ from ophys_etl.modules.mesoscope_splitting.tiff_metadata import (
 
 from ophys_etl.modules.mesoscope_splitting.output_json_sanitizer import (
     get_sanitized_json_data)
+
+from ophys_etl.modules.mesoscope_splitting.full_field_utils import (
+    stitch_full_field_tiff,
+    _insert_rois_into_surface_img)
 
 
 def get_valid_roi_centers(
@@ -69,6 +77,148 @@ def get_nearest_roi_center(
     return ans
 
 
+def write_out_stitched_full_field_image(
+        path_to_avg_tiff: pathlib.Path,
+        path_to_full_field_tiff: pathlib.Path,
+        output_path: pathlib.Path,
+        logger: Optional[logging.Logger] = None):
+    """
+    Write out the stitched full field image with
+    and without ROIs to an HDF5 file
+
+    Parameters
+    ----------
+    path_to_avg_tiff: pathlib.Path
+        Path to the avaraged surface TIFF
+
+    path_to_full_field_tiff: pathlib.Path
+        Path to the raw full field TIFF
+
+    output_path: pathlib.Path
+        File to be written out
+
+    logger: Optional[logging.Logger]
+        Logger to record traceback if the process fails
+
+    Notes
+    -----
+    If full field image generation fails, the traceback will
+    be written to the logger, but the overall process will
+    not fail so that the ophys session can continue to be
+    processed in LIMS
+    """
+
+    try:
+        full_field_metadata = ScanImageMetadata(
+                path_to_full_field_tiff)
+        full_field_img = stitch_full_field_tiff(
+                path_to_full_field_tiff)
+
+        avg_splitter = AvgImageTiffSplitter(
+                path_to_avg_tiff)
+
+        with_rois = _insert_rois_into_surface_img(
+            full_field_img=full_field_img,
+            full_field_metadata=full_field_metadata,
+            avg_image_splitter=avg_splitter)
+
+        with h5py.File(output_path, "w") as out_file:
+
+            out_file.create_dataset(
+                "stitched_full_field",
+                data=full_field_img)
+
+            out_file.create_dataset(
+                "stitched_full_field_with_rois",
+                data=with_rois)
+
+            out_file.create_dataset(
+                "surface_roi_metadata",
+                data=json.dumps(avg_splitter.raw_metadata).encode('utf-8'))
+
+            ff_metadata = json.dumps(full_field_metadata.raw_metadata)
+            out_file.create_dataset(
+                "full_field_metadata",
+                data=ff_metadata.encode('utf-8'))
+    except Exception:
+        if logger is not None:
+            msg = "Full field TIFF generation failed. Traceback:\n"
+            msg += f"{traceback.format_exc()}\n"
+            msg += "TIFF splitting job will pass, regardless."
+            logger.warning(msg)
+
+
+def get_full_field_path(
+        runner_args: dict,
+        logger: logging.Logger) -> Optional[pathlib.Path]:
+    """
+    Get the path to the full field image, if it exists.
+    Return as a pathlib.Path.
+    If the image does not exist, log the reason and return None.
+
+    Parameters
+    ----------
+    runner_args: dict
+        self.args from the mesoscope file splitting runner
+
+    logger: logging.Logger
+        self.logger from the mesoscope file splitting runner
+
+    Returns
+    -------
+    full_field_path: Optional[pathilb.Path]
+        The path to the full field 2p image (return None
+        if the path cannot be found or does not exist)
+    """
+    platform_key = "platform_json_path"
+    if platform_key not in runner_args or runner_args[platform_key] is None:
+        logger.warning(
+            "platform_json_path not specified; "
+            "skipping stitched full field image generation")
+        return None
+
+    with open(runner_args[platform_key], "rb") as in_file:
+        platform_json_data = json.load(in_file)
+
+    ff_key = "fullfield_2p_image"
+    if ff_key not in platform_json_data:
+        logger.warning(
+            f"{ff_key} not present in "
+            f"{runner_args[platform_key]}; "
+            "skipping stitched full field image generation")
+
+        return None
+
+    ff_name = platform_json_data[ff_key]
+
+    paths_to_check = []
+    paths_to_check.append(
+            pathlib.Path(runner_args['storage_directory']) / ff_name)
+
+    upload_dir_key = "data_upload_dir"
+    if upload_dir_key in runner_args:
+        if runner_args[upload_dir_key] is not None:
+            paths_to_check.append(
+                pathlib.Path(runner_args[upload_dir_key]) / ff_name)
+
+    full_field_path = None
+    for pth in paths_to_check:
+        if pth.is_file():
+            full_field_path = pth
+            break
+
+    if full_field_path is None:
+        msg = "full field image file does not exist; tried\n"
+        for pth in paths_to_check:
+            msg += f"{pth.resolve().absolute()}\n"
+        logger.warning(msg)
+        return None
+
+    logger.info("Getting fullfield_2p image from "
+                f"{full_field_path.resolve().absolute()}")
+    return full_field_path
+
+
 class TiffSplitterCLI(ArgSchemaParser):
     default_schema = InputSchema
     default_output_schema = OutputSchema
@@ -112,7 +262,7 @@ class TiffSplitterCLI(ArgSchemaParser):
             if "column_z_stack_tif" in plane_group:
                 msg = "'column_z_stack_tif' detected in 'plane_groups'; "
                 msg += "the TIFF splitting code no longer handles that file."
-                self.logger.warn(msg)
+                self.logger.warning(msg)
 
         # There are cases where the centers for ROIs are not
         # exact across modalities, so we cannot demand that the
@@ -157,7 +307,6 @@ class TiffSplitterCLI(ArgSchemaParser):
                                    zstack_splitter),
                                   (scanfield_z,
                                    None,
-                                   scanfield_z,
                                    scanfield_z),
                                   (f"{experiment_id}_depth.tif",
                                    f"{experiment_id}_surface.tif",
@@ -247,6 +396,35 @@ class TiffSplitterCLI(ArgSchemaParser):
             ready_to_archive.add(str(zstack_path.resolve().absolute()))
 
         output["ready_to_archive"] = list(ready_to_archive)
+
+        full_field_path = get_full_field_path(
+                                runner_args=self.args,
+                                logger=self.logger)
+
+        if full_field_path is not None:
+            avg_path = self.args["surface_tif"]
+            output_dir = pathlib.Path(self.args["storage_directory"])
+
+            session_id = self.args["session_id"]
+
+            # get session_id from the name of the directory where
+            # the output files are being written
+            if session_id is None:
+                session_id = output_dir.name.split('_')[-1]
+
+            output_name = f"{session_id}_stitched_full_field_img.h5"
+            output_path = output_dir / output_name
+            self.logger.info(f"Writing {output_path.resolve().absolute()}")
+
+            write_out_stitched_full_field_image(
+                path_to_avg_tiff=pathlib.Path(avg_path),
+                path_to_full_field_tiff=full_field_path,
+                output_path=output_path,
+                logger=self.logger)
+
+            if output_path.is_file():
+                self.logger.info("Wrote full field stitched image to "
+                                 f"{output_path.resolve().absolute()}")
 
         # record file metadata
         file_metadata = []

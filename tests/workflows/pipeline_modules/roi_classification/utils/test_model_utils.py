@@ -78,7 +78,7 @@ class TestModelUtils:
                         fold = re.findall(r'fold-(\d)', Key)[0]
                         dst = (Path(tmp_dir2) / fold)
                         os.makedirs(dst)
-                        with open(dst / f'{fold}.pt', 'w') as f:
+                        with open(dst / f'{fold}_model.pt', 'w') as f:
                             f.write('')
                         shutil.make_archive(
                             base_name=str(
@@ -109,4 +109,4 @@ class TestModelUtils:
                 n_folds
             assert len(os.listdir(model_dest.path)) == n_folds
             assert set(os.listdir(model_dest.path)) == \
-                   set([f'{i}.pt' for i in range(n_folds)])
+                   set([f'{i}_model.pt' for i in range(n_folds)])

@@ -17,6 +17,7 @@ from unittest.mock import patch # noqa #402
 import pytest   # noqa #402
 from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
     OphysSession, Specimen  # noqa #402
+from ophys_etl.workflows.app_config.app_config import app_config    # noqa #E402
 
 from ophys_etl.workflows.on_prem.slurm.slurm import SlurmJob, SlurmState, \
     Slurm # noqa #402
@@ -97,7 +98,8 @@ class TestSlurm:
                 storage_directory=Path('/foo'),
                 raw_movie_filename=Path('mov.h5'),
                 movie_frame_rate_hz=11.0
-            )
+            ),
+            docker_tag=app_config.pipeline_steps.motion_correction.docker_tag
         )
         cls._slurm = Slurm(
             ophys_experiment_id='1',

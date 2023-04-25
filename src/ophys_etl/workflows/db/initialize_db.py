@@ -18,10 +18,10 @@ from ophys_etl.workflows.db.schemas import Workflow, WorkflowStep, \
 from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     .model_utils import \
     download_trained_model
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType as \
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum as \
     WellKnownFileTypeEnum
-from ophys_etl.workflows.workflow_names import WorkflowName
-from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
 class _TrainedROIClassifierSchema(argschema.ArgSchema):

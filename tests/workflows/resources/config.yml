@@ -1,3 +1,6 @@
+airflow_rest_api_credentials:
+  username: 'admin'
+  password: '123'
 app_db:
   conn_string: 'sqlite:////tmp/workflow.db'
 output_dir: '/tmp'

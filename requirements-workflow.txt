@@ -2,3 +2,4 @@ sqlmodel
 PyYaml
 paramiko
 mlflow
+pg8000

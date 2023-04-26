@@ -16,4 +16,3 @@ pydantic
 sqlmodel
 apache-airflow
 simple-slurm
-paramiko

@@ -223,25 +223,18 @@ def ophys_processing():
         thumbnail_dir >> run_inference()
 
     @task_group
-    def trace_extraction(motion_corrected_ophys_movie_file,
-                         rois_file):
-        module_outputs = run_workflow_step(
+    def trace_extraction(motion_corrected_ophys_movie_file):
+        run_workflow_step(
             slurm_config_filename='trace_extraction.yml',
             module=TraceExtractionModule,
             workflow_step_name=WorkflowStepEnum.TRACE_EXTRACTION,
             workflow_name=WORKFLOW_NAME,
-            docker_tag=app_config.pipeline_steps.segmentation.docker_tag,
-            additional_db_inserts=SegmentationModule.save_rois_to_db,
+            docker_tag=app_config.pipeline_steps.trace_extraction.docker_tag,
             module_kwargs={
                 'motion_corrected_ophys_movie_file':
                     motion_corrected_ophys_movie_file
             }
         )
-        return module_outputs[
-            WellKnownFileTypeEnum.TRACE_EXTRACTION_EXCLUSION_LABELS.value,
-            WellKnownFileTypeEnum.ROI_TRACE.value,
-            WellKnownFileTypeEnum.NEUROPIL_TRACE.value,
-            WellKnownFileTypeEnum.NEUROPIL_MASK.value,]
     
     motion_corrected_ophys_movie_file = motion_correction()
     denoised_movie_file = denoising(
@@ -253,7 +246,7 @@ def ophys_processing():
     )
     trace_extraction_outputs = trace_extraction(
         motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file)
-    
+    rois_file >> trace_extraction_outputs
 
 
 ophys_processing()

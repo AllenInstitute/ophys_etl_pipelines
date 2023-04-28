@@ -2,7 +2,7 @@ import datetime
 from pathlib import Path
 
 import pytest
-
+from conftest import MockSQLiteDB
 from ophys_etl.test_utils.workflow_utils import setup_app_config
 
 setup_app_config(
@@ -22,7 +22,6 @@ from ophys_etl.workflows.db.db_utils import save_job_run_to_db  # noqa E402
 from sqlmodel import Session    # noqa E402
 
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum # noqa E402
-from ophys_etl.test_utils.db_base import MockSQLiteDB
 
 class TestWorkflowStepRuns(MockSQLiteDB):
 

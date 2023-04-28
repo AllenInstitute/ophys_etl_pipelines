@@ -37,17 +37,16 @@ class TraceExtractionModule(PipelineModule):
         return WorkflowStepEnum.TRACE_EXTRACTION
 
     @property
-    def inputs(self, session: Session) -> Dict:
+    def inputs(self) -> Dict:
         return {
             'log_level': logging.DEBUG,
             'storage_directory': self.output_path,
-            'motion_border': self.ophys_experiment.get_ophys_experiment_motion_border(
-            session),
+            'motion_border': self.ophys_experiment.get_ophys_experiment_motion_border,
             'motion_corrected_stack': self._motion_corrected_ophys_movie_file,
-            'rois': self.ophys_experiment.get_ophys_experiment_roi_metadata(
-                                                      session),
+            'rois': self.ophys_experiment.get_ophys_experiment_roi_metadata
         }
 
+    
     @property
     def outputs(self) -> List[OutputFile]:
         return [

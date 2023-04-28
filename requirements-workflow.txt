@@ -3,4 +3,3 @@ PyYaml
 paramiko
 mlflow
 pg8000
-simple-slurm

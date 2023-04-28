@@ -25,7 +25,7 @@ from ophys_etl.workflows.db.schemas import MotionCorrectionRun # noqa E402
 from ophys_etl.workflows.output_file import OutputFile  # noqa E402
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum # noqa E402
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
-from ophys_etl.test_utils.db_base import MockSQLiteDB
+from conftest import MockSQLiteDB
 
 class TestMotionCorrectionModule(MockSQLiteDB):
 

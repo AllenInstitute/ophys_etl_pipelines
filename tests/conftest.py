@@ -12,6 +12,38 @@ import numpy as np
 from scipy.sparse import coo_matrix
 
 from ophys_etl.utils.roi_masks import RoiMask
+import os
+import shutil
+from pathlib import Path
+
+import tempfile
+
+pkg_root = Path(__file__).parent
+os.environ['OPHYS_WORKFLOW_APP_CONFIG_PATH'] = \
+    str(pkg_root / 'workflows' / 'resources' / 'config.yml')
+os.environ['TEST_DI_BASE_MODEL_PATH'] = \
+    str(pkg_root / 'workflows' / 'resources' / 'di_model.h5')
+
+from ophys_etl.workflows.db.initialize_db import InitializeDBRunner # noqa E402
+
+
+class MockSQLiteDB:
+    @classmethod
+    def setup_class(cls):
+        cls._tmp_dir = Path(tempfile.TemporaryDirectory().name)
+        cls._db_path = cls._tmp_dir / 'app.db'
+        os.makedirs(cls._db_path.parent, exist_ok=True)
+
+        db_url = f'sqlite:///{cls._db_path}'
+        cls._engine = InitializeDBRunner(
+            input_data={
+                'db_url': db_url
+            },
+            args=[]).run()
+
+    @classmethod
+    def teardown_class(cls):
+        shutil.rmtree(cls._tmp_dir)
 
 
 def _clean_up_dir(tmpdir: Union[str, Path]):

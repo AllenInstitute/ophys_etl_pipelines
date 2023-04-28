@@ -26,7 +26,7 @@ from ophys_etl.workflows.pipeline_modules.segmentation import \
     SegmentationModule  # noqa E402
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum # noqa E402
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum # noqa E402
-from ophys_etl.test_utils.db_base import MockSQLiteDB
+from conftest import MockSQLiteDB
 
 class TestSegmentation(MockSQLiteDB):
 

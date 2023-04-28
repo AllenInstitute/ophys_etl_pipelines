@@ -388,7 +388,7 @@ def _add_roi_classifier_training_run(
         model_dest=trained_model_dest
     )
     save_job_run_to_db(
-        workflow_name=WorkflowName.ROI_CLASSIFIER_TRAINING,
+        workflow_name=WorkflowNameEnum.ROI_CLASSIFIER_TRAINING,
         workflow_step_name=WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING,
         start=datetime.datetime.now(),
         end=datetime.datetime.now(),

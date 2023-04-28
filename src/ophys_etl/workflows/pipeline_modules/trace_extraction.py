@@ -2,11 +2,8 @@ import logging
 from types import ModuleType
 from typing import List, Dict
 
-import json
-
-from ophys_etl.modules import segment_postprocess
+from ophys_etl.modules import trace_extraction
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
-from sqlmodel import Session
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
@@ -63,3 +60,7 @@ class TraceExtractionModule(PipelineModule):
                 well_known_file_type=WellKnownFileTypeEnum.NEUROPIL_MASK,
                 path=self.output_path),
         ]
+    
+    @property
+    def _executable(self) -> ModuleType:
+        return trace_extraction

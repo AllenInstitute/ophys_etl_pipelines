@@ -1,18 +1,6 @@
-import os
-import shutil
 from pathlib import Path
-
-import tempfile
-
-from ophys_etl.test_utils.workflow_utils import setup_app_config
-
-setup_app_config(
-    ophys_workflow_app_config_path=(
-            Path(__file__).parent / 'resources' / 'config.yml'),
-    test_di_base_model_path=Path(__file__).parent / 'resources' / 'di_model.h5'
-)
+from conftest import MockSQLiteDB
 from unittest.mock import patch
-from ophys_etl.workflows.db.initialize_db import InitializeDBRunner # noqa E402
 from sqlmodel import Session
 from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
     OphysSession, Specimen
@@ -22,20 +10,7 @@ from ophys_etl.workflows.workflow_step_runs import get_workflow_step_by_name
 from ophys_etl.workflows.db.schemas import WorkflowStepRun, MotionCorrectionRun, \
     OphysROI, OphysROIMaskValue
 
-class TestOphysExperiment:
-    @classmethod
-    def _initializeDB(cls):
-        cls._tmp_dir = Path(tempfile.TemporaryDirectory().name)
-        cls._db_path = cls._tmp_dir / 'app.db'
-        os.makedirs(cls._db_path.parent, exist_ok=True)
-
-        db_url = f'sqlite:///{cls._db_path}'
-        cls._engine = InitializeDBRunner(
-            input_data={
-                'db_url': db_url
-            },
-            args=[]).run()
-
+class TestOphysExperiment(MockSQLiteDB):
     
     def _create_mock_data(self):
         workflow_name = WorkflowNameEnum.OPHYS_PROCESSING.value
@@ -95,22 +70,19 @@ class TestOphysExperiment:
     def setup(self):
         self._initializeDB()
         self._create_mock_data()
-
-    def teardown_method(cls):
-        shutil.rmtree(cls._tmp_dir)
+        self.ophys_experiment = OphysExperiment(
+                id='1',
+                session=OphysSession(id='2'),
+                specimen=Specimen(id='3'),
+                storage_directory=Path('/storage_dir'),
+                raw_movie_filename=Path('mov.h5'),
+                movie_frame_rate_hz=11.0
+        )
 
 
     def test__get_ophys_experiment_roi_metadata(self):
-        with patch('ophys_etl.workflows.db.engine', self._engine):
-            ophys_experiment = OphysExperiment(
-                    id='1',
-                    session=OphysSession(id='2'),
-                    specimen=Specimen(id='3'),
-                    storage_directory=Path('/storage_dir'),
-                    raw_movie_filename=Path('mov.h5'),
-                    movie_frame_rate_hz=11.0
-            )
-            roi_metadata = ophys_experiment.get_ophys_experiment_roi_metadata
+        with patch('ophys_etl.workflows.ophys_experiment.engine', self._engine):
+            roi_metadata = self.ophys_experiment.get_ophys_experiment_roi_metadata
             assert len(roi_metadata) == 1
             assert roi_metadata[0]["x"] == 10
             assert roi_metadata[0]["y"] == 20
@@ -121,16 +93,8 @@ class TestOphysExperiment:
             assert len(roi_metadata[0]["mask"][0]) == 30
     
     def test_get_ophys_experiment_motion_border(self):
-        with patch('ophys_etl.workflows.db.engine', self._engine):
-            ophys_experiment = OphysExperiment(
-                    id='1',
-                    session=OphysSession(id='2'),
-                    specimen=Specimen(id='3'),
-                    storage_directory=Path('/storage_dir'),
-                    raw_movie_filename=Path('mov.h5'),
-                    movie_frame_rate_hz=11.0
-            )
-            motion_border = ophys_experiment.get_ophys_experiment_motion_border
+        with patch('ophys_etl.workflows.ophys_experiment.engine', self._engine):
+            motion_border = self.ophys_experiment.get_ophys_experiment_motion_border
             assert motion_border['x0'] == 10
             assert motion_border['x1'] == 20
             assert motion_border['y0'] == 30

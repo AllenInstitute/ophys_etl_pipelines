@@ -28,8 +28,9 @@ from ophys_etl.workflows.db.initialize_db import InitializeDBRunner # noqa E402
 
 
 class MockSQLiteDB:
+
     @classmethod
-    def setup_class(cls):
+    def _initializeDB(cls):
         cls._tmp_dir = Path(tempfile.TemporaryDirectory().name)
         cls._db_path = cls._tmp_dir / 'app.db'
         os.makedirs(cls._db_path.parent, exist_ok=True)
@@ -40,6 +41,9 @@ class MockSQLiteDB:
                 'db_url': db_url
             },
             args=[]).run()
+
+    def setup(self):
+        self._initializeDB()
 
     @classmethod
     def teardown_class(cls):

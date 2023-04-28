@@ -124,7 +124,7 @@ class OphysExperiment:
             )
 
             result = session.execute(query).one()
-            motion_border = result[0][0]
+            motion_border = result[0]
             return {
                 "x0": motion_border.max_correction_left,
                 "x1": motion_border.max_correction_right,

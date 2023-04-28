@@ -4,7 +4,7 @@ from ophys_etl.workflows.db.schemas import OphysROI, \
     OphysROIMaskValue
 
 
-def generate_binary_mask(self, ophys_roi: OphysROI, ophys_roi_mask_values: List[OphysROIMaskValue]) -> List[List[bool]]:
+def generate_binary_mask(ophys_roi: OphysROI, ophys_roi_mask_values: List[OphysROIMaskValue]) -> List[List[bool]]:
     """
     Generate binary mask for an ROI
 

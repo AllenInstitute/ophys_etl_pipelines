@@ -13,7 +13,7 @@ setup_app_config(
                              'di_model.h5')
 )
 
-from ophys_etl.workflows.db.schemas import WorkflowStep, WorkflowStepRun, \
+from ophys_etl.workflows.db.schemas import WorkflowStepRun, \
     WellKnownFile, WellKnownFileType
 from ophys_etl.workflows.well_known_file_types import \
     WellKnownFileTypeEnum

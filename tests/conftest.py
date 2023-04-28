@@ -14,15 +14,16 @@ from scipy.sparse import coo_matrix
 from ophys_etl.utils.roi_masks import RoiMask
 import os
 import shutil
-from pathlib import Path
 
 import tempfile
 
-pkg_root = Path(__file__).parent
-os.environ['OPHYS_WORKFLOW_APP_CONFIG_PATH'] = \
-    str(pkg_root / 'workflows' / 'resources' / 'config.yml')
-os.environ['TEST_DI_BASE_MODEL_PATH'] = \
-    str(pkg_root / 'workflows' / 'resources' / 'di_model.h5')
+from ophys_etl.test_utils.workflow_utils import setup_app_config
+setup_app_config(
+    ophys_workflow_app_config_path=(
+            Path(__file__).parent / 'workflows' / 'resources' / 'config.yml'),
+    test_di_base_model_path=(Path(__file__).parent /  'workflows' / 'resources' /
+                             'di_model.h5')
+)
 
 from ophys_etl.workflows.db.initialize_db import InitializeDBRunner # noqa E402
 

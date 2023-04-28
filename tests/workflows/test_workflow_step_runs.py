@@ -3,25 +3,18 @@ from pathlib import Path
 
 import pytest
 from conftest import MockSQLiteDB
-from ophys_etl.test_utils.workflow_utils import setup_app_config
 
-setup_app_config(
-    ophys_workflow_app_config_path=(
-            Path(__file__).parent / 'resources' / 'config.yml'),
-    test_di_base_model_path=Path(__file__).parent / 'resources' / 'di_model.h5'
-)
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 
-from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum # noqa E402
-
-from ophys_etl.workflows.output_file import OutputFile  # noqa E402
+from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.workflow_step_runs import get_latest_run, \
-    get_well_known_file_for_latest_run  # noqa E402
-from ophys_etl.workflows.workflow_steps import WorkflowStepEnum # noqa E402
+    get_well_known_file_for_latest_run
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
-from ophys_etl.workflows.db.db_utils import save_job_run_to_db  # noqa E402
-from sqlmodel import Session    # noqa E402
+from ophys_etl.workflows.db.db_utils import save_job_run_to_db
+from sqlmodel import Session
 
-from ophys_etl.workflows.workflow_names import WorkflowNameEnum # noqa E402
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 
 class TestWorkflowStepRuns(MockSQLiteDB):
 

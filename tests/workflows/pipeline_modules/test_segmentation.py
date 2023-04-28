@@ -1,31 +1,18 @@
 import datetime
-import os
-import shutil
 from pathlib import Path
 
-import tempfile
-
-from ophys_etl.test_utils.workflow_utils import setup_app_config
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 
-setup_app_config(
-    ophys_workflow_app_config_path=(
-            Path(__file__).parent.parent / 'resources' / 'config.yml'),
-    test_di_base_model_path=Path(__file__).parent.parent / 'resources' /
-    'di_model.h5'
-)
+from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
+from ophys_etl.workflows.output_file import OutputFile
 
-from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue  # noqa E402
-from ophys_etl.workflows.output_file import OutputFile  # noqa E402
+from ophys_etl.workflows.db.db_utils import save_job_run_to_db 
+from sqlmodel import Session, select
 
-from ophys_etl.workflows.db.db_utils import save_job_run_to_db  # noqa E402
-from sqlmodel import create_engine, Session, select # noqa E402
-
-from ophys_etl.workflows.db.initialize_db import InitializeDBRunner  # noqa E402
 from ophys_etl.workflows.pipeline_modules.segmentation import \
-    SegmentationModule  # noqa E402
-from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum # noqa E402
-from ophys_etl.workflows.workflow_steps import WorkflowStepEnum # noqa E402
+    SegmentationModule
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from conftest import MockSQLiteDB
 
 class TestSegmentation(MockSQLiteDB):

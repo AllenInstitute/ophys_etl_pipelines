@@ -8,7 +8,7 @@ from typing import List, Union, Optional, Callable, Dict
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select
 
-from ophys_etl.workflows.db.schemas import  WorkflowStepRun, WellKnownFile, \
+from ophys_etl.workflows.db.schemas import WorkflowStepRun, WellKnownFile, \
     WellKnownFileType, WorkflowStep, Workflow
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum

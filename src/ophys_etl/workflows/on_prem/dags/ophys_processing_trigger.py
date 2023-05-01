@@ -9,6 +9,7 @@ from airflow.models.dag import dag
 from airflow.operators.python import get_current_context
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from ophys_etl.workflows.app_config.app_config import app_config
+from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port
 
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 
@@ -63,8 +64,10 @@ def _get_most_recent_run() -> Optional[datetime.datetime]:
         app_config.airflow_rest_api_credentials.password.get_secret_value()
     auth = base64.b64encode(
         f'{rest_api_username}:{rest_api_password}'.encode('utf-8'))
+    rest_api_port = get_rest_api_port()
     r = requests.get(
-        'http://0.0.0.0:8080/api/v1/dags/ophys_processing_trigger/dagRuns?'
+        f'http://0.0.0.0:{rest_api_port}/api/v1/dags/ophys_processing_trigger/'
+        f'dagRuns?'
         'limit=1&'
         'order_by=-execution_date&'
         'state=success',

@@ -9,6 +9,8 @@ from deepcell.datasets.channel import Channel
 from pydantic import StrictStr, SecretStr, FilePath, Field, StrictFloat, \
     StrictInt
 
+from ophys_etl.workflows.app_config._ophys_processing_trigger import \
+    OphysProcessingTrigger
 from ophys_etl.workflows.utils.pydantic_model_utils import ImmutableBaseModel
 
 
@@ -219,6 +221,9 @@ class AppConfig(ImmutableBaseModel):
     singularity: _Singularity
     pipeline_steps: _PipelineSteps
     slurm: _Slurm
+    ophys_processing_trigger: OphysProcessingTrigger = Field(
+        default=OphysProcessingTrigger()
+    )
 
 
 def load_config() -> AppConfig:

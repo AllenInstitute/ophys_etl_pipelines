@@ -13,14 +13,6 @@ from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port
 
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 
-# List of queues in LIMS that should trigger ophys processing
-LIMS_OPHYS_PROCESSING_TRIGGER_QUEUES = (
-    'MESOSCOPE_FILE_SPLITTING_QUEUE',
-    'DEWARPING_QUEUE',
-    'DEEPSCOPE_SESSION_UPLOAD_QUEUE',
-    'BESSEL_SESSION_UPLOAD_QUEUE'
-)
-
 
 def _get_all_ophys_experiments_completed_since(
         since: datetime.datetime
@@ -39,6 +31,13 @@ def _get_all_ophys_experiments_completed_since(
     List of ophys experiment LIMS ids
 
     """
+    trigger_queues = app_config.ophys_processing_trigger.lims_trigger_queues
+    if len(trigger_queues) == 1:
+        trigger_queues = trigger_queues[0]
+        queue_query = f'jq.name = \'{trigger_queues}\''
+    else:
+        queue_query = f'jq.name in {trigger_queues}'
+
     query = f'''
         SELECT oe.id
         FROM jobs
@@ -46,7 +45,7 @@ def _get_all_ophys_experiments_completed_since(
         JOIN ophys_sessions os on os.id = jobs.enqueued_object_id
         JOIN ophys_experiments oe on oe.ophys_session_id = os.id
         JOIN job_states js on js.id = jobs.job_state_id
-        WHERE jq.name in {LIMS_OPHYS_PROCESSING_TRIGGER_QUEUES} AND
+        WHERE {queue_query} AND
                 js.name = 'SUCCESS' AND
                 completed_at >= '{since}'
     '''

@@ -13,7 +13,7 @@ def get_rest_api_port() -> str:
     """
     airflow_home = os.getenv('AIRFLOW_HOME', None)
     if airflow_home is None:
-        raise ValueError('Env var AIRFLOW not set')
+        raise ValueError('Env var AIRFLOW_HOME not set')
     config = configparser.ConfigParser()
     config.read(f'{Path(airflow_home)}/airflow.cfg')
     return config['webserver']['web_server_port']

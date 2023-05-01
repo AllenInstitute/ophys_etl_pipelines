@@ -202,34 +202,17 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                  max(0, peak_activation_frame - nframes_before_after):
                  peak_activation_frame + nframes_before_after]
 
-        frames = _pad_frames(
-            desired_seq_len=n_frames,
-            frames=frames
-        )
-
-        frames = _crop_frames(
+        frames = get_video_clip_for_roi(
+            n_frames=n_frames,
             frames=frames,
             roi=roi,
-            desired_shape=desired_shape
-        )
-
-        frames = _downsample_frames(
-            frames=frames,
-            downsampling_factor=self.args['temporal_downsampling_factor']
-        )
-
-        frames = normalize_array(
-            array=frames,
-            lower_cutoff=np.quantile(frames, self.args['low_quantile']),
-            upper_cutoff=np.quantile(frames, self.args['high_quantile'])
-        )
-
-        frames = _draw_mask_outline_on_frames(
-            roi=roi,
+            desired_shape=desired_shape,
             cutout_size=self.args['cutout_size'],
             fov_shape=self.args['fov_shape'],
-            frames=frames
+            temporal_downsampling_factor=self.args['temporal_downsampling_factor'],
+            normalize_quantiles=(self.args['low_quantile'], self.args['high_quantile'])
         )
+
         name = f'{exp_id}_{roi.roi_id}.npy'
 
         if frames.shape[1:] != (*desired_shape, 3):
@@ -239,6 +222,48 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         out_path = pathlib.Path(self.args['out_dir']) / name
 
         np.save(str(out_path), frames)
+
+
+def get_video_clip_for_roi(
+        n_frames: int,
+        frames: np.ndarray,
+        desired_shape: Tuple[int, int],
+        roi: OphysROI,
+        cutout_size: int,
+        fov_shape: Tuple[int, int],
+        temporal_downsampling_factor: int = 1,
+        normalize_quantiles: Tuple[float, float] = (0.2, 0.99)
+
+):
+    frames = _pad_frames(
+        desired_seq_len=n_frames,
+        frames=frames
+    )
+
+    frames = _crop_frames(
+        frames=frames,
+        roi=roi,
+        desired_shape=desired_shape
+    )
+
+    frames = _downsample_frames(
+        frames=frames,
+        downsampling_factor=temporal_downsampling_factor
+    )
+
+    frames = normalize_array(
+        array=frames,
+        lower_cutoff=np.quantile(frames, normalize_quantiles[0]),
+        upper_cutoff=np.quantile(frames, normalize_quantiles[1])
+    )
+
+    frames = _draw_mask_outline_on_frames(
+        roi=roi,
+        cutout_size=cutout_size,
+        fov_shape=fov_shape,
+        frames=frames
+    )
+    return frames
 
 
 def _generate_mask_image(

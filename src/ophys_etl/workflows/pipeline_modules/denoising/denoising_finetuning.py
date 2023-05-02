@@ -3,24 +3,25 @@ from types import ModuleType
 from typing import List
 
 from ophys_etl.modules.denoising import fine_tuning
-from ophys_etl.workflows.workflow_steps import WorkflowStep
-
 from ophys_etl.workflows.app_config.app_config import app_config
-from ophys_etl.workflows.pipeline_module import OutputFile
-from ophys_etl.workflows.pipeline_modules.denoising._denoising import \
-    _DenoisingModule
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
+from ophys_etl.workflows.output_file import OutputFile
+from ophys_etl.workflows.pipeline_modules.denoising._denoising import (
+    _DenoisingModule,
+)
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
 class DenoisingFinetuningModule(_DenoisingModule):
     """Denoising Finetuning module"""
+
     @property
     def _executable(self) -> ModuleType:
         return fine_tuning
 
     @property
-    def queue_name(self) -> WorkflowStep:
-        return WorkflowStep.DENOISING_FINETUNING
+    def queue_name(self) -> WorkflowStepEnum:
+        return WorkflowStepEnum.DENOISING_FINETUNING
 
     @property
     def inputs(self):
@@ -30,7 +31,8 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "dataset_output_dir": str(self.output_path),
                 "movie_path": self._motion_corrected_path,
                 "downsample_frac": (
-                    app_config.pipeline_steps.denoising.downsample_frac)
+                    app_config.pipeline_steps.denoising.downsample_frac
+                ),
             },
             "finetuning_params": {
                 "apply_learning_decay": False,
@@ -40,7 +42,8 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "loss": "mean_squared_error",
                 "model_source": {
                     "local_path": (
-                        app_config.pipeline_steps.denoising.base_model_path)
+                        app_config.pipeline_steps.denoising.base_model_path
+                    )
                 },
                 "model_string": "",
                 "multi_gpus": False,
@@ -49,14 +52,14 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "nb_workers": 15,
                 "output_dir": str(self.output_path),
                 "period_save": 1,
-                "steps_per_epoch": 20
+                "steps_per_epoch": 20,
             },
             "generator_params": {
                 "batch_size": 5,
                 "name": "MovieJSONGenerator",
                 "post_frame": 30,
                 "pre_frame": 30,
-                "pre_post_omission": 0
+                "pre_post_omission": 0,
             },
             "log_level": "INFO",
             "output_full_args": True,
@@ -65,9 +68,9 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "name": "MovieJSONGenerator",
                 "post_frame": 30,
                 "pre_frame": 30,
-                "pre_post_omission": 0
+                "pre_post_omission": 0,
             },
-            "run_uid": self.ophys_experiment.id
+            "run_uid": self.ophys_experiment.id,
         }
 
     @property
@@ -75,9 +78,11 @@ class DenoisingFinetuningModule(_DenoisingModule):
         return [
             OutputFile(
                 well_known_file_type=(
-                    WellKnownFileType.DEEPINTERPOLATION_FINETUNED_MODEL),
-                path=(self.output_path /
-                      f'{self.ophys_experiment.id}_'
-                      f'mean_squared_error_transfer_model.h5')
+                    WellKnownFileTypeEnum.DEEPINTERPOLATION_FINETUNED_MODEL
+                ),
+                path=(
+                    self.output_path / f"{self.ophys_experiment.id}_"
+                    f"mean_squared_error_transfer_model.h5"
+                ),
             )
         ]

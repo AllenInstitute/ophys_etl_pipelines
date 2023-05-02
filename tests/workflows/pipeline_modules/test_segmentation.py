@@ -1,71 +1,42 @@
 import datetime
-import os
-import shutil
 from pathlib import Path
 
-import tempfile
+from conftest import MockSQLiteDB
+from sqlmodel import Session, select
 
-from ophys_etl.test_utils.workflow_utils import setup_app_config
-from ophys_etl.workflows.workflow_names import WorkflowName
-
-setup_app_config(
-    ophys_workflow_app_config_path=(
-            Path(__file__).parent.parent / 'resources' / 'config.yml'),
-    test_di_base_model_path=Path(__file__).parent.parent / 'resources' /
-    'di_model.h5'
+from ophys_etl.workflows.db.db_utils import save_job_run_to_db
+from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
+from ophys_etl.workflows.output_file import OutputFile
+from ophys_etl.workflows.pipeline_modules.segmentation import (
+    SegmentationModule,
 )
-
-from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue  # noqa E402
-from ophys_etl.workflows.pipeline_module import OutputFile  # noqa E402
-
-from ophys_etl.workflows.db.db_utils import save_job_run_to_db  # noqa E402
-from sqlmodel import create_engine, Session, select # noqa E402
-
-from ophys_etl.workflows.db.initialize_db import IntializeDBRunner  # noqa E402
-from ophys_etl.workflows.pipeline_modules.segmentation import \
-    SegmentationModule  # noqa E402
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType # noqa E402
-from ophys_etl.workflows.workflow_steps import WorkflowStep # noqa E402
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
+from ophys_etl.workflows.workflow_names import WorkflowNameEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
-class TestSegmentation:
-    @classmethod
-    def setup_class(cls):
-        cls._tmp_dir = Path(tempfile.TemporaryDirectory().name)
-        cls._db_path = cls._tmp_dir / 'app.db'
-        os.makedirs(cls._db_path.parent, exist_ok=True)
-
-        db_url = f'sqlite:///{cls._db_path}'
-        cls._engine = IntializeDBRunner(
-            input_data={
-                'db_url': db_url
-            },
-            args=[]).run()
-        cls._rois_path = \
-            Path(__file__).parent / 'resources' / 'rois.json'
-
-    @classmethod
-    def teardown_class(cls):
-        shutil.rmtree(cls._tmp_dir)
-
+class TestSegmentation(MockSQLiteDB):
     def test_save_metadata_to_db(self):
+        _rois_path = Path(__file__).parent / "resources" / "rois.json"
         with Session(self._engine) as session:
             save_job_run_to_db(
-                workflow_step_name=WorkflowStep.SEGMENTATION,
+                workflow_step_name=WorkflowStepEnum.SEGMENTATION,
                 start=datetime.datetime.now(),
                 end=datetime.datetime.now(),
-                module_outputs=[OutputFile(
+                module_outputs=[
+                    OutputFile(
                         well_known_file_type=(
-                            WellKnownFileType.OPHYS_ROIS),
-                        path=self._rois_path
+                            WellKnownFileTypeEnum.OPHYS_ROIS
+                        ),
+                        path=_rois_path,
                     )
                 ],
-                ophys_experiment_id='1',
+                ophys_experiment_id="1",
                 sqlalchemy_session=session,
-                storage_directory='/foo',
-                log_path='/foo',
+                storage_directory="/foo",
+                log_path="/foo",
                 additional_steps=SegmentationModule.save_rois_to_db,
-                workflow_name=WorkflowName.OPHYS_PROCESSING
+                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
             )
         with Session(self._engine) as session:
             rois = session.exec(select(OphysROI)).all()

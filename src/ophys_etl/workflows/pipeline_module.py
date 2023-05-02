@@ -1,30 +1,18 @@
 """Pipeline module"""
 import abc
 import datetime
+import json
 import logging
 import os
-from dataclasses import dataclass
 from pathlib import Path
-
-import json
 from types import ModuleType
 from typing import Dict, List, Optional
 
-from ophys_etl.workflows.workflow_steps import WorkflowStep as WorkflowStepEnum
-
 from ophys_etl.workflows.app_config.app_config import app_config
-
-from ophys_etl.workflows.utils.json_utils import EnhancedJSONEncoder
-
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
-from ophys_etl.workflows.well_known_file_types import WellKnownFileType
-
-
-@dataclass
-class OutputFile:
-    """File output by module"""
-    path: Path
-    well_known_file_type: WellKnownFileType
+from ophys_etl.workflows.output_file import OutputFile
+from ophys_etl.workflows.utils.json_utils import EnhancedJSONEncoder
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
 class ModuleOutputFileExistsError(Exception):
@@ -36,12 +24,13 @@ logger = logging.getLogger(__name__)
 
 class PipelineModule:
     """Pipeline module"""
+
     def __init__(
-            self,
-            ophys_experiment: Optional[OphysExperiment],
-            docker_tag: str,
-            prevent_file_overwrites: bool = True,
-            **module_args
+        self,
+        ophys_experiment: Optional[OphysExperiment],
+        docker_tag: str,
+        prevent_file_overwrites: bool = True,
+        **module_args,
     ):
         """
 
@@ -98,7 +87,7 @@ class PipelineModule:
     @property
     def executable(self) -> str:
         """Fully qualified path to executable this module runs"""
-        return 'sleep' if app_config.is_debug else self._executable.__name__
+        return "sleep" if app_config.is_debug else self._executable.__name__
 
     @property
     @abc.abstractmethod
@@ -110,17 +99,14 @@ class PipelineModule:
     def executable_args(self) -> Dict:
         """Returns arguments to send to `executable`"""
         if app_config.is_debug:
-            res = {
-                'args': [60],    # i.e. will run sleep 60
-                'kwargs': {}
-            }
+            res = {"args": [60], "kwargs": {}}  # i.e. will run sleep 60
         else:
             res = {
-                'args': [],
-                'kwargs': {
-                    'input_json': self.input_args_path,
-                    'output_json': self.output_metadata_path
-                }
+                "args": [],
+                "kwargs": {
+                    "input_json": self.input_args_path,
+                    "output_json": self.output_metadata_path,
+                },
             }
         return res
 
@@ -132,34 +118,34 @@ class PipelineModule:
         else:
             path = self._ophys_experiment.output_dir / self.queue_name.value
 
-        path = path / self._now.strftime('%Y-%m-%d_%H-%m-%S-%f')
+        path = path / self._now.strftime("%Y-%m-%d_%H-%m-%S-%f")
 
         return path
 
     @property
     def output_metadata_path(self) -> Path:
         """Where to write output metadata to"""
-        path = self.output_path / \
-            f'{self.queue_name.value}_' \
-            f'{self._ophys_experiment.id}_output.json'
+        path = (
+            self.output_path / f"{self.queue_name.value}_"
+            f"{self._ophys_experiment.id}_output.json"
+        )
         return path
 
     @property
     def input_args_path(self) -> Path:
         """Path to input arguments json file on disk"""
-        args_path = self.output_path / \
-            f'{self.queue_name.value}_' \
-            f'{self._ophys_experiment.id}_input.json'
+        args_path = (
+            self.output_path / f"{self.queue_name.value}_"
+            f"{self._ophys_experiment.id}_input.json"
+        )
         return args_path
 
     def write_input_args(self):
         """Writes module input args to disk"""
-        with open(self.input_args_path, 'w') as f:
+        with open(self.input_args_path, "w") as f:
             f.write(json.dumps(self.inputs, indent=2, cls=EnhancedJSONEncoder))
 
-    def _validate_file_overwrite(
-        self
-    ):
+    def _validate_file_overwrite(self):
         """
         Validates that that files which the module outputs don't exist
 
@@ -174,4 +160,5 @@ class PipelineModule:
         for out in self.outputs:
             if Path(out.path).exists():
                 raise ModuleOutputFileExistsError(
-                    f'{out.well_known_file_type} already exists at {out.path}')
+                    f"{out.well_known_file_type} already exists at {out.path}"
+                )

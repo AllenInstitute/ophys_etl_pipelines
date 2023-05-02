@@ -15,7 +15,21 @@ from pydantic import (
     StrictStr,
 )
 
+from ophys_etl.workflows.app_config._ophys_processing_trigger import \
+    OphysProcessingTrigger
 from ophys_etl.workflows.utils.pydantic_model_utils import ImmutableBaseModel
+
+
+class _AirflowRESTAPIConfig(ImmutableBaseModel):
+    """
+    Config to use Airflow REST API
+    """
+    username: SecretStr = Field(
+        description='Username to authenticate with REST API. Generate by '
+                    'creating user using the Airflow UI')
+    password: SecretStr = Field(
+        description='Password to authenticate with REST API. Generate by '
+                    'creating user using the Airflow UI')
 
 
 class _AppDB(ImmutableBaseModel):
@@ -194,6 +208,7 @@ class _PipelineSteps(ImmutableBaseModel):
 class AppConfig(ImmutableBaseModel):
     """Workflow config"""
 
+    airflow_rest_api_credentials: _AirflowRESTAPIConfig
     is_debug: bool = Field(
         default=False,
         description="If True, will not actually run the modules, but "
@@ -210,6 +225,9 @@ class AppConfig(ImmutableBaseModel):
     singularity: _Singularity
     pipeline_steps: _PipelineSteps
     slurm: _Slurm
+    ophys_processing_trigger: OphysProcessingTrigger = Field(
+        default=OphysProcessingTrigger()
+    )
 
 
 def load_config() -> AppConfig:

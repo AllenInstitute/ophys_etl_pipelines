@@ -244,9 +244,7 @@ def ophys_processing():
         denoised_ophys_movie_file=denoised_movie_file,
         rois_file=rois_file
     )
-    trace_extraction_outputs = trace_extraction(
-        motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file)
-    rois_file >> trace_extraction_outputs
+    rois_file >> trace_extraction(motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file)
 
 
 ophys_processing()

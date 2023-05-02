@@ -80,9 +80,9 @@ class TestOphysExperiment(MockSQLiteDB):
         )
 
 
-    def test__get_ophys_experiment_roi_metadata(self):
+    def test__roi_metadata(self):
         with patch('ophys_etl.workflows.ophys_experiment.engine', self._engine):
-            roi_metadata = self.ophys_experiment.get_ophys_experiment_roi_metadata
+            roi_metadata = self.ophys_experiment.rois
             assert len(roi_metadata) == 1
             assert roi_metadata[0]["x"] == 10
             assert roi_metadata[0]["y"] == 20
@@ -92,9 +92,9 @@ class TestOphysExperiment(MockSQLiteDB):
             assert len(roi_metadata[0]["mask"]) == 40
             assert len(roi_metadata[0]["mask"][0]) == 30
     
-    def test_get_ophys_experiment_motion_border(self):
+    def test_motion_border(self):
         with patch('ophys_etl.workflows.ophys_experiment.engine', self._engine):
-            motion_border = self.ophys_experiment.get_ophys_experiment_motion_border
+            motion_border = self.ophys_experiment.motion_border
             assert motion_border['x0'] == 10
             assert motion_border['x1'] == 20
             assert motion_border['y0'] == 30

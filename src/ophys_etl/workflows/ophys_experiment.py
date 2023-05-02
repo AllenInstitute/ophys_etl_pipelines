@@ -1,4 +1,3 @@
-"""Ophys experiment"""
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -94,16 +93,9 @@ class OphysExperiment:
         )
 
     @property
-    def get_ophys_experiment_motion_border(self) -> Dict:
+    def motion_border(self) -> Dict:
         """
-        Get motion border for an ophys experiment
-
-        Parameters
-        ----------
-        ophys_experiment_id
-            The ophys experiment id
-        session
-            The database session
+        Motion border for an ophys experiment
 
         Returns
         -------
@@ -134,17 +126,10 @@ class OphysExperiment:
 
     
     @property
-    def get_ophys_experiment_roi_metadata(
+    def roi_metadata(
             self) -> List[Dict]:
         """
-        Get ROI metadata for an ophys experiment
-        
-        Parameters
-        ----------
-        ophys_experiment_id
-            The ophys experiment id
-        session
-            The database session
+        ROI metadata for an ophys experiment
 
         Returns
         -------

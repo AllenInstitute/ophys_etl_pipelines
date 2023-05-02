@@ -3,19 +3,24 @@ import datetime
 import logging
 import os
 from pathlib import Path
-from typing import List, Union, Optional, Callable, Dict
+from typing import Callable, Dict, List, Optional, Union
 
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select
 
-from ophys_etl.workflows.db.schemas import WorkflowStepRun, WellKnownFile, \
-    WellKnownFileType, WorkflowStep, Workflow
+from ophys_etl.workflows.db.schemas import (
+    WellKnownFile,
+    WellKnownFileType,
+    Workflow,
+    WorkflowStep,
+    WorkflowStepRun,
+)
+from ophys_etl.workflows.output_file import OutputFile
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
-from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
-from ophys_etl.workflows.output_file import OutputFile
 
-logger = logging.getLogger('airflow.task')
+logger = logging.getLogger("airflow.task")
 
 
 class ModuleOutputFileDoesNotExistException(Exception):
@@ -23,18 +28,18 @@ class ModuleOutputFileDoesNotExistException(Exception):
 
 
 def save_job_run_to_db(
-        workflow_name: WorkflowNameEnum,
-        workflow_step_name: WorkflowStepEnum,
-        start: datetime.datetime,
-        end: datetime.datetime,
-        module_outputs: List[OutputFile],
-        sqlalchemy_session: Session,
-        storage_directory: Union[Path, str],
-        log_path: Union[Path, str],
-        ophys_experiment_id: Optional[str] = None,
-        validate_files_exist: bool = True,
-        additional_steps: Optional[Callable] = None,
-        additional_steps_kwargs: Optional[Dict] = None
+    workflow_name: WorkflowNameEnum,
+    workflow_step_name: WorkflowStepEnum,
+    start: datetime.datetime,
+    end: datetime.datetime,
+    module_outputs: List[OutputFile],
+    sqlalchemy_session: Session,
+    storage_directory: Union[Path, str],
+    log_path: Union[Path, str],
+    ophys_experiment_id: Optional[str] = None,
+    validate_files_exist: bool = True,
+    additional_steps: Optional[Callable] = None,
+    additional_steps_kwargs: Optional[Dict] = None,
 ):
     """
     Inserts job run in db
@@ -74,17 +79,17 @@ def save_job_run_to_db(
     """
 
     if validate_files_exist:
-        _validate_files_exist(
-            output_files=module_outputs
-        )
-    logger.info(f'Logging output data to database for workflow step '
-                f'{workflow_step_name}')
+        _validate_files_exist(output_files=module_outputs)
+    logger.info(
+        f"Logging output data to database for workflow step "
+        f"{workflow_step_name}"
+    )
 
     # 1. get the workflow step
     workflow_step = get_workflow_step_by_name(
         session=sqlalchemy_session,
         workflow=workflow_name,
-        name=workflow_step_name
+        name=workflow_step_name,
     )
 
     # 2. add a run for this workflow step
@@ -94,7 +99,7 @@ def save_job_run_to_db(
         log_path=str(log_path),
         ophys_experiment_id=ophys_experiment_id,
         start=start,
-        end=end
+        end=end,
     )
     sqlalchemy_session.add(workflow_step_run)
 
@@ -104,12 +109,12 @@ def save_job_run_to_db(
             session=sqlalchemy_session,
             name=out.well_known_file_type,
             workflow=workflow_name,
-            workflow_step_name=workflow_step_name
+            workflow_step_name=workflow_step_name,
         )
         wkf = WellKnownFile(
             workflow_step_run_id=workflow_step_run.id,
             well_known_file_type_id=wkft.id,
-            path=str(out.path)
+            path=str(out.path),
         )
         sqlalchemy_session.add(wkf)
 
@@ -120,16 +125,15 @@ def save_job_run_to_db(
                 x.well_known_file_type.value: x for x in module_outputs
             },
             run_id=workflow_step_run.id,
-            **additional_steps_kwargs if additional_steps_kwargs is not None
-            else {}
+            **additional_steps_kwargs
+            if additional_steps_kwargs is not None
+            else {},
         )
     sqlalchemy_session.commit()
 
 
 def get_workflow_step_by_name(
-    session,
-    name: WorkflowStepEnum,
-    workflow: WorkflowNameEnum
+    session, name: WorkflowStepEnum, workflow: WorkflowNameEnum
 ) -> WorkflowStepEnum:
     """
     Get workflow step by name
@@ -150,12 +154,13 @@ def get_workflow_step_by_name(
     statement = (
         select(WorkflowStep)
         .join(Workflow, onclause=WorkflowStep.workflow_id == Workflow.id)
-        .where(WorkflowStep.name == name, Workflow.name == workflow))
+        .where(WorkflowStep.name == name, Workflow.name == workflow)
+    )
     results = session.exec(statement)
     try:
         workflow_step = results.one()
     except NoResultFound:
-        logger.error(f'Workflow step {name} not found for workflow {workflow}')
+        logger.error(f"Workflow step {name} not found for workflow {workflow}")
         raise
     return workflow_step
 
@@ -164,7 +169,7 @@ def get_well_known_file_type(
     session,
     name: WellKnownFileTypeEnum,
     workflow_step_name: WorkflowStepEnum,
-    workflow: WorkflowNameEnum
+    workflow: WorkflowNameEnum,
 ) -> WellKnownFileType:
     """
     Get well known file type by name
@@ -185,27 +190,25 @@ def get_well_known_file_type(
     WellKnownFileType
     """
     workflow_step = get_workflow_step_by_name(
-        session=session,
-        name=workflow_step_name,
-        workflow=workflow
+        session=session, name=workflow_step_name, workflow=workflow
     )
-    statement = (
-        select(WellKnownFileType)
-        .where(WellKnownFileType.name == name,
-               WellKnownFileType.workflow_step_id == workflow_step.id))
+    statement = select(WellKnownFileType).where(
+        WellKnownFileType.name == name,
+        WellKnownFileType.workflow_step_id == workflow_step.id,
+    )
     results = session.exec(statement)
     try:
         wkft = results.one()
     except NoResultFound:
-        logger.error(f'Well-known file type {name} not found for workflow '
-                     f'step {workflow_step_name}, workflow {workflow}')
+        logger.error(
+            f"Well-known file type {name} not found for workflow "
+            f"step {workflow_step_name}, workflow {workflow}"
+        )
         raise
     return wkft
 
 
-def _validate_files_exist(
-        output_files: List[OutputFile]
-):
+def _validate_files_exist(output_files: List[OutputFile]):
     """Checks that all output files exist.
     If an output file is a directory, makes sure that it is not empty
 
@@ -223,9 +226,10 @@ def _validate_files_exist(
         if Path(out.path).is_dir():
             if len(os.listdir(out.path)) == 0:
                 raise ModuleOutputFileDoesNotExistException(
-                    f'Directory {out.path} is empty'
+                    f"Directory {out.path} is empty"
                 )
         if not Path(out.path).exists():
             raise ModuleOutputFileDoesNotExistException(
-                f'Expected {out.well_known_file_type} to '
-                f'exist at {out.path} but it did not')
+                f"Expected {out.well_known_file_type} to "
+                f"exist at {out.path} but it did not"
+            )

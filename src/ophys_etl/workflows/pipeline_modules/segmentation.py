@@ -1,23 +1,22 @@
+import json
 import logging
 from types import ModuleType
-from typing import List, Dict
+from typing import Dict, List
 
-import json
-
-from ophys_etl.modules import segment_postprocess
-from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from sqlmodel import Session
 
+from ophys_etl.modules import segment_postprocess
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
-
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
 class SegmentationModule(PipelineModule):
     """Segmentation module"""
+
     def __init__(
         self,
         ophys_experiment: OphysExperiment,
@@ -30,8 +29,9 @@ class SegmentationModule(PipelineModule):
             **kwargs
         )
 
-        denoised_ophys_movie_file: OutputFile = \
-            kwargs['denoised_ophys_movie_file']
+        denoised_ophys_movie_file: OutputFile = kwargs[
+            "denoised_ophys_movie_file"
+        ]
         self._denoised_ophys_movie_file = str(denoised_ophys_movie_file.path)
 
     @property
@@ -41,13 +41,14 @@ class SegmentationModule(PipelineModule):
     @property
     def inputs(self) -> Dict:
         return {
-            'log_level': logging.DEBUG,
-            'suite2p_args': {
-                'h5py': self._denoised_ophys_movie_file,
-                'movie_frame_rate_hz': (
-                    self.ophys_experiment.movie_frame_rate_hz)
+            "log_level": logging.DEBUG,
+            "suite2p_args": {
+                "h5py": self._denoised_ophys_movie_file,
+                "movie_frame_rate_hz": (
+                    self.ophys_experiment.movie_frame_rate_hz
+                ),
             },
-            'postprocess_args': {}
+            "postprocess_args": {},
         }
 
     @property
@@ -55,7 +56,8 @@ class SegmentationModule(PipelineModule):
         return [
             OutputFile(
                 well_known_file_type=WellKnownFileTypeEnum.OPHYS_ROIS,
-                path=self.output_metadata_path)
+                path=self.output_metadata_path,
+            )
         ]
 
     @property
@@ -64,9 +66,7 @@ class SegmentationModule(PipelineModule):
 
     @staticmethod
     def save_rois_to_db(
-            output_files: Dict[str, OutputFile],
-            session: Session,
-            run_id: int
+        output_files: Dict[str, OutputFile], session: Session, run_id: int
     ):
         """
         Saves segmentation run rois to db
@@ -80,20 +80,21 @@ class SegmentationModule(PipelineModule):
         run_id
             workflow step run id
         """
-        rois_file_path = \
-            output_files[WellKnownFileTypeEnum.OPHYS_ROIS.value].path
+        rois_file_path = output_files[
+            WellKnownFileTypeEnum.OPHYS_ROIS.value
+        ].path
         with open(rois_file_path) as f:
             rois = json.load(f)
 
         for roi in rois:
             # 1. Add ROI
-            mask = roi['mask_matrix']
+            mask = roi["mask_matrix"]
             roi = OphysROI(
-                x=roi['x'],
-                y=roi['y'],
-                width=roi['width'],
-                height=roi['height'],
-                workflow_step_run_id=run_id
+                x=roi["x"],
+                y=roi["y"],
+                width=roi["width"],
+                height=roi["height"],
+                workflow_step_run_id=run_id,
             )
             session.add(roi)
 
@@ -105,8 +106,6 @@ class SegmentationModule(PipelineModule):
                 for j in range(len(mask[i])):
                     if mask[i][j]:
                         mask_val = OphysROIMaskValue(
-                            ophys_roi_id=roi.id,
-                            row_index=i,
-                            col_index=j
+                            ophys_roi_id=roi.id, row_index=i, col_index=j
                         )
                         session.add(mask_val)

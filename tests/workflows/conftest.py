@@ -3,7 +3,6 @@ import shutil
 import tempfile
 from pathlib import Path
 
-
 from ophys_etl.test_utils.workflow_utils import setup_app_config
 
 setup_app_config(
@@ -15,9 +14,7 @@ setup_app_config(
     ),
 )
 
-from ophys_etl.workflows.db.initialize_db import (
-    InitializeDBRunner,
-)  # noqa E402
+from ophys_etl.workflows.db.initialize_db import InitializeDBRunner
 
 
 class MockSQLiteDB:

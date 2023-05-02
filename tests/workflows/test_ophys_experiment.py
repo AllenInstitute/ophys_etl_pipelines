@@ -1,27 +1,36 @@
 from pathlib import Path
-from conftest import MockSQLiteDB
 from unittest.mock import patch
+
+from conftest import MockSQLiteDB
 from sqlmodel import Session
-from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
-    OphysSession, Specimen
+
+from ophys_etl.workflows.db.schemas import (
+    MotionCorrectionRun,
+    OphysROI,
+    OphysROIMaskValue,
+    WorkflowStepRun,
+)
+from ophys_etl.workflows.ophys_experiment import (
+    OphysExperiment,
+    OphysSession,
+    Specimen,
+)
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
-from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from ophys_etl.workflows.workflow_step_runs import get_workflow_step_by_name
-from ophys_etl.workflows.db.schemas import WorkflowStepRun, MotionCorrectionRun, \
-    OphysROI, OphysROIMaskValue
+from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
+
 
 class TestOphysExperiment(MockSQLiteDB):
-    
     def _create_mock_data(self):
         workflow_name = WorkflowNameEnum.OPHYS_PROCESSING.value
         workflow_step_name = WorkflowStepEnum.SEGMENTATION.value
-        ophys_experiment_id="1"
+        ophys_experiment_id = "1"
         with Session(self._engine) as session:
 
             workflow_step = get_workflow_step_by_name(
                 session=session,
                 workflow=workflow_name,
-                name=workflow_step_name
+                name=workflow_step_name,
             )
             workflow_step_run = WorkflowStepRun(
                 ophys_experiment_id=ophys_experiment_id,
@@ -66,22 +75,23 @@ class TestOphysExperiment(MockSQLiteDB):
             )
             session.add(ophys_roi_mask_value)
             session.commit()
-    
+
     def setup(self):
         self._initializeDB()
         self._create_mock_data()
         self.ophys_experiment = OphysExperiment(
-                id='1',
-                session=OphysSession(id='2'),
-                specimen=Specimen(id='3'),
-                storage_directory=Path('/storage_dir'),
-                raw_movie_filename=Path('mov.h5'),
-                movie_frame_rate_hz=11.0
+            id="1",
+            session=OphysSession(id="2"),
+            specimen=Specimen(id="3"),
+            storage_directory=Path("/storage_dir"),
+            raw_movie_filename=Path("mov.h5"),
+            movie_frame_rate_hz=11.0,
         )
 
-
     def test__roi_metadata(self):
-        with patch('ophys_etl.workflows.ophys_experiment.engine', self._engine):
+        with patch(
+            "ophys_etl.workflows.ophys_experiment.engine", self._engine
+        ):
             roi_metadata = self.ophys_experiment.rois
             assert len(roi_metadata) == 1
             assert roi_metadata[0]["x"] == 10
@@ -91,11 +101,13 @@ class TestOphysExperiment(MockSQLiteDB):
             assert roi_metadata[0]["mask"][5][6] == 1
             assert len(roi_metadata[0]["mask"]) == 40
             assert len(roi_metadata[0]["mask"][0]) == 30
-    
+
     def test_motion_border(self):
-        with patch('ophys_etl.workflows.ophys_experiment.engine', self._engine):
+        with patch(
+            "ophys_etl.workflows.ophys_experiment.engine", self._engine
+        ):
             motion_border = self.ophys_experiment.motion_border
-            assert motion_border['x0'] == 10
-            assert motion_border['x1'] == 20
-            assert motion_border['y0'] == 30
-            assert motion_border['y1'] == 40
+            assert motion_border["x0"] == 10
+            assert motion_border["x1"] == 20
+            assert motion_border["y0"] == 30
+            assert motion_border["y1"] == 40

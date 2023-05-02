@@ -17,7 +17,7 @@ setup_app_config(
 
 from ophys_etl.workflows.pipeline_modules.roi_classification.utils\
     .mlflow_utils import \
-    MLFlowRun   # noqa E402
+    MLFlowRun
 
 
 class TestMLFlowUtils:

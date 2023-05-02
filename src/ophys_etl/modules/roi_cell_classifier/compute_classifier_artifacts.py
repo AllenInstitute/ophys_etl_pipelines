@@ -3,9 +3,8 @@ import os
 import time
 
 import json
-from typing import List, Tuple
+from typing import List
 
-import cv2
 import h5py
 import numpy as np
 import pandas as pd
@@ -14,9 +13,9 @@ from argschema import ArgSchema, ArgSchemaParser, fields
 from deepcell.cli.modules.create_dataset import construct_dataset, \
     VoteTallyingStrategy
 from marshmallow import validates_schema, ValidationError
+from scipy.signal import find_peaks, peak_prominences
 
 from ophys_etl.types import OphysROI
-from ophys_etl.utils.array_utils import normalize_array
 from ophys_etl.utils.rois import (
     sanitize_extract_roi_list,
     extract_roi_to_ophys_roi)
@@ -141,9 +140,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
 
             roi = extract_roi_to_ophys_roi(roi=roi)
 
-            self._write_frames(roi=roi,
-                               mov=mov,
-                               exp_id=exp_id)
+            self._find_peaks(roi=roi,
+                             mov=mov,
+                             exp_id=exp_id)
 
         self.logger.info(f"Created ROI artifacts in {time.time()-t0:.0f} "
                          "seconds.")
@@ -173,11 +172,12 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             roi_ids = roi_ids.tolist()
         return roi_ids
 
-    def _write_frames(self,
-                      mov: np.ndarray,
-                      roi: OphysROI,
-                      exp_id: str):
-        """Write sequence of frames for ROI to disk
+    def _find_peaks(
+            self,
+            mov: np.ndarray,
+            roi: OphysROI,
+            exp_id: str):
+        """Write peaks as calculated from trace to disk
 
         Parameters
         ----------
@@ -188,198 +188,23 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         exp_id : str
             Id of experiment where these ROIs and images come from.
         """
-        desired_shape = (self.args['cutout_size'], self.args['cutout_size'])
-
         trace = mov[:,
                     roi.global_pixel_array[:, 0],
                     roi.global_pixel_array[:, 1]].mean(axis=1)
-        peak_activation_frame = trace.argmax()
+        peaks, _ = find_peaks(trace)
+        prominences = peak_prominences(trace, peaks)[0]
+        prominence_threshold = np.quantile(prominences, 0.999)
+        peaks = peaks[prominences >= prominence_threshold]
 
-        n_frames = \
-            self.args['n_frames'] * self.args['temporal_downsampling_factor']
-        nframes_before_after = int(n_frames/2)
-        frames = mov[
-                 max(0, peak_activation_frame - nframes_before_after):
-                 peak_activation_frame + nframes_before_after]
+        peaks = [{
+            'peak': int(peak),
+            'trace': float(trace[peak])
+        } for peak in peaks]
 
-        frames = get_video_clip_for_roi(
-            n_frames=n_frames,
-            frames=frames,
-            roi=roi,
-            desired_shape=desired_shape,
-            cutout_size=self.args['cutout_size'],
-            fov_shape=self.args['fov_shape'],
-            temporal_downsampling_factor=self.args['temporal_downsampling_factor'],
-            normalize_quantiles=(self.args['low_quantile'], self.args['high_quantile'])
-        )
-
-        name = f'{exp_id}_{roi.roi_id}.npy'
-
-        if frames.shape[1:] != (*desired_shape, 3):
-            msg = f"{exp_id}_{roi.roi_id} has shape {frames.shape}"
-            raise RuntimeError(msg)
-
-        out_path = pathlib.Path(self.args['out_dir']) / name
-
-        np.save(str(out_path), frames)
-
-
-def get_video_clip_for_roi(
-        n_frames: int,
-        frames: np.ndarray,
-        desired_shape: Tuple[int, int],
-        roi: OphysROI,
-        cutout_size: int,
-        fov_shape: Tuple[int, int],
-        temporal_downsampling_factor: int = 1,
-        normalize_quantiles: Tuple[float, float] = (0.2, 0.99)
-
-):
-    frames = _pad_frames(
-        desired_seq_len=n_frames,
-        frames=frames
-    )
-
-    frames = _crop_frames(
-        frames=frames,
-        roi=roi,
-        desired_shape=desired_shape
-    )
-
-    frames = _downsample_frames(
-        frames=frames,
-        downsampling_factor=temporal_downsampling_factor
-    )
-
-    frames = normalize_array(
-        array=frames,
-        lower_cutoff=np.quantile(frames, normalize_quantiles[0]),
-        upper_cutoff=np.quantile(frames, normalize_quantiles[1])
-    )
-
-    frames = _draw_mask_outline_on_frames(
-        roi=roi,
-        cutout_size=cutout_size,
-        fov_shape=fov_shape,
-        frames=frames
-    )
-    return frames
-
-
-def _generate_mask_image(
-    fov_shape: Tuple[int, int],
-    roi: OphysROI,
-    cutout_size: int,
-) -> np.ndarray:
-    """
-    Generate mask image from `roi`, cropped to cutout_size X cutout_size
-
-    Parameters
-    ----------
-    roi
-        `OphysROI`
-
-    Returns
-    -------
-    uint8 np.ndarray with masked region set to 255
-    """
-    pixel_array = roi.global_pixel_array.transpose()
-
-    mask = np.zeros(fov_shape, dtype=np.uint8)
-    mask[pixel_array[0], pixel_array[1]] = 255
-
-    mask = roi.get_centered_cutout(
-            image=mask,
-            height=cutout_size,
-            width=cutout_size,
-            pad_mode='constant'
-    )
-
-    if mask.sum() == 0:
-        raise _EmptyMaskException(f'Mask for roi {roi.roi_id} is empty')
-
-    return mask
-
-
-def _pad_frames(
-    desired_seq_len: int,
-    frames: np.ndarray,
-) -> np.ndarray:
-    """
-    If the peak activation frame happens too close to the beginning
-    or end of the movie, then we pad with black in order to have
-    self.args['n_frames'] total frames
-
-    Parameters
-    ----------
-    desired_seq_len
-        Desired number of frames surrounding `peak_activation_frame_idx`
-    frames
-        Frames
-    Returns
-    -------
-    frames, potentially padded
-    """
-    n_pad = desired_seq_len - len(frames)
-    frames = np.concatenate([
-        frames,
-        np.zeros((n_pad, *frames.shape[1:]), dtype=frames.dtype),
-    ])
-    return frames
-
-
-def _draw_mask_outline_on_frames(
-    roi: OphysROI,
-    frames: np.ndarray,
-    fov_shape: Tuple[int, int],
-    cutout_size: int
-) -> np.ndarray:
-    mask = _generate_mask_image(
-        fov_shape=fov_shape,
-        roi=roi,
-        cutout_size=cutout_size
-    )
-    contours, _ = cv2.findContours(mask,
-                                   cv2.RETR_EXTERNAL,
-                                   cv2.CHAIN_APPROX_NONE)
-    # Make it into 3 channels, to draw a colored contour on it
-    frames = np.stack([frames, frames, frames], axis=-1)
-
-    for frame in frames:
-        cv2.drawContours(frame, contours, -1,
-                         color=(0, 255, 0),
-                         thickness=1)
-    return frames
-
-
-def _crop_frames(
-    frames: np.ndarray,
-    roi: OphysROI,
-    desired_shape: Tuple[int, int]
-) -> np.ndarray:
-    frames_cropped = np.zeros_like(frames,
-                                   shape=(frames.shape[0], *desired_shape))
-    for i, frame in enumerate(frames):
-        frames_cropped[i] = roi.get_centered_cutout(
-            image=frames[i],
-            height=desired_shape[0],
-            width=desired_shape[1],
-            pad_mode='symmetric'
-        )
-    return frames_cropped
-
-
-def _downsample_frames(
-    frames: np.ndarray,
-    downsampling_factor: int
-) -> np.ndarray:
-    """Samples every `downsampling_factor` frame from `frames`"""
-    frames = frames[
-        np.arange(0,
-                  len(frames),
-                  downsampling_factor)
-    ]
-    return frames
+        filename = pathlib.Path(self.args['out_dir']) / \
+            f'peaks_{exp_id}_{roi.roi_id}.json'
+        with open(filename, 'w') as f:
+            f.write(json.dumps(peaks, indent=2))
 
 
 if __name__ == "__main__":

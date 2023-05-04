@@ -296,7 +296,7 @@ class OphysROI(object):
                      self._x0:self._x0 + self._width]
 
     def get_centered_cutout(self,
-                            image: np.ndarray,
+                            frames: np.ndarray,
                             height: int,
                             width: int,
                             pad_mode: str
@@ -308,8 +308,8 @@ class OphysROI(object):
 
         Parameters
         ----------
-        image : numpy.ndarray, (N, M)
-            Image to create cutout/thumbnail from.
+        frames : numpy.ndarray, (T, H, W)
+            Frames to create cutout/thumbnail from.
         height : int
             Height(y) of output cutout image.
         width : int
@@ -322,6 +322,8 @@ class OphysROI(object):
         cutout : numpy.ndarray
             Cutout of requested size centered on the bounding box center.
         """
+        image = frames[0]
+
         # Find the indices of the desired cutout in the image.
         row_indices = get_cutout_indices(self.bounding_box_center_y,
                                          image.shape[0],
@@ -330,8 +332,8 @@ class OphysROI(object):
                                          image.shape[1],
                                          width)
         # Get initial cutout.
-        thumbnail = image[row_indices[0]:row_indices[1],
-                          col_indices[0]:col_indices[1]]
+        frames = frames[:, row_indices[0]:row_indices[1],
+                 col_indices[0]:col_indices[1]]
         # Find if we need to pad the image.
         row_pad = get_cutout_padding(self.bounding_box_center_y,
                                      image.shape[0],
@@ -340,9 +342,9 @@ class OphysROI(object):
                                      image.shape[1],
                                      width)
         # Pad the cutout if needed.
-        padding = (row_pad, col_pad)
+        padding = ((0, 0), (row_pad, row_pad), (col_pad, col_pad))
         kwargs = {'constant_values': 0} if pad_mode == 'constant' else {}
-        return np.pad(thumbnail,
+        return np.pad(frames,
                       pad_width=padding,
                       mode=pad_mode,
                       **kwargs

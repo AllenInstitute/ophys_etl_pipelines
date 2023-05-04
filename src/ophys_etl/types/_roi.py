@@ -394,4 +394,4 @@ class OphysROI(object):
 
         return np.pad(thumbnail,
                       pad_width=padding, mode=pad_mode,
-                      constant_values=0, **kwargs)
+                      **kwargs)

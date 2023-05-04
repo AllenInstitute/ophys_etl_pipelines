@@ -342,7 +342,7 @@ class OphysROI(object):
                                      image.shape[1],
                                      width)
         # Pad the cutout if needed.
-        padding = ((0, 0), (row_pad, row_pad), (col_pad, col_pad))
+        padding = ((0, 0), row_pad, col_pad)
         kwargs = {'constant_values': 0} if pad_mode == 'constant' else {}
         return np.pad(frames,
                       pad_width=padding,

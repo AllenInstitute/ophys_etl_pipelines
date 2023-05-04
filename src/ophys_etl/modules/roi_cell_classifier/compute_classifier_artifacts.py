@@ -21,11 +21,6 @@ from ophys_etl.utils.rois import (
     extract_roi_to_ophys_roi)
 
 
-class _EmptyMaskException(Exception):
-    """Raised if mask is empty"""
-    pass
-
-
 class ClassifierArtifactsInputSchema(ArgSchema):
     experiment_id = fields.Str(
         required=True,

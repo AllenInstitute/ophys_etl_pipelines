@@ -9,8 +9,8 @@ __all__ = ['get_trace_events',
 
 def mode_robust(input_data: np.ndarray,
                 axis: Optional[int] = None) -> Union[np.ndarray,
-                                                     np.int,
-                                                     np.float]:
+                                                     int,
+                                                     float]:
     """
     Robust estimator of the mode of a data set using the half-sample mode.
 

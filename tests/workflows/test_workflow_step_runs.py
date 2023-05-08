@@ -20,11 +20,9 @@ class TestWorkflowStepRuns(MockSQLiteDB):
     @pytest.mark.parametrize("ophys_experiment_id", (None, "1"))
     def test__get_latest_run(self, ophys_experiment_id):
         """Test that the latest run is the most recently added"""
-        workflow_name = WorkflowNameEnum.OPHYS_PROCESSING
-        workflow_step_name = WorkflowStepEnum.SEGMENTATION
 
         with Session(self._engine) as session:
-            for i in range(1, 3):
+            for segmentation_run_id in range(1, 7, 2):
                 save_job_run_to_db(
                     start=datetime.datetime.now(),
                     end=datetime.datetime.now(),
@@ -33,15 +31,26 @@ class TestWorkflowStepRuns(MockSQLiteDB):
                     ophys_experiment_id=ophys_experiment_id,
                     storage_directory="foo",
                     log_path="foo",
-                    workflow_name=workflow_name,
-                    workflow_step_name=workflow_step_name,
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                    workflow_step_name=WorkflowStepEnum.SEGMENTATION,
+                )
+                save_job_run_to_db(
+                    start=datetime.datetime.now(),
+                    end=datetime.datetime.now(),
+                    module_outputs=[],
+                    sqlalchemy_session=session,
+                    ophys_experiment_id=ophys_experiment_id,
+                    storage_directory="foo",
+                    log_path="foo",
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                    workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
                 )
                 latest_run = get_latest_run(
                     session=session,
-                    workflow_name=workflow_name,
-                    workflow_step=workflow_step_name,
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                    workflow_step=WorkflowStepEnum.SEGMENTATION,
                 )
-                assert latest_run == i
+                assert latest_run == segmentation_run_id
 
     @pytest.mark.parametrize("ophys_experiment_id", (None, "1"))
     def test_get_well_known_file_for_latest_run(self, ophys_experiment_id):

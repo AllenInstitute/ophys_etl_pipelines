@@ -124,10 +124,14 @@ def get_latest_run(
         )
 
     statement = (
-        statement.where(WorkflowStep.id == workflow_step.id)
+        statement.join(
+            WorkflowStep,
+            onclause=WorkflowStep.id == WorkflowStepRun.workflow_step_id)
+        .where(WorkflowStep.id == workflow_step.id)
         .order_by(col(WorkflowStepRun.end).desc())
         .limit(1)
     )
+
     res = session.exec(statement)
     try:
         workflow_step_run_id = res.one()

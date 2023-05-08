@@ -49,7 +49,7 @@ class WorkflowStepRun(SQLModel, table=True):
     log_path: str
     storage_directory: str
     start: datetime.datetime
-    end: datetime.datetime
+    end: datetime.datetime = Field(index=True)
 
 
 class MotionCorrectionRun(SQLModel, table=True):

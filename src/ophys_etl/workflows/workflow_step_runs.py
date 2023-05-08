@@ -1,7 +1,8 @@
 """Functions relating to workflow step runs"""
+import datetime
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import NoResultFound
@@ -14,7 +15,7 @@ from ophys_etl.workflows.db.db_utils import (
 from ophys_etl.workflows.db.schemas import (
     WellKnownFile,
     WorkflowStep,
-    WorkflowStepRun,
+    WorkflowStepRun, Workflow,
 )
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -139,3 +140,36 @@ def get_latest_run(
         )
         raise
     return workflow_step_run_id
+
+
+def get_runs_completed_since(
+        session: Session,
+        since: datetime.datetime,
+        workflow_step: WorkflowStepEnum,
+        workflow_name: WorkflowNameEnum
+) -> List[WorkflowStepRun]:
+    """Gets all `WorkflowStepRun` for `WorkflowStep`
+    that have completed `since`
+
+    Parameters
+    ----------
+    session
+        sqlalchemy session
+    since
+        Check since this datetime
+    workflow_step
+        Check for this WorkflowStep
+    workflow_name
+        Check for this workflow
+    """
+    workflow_step = get_workflow_step_by_name(
+        session=session, name=workflow_step, workflow=workflow_name
+    )
+    statement = (
+        select(WorkflowStepRun)
+        .join(Workflow, onclause=WorkflowStep.workflow_id == Workflow.id)
+        .where(WorkflowStepRun.workflow_step_id == workflow_step.id,
+               WorkflowStepRun.end >= since)
+    )
+    res = session.exec(statement)
+    return res.all()

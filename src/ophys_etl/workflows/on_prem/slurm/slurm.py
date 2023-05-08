@@ -23,6 +23,12 @@ from ophys_etl.workflows.utils.pydantic_model_utils import ImmutableBaseModel
 logger = logging.getLogger('airflow.task')
 
 
+class SlurmRestApiException(RuntimeError):
+    """Catch Slurm rest api failures.
+    """
+    pass
+
+
 class _SlurmSettings(ImmutableBaseModel):
     cpus_per_task: StrictInt
     mem: StrictInt = Field(description='Memory per node in GB')
@@ -123,6 +129,8 @@ class SlurmJob:
                     app_config.slurm.api_token.get_secret_value()),
             }
         )
+        if r.status_code != 200:
+            raise SlurmRestApiException(r.text)
         response = r.json()
 
         if len(response['jobs']) == 0:
@@ -137,9 +145,9 @@ class SlurmJob:
 
         return cls(
             id=job_id,
-            state=job['state']['current'],
-            start=datetime.fromtimestamp(job['start_time'], tz=pytz.UTC),
-            end=datetime.fromtimestamp(job['end_time'], tz=pytz.UTC)
+            state=SlurmState(job['state']['current']),
+            start=datetime.fromtimestamp(job['time']['start'], tz=pytz.UTC),
+            end=datetime.fromtimestamp(job['time']['end'], tz=pytz.UTC)
         )
 
     def is_done(self) -> bool:
@@ -193,7 +201,6 @@ class Slurm:
 
     def _write_job_to_disk(
             self,
-            job_name: str,
             tmp_storage_adjustment_factor: int = 3,
             *args,
             **kwargs
@@ -203,8 +210,6 @@ class Slurm:
 
         Parameters
         ----------
-        job_name
-            slurm job name
         tmp_storage_adjustment_factor
             Multiplies the ophys experiment file size by this amount to give
             some breathing room to the amount of tmp storage to reserve.
@@ -273,7 +278,7 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
                 'gpus': gpus,
                 'memory_per_node': mem * 1024,  # MB
                 'time_limit': time,
-                'name': job_name,
+                'name': self._pipeline_module.queue_name.value,
                 'temporary_disk_per_node': f'{tmp}G',
                 'standard_output': str(self._log_path),
                 'standard_error': str(self._log_path),
@@ -326,6 +331,8 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
             },
             data=json.dumps(data)
         )
+        if r.status_code != 200:
+            raise SlurmRestApiException(r.text)
         response = r.json()
         job_id = response.get('job_id')
         job = SlurmJob.from_job_id(job_id=job_id)

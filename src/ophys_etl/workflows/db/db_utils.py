@@ -134,7 +134,7 @@ def save_job_run_to_db(
 
 def get_workflow_step_by_name(
     session, name: WorkflowStepEnum, workflow: WorkflowNameEnum
-) -> WorkflowStepEnum:
+) -> WorkflowStep:
     """
     Get workflow step by name
 
@@ -149,7 +149,7 @@ def get_workflow_step_by_name(
 
     Returns
     -------
-    WorkflowStepEnum
+    WorkflowStep
     """
     statement = (
         select(WorkflowStep)

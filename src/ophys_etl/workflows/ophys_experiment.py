@@ -39,6 +39,41 @@ class OphysSession:
     id: str
     specimen: Specimen
 
+    @classmethod
+    def from_id(cls, id: str) -> "OphysSession":
+        """Returns an `OphysSession` given a LIMS id for an
+        ophys session
+
+        Parameters
+        ----------
+        id
+            LIMS ID for the ophys session
+
+        """
+        query = f"""
+            SELECT
+                os.specimen_id,
+            FROM ophys_sessions os
+            WHERE os.id = {id}
+        """
+        lims_db = LIMSDB()
+        res = lims_db.query(query=query)
+
+        if len(res) == 0:
+            raise ValueError(
+                f"Could not fetch OphysSession "
+                f"for ophys session id "
+                f"{id}"
+            )
+        res = res[0]
+
+        specimen = Specimen(id=res["specimen_id"])
+
+        return cls(
+            id=id,
+            specimen=specimen
+        )
+
     @property
     def output_dir(self) -> Path:
         """Where to output files to for this session"""
@@ -193,7 +228,7 @@ class OphysExperiment:
         with Session(engine) as session:
             workflow_step_run_id = get_latest_run(
                 session,
-                WorkflowStepEnum.MOTION_CORRECTION,
+                WorkflowStepEnum.SEGMENTATION,
                 WorkflowNameEnum.OPHYS_PROCESSING,
                 self.id,
             )

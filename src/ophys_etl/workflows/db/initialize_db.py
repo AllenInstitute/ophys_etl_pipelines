@@ -131,6 +131,10 @@ def _create_workflow_steps_for_ophys_processing(session, workflow: Workflow):
             name=WorkflowStepEnum.TRACE_EXTRACTION.value,
             workflow_id=workflow.id,
         ),
+        "decrosstalk": WorkflowStep(
+            name=WorkflowStepEnum.DECROSSTALK.value,
+            workflow_id=workflow.id
+        )
     }
     for workflow_step in workflow_steps.values():
         session.add(workflow_step)
@@ -325,6 +329,9 @@ def _create_well_known_file_types_for_ophys_processing(
     _create_trace_extraction_well_known_file_types(
         session=session, workflow_steps=workflow_steps
     )
+    _create_decrosstalk_well_known_file_types(
+        session=session, workflow_steps=workflow_steps
+    )
     _create_roi_classification_inference_well_known_file_types(
         session=session, workflow_steps=workflow_steps
     )
@@ -361,6 +368,19 @@ def _create_trace_extraction_well_known_file_types(
             name=WellKnownFileTypeEnum.TRACE_EXTRACTION_EXCLUSION_LABELS.value,
             workflow_step_id=workflow_steps["trace_extraction"].id,
         ),
+    ]
+    for wkft in well_known_file_types:
+        session.add(wkft)
+
+
+def _create_decrosstalk_well_known_file_types(
+    session, workflow_steps: Dict[str, WorkflowStep]
+):
+    well_known_file_types = [
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.DECROSSTALK_FLAGS.value,
+            workflow_step_id=workflow_steps['decrosstalk'].id
+        )
     ]
     for wkft in well_known_file_types:
         session.add(wkft)

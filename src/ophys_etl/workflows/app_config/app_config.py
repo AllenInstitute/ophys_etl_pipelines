@@ -108,6 +108,10 @@ class _TraceExtraction(_PipelineStep):
     pass
 
 
+class _Decrostalk(_PipelineStep):
+    pass
+
+
 class _GenerateCorrelationProjection(_PipelineStep):
     n_workers: int
 
@@ -200,6 +204,7 @@ class _PipelineSteps(ImmutableBaseModel):
     segmentation: _Segmentation = Field(default=_Segmentation())
     trace_extraction: _TraceExtraction = Field(default=_TraceExtraction())
     roi_classification: _ROIClassification
+    decrosstalk: _Decrostalk = Field(default=_Decrostalk())
 
 
 ##################

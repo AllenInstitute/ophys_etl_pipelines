@@ -1,7 +1,6 @@
 import datetime
 from pathlib import Path
 
-from conftest import MockSQLiteDB
 from sqlmodel import Session, select
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db
@@ -13,6 +12,7 @@ from ophys_etl.workflows.pipeline_modules.segmentation import (
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
+from tests.workflows.conftest import MockSQLiteDB
 
 
 class TestSegmentation(MockSQLiteDB):

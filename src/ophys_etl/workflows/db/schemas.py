@@ -44,7 +44,18 @@ class WorkflowStepRun(SQLModel, table=True):
     __tablename__ = "workflow_step_run"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    ophys_experiment_id: Optional[str] = Field(index=True)
+    ophys_experiment_id: Optional[str] = Field(
+        index=True,
+        description='Ophys experiment id from LIMS that this workflow step run'
+                    'is associated with. None if not associated with a '
+                    'specific experiment'
+    )
+    ophys_session_id: Optional[str] = Field(
+        index=True,
+        description='Ophys session id from LIMS that this workflow step run'
+                    'is associated with. None if not associated with a '
+                    'specific session'
+    )
     workflow_step_id: int = Field(foreign_key="workflow_step.id")
     log_path: str
     storage_directory: str

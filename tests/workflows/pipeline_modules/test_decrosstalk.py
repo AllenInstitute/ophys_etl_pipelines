@@ -2,10 +2,15 @@ import datetime
 from pathlib import Path
 from unittest.mock import patch, PropertyMock
 
+from ophys_etl.workflows.db.schemas import OphysROI
+
+from ophys_etl.workflows.pipeline_modules.segmentation import \
+    SegmentationModule
+
 from ophys_etl.workflows.output_file import OutputFile
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from ophys_etl.workflows.ophys_experiment import OphysSession, Specimen, \
     OphysExperiment, ImagingPlaneGroup
@@ -78,15 +83,35 @@ class TestDecrosstalk(MockSQLiteDB):
     @patch.object(OphysExperiment, 'from_id')
     @patch.object(OphysSession, 'ophys_experiment_ids',
                   new_callable=PropertyMock)
+    @patch.object(OphysExperiment, 'motion_border',
+                  new_callable=PropertyMock)
+    @patch.object(OphysExperiment, 'roi_metadata',
+                  new_callable=PropertyMock)
     def test_inputs(self,
+                    mock_roi_metadata,
+                    mock_motion_border,
                     mock_ophys_session_oe_ids,
                     mock_ophys_experiment_from_id
                     ):
         ophys_session = OphysSession(
-                id='session_1',
-                specimen=Specimen(id='specimen_1')
-            )
+            id='session_1',
+            specimen=Specimen(id='specimen_1')
+        )
 
+        mock_roi_metadata.return_value = [{
+            "id": 0,
+            "x": 0,
+            "y": 0,
+            "width": 100,
+            "height": 100,
+            "mask": [True, False],
+        }]
+        mock_motion_border.return_value = {
+            'x0': 1,
+            'y0': 2,
+            'x1': 3,
+            'y1': 4
+        }
         mock_ophys_session_oe_ids.return_value = self._experiment_ids
         mock_ophys_experiment_from_id.side_effect = \
             lambda id: OphysExperiment(
@@ -110,3 +135,103 @@ class TestDecrosstalk(MockSQLiteDB):
         with patch('ophys_etl.workflows.pipeline_modules.decrosstalk.engine',
                    new=self._engine):
             obtained_inputs = mod.inputs
+
+        expected_inputs = {
+            'ophys_session_id': ophys_session.id,
+            'qc_output_dir': (
+                    ophys_session.output_dir / 'DECROSSTALK' / mod.now_str),
+            'coupled_planes': [
+                {
+                    'ophys_imaging_plane_group_id': (
+                        0 if self._experiment_ids[i] == 'oe_1' else 1),
+                    'group_order': (
+                        0 if self._experiment_ids[i] == 'oe_1' else 1
+                    ),
+                    'planes': [
+                        {
+                            'ophys_experiment_id': self._experiment_ids[i],
+                            'motion_corrected_stack': (
+                                f'{self._experiment_ids[i]}_'
+                                f'motion_correction.h5'),
+                            'maximum_projection_image_file': (
+                                f'{self._experiment_ids[i]}_max_proj.png'
+                            ),
+                            'output_roi_trace_file': (
+                                f'{self._experiment_ids[i]}_roi_traces.h5'
+                            ),
+                            'output_neuropil_trace_file': None,
+                            'motion_border': mock_motion_border.return_value,
+                            'rois': mock_roi_metadata.return_value
+                        }
+                    ]
+                }
+                for i in range(len(self._experiment_ids))]
+        }
+        assert obtained_inputs == expected_inputs
+
+    def test_save_decrosstalk_flags_to_db(self):
+        # 1. Save segmentation run
+        _rois_path = Path(__file__).parent / "resources" / "rois.json"
+
+        for oe_id in self._experiment_ids:
+            with Session(self._engine) as session:
+                save_job_run_to_db(
+                    workflow_step_name=WorkflowStepEnum.SEGMENTATION,
+                    start=datetime.datetime.now(),
+                    end=datetime.datetime.now(),
+                    module_outputs=[
+                        OutputFile(
+                            well_known_file_type=(
+                                WellKnownFileTypeEnum.OPHYS_ROIS
+                            ),
+                            path=_rois_path,
+                        )
+                    ],
+                    ophys_experiment_id=oe_id,
+                    sqlalchemy_session=session,
+                    storage_directory="/foo",
+                    log_path="/foo",
+                    additional_steps=SegmentationModule.save_rois_to_db,
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                )
+
+        # 2. Save decrosstalk run
+        save_job_run_to_db(
+            workflow_step_name=WorkflowStepEnum.DECROSSTALK,
+            start=datetime.datetime.now(),
+            end=datetime.datetime.now(),
+            module_outputs=[
+                OutputFile(
+                    well_known_file_type=WellKnownFileTypeEnum
+                    .DECROSSTALK_FLAGS,
+                    path=(Path(__file__).parent / "resources" /
+                          "decrosstalk_output.json")
+                )
+            ],
+            ophys_session_id='1',
+            sqlalchemy_session=session,
+            storage_directory="/foo",
+            log_path="/foo",
+            additional_steps=DecrosstalkModule.save_decrosstalk_flags_to_db,
+            workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+        )
+
+        # 3. Try fetch decrosstalk flags
+        with Session(self._engine) as session:
+            rois = session.exec(select(OphysROI)).all()
+
+        for roi in rois:
+            if roi.id == 1:
+                assert roi.is_decrosstalk_invalid_raw
+                assert roi.is_decrosstalk_invalid_unmixed
+                assert roi.is_decrosstalk_ghost
+
+            elif roi.id == 2:
+                assert roi.is_decrosstalk_invalid_raw
+                assert roi.is_decrosstalk_invalid_unmixed
+            else:
+                assert not roi.is_decrosstalk_ghost
+                assert not roi.is_decrosstalk_invalid_raw
+                assert not roi.is_decrosstalk_invalid_unmixed
+                assert not roi.is_decrosstalk_invalid_unmixed_active
+                assert not roi.is_decrosstalk_invalid_raw_active

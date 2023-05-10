@@ -4,10 +4,8 @@ from typing import List, Dict
 
 import json
 
-from sqlalchemy import select
-
 from ophys_etl.workflows.db.schemas import OphysROI
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
@@ -131,17 +129,19 @@ class DecrosstalkModule(PipelineModule):
 
         roi_flags = defaultdict(list)
         coupled_planes = output['coupled_planes']
-        for plane in coupled_planes['planes']:
-            flags = (
-                'decrosstalk_invalid_raw',
-                'decrosstalk_invalid_raw_active',
-                'decrosstalk_invalid_unmixed',
-                'decrosstalk_invalid_unmixed_active',
-                'decrosstalk_ghost'
-            )
-            for flag in flags:
-                for roi in plane[flag]:
-                    roi_flags[roi].append(flag)
+        flags = (
+            'decrosstalk_invalid_raw',
+            'decrosstalk_invalid_raw_active',
+            'decrosstalk_invalid_unmixed',
+            'decrosstalk_invalid_unmixed_active',
+            'decrosstalk_ghost'
+        )
+
+        for plane_group in coupled_planes:
+            for plane in plane_group['planes']:
+                for flag in flags:
+                    for roi in plane[flag]:
+                        roi_flags[roi].append(flag)
 
         for roi_id, flags in roi_flags.items():
             statement = (

@@ -132,9 +132,13 @@ class PipelineModule:
         else:
             path = app_config.output_dir / self.queue_name.value
 
-        path = path / self._now.strftime("%Y-%m-%d_%H-%m-%S-%f")
+        path = path / self.now_str
 
         return path
+
+    @property
+    def now_str(self) -> str:
+        return self._now.strftime("%Y-%m-%d_%H-%m-%S-%f")
 
     @property
     def output_metadata_path(self) -> Path:

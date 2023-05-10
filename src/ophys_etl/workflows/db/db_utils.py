@@ -37,6 +37,7 @@ def save_job_run_to_db(
     storage_directory: Union[Path, str],
     log_path: Union[Path, str],
     ophys_experiment_id: Optional[str] = None,
+    ophys_session_id: Optional[str] = None,
     validate_files_exist: bool = True,
     additional_steps: Optional[Callable] = None,
     additional_steps_kwargs: Optional[Dict] = None,
@@ -58,6 +59,10 @@ def save_job_run_to_db(
         Identifier for experiment associated with this workflow step run.
         None if this workflow step is not associated with a specific
         ophys experiment
+    ophys_session_id
+        Identifier for session associated with this workflow step run.
+        None if this workflow step is not associated with a specific
+        ophys session
     module_outputs
         What files are output by this workflow step run
     validate_files_exist
@@ -98,6 +103,7 @@ def save_job_run_to_db(
         storage_directory=str(storage_directory),
         log_path=str(log_path),
         ophys_experiment_id=ophys_experiment_id,
+        ophys_session_id=ophys_session_id,
         start=start,
         end=end,
     )

@@ -5,7 +5,7 @@ from typing import List, Dict
 import json
 
 from ophys_etl.workflows.db.schemas import OphysROI
-from sqlmodel import Session, select
+from sqlmodel import Session, select, col
 
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
@@ -143,13 +143,15 @@ class DecrosstalkModule(PipelineModule):
                     for roi in plane[flag]:
                         roi_flags[roi].append(flag)
 
+        statement = (
+            select(OphysROI)
+            .where(col(OphysROI.id).in_(roi_flags))
+        )
+        results = session.exec(statement)
+        rois = results.all()
+        roi_id_roi_map = {x.id: x for x in rois}
+
         for roi_id, flags in roi_flags.items():
-            statement = (
-                select(OphysROI)
-                .where(OphysROI.id == roi_id)
-            )
-            results = session.exec(statement)
-            roi = results.one()
             for flag in flags:
-                setattr(roi, f'is_{flag}', True)
-            session.add(roi)
+                setattr(roi_id_roi_map[roi_id], f'is_{flag}', True)
+            session.add(roi_id_roi_map[roi_id])

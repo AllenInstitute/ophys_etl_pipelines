@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from sqlmodel import Session, select
 
@@ -20,17 +20,49 @@ from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
 @dataclass
-class OphysSession:
-    """Container for an ophys session"""
-
-    id: str
-
-
-@dataclass
 class Specimen:
     """Container for a specimen"""
 
     id: str
+
+
+@dataclass(frozen=True)
+class ImagingPlaneGroup:
+    id: int
+    group_order: int
+
+
+@dataclass
+class OphysSession:
+    """Container for an ophys session"""
+
+    id: str
+    specimen: Specimen
+
+    @property
+    def output_dir(self) -> Path:
+        """Where to output files to for this session"""
+        base_dir = app_config.output_dir
+
+        output_dir = (
+                Path(base_dir)
+                / f"specimen_{self.specimen.id}"
+                / f"session_{self.id}"
+        )
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
+
+    @property
+    def ophys_experiment_ids(self) -> List[int]:
+        query = f"""
+            SELECT
+                oe.id as ophys_experiment_id,
+            FROM ophys_experiments oe
+            WHERE oe.ophys_session_id = {self.id}
+        """
+        lims_db = LIMSDB()
+        res = lims_db.query(query=query)
+        return [x['ophys_experiment_id'] for x in res]
 
 
 @dataclass
@@ -43,6 +75,7 @@ class OphysExperiment:
     storage_directory: Path
     raw_movie_filename: Path
     movie_frame_rate_hz: float
+    imaging_plane_group: Optional[ImagingPlaneGroup] = None
 
     @property
     def output_dir(self) -> Path:
@@ -75,10 +108,14 @@ class OphysExperiment:
                 oe.ophys_session_id as session_id,
                 os.specimen_id,
                 oe.movie_frame_rate_hz,
+                oe.imaging_plane_group_id,
+                oipg.group_order as imaging_plane_group_order,
                 images.jp2 as raw_movie_filename
             FROM ophys_experiments oe
             JOIN images on images.id = oe.ophys_primary_image_id
             JOIN ophys_sessions os on os.id = oe.ophys_session_id
+            LEFT ophys_imaging_plane_groups oipg on 
+                oipg.id = oe.imaging_plane_group_id
             WHERE oe.id = {id}
         """
         lims_db = LIMSDB()
@@ -92,8 +129,15 @@ class OphysExperiment:
             )
         res = res[0]
 
-        session = OphysSession(id=res["session_id"])
         specimen = Specimen(id=res["specimen_id"])
+        session = OphysSession(id=res["session_id"], specimen=specimen)
+        if res['ophys_imaging_plane_group_id'] is not None:
+            imaging_plane_group = ImagingPlaneGroup(
+                id=res['ophys_imaging_plane_group_id'],
+                group_order=res['imaging_plane_group_order']
+            )
+        else:
+            imaging_plane_group = None
 
         return cls(
             id=id,
@@ -102,6 +146,7 @@ class OphysExperiment:
             raw_movie_filename=res["raw_movie_filename"],
             session=session,
             specimen=specimen,
+            imaging_plane_group=imaging_plane_group
         )
 
     @property

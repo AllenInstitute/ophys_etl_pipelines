@@ -111,7 +111,7 @@ class TestSlurm:
         mod = MotionCorrectionModule(
             ophys_experiment=OphysExperiment(
                 id="1",
-                session=OphysSession(id="1"),
+                session=OphysSession(id="1", specimen=Specimen("1")),
                 specimen=Specimen(id="1"),
                 storage_directory=Path("/foo"),
                 raw_movie_filename=Path("mov.h5"),

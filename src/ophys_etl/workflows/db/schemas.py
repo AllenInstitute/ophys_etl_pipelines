@@ -79,6 +79,11 @@ class OphysROI(SQLModel, table=True):
     y: int
     width: int
     height: int
+    is_decrosstalk_invalid_raw: Optional[bool] = None
+    is_decrosstalk_invalid_raw_active: Optional[bool] = None
+    is_decrosstalk_invalid_unmixed: Optional[bool] = None
+    is_decrosstalk_invalid_unmixed_active: Optional[bool] = None
+    is_decrosstalk_ghost: Optional[bool] = None
 
 
 class OphysROIMaskValue(SQLModel, table=True):

@@ -77,7 +77,7 @@ class TestPipelineModule:
             cls._dummy_mod = _DummyMod(
                 ophys_experiment=OphysExperiment(
                     id="1",
-                    session=OphysSession(id="2"),
+                    session=OphysSession(id="2", specimen=Specimen("1")),
                     specimen=Specimen(id="3"),
                     storage_directory=Path("/storage_dir"),
                     raw_movie_filename=Path("mov.h5"),

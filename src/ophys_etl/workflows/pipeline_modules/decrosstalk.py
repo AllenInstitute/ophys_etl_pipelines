@@ -22,6 +22,14 @@ from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
+DECROSSTALK_FLAGS = (
+    'decrosstalk_invalid_raw',
+    'decrosstalk_invalid_raw_active',
+    'decrosstalk_invalid_unmixed',
+    'decrosstalk_invalid_unmixed_active',
+    'decrosstalk_ghost'
+)
+
 
 def _get_plane_metadata(ophys_experiment: OphysExperiment):
     return {
@@ -83,7 +91,7 @@ class DecrosstalkModule(PipelineModule):
 
         for ophys_experiment in ophys_experiments:
             ipg_ophys_experiment_map[
-                ophys_experiment.imaging_plane_group]\
+                ophys_experiment.imaging_plane_group] \
                 .append(ophys_experiment)
 
         return {
@@ -117,9 +125,9 @@ class DecrosstalkModule(PipelineModule):
 
     @staticmethod
     def save_decrosstalk_flags_to_db(
-        output_files: Dict[str, OutputFile],
-        session: Session,
-        run_id: int
+            output_files: Dict[str, OutputFile],
+            session: Session,
+            run_id: int
     ):
         decrosstalk_file_path = output_files[
             WellKnownFileTypeEnum.DECROSSTALK_FLAGS.value
@@ -129,29 +137,30 @@ class DecrosstalkModule(PipelineModule):
 
         roi_flags = defaultdict(list)
         coupled_planes = output['coupled_planes']
-        flags = (
-            'decrosstalk_invalid_raw',
-            'decrosstalk_invalid_raw_active',
-            'decrosstalk_invalid_unmixed',
-            'decrosstalk_invalid_unmixed_active',
-            'decrosstalk_ghost'
-        )
 
         for plane_group in coupled_planes:
             for plane in plane_group['planes']:
-                for flag in flags:
+                ophys_experiment = OphysExperiment.from_id(
+                    id=plane['ophys_experiment_id'])
+
+                rois = ophys_experiment.rois
+
+                # initializing all flags to False
+                for roi in rois:
+                    for flag in DECROSSTALK_FLAGS:
+                        setattr(roi, f'is_{flag}', False)
+
+                # accumulate flags for each roi
+                for flag in DECROSSTALK_FLAGS:
                     for roi in plane[flag]:
                         roi_flags[roi].append(flag)
 
-        statement = (
-            select(OphysROI)
-            .where(col(OphysROI.id).in_(roi_flags))
-        )
-        results = session.exec(statement)
-        rois = results.all()
-        roi_id_roi_map = {x.id: x for x in rois}
+                # Update flags for each roi that has been flagged
+                for roi in rois:
+                    flags = roi_flags.get(roi.id, [])
+                    for flag in flags:
+                        setattr(roi, f'is_{flag}', True)
 
-        for roi_id, flags in roi_flags.items():
-            for flag in flags:
-                setattr(roi_id_roi_map[roi_id], f'is_{flag}', True)
-            session.add(roi_id_roi_map[roi_id])
+                # Update flags in the database
+                for roi in rois:
+                    session.add(roi)

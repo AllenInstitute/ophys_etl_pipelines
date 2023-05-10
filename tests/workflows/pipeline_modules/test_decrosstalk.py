@@ -15,7 +15,8 @@ from sqlmodel import Session, select
 from ophys_etl.workflows.ophys_experiment import OphysSession, Specimen, \
     OphysExperiment, ImagingPlaneGroup
 
-from ophys_etl.workflows.pipeline_modules.decrosstalk import DecrosstalkModule
+from ophys_etl.workflows.pipeline_modules.decrosstalk import DecrosstalkModule, \
+    DECROSSTALK_FLAGS
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
@@ -169,7 +170,26 @@ class TestDecrosstalk(MockSQLiteDB):
         }
         assert obtained_inputs == expected_inputs
 
-    def test_save_decrosstalk_flags_to_db(self):
+    @patch.object(OphysExperiment, 'from_id')
+    def test_save_decrosstalk_flags_to_db(
+            self,
+            mock_ophys_experiment_from_id
+    ):
+        ophys_session = OphysSession(
+            id='session_1',
+            specimen=Specimen(id='specimen_1')
+        )
+
+        mock_ophys_experiment_from_id.side_effect = \
+            lambda id: OphysExperiment(
+                id=id,
+                movie_frame_rate_hz=1,
+                raw_movie_filename=Path('foo'),
+                session=ophys_session,
+                specimen=ophys_session.specimen,
+                storage_directory=Path('foo')
+            )
+
         # 1. Save segmentation run
         _rois_path = Path(__file__).parent / "resources" / "rois.json"
 
@@ -196,42 +216,44 @@ class TestDecrosstalk(MockSQLiteDB):
                 )
 
         # 2. Save decrosstalk run
-        save_job_run_to_db(
-            workflow_step_name=WorkflowStepEnum.DECROSSTALK,
-            start=datetime.datetime.now(),
-            end=datetime.datetime.now(),
-            module_outputs=[
-                OutputFile(
-                    well_known_file_type=WellKnownFileTypeEnum
-                    .DECROSSTALK_FLAGS,
-                    path=(Path(__file__).parent / "resources" /
-                          "decrosstalk_output.json")
-                )
-            ],
-            ophys_session_id='1',
-            sqlalchemy_session=session,
-            storage_directory="/foo",
-            log_path="/foo",
-            additional_steps=DecrosstalkModule.save_decrosstalk_flags_to_db,
-            workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-        )
+        with patch('ophys_etl.workflows.ophys_experiment.engine',
+                   new=self._engine):
+            save_job_run_to_db(
+                workflow_step_name=WorkflowStepEnum.DECROSSTALK,
+                start=datetime.datetime.now(),
+                end=datetime.datetime.now(),
+                module_outputs=[
+                    OutputFile(
+                        well_known_file_type=WellKnownFileTypeEnum
+                        .DECROSSTALK_FLAGS,
+                        path=(Path(__file__).parent / "resources" /
+                              "decrosstalk_output.json")
+                    )
+                ],
+                ophys_session_id=ophys_session.id,
+                sqlalchemy_session=session,
+                storage_directory="/foo",
+                log_path="/foo",
+                additional_steps=DecrosstalkModule.save_decrosstalk_flags_to_db,
+                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+            )
 
         # 3. Try fetch decrosstalk flags
         with Session(self._engine) as session:
             rois = session.exec(select(OphysROI)).all()
 
-        for roi in rois:
-            if roi.id == 1:
-                assert roi.is_decrosstalk_invalid_raw
-                assert roi.is_decrosstalk_invalid_unmixed
-                assert roi.is_decrosstalk_ghost
+        expected_flags = {
+            3: ['decrosstalk_invalid_raw',
+                'decrosstalk_invalid_unmixed',
+                'decrosstalk_ghost'],
+            4: ['decrosstalk_invalid_raw',
+                'decrosstalk_invalid_unmixed']
+        }
 
-            elif roi.id == 2:
-                assert roi.is_decrosstalk_invalid_raw
-                assert roi.is_decrosstalk_invalid_unmixed
-            else:
-                assert not roi.is_decrosstalk_ghost
-                assert not roi.is_decrosstalk_invalid_raw
-                assert not roi.is_decrosstalk_invalid_unmixed
-                assert not roi.is_decrosstalk_invalid_unmixed_active
-                assert not roi.is_decrosstalk_invalid_raw_active
+        for roi in rois:
+            flags = expected_flags.get(roi.id, [])
+            for flag in DECROSSTALK_FLAGS:
+                if flag in flags:
+                    assert getattr(roi, f'is_{flag}')
+                else:
+                    assert getattr(roi, f'is_{flag}') is False

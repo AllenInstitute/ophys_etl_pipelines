@@ -1,7 +1,6 @@
 from pathlib import Path
 from unittest.mock import patch
 
-from conftest import MockSQLiteDB
 from sqlmodel import Session
 
 from ophys_etl.workflows.db.schemas import (
@@ -18,6 +17,7 @@ from ophys_etl.workflows.ophys_experiment import (
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_workflow_step_by_name
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
+from tests.workflows.conftest import MockSQLiteDB
 
 
 class TestOphysExperiment(MockSQLiteDB):
@@ -57,6 +57,8 @@ class TestOphysExperiment(MockSQLiteDB):
                 y=20,
                 width=30,
                 height=40,
+                is_in_motion_border=False,
+                is_small_size=False
             )
             session.add(ophys_roi)
             session.flush()
@@ -92,7 +94,9 @@ class TestOphysExperiment(MockSQLiteDB):
         with patch(
             "ophys_etl.workflows.ophys_experiment.engine", self._engine
         ):
-            roi_metadata = self.ophys_experiment.rois
+            with Session(self._engine) as session:
+                roi_metadata = [x.to_dict(session=session) for x in
+                                self.ophys_experiment.rois]
             assert len(roi_metadata) == 1
             assert roi_metadata[0]["x"] == 10
             assert roi_metadata[0]["y"] == 20

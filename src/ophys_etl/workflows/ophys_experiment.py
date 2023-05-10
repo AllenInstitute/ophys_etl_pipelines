@@ -9,11 +9,9 @@ from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.schemas import (
     MotionCorrectionRun,
-    OphysROI,
-    OphysROIMaskValue,
+    OphysROI
 )
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
-from ophys_etl.workflows.utils.roi_utils import generate_binary_mask
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_latest_run
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
@@ -216,14 +214,14 @@ class OphysExperiment:
             }
 
     @property
-    def roi_metadata(self) -> List[Dict]:
+    def rois(self) -> List[OphysROI]:
         """
-        ROI metadata for an ophys experiment
+        ROIs for ophys experiment
 
         Returns
         -------
-        List[Dict]
-            A list of dictionaries containing ROI metadata
+        List[OphysROI]
+            A list of OphysROI
         """
         with Session(engine) as session:
             workflow_step_run_id = get_latest_run(
@@ -236,23 +234,5 @@ class OphysExperiment:
                 OphysROI.workflow_step_run_id == workflow_step_run_id
             )
 
-            result = session.execute(query).all()
-            roi_metadata = []
-            for ophys_roi in result:
-                ophys_roi = ophys_roi[0]
-                query = select(OphysROIMaskValue).where(
-                    OphysROIMaskValue.ophys_roi_id == ophys_roi.id
-                )
-                masks_list = session.execute(query).all()
-                masks_list = [mask[0] for mask in masks_list]
-                roi_metadata.append(
-                    {
-                        "id": ophys_roi.id,
-                        "x": ophys_roi.x,
-                        "y": ophys_roi.y,
-                        "width": ophys_roi.width,
-                        "height": ophys_roi.height,
-                        "mask": generate_binary_mask(ophys_roi, masks_list),
-                    }
-                )
-            return roi_metadata
+            result = session.execute(query).scalars().all()
+            return result

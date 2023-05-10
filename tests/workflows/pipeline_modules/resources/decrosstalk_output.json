@@ -25,11 +25,11 @@
           "ophys_experiment_id": "oe_2",
           "output_roi_trace_file": "oe_2_roi_traces.h5",
           "output_neuropil_trace_file": null,
-          "decrosstalk_invalid_raw": [1, 2],
+          "decrosstalk_invalid_raw": [3, 4],
           "decrosstalk_invalid_raw_active": [],
-          "decrosstalk_invalid_unmixed": [1, 2],
+          "decrosstalk_invalid_unmixed": [3, 4],
           "decrosstalk_invalid_unmixed_active": [],
-          "decrosstalk_ghost": [1]
+          "decrosstalk_ghost": [3]
         }
       ]
     }

@@ -48,7 +48,7 @@ def _get_roi_classifier() -> int:
                 == roi_classifier_training_run
             )
         ).one()
-        return ensemble_id
+        return ensemble_id[0]
 
 
 @dag(

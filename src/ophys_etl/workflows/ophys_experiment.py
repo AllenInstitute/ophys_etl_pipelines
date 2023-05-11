@@ -51,7 +51,7 @@ class OphysSession:
         """
         query = f"""
             SELECT
-                os.specimen_id,
+                os.specimen_id
             FROM ophys_sessions os
             WHERE os.id = {id}
         """

@@ -142,7 +142,7 @@ class OphysExperiment:
                 oe.ophys_session_id as session_id,
                 os.specimen_id,
                 oe.movie_frame_rate_hz,
-                oe.imaging_plane_group_id,
+                oe.ophys_imaging_plane_group_id,
                 oipg.group_order as imaging_plane_group_order,
                 images.jp2 as raw_movie_filename
             FROM ophys_experiments oe

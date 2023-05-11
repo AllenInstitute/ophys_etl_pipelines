@@ -118,7 +118,7 @@ class TestPipelineModule:
             / "experiment_1"
             / self._dummy_mod.queue_name.value
             / "2023-01-01_01-01-01-000001"
-            / f"{self._dummy_mod.queue_name.value}_1_output.json"
+            / f"{self._dummy_mod.queue_name.value}_output.json"
         )
 
     @patch("datetime.datetime", wraps=datetime.datetime)
@@ -133,7 +133,7 @@ class TestPipelineModule:
             / "experiment_1"
             / self._dummy_mod.queue_name.value
             / "2023-01-01_01-01-01-000001"
-            / f"{self._dummy_mod.queue_name.value}_1_input.json"
+            / f"{self._dummy_mod.queue_name.value}_input.json"
         )
 
     @patch("datetime.datetime", wraps=datetime.datetime)

@@ -22,28 +22,44 @@ from tests.workflows.conftest import MockSQLiteDB
 
 class TestOphysExperiment(MockSQLiteDB):
     def _create_mock_data(self):
-        workflow_name = WorkflowNameEnum.OPHYS_PROCESSING.value
-        workflow_step_name = WorkflowStepEnum.SEGMENTATION.value
         ophys_experiment_id = "1"
         with Session(self._engine) as session:
 
-            workflow_step = get_workflow_step_by_name(
+            # add motion correction run
+            motion_correction_workflow_step = get_workflow_step_by_name(
                 session=session,
-                workflow=workflow_name,
-                name=workflow_step_name,
+                workflow=WorkflowNameEnum.OPHYS_PROCESSING.value,
+                name=WorkflowStepEnum.MOTION_CORRECTION.value,
             )
-            workflow_step_run = WorkflowStepRun(
+            motion_correction_run = WorkflowStepRun(
                 ophys_experiment_id=ophys_experiment_id,
-                workflow_step_id=workflow_step.id,
+                workflow_step_id=motion_correction_workflow_step.id,
                 log_path="log_path",
                 storage_directory="storage_directory",
                 start="2023-04-01 00:00:00",
                 end="2023-04-01 01:00:00",
             )
-            session.add(workflow_step_run)
+            session.add(motion_correction_run)
+
+            # add segmentation run
+            segmentation_workflow_step = get_workflow_step_by_name(
+                session=session,
+                workflow=WorkflowNameEnum.OPHYS_PROCESSING.value,
+                name=WorkflowStepEnum.SEGMENTATION.value,
+            )
+            segmentation_run = WorkflowStepRun(
+                ophys_experiment_id=ophys_experiment_id,
+                workflow_step_id=segmentation_workflow_step.id,
+                log_path="log_path",
+                storage_directory="storage_directory",
+                start="2023-04-01 00:00:00",
+                end="2023-04-01 01:00:00",
+            )
+            session.add(segmentation_run)
+
             session.flush()
             motion_correction = MotionCorrectionRun(
-                workflow_step_run_id=workflow_step_run.id,
+                workflow_step_run_id=motion_correction_run.id,
                 max_correction_left=10,
                 max_correction_right=20,
                 max_correction_up=30,
@@ -53,7 +69,7 @@ class TestOphysExperiment(MockSQLiteDB):
 
             for i in range(2):
                 ophys_roi = OphysROI(
-                    workflow_step_run_id=1,
+                    workflow_step_run_id=segmentation_run.id,
                     x=10,
                     y=20,
                     width=30,
@@ -95,9 +111,8 @@ class TestOphysExperiment(MockSQLiteDB):
         with patch(
             "ophys_etl.workflows.ophys_experiment.engine", self._engine
         ):
-            with Session(self._engine) as session:
-                roi_metadata = [x.to_dict() for x in
-                                self.ophys_experiment.rois]
+            roi_metadata = [x.to_dict() for x in
+                            self.ophys_experiment.rois]
             assert len(roi_metadata) == 2
             for i in range(2):
                 assert roi_metadata[i]["x"] == 10

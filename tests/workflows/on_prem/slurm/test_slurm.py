@@ -36,6 +36,8 @@ class TestSlurmJob:
     @pytest.mark.parametrize("has_job_started", (True, False))
     def test_from_job_id(self, get, has_job_started):
         class DummyResponse:
+            status_code = 200
+
             @staticmethod
             def json():
                 if has_job_started:
@@ -43,8 +45,10 @@ class TestSlurmJob:
                         "jobs": [
                             {
                                 "state": {"current": SlurmState.COMPLETED},
-                                "start_time": 1680557440,
-                                "end_time": 1680557518,
+                                'time': {
+                                    'start': 1680557440,
+                                    'end': 1680557518
+                                }
                             }
                         ]
                     }
@@ -134,8 +138,7 @@ class TestSlurm:
     def test_write_job_to_disk(self, _):
         self._slurm._write_job_to_disk(
             input_json="input.json",
-            output_json="output.json",
-            job_name="test_job",
+            output_json="output.json"
         )
         with open(
             self._slurm._pipeline_module.output_path

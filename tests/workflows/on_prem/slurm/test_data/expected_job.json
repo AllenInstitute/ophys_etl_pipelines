@@ -7,7 +7,7 @@
     "gpus": 0,
     "memory_per_node": 256000,
     "time_limit": 300,
-    "name": "test_job",
+    "name": "MOTION_CORRECTION",
     "temporary_disk_per_node": "55G",
     "standard_output": "log_path.log",
     "standard_error": "log_path.log",

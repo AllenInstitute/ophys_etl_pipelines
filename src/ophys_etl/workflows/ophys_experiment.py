@@ -90,7 +90,7 @@ class OphysSession:
     def ophys_experiment_ids(self) -> List[int]:
         query = f"""
             SELECT
-                oe.id as ophys_experiment_id,
+                oe.id as ophys_experiment_id
             FROM ophys_experiments oe
             WHERE oe.ophys_session_id = {self.id}
         """

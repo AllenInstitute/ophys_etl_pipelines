@@ -103,7 +103,6 @@ def submit_job_and_wait_to_finish(
     )
 
     job_submit_res = submit_job(
-        ophys_experiment_id=experiment_id,
         module=module,
         config_path=str(slurm_config),
         docker_tag=docker_tag,

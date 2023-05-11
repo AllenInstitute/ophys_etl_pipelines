@@ -49,3 +49,8 @@ class WellKnownFileTypeEnum(Enum):
     ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS = (
         "ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS"
     )
+
+    ########
+    # Demixed Traces
+    ########
+    DEMIXED_TRACES = "DEMIXED_TRACES"

@@ -108,6 +108,10 @@ class _TraceExtraction(_PipelineStep):
     pass
 
 
+class _DemixTraces(_PipelineStep):
+    pass
+
+
 class _GenerateCorrelationProjection(_PipelineStep):
     n_workers: int
 
@@ -199,6 +203,7 @@ class _PipelineSteps(ImmutableBaseModel):
     motion_correction: _MotionCorrection = Field(default=_MotionCorrection())
     segmentation: _Segmentation = Field(default=_Segmentation())
     trace_extraction: _TraceExtraction = Field(default=_TraceExtraction())
+    demix_traces: _DemixTraces = Field(default=_DemixTraces())
     roi_classification: _ROIClassification
 
 

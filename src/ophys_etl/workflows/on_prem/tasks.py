@@ -132,7 +132,6 @@ def submit_job(
     mod = module(
         ophys_experiment=ophys_experiment,
         ophys_session=ophys_session,
-        prevent_file_overwrites=context["params"]["prevent_file_overwrites"],
         docker_tag=docker_tag,
         **module_kwargs,
     )

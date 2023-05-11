@@ -149,7 +149,7 @@ class OphysExperiment:
             JOIN images on images.id = oe.ophys_primary_image_id
             JOIN ophys_sessions os on os.id = oe.ophys_session_id
             LEFT JOIN ophys_imaging_plane_groups oipg on 
-                oipg.id = oe.imaging_plane_group_id
+                oipg.id = oe.ophys_imaging_plane_group_id
             WHERE oe.id = {id}
         """
         lims_db = LIMSDB()

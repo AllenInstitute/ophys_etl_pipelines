@@ -12,10 +12,10 @@ from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.schemas import ROIClassifierEnsemble
 from ophys_etl.workflows.on_prem.workflow_utils import run_workflow_step
 from ophys_etl.workflows.pipeline_modules import roi_classification
-from ophys_etl.workflows.pipeline_modules.denoising.denoising_finetuning import ( # noqa E501
+from ophys_etl.workflows.pipeline_modules.denoising.denoising_finetuning import (  # noqa E501
     DenoisingFinetuningModule,
 )
-from ophys_etl.workflows.pipeline_modules.denoising.denoising_inference import ( # noqa E501
+from ophys_etl.workflows.pipeline_modules.denoising.denoising_inference import (  # noqa E501
     DenoisingInferenceModule,
 )
 from ophys_etl.workflows.pipeline_modules.motion_correction import (
@@ -24,8 +24,11 @@ from ophys_etl.workflows.pipeline_modules.motion_correction import (
 from ophys_etl.workflows.pipeline_modules.segmentation import (
     SegmentationModule,
 )
-from ophys_etl.workflows.pipeline_modules.trace_extraction import (
+from ophys_etl.workflows.pipeline_modules.trace_processing.trace_extraction import (  # noqa E501
     TraceExtractionModule,
+)
+from ophys_etl.workflows.pipeline_modules.trace_processing.demix_traces import (  # noqa E501
+    DemixTracesModule,
 )
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -223,16 +226,46 @@ def ophys_processing():
         thumbnail_dir >> run_inference()
 
     @task_group
-    def trace_extraction(motion_corrected_ophys_movie_file):
-        run_workflow_step(
-            slurm_config_filename="trace_extraction.yml",
-            module=TraceExtractionModule,
-            workflow_step_name=WorkflowStepEnum.TRACE_EXTRACTION,
-            workflow_name=WORKFLOW_NAME,
-            docker_tag=app_config.pipeline_steps.trace_extraction.docker_tag,
-            module_kwargs={
-                "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file # noqa E501
-            },
+    def trace_processing(motion_corrected_ophys_movie_file,
+                         rois_file):
+        @task_group
+        def trace_extraction(motion_corrected_ophys_movie_file,
+                             rois_file):
+            module_outputs = run_workflow_step(
+                slurm_config_filename="trace_extraction.yml",
+                module=TraceExtractionModule,
+                workflow_step_name=WorkflowStepEnum.TRACE_EXTRACTION,
+                workflow_name=WORKFLOW_NAME,
+                docker_tag=app_config.pipeline_steps.trace_extraction.docker_tag,  # noqa E501
+                module_kwargs={
+                    "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
+                    "rois_file": rois_file
+                },
+            )
+
+            return module_outputs[WellKnownFileTypeEnum.ROI_TRACE.value]
+
+        @task_group
+        def demix_traces(motion_corrected_ophys_movie_file, roi_traces_file):
+            run_workflow_step(
+                slurm_config_filename="demix_traces.yml",
+                module=DemixTracesModule,
+                workflow_step_name=WorkflowStepEnum.DEMIX_TRACES,
+                workflow_name=WORKFLOW_NAME,
+                docker_tag=app_config.pipeline_steps.trace_extraction.docker_tag,  # noqa E501
+                module_kwargs={
+                    "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
+                    "roi_traces_file": roi_traces_file
+                },
+            )
+
+        roi_traces_file = trace_extraction(
+            motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file,  # noqa E501
+            rois_file=rois_file
+        )
+        demix_traces(
+            motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file,  # noqa E501
+            roi_traces_file=roi_traces_file
         )
 
     motion_corrected_ophys_movie_file = motion_correction()
@@ -243,9 +276,9 @@ def ophys_processing():
     classify_rois(
         denoised_ophys_movie_file=denoised_movie_file, rois_file=rois_file
     )
-    rois_file >> trace_extraction(
-        motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file
-    )
+    trace_processing(
+        motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file,
+        rois_file=rois_file)
 
 
 ophys_processing()

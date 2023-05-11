@@ -122,7 +122,7 @@ def xdewarp(imgin: np.ndarray,
     imgout[:, (int(xtable['aL'])):(512-(int(xtable['aR'])))] = \
         imgin[:, (int(xtable['aL'])):(512-(int(xtable['aR'])))]
 
-    col = np.zeros(imgin.shape[0], np.float)
+    col = np.zeros(imgin.shape[0], float)
 
     # Left side
     for j in range(0, int(xtable['aL'])):

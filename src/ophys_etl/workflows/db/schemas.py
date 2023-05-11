@@ -110,6 +110,9 @@ class OphysROI(SQLModel, table=True):
     is_decrosstalk_invalid_unmixed: Optional[bool] = None
     is_decrosstalk_invalid_unmixed_active: Optional[bool] = None
     is_decrosstalk_ghost: Optional[bool] = None
+
+    # This field is not persisted to DB as a field in OphysROI and is
+    # populated by OphysExperiment.rois
     _mask_values: List[OphysROIMaskValue] = PrivateAttr()
 
     def to_dict(self):

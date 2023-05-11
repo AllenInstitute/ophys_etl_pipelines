@@ -124,7 +124,7 @@ def submit_job(
     else:
         ophys_session = None
 
-    if ophys_session is not None and OphysExperiment is not None:
+    if ophys_session is not None and ophys_experiment is not None:
         raise ValueError(
             'Expected either an ophys experiment or an ophys session to be '
             'passed, not both')

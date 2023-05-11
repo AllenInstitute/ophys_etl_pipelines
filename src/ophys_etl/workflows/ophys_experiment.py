@@ -243,11 +243,14 @@ class OphysExperiment:
                 .where(OphysROI.workflow_step_run_id == workflow_step_run_id)
             ).scalars().all()
 
+            # Accumulate mask values for each roi
             roi_mask_value_map: Dict[int, List[OphysROIMaskValue]] = \
                 defaultdict(list)
             for row in roi_mask_values:
                 roi_mask_value_map[row.ophys_roi_id].append(row)
 
+            # Update each roi with list of mask values
             for roi in rois:
                 roi._mask_values = roi_mask_value_map[roi.id]
+            
             return rois

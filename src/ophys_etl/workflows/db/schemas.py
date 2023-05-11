@@ -113,6 +113,9 @@ class OphysROI(SQLModel, table=True):
     _mask_values: List[OphysROIMaskValue] = PrivateAttr()
 
     def to_dict(self):
+        if getattr(self, '_mask_values', None) is None:
+            raise ValueError('_mask_values must be set in order to produce '
+                             'mask values. It is set by OphysExperiment.rois')
         return {
             "id": self.id,
             "x": self.x,

@@ -1,8 +1,8 @@
 import datetime
 from unittest.mock import patch
 
-from ophys_etl.workflows.on_prem.dags.decrosstalk_trigger import \
-    _get_completed_ophys_sessions
+from ophys_etl.workflows.workflow_step_runs import \
+    get_completed_ophys_sessions
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db
@@ -31,8 +31,8 @@ class TestDecrosstalkTrigger(MockSQLiteDB):
                     workflow_step_name=WorkflowStepEnum.SEGMENTATION,
                 )
 
-    @patch('ophys_etl.workflows.on_prem.dags.decrosstalk_trigger.'
-           '_get_session_experiment_id_map')
+    @patch('ophys_etl.workflows.workflow_step_runs.'
+           'get_session_experiment_id_map')
     def test__get_completed_ophys_sessions(
             self, mock_session_exp_map):
         mock_session_exp_map.return_value = [
@@ -42,14 +42,16 @@ class TestDecrosstalkTrigger(MockSQLiteDB):
             {'ophys_session_id': 2, 'ophys_experiment_id': 'd'},
         ]
 
-        with patch('ophys_etl.workflows.on_prem.dags.decrosstalk_trigger.'
-                   'engine', new=self._engine):
-            completed_sessions = _get_completed_ophys_sessions(
-                completed_ophys_experiment_ids=['a', 'c'])
+        with patch('ophys_etl.workflows.workflow_step_runs.engine',
+                   new=self._engine):
+            completed_sessions = get_completed_ophys_sessions(
+                ophys_experiment_ids=['a', 'c'],
+                workflow_step=WorkflowStepEnum.SEGMENTATION
+            )
         assert completed_sessions == [1]
 
-    @patch('ophys_etl.workflows.on_prem.dags.decrosstalk_trigger.'
-           '_get_session_experiment_id_map')
+    @patch('ophys_etl.workflows.workflow_step_runs.'
+           'get_session_experiment_id_map')
     def test__get_completed_ophys_sessions_none_complete(
             self, mock_session_exp_map):
         mock_session_exp_map.return_value = [
@@ -57,14 +59,16 @@ class TestDecrosstalkTrigger(MockSQLiteDB):
             {'ophys_session_id': 2, 'ophys_experiment_id': 'd'},
         ]
 
-        with patch('ophys_etl.workflows.on_prem.dags.decrosstalk_trigger.'
-                   'engine', new=self._engine):
-            completed_sessions = _get_completed_ophys_sessions(
-                completed_ophys_experiment_ids=['c'])
+        with patch('ophys_etl.workflows.workflow_step_runs.engine',
+                   new=self._engine):
+            completed_sessions = get_completed_ophys_sessions(
+                ophys_experiment_ids=['c'],
+                workflow_step=WorkflowStepEnum.SEGMENTATION
+            )
         assert completed_sessions == []
 
-    @patch('ophys_etl.workflows.on_prem.dags.decrosstalk_trigger.'
-           '_get_session_experiment_id_map')
+    @patch('ophys_etl.workflows.workflow_step_runs.'
+           'get_session_experiment_id_map')
     def test__get_completed_ophys_sessions_all_complete(
             self, mock_session_exp_map):
         mock_session_exp_map.return_value = [
@@ -73,8 +77,10 @@ class TestDecrosstalkTrigger(MockSQLiteDB):
             {'ophys_session_id': 2, 'ophys_experiment_id': 'c'},
         ]
 
-        with patch('ophys_etl.workflows.on_prem.dags.decrosstalk_trigger.'
-                   'engine', new=self._engine):
-            completed_sessions = _get_completed_ophys_sessions(
-                completed_ophys_experiment_ids=['a', 'c'])
+        with patch('ophys_etl.workflows.workflow_step_runs.engine',
+                   new=self._engine):
+            completed_sessions = get_completed_ophys_sessions(
+                ophys_experiment_ids=['a', 'c'],
+                workflow_step=WorkflowStepEnum.SEGMENTATION
+            )
         assert completed_sessions == [1, 2]

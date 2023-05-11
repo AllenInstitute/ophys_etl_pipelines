@@ -4,10 +4,13 @@ import logging
 from pathlib import Path
 from typing import Optional, List
 
+import pandas as pd
+
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, col, select
 
+from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.db_utils import (
     get_well_known_file_type,
     get_workflow_step_by_name,
@@ -17,6 +20,8 @@ from ophys_etl.workflows.db.schemas import (
     WorkflowStep,
     WorkflowStepRun, Workflow,
 )
+from ophys_etl.workflows.utils.ophys_experiment_utils import \
+    get_session_experiment_id_map
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
@@ -177,3 +182,42 @@ def get_runs_completed_since(
     )
     res = session.exec(statement)
     return res.all()
+
+
+def get_completed_ophys_sessions(
+    ophys_experiment_ids: List[str],
+    workflow_step: WorkflowStepEnum
+):
+    """Gets ophys sessions from the list of `ophys_experiment_ids`
+    that have completed workflow_step
+
+    Parameters
+    ----------
+    ophys_experiment_ids
+        List of ophys experiment ids
+    """
+    session_exps = get_session_experiment_id_map(
+        ophys_experiment_ids=ophys_experiment_ids
+    )
+
+    with Session(engine) as session:
+        step = get_workflow_step_by_name(
+            name=workflow_step,
+            workflow=WorkflowNameEnum.OPHYS_PROCESSING,
+            session=session
+        )
+        statement = (
+            select(WorkflowStepRun.ophys_experiment_id)
+            .where(WorkflowStepRun.workflow_step_id == step.id)
+        )
+        ophys_experiment_ids = session.exec(statement).all()
+
+    session_exps = pd.DataFrame(session_exps)
+    session_exps['has_completed'] = \
+        session_exps['ophys_experiment_id'].apply(
+            lambda x: x in ophys_experiment_ids)
+    has_session_completed = \
+        session_exps.groupby('ophys_session_id')['has_completed']\
+        .all()
+    completed_sessions = has_session_completed[has_session_completed].index
+    return completed_sessions.tolist()

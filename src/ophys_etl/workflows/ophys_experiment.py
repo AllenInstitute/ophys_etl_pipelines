@@ -252,5 +252,5 @@ class OphysExperiment:
             # Update each roi with list of mask values
             for roi in rois:
                 roi._mask_values = roi_mask_value_map[roi.id]
-            
+
             return rois

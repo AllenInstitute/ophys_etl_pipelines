@@ -68,7 +68,7 @@ def _get_plane_metadata(ophys_experiment: OphysExperiment):
         ),
         'output_neuropil_trace_file': None,  # TODO
         'motion_border': ophys_experiment.motion_border,
-        'rois': ophys_experiment.roi_metadata
+        'rois': [x.to_dict() for x in ophys_experiment.rois]
     }
 
 

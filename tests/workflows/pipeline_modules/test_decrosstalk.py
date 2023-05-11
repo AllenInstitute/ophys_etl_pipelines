@@ -2,7 +2,7 @@ import datetime
 from pathlib import Path
 from unittest.mock import patch, PropertyMock
 
-from ophys_etl.workflows.db.schemas import OphysROI
+from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
 
 from ophys_etl.workflows.pipeline_modules.segmentation import \
     SegmentationModule
@@ -86,10 +86,10 @@ class TestDecrosstalk(MockSQLiteDB):
                   new_callable=PropertyMock)
     @patch.object(OphysExperiment, 'motion_border',
                   new_callable=PropertyMock)
-    @patch.object(OphysExperiment, 'roi_metadata',
+    @patch.object(OphysExperiment, 'rois',
                   new_callable=PropertyMock)
     def test_inputs(self,
-                    mock_roi_metadata,
+                    mock_rois,
                     mock_motion_border,
                     mock_ophys_session_oe_ids,
                     mock_ophys_experiment_from_id
@@ -99,14 +99,22 @@ class TestDecrosstalk(MockSQLiteDB):
             specimen=Specimen(id='specimen_1')
         )
 
-        mock_roi_metadata.return_value = [{
-            "id": 0,
-            "x": 0,
-            "y": 0,
-            "width": 100,
-            "height": 100,
-            "mask": [True, False],
-        }]
+        mock_roi = OphysROI(
+                    id=1,
+                    x=0,
+                    y=0,
+                    width=2,
+                    height=1,
+                )
+        mock_roi._mask_values = [
+            OphysROIMaskValue(
+                id=1,
+                ophys_roi_id=1,
+                row_index=0,
+                col_index=0
+            )
+        ]
+        mock_rois.return_value = [mock_roi]
         mock_motion_border.return_value = {
             'x0': 1,
             'y0': 2,
@@ -162,7 +170,8 @@ class TestDecrosstalk(MockSQLiteDB):
                             ),
                             'output_neuropil_trace_file': None,
                             'motion_border': mock_motion_border.return_value,
-                            'rois': mock_roi_metadata.return_value
+                            'rois': [
+                                x.to_dict() for x in mock_rois.return_value]
                         }
                     ]
                 }

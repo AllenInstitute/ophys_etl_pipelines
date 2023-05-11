@@ -4,8 +4,7 @@ from typing import List, Dict
 
 import json
 
-from ophys_etl.workflows.db.schemas import OphysROI
-from sqlmodel import Session, select, col
+from sqlmodel import Session
 
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum

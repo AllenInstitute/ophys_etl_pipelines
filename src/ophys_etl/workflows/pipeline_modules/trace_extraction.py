@@ -2,9 +2,6 @@ import logging
 from types import ModuleType
 from typing import Dict, List
 
-from ophys_etl.workflows.db import engine
-from sqlmodel import Session
-
 from ophys_etl.modules import trace_extraction
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile

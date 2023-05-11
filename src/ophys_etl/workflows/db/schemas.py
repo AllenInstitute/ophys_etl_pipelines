@@ -4,8 +4,8 @@ from typing import Optional, List
 
 import numpy as np
 from pydantic import PrivateAttr
-from sqlalchemy import Column, Enum, UniqueConstraint, select
-from sqlmodel import Field, SQLModel, Session
+from sqlalchemy import Column, Enum, UniqueConstraint
+from sqlmodel import Field, SQLModel
 
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum

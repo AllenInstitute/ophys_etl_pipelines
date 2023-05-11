@@ -15,8 +15,8 @@ from sqlmodel import Session, select
 from ophys_etl.workflows.ophys_experiment import OphysSession, Specimen, \
     OphysExperiment, ImagingPlaneGroup
 
-from ophys_etl.workflows.pipeline_modules.decrosstalk import DecrosstalkModule, \
-    DECROSSTALK_FLAGS
+from ophys_etl.workflows.pipeline_modules.decrosstalk import \
+    DecrosstalkModule, DECROSSTALK_FLAGS
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
@@ -243,7 +243,8 @@ class TestDecrosstalk(MockSQLiteDB):
                 sqlalchemy_session=session,
                 storage_directory="/foo",
                 log_path="/foo",
-                additional_steps=DecrosstalkModule.save_decrosstalk_flags_to_db,
+                additional_steps=(
+                    DecrosstalkModule.save_decrosstalk_flags_to_db),
                 workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
             )
 

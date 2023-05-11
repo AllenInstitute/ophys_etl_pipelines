@@ -3,6 +3,7 @@ import datetime
 from typing import Optional, List
 
 import numpy as np
+from pydantic import PrivateAttr
 from sqlalchemy import Column, Enum, UniqueConstraint, select
 from sqlmodel import Field, SQLModel, Session
 
@@ -109,20 +110,16 @@ class OphysROI(SQLModel, table=True):
     is_decrosstalk_invalid_unmixed: Optional[bool] = None
     is_decrosstalk_invalid_unmixed_active: Optional[bool] = None
     is_decrosstalk_ghost: Optional[bool] = None
+    _mask_values: List[OphysROIMaskValue] = PrivateAttr()
 
-    def to_dict(self, session: Session):
-        query = select(OphysROIMaskValue).where(
-            OphysROIMaskValue.ophys_roi_id == self.id
-        )
-        masks_list = session.execute(query).all()
-        masks_list = [mask[0] for mask in masks_list]
+    def to_dict(self):
         return {
             "id": self.id,
             "x": self.x,
             "y": self.y,
             "width": self.width,
             "height": self.height,
-            "mask": self._generate_binary_mask(masks_list),
+            "mask": self._generate_binary_mask(self._mask_values),
         }
 
     def _generate_binary_mask(

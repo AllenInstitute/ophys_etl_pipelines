@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -9,7 +10,7 @@ from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.schemas import (
     MotionCorrectionRun,
-    OphysROI
+    OphysROI, OphysROIMaskValue
 )
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -230,9 +231,23 @@ class OphysExperiment:
                 WorkflowNameEnum.OPHYS_PROCESSING,
                 self.id,
             )
-            query = select(OphysROI).where(
-                OphysROI.workflow_step_run_id == workflow_step_run_id
-            )
+            rois: List[OphysROI] = session.execute(
+                select(OphysROI)
+                .where(OphysROI.workflow_step_run_id == workflow_step_run_id)
+            ).scalars().all()
 
-            result = session.execute(query).scalars().all()
-            return result
+            roi_mask_values: List[OphysROIMaskValue] = session.execute(
+                select(OphysROIMaskValue)
+                .join(OphysROI,
+                      onclause=OphysROI.id == OphysROIMaskValue.ophys_roi_id)
+                .where(OphysROI.workflow_step_run_id == workflow_step_run_id)
+            ).scalars().all()
+
+            roi_mask_value_map: Dict[int, List[OphysROIMaskValue]] = \
+                defaultdict(list)
+            for row in roi_mask_values:
+                roi_mask_value_map[row.ophys_roi_id].append(row)
+
+            for roi in rois:
+                roi._mask_values = roi_mask_value_map[roi.id]
+            return rois

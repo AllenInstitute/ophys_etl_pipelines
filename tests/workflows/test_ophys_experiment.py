@@ -51,31 +51,32 @@ class TestOphysExperiment(MockSQLiteDB):
             )
             session.add(motion_correction)
 
-            ophys_roi = OphysROI(
-                workflow_step_run_id=1,
-                x=10,
-                y=20,
-                width=30,
-                height=40,
-                is_in_motion_border=False,
-                is_small_size=False
-            )
-            session.add(ophys_roi)
-            session.flush()
+            for i in range(2):
+                ophys_roi = OphysROI(
+                    workflow_step_run_id=1,
+                    x=10,
+                    y=20,
+                    width=30,
+                    height=40,
+                    is_in_motion_border=False,
+                    is_small_size=False
+                )
+                session.add(ophys_roi)
+                session.flush()
 
-            ophys_roi_mask_value = OphysROIMaskValue(
-                ophys_roi_id=1,
-                row_index=5,
-                col_index=6,
-            )
-            session.add(ophys_roi_mask_value)
+                ophys_roi_mask_value = OphysROIMaskValue(
+                    ophys_roi_id=ophys_roi.id,
+                    row_index=5,
+                    col_index=6,
+                )
+                session.add(ophys_roi_mask_value)
 
-            ophys_roi_mask_value = OphysROIMaskValue(
-                ophys_roi_id=1,
-                row_index=6,
-                col_index=8,
-            )
-            session.add(ophys_roi_mask_value)
+                ophys_roi_mask_value = OphysROIMaskValue(
+                    ophys_roi_id=ophys_roi.id,
+                    row_index=6,
+                    col_index=8,
+                )
+                session.add(ophys_roi_mask_value)
             session.commit()
 
     def setup(self):
@@ -95,16 +96,17 @@ class TestOphysExperiment(MockSQLiteDB):
             "ophys_etl.workflows.ophys_experiment.engine", self._engine
         ):
             with Session(self._engine) as session:
-                roi_metadata = [x.to_dict(session=session) for x in
+                roi_metadata = [x.to_dict() for x in
                                 self.ophys_experiment.rois]
-            assert len(roi_metadata) == 1
-            assert roi_metadata[0]["x"] == 10
-            assert roi_metadata[0]["y"] == 20
-            assert roi_metadata[0]["width"] == 30
-            assert roi_metadata[0]["height"] == 40
-            assert roi_metadata[0]["mask"][5][6] == 1
-            assert len(roi_metadata[0]["mask"]) == 40
-            assert len(roi_metadata[0]["mask"][0]) == 30
+            assert len(roi_metadata) == 2
+            for i in range(2):
+                assert roi_metadata[i]["x"] == 10
+                assert roi_metadata[i]["y"] == 20
+                assert roi_metadata[i]["width"] == 30
+                assert roi_metadata[i]["height"] == 40
+                assert roi_metadata[i]["mask"][5][6] == 1
+                assert len(roi_metadata[i]["mask"]) == 40
+                assert len(roi_metadata[i]["mask"][0]) == 30
 
     def test_motion_border(self):
         with patch(

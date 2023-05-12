@@ -189,12 +189,15 @@ def get_completed_ophys_sessions(
     workflow_step: WorkflowStepEnum
 ):
     """Gets ophys sessions from the list of `ophys_experiment_ids`
-    that have completed workflow_step
+    that have completed `workflow_step`. i.e. all experiments in session
+    have completed `workflow_step`
 
     Parameters
     ----------
     ophys_experiment_ids
         List of ophys experiment ids
+    workflow_step
+        Workflow step to check for completion
     """
     session_exps = get_session_experiment_id_map(
         ophys_experiment_ids=ophys_experiment_ids

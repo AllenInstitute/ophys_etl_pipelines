@@ -2,7 +2,6 @@ import datetime
 from pathlib import Path
 
 import pytest
-from conftest import MockSQLiteDB
 from sqlmodel import Session
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db
@@ -14,6 +13,7 @@ from ophys_etl.workflows.workflow_step_runs import (
     get_well_known_file_for_latest_run,
 )
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
+from tests.workflows.conftest import MockSQLiteDB
 
 
 class TestWorkflowStepRuns(MockSQLiteDB):

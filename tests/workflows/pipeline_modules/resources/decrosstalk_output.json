@@ -1,0 +1,37 @@
+{
+  "ophys_session_id": "session_1",
+  "coupled_planes": [
+    {
+      "ophys_imaging_plane_group_id": 0,
+      "group_order": 0,
+      "planes": [
+        {
+          "ophys_experiment_id": "oe_1",
+          "output_roi_trace_file": "oe_1_roi_traces.h5",
+          "output_neuropil_trace_file": null,
+          "decrosstalk_invalid_raw": [],
+          "decrosstalk_invalid_raw_active": [],
+          "decrosstalk_invalid_unmixed": [],
+          "decrosstalk_invalid_unmixed_active": [],
+          "decrosstalk_ghost": []
+        }
+      ]
+    },
+    {
+      "ophys_imaging_plane_group_id": 1,
+      "group_order": 1,
+      "planes": [
+        {
+          "ophys_experiment_id": "oe_2",
+          "output_roi_trace_file": "oe_2_roi_traces.h5",
+          "output_neuropil_trace_file": null,
+          "decrosstalk_invalid_raw": [3, 4],
+          "decrosstalk_invalid_raw_active": [],
+          "decrosstalk_invalid_unmixed": [3, 4],
+          "decrosstalk_invalid_unmixed_active": [],
+          "decrosstalk_ghost": [3]
+        }
+      ]
+    }
+  ]
+}

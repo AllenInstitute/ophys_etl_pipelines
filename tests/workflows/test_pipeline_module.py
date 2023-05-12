@@ -77,7 +77,7 @@ class TestPipelineModule:
             cls._dummy_mod = _DummyMod(
                 ophys_experiment=OphysExperiment(
                     id="1",
-                    session=OphysSession(id="2"),
+                    session=OphysSession(id="2", specimen=Specimen("1")),
                     specimen=Specimen(id="3"),
                     storage_directory=Path("/storage_dir"),
                     raw_movie_filename=Path("mov.h5"),
@@ -118,7 +118,7 @@ class TestPipelineModule:
             / "experiment_1"
             / self._dummy_mod.queue_name.value
             / "2023-01-01_01-01-01-000001"
-            / f"{self._dummy_mod.queue_name.value}_1_output.json"
+            / f"{self._dummy_mod.queue_name.value}_output.json"
         )
 
     @patch("datetime.datetime", wraps=datetime.datetime)
@@ -133,7 +133,7 @@ class TestPipelineModule:
             / "experiment_1"
             / self._dummy_mod.queue_name.value
             / "2023-01-01_01-01-01-000001"
-            / f"{self._dummy_mod.queue_name.value}_1_input.json"
+            / f"{self._dummy_mod.queue_name.value}_input.json"
         )
 
     @patch("datetime.datetime", wraps=datetime.datetime)

@@ -15,7 +15,7 @@ from ophys_etl.workflows.on_prem.slurm.slurm import (
     SlurmJobFailedException,
     logger,
 )
-from ophys_etl.workflows.ophys_experiment import OphysExperiment
+from ophys_etl.workflows.ophys_experiment import OphysExperiment, OphysSession
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
 from ophys_etl.workflows.utils.json_utils import EnhancedJSONEncoder
@@ -82,7 +82,6 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
 def submit_job(
     module: Type[PipelineModule],
     config_path: str,
-    ophys_experiment_id: Optional[str] = None,
     module_kwargs: Optional[Dict] = None,
     docker_tag: str = "main",
     **context,
@@ -95,9 +94,6 @@ def submit_job(
         `PipelineModule` to submit job for
     config_path
         Path to slurm config for this job
-    ophys_experiment_id
-        Optional ophys experiment id. If not given, will try to pull from
-        airflow params
     module_kwargs
         Optional kwargs to send to `PipelineModule`
     docker_tag
@@ -116,16 +112,26 @@ def submit_job(
     if module_kwargs is None:
         module_kwargs = {}
 
-    if ophys_experiment_id is None:
-        ophys_experiment_id = context["params"].get("ophys_experiment_id")
-    oe = (
-        OphysExperiment.from_id(id=ophys_experiment_id)
-        if ophys_experiment_id is not None
-        else None
-    )
+    if context['params'].get('ophys_experiment_id') is not None:
+        ophys_experiment_id = context["params"]["ophys_experiment_id"]
+        ophys_experiment = OphysExperiment.from_id(id=ophys_experiment_id)
+    else:
+        ophys_experiment = None
+
+    if context['params'].get('ophys_session_id') is not None:
+        ophys_session_id = context["params"]["ophys_session_id"]
+        ophys_session = OphysSession.from_id(id=ophys_session_id)
+    else:
+        ophys_session = None
+
+    if ophys_session is not None and ophys_experiment is not None:
+        raise ValueError(
+            'Expected either an ophys experiment or an ophys session to be '
+            'passed, not both')
+
     mod = module(
-        ophys_experiment=oe,
-        prevent_file_overwrites=context["params"]["prevent_file_overwrites"],
+        ophys_experiment=ophys_experiment,
+        ophys_session=ophys_session,
         docker_tag=docker_tag,
         **module_kwargs,
     )

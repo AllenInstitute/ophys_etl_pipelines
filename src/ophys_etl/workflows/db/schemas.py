@@ -1,7 +1,9 @@
 """App database schemas"""
 import datetime
-from typing import Optional
+from typing import Optional, List
 
+import numpy as np
+from pydantic import PrivateAttr
 from sqlalchemy import Column, Enum, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
@@ -44,7 +46,18 @@ class WorkflowStepRun(SQLModel, table=True):
     __tablename__ = "workflow_step_run"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    ophys_experiment_id: Optional[str] = Field(index=True)
+    ophys_experiment_id: Optional[str] = Field(
+        index=True,
+        description='Ophys experiment id from LIMS that this workflow step run'
+                    'is associated with. None if not associated with a '
+                    'specific experiment'
+    )
+    ophys_session_id: Optional[str] = Field(
+        index=True,
+        description='Ophys session id from LIMS that this workflow step run'
+                    'is associated with. None if not associated with a '
+                    'specific session'
+    )
     workflow_step_id: int = Field(foreign_key="workflow_step.id")
     log_path: str
     storage_directory: str
@@ -64,6 +77,17 @@ class MotionCorrectionRun(SQLModel, table=True):
     max_correction_down: float
     max_correction_right: float
     max_correction_left: float
+
+
+class OphysROIMaskValue(SQLModel, table=True):
+    """Stores a single value of an ROI mask as row, col"""
+
+    __tablename__ = "ophys_roi_mask_value"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ophys_roi_id: int = Field(foreign_key="ophys_roi.id")
+    row_index: int
+    col_index: int
 
 
 class OphysROI(SQLModel, table=True):
@@ -87,16 +111,46 @@ class OphysROI(SQLModel, table=True):
     is_decrosstalk_invalid_unmixed_active: Optional[bool] = None
     is_decrosstalk_ghost: Optional[bool] = None
 
+    # This field is not persisted to DB as a field in OphysROI and is
+    # populated by OphysExperiment.rois
+    _mask_values: List[OphysROIMaskValue] = PrivateAttr()
 
-class OphysROIMaskValue(SQLModel, table=True):
-    """Stores a single value of an ROI mask as row, col"""
+    def to_dict(self):
+        if getattr(self, '_mask_values', None) is None:
+            raise ValueError('_mask_values must be set in order to produce '
+                             'mask values. It is set by OphysExperiment.rois')
+        return {
+            "id": self.id,
+            "x": self.x,
+            "y": self.y,
+            "width": self.width,
+            "height": self.height,
+            "mask": self._generate_binary_mask(self._mask_values),
+        }
 
-    __tablename__ = "ophys_roi_mask_value"
+    def _generate_binary_mask(
+            self,
+            ophys_roi_mask_values: List[OphysROIMaskValue]
+    ) -> List[List[bool]]:
+        """
+        Generate binary mask for an ROI
 
-    id: Optional[int] = Field(default=None, primary_key=True)
-    ophys_roi_id: int = Field(foreign_key="ophys_roi.id")
-    row_index: int
-    col_index: int
+        Parameters
+        ----------
+        ophys_roi_mask_values
+            The ophys ROI mask values
+
+        Returns
+        -------
+        List[List[bool]]
+            A list of lists of booleans representing the binary mask
+        """
+        mask = np.zeros((self.height, self.width), dtype=bool)
+        for ophys_roi_mask_value in ophys_roi_mask_values:
+            mask[
+                ophys_roi_mask_value.row_index, ophys_roi_mask_value.col_index
+            ] = True
+        return mask.tolist()
 
 
 class ROIClassifierTrainingRun(SQLModel, table=True):

@@ -33,6 +33,11 @@ class WellKnownFileTypeEnum(Enum):
     TRACE_EXTRACTION_EXCLUSION_LABELS = "TRACE_EXTRACTION_EXCLUSION_LABELS"
 
     ########
+    # Demixed Traces
+    ########
+    DEMIXED_TRACES = "DEMIXED_TRACES"
+
+    ########
     # ROI classification
     ########
     ROI_CLASSIFICATION_CORRELATION_PROJECTION_GRAPH = (
@@ -51,6 +56,6 @@ class WellKnownFileTypeEnum(Enum):
     )
 
     ########
-    # Demixed Traces
+    # decrosstalk
     ########
-    DEMIXED_TRACES = "DEMIXED_TRACES"
+    DECROSSTALK_FLAGS = "DECROSSTALK_FLAGS"

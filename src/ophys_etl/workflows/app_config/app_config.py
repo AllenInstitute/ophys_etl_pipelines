@@ -108,6 +108,10 @@ class _TraceExtraction(_PipelineStep):
     pass
 
 
+class _Decrostalk(_PipelineStep):
+    pass
+
+
 class _DemixTraces(_PipelineStep):
     pass
 
@@ -205,6 +209,7 @@ class _PipelineSteps(ImmutableBaseModel):
     trace_extraction: _TraceExtraction = Field(default=_TraceExtraction())
     demix_traces: _DemixTraces = Field(default=_DemixTraces())
     roi_classification: _ROIClassification
+    decrosstalk: _Decrostalk = Field(default=_Decrostalk())
 
 
 ##################

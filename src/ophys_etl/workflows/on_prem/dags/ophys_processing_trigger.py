@@ -1,15 +1,13 @@
-import base64
 import datetime
 import logging
-from typing import List, Optional
+from typing import List
 
-import requests
 from airflow.decorators import task
 from airflow.models.dag import dag
 from airflow.operators.python import get_current_context
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from ophys_etl.workflows.app_config.app_config import app_config
-from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port
+from ophys_etl.workflows.utils.dag_utils import get_most_recent_run
 
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 
@@ -55,35 +53,6 @@ def _get_all_ophys_experiments_completed_since(
     return ophys_experiment_ids
 
 
-def _get_most_recent_run() -> Optional[datetime.datetime]:
-    """Gets the most recent run of this DAG, or None if not run before"""
-    rest_api_username = \
-        app_config.airflow_rest_api_credentials.username.get_secret_value()
-    rest_api_password = \
-        app_config.airflow_rest_api_credentials.password.get_secret_value()
-    auth = base64.b64encode(
-        f'{rest_api_username}:{rest_api_password}'.encode('utf-8'))
-    rest_api_port = get_rest_api_port()
-    r = requests.get(
-        f'http://0.0.0.0:{rest_api_port}/api/v1/dags/ophys_processing_trigger/'
-        f'dagRuns?'
-        'limit=1&'
-        'order_by=-execution_date&'
-        'state=success',
-        headers={
-            'Authorization': f'Basic {auth.decode()}'
-        }
-    )
-    response = r.json()
-    if len(response['dag_runs']) == 0:
-        last_run_datetime = None
-    else:
-        last_dag_run = response['dag_runs'][0]
-        last_run_datetime = datetime.datetime.strptime(
-            last_dag_run['logical_date'], '%Y-%m-%dT%H:%M:%S.%f%z')
-    return last_run_datetime
-
-
 logger = logging.getLogger('airflow.task')
 
 
@@ -97,7 +66,8 @@ def ophys_processing_trigger():
 
     @task
     def trigger():
-        last_run_datetime = _get_most_recent_run()
+        last_run_datetime = get_most_recent_run(
+            dag_id='ophys_processing_trigger')
         if last_run_datetime is None:
             # this DAG hasn't been successfully run before
             # nothing to do

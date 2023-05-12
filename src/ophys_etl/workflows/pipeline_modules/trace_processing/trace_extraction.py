@@ -42,8 +42,10 @@ class TraceExtractionModule(PipelineModule):
             "log_level": logging.DEBUG,
             "storage_directory": self.output_path,
             "motion_border": self.ophys_experiment.motion_border,
-            "motion_corrected_stack": self._motion_corrected_ophys_movie_file,
-            "rois": self.ophys_experiment.rois,
+            "motion_corrected_stack": (
+                self._motion_corrected_ophys_movie_file),
+            "rois": [x.to_dict() for x in
+                     self.ophys_experiment.rois],
         }
 
     @property

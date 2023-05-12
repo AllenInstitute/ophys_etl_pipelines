@@ -17,7 +17,6 @@ def run_workflow_step(
     workflow_name: WorkflowNameEnum,
     workflow_step_name: WorkflowStepEnum,
     docker_tag: Optional[str] = None,
-    experiment_id: Optional[str] = None,
     slurm_config_filename: Optional[str] = None,
     module_kwargs: Optional[Dict] = None,
     additional_db_inserts: Optional[Callable] = None,
@@ -39,9 +38,6 @@ def run_workflow_step(
     docker_tag
         What docker tag to use.
         Uses default if not provided
-    experiment_id
-        Optional ophys experiment id. If not provided, will try to pull the
-        value from the airflow params
     module_kwargs
         kwargs to send to module
     additional_db_inserts
@@ -56,7 +52,6 @@ def run_workflow_step(
     job_finish_res = submit_job_and_wait_to_finish(
         module=module,
         docker_tag=docker_tag,
-        experiment_id=experiment_id,
         slurm_config_filename=slurm_config_filename,
         module_kwargs=module_kwargs,
     )
@@ -73,7 +68,6 @@ def run_workflow_step(
 def submit_job_and_wait_to_finish(
     module: Type[PipelineModule],
     docker_tag: Optional[str] = None,
-    experiment_id: Optional[str] = None,
     slurm_config_filename: Optional[str] = None,
     module_kwargs: Optional[Dict] = None,
 ) -> str:
@@ -86,8 +80,6 @@ def submit_job_and_wait_to_finish(
     module
         See `run_workflow_step`
     docker_tag
-        See `run_workflow_step`
-    experiment_id
         See `run_workflow_step`
     slurm_config_filename
         See `run_workflow_step`
@@ -111,7 +103,6 @@ def submit_job_and_wait_to_finish(
     )
 
     job_submit_res = submit_job(
-        ophys_experiment_id=experiment_id,
         module=module,
         config_path=str(slurm_config),
         docker_tag=docker_tag,

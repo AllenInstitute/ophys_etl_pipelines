@@ -10,7 +10,8 @@
         true,
         false
       ]
-    ]
+    ],
+    "exclusion_labels": []
   },
   {
     "id": 2,
@@ -23,6 +24,7 @@
         false,
         true
       ]
-    ]
+    ],
+    "exclusion_labels": []
   }
 ]

@@ -166,9 +166,11 @@ class TestDecrosstalk(MockSQLiteDB):
                                 f'{self._experiment_ids[i]}_max_proj.png'
                             ),
                             'output_roi_trace_file': (
-                                f'{self._experiment_ids[i]}_roi_traces.h5'
+                                mod.output_path / 'roi_traces.h5'
                             ),
-                            'output_neuropil_trace_file': None,
+                            'output_neuropil_trace_file': (
+                                mod.output_path / 'neuropil_traces.h5'
+                            ),
                             'motion_border': mock_motion_border.return_value,
                             'rois': [
                                 x.to_dict() for x in mock_rois.return_value]

@@ -30,47 +30,6 @@ DECROSSTALK_FLAGS = (
 )
 
 
-def _get_plane_metadata(ophys_experiment: OphysExperiment):
-    return {
-        'ophys_experiment_id': ophys_experiment.id,
-        'motion_corrected_stack': str(
-            get_well_known_file_for_latest_run(
-                ophys_experiment_id=ophys_experiment.id,
-                engine=engine,
-                well_known_file_type=(
-                    WellKnownFileTypeEnum.
-                    MOTION_CORRECTED_IMAGE_STACK),
-                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-                workflow_step=WorkflowStepEnum.MOTION_CORRECTION
-            )
-        ),
-        'maximum_projection_image_file': str(
-            get_well_known_file_for_latest_run(
-                ophys_experiment_id=ophys_experiment.id,
-                engine=engine,
-                well_known_file_type=(
-                    WellKnownFileTypeEnum.
-                    MAX_INTENSITY_PROJECTION_IMAGE),
-                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-                workflow_step=WorkflowStepEnum.MOTION_CORRECTION
-            )
-        ),
-        'output_roi_trace_file': str(
-            get_well_known_file_for_latest_run(
-                ophys_experiment_id=ophys_experiment.id,
-                engine=engine,
-                well_known_file_type=(
-                    WellKnownFileTypeEnum.ROI_TRACE),
-                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-                workflow_step=WorkflowStepEnum.TRACE_EXTRACTION
-            )
-        ),
-        'output_neuropil_trace_file': None,  # TODO
-        'motion_border': ophys_experiment.motion_border,
-        'rois': [x.to_dict() for x in ophys_experiment.rois]
-    }
-
-
 class DecrosstalkModule(PipelineModule):
     """Decrosstalk module"""
 
@@ -100,7 +59,7 @@ class DecrosstalkModule(PipelineModule):
                 'ophys_imaging_plane_group_id': imaging_plane_group.id,
                 'group_order': imaging_plane_group.group_order,
                 'planes': [
-                    _get_plane_metadata(
+                    self._get_plane_input(
                         ophys_experiment=ophys_experiment
                     )
                     for ophys_experiment in ipg_ophys_experiment_map[
@@ -163,3 +122,39 @@ class DecrosstalkModule(PipelineModule):
                 # Update flags in the database
                 for roi in rois:
                     session.add(roi)
+
+    def _get_plane_input(
+            self,
+            ophys_experiment: OphysExperiment
+    ):
+        """Gets the inputs for a single plane"""
+        return {
+            'ophys_experiment_id': ophys_experiment.id,
+            'motion_corrected_stack': str(
+                get_well_known_file_for_latest_run(
+                    ophys_experiment_id=ophys_experiment.id,
+                    engine=engine,
+                    well_known_file_type=(
+                        WellKnownFileTypeEnum.
+                        MOTION_CORRECTED_IMAGE_STACK),
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                    workflow_step=WorkflowStepEnum.MOTION_CORRECTION
+                )
+            ),
+            'maximum_projection_image_file': str(
+                get_well_known_file_for_latest_run(
+                    ophys_experiment_id=ophys_experiment.id,
+                    engine=engine,
+                    well_known_file_type=(
+                        WellKnownFileTypeEnum.
+                        MAX_INTENSITY_PROJECTION_IMAGE),
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                    workflow_step=WorkflowStepEnum.MOTION_CORRECTION
+                )
+            ),
+            'output_roi_trace_file': self.output_path / 'roi_traces.h5',
+            'output_neuropil_trace_file': (
+                    self.output_path / 'neuropil_traces.h5'),
+            'motion_border': ophys_experiment.motion_border,
+            'rois': [x.to_dict() for x in ophys_experiment.rois]
+        }

@@ -140,7 +140,8 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         selected_rois = set(selected_rois)
 
         self.logger.info("Creating and writing ROI artifacts...")
-        brightest_peaks = {}
+        brightest_peak_idxs = {}
+        exp_peaks = {}
 
         for roi in extract_roi_list:
             if roi['id'] not in selected_rois:
@@ -152,11 +153,12 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                 roi=roi,
                 mov=mov,
                 exp_id=exp_id)
+            exp_peaks[roi.roi_id] = peaks
             clip, brightest_peak_idx = self._construct_clip(
                 peaks=peaks,
                 roi=roi
             )
-            brightest_peaks[roi.roi_id] = brightest_peak_idx
+            brightest_peak_idxs[roi.roi_id] = brightest_peak_idx
 
             np.save(
                 str(pathlib.Path(self.args['out_dir']) /
@@ -166,7 +168,10 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
 
         with open(pathlib.Path(self.args['out_dir']) /
                   f'brightest_peak_idx_{exp_id}.json', 'w') as f:
-            f.write(json.dumps(brightest_peaks, indent=2))
+            f.write(json.dumps(brightest_peak_idxs, indent=2))
+        with open(pathlib.Path(self.args['out_dir']) /
+                  f'peaks_{exp_id}.json', 'w') as f:
+            f.write(json.dumps(exp_peaks, indent=2))
 
         self.logger.info(f"Created ROI artifacts in {time.time()-t0:.0f} "
                          "seconds.")
@@ -225,11 +230,6 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             'trace': float(trace[peak])
         } for peak in peaks]
 
-        filename = pathlib.Path(self.args['out_dir']) / \
-            f'peaks_{exp_id}_{roi.roi_id}.json'
-        with open(filename, 'w') as f:
-            f.write(json.dumps(peaks, indent=2))
-
         return peaks
 
     def _construct_clip(
@@ -237,7 +237,14 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             peaks: List[Dict],
             roi: OphysROI
     ) -> Tuple[np.ndarray, int]:
-        """Constructs clip from full movie"""
+        """Constructs clip from full movie
+
+        Returns
+        -------
+        Tuple[np.ndarray, int]
+            Clip, where the brightest peak is in clip
+
+        """
         peaks = sorted(peaks, key=lambda x: x['trace'])[::-1][
                 :self.args['limit_to_n_highest_peaks']]
         brightest_peak = peaks[0]
@@ -366,7 +373,7 @@ def _generate_mask_image(
     if mask.shape != (cutout_size, cutout_size):
         mask = _pad_cutout(
             frames=mask,
-            desired_shape=(cutout_size, cutout_size),
+            desired_shape=cutout_size,
             fov_shape=fov_shape,
             pad_mode='constant',
             roi=roi
@@ -431,7 +438,7 @@ def _draw_mask_outline_on_frames(
 def _pad_cutout(
     frames: np.ndarray,
     roi: OphysROI,
-    desired_shape: Tuple[int, int],
+    desired_shape: int,
     fov_shape: Tuple[int, int],
     pad_mode: str
 ) -> np.ndarray:
@@ -440,11 +447,11 @@ def _pad_cutout(
     row_pad = get_cutout_padding(
         dim_center=roi.bounding_box_center_y,
         image_dim_size=fov_shape[0],
-        cutout_dim=desired_shape[0])
+        cutout_dim=desired_shape)
     col_pad = get_cutout_padding(
         dim_center=roi.bounding_box_center_x,
         image_dim_size=fov_shape[0],
-        cutout_dim=desired_shape[0])
+        cutout_dim=desired_shape)
 
     if len(frames.shape) == 3:
         # Don't pad temporal dimension

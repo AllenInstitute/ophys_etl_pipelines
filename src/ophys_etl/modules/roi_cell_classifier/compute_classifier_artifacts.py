@@ -160,10 +160,10 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             )
             brightest_peak_idxs[roi.roi_id] = brightest_peak_idx
 
-            np.save(
-                str(pathlib.Path(self.args['out_dir']) /
-                    f'clip_{exp_id}_{roi.roi_id}.npy'),
-                clip
+            self._write_video(
+                exp_id=exp_id,
+                roi=roi,
+                frames=clip
             )
 
         with open(pathlib.Path(self.args['out_dir']) /
@@ -175,6 +175,26 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
 
         self.logger.info(f"Created ROI artifacts in {time.time()-t0:.0f} "
                          "seconds.")
+
+    def _write_video(
+        self,
+        exp_id: str,
+        roi: OphysROI,
+        frames: np.ndarray
+    ):
+        out_path = pathlib.Path(self.args['out_dir']) / \
+                   f'clip_{exp_id}_{roi.roi_id}.mov'
+        res = cv2.VideoWriter(str(out_path),
+                              cv2.VideoWriter_fourcc(*'mp4v'), 8.0,
+                              (self.args['cutout_size'],
+                               self.args['cutout_size']))
+        for frame in frames:
+            # cv2 expects BGR images
+            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+            res.write(frame)
+
+        res.release()
 
     def _get_labeled_rois_for_experiment(self) -> List[int]:
         """Get labeled rois for experiment"""

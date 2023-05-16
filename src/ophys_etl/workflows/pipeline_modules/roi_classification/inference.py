@@ -26,7 +26,7 @@ from ophys_etl.workflows.pipeline_modules.roi_classification.utils.mlflow_utils 
 )
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
-from ophys_etl.workflows.workflow_step_runs import get_latest_run
+from ophys_etl.workflows.workflow_step_runs import get_latest_workflow_step_run
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
@@ -201,7 +201,7 @@ class InferenceModule(PipelineModule):
         ROIs from most recent segmentation run for `self.ophys_experiment.id`
         """
         with Session(engine) as session:
-            segmentation_run_id = get_latest_run(
+            segmentation_run_id = get_latest_workflow_step_run(
                 session=session,
                 workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
                 workflow_step=WorkflowStepEnum.SEGMENTATION,

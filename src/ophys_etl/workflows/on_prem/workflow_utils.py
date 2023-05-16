@@ -1,6 +1,8 @@
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Type
 
+from airflow.sensors.base import BaseSensorOperator
+
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.on_prem.tasks import (
     submit_job,
@@ -20,6 +22,7 @@ def run_workflow_step(
     slurm_config_filename: Optional[str] = None,
     module_kwargs: Optional[Dict] = None,
     additional_db_inserts: Optional[Callable] = None,
+    pre_submit_sensor: Optional[Callable[[], BaseSensorOperator]] = None
 ) -> Any:
     """
     Runs a single workflow step
@@ -42,7 +45,9 @@ def run_workflow_step(
         kwargs to send to module
     additional_db_inserts
         An optional function which inserts arbitrary data into the app DB
-
+    pre_submit_sensor
+        An optional function that returns a sensor, in order to wait for
+        some condition in order to submit the job
 
     Returns
     -------
@@ -54,6 +59,7 @@ def run_workflow_step(
         docker_tag=docker_tag,
         slurm_config_filename=slurm_config_filename,
         module_kwargs=module_kwargs,
+        pre_submit_sensor=pre_submit_sensor
     )
     run = save_job_run_to_db(
         workflow_name=workflow_name,
@@ -70,6 +76,7 @@ def submit_job_and_wait_to_finish(
     docker_tag: Optional[str] = None,
     slurm_config_filename: Optional[str] = None,
     module_kwargs: Optional[Dict] = None,
+    pre_submit_sensor: Optional[Callable[[], BaseSensorOperator]] = None
 ) -> str:
     """
     Submits slurm job and periodically checks whether it is finished by
@@ -84,6 +91,8 @@ def submit_job_and_wait_to_finish(
     slurm_config_filename
         See `run_workflow_step`
     module_kwargs
+        See `run_workflow_step`
+    pre_submit_sensor
         See `run_workflow_step`
 
     Returns
@@ -108,6 +117,9 @@ def submit_job_and_wait_to_finish(
         docker_tag=docker_tag,
         module_kwargs=module_kwargs,
     )
+
+    if pre_submit_sensor is not None:
+        pre_submit_sensor().set_downstream(job_submit_res)
 
     job_finish_res = wait_for_job_to_finish(timeout=app_config.job_timeout)(
         job_id=job_submit_res["job_id"],

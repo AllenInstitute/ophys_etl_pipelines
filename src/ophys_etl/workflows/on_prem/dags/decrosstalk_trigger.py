@@ -12,7 +12,7 @@ from ophys_etl.workflows.utils.lims_utils import LIMSDB
 from ophys_etl.workflows.db import engine
 from sqlmodel import Session
 
-from ophys_etl.workflows.utils.dag_utils import get_most_recent_run
+from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_runs_completed_since, \
     get_completed_ophys_sessions
@@ -66,7 +66,7 @@ def decrosstalk_trigger():
     """
     @task
     def trigger():
-        last_run_datetime = get_most_recent_run(
+        last_run_datetime = get_latest_dag_run(
             dag_id='decrosstalk_trigger')
         if last_run_datetime is None:
             # this DAG hasn't been successfully run before

@@ -58,7 +58,7 @@ def get_well_known_file_for_latest_run(
         path of well_known_file_type
     """
     with Session(engine) as session:
-        workflow_step_run_id = get_latest_run(
+        workflow_step_run_id = get_latest_workflow_step_run(
             session=session,
             workflow_step=workflow_step,
             workflow_name=workflow_name,
@@ -87,15 +87,18 @@ def get_well_known_file_for_latest_run(
     return Path(well_known_file_path)
 
 
-def get_latest_run(
+def get_latest_workflow_step_run(
     session: Session,
     workflow_step: WorkflowStepEnum,
     workflow_name: WorkflowNameEnum,
     ophys_experiment_id: Optional[str] = None,
+    ophys_session_id: Optional[str] = None
 ) -> int:
     """
     Gets the latest workflow step run id for `workflow_step` as part of
-    `workflow_name` for `ophys_experiment_id`
+    `workflow_name` for `ophys_experiment_id` if associated with an
+    ophys_experiment_id, or `ophys_session_id` if associated with an
+    ophys_session_id, or neither if not associated with either.
 
 
     Parameters
@@ -108,7 +111,8 @@ def get_latest_run(
         `WorkflowNameEnum` enum
     ophys_experiment_id
         Optional ophys experiment id
-
+    ophys_session_id
+        Optional ophys session id
     Returns
     -------
     int
@@ -119,6 +123,9 @@ def get_latest_run(
     NoResultFound
         If workflow step run cannot be found
     """
+    if ophys_experiment_id is not None and ophys_session_id is not None:
+        raise ValueError('Provide either ophys_experiment_id or '
+                         'ophys_session_id, not both')
     workflow_step = get_workflow_step_by_name(
         session=session, name=workflow_step, workflow=workflow_name
     )
@@ -127,6 +134,10 @@ def get_latest_run(
     if ophys_experiment_id is not None:
         statement = statement.where(
             WorkflowStepRun.ophys_experiment_id == ophys_experiment_id
+        )
+    elif ophys_session_id is not None:
+        statement = statement.where(
+            WorkflowStepRun.ophys_session_id == ophys_session_id
         )
 
     statement = (

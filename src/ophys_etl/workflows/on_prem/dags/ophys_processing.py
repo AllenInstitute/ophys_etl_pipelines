@@ -10,7 +10,8 @@ from sqlmodel import Session
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.schemas import ROIClassifierEnsemble
-from ophys_etl.workflows.on_prem.workflow_utils import run_workflow_step
+from ophys_etl.workflows.on_prem.workflow_utils import run_workflow_step, \
+    submit_job_and_wait_to_finish
 from ophys_etl.workflows.pipeline_modules import roi_classification
 from ophys_etl.workflows.pipeline_modules.denoising.denoising_finetuning import (  # noqa E501
     DenoisingFinetuningModule,
@@ -30,7 +31,8 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.trace_extraction impo
 from ophys_etl.workflows.pipeline_modules.trace_processing.demix_traces import (  # noqa E501
     DemixTracesModule,
 )
-from ophys_etl.workflows.tasks import wait_for_decrosstalk_to_finish
+from ophys_etl.workflows.tasks import wait_for_decrosstalk_to_finish, \
+    save_job_run_to_db
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_latest_workflow_step_run
@@ -248,8 +250,6 @@ def ophys_processing():
 
         @task_group
         def demix_traces(motion_corrected_ophys_movie_file, roi_traces_file):
-            wait_for_decrosstalk_to_finish(timeout=app_config.job_timeout)()
-
             run_workflow_step(
                 slurm_config_filename="demix_traces.yml",
                 module=DemixTracesModule,
@@ -260,6 +260,8 @@ def ophys_processing():
                     "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
                     "roi_traces_file": roi_traces_file
                 },
+                pre_submit_sensor=wait_for_decrosstalk_to_finish(
+                    timeout=app_config.job_timeout)
             )
 
         roi_traces_file = trace_extraction(

@@ -6,6 +6,13 @@ from pathlib import Path
 from typing import Callable, Dict, Optional
 
 from airflow.decorators import task
+from airflow.sensors.base import PokeReturnValue
+from sqlalchemy.exc import NoResultFound
+
+from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run
+from ophys_etl.workflows.workflow_step_runs import get_latest_workflow_step_run
+
+from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from sqlmodel import Session
 
 from ophys_etl.workflows.app_config.app_config import app_config
@@ -106,3 +113,51 @@ def save_job_run_to_db(
             additional_steps_kwargs=additional_steps_kwargs,
         )
     return {x.well_known_file_type.value: x for x in module_outputs}
+
+
+def wait_for_decrosstalk_to_finish(timeout: float) -> Callable:
+    """
+    Returns function which waits for decrosstalk job to finish
+
+    Notes
+    ------
+    Wrapping a `task.sensor` so that we can pass in a custom timeout
+
+    Parameters
+    ----------
+    timeout
+        Timeout in seconds
+
+    Returns
+    -------
+    Callable decorated with `task.sensor`
+    """
+
+    @task.sensor(mode="reschedule", timeout=timeout)
+    def wait_for_decrosstalk_to_finish(**context):
+        ophys_experiment_id = context['params']['ophys_experiment_id']
+        ophys_experiment = OphysExperiment.from_id(id=ophys_experiment_id)
+
+        with Session(engine) as session:
+            try:
+                get_latest_workflow_step_run(
+                    session=session,
+                    ophys_session_id=ophys_experiment.session.id,
+                    workflow_step=WorkflowStepEnum.DECROSSTALK,
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING
+                )
+                is_done = True
+            except NoResultFound:
+                is_done = False
+
+        # Checking if decrosstalk is running to prevent a situation where
+        # decrosstalk was rerun. We don't want to pull the old decrosstalk
+        # values. So we are waiting for the running dag to finish
+        is_running = get_latest_dag_run(
+            dag_id='decrosstalk',
+            state='running'
+        ) is not None
+
+        return PokeReturnValue(is_done=is_done and not is_running)
+
+    return wait_for_decrosstalk_to_finish

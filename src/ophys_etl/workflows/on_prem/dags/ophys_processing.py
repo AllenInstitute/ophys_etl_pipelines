@@ -30,9 +30,10 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.trace_extraction impo
 from ophys_etl.workflows.pipeline_modules.trace_processing.demix_traces import (  # noqa E501
     DemixTracesModule,
 )
+from ophys_etl.workflows.tasks import wait_for_decrosstalk_to_finish
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
-from ophys_etl.workflows.workflow_step_runs import get_latest_run
+from ophys_etl.workflows.workflow_step_runs import get_latest_workflow_step_run
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 WORKFLOW_NAME = WorkflowNameEnum.OPHYS_PROCESSING
@@ -40,7 +41,7 @@ WORKFLOW_NAME = WorkflowNameEnum.OPHYS_PROCESSING
 
 def _get_roi_classifier() -> int:
     with Session(engine) as session:
-        roi_classifier_training_run = get_latest_run(
+        roi_classifier_training_run = get_latest_workflow_step_run(
             session=session,
             workflow_name=WorkflowNameEnum.ROI_CLASSIFIER_TRAINING,
             workflow_step=WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING,
@@ -247,12 +248,14 @@ def ophys_processing():
 
         @task_group
         def demix_traces(motion_corrected_ophys_movie_file, roi_traces_file):
+            wait_for_decrosstalk_to_finish(timeout=app_config.job_timeout)()
+
             run_workflow_step(
                 slurm_config_filename="demix_traces.yml",
                 module=DemixTracesModule,
                 workflow_step_name=WorkflowStepEnum.DEMIX_TRACES,
                 workflow_name=WORKFLOW_NAME,
-                docker_tag=app_config.pipeline_steps.trace_extraction.docker_tag,  # noqa E501
+                docker_tag=app_config.pipeline_steps.demix_traces.docker_tag,
                 module_kwargs={
                     "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
                     "roi_traces_file": roi_traces_file

@@ -7,7 +7,7 @@ from airflow.models.dag import dag
 from airflow.operators.python import get_current_context
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from ophys_etl.workflows.app_config.app_config import app_config
-from ophys_etl.workflows.utils.dag_utils import get_most_recent_run
+from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run
 
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 
@@ -66,7 +66,7 @@ def ophys_processing_trigger():
 
     @task
     def trigger():
-        last_run_datetime = get_most_recent_run(
+        last_run_datetime = get_latest_dag_run(
             dag_id='ophys_processing_trigger')
         if last_run_datetime is None:
             # this DAG hasn't been successfully run before

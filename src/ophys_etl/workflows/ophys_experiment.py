@@ -14,7 +14,7 @@ from ophys_etl.workflows.db.schemas import (
 )
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
-from ophys_etl.workflows.workflow_step_runs import get_latest_run
+from ophys_etl.workflows.workflow_step_runs import get_latest_workflow_step_run
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
@@ -195,7 +195,7 @@ class OphysExperiment:
         """
 
         with Session(engine) as session:
-            workflow_step_run_id = get_latest_run(
+            workflow_step_run_id = get_latest_workflow_step_run(
                 session,
                 WorkflowStepEnum.MOTION_CORRECTION,
                 WorkflowNameEnum.OPHYS_PROCESSING,
@@ -225,7 +225,7 @@ class OphysExperiment:
             A list of OphysROI
         """
         with Session(engine) as session:
-            workflow_step_run_id = get_latest_run(
+            workflow_step_run_id = get_latest_workflow_step_run(
                 session,
                 WorkflowStepEnum.SEGMENTATION,
                 WorkflowNameEnum.OPHYS_PROCESSING,

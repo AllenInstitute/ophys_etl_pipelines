@@ -8,13 +8,18 @@ from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port
 
 
-def get_most_recent_run(dag_id: str) -> Optional[datetime.datetime]:
+def get_latest_dag_run(
+        dag_id: str,
+        state: str = 'success'
+) -> Optional[datetime.datetime]:
     """Gets the most recent run of this DAG, or None if not run before
 
     Parameters
     ----------
     dag_id
         Gets most recent run for this dag id
+    state
+        Filter by dag runs with this state
 
     """
     rest_api_username = \
@@ -29,7 +34,7 @@ def get_most_recent_run(dag_id: str) -> Optional[datetime.datetime]:
         f'dagRuns?'
         'limit=1&'
         'order_by=-execution_date&'
-        'state=success',
+        f'state={state}',
         headers={
             'Authorization': f'Basic {auth.decode()}'
         }

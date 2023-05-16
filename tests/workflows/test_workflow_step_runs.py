@@ -9,7 +9,7 @@ from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import (
-    get_latest_run,
+    get_latest_workflow_step_run,
     get_well_known_file_for_latest_run,
 )
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
@@ -45,7 +45,7 @@ class TestWorkflowStepRuns(MockSQLiteDB):
                     workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
                     workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
                 )
-                latest_run = get_latest_run(
+                latest_run = get_latest_workflow_step_run(
                     session=session,
                     workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
                     workflow_step=WorkflowStepEnum.SEGMENTATION,

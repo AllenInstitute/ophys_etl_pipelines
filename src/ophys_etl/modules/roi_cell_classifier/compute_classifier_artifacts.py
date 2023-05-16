@@ -155,14 +155,16 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                 exp_id=exp_id)
             exp_peaks[roi.roi_id] = peaks
             clip, brightest_peak_idx = self._construct_clip(
+                mov=mov,
                 peaks=peaks,
                 roi=roi
             )
             brightest_peak_idxs[roi.roi_id] = brightest_peak_idx
 
+            clip_out_path = pathlib.Path(self.args['out_dir']) / \
+                            f'clip_{exp_id}_{roi.roi_id}.mov'
             self._write_video(
-                exp_id=exp_id,
-                roi=roi,
+                out_path=clip_out_path,
                 frames=clip
             )
 
@@ -178,12 +180,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
 
     def _write_video(
         self,
-        exp_id: str,
-        roi: OphysROI,
+        out_path: pathlib.Path,
         frames: np.ndarray
     ):
-        out_path = pathlib.Path(self.args['out_dir']) / \
-                   f'clip_{exp_id}_{roi.roi_id}.mov'
         res = cv2.VideoWriter(str(out_path),
                               cv2.VideoWriter_fourcc(*'mp4v'), 8.0,
                               (self.args['cutout_size'],
@@ -254,6 +253,7 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
 
     def _construct_clip(
             self,
+            mov: np.ndarray,
             peaks: List[Dict],
             roi: OphysROI
     ) -> Tuple[np.ndarray, int]:
@@ -282,8 +282,7 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             image_dim=self.args['fov_shape'][0],
             cutout_dim=self.args['cutout_size'])
 
-        with h5py.File(self.args['video_path'], 'r') as f:
-            mov_len = f['data'].shape[0]
+        mov_len = mov.shape[0]
 
         peaks = sorted(peaks, key=lambda x: x['peak'])
         frame_idxs = []
@@ -301,12 +300,11 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
 
         frame_idxs = sorted(frame_idxs)
 
-        with h5py.File(self.args['video_path'], 'r') as f:
-            frames = f['data'][
-                     frame_idxs,
-                     row_indices[0]:row_indices[1],
-                     col_indices[0]:col_indices[1]
-                     ]
+        frames = mov[
+            frame_idxs,
+            row_indices[0]:row_indices[1],
+            col_indices[0]:col_indices[1]
+        ]
 
         input = self._get_video_clip_for_roi(
             frames=frames,

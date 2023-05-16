@@ -70,7 +70,9 @@ def compute_dff_trace(corrected_fluorescence_trace: np.ndarray,
             )
         active_mask = corrected_fluorescence_trace > (
             low_baseline + 3 * sigma_f)
-        inactive_trace[active_mask] = float('nan')
+        negative_mask = corrected_fluorescence_trace < (
+            low_baseline - 3 * sigma_f)
+        inactive_trace[active_mask*negative_mask] = float('nan')
         baseline = nanmedian_filter(inactive_trace, long_filter_length)
     else:
         baseline = median_filter(

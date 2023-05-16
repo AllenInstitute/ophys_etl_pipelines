@@ -54,7 +54,8 @@ class DemixTracesModule(PipelineModule):
                 self.output_path
                 / f"{self._ophys_experiment.id}_demixed_traces.h5"
             ),
-            "roi_masks": [x.to_dict() for x in self.ophys_experiment.rois],
+            "roi_masks": [x.to_dict(include_exclusion_labels=True)
+                          for x in self.ophys_experiment.rois],
         }
         return module_args
 

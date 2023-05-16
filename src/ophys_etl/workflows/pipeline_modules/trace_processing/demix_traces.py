@@ -48,13 +48,13 @@ class DemixTracesModule(PipelineModule):
     @property
     def inputs(self):
         module_args = {
-            "movie_h5": self._motion_corrected_path,
+            "movie_h5": self._motion_corrected_ophys_movie_file,
             "traces_h5": self._roi_trace_file,
             "output_file": str(
                 self.output_path
                 / f"{self._ophys_experiment.id}_demixed_traces.h5"
             ),
-            "rois": self.ophys_experiment.rois,
+            "roi_masks": [x.to_dict() for x in self.ophys_experiment.rois],
         }
         return module_args
 

@@ -1,6 +1,6 @@
 """App database schemas"""
 import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 import numpy as np
 from pydantic import PrivateAttr
@@ -115,11 +115,24 @@ class OphysROI(SQLModel, table=True):
     # populated by OphysExperiment.rois
     _mask_values: List[OphysROIMaskValue] = PrivateAttr()
 
-    def to_dict(self):
+    def to_dict(self, include_exclusion_labels: bool = False) -> Dict:
+        """
+        Converts OphysROI to dict
+
+        Parameters
+        ----------
+        include_exclusion_labels
+            Whether to include list of exclusion labels
+
+        Returns
+        -------
+        Dict
+            dict representation of OphysROI
+        """
         if getattr(self, '_mask_values', None) is None:
             raise ValueError('_mask_values must be set in order to produce '
                              'mask values. It is set by OphysExperiment.rois')
-        return {
+        d = {
             "id": self.id,
             "x": self.x,
             "y": self.y,
@@ -127,6 +140,28 @@ class OphysROI(SQLModel, table=True):
             "height": self.height,
             "mask": self._generate_binary_mask(self._mask_values),
         }
+
+        if include_exclusion_labels:
+            d["exclusion_labels"] = self._get_list_of_exclusion_label_strings()
+
+        return d
+
+    def _get_list_of_exclusion_label_strings(self) -> List[str]:
+        exclusion_labels = []
+        if self.is_in_motion_border:
+            exclusion_labels.append("motion_border")
+        if self.is_decrosstalk_ghost:
+            exclusion_labels.append("decrosstalk_ghost")
+        if self.is_decrosstalk_invalid_raw_active:
+            exclusion_labels.append("decrosstalk_invalid_raw_active")
+        if self.is_decrosstalk_invalid_raw:
+            exclusion_labels.append("decrosstalk_invalid_raw")
+        if self.is_decrosstalk_invalid_unmixed:
+            exclusion_labels.append("decrosstalk_invalid_unmixed")
+        if self.is_decrosstalk_invalid_unmixed_active:
+            exclusion_labels.append("decrosstalk_invalid_unmixed_active")
+
+        return exclusion_labels
 
     def _generate_binary_mask(
             self,

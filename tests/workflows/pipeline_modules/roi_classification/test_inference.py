@@ -4,7 +4,6 @@ import os
 import pickle
 import random
 import shutil
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -12,8 +11,8 @@ import pandas as pd
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
 
-from ophys_etl.workflows.ophys_experiment import OphysExperiment, OphysSession, \
-    Specimen
+from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
+    OphysSession, Specimen
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
 from tests.workflows.conftest import MockSQLiteDB
@@ -31,7 +30,6 @@ from sqlmodel import Session
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db
-from ophys_etl.workflows.db.initialize_db import InitializeDBRunner
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_modules.roi_classification import (
     TrainingModule,
@@ -68,7 +66,6 @@ class TestInference(MockSQLiteDB):
                 f.write("")
         self._model_path = model_path
         self._ophys_experiment_id = "1"
-
 
         with open(
             Path(__file__).parent / "resources" / "mlflow_search_runs.pkl",

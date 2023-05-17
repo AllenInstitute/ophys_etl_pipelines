@@ -184,7 +184,7 @@ class OphysExperiment:
         )
 
     @property
-    def motion_border(self) -> Dict:
+    def motion_border(self) -> MotionCorrectionRun:
         """
         Motion border for an ophys experiment
 
@@ -207,12 +207,7 @@ class OphysExperiment:
 
             result = session.execute(query).one()
             motion_border = result[0]
-            return {
-                "x0": motion_border.max_correction_left,
-                "x1": motion_border.max_correction_right,
-                "y0": motion_border.max_correction_up,
-                "y1": motion_border.max_correction_down,
-            }
+            return motion_border
 
     @property
     def rois(self) -> List[OphysROI]:

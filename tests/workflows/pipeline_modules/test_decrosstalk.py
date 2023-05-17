@@ -2,7 +2,11 @@ import datetime
 from pathlib import Path
 from unittest.mock import patch, PropertyMock
 
-from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
+from ophys_etl.workflows.pipeline_modules.motion_correction import \
+    MotionCorrectionModule
+
+from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue, \
+    MotionCorrectionRun
 
 from ophys_etl.workflows.pipeline_modules.segmentation import \
     SegmentationModule
@@ -31,6 +35,9 @@ class TestDecrosstalk(MockSQLiteDB):
     def setup(self):
         super().setup()
 
+        xy_offset_path = (
+            Path(__file__).parent / "resources" / "rigid_motion_transform.csv"
+        )
         with Session(self._engine) as session:
             for oe_id in self._experiment_ids:
                 save_job_run_to_db(
@@ -51,6 +58,12 @@ class TestDecrosstalk(MockSQLiteDB):
                                 MAX_INTENSITY_PROJECTION_IMAGE
                             ),
                             path=Path(f'{oe_id}_max_proj.png'),
+                        ),
+                        OutputFile(
+                            well_known_file_type=(
+                                WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA
+                            ),
+                            path=xy_offset_path
                         )
                     ],
                     ophys_experiment_id=oe_id,
@@ -58,7 +71,8 @@ class TestDecrosstalk(MockSQLiteDB):
                     storage_directory="/foo",
                     log_path="/foo",
                     workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-                    validate_files_exist=False
+                    validate_files_exist=False,
+                    additional_steps=MotionCorrectionModule.save_metadata_to_db
                 )
 
                 save_job_run_to_db(
@@ -105,6 +119,7 @@ class TestDecrosstalk(MockSQLiteDB):
                     y=0,
                     width=2,
                     height=1,
+                    is_in_motion_border=False
                 )
         mock_roi._mask_values = [
             OphysROIMaskValue(
@@ -115,12 +130,12 @@ class TestDecrosstalk(MockSQLiteDB):
             )
         ]
         mock_rois.return_value = [mock_roi]
-        mock_motion_border.return_value = {
-            'x0': 1,
-            'y0': 2,
-            'x1': 3,
-            'y1': 4
-        }
+        mock_motion_border.return_value = MotionCorrectionRun(
+            max_correction_left=1,
+            max_correction_right=3,
+            max_correction_up=2,
+            max_correction_down=4
+        )
         mock_ophys_session_oe_ids.return_value = self._experiment_ids
         mock_ophys_experiment_from_id.side_effect = \
             lambda id: OphysExperiment(
@@ -175,7 +190,8 @@ class TestDecrosstalk(MockSQLiteDB):
                                 f'ophys_experiment_{self._experiment_ids[i]}' /
                                 'neuropil_traces.h5'
                             ),
-                            'motion_border': mock_motion_border.return_value,
+                            'motion_border': (
+                                mock_motion_border.return_value.to_dict()),
                             'rois': [
                                 x.to_dict() for x in mock_rois.return_value]
                         }
@@ -210,25 +226,28 @@ class TestDecrosstalk(MockSQLiteDB):
 
         for oe_id in self._experiment_ids:
             with Session(self._engine) as session:
-                save_job_run_to_db(
-                    workflow_step_name=WorkflowStepEnum.SEGMENTATION,
-                    start=datetime.datetime.now(),
-                    end=datetime.datetime.now(),
-                    module_outputs=[
-                        OutputFile(
-                            well_known_file_type=(
-                                WellKnownFileTypeEnum.OPHYS_ROIS
-                            ),
-                            path=_rois_path,
-                        )
-                    ],
-                    ophys_experiment_id=oe_id,
-                    sqlalchemy_session=session,
-                    storage_directory="/foo",
-                    log_path="/foo",
-                    additional_steps=SegmentationModule.save_rois_to_db,
-                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-                )
+                with patch(
+                        'ophys_etl.workflows.ophys_experiment.engine',
+                        new=self._engine):
+                    save_job_run_to_db(
+                        workflow_step_name=WorkflowStepEnum.SEGMENTATION,
+                        start=datetime.datetime.now(),
+                        end=datetime.datetime.now(),
+                        module_outputs=[
+                            OutputFile(
+                                well_known_file_type=(
+                                    WellKnownFileTypeEnum.OPHYS_ROIS
+                                ),
+                                path=_rois_path,
+                            )
+                        ],
+                        ophys_experiment_id=oe_id,
+                        sqlalchemy_session=session,
+                        storage_directory="/foo",
+                        log_path="/foo",
+                        additional_steps=SegmentationModule.save_rois_to_db,
+                        workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                    )
 
         # 2. Save decrosstalk run
         with patch('ophys_etl.workflows.ophys_experiment.engine',

@@ -79,6 +79,7 @@ def save_job_run_to_db(
             - session: sqlalchemy Session,
             - output_files: dict mapping well known file type to OutputFile
             - run_id: workflow step run id, int
+            - **kwargs
     additional_steps_kwargs
         Kwargs to send to `additional_steps`
     """
@@ -125,6 +126,13 @@ def save_job_run_to_db(
         sqlalchemy_session.add(wkf)
 
     if additional_steps is not None:
+        if additional_steps_kwargs is not None:
+            additional_steps_kwargs['ophys_experiment_id'] = \
+                ophys_experiment_id
+        else:
+            additional_steps_kwargs = {
+                'ophys_experiment_id': ophys_experiment_id
+            }
         additional_steps(
             session=sqlalchemy_session,
             output_files={

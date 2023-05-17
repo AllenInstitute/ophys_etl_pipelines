@@ -9,8 +9,14 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pandas as pd
+from ophys_etl.workflows.pipeline_modules.motion_correction import \
+    MotionCorrectionModule
+
+from ophys_etl.workflows.ophys_experiment import OphysExperiment, OphysSession, \
+    Specimen
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
+from tests.workflows.conftest import MockSQLiteDB
 
 setup_app_config(
     ophys_workflow_app_config_path=(
@@ -44,50 +50,84 @@ from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
-class TestInference:
-    @classmethod
-    def setup_class(cls):
-        cls._tmp_dir = Path(tempfile.TemporaryDirectory().name)
-        cls._db_path = cls._tmp_dir / "app.db"
-        os.environ["AIRFLOW_CONN_OPHYS_WORKFLOW_DB"] = str(cls._db_path)
-        os.makedirs(cls._db_path.parent, exist_ok=True)
-
-        db_url = f"sqlite:///{cls._db_path}"
-        cls._engine = InitializeDBRunner(
-            input_data={"db_url": db_url}, args=[]
-        ).run()
+class TestInference(MockSQLiteDB):
+    def setup(self):
+        super().setup()
 
         # initialize model files
-        model_path = Path(cls._tmp_dir) / "model"
+        model_path = Path(self._tmp_dir) / "model"
         os.makedirs(model_path)
 
-        cls._mlflow_parent_run_name = "CV-1678301354"
+        self._mlflow_parent_run_name = "CV-1678301354"
 
-        cls._n_folds = (
+        self._n_folds = (
             app_config.pipeline_steps.roi_classification.training.n_folds
         )
-        for fold in range(cls._n_folds):
+        for fold in range(self._n_folds):
             with open(model_path / f"{fold}.pt", "w") as f:
                 f.write("")
-        cls._model_path = model_path
+        self._model_path = model_path
+        self._ophys_experiment_id = "1"
+
 
         with open(
             Path(__file__).parent / "resources" / "mlflow_search_runs.pkl",
             "rb",
         ) as f:
             # created using  mlflow.search_runs(..., output_format='list')
-            cls._dummy_mlflow_search_runs_res = pickle.load(f)
+            self._dummy_mlflow_search_runs_res = pickle.load(f)
 
-        cls._rois = cls._insert_rois()
-        cls._ophys_experiment_id = "1"
-        cls._preds_path = (
-            Path(cls._tmp_dir) / f"{cls._ophys_experiment_id}_inference.csv"
+        xy_offset_path = (
+            Path(__file__).parent.parent / "resources" /
+            "rigid_motion_transform.csv"
+        )
+
+        with Session(self._engine) as session:
+            save_job_run_to_db(
+                workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
+                start=datetime.datetime.now(),
+                end=datetime.datetime.now(),
+                module_outputs=[
+                    OutputFile(
+                        well_known_file_type=(
+                            WellKnownFileTypeEnum.
+                            MOTION_CORRECTED_IMAGE_STACK
+                        ),
+                        path=Path(f'{self._ophys_experiment_id}_'
+                                  f'motion_correction.h5'),
+                    ),
+                    OutputFile(
+                        well_known_file_type=(
+                            WellKnownFileTypeEnum.
+                            MAX_INTENSITY_PROJECTION_IMAGE
+                        ),
+                        path=Path(f'{self._ophys_experiment_id}_max_proj.png'),
+                    ),
+                    OutputFile(
+                        well_known_file_type=(
+                            WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA
+                        ),
+                        path=xy_offset_path
+                    )
+                ],
+                ophys_experiment_id=self._ophys_experiment_id,
+                sqlalchemy_session=session,
+                storage_directory="/foo",
+                log_path="/foo",
+                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                validate_files_exist=False,
+                additional_steps=MotionCorrectionModule.save_metadata_to_db
+            )
+
+        self._rois = self._insert_rois()
+        self._preds_path = (
+            Path(self._tmp_dir) / f"{self._ophys_experiment_id}_inference.csv"
         )
         pd.DataFrame(
             {"roi-id": roi["id"], "y_score": random.random()}
-            for roi in cls._rois
-        ).to_csv(cls._preds_path, index=False)
-        cls._insert_model()
+            for roi in self._rois
+        ).to_csv(self._preds_path, index=False)
+        self._insert_model()
 
     @classmethod
     def teardown_class(cls):
@@ -127,45 +167,54 @@ class TestInference:
                 workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
             )
 
-    @classmethod
-    def _insert_rois(cls):
+    def _insert_rois(self):
         rois_path = Path(__file__).parent.parent / "resources" / "rois.json"
         with open(rois_path) as f:
             rois = json.load(f)
 
-        with Session(cls._engine) as session:
-            save_job_run_to_db(
-                workflow_step_name=WorkflowStepEnum.SEGMENTATION,
-                start=datetime.datetime.now(),
-                end=datetime.datetime.now(),
-                module_outputs=[
-                    OutputFile(
-                        well_known_file_type=(
-                            WellKnownFileTypeEnum.OPHYS_ROIS
-                        ),
-                        path=rois_path,
-                    )
-                ],
-                ophys_experiment_id="1",
-                sqlalchemy_session=session,
-                storage_directory="/foo",
-                log_path="/foo",
-                additional_steps=SegmentationModule.save_rois_to_db,
-                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+        with patch.object(OphysExperiment, 'from_id') as mock_oe_from_id:
+            mock_oe_from_id.return_value = OphysExperiment(
+                id="1",
+                movie_frame_rate_hz=11.0,
+                raw_movie_filename=Path('foo'),
+                session=OphysSession(id='1', specimen=Specimen(id='1')),
+                specimen=Specimen(id='1'),
+                storage_directory=Path('foo')
             )
+            with Session(self._engine) as session:
+                with patch('ophys_etl.workflows.ophys_experiment.engine',
+                           new=self._engine):
+                    save_job_run_to_db(
+                        workflow_step_name=WorkflowStepEnum.SEGMENTATION,
+                        start=datetime.datetime.now(),
+                        end=datetime.datetime.now(),
+                        module_outputs=[
+                            OutputFile(
+                                well_known_file_type=(
+                                    WellKnownFileTypeEnum.OPHYS_ROIS
+                                ),
+                                path=rois_path,
+                            )
+                        ],
+                        ophys_experiment_id="1",
+                        sqlalchemy_session=session,
+                        storage_directory="/foo",
+                        log_path="/foo",
+                        additional_steps=SegmentationModule.save_rois_to_db,
+                        workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                    )
         return rois
 
-    @classmethod
     @patch("mlflow.search_runs")
     @patch.object(
         MLFlowRun,
         "_get_experiment_id",
         wraps=lambda mlflow_experiment_name: "foo",
     )
-    def _insert_model(cls, __, mock_search_runs):
-        mock_search_runs.return_value = cls._dummy_mlflow_search_runs_res
+    def _insert_model(self, __, mock_search_runs):
+        mock_search_runs.return_value = self._dummy_mlflow_search_runs_res
 
-        with Session(cls._engine) as session:
+        with Session(self._engine) as session:
             save_job_run_to_db(
                 workflow_step_name=WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING, # noqa E501
                 start=datetime.datetime.now(),
@@ -175,7 +224,7 @@ class TestInference:
                         well_known_file_type=(
                             WellKnownFileTypeEnum.ROI_CLASSIFICATION_TRAINED_MODEL # noqa E501
                         ),
-                        path=cls._model_path,
+                        path=self._model_path,
                     )
                 ],
                 ophys_experiment_id="1",
@@ -184,7 +233,7 @@ class TestInference:
                 log_path="/foo",
                 additional_steps=TrainingModule.save_trained_model_to_db,
                 additional_steps_kwargs={
-                    "mlflow_parent_run_name": cls._mlflow_parent_run_name
+                    "mlflow_parent_run_name": self._mlflow_parent_run_name
                 },
                 workflow_name=WorkflowNameEnum.ROI_CLASSIFIER_TRAINING,
             )

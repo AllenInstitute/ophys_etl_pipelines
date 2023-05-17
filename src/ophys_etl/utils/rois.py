@@ -349,7 +349,10 @@ def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix
     return compatible_roi
 
 
-def _motion_exclusion(roi: DenseROI, movie_shape: Tuple[int, int]) -> bool:
+def is_inside_motion_border(
+        roi: DenseROI,
+        movie_shape: Tuple[int, int]
+) -> bool:
     """
     Parameters
     ----------
@@ -362,7 +365,7 @@ def _motion_exclusion(roi: DenseROI, movie_shape: Tuple[int, int]) -> bool:
     Returns
     -------
     valid: bool
-        True, if the ROI in question does not interesect with a motion
+        True, if the ROI in question does not intersect with a motion
         exclusion area. False if it does.
 
     """
@@ -427,7 +430,7 @@ def _check_exclusion(compatible_roi: DenseROI,
     """
     exclusion_labels = []
 
-    if not _motion_exclusion(compatible_roi, movie_shape):
+    if not is_inside_motion_border(compatible_roi, movie_shape):
         exclusion_labels.append('motion_border')
 
     if not _small_size_exclusion(compatible_roi, npixel_threshold):

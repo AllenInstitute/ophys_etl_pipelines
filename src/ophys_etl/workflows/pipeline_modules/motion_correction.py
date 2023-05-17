@@ -132,7 +132,10 @@ class MotionCorrectionModule(PipelineModule):
 
     @staticmethod
     def save_metadata_to_db(
-        output_files: Dict[str, OutputFile], session: Session, run_id: int
+        output_files: Dict[str, OutputFile],
+        session: Session,
+        run_id: int,
+        **kwargs
     ):
         """
         Saves motion correction run results to db

@@ -3,9 +3,11 @@ import logging
 from types import ModuleType
 from typing import Dict, List
 
+from ophys_etl.workflows.app_config.app_config import app_config
 from sqlmodel import Session
 
 from ophys_etl.modules import segment_postprocess
+from ophys_etl.utils.rois import is_inside_motion_border
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
@@ -66,7 +68,10 @@ class SegmentationModule(PipelineModule):
 
     @staticmethod
     def save_rois_to_db(
-        output_files: Dict[str, OutputFile], session: Session, run_id: int
+        output_files: Dict[str, OutputFile],
+        session: Session,
+        run_id: int,
+        **kwargs
     ):
         """
         Saves segmentation run rois to db
@@ -89,16 +94,25 @@ class SegmentationModule(PipelineModule):
         for roi in rois:
             # 1. Add ROI
             mask = roi['mask_matrix']
-            motion_border = 'motion_border' in roi['exclusion_labels']
-            small_size = 'small_size' in roi['exclusion_labels']
+            motion_border = OphysExperiment.from_id(
+                id=kwargs['ophys_experiment_id']).motion_border
+
+            roi['max_correction_right'] = motion_border.max_correction_right
+            roi['max_correction_left'] = motion_border.max_correction_left
+            roi['max_correction_up'] = motion_border.max_correction_up
+            roi['max_correction_down'] = motion_border.max_correction_down
+
+            is_in_motion_border = not is_inside_motion_border(
+                roi=roi,
+                movie_shape=app_config.fov_shape
+            )
             roi = OphysROI(
                 x=roi['x'],
                 y=roi['y'],
                 width=roi['width'],
                 height=roi['height'],
                 workflow_step_run_id=run_id,
-                is_in_motion_border=motion_border,
-                is_small_size=small_size,
+                is_in_motion_border=is_in_motion_border
             )
             session.add(roi)
 

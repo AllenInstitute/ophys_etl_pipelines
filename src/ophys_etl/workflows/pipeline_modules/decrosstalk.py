@@ -85,7 +85,8 @@ class DecrosstalkModule(PipelineModule):
     def save_decrosstalk_flags_to_db(
             output_files: Dict[str, OutputFile],
             session: Session,
-            run_id: int
+            run_id: int,
+            **kwargs
     ):
         decrosstalk_file_path = output_files[
             WellKnownFileTypeEnum.DECROSSTALK_FLAGS.value
@@ -160,6 +161,6 @@ class DecrosstalkModule(PipelineModule):
                     self.output_path /
                     f'ophys_experiment_{ophys_experiment.id}' /
                     'neuropil_traces.h5'),
-            'motion_border': ophys_experiment.motion_border,
+            'motion_border': ophys_experiment.motion_border.to_dict(),
             'rois': [x.to_dict() for x in ophys_experiment.rois]
         }

@@ -127,7 +127,7 @@ class TestOphysExperiment(MockSQLiteDB):
         with patch(
             "ophys_etl.workflows.ophys_experiment.engine", self._engine
         ):
-            motion_border = self.ophys_experiment.motion_border
+            motion_border = self.ophys_experiment.motion_border.to_dict()
             assert motion_border["x0"] == 10
             assert motion_border["x1"] == 20
             assert motion_border["y0"] == 30

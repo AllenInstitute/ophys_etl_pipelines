@@ -78,6 +78,14 @@ class MotionCorrectionRun(SQLModel, table=True):
     max_correction_right: float
     max_correction_left: float
 
+    def to_dict(self):
+        return {
+            "x0": self.max_correction_left,
+            "x1": self.max_correction_right,
+            "y0": self.max_correction_up,
+            "y1": self.max_correction_down,
+        }
+
 
 class OphysROIMaskValue(SQLModel, table=True):
     """Stores a single value of an ROI mask as row, col"""
@@ -104,7 +112,6 @@ class OphysROI(SQLModel, table=True):
     width: int
     height: int
     is_in_motion_border: bool  # Set at by segmentation
-    is_small_size: bool  # Set by segmentation
     is_decrosstalk_invalid_raw: Optional[bool] = None
     is_decrosstalk_invalid_raw_active: Optional[bool] = None
     is_decrosstalk_invalid_unmixed: Optional[bool] = None

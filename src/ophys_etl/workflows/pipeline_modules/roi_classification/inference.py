@@ -135,6 +135,7 @@ class InferenceModule(PipelineModule):
         session: Session,
         run_id: int,
         ensemble_id: int,
+        **kwargs
     ):
         preds_file = output_files[
             WellKnownFileTypeEnum.ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS.value # noqa E501

@@ -1,7 +1,7 @@
 """App config"""
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import yaml
 from deepcell.cli.modules.create_dataset import VoteTallyingStrategy
@@ -238,6 +238,7 @@ class AppConfig(ImmutableBaseModel):
     ophys_processing_trigger: OphysProcessingTrigger = Field(
         default=OphysProcessingTrigger()
     )
+    fov_shape: Tuple[int, int] = (512, 512)
 
 
 def load_config() -> AppConfig:

@@ -89,6 +89,7 @@ class TrainingModule(PipelineModule):
         session: Session,
         run_id: int,
         mlflow_parent_run_name: str,
+        **kwargs
     ):
         mlflow_run = MLFlowRun(
             mlflow_experiment_name=(

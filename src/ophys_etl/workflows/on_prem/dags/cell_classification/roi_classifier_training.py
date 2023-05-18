@@ -89,7 +89,7 @@ def _create_thumbnails_for_experiments(
 
 @task
 def _generate_correlation_projections_for_experiments(
-    experiment_ids: List[str]):
+        experiment_ids: List[str]):
     runs = {}
     for experiment_id in experiment_ids:
         denoised_ophys_movie_file = get_denoised_movie_for_experiment(

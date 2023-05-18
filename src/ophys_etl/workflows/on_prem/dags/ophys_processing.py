@@ -25,6 +25,12 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.trace_extraction impo
 from ophys_etl.workflows.pipeline_modules.trace_processing.demix_traces import (  # noqa E501
     DemixTracesModule,
 )
+from ophys_etl.workflows.pipeline_modules.trace_processing.neuropil_subtraction import (  # noqa E501
+    NeuropilCorrection,
+)
+from ophys_etl.workflows.pipeline_modules.trace_processing.dff_calculation import (  # noqa E501
+    DFOverFCalculation,
+)
 from ophys_etl.workflows.tasks import wait_for_decrosstalk_to_finish
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -155,11 +161,11 @@ def ophys_processing():
                 },
             )
 
-            return module_outputs[WellKnownFileTypeEnum.ROI_TRACE.value]
+            return module_outputs
 
         @task_group
         def demix_traces(motion_corrected_ophys_movie_file, roi_traces_file):
-            run_workflow_step(
+            module_outputs = run_workflow_step(
                 slurm_config_filename="demix_traces.yml",
                 module=DemixTracesModule,
                 workflow_step_name=WorkflowStepEnum.DEMIX_TRACES,
@@ -172,15 +178,57 @@ def ophys_processing():
                 pre_submit_sensor=wait_for_decrosstalk_to_finish(
                     timeout=app_config.job_timeout)
             )
+            return module_outputs[WellKnownFileTypeEnum.DEMIXED_TRACES.value]
 
-        roi_traces_file = trace_extraction(
+        @task_group
+        def neuropil_correction(
+                motion_corrected_ophys_movie_file,
+                demixed_roi_traces_file,
+                neuropil_traces_file):
+            module_outputs = run_workflow_step(
+                slurm_config_filename="neuropil_correction.yml",
+                module=NeuropilCorrection,
+                workflow_step_name=WorkflowStepEnum.NEUROPIL_CORRECTION,
+                workflow_name=WORKFLOW_NAME,
+                docker_tag=app_config.pipeline_steps.neuropil_correction.docker_tag,  # noqa E501
+                module_kwargs={
+                    "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
+                    "demixed_roi_traces_file": demixed_roi_traces_file,
+                    "neuropil_traces_file": neuropil_traces_file
+                }
+            )
+            return module_outputs[
+                WellKnownFileTypeEnum.NEUROPIL_CORRECTED_TRACES.value]
+
+        @task_group
+        def dff(neuropil_corrected_traces):
+            run_workflow_step(
+                slurm_config_filename="dff.yml",
+                module=DFOverFCalculation,
+                workflow_step_name=WorkflowStepEnum.DFF,
+                workflow_name=WORKFLOW_NAME,
+                docker_tag=app_config.pipeline_steps.dff.docker_tag,
+                module_kwargs={
+                    "neuropil_corrected_traces": neuropil_corrected_traces,
+                }
+            )
+
+        trace_outputs = trace_extraction(
             motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file,  # noqa E501
             rois_file=rois_file
         )
-        demix_traces(
+        demixed_traces = demix_traces(
             motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file,  # noqa E501
-            roi_traces_file=roi_traces_file
+            roi_traces_file=trace_outputs[
+                WellKnownFileTypeEnum.ROI_TRACE.value]
         )
+        neuropil_corrected_traces = neuropil_correction(
+            motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file,  # noqa E501
+            demixed_roi_traces_file=demixed_traces,
+            neuropil_traces_file=trace_outputs[
+                WellKnownFileTypeEnum.NEUROPIL_TRACE.value]
+        )
+        dff(neuropil_corrected_traces=neuropil_corrected_traces)
 
     motion_corrected_ophys_movie_file = motion_correction()
     denoised_movie_file = denoising(

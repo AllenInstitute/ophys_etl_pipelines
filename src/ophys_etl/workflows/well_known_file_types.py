@@ -59,3 +59,13 @@ class WellKnownFileTypeEnum(Enum):
     # decrosstalk
     ########
     DECROSSTALK_FLAGS = "DECROSSTALK_FLAGS"
+
+    ########
+    # Neuropil correction
+    ########
+    NEUROPIL_CORRECTED_TRACES = "NEUROPIL_CORRECTED_TRACES"
+
+    ########
+    # DF/F
+    ########
+    DFF_TRACES = "DFF_TRACES"

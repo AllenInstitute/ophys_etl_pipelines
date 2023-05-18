@@ -116,6 +116,14 @@ class _DemixTraces(_PipelineStep):
     pass
 
 
+class _NeuropilCorrection(_PipelineStep):
+    pass
+
+
+class _DFOverFCalculation(_PipelineStep):
+    pass
+
+
 class _GenerateCorrelationProjection(_PipelineStep):
     n_workers: int
 
@@ -210,6 +218,9 @@ class _PipelineSteps(ImmutableBaseModel):
     demix_traces: _DemixTraces = Field(default=_DemixTraces())
     roi_classification: _ROIClassification
     decrosstalk: _Decrostalk = Field(default=_Decrostalk())
+    neuropil_correction: _NeuropilCorrection = Field(
+        default=_NeuropilCorrection())
+    dff: _DFOverFCalculation = Field(default=_DFOverFCalculation())
 
 
 ##################

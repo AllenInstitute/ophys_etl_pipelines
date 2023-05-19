@@ -38,16 +38,17 @@ class DenoisingInferenceModule(_DenoisingModule):
     def inputs(self) -> Dict:
         return {
             "generator_params": {
-                "batch_size": 5,
-                "name": "OphysGenerator",
+                "batch_size": 8,
+                "name": "InferenceOphysGenerator",
                 "start_frame": 0,
+                "cache_data": True,
                 "data_path": self._motion_corrected_path,
             },
             "inference_params": {
                 "model_source": {"local_path": self._trained_model_path},
-                "n_parallel_workers": 85,
                 "rescale": True,
                 "save_raw": False,
+                "output_padding": False,
                 "output_file": (
                     str(
                         self.output_path

@@ -26,7 +26,7 @@ setup(
             'deepcell @ git+https://github.com/AllenInstitute/DeepCell.git'
         ],
         'deepinterpolation': [
-            'deepinterpolation @ git+https://github.com/danielsf/deepinterpolation@staging/ophys_etl'   # noqa E401
+            'deepinterpolation @ git+https://github.com/AllenInstitute/deepinterpolation'   # noqa E401
         ],
         'workflow': workflow_required
     }

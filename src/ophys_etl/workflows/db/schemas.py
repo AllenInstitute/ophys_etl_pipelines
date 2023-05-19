@@ -203,6 +203,36 @@ class OphysROI(SQLModel, table=True):
             ] = True
         return mask.tolist()
 
+    @property
+    def is_valid(self) -> bool:
+        """Return True if no processing flags (motion_border, decrosstalk)
+        flags are set.
+
+        Returns
+        -------
+        is_valid : bool
+            Composite flag that returns True if no processing flags are set.
+            False if any flag is set.
+        """
+        if self.is_in_motion_border or self.is_in_motion_border is None:
+            return False
+        elif self.is_decrosstalk_ghost or self.is_decrosstalk_ghost is None:
+            return False
+        elif (self.is_decrosstalk_invalid_raw_active
+              or self.is_decrosstalk_invalid_raw_active is None):
+            return False
+        elif (self.is_decrosstalk_invalid_raw
+              or self.is_decrosstalk_invalid_raw is None):
+            return False
+        elif (self.is_decrosstalk_invalid_unmixed
+              or self.is_decrosstalk_invalid_unmixed is None):
+            return False
+        elif (self.is_decrosstalk_invalid_unmixed_active
+              or self.is_decrosstalk_invalid_unmixed_active is None):
+            return False
+        else:
+            return True
+
 
 class NwayCellMatch(SQLModel, table=True):
     """Nway cell match"""

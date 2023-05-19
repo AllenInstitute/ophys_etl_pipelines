@@ -71,6 +71,11 @@ class WellKnownFileTypeEnum(Enum):
     DFF_TRACES = "DFF_TRACES"
 
     ########
+    # event detection
+    ########
+    EVENTS = "EVENTS"
+
+    ########
     # nway cell matching
     ########
     NWAY_CELL_MATCHING_METADATA = "NWAY_CELL_MATCHING_METADATA"

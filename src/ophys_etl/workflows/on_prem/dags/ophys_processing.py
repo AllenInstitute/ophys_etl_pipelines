@@ -202,7 +202,7 @@ def ophys_processing():
 
         @task_group
         def dff(neuropil_corrected_traces):
-            run_workflow_step(
+            module_outputs = run_workflow_step(
                 slurm_config_filename="dff.yml",
                 module=DFOverFCalculation,
                 workflow_step_name=WorkflowStepEnum.DFF,
@@ -210,6 +210,20 @@ def ophys_processing():
                 docker_tag=app_config.pipeline_steps.dff.docker_tag,
                 module_kwargs={
                     "neuropil_corrected_traces": neuropil_corrected_traces,
+                }
+            )
+            return module_outputs[WellKnownFileTypeEnum.DFF_TRACES.value]
+
+        @task_group
+        def event_detection(dff_traces):
+            run_workflow_step(
+                slurm_config_filename="event_detection.yml",
+                module=DFOverFCalculation,
+                workflow_step_name=WorkflowStepEnum.EVENT_DETECTION,
+                workflow_name=WORKFLOW_NAME,
+                docker_tag=app_config.pipeline_steps.event_detection.docker_tag,  # noqa E501
+                module_kwargs={
+                    "dff_traces": dff_traces,
                 }
             )
 
@@ -228,7 +242,8 @@ def ophys_processing():
             neuropil_traces_file=trace_outputs[
                 WellKnownFileTypeEnum.NEUROPIL_TRACE.value]
         )
-        dff(neuropil_corrected_traces=neuropil_corrected_traces)
+        dff_traces = dff(neuropil_corrected_traces=neuropil_corrected_traces)
+        event_detection(dff_traces=dff_traces)
 
     motion_corrected_ophys_movie_file = motion_correction()
     denoised_movie_file = denoising(

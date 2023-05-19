@@ -94,6 +94,21 @@ class _Denoising(_PipelineStep):
         "I.e. a downsample frac of 0.1 would randomly sample 10% "
         "of the data",
     )
+    batch_size: StrictInt = Field(
+        default=8,
+        description="Batch size of the generator for fine tuning"
+        "and inference. Set equal to number of workers for multiprocessing"
+    )
+    normalize_cache: bool = Field(
+        default=True,
+        description="Whether to normalize the cache data."
+        "Generally disable if RAM is less than 128GB"
+    )
+    gpu_cache_full: bool = Field(
+        default=False,
+        description="Whether to use GPU for caching. Enable if GPU"
+        "has more RAM than the size of the movie, e.g. A100 48GB"
+    )
 
 
 class _MotionCorrection(_PipelineStep):

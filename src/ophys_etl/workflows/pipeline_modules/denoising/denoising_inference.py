@@ -4,6 +4,7 @@ from typing import Dict, List
 
 from ophys_etl.modules.denoising import inference
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
+from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_modules.denoising._denoising import (
     _DenoisingModule,
@@ -38,17 +39,19 @@ class DenoisingInferenceModule(_DenoisingModule):
     def inputs(self) -> Dict:
         return {
             "generator_params": {
-                "batch_size": 8,
+                "batch_size": app_config.pipeline_steps.denoising.batch_size,
                 "name": "InferenceOphysGenerator",
                 "start_frame": 0,
                 "cache_data": True,
+                "normalize_cache": app_config.pipeline_steps.denoising.normalize_cache, # noqa E501
+                "gpu_cache_full": app_config.pipeline_steps.denoising.gpu_cache_full, # noqa E501
                 "data_path": self._motion_corrected_path,
             },
             "inference_params": {
                 "model_source": {"local_path": self._trained_model_path},
                 "rescale": True,
                 "save_raw": False,
-                "output_padding": False,
+                "output_padding": True,
                 "output_file": (
                     str(
                         self.output_path

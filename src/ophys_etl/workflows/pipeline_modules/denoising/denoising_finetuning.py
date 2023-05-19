@@ -55,7 +55,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "steps_per_epoch": 20,
             },
             "generator_params": {
-                "batch_size": 5,
+                "batch_size": app_config.pipeline_steps.denoising.batch_size,
                 "name": "MovieJSONGenerator",
                 "post_frame": 30,
                 "pre_frame": 30,

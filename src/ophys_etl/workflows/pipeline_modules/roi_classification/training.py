@@ -101,6 +101,9 @@ class TrainingModule(PipelineModule):
         ensemble = ROIClassifierEnsemble(
             workflow_step_run_id=run_id,
             mlflow_run_id=mlflow_run.run.info.run_id,
+            classification_threshold=(
+                app_config.pipeline_steps.roi_classification.inference.
+                classification_threshold)
         )
         session.add(ensemble)
 

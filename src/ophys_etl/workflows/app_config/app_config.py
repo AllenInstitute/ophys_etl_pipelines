@@ -207,7 +207,9 @@ class _ROIClassifierTraining(_PipelineStep):
 
 
 class _ROIClassifierInference(_PipelineStep):
-    pass
+    classification_threshold: float = Field(
+        default=0.5, description='classification threshold'
+    )
 
 
 class _ROIClassification(ImmutableBaseModel):

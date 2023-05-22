@@ -10,7 +10,7 @@ from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.schemas import (
     MotionCorrectionRun,
-    OphysROI, OphysROIMaskValue
+    OphysROI, OphysROIMaskValue, ROIClassifierInferenceResults
 )
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -247,5 +247,24 @@ class OphysExperiment:
             # Update each roi with list of mask values
             for roi in rois:
                 roi._mask_values = roi_mask_value_map[roi.id]
+
+            # add classification decision
+            classifier_inference_res: List[ROIClassifierInferenceResults] = \
+                session.execute(
+                select(ROIClassifierInferenceResults)
+                .join(OphysROI,
+                      onclause=(OphysROI.id ==
+                                ROIClassifierInferenceResults.roi_id)
+                      )
+                .where(OphysROI.workflow_step_run_id == workflow_step_run_id)
+            ).scalars().all()
+
+            roi_id_classifier_res_map: Dict[
+                int, ROIClassifierInferenceResults] = {}
+            for row in classifier_inference_res:
+                roi_id_classifier_res_map[row.roi_id] = row
+
+            for roi in rois:
+                roi._is_cell = roi_id_classifier_res_map[roi.id].is_cell
 
             return rois

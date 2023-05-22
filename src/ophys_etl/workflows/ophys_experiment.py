@@ -265,6 +265,8 @@ class OphysExperiment:
                 roi_id_classifier_res_map[row.roi_id] = row
 
             for roi in rois:
-                roi._is_cell = roi_id_classifier_res_map[roi.id].is_cell
+                roi_inference_res = roi_id_classifier_res_map.get(roi.id)
+                if roi_inference_res is not None:
+                    roi._is_cell = roi_inference_res.is_cell
 
             return rois

@@ -122,6 +122,9 @@ class OphysROI(SQLModel, table=True):
     # populated by OphysExperiment.rois
     _mask_values: List[OphysROIMaskValue] = PrivateAttr()
 
+    # populated by OphysExperiment.rois
+    _is_cell: bool = PrivateAttr()
+
     def to_dict(self, include_exclusion_labels: bool = False) -> Dict:
         """
         Converts OphysROI to dict
@@ -225,6 +228,9 @@ class ROIClassifierEnsemble(SQLModel, table=True):
     mlflow_run_id: str = Field(
         description="mlflow parent run for the ensemble training run"
     )
+    classification_threshold: float = Field(
+        default=0.5, description='classification threshold'
+    )
 
 
 class ROIClassifierInferenceResults(SQLModel, table=True):
@@ -238,6 +244,9 @@ class ROIClassifierInferenceResults(SQLModel, table=True):
     )
     score: float = Field(
         description="Classifier confidence that this ROI is a cell"
+    )
+    is_cell: bool = Field(
+        description='Whether the ROI is predicted to be a cell'
     )
 
 

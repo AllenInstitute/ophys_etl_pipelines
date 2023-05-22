@@ -1,13 +1,12 @@
 import json
 from pathlib import Path
 from types import ModuleType
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import pandas as pd
 from deepcell.cli.modules import inference
 from deepcell.datasets.model_input import ModelInput
-from sqlalchemy import select
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db import engine
@@ -69,10 +68,12 @@ class InferenceModule(PipelineModule):
                 "model_architecture": model_params["model_architecture"],
                 "truncate_to_layer": model_params["truncate_to_layer"],
             },
-            "model_load_path": self._ensemble.path,
+            "model_load_path": self._ensemble[1],
             "save_path": self.output_path,
             "mode": "production",
             "experiment_id": self.ophys_experiment.id,
+            "classification_threshold": (
+                self._ensemble[0].classification_threshold)
         }
 
     @property
@@ -137,6 +138,8 @@ class InferenceModule(PipelineModule):
         ensemble_id: int,
         **kwargs
     ):
+        ensemble = InferenceModule._get_model_ensemble(ensemble_id=ensemble_id)
+
         preds_file = output_files[
             WellKnownFileTypeEnum.ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS.value # noqa E501
         ]
@@ -147,12 +150,29 @@ class InferenceModule(PipelineModule):
 
         for pred in preds.itertuples(index=False):
             inference_res = ROIClassifierInferenceResults(
-                roi_id=pred.roi_id, ensemble_id=ensemble_id, score=pred.y_score
+                roi_id=pred.roi_id,
+                ensemble_id=ensemble_id,
+                score=pred.y_score,
+                is_cell=pred.y_score > ensemble[0].classification_threshold
             )
             session.add(inference_res)
 
     @staticmethod
-    def _get_model_ensemble(ensemble_id: int):
+    def _get_model_ensemble(
+            ensemble_id: int
+    ) -> Tuple[ROIClassifierEnsemble, str]:
+        """
+
+        Parameters
+        ----------
+        ensemble_id
+
+        Returns
+        -------
+        Tuple[ROIClassifierEnsemble, str]
+        ROIClassifierEnsemble and path to ensemble
+
+        """
         with Session(engine) as session:
             model_file = get_well_known_file_type(
                 session=session,
@@ -162,6 +182,10 @@ class InferenceModule(PipelineModule):
             )
             statement = select(
                 ROIClassifierEnsemble, WellKnownFile.path
+            ).join(
+                WellKnownFile,
+                onclause=(WellKnownFile.workflow_step_run_id ==
+                          ROIClassifierEnsemble.workflow_step_run_id)
             ).where(
                 ROIClassifierEnsemble.id == ensemble_id,
                 WellKnownFile.workflow_step_run_id
@@ -184,7 +208,7 @@ class InferenceModule(PipelineModule):
             mlflow_experiment_name=(
                 app_config.pipeline_steps.roi_classification.training.tracking.mlflow_experiment_name # noqa E501
             ),
-            run_id=self._ensemble.mlflow_run_id,
+            run_id=self._ensemble[0].mlflow_run_id,
         )
         params = run.run.data.params
 

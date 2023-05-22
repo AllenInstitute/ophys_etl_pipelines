@@ -137,32 +137,55 @@ class TestInference(MockSQLiteDB):
         wraps=lambda mlflow_experiment_name: "foo",
     )
     def test_save_predictions_to_db(self, __, mock_search_runs):
+        """Checks that predictions are saved to the db and that we can
+        fetch rois with the expected classification flag"""
         mock_search_runs.return_value = self._dummy_mlflow_search_runs_res
 
-        with Session(self._engine) as session:
-            save_job_run_to_db(
-                workflow_step_name=WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE, # noqa E501
-                start=datetime.datetime.now(),
-                end=datetime.datetime.now(),
-                module_outputs=[
-                    OutputFile(
-                        well_known_file_type=(
-                            WellKnownFileTypeEnum.ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS # noqa E501
-                        ),
-                        path=self._preds_path,
-                    )
-                ],
-                ophys_experiment_id="1",
-                sqlalchemy_session=session,
-                storage_directory="/foo",
-                log_path="/foo",
-                additional_steps=InferenceModule.save_predictions_to_db,
-                additional_steps_kwargs={
-                    # only 1 inserted, so we can assume id is 1
-                    "ensemble_id": 1
-                },
-                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+        with patch('ophys_etl.workflows.pipeline_modules.roi_classification.'
+                   'inference.engine', new=self._engine):
+            with Session(self._engine) as session:
+                save_job_run_to_db(
+                    workflow_step_name=WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE, # noqa E501
+                    start=datetime.datetime.now(),
+                    end=datetime.datetime.now(),
+                    module_outputs=[
+                        OutputFile(
+                            well_known_file_type=(
+                                WellKnownFileTypeEnum.ROI_CLASSIFICATION_EXPERIMENT_PREDICTIONS # noqa E501
+                            ),
+                            path=self._preds_path,
+                        )
+                    ],
+                    ophys_experiment_id="1",
+                    sqlalchemy_session=session,
+                    storage_directory="/foo",
+                    log_path="/foo",
+                    additional_steps=InferenceModule.save_predictions_to_db,
+                    additional_steps_kwargs={
+                        # only 1 inserted, so we can assume id is 1
+                        "ensemble_id": 1
+                    },
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                )
+
+            oe = OphysExperiment(
+                id="1",
+                movie_frame_rate_hz=11.0,
+                raw_movie_filename=Path('foo'),
+                session=OphysSession(id='1', specimen=Specimen(id='1')),
+                specimen=Specimen(id='1'),
+                storage_directory=Path('foo')
             )
+
+            with patch('ophys_etl.workflows.ophys_experiment.engine',
+                       new=self._engine):
+                rois = oe.rois
+
+            preds = pd.read_csv(self._preds_path).set_index('roi-id')
+            for roi in rois:
+                assert roi._is_cell == (preds.loc[roi.id]['y_score'] >
+                       app_config.pipeline_steps.roi_classification.inference.
+                       classification_threshold)
 
     def _insert_rois(self):
         rois_path = Path(__file__).parent.parent / "resources" / "rois.json"

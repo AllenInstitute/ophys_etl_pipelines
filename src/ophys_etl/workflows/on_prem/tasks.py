@@ -15,7 +15,8 @@ from ophys_etl.workflows.on_prem.slurm.slurm import (
     SlurmJobFailedException,
     logger,
 )
-from ophys_etl.workflows.ophys_experiment import OphysExperiment, OphysSession
+from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
+    OphysSession, OphysContainer
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
 from ophys_etl.workflows.utils.json_utils import EnhancedJSONEncoder
@@ -112,22 +113,37 @@ def submit_job(
     if module_kwargs is None:
         module_kwargs = {}
 
+    ids_passed = []
     if context['params'].get('ophys_experiment_id') is not None:
         ophys_experiment_id = context["params"]["ophys_experiment_id"]
         ophys_experiment = OphysExperiment.from_id(id=ophys_experiment_id)
+        ids_passed.append('ophys_experiment_id')
     else:
         ophys_experiment = None
 
     if context['params'].get('ophys_session_id') is not None:
         ophys_session_id = context["params"]["ophys_session_id"]
         ophys_session = OphysSession.from_id(id=ophys_session_id)
+        ids_passed.append('ophys_session_id')
+
     else:
         ophys_session = None
 
-    if ophys_session is not None and ophys_experiment is not None:
+    if context['params'].get('ophys_container_id') is not None:
+        ophys_container_id = context["params"]["ophys_container_id"]
+        ophys_container = OphysContainer.from_id(id=ophys_container_id)
+        ids_passed.append('ophys_container_id')
+
+    else:
+        ophys_container = None
+
+    if sum([ophys_session is not None,
+            ophys_experiment is not None,
+            ophys_container is not None]
+           ) > 1:
         raise ValueError(
-            'Expected either an ophys experiment or an ophys session to be '
-            'passed, not both')
+            'Expected one of  ophys_session_id, ophys_experiment_id, '
+            f'ophys_container_id. Got {ids_passed}')
 
     mod = module(
         ophys_experiment=ophys_experiment,
@@ -141,7 +157,6 @@ def submit_job(
 
     slurm = Slurm(
         pipeline_module=mod,
-        ophys_experiment_id=ophys_experiment_id,
         config_path=Path(config_path),
         log_path=log_path,
     )

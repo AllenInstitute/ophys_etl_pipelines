@@ -2,7 +2,7 @@ import datetime
 from unittest.mock import patch
 
 from ophys_etl.workflows.workflow_step_runs import \
-    get_completed_ophys_sessions
+    get_completed
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db
@@ -44,7 +44,7 @@ class TestDecrosstalkTrigger(MockSQLiteDB):
 
         with patch('ophys_etl.workflows.workflow_step_runs.engine',
                    new=self._engine):
-            completed_sessions = get_completed_ophys_sessions(
+            completed_sessions = get_completed(
                 ophys_experiment_ids=['a', 'c'],
                 workflow_step=WorkflowStepEnum.SEGMENTATION
             )
@@ -61,7 +61,7 @@ class TestDecrosstalkTrigger(MockSQLiteDB):
 
         with patch('ophys_etl.workflows.workflow_step_runs.engine',
                    new=self._engine):
-            completed_sessions = get_completed_ophys_sessions(
+            completed_sessions = get_completed(
                 ophys_experiment_ids=['c'],
                 workflow_step=WorkflowStepEnum.SEGMENTATION
             )
@@ -79,7 +79,7 @@ class TestDecrosstalkTrigger(MockSQLiteDB):
 
         with patch('ophys_etl.workflows.workflow_step_runs.engine',
                    new=self._engine):
-            completed_sessions = get_completed_ophys_sessions(
+            completed_sessions = get_completed(
                 ophys_experiment_ids=['a', 'c'],
                 workflow_step=WorkflowStepEnum.SEGMENTATION
             )

@@ -79,6 +79,7 @@ def save_job_run_to_db(
 
     ophys_experiment_id = context["params"].get("ophys_experiment_id", None)
     ophys_session_id = context["params"].get("ophys_session_id", None)
+    ophys_container_id = context["params"].get("ophys_container_id", None)
 
     module_outputs = job_finish_res["module_outputs"]
 
@@ -105,6 +106,7 @@ def save_job_run_to_db(
             module_outputs=module_outputs,
             ophys_experiment_id=ophys_experiment_id,
             ophys_session_id=ophys_session_id,
+            ophys_container_id=ophys_container_id,
             sqlalchemy_session=session,
             storage_directory=job_finish_res["storage_directory"],
             log_path=job_finish_res["log_path"],

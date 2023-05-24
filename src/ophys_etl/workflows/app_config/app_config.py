@@ -147,6 +147,10 @@ class _GenerateThumbnails(_PipelineStep):
     pass
 
 
+class _NwayCellMatching(_PipelineStep):
+    pass
+
+
 class _ROIClassifierTraining(_PipelineStep):
     class TrainTestSplit(ImmutableBaseModel):
         test_size: StrictFloat = Field(
@@ -238,6 +242,7 @@ class _PipelineSteps(ImmutableBaseModel):
     neuropil_correction: _NeuropilCorrection = Field(
         default=_NeuropilCorrection())
     dff: _DFOverFCalculation = Field(default=_DFOverFCalculation())
+    nway_cell_matching: _NwayCellMatching = Field(default=_NwayCellMatching())
 
 
 ##################

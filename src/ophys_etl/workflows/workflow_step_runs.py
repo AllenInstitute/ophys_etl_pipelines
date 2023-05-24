@@ -21,7 +21,7 @@ from ophys_etl.workflows.db.schemas import (
     WorkflowStepRun, Workflow,
 )
 from ophys_etl.workflows.utils.ophys_experiment_utils import \
-    get_session_experiment_id_map
+    get_session_experiment_id_map, get_container_experiment_id_map
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
@@ -195,12 +195,14 @@ def get_runs_completed_since(
     return res.all()
 
 
-def get_completed_ophys_sessions(
+def get_completed(
     ophys_experiment_ids: List[str],
-    workflow_step: WorkflowStepEnum
-):
-    """Gets ophys sessions from the list of `ophys_experiment_ids`
-    that have completed `workflow_step`. i.e. all experiments in session
+    workflow_step: WorkflowStepEnum,
+    level: str = 'ophys_session',
+
+) -> pd.DataFrame:
+    """Gets `level` from the list of `ophys_experiment_ids`
+    that have completed `workflow_step`. i.e. all experiments in `level`
     have completed `workflow_step`
 
     Parameters
@@ -209,10 +211,32 @@ def get_completed_ophys_sessions(
         List of ophys experiment ids
     workflow_step
         Workflow step to check for completion
+    level
+        The level at which to group experiments. Can be one of:
+        - ophys_session
+        - ophys_container
+
+    Returns
+    -------
+    pd.DataFrame
+        A dataframe containing all experiments in `level` for all `level`
+        that have completed
+
+        Columns:
+        - `level`_id
+        - ophys_experiment_id
     """
-    session_exps = get_session_experiment_id_map(
-        ophys_experiment_ids=ophys_experiment_ids
-    )
+    if level == 'ophys_session':
+        level_exp_map = get_session_experiment_id_map(
+            ophys_experiment_ids=ophys_experiment_ids
+        )
+    elif level == 'ophys_container':
+        level_exp_map = get_container_experiment_id_map(
+            ophys_experiment_ids=ophys_experiment_ids
+        )
+    else:
+        valid_levels = ('ophys_session', 'ophys_container')
+        raise ValueError(f'{level} is invalid. Must be on of {valid_levels}')
 
     with Session(engine) as session:
         step = get_workflow_step_by_name(
@@ -226,12 +250,12 @@ def get_completed_ophys_sessions(
         )
         ophys_experiment_ids = session.exec(statement).all()
 
-    session_exps = pd.DataFrame(session_exps)
-    session_exps['has_completed'] = \
-        session_exps['ophys_experiment_id'].apply(
+    level_exp_map = pd.DataFrame(level_exp_map)
+    level_exp_map['has_completed'] = \
+        level_exp_map['ophys_experiment_id'].apply(
             lambda x: x in ophys_experiment_ids)
-    has_session_completed = \
-        session_exps.groupby('ophys_session_id')['has_completed']\
+    has_completed = \
+        level_exp_map.groupby(f'{level}_id')['has_completed']\
         .all()
-    completed_sessions = has_session_completed[has_session_completed].index
-    return completed_sessions.tolist()
+    completed = has_completed[has_completed].index
+    return completed.tolist()

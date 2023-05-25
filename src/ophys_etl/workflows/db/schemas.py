@@ -58,6 +58,12 @@ class WorkflowStepRun(SQLModel, table=True):
                     'is associated with. None if not associated with a '
                     'specific session'
     )
+    ophys_container_id: Optional[str] = Field(
+        index=True,
+        description='Ophys container id from LIMS that this workflow step run'
+                    'is associated with. None if not associated with a '
+                    'specific container'
+    )
     workflow_step_id: int = Field(foreign_key="workflow_step.id")
     log_path: str
     storage_directory: str
@@ -196,6 +202,26 @@ class OphysROI(SQLModel, table=True):
                 ophys_roi_mask_value.row_index, ophys_roi_mask_value.col_index
             ] = True
         return mask.tolist()
+
+
+class NwayCellMatch(SQLModel, table=True):
+    """Nway cell match"""
+
+    __tablename__ = "nway_cell_match"
+
+    nway_cell_matching_run_id: int = Field(
+        foreign_key="workflow_step_run.id",
+        primary_key=True
+    )
+    ophys_roi_id: int = Field(
+        foreign_key='ophys_roi.id',
+        primary_key=True
+    )
+    match_id: str = Field(
+        description='An id for the matching rois (it will be the same for all'
+                    'matching rois)',
+        index=True
+    )
 
 
 class ROIClassifierTrainingRun(SQLModel, table=True):

@@ -100,6 +100,96 @@ class OphysSession:
 
 
 @dataclass
+class OphysContainer:
+    """Ophys experiment container"""
+    id: str
+    specimen: Specimen
+
+    @classmethod
+    def from_id(cls, id: str) -> "OphysContainer":
+        """Returns an `OphysContainer` given a LIMS id for an
+        ophys container
+
+        Parameters
+        ----------
+        id
+            LIMS ID for the ophys container
+
+        """
+        specimen_query = f"""
+            SELECT
+                DISTINCT os.specimen_id
+            FROM ophys_experiments_visual_behavior_experiment_containers oevbec
+            JOIN ophys_experiments oe ON oe.id = oevbec.ophys_experiment_id
+            JOIN ophys_sessions os ON os.id = oe.ophys_session_id
+            WHERE oevbec.visual_behavior_experiment_container_id = {id}
+        """
+        lims_db = LIMSDB()
+        res = lims_db.query(query=specimen_query)
+
+        if len(res) == 0:
+            raise ValueError(
+                f"Could not fetch specimen "
+                f"for ophys container id "
+                f"{id}"
+            )
+        elif len(res) > 1:
+            raise RuntimeError(f'Ophys container {id} returned {len(res)} '
+                               f'specimen ids. Expected 1.')
+        res = res[0]
+
+        specimen = Specimen(id=res["specimen_id"])
+
+        return cls(
+            id=id,
+            specimen=specimen
+        )
+
+    @property
+    def output_dir(self) -> Path:
+        """Where to output files to for this container"""
+        base_dir = app_config.output_dir
+
+        output_dir = (
+                Path(base_dir)
+                / f"specimen_{self.specimen.id}"
+                / f"experiment_container_{self.id}"
+        )
+        os.makedirs(output_dir, exist_ok=True)
+        return output_dir
+
+    def get_ophys_experiment_ids(
+        self,
+        passed_or_qc_only: bool = True
+    ) -> List[int]:
+        """Gets list of experiment ids in this container
+
+        Parameters
+        ----------
+        passed_or_qc_only
+            Whether to only return experiments with workflow_state of
+            "passed" or "qc"
+        """
+        where_clause = \
+            f'oevbec.visual_behavior_experiment_container_id = {self.id}'
+
+        if passed_or_qc_only:
+            where_clause += " AND oe.workflow_state IN ('passed', 'qc')"
+
+        query = f"""
+            SELECT
+                oe.id as ophys_experiment_id
+            FROM ophys_experiments_visual_behavior_experiment_containers oevbec
+            JOIN ophys_experiments oe ON oe.id = oevbec.ophys_experiment_id
+            WHERE {where_clause}
+        """
+
+        lims_db = LIMSDB()
+        res = lims_db.query(query=query)
+        return [x['ophys_experiment_id'] for x in res]
+
+
+@dataclass
 class OphysExperiment:
     """Container for an ophys experiment"""
 
@@ -144,14 +234,17 @@ class OphysExperiment:
                 oe.movie_frame_rate_hz,
                 oe.ophys_imaging_plane_group_id,
                 oipg.group_order as imaging_plane_group_order,
-                images.jp2 as raw_movie_filename
+                images.jp2 as raw_movie_filename,
+                oevbec.visual_behavior_experiment_container_id as ophys_container_id
             FROM ophys_experiments oe
             JOIN images on images.id = oe.ophys_primary_image_id
             JOIN ophys_sessions os on os.id = oe.ophys_session_id
+            LEFT JOIN ophys_experiments_visual_behavior_experiment_containers oevbec 
+                ON oevbec.ophys_experiment_id = oe.id
             LEFT JOIN ophys_imaging_plane_groups oipg on
                 oipg.id = oe.ophys_imaging_plane_group_id
             WHERE oe.id = {id}
-        """
+        """     # noqa E402
         lims_db = LIMSDB()
         res = lims_db.query(query=query)
 
@@ -221,10 +314,10 @@ class OphysExperiment:
         """
         with Session(engine) as session:
             workflow_step_run_id = get_latest_workflow_step_run(
-                session,
-                WorkflowStepEnum.SEGMENTATION,
-                WorkflowNameEnum.OPHYS_PROCESSING,
-                self.id,
+                session=session,
+                workflow_step=WorkflowStepEnum.SEGMENTATION,
+                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                ophys_experiment_id=self.id,
             )
             rois: List[OphysROI] = session.execute(
                 select(OphysROI)

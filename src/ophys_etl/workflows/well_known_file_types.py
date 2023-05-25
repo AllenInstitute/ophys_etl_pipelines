@@ -69,3 +69,8 @@ class WellKnownFileTypeEnum(Enum):
     # DF/F
     ########
     DFF_TRACES = "DFF_TRACES"
+
+    ########
+    # nway cell matching
+    ########
+    NWAY_CELL_MATCHING_METADATA = "NWAY_CELL_MATCHING_METADATA"

@@ -124,7 +124,6 @@ class TestSlurm:
             docker_tag=app_config.pipeline_steps.motion_correction.docker_tag,
         )
         cls._slurm = Slurm(
-            ophys_experiment_id="1",
             pipeline_module=mod,
             config_path=Path(__file__).parent
             / "test_data"
@@ -141,8 +140,7 @@ class TestSlurm:
             output_json="output.json"
         )
         with open(
-            self._slurm._pipeline_module.output_path
-            / f"{self._slurm._ophys_experiment_id}.json"
+            self._slurm._pipeline_module.output_path / "slurm_job.json"
         ) as f:
             job = f.read()
 

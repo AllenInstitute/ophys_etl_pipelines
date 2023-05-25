@@ -139,6 +139,10 @@ def _create_workflow_steps_for_ophys_processing(session, workflow: Workflow):
             name=WorkflowStepEnum.DEMIX_TRACES.value,
             workflow_id=workflow.id,
         ),
+        "nway_cell_matching": WorkflowStep(
+            name=WorkflowStepEnum.NWAY_CELL_MATCHING.value,
+            workflow_id=workflow.id
+        )
     }
     for workflow_step in workflow_steps.values():
         session.add(workflow_step)
@@ -317,6 +321,19 @@ def _create_roi_classification_training_well_known_file_types(
         session.add(wkft)
 
 
+def _create_nway_cell_matching_well_known_file_types(
+    session, workflow_steps: Dict[str, WorkflowStep]
+):
+    well_known_file_types = [
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.NWAY_CELL_MATCHING_METADATA.value,
+            workflow_step_id=workflow_steps['nway_cell_matching'].id
+        )
+    ]
+    for wkft in well_known_file_types:
+        session.add(wkft)
+
+
 def _create_well_known_file_types_for_ophys_processing(
     session, workflow_steps: Dict[str, WorkflowStep]
 ):
@@ -341,6 +358,9 @@ def _create_well_known_file_types_for_ophys_processing(
         session=session, workflow_steps=workflow_steps
     )
     _create_roi_classification_inference_well_known_file_types(
+        session=session, workflow_steps=workflow_steps
+    )
+    _create_nway_cell_matching_well_known_file_types(
         session=session, workflow_steps=workflow_steps
     )
     session.commit()

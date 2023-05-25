@@ -170,7 +170,6 @@ class Slurm:
     """Wrapper around slurm"""
     def __init__(
         self,
-        ophys_experiment_id: str,
         pipeline_module: PipelineModule,
         config_path: Path,
         log_path: Path
@@ -178,8 +177,6 @@ class Slurm:
         """
         Parameters
         ----------
-        ophys_experiment_id`
-            identifier for ophys experiment
         pipeline_module
             `PipelineModule` instance
         config_path
@@ -188,7 +185,6 @@ class Slurm:
             Where to write slurm job logs to
         """
         self._pipeline_module = pipeline_module
-        self._ophys_experiment_id = ophys_experiment_id
         self._job: Optional[SlurmJob] = None
         self._slurm_settings = read_config(config_path=config_path)
         self._log_path = log_path
@@ -290,8 +286,7 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
             'script': script
         }
 
-        out = self._pipeline_module.output_path / \
-            f'{self._ophys_experiment_id}.json'
+        out = self._pipeline_module.output_path / 'slurm_job.json'
 
         with open(out, 'w') as f:
             f.write(json.dumps(job, indent=2))

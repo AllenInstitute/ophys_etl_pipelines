@@ -15,7 +15,7 @@ from sqlmodel import Session
 from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_runs_completed_since, \
-    get_completed_ophys_sessions
+    get_completed
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 logger = logging.getLogger('airflow.task')
@@ -85,9 +85,10 @@ def decrosstalk_trigger():
         ophys_experiment_ids = _get_multiplane_experiments(
             ophys_experiment_ids=ophys_experiment_ids
         )
-        completed_ophys_sessions = get_completed_ophys_sessions(
+        completed_ophys_sessions = get_completed(
             ophys_experiment_ids=ophys_experiment_ids,
-            workflow_step=WorkflowStepEnum.SEGMENTATION
+            workflow_step=WorkflowStepEnum.SEGMENTATION,
+            level='ophys_session'
         )
         for ophys_session_id in completed_ophys_sessions:
             logger.info(

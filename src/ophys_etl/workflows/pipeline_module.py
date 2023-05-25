@@ -9,7 +9,8 @@ from types import ModuleType
 from typing import Dict, List, Optional
 
 from ophys_etl.workflows.app_config.app_config import app_config
-from ophys_etl.workflows.ophys_experiment import OphysExperiment, OphysSession
+from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
+    OphysSession, OphysContainer
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.utils.json_utils import EnhancedJSONEncoder
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
@@ -30,6 +31,7 @@ class PipelineModule:
         docker_tag: str,
         ophys_experiment: Optional[OphysExperiment] = None,
         ophys_session: Optional[OphysSession] = None,
+        ophys_container: Optional[OphysContainer] = None,
         prevent_file_overwrites: bool = True,
         **module_args,
     ):
@@ -43,8 +45,12 @@ class PipelineModule:
             this can be None
         ophys_session
             `OphysSession` instance.
-            If this contains a value and `ophys_experiment` does not,
-            we assume this module runs at the session level
+            If this contains a value and `ophys_experiment`, `ophys_container`
+            do not, we assume this module runs at the session level
+        ophys_container
+            `OphysContainer` instance.
+            If this contains a value and `ophys_experiment`, `ophys_session`
+            do not, we assume this module runs at the container level
         prevent_file_overwrites
             Whether to allow files output by module to be overwritten
         docker_tag
@@ -53,6 +59,7 @@ class PipelineModule:
 
         self._ophys_experiment = ophys_experiment
         self._ophys_session = ophys_session
+        self._ophys_container = ophys_container
         self._docker_tag = docker_tag
         self._now = datetime.datetime.now()
 
@@ -83,6 +90,12 @@ class PipelineModule:
         """The `OphysSession` we are running the module on.
         None if not running on a specific ophys session"""
         return self._ophys_session
+
+    @property
+    def ophys_container(self) -> Optional[OphysContainer]:
+        """The `OphysContainer` we are running the module on.
+        None if not running on a specific ophys container"""
+        return self._ophys_container
 
     @property
     @abc.abstractmethod
@@ -129,6 +142,8 @@ class PipelineModule:
             path = self._ophys_session.output_dir / self.queue_name.value
         elif self._ophys_experiment is not None:
             path = self._ophys_experiment.output_dir / self.queue_name.value
+        elif self._ophys_container is not None:
+            path = self._ophys_container.output_dir / self.queue_name.value
         else:
             path = app_config.output_dir / self.queue_name.value
 

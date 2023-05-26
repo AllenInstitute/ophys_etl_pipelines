@@ -139,6 +139,14 @@ def _create_workflow_steps_for_ophys_processing(session, workflow: Workflow):
             name=WorkflowStepEnum.DEMIX_TRACES.value,
             workflow_id=workflow.id,
         ),
+        "dff": WorkflowStep(
+            name=WorkflowStepEnum.DFF.value,
+            workflow_id=workflow.id,
+        ),
+        "event_detection": WorkflowStep(
+            name=WorkflowStepEnum.EVENT_DETECTION.value,
+            workflow_id=workflow.id,
+        ),
         "nway_cell_matching": WorkflowStep(
             name=WorkflowStepEnum.NWAY_CELL_MATCHING.value,
             workflow_id=workflow.id
@@ -440,7 +448,7 @@ def _create_dff_well_known_file_types(
     well_known_file_types = [
         WellKnownFileType(
             name=WellKnownFileTypeEnum.DFF_TRACES.value,
-            workflow_step_id=workflow_steps["dff_traces"].id
+            workflow_step_id=workflow_steps["dff"].id
         )
     ]
     for wkft in well_known_file_types:

@@ -120,6 +120,8 @@ class TestSlurm:
                 storage_directory=Path("/foo"),
                 raw_movie_filename=Path("mov.h5"),
                 movie_frame_rate_hz=11.0,
+                equipment_name='MESO.1',
+                full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
             ),
             docker_tag=app_config.pipeline_steps.motion_correction.docker_tag,
         )

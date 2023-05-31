@@ -203,10 +203,17 @@ class OphysROI(SQLModel, table=True):
             ] = True
         return mask.tolist()
 
-    @property
-    def is_valid(self) -> bool:
+    def is_valid(self, equipment: str = "") -> bool:
         """Return True if no processing flags (motion_border, decrosstalk)
         flags are set.
+
+        Parameters
+        ----------
+        include_decrosstalk : bool Optional
+            Check decrosstalk flags for is_valid. Decrosstalk is required
+            for mesoscope experiments imaging multiple experiments at once.
+            Other experiments using different equipment do not require
+            decrosstalk.
 
         Returns
         -------
@@ -214,24 +221,25 @@ class OphysROI(SQLModel, table=True):
             Composite flag that returns True if no processing flags are set.
             False if any flag is set.
         """
-        if self.is_in_motion_border or self.is_in_motion_border is None:
-            return False
-        elif self.is_decrosstalk_ghost or self.is_decrosstalk_ghost is None:
-            return False
-        elif (self.is_decrosstalk_invalid_raw_active
-              or self.is_decrosstalk_invalid_raw_active is None):
-            return False
-        elif (self.is_decrosstalk_invalid_raw
-              or self.is_decrosstalk_invalid_raw is None):
-            return False
-        elif (self.is_decrosstalk_invalid_unmixed
-              or self.is_decrosstalk_invalid_unmixed is None):
-            return False
-        elif (self.is_decrosstalk_invalid_unmixed_active
-              or self.is_decrosstalk_invalid_unmixed_active is None):
-            return False
-        else:
-            return True
+        flag_set = [self.is_in_motion_border]
+        if equipment.startswith("MESO"):
+            decrosstalk_set = [
+                self.is_decrosstalk_ghost,
+                self.is_decrosstalk_invalid_raw_active,
+                self.is_decrosstalk_invalid_raw,
+                self.is_decrosstalk_invalid_unmixed,
+                self.is_decrosstalk_invalid_unmixed_active
+            ]
+            for flag in decrosstalk_set:
+                if flag is None:
+                    raise TypeError(
+                        "Decrosstalk flags not filled as is required for "
+                        f"experiments/sessions with equipment {equipment}. "
+                        "Make sure that the decrosstalk module has been run "
+                        "for this experiment/session."
+                    )
+            flag_set.extend(decrosstalk_set)
+        return sum(flag_set) == 0
 
 
 class NwayCellMatch(SQLModel, table=True):

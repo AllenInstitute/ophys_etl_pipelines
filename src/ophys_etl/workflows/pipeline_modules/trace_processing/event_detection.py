@@ -2,6 +2,7 @@ from types import ModuleType
 from typing import List
 
 from ophys_etl.modules import event_detection
+from ophys_etl.modules.event_detection.schemas import EventDetectionInputSchema
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
@@ -37,22 +38,20 @@ class EventDetection(PipelineModule):
 
     @property
     def queue_name(self) -> WorkflowStepEnum:
-        return WorkflowStepEnum.DEMIX_TRACES
+        return WorkflowStepEnum.EVENT_DETECTION
 
     @property
     def inputs(self):
-        roi_ids = []
-        for roi in self.ophys_experiment.roi:
-            if roi.is_valid:
-                roi_ids.append(roi.id)
-
-        module_args = {
-            "movie_frame_rate_hz": self.ophys_experiment.movie_frame_rate_hz,
-            "full_genotype": self.ophys_experiment.full_genotype,
-            "ophysdfftracefile": self._dff_traces_file,
-            "valid_roi_ids": roi_ids,
-            "output_event_file": str(self._output_file_path)
-        }
+        valid_roi_ids = [roi.id for roi in self.ophys_experiment.rois if
+                         roi.is_valid(self.ophys_experiment.equipment_name)]
+        module_args = EventDetectionInputSchema().load(data={
+                "movie_frame_rate_hz": self.ophys_experiment.movie_frame_rate_hz,  # noqa 501
+                "full_genotype": self.ophys_experiment.full_genotype,
+                "ophysdfftracefile": self._dff_traces_file,
+                "valid_roi_ids": valid_roi_ids,
+                "output_event_file": str(self._output_file_path)
+            }
+        )
         return module_args
 
     @property
@@ -67,6 +66,6 @@ class EventDetection(PipelineModule):
                 well_known_file_type=(
                     WellKnownFileTypeEnum.EVENTS
                 ),
-                path=self._output_file_path,
-            ),
+                path=self._output_file_path
+            )
         ]

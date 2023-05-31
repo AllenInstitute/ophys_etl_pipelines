@@ -31,6 +31,9 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.neuropil_subtraction 
 from ophys_etl.workflows.pipeline_modules.trace_processing.dff_calculation import (  # noqa E501
     DFOverFCalculation,
 )
+from ophys_etl.workflows.pipeline_modules.trace_processing.event_detection import (  # noqa E501
+    EventDetection,
+)
 from ophys_etl.workflows.tasks import wait_for_decrosstalk_to_finish
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -218,7 +221,7 @@ def ophys_processing():
         def event_detection(dff_traces):
             run_workflow_step(
                 slurm_config_filename="event_detection.yml",
-                module=DFOverFCalculation,
+                module=EventDetection,
                 workflow_step_name=WorkflowStepEnum.EVENT_DETECTION,
                 workflow_name=WORKFLOW_NAME,
                 docker_tag=app_config.pipeline_steps.event_detection.docker_tag,  # noqa E501

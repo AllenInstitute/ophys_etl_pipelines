@@ -229,7 +229,8 @@ class TestComputeClassifierArtifacts:
             roi.get_centered_cutout(
                 image=mov[3],
                 height=self.args['cutout_size'],
-                width=self.args['cutout_size']
+                width=self.args['cutout_size'],
+                pad_mode='symmetric'
             )
         )
         np.testing.assert_array_equal(

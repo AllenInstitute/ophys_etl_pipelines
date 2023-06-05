@@ -11,10 +11,12 @@ import PIL
 import pandas as pd
 
 from argschema import ArgSchema, ArgSchemaParser, fields
-from deepcell.cli.modules.create_dataset import construct_dataset
+from deepcell.cli.modules.create_dataset import construct_dataset, \
+    VoteTallyingStrategy
 from deepcell.cli.schemas.data import ChannelField
 from deepcell.datasets.channel import Channel, channel_filename_prefix_map
 from marshmallow import validates_schema, ValidationError
+from marshmallow.validate import OneOf
 
 from ophys_etl.modules.segmentation.graph_utils.conversion import \
     graph_to_img
@@ -86,6 +88,13 @@ class ClassifierArtifactsInputSchema(ArgSchema):
         required=False,
         default=128,
         description="Size of square cutout in pixels.",
+    )
+    pad_mode = fields.String(
+        default='constant',
+        description='Pad mode for all channels except the mask when the ROI '
+                    'thumbnail would extend past the edge of the frame. '
+                    'The mask always gets constant padding.',
+        validate=OneOf(('constant', 'symmetric'))
     )
     is_training = fields.Boolean(
         required=True,
@@ -173,7 +182,7 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         if self.args['is_training']:
             selected_rois = self._get_labeled_rois_for_experiment()
         else:
-            selected_rois = [roi['id'] for roi in extract_roi_list]
+            selected_rois = [str(roi['id']) for roi in extract_roi_list]
         selected_rois = set(selected_rois)
 
         maximum_motion_shift = get_max_correction_from_file(
@@ -183,7 +192,7 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
 
         self.logger.info("Creating and writing ROI artifacts...")
         for roi in extract_roi_list:
-            if roi['id'] not in selected_rois:
+            if str(roi['id']) not in selected_rois:
                 continue
             roi_meta[roi['id']] = {
                 'is_inside_motion_border': (
@@ -322,8 +331,10 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             raise ValueError('cell_labeling_app_host needed to get '
                              'labeled rois')
         labels = construct_dataset(
-            cell_labeling_app_host=self.args['cell_labeling_app_host']
+            cell_labeling_app_host=self.args['cell_labeling_app_host'],
+            vote_tallying_strategy=VoteTallyingStrategy.MAJORITY
         )
+        labels['roi_id'] = labels['roi_id'].astype(str)
 
         labels = labels.set_index('experiment_id')
         if self.args['experiment_id'] not in labels.index:
@@ -362,7 +373,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             thumbnail = roi.get_centered_cutout(
                 image=img,
                 height=self.args['cutout_size'],
-                width=self.args['cutout_size']
+                width=self.args['cutout_size'],
+                pad_mode=('constant' if channel == Channel.MASK
+                          else self.args['pad_mode'])
             )
 
             # For max activation, need to normalize the thumbnail

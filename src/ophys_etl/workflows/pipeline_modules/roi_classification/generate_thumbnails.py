@@ -53,8 +53,9 @@ class GenerateThumbnailsModule(PipelineModule):
             "channels": (
                 app_config.pipeline_steps.roi_classification.input_channels
             ),
-            "out_dir": self.output_path / "thumbnails",
-            "is_training": self._is_training,
+            "thumbnails_out_dir": self.output_path / "thumbnails",
+            "roi_meta_out_dir": self.output_path / 'roi_meta',
+            "is_training": self._is_training
         }
         if self._is_training:
             d[
@@ -69,7 +70,7 @@ class GenerateThumbnailsModule(PipelineModule):
                 well_known_file_type=(
                     WellKnownFileTypeEnum.ROI_CLASSIFICATION_THUMBNAIL_IMAGES
                 ),
-                path=self.inputs["out_dir"],
+                path=self.inputs["thumbnails_out_dir"],
             )
         ]
 

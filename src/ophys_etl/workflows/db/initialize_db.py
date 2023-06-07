@@ -131,13 +131,21 @@ def _create_workflow_steps_for_ophys_processing(session, workflow: Workflow):
             name=WorkflowStepEnum.TRACE_EXTRACTION.value,
             workflow_id=workflow.id,
         ),
-        "decrosstalk": WorkflowStep(
-            name=WorkflowStepEnum.DECROSSTALK.value,
-            workflow_id=workflow.id
-        ),
         "demix_traces": WorkflowStep(
             name=WorkflowStepEnum.DEMIX_TRACES.value,
             workflow_id=workflow.id,
+        ),
+        "neuropil_correction": WorkflowStep(
+            name=WorkflowStepEnum.NEUROPIL_CORRECTION.value,
+            workflow_id=workflow.id
+        ),
+        "dff_calculation": WorkflowStep(
+            name=WorkflowStepEnum.DFF.value,
+            workflow_id=workflow.id
+        ),
+        "decrosstalk": WorkflowStep(
+            name=WorkflowStepEnum.DECROSSTALK.value,
+            workflow_id=workflow.id
         ),
         "nway_cell_matching": WorkflowStep(
             name=WorkflowStepEnum.NWAY_CELL_MATCHING.value,
@@ -354,9 +362,6 @@ def _create_well_known_file_types_for_ophys_processing(
         session=session, workflow_steps=workflow_steps
     )
 
-    _create_demix_traces_well_known_file_types(
-        session=session, workflow_steps=workflow_steps
-    )
     _create_roi_classification_inference_well_known_file_types(
         session=session, workflow_steps=workflow_steps
     )
@@ -396,6 +401,18 @@ def _create_trace_extraction_well_known_file_types(
             name=WellKnownFileTypeEnum.TRACE_EXTRACTION_EXCLUSION_LABELS.value,
             workflow_step_id=workflow_steps["trace_extraction"].id,
         ),
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.DEMIXED_TRACES.value,
+            workflow_step_id=workflow_steps["demix_traces"].id
+        ),
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.NEUROPIL_CORRECTED_TRACES.value,
+            workflow_step_id=workflow_steps["neuropil_correction"].id
+        ),
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.DFF_TRACES.value,
+            workflow_step_id=workflow_steps["dff_calculation"].id
+        )
     ]
     for wkft in well_known_file_types:
         session.add(wkft)
@@ -408,19 +425,6 @@ def _create_decrosstalk_well_known_file_types(
         WellKnownFileType(
             name=WellKnownFileTypeEnum.DECROSSTALK_FLAGS.value,
             workflow_step_id=workflow_steps['decrosstalk'].id
-        )
-    ]
-    for wkft in well_known_file_types:
-        session.add(wkft)
-
-
-def _create_demix_traces_well_known_file_types(
-    session, workflow_steps: Dict[str, WorkflowStep]
-):
-    well_known_file_types = [
-        WellKnownFileType(
-            name=WellKnownFileTypeEnum.DEMIXED_TRACES.value,
-            workflow_step_id=workflow_steps["demix_traces"].id
         )
     ]
     for wkft in well_known_file_types:

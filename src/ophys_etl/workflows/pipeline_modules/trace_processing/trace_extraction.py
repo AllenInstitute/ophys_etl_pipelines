@@ -39,7 +39,6 @@ class TraceExtractionModule(PipelineModule):
     @property
     def inputs(self) -> Dict:
         return {
-            "log_level": logging.DEBUG,
             "storage_directory": self.output_path,
             "motion_border": self.ophys_experiment.motion_border.to_dict(),
             "motion_corrected_stack": (
@@ -57,18 +56,18 @@ class TraceExtractionModule(PipelineModule):
             ),
             OutputFile(
                 well_known_file_type=WellKnownFileTypeEnum.ROI_TRACE,
-                path=self.output_path,
+                path=self.output_path / 'roi_traces.h5',
             ),
             OutputFile(
                 well_known_file_type=WellKnownFileTypeEnum.NEUROPIL_TRACE,
-                path=self.output_path,
+                path=self.output_path / 'neuropil_traces.h5',
             ),
             OutputFile(
                 well_known_file_type=WellKnownFileTypeEnum.NEUROPIL_MASK,
-                path=self.output_path,
+                path=self.output_path / 'neuropil_masks.json',
             ),
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return trace_extraction

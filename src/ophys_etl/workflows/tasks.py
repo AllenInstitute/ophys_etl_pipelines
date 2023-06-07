@@ -15,7 +15,6 @@ from ophys_etl.workflows.workflow_step_runs import get_latest_workflow_step_run
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from sqlmodel import Session
 
-from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.db_utils import (
     save_job_run_to_db as _save_job_run_to_db,

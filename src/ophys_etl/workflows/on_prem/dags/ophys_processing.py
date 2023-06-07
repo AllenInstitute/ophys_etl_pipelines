@@ -240,6 +240,3 @@ def ophys_processing():
 
 
 ophys_processing()
-
-if __name__ == '__main__':
-    ophys_processing().test(run_conf={'ophys_experiment_id': "790624009"})

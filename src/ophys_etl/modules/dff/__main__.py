@@ -144,7 +144,10 @@ class DffJob(ArgSchemaParser):
             results = [i for i in pool.imap(
                        job_partial, np.arange(traces_shape[0]), chunksize=10)]
 
-        dff, sigma_dff, small_baseline = list(zip(*results))
+        if traces_shape[0] == 0:
+            dff, sigma_dff, small_baseline = [], [], []
+        else:
+            dff, sigma_dff, small_baseline = list(zip(*results))
 
         with h5py.File(self.args["output_file"], "w") as output_h5:
             output_h5.create_dataset(self.args["roi_field"],

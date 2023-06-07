@@ -58,7 +58,8 @@ class TestSegmentation(MockSQLiteDB):
                 raw_movie_filename=Path('foo'),
                 specimen=Specimen(id='1'),
                 session=OphysSession(id='1', specimen=Specimen(id='1')),
-                storage_directory=Path('foo')
+                storage_directory=Path('foo'),
+                equipment_name='MESO.1'
             )
 
         _rois_path = Path(__file__).parent / "resources" / "rois.json"

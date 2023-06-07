@@ -107,7 +107,8 @@ class TestNwayCellMatching(MockSQLiteDB):
                         session=OphysSession(id='1',
                                              specimen=Specimen(id='1')),
                         specimen=Specimen(id='1'),
-                        storage_directory=Path('foo')
+                        storage_directory=Path('foo'),
+                        equipment_name='MESO.1'
                     )
                     with patch('ophys_etl.workflows.ophys_experiment.engine',
                                new=self._engine):
@@ -145,7 +146,8 @@ class TestNwayCellMatching(MockSQLiteDB):
                 raw_movie_filename=Path('foo'),
                 session=OphysSession(id='1', specimen=Specimen(id='1')),
                 specimen=Specimen(id='1'),
-                storage_directory=Path('foo')
+                storage_directory=Path('foo'),
+                equipment_name='MESO.1'
             )
 
         mod = NwayCellMatchingModule(

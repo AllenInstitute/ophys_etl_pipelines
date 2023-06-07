@@ -148,7 +148,8 @@ class TestDecrosstalk(MockSQLiteDB):
                 imaging_plane_group=ImagingPlaneGroup(
                     id=0 if id == 'oe_1' else 1,
                     group_order=0 if id == 'oe_1' else 1
-                )
+                ),
+                equipment_name='MESO.1'
             )
 
         mod = DecrosstalkModule(
@@ -218,7 +219,8 @@ class TestDecrosstalk(MockSQLiteDB):
                 raw_movie_filename=Path('foo'),
                 session=ophys_session,
                 specimen=ophys_session.specimen,
-                storage_directory=Path('foo')
+                storage_directory=Path('foo'),
+                equipment_name='MESO.1'
             )
 
         # 1. Save segmentation run

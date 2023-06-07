@@ -45,7 +45,7 @@ class NeuropilCorrection(PipelineModule):
 
     @property
     def queue_name(self) -> WorkflowStepEnum:
-        return WorkflowStepEnum.NEUROPIL_SUBTRACTION
+        return WorkflowStepEnum.NEUROPIL_CORRECTION
 
     @property
     def inputs(self):

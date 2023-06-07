@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Callable, Dict, Optional
 
 from airflow.decorators import task
+from airflow.operators.python import get_current_context
 from airflow.sensors.base import PokeReturnValue
 from sqlalchemy.exc import NoResultFound
 
@@ -134,7 +135,8 @@ def wait_for_decrosstalk_to_finish(timeout: float) -> Callable:
     """
 
     @task.sensor(mode="reschedule", timeout=timeout)
-    def wait_for_decrosstalk_to_finish(**context):
+    def wait_for_decrosstalk_to_finish():
+        context = get_current_context()
         ophys_experiment_id = context['params']['ophys_experiment_id']
         ophys_experiment = OphysExperiment.from_id(id=ophys_experiment_id)
 

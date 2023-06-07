@@ -40,7 +40,7 @@ class DFOverFCalculation(PipelineModule):
     @property
     def inputs(self):
         module_args = {
-            "input_file": self._motion_corrected_ophys_movie_file,
+            "input_file": self._neuropil_corrected_traces,
             "output_file": str(self._output_file_path),
             "movie_frame_rate_hz": self.ophys_experiment.movie_frame_rate_hz
         }

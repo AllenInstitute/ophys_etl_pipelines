@@ -12,7 +12,7 @@ from pydantic import (
     SecretStr,
     StrictFloat,
     StrictInt,
-    StrictStr,
+    StrictStr
 )
 
 from ophys_etl.workflows.app_config._ophys_processing_trigger import \
@@ -74,10 +74,9 @@ class _Slurm(ImmutableBaseModel):
 class _PipelineStep(ImmutableBaseModel):
     """A pipeline step config"""
 
-    docker_tag: Optional[StrictStr] = Field(
-        default=None,
-        description="Docker tag to use to run pipeline step. If not provided,"
-                    "defaults to `_PipelineSteps.docker_tag`",
+    docker_tag: StrictStr = Field(
+        default='main',
+        description="Docker tag to use to run pipeline step",
     )
 
 

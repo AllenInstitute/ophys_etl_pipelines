@@ -25,8 +25,8 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.trace_extraction impo
 from ophys_etl.workflows.pipeline_modules.trace_processing.demix_traces import (  # noqa E501
     DemixTracesModule,
 )
-from ophys_etl.workflows.pipeline_modules.trace_processing.neuropil_subtraction import (  # noqa E501
-    NeuropilCorrection,
+from ophys_etl.workflows.pipeline_modules.trace_processing.neuropil_correction import (  # noqa E501
+    NeuropilCorrection
 )
 from ophys_etl.workflows.pipeline_modules.trace_processing.dff_calculation import (  # noqa E501
     DFOverFCalculation,
@@ -181,7 +181,6 @@ def ophys_processing():
 
         @task_group
         def neuropil_correction(
-                motion_corrected_ophys_movie_file,
                 demixed_roi_traces_file,
                 neuropil_traces_file):
             module_outputs = run_workflow_step(
@@ -191,7 +190,6 @@ def ophys_processing():
                 workflow_name=WORKFLOW_NAME,
                 docker_tag=app_config.pipeline_steps.docker_tag,  # noqa E501
                 module_kwargs={
-                    "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
                     "demixed_roi_traces_file": demixed_roi_traces_file,
                     "neuropil_traces_file": neuropil_traces_file
                 }
@@ -222,7 +220,6 @@ def ophys_processing():
                 WellKnownFileTypeEnum.ROI_TRACE.value]
         )
         neuropil_corrected_traces = neuropil_correction(
-            motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file,  # noqa E501
             demixed_roi_traces_file=demixed_traces,
             neuropil_traces_file=trace_outputs[
                 WellKnownFileTypeEnum.NEUROPIL_TRACE.value]

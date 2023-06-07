@@ -24,12 +24,6 @@ class NeuropilCorrection(PipelineModule):
             **kwargs
         )
 
-        motion_corrected_ophys_movie_file: OutputFile = kwargs[
-            "motion_corrected_ophys_movie_file"
-        ]
-        self._motion_corrected_ophys_movie_file = str(
-            motion_corrected_ophys_movie_file.path
-        )
         demixed_roi_traces_file: OutputFile = kwargs[
             "demixed_roi_traces_file"
         ]
@@ -50,7 +44,6 @@ class NeuropilCorrection(PipelineModule):
     @property
     def inputs(self):
         module_args = {
-            "motion_corrected_stack": self._motion_corrected_ophys_movie_file,
             "roi_trace_file": self._demixed_roi_traces_file,
             "storage_directory": str(self.output_path),
             "neuropil_trace_file": str(self._neuropil_traces_file)
@@ -64,9 +57,6 @@ class NeuropilCorrection(PipelineModule):
                 well_known_file_type=(
                     WellKnownFileTypeEnum.NEUROPIL_CORRECTED_TRACES
                 ),
-                path=(
-                    self.output_path
-                    / f"{self._ophys_experiment.id}_neuropil_correction.h5"
-                ),
+                path=self.output_path / "neuropil_correction.h5"
             ),
         ]

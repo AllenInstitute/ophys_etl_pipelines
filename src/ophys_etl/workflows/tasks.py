@@ -2,6 +2,7 @@
 
 import datetime
 import json
+import logging
 from pathlib import Path
 from typing import Callable, Dict, Optional
 
@@ -24,6 +25,8 @@ from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
+
+logger = logging.getLogger(__name__)
 
 
 @task
@@ -139,6 +142,11 @@ def wait_for_decrosstalk_to_finish(timeout: float) -> Callable:
         context = get_current_context()
         ophys_experiment_id = context['params']['ophys_experiment_id']
         ophys_experiment = OphysExperiment.from_id(id=ophys_experiment_id)
+        if not ophys_experiment.is_multiplane:
+            logger.info(f'Experiment {ophys_experiment.id} is not multiplane. '
+                        f'Equipment type: {ophys_experiment.equipment_name}. '
+                        f'Decrosstalk does not need to run')
+            return PokeReturnValue(is_done=True)
 
         with Session(engine) as session:
             try:

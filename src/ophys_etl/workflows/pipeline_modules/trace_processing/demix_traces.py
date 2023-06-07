@@ -38,7 +38,7 @@ class DemixTracesModule(PipelineModule):
         )
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return demix
 
     @property

@@ -46,6 +46,7 @@ class DenoisingInferenceModule(_DenoisingModule):
                 "normalize_cache": app_config.pipeline_steps.denoising.normalize_cache, # noqa E501
                 "gpu_cache_full": app_config.pipeline_steps.denoising.gpu_cache_full, # noqa E501
                 "data_path": self._motion_corrected_path,
+                "seed": 1234
             },
             "inference_params": {
                 "model_source": {"local_path": self._trained_model_path},
@@ -58,6 +59,7 @@ class DenoisingInferenceModule(_DenoisingModule):
                         / f"{self.ophys_experiment.id}_denoised_video.h5"
                     )
                 ),
+                "steps_per_epoch": 0
             },
             "run_uid": self.ophys_experiment.id,
         }
@@ -77,5 +79,5 @@ class DenoisingInferenceModule(_DenoisingModule):
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return inference

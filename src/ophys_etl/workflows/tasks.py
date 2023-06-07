@@ -110,7 +110,6 @@ def save_job_run_to_db(
             sqlalchemy_session=session,
             storage_directory=job_finish_res["storage_directory"],
             log_path=job_finish_res["log_path"],
-            validate_files_exist=not app_config.is_debug,
             additional_steps=additional_steps,
             additional_steps_kwargs=additional_steps_kwargs,
         )

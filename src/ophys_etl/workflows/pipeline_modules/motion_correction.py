@@ -1,7 +1,11 @@
 """Motion correction pipeline module"""
+from pathlib import Path
 from types import ModuleType
 from typing import Dict, List
 
+import h5py
+
+from ophys_etl.workflows.app_config.app_config import app_config
 from sqlmodel import Session
 
 from ophys_etl.modules import suite2p_registration
@@ -17,7 +21,7 @@ class MotionCorrectionModule(PipelineModule):
     """Wrapper around motion correction module"""
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return suite2p_registration
 
     @property
@@ -26,13 +30,16 @@ class MotionCorrectionModule(PipelineModule):
 
     @property
     def inputs(self):
+        if app_config.is_debug:
+            movie_file_path = self._construct_short_movie()
+        else:
+            movie_file_path = (
+                    self._ophys_experiment.storage_directory /
+                    self._ophys_experiment.raw_movie_filename)
         module_args = {
             "movie_frame_rate_hz": self._ophys_experiment.movie_frame_rate_hz,
             "suite2p_args": {
-                "h5py": str(
-                    self._ophys_experiment.storage_directory
-                    / self._ophys_experiment.raw_movie_filename
-                )
+                "h5py": str(movie_file_path)
             },
             "motion_corrected_output": (
                 str(
@@ -163,3 +170,24 @@ class MotionCorrectionModule(PipelineModule):
             max_correction_right=maximum_motion_shift.right,
         )
         session.add(run)
+
+    def _construct_short_movie(self) -> Path:
+        """In debug mode, we construct a short movie to work on and write
+        it to app_config.output_dir
+
+        Returns
+        -------
+        Path
+            Path to short movie
+        """
+        movie_file_path = (
+                self._ophys_experiment.storage_directory /
+                self._ophys_experiment.raw_movie_filename)
+        with h5py.File(movie_file_path, 'r') as f:
+            mov = f['data'][:200]
+
+        out_path = app_config.output_dir / \
+            f'{self.ophys_experiment.id}_debug_movie.h5'
+        with h5py.File(out_path, 'w') as f:
+            f.create_dataset(name='data', data=mov)
+        return out_path

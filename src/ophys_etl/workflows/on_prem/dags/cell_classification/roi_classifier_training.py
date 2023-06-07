@@ -102,8 +102,7 @@ def _generate_correlation_projections_for_experiments(
             ),
             workflow_name=WORKFLOW_NAME,
             docker_tag=(
-                app_config.pipeline_steps.roi_classification
-                .generate_correlation_projection.docker_tag
+                app_config.pipeline_steps.docker_tag
             ),
             module_kwargs={
                 "denoised_ophys_movie_file": denoised_ophys_movie_file

@@ -16,7 +16,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
     """Denoising Finetuning module"""
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return fine_tuning
 
     @property
@@ -60,6 +60,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "post_frame": 30,
                 "pre_frame": 30,
                 "pre_post_omission": 0,
+                "seed": 1234
             },
             "log_level": "INFO",
             "output_full_args": True,
@@ -69,6 +70,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "post_frame": 30,
                 "pre_frame": 30,
                 "pre_post_omission": 0,
+                "seed": 1234
             },
             "run_uid": self.ophys_experiment.id,
         }

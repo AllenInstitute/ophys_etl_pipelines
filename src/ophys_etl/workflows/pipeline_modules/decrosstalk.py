@@ -78,7 +78,7 @@ class DecrosstalkModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return decrosstalk
 
     @staticmethod

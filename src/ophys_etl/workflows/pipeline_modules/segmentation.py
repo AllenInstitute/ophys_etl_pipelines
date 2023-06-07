@@ -43,14 +43,13 @@ class SegmentationModule(PipelineModule):
     @property
     def inputs(self) -> Dict:
         return {
-            "log_level": logging.DEBUG,
             "suite2p_args": {
                 "h5py": self._denoised_ophys_movie_file,
                 "movie_frame_rate_hz": (
                     self.ophys_experiment.movie_frame_rate_hz
-                ),
+                )
             },
-            "postprocess_args": {},
+            "postprocess_args": {}
         }
 
     @property
@@ -63,7 +62,7 @@ class SegmentationModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return segment_postprocess
 
     @staticmethod

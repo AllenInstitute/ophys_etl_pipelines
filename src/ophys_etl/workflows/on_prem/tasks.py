@@ -83,8 +83,8 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
 def submit_job(
     module: Type[PipelineModule],
     config_path: str,
+    docker_tag: str,
     module_kwargs: Optional[Dict] = None,
-    docker_tag: str = "main",
     **context,
 ) -> Dict:
     """

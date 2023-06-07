@@ -91,7 +91,7 @@ class InferenceModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return inference
 
     def _write_model_inputs_to_disk(self, thumbnails_dir: Path) -> Path:

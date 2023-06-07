@@ -30,7 +30,7 @@ class DFOverFCalculation(PipelineModule):
         self._neuropil_corrected_traces = str(neuropil_corrected_traces.path)
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return dff
 
     @property

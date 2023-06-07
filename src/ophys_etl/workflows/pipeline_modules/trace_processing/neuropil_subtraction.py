@@ -40,7 +40,7 @@ class NeuropilCorrection(PipelineModule):
         self._neuropil_traces_file = str(neuropil_traces_file.path)
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return neuropil_correction
 
     @property

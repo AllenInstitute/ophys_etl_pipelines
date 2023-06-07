@@ -69,7 +69,7 @@ def ophys_processing():
             module=MotionCorrectionModule,
             workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
             workflow_name=WORKFLOW_NAME,
-            docker_tag=app_config.pipeline_steps.motion_correction.docker_tag,
+            docker_tag=app_config.pipeline_steps.docker_tag,
             additional_db_inserts=MotionCorrectionModule.save_metadata_to_db,
         )
         return module_outputs[
@@ -135,7 +135,7 @@ def ophys_processing():
             module=SegmentationModule,
             workflow_step_name=WorkflowStepEnum.SEGMENTATION,
             workflow_name=WORKFLOW_NAME,
-            docker_tag=app_config.pipeline_steps.segmentation.docker_tag,
+            docker_tag=app_config.pipeline_steps.docker_tag,
             additional_db_inserts=SegmentationModule.save_rois_to_db,
             module_kwargs={
                 "denoised_ophys_movie_file": denoised_ophys_movie_file
@@ -150,11 +150,10 @@ def ophys_processing():
         def trace_extraction(motion_corrected_ophys_movie_file,
                              rois_file):
             module_outputs = run_workflow_step(
-                slurm_config_filename="trace_extraction.yml",
                 module=TraceExtractionModule,
                 workflow_step_name=WorkflowStepEnum.TRACE_EXTRACTION,
                 workflow_name=WORKFLOW_NAME,
-                docker_tag=app_config.pipeline_steps.trace_extraction.docker_tag,  # noqa E501
+                docker_tag=app_config.pipeline_steps.docker_tag,  # noqa E501
                 module_kwargs={
                     "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
                     "rois_file": rois_file
@@ -170,7 +169,7 @@ def ophys_processing():
                 module=DemixTracesModule,
                 workflow_step_name=WorkflowStepEnum.DEMIX_TRACES,
                 workflow_name=WORKFLOW_NAME,
-                docker_tag=app_config.pipeline_steps.demix_traces.docker_tag,
+                docker_tag=app_config.pipeline_steps.docker_tag,
                 module_kwargs={
                     "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
                     "roi_traces_file": roi_traces_file
@@ -190,7 +189,7 @@ def ophys_processing():
                 module=NeuropilCorrection,
                 workflow_step_name=WorkflowStepEnum.NEUROPIL_CORRECTION,
                 workflow_name=WORKFLOW_NAME,
-                docker_tag=app_config.pipeline_steps.neuropil_correction.docker_tag,  # noqa E501
+                docker_tag=app_config.pipeline_steps.docker_tag,  # noqa E501
                 module_kwargs={
                     "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
                     "demixed_roi_traces_file": demixed_roi_traces_file,
@@ -207,7 +206,7 @@ def ophys_processing():
                 module=DFOverFCalculation,
                 workflow_step_name=WorkflowStepEnum.DFF,
                 workflow_name=WORKFLOW_NAME,
-                docker_tag=app_config.pipeline_steps.dff.docker_tag,
+                docker_tag=app_config.pipeline_steps.docker_tag,
                 module_kwargs={
                     "neuropil_corrected_traces": neuropil_corrected_traces,
                 }
@@ -241,3 +240,6 @@ def ophys_processing():
 
 
 ophys_processing()
+
+if __name__ == '__main__':
+    ophys_processing().test(run_conf={'ophys_experiment_id': "790624009"})

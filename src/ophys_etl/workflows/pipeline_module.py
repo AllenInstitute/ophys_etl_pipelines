@@ -110,29 +110,21 @@ class PipelineModule:
         raise NotImplementedError
 
     @property
-    def executable(self) -> str:
-        """Fully qualified path to executable this module runs"""
-        return "sleep" if app_config.is_debug else self._executable.__name__
-
-    @property
     @abc.abstractmethod
-    def _executable(self) -> ModuleType:
-        """Module to run"""
+    def executable(self) -> ModuleType:
+        """Fully qualified path to executable this module runs"""
         raise NotImplementedError
 
     @property
     def executable_args(self) -> Dict:
         """Returns arguments to send to `executable`"""
-        if app_config.is_debug:
-            res = {"args": [60], "kwargs": {}}  # i.e. will run sleep 60
-        else:
-            res = {
-                "args": [],
-                "kwargs": {
-                    "input_json": self.input_args_path,
-                    "output_json": self.output_metadata_path,
-                },
-            }
+        res = {
+            "args": [],
+            "kwargs": {
+                "input_json": self.input_args_path,
+                "output_json": self.output_metadata_path,
+            },
+        }
         return res
 
     @property

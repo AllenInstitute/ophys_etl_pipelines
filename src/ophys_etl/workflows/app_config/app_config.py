@@ -74,10 +74,10 @@ class _Slurm(ImmutableBaseModel):
 class _PipelineStep(ImmutableBaseModel):
     """A pipeline step config"""
 
-    docker_tag: StrictStr = Field(
-        default="main",
-        description="Docker tag to use to run pipeline step. Defaults to "
-        '"main"',
+    docker_tag: Optional[StrictStr] = Field(
+        default=None,
+        description="Docker tag to use to run pipeline step. If not provided,"
+                    "defaults to `_PipelineSteps.docker_tag`",
     )
 
 
@@ -231,7 +231,11 @@ class _ROIClassification(ImmutableBaseModel):
 
 class _PipelineSteps(ImmutableBaseModel):
     """All pipeline steps configs"""
-
+    docker_tag: StrictStr = Field(
+        default="main",
+        description="Docker tag to use to run pipeline step. Defaults to "
+        '"main"',
+    )
     denoising: _Denoising
     motion_correction: _MotionCorrection = Field(default=_MotionCorrection())
     segmentation: _Segmentation = Field(default=_Segmentation())

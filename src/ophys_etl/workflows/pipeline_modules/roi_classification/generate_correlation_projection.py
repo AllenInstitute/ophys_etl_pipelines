@@ -66,5 +66,5 @@ class GenerateCorrelationProjectionModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return calculate_edges

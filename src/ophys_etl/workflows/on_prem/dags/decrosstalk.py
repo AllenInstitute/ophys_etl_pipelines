@@ -31,7 +31,7 @@ def decrosstalk():
             module=DecrosstalkModule,
             workflow_step_name=WorkflowStepEnum.DECROSSTALK,
             workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-            docker_tag=app_config.pipeline_steps.decrosstalk.docker_tag,
+            docker_tag=app_config.pipeline_steps.docker_tag,
             additional_db_inserts=(
                 DecrosstalkModule.save_decrosstalk_flags_to_db),
         )

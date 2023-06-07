@@ -74,5 +74,5 @@ class GenerateThumbnailsModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return compute_classifier_artifacts

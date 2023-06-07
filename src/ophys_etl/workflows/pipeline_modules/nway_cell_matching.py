@@ -49,7 +49,7 @@ class NwayCellMatchingModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return nway_matching
 
     def _get_container_experiments_input(self):

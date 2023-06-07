@@ -3,6 +3,7 @@ import json
 import os
 import shutil
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import patch
 
 import pytest
@@ -55,8 +56,13 @@ class _DummyMod(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> str:
-        return "foo.bar"
+    def executable(self) -> ModuleType:
+        class DummyExecutable:
+            @staticmethod
+            def __name__():
+                return "foo.bar"
+        DummyExecutable: ModuleType
+        return DummyExecutable
 
 
 class TestPipelineModule:

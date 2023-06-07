@@ -105,7 +105,7 @@ def submit_job_and_wait_to_finish(
         else slurm_config_filename
     )
     slurm_config = (
-        Path(__file__).parent.parent
+        Path(__file__).parent
         / "slurm"
         / "configs"
         / slurm_config_filename

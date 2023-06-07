@@ -33,7 +33,7 @@ def nway_cell_matching():
             module=NwayCellMatchingModule,
             workflow_step_name=WorkflowStepEnum.NWAY_CELL_MATCHING,
             workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-            docker_tag=app_config.pipeline_steps.nway_cell_matching.docker_tag,
+            docker_tag=app_config.pipeline_steps.docker_tag,
             additional_db_inserts=(
                 NwayCellMatchingModule.save_matches_to_db),
         )

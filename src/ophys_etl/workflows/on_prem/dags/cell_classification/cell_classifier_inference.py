@@ -60,7 +60,7 @@ def cell_classifier_inference():
             ),
             workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
             docker_tag=(
-                app_config.pipeline_steps.roi_classification.generate_correlation_projection.docker_tag # noqa E501
+                app_config.pipeline_steps.docker_tag # noqa E501
             ),
             module_kwargs={
                 "denoised_ophys_movie_file": denoised_ophys_movie_file
@@ -80,7 +80,7 @@ def cell_classifier_inference():
             ),
             workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
             docker_tag=(
-                app_config.pipeline_steps.roi_classification.generate_thumbnails.docker_tag # noqa E501
+                app_config.pipeline_steps.docker_tag # noqa E501
             ),
             module_kwargs={
                 "denoised_ophys_movie_file": denoised_ophys_movie_file,
@@ -102,7 +102,7 @@ def cell_classifier_inference():
             ),
             workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
             docker_tag=(
-                app_config.pipeline_steps.roi_classification.inference.docker_tag # noqa E501
+                app_config.pipeline_steps.docker_tag # noqa E501
             ),
             module_kwargs={"ensemble_id": ensemble_id},
         )

@@ -222,17 +222,15 @@ class Slurm:
         """
         args = ' '.join([f'{x}' for x in args])
         kwargs = ' '.join([f'--{k} {v}' for k, v in kwargs.items()])
-        if app_config.is_debug:
-            script = f'{self._pipeline_module.executable} {args} {kwargs}'
-        else:
-            docker_tag = self._pipeline_module.docker_tag
-            singularity_username = \
-                app_config.singularity.username.get_secret_value()
-            singularity_password = \
-                app_config.singularity.password.get_secret_value()
 
-            request_gpu = self._slurm_settings.gpus > 0
-            script = f'''#! /bin/bash
+        docker_tag = self._pipeline_module.docker_tag
+        singularity_username = \
+            app_config.singularity.username.get_secret_value()
+        singularity_password = \
+            app_config.singularity.password.get_secret_value()
+
+        request_gpu = self._slurm_settings.gpus > 0
+        script = f'''#! /bin/bash
 # Adds mksquashfs (needed for singularity) to $PATH
 source /etc/profile
 
@@ -243,23 +241,22 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
     --bind /allen:/allen,/scratch/fast/${{SLURM_JOB_ID}}:/tmp \
     {"--nv" if request_gpu else ""} \
     docker://alleninstitutepika/ophys_etl_pipelines:{docker_tag} \
-    /envs/ophys_etl/bin/python -m {self._pipeline_module.executable} {args} \
-    {kwargs}
+    /envs/ophys_etl/bin/python -m {self._pipeline_module.executable.__name__} \
+    {args} {kwargs}
             '''
 
-        if app_config.is_debug or \
-                not self._slurm_settings.request_additional_tmp_storage:
+        if not self._slurm_settings.request_additional_tmp_storage:
             tmp = 0
         else:
             tmp = self._get_tmp_storage(
                 adjustment_factor=tmp_storage_adjustment_factor)
         cpus_per_task = \
-            1 if app_config.is_debug else \
+            4 if app_config.is_debug else \
             self._slurm_settings.cpus_per_task
         mem = \
-            1 if app_config.is_debug else self._slurm_settings.mem
+            16 if app_config.is_debug else self._slurm_settings.mem
         time = \
-            10 if app_config.is_debug else \
+            30 if app_config.is_debug else \
             self._slurm_settings.time
         gpus = \
             0 if app_config.is_debug else \

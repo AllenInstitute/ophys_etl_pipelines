@@ -86,6 +86,7 @@ def cell_classifier_inference():
                 "denoised_ophys_movie_file": denoised_ophys_movie_file,
                 "rois_file": rois_file,
                 "correlation_projection_graph_file": correlation_graph_file, # noqa E501
+                "is_training": False
             },
         )
         return module_outputs[

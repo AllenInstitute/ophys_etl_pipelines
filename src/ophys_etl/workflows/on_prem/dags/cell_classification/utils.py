@@ -45,4 +45,4 @@ def get_rois_for_experiment(
         workflow_step=WorkflowStepEnum.SEGMENTATION,
         ophys_experiment_id=experiment_id,
     )
-    return rois_file
+    return str(rois_file)

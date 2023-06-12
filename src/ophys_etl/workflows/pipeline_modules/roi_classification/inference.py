@@ -21,7 +21,7 @@ from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
 from ophys_etl.workflows.pipeline_modules.roi_classification.utils.mlflow_utils import ( # noqa E501
-    MLFlowRun,
+    MLFlowRun
 )
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -208,14 +208,14 @@ class InferenceModule(PipelineModule):
             mlflow_experiment_name=(
                 app_config.pipeline_steps.roi_classification.training.tracking.mlflow_experiment_name # noqa E501
             ),
-            run_id=self._ensemble[0].mlflow_run_id,
+            run_id=self._ensemble[0].mlflow_run_id
         )
         params = run.run.data.params
 
         model_params = {
-            param["key"].replace("model_params_", ""): param["value"]
-            for param in params
-            if param["key"].startswith("model_params")
+            key.replace("model_params_", ""): value
+            for key, value in params.items()
+            if key.startswith("model_params")
         }
         return model_params
 

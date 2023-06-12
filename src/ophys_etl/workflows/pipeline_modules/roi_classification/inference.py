@@ -1,4 +1,5 @@
 import json
+from ast import literal_eval
 from pathlib import Path
 from types import ModuleType
 from typing import Dict, List, Tuple
@@ -62,7 +63,7 @@ class InferenceModule(PipelineModule):
     def inputs(self) -> Dict:
         model_params = self._get_mlflow_model_params()
         return {
-            "model_inputs_path": self._model_inputs_path,
+            "model_inputs_paths": [self._model_inputs_path],
             "model_params": {
                 "use_pretrained_model": model_params["use_pretrained_model"],
                 "model_architecture": model_params["model_architecture"],
@@ -217,6 +218,16 @@ class InferenceModule(PipelineModule):
             for key, value in params.items()
             if key.startswith("model_params")
         }
+
+        # mlflow returns all `params` values as strings
+        # Convert to python type
+        for k, v in model_params.items():
+            try:
+                model_params[k] = literal_eval(v)
+            except ValueError:
+                # It's a string that can't be converted to another type
+                pass
+
         return model_params
 
     def _get_rois(self) -> List[OphysROI]:

@@ -27,7 +27,7 @@ def get_denoised_movie_for_experiment(
         workflow_step=WorkflowStepEnum.DENOISING_INFERENCE,
         ophys_experiment_id=experiment_id,
     )
-    return denoised_ophys_movie_file
+    return str(denoised_ophys_movie_file)
 
 
 @task

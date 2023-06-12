@@ -44,6 +44,11 @@ def get_latest_dag_run(
         last_run_datetime = None
     else:
         last_dag_run = response['dag_runs'][0]
-        last_run_datetime = datetime.datetime.strptime(
-            last_dag_run['logical_date'], '%Y-%m-%dT%H:%M:%S.%f%z')
+        try:
+            last_run_datetime = datetime.datetime.strptime(
+                last_dag_run['logical_date'], '%Y-%m-%dT%H:%M:%S.%f%z')
+        except ValueError:
+            # try without fractional seconds
+            last_run_datetime = datetime.datetime.strptime(
+                last_dag_run['logical_date'], '%Y-%m-%dT%H:%M:%S%z')
     return last_run_datetime

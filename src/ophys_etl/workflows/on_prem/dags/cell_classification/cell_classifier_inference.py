@@ -94,7 +94,7 @@ def cell_classifier_inference():
         ]
 
     @task_group
-    def run_inference():
+    def run_inference(thumbnails_dir):
         ensemble_id = _get_roi_classifier()
         run_workflow_step(
             module=roi_classification.InferenceModule,
@@ -105,7 +105,10 @@ def cell_classifier_inference():
             docker_tag=(
                 app_config.pipeline_steps.docker_tag # noqa E501
             ),
-            module_kwargs={"ensemble_id": ensemble_id},
+            module_kwargs={
+                "ensemble_id": ensemble_id,
+                "thumbnails_dir": thumbnails_dir
+            },
         )
 
     denoised_ophys_movie_file = get_denoised_movie_for_experiment()
@@ -119,7 +122,7 @@ def cell_classifier_inference():
         rois_file=rois_file,
         correlation_graph_file=correlation_graph_file
     )
-    thumbnail_dir >> run_inference()
+    thumbnail_dir >> run_inference(thumbnails_dir=thumbnail_dir)
 
 
 cell_classifier_inference()

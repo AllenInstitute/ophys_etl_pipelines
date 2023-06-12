@@ -187,7 +187,6 @@ def get_runs_completed_since(
     )
     statement = (
         select(WorkflowStepRun)
-        .join(Workflow, onclause=WorkflowStep.workflow_id == Workflow.id)
         .where(WorkflowStepRun.workflow_step_id == workflow_step.id,
                WorkflowStepRun.end >= since)
     )

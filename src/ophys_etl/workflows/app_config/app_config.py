@@ -139,7 +139,7 @@ class _DFOverFCalculation(_PipelineStep):
 
 
 class _GenerateCorrelationProjection(_PipelineStep):
-    n_workers: int
+    n_workers: int = 4
 
 
 class _GenerateThumbnails(_PipelineStep):
@@ -218,7 +218,9 @@ class _ROIClassifierInference(_PipelineStep):
 class _ROIClassification(ImmutableBaseModel):
     input_channels: List[Channel]
     cell_labeling_app_host: StrictStr
-    generate_correlation_projection: _GenerateCorrelationProjection
+    generate_correlation_projection: _GenerateCorrelationProjection = Field(
+        default=_GenerateCorrelationProjection()
+    )
     generate_thumbnails: _GenerateThumbnails = Field(
         default=_GenerateThumbnails()
     )

@@ -1,6 +1,9 @@
 from typing import Optional
 
 from airflow.decorators import task
+from ophys_etl.workflows import well_known_file_types
+
+from ophys_etl.workflows.output_file import OutputFile
 
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
@@ -27,7 +30,11 @@ def get_denoised_movie_for_experiment(
         workflow_step=WorkflowStepEnum.DENOISING_INFERENCE,
         ophys_experiment_id=experiment_id,
     )
-    return str(denoised_ophys_movie_file)
+    return OutputFile(
+        path=denoised_ophys_movie_file,
+        well_known_file_type=(
+            WellKnownFileTypeEnum.DEEPINTERPOLATION_DENOISED_MOVIE)
+    )
 
 
 @task
@@ -45,4 +52,7 @@ def get_rois_for_experiment(
         workflow_step=WorkflowStepEnum.SEGMENTATION,
         ophys_experiment_id=experiment_id,
     )
-    return str(rois_file)
+    return OutputFile(
+        path=rois_file,
+        well_known_file_type=WellKnownFileTypeEnum.OPHYS_ROIS
+    )

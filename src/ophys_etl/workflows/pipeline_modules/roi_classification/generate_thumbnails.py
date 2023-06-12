@@ -36,7 +36,8 @@ class GenerateThumbnailsModule(PipelineModule):
 
         self._denoised_ophys_movie_file = str(denoised_ophys_movie_file.path)
         self._rois_file = str(rois_file.path)
-        self._correlation_graph_file = correlation_projection_graph_file
+        self._correlation_graph_file = \
+            str(correlation_projection_graph_file.path)
         self._is_training = is_training
 
     @property
@@ -54,7 +55,7 @@ class GenerateThumbnailsModule(PipelineModule):
                 app_config.pipeline_steps.roi_classification.input_channels
             ),
             "out_dir": self.output_path / "thumbnails",
-            "is_training": self._is_training,
+            "is_training": self._is_training
         }
         if self._is_training:
             d[
@@ -69,7 +70,7 @@ class GenerateThumbnailsModule(PipelineModule):
                 well_known_file_type=(
                     WellKnownFileTypeEnum.ROI_CLASSIFICATION_THUMBNAIL_IMAGES
                 ),
-                path=self.inputs["out_dir"],
+                path=self.output_path / "thumbnails"
             )
         ]
 

@@ -18,7 +18,7 @@ from ophys_etl.workflows.db.db_utils import (
 from ophys_etl.workflows.db.schemas import (
     WellKnownFile,
     WorkflowStep,
-    WorkflowStepRun, Workflow,
+    WorkflowStepRun
 )
 from ophys_etl.workflows.utils.ophys_experiment_utils import \
     get_session_experiment_id_map, get_container_experiment_id_map

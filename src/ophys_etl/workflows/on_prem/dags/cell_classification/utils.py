@@ -1,7 +1,6 @@
 from typing import Optional
 
 from airflow.decorators import task
-from ophys_etl.workflows import well_known_file_types
 
 from ophys_etl.workflows.output_file import OutputFile
 

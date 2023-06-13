@@ -174,7 +174,9 @@ class TestInference(MockSQLiteDB):
                 raw_movie_filename=Path('foo'),
                 session=OphysSession(id='1', specimen=Specimen(id='1')),
                 specimen=Specimen(id='1'),
-                storage_directory=Path('foo')
+                storage_directory=Path('foo'),
+                equipment_name='MESO.1',
+                full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
             )
 
             with patch('ophys_etl.workflows.ophys_experiment.engine',
@@ -199,7 +201,9 @@ class TestInference(MockSQLiteDB):
                 raw_movie_filename=Path('foo'),
                 session=OphysSession(id='1', specimen=Specimen(id='1')),
                 specimen=Specimen(id='1'),
-                storage_directory=Path('foo')
+                storage_directory=Path('foo'),
+                equipment_name='MESO.1',
+                full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
             )
             with Session(self._engine) as session:
                 with patch('ophys_etl.workflows.ophys_experiment.engine',

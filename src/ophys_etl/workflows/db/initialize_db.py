@@ -139,6 +139,14 @@ def _create_workflow_steps_for_ophys_processing(session, workflow: Workflow):
             name=WorkflowStepEnum.DEMIX_TRACES.value,
             workflow_id=workflow.id,
         ),
+        "dff": WorkflowStep(
+            name=WorkflowStepEnum.DFF.value,
+            workflow_id=workflow.id,
+        ),
+        "event_detection": WorkflowStep(
+            name=WorkflowStepEnum.EVENT_DETECTION.value,
+            workflow_id=workflow.id,
+        ),
         "nway_cell_matching": WorkflowStep(
             name=WorkflowStepEnum.NWAY_CELL_MATCHING.value,
             workflow_id=workflow.id
@@ -347,16 +355,23 @@ def _create_well_known_file_types_for_ophys_processing(
     _create_segmentation_well_known_file_types(
         session=session, workflow_steps=workflow_steps
     )
+
     _create_trace_extraction_well_known_file_types(
         session=session, workflow_steps=workflow_steps
     )
     _create_decrosstalk_well_known_file_types(
         session=session, workflow_steps=workflow_steps
     )
-
     _create_demix_traces_well_known_file_types(
         session=session, workflow_steps=workflow_steps
     )
+    _create_dff_well_known_file_types(
+        session=session, workflow_steps=workflow_steps
+    )
+    _create_event_detection_well_known_file_types(
+        session=session, workflow_steps=workflow_steps
+    )
+
     _create_roi_classification_inference_well_known_file_types(
         session=session, workflow_steps=workflow_steps
     )
@@ -421,6 +436,32 @@ def _create_demix_traces_well_known_file_types(
         WellKnownFileType(
             name=WellKnownFileTypeEnum.DEMIXED_TRACES.value,
             workflow_step_id=workflow_steps["demix_traces"].id
+        )
+    ]
+    for wkft in well_known_file_types:
+        session.add(wkft)
+
+
+def _create_dff_well_known_file_types(
+    session, workflow_steps: Dict[str, WorkflowStep]
+):
+    well_known_file_types = [
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.DFF_TRACES.value,
+            workflow_step_id=workflow_steps["dff"].id
+        )
+    ]
+    for wkft in well_known_file_types:
+        session.add(wkft)
+
+
+def _create_event_detection_well_known_file_types(
+    session, workflow_steps: Dict[str, WorkflowStep]
+):
+    well_known_file_types = [
+        WellKnownFileType(
+            name=WellKnownFileTypeEnum.EVENTS.value,
+            workflow_step_id=workflow_steps["event_detection"].id
         )
     ]
     for wkft in well_known_file_types:

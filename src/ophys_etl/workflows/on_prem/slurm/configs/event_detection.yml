@@ -1,0 +1,3 @@
+cpus_per_task: 24
+mem: 90
+time: 90

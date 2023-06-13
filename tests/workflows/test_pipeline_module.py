@@ -82,6 +82,8 @@ class TestPipelineModule:
                     storage_directory=Path("/storage_dir"),
                     raw_movie_filename=Path("mov.h5"),
                     movie_frame_rate_hz=11.0,
+                    equipment_name='MESO.1',
+                    full_genotype="abcd",
                 ),
                 docker_tag="main",
             )

@@ -54,16 +54,18 @@ def get_container_experiment_id_map(
     else:
         oe_ids_clause = f'oe.id = {ophys_experiment_ids[0]}'
 
-    if exclude_failed_experiments:
-        oe_ids_clause += " AND oe.workflow_state in ('passed', 'qc')"
-
     query = f'''
         SELECT
             oevbec.visual_behavior_experiment_container_id as container_id,
             oe.id as ophys_experiment_id
         FROM  ophys_experiments_visual_behavior_experiment_containers oevbec
         JOIN ophys_experiments oe ON oe.id = oevbec.ophys_experiment_id
-        WHERE {oe_ids_clause}
-    '''
+        WHERE oevbec.visual_behavior_experiment_container_id = (
+            SELECT oevbec.visual_behavior_experiment_container_id as container_id
+            FROM  ophys_experiments_visual_behavior_experiment_containers oevbec
+            JOIN ophys_experiments oe ON oe.id = oevbec.ophys_experiment_id
+            WHERE {oe_ids_clause}
+        ) {"AND oe.workflow_state in ('passed', 'qc')" if exclude_failed_experiments else ""}
+    ''' # noqa E402
     res = lims_db.query(query=query)
     return res

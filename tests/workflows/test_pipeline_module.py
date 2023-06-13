@@ -3,7 +3,6 @@ import json
 import os
 import shutil
 from pathlib import Path
-from types import ModuleType
 from unittest.mock import patch
 
 import pytest
@@ -56,13 +55,8 @@ class _DummyMod(PipelineModule):
         ]
 
     @property
-    def executable(self) -> ModuleType:
-        class DummyExecutable:
-            @staticmethod
-            def __name__():
-                return "foo.bar"
-        DummyExecutable: ModuleType
-        return DummyExecutable
+    def _executable(self) -> str:
+        return "foo.bar"
 
 
 class TestPipelineModule:
@@ -88,7 +82,8 @@ class TestPipelineModule:
                     storage_directory=Path("/storage_dir"),
                     raw_movie_filename=Path("mov.h5"),
                     movie_frame_rate_hz=11.0,
-                    equipment_name="MESO.1"
+                    equipment_name='MESO.1',
+                    full_genotype="abcd",
                 ),
                 docker_tag="main",
             )

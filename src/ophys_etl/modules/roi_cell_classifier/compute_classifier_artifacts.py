@@ -11,19 +11,23 @@ import PIL
 import pandas as pd
 
 from argschema import ArgSchema, ArgSchemaParser, fields
-from deepcell.cli.modules.create_dataset import construct_dataset
+from deepcell.cli.modules.create_dataset import construct_dataset, \
+    VoteTallyingStrategy
 from deepcell.cli.schemas.data import ChannelField
 from deepcell.datasets.channel import Channel, channel_filename_prefix_map
 from marshmallow import validates_schema, ValidationError
+from marshmallow.validate import OneOf
 
 from ophys_etl.modules.segmentation.graph_utils.conversion import \
     graph_to_img
-from ophys_etl.types import OphysROI
+from ophys_etl.types import OphysROI, DenseROI
 from ophys_etl.utils.array_utils import normalize_array
+from ophys_etl.utils.motion_border import get_max_correction_from_file, \
+    MaxFrameShift, motion_border_from_max_shift
 from ophys_etl.utils.video_utils import get_max_and_avg
 from ophys_etl.utils.rois import (
     sanitize_extract_roi_list,
-    extract_roi_to_ophys_roi)
+    extract_roi_to_ophys_roi, is_inside_motion_border)
 
 
 class ClassifierArtifactsInputSchema(ArgSchema):
@@ -53,10 +57,20 @@ class ClassifierArtifactsInputSchema(ArgSchema):
                     "Required only if correlation projection is given in "
                     "`channels`",
     )
-    # Output Artifact location.
-    out_dir = fields.OutputDir(
+    motion_correction_shifts_path = fields.InputFile(
         required=True,
-        description="Output directory to put artifacts.",
+        description='Path to file containing motion correction shifts',
+        validate=lambda x: pathlib.Path(x).suffix == '.csv'
+    )
+
+    # Output Artifact location.
+    thumbnails_out_dir = fields.OutputDir(
+        required=True,
+        description="Output directory to put thumbnails.",
+    )
+    roi_meta_out_dir = fields.OutputDir(
+        required=False,
+        description="Output directory to put roi metadata.",
     )
 
     # Artifact generation settings.
@@ -74,6 +88,13 @@ class ClassifierArtifactsInputSchema(ArgSchema):
         required=False,
         default=128,
         description="Size of square cutout in pixels.",
+    )
+    pad_mode = fields.String(
+        default='constant',
+        description='Pad mode for all channels except the mask when the ROI '
+                    'thumbnail would extend past the edge of the frame. '
+                    'The mask always gets constant padding.',
+        validate=OneOf(('constant', 'symmetric'))
     )
     is_training = fields.Boolean(
         required=True,
@@ -161,13 +182,26 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         if self.args['is_training']:
             selected_rois = self._get_labeled_rois_for_experiment()
         else:
-            selected_rois = [roi['id'] for roi in extract_roi_list]
+            selected_rois = [str(roi['id']) for roi in extract_roi_list]
         selected_rois = set(selected_rois)
+
+        maximum_motion_shift = get_max_correction_from_file(
+            input_csv=self.args['motion_correction_shifts_path']
+        )
+        roi_meta = {}
 
         self.logger.info("Creating and writing ROI artifacts...")
         for roi in extract_roi_list:
-            if roi['id'] not in selected_rois:
+            if str(roi['id']) not in selected_rois:
                 continue
+            roi_meta[roi['id']] = {
+                'is_inside_motion_border': (
+                    self._calc_is_roi_inside_motion_border(
+                        roi=roi,
+                        motion_shifts=maximum_motion_shift
+                    )
+                )
+            }
 
             roi = extract_roi_to_ophys_roi(roi=roi)
             imgs[Channel.MASK] = self._generate_mask_image(
@@ -184,8 +218,32 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                                    imgs=imgs,
                                    exp_id=exp_id)
 
+        roi_meta_out_path = pathlib.Path(self.args['roi_meta_out_dir']) / \
+            f'roi_meta_{self.args["experiment_id"]}.json'
+        with open(roi_meta_out_path, 'w') as f:
+            f.write(json.dumps(roi_meta, indent=2))
+        self.logger.info(f'Wrote ROI metadata to {roi_meta_out_path}')
+
         self.logger.info(f"Created ROI artifacts in {time.time()-t0:.0f} "
                          "seconds.")
+
+    def _calc_is_roi_inside_motion_border(
+        self,
+        roi: DenseROI,
+        motion_shifts: MaxFrameShift
+    ) -> bool:
+        motion_border = motion_border_from_max_shift(
+            max_shift=motion_shifts
+        )
+        roi['max_correction_up'] = motion_border.top
+        roi['max_correction_down'] = motion_border.bottom
+        roi['max_correction_left'] = motion_border.left_side
+        roi['max_correction_right'] = motion_border.right_side
+
+        return is_inside_motion_border(
+            roi=roi,
+            movie_shape=self.args['fov_shape']
+        )
 
     @staticmethod
     def _normalize_image(
@@ -273,8 +331,10 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             raise ValueError('cell_labeling_app_host needed to get '
                              'labeled rois')
         labels = construct_dataset(
-            cell_labeling_app_host=self.args['cell_labeling_app_host']
+            cell_labeling_app_host=self.args['cell_labeling_app_host'],
+            vote_tallying_strategy=VoteTallyingStrategy.MAJORITY
         )
+        labels['roi_id'] = labels['roi_id'].astype(str)
 
         labels = labels.set_index('experiment_id')
         if self.args['experiment_id'] not in labels.index:
@@ -313,7 +373,9 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             thumbnail = roi.get_centered_cutout(
                 image=img,
                 height=self.args['cutout_size'],
-                width=self.args['cutout_size']
+                width=self.args['cutout_size'],
+                pad_mode=('constant' if channel == Channel.MASK
+                          else self.args['pad_mode'])
             )
 
             # For max activation, need to normalize the thumbnail
@@ -337,7 +399,7 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
                 msg = f"{name} has shape {thumbnail.shape}"
                 raise RuntimeError(msg)
             thumbnail = PIL.Image.fromarray(thumbnail)
-            out_path = pathlib.Path(self.args['out_dir']) / name
+            out_path = pathlib.Path(self.args['thumbnails_out_dir']) / name
             thumbnail.save(out_path)
 
 

@@ -31,6 +31,9 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.neuropil_correction i
 from ophys_etl.workflows.pipeline_modules.trace_processing.dff_calculation import (  # noqa E501
     DFOverFCalculation,
 )
+from ophys_etl.workflows.pipeline_modules.trace_processing.event_detection import (  # noqa E501
+    EventDetection,
+)
 from ophys_etl.workflows.tasks import wait_for_decrosstalk_to_finish
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -199,7 +202,7 @@ def ophys_processing():
 
         @task_group
         def dff(neuropil_corrected_traces):
-            run_workflow_step(
+            module_outputs = run_workflow_step(
                 slurm_config_filename="dff.yml",
                 module=DFOverFCalculation,
                 workflow_step_name=WorkflowStepEnum.DFF,
@@ -207,6 +210,20 @@ def ophys_processing():
                 docker_tag=app_config.pipeline_steps.docker_tag,
                 module_kwargs={
                     "neuropil_corrected_traces": neuropil_corrected_traces,
+                }
+            )
+            return module_outputs[WellKnownFileTypeEnum.DFF_TRACES.value]
+
+        @task_group
+        def event_detection(dff_traces):
+            run_workflow_step(
+                slurm_config_filename="event_detection.yml",
+                module=EventDetection,
+                workflow_step_name=WorkflowStepEnum.EVENT_DETECTION,
+                workflow_name=WORKFLOW_NAME,
+                docker_tag=app_config.pipeline_steps.event_detection.docker_tag,  # noqa E501
+                module_kwargs={
+                    "dff_traces": dff_traces,
                 }
             )
 
@@ -224,7 +241,8 @@ def ophys_processing():
             neuropil_traces_file=trace_outputs[
                 WellKnownFileTypeEnum.NEUROPIL_TRACE.value]
         )
-        dff(neuropil_corrected_traces=neuropil_corrected_traces)
+        dff_traces = dff(neuropil_corrected_traces=neuropil_corrected_traces)
+        event_detection(dff_traces=dff_traces)
 
     motion_corrected_ophys_movie_file = motion_correction()
     denoised_movie_file = denoising(

@@ -298,7 +298,9 @@ class OphysROI(object):
     def get_centered_cutout(self,
                             image: np.ndarray,
                             height: int,
-                            width: int) -> np.ndarray:
+                            width: int,
+                            pad_mode: str
+                            ) -> np.ndarray:
         """Get a cutout of arbitrary size centered on the bounding box
         centroid.
 
@@ -312,6 +314,8 @@ class OphysROI(object):
             Height(y) of output cutout image.
         width : int
             Width(x) of output cutout image.
+        pad_mode : str
+            pad mode to pass to `np.pad`
 
         Returns
         -------
@@ -337,6 +341,9 @@ class OphysROI(object):
                                      width)
         # Pad the cutout if needed.
         padding = (row_pad, col_pad)
+        kwargs = {'constant_values': 0} if pad_mode == 'constant' else {}
         return np.pad(thumbnail,
-                      pad_width=padding, mode="constant",
-                      constant_values=0)
+                      pad_width=padding,
+                      mode=pad_mode,
+                      **kwargs
+                      )

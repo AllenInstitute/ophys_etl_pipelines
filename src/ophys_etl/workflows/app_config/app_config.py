@@ -138,6 +138,10 @@ class _DFOverFCalculation(_PipelineStep):
     pass
 
 
+class _EventDetection(_PipelineStep):
+    pass
+
+
 class _GenerateCorrelationProjection(_PipelineStep):
     n_workers: int = 4
 
@@ -247,6 +251,7 @@ class _PipelineSteps(ImmutableBaseModel):
     neuropil_correction: _NeuropilCorrection = Field(
         default=_NeuropilCorrection())
     dff: _DFOverFCalculation = Field(default=_DFOverFCalculation())
+    event_detection: _EventDetection = Field(default=_EventDetection())
     nway_cell_matching: _NwayCellMatching = Field(default=_NwayCellMatching())
 
 

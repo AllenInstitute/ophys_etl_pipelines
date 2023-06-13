@@ -149,6 +149,7 @@ class TestDecrosstalk(MockSQLiteDB):
                     id=0 if id == 'oe_1' else 1,
                     group_order=0 if id == 'oe_1' else 1
                 ),
+                full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
                 equipment_name='MESO.1'
             )
 
@@ -220,6 +221,7 @@ class TestDecrosstalk(MockSQLiteDB):
                 session=ophys_session,
                 specimen=ophys_session.specimen,
                 storage_directory=Path('foo'),
+                full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
                 equipment_name='MESO.1'
             )
 

@@ -55,6 +55,8 @@ class GenerateThumbnailsModule(PipelineModule):
                 app_config.pipeline_steps.roi_classification.input_channels
             ),
             "out_dir": self.output_path / "thumbnails",
+            "thumbnails_out_dir": self.output_path / "thumbnails",
+            "roi_meta_out_dir": self.output_path / 'roi_meta',
             "is_training": self._is_training
         }
         if self._is_training:

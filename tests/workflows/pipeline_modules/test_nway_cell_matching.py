@@ -108,6 +108,7 @@ class TestNwayCellMatching(MockSQLiteDB):
                                              specimen=Specimen(id='1')),
                         specimen=Specimen(id='1'),
                         storage_directory=Path('foo'),
+                        full_genotype="abcd",
                         equipment_name='MESO.1'
                     )
                     with patch('ophys_etl.workflows.ophys_experiment.engine',
@@ -147,6 +148,7 @@ class TestNwayCellMatching(MockSQLiteDB):
                 session=OphysSession(id='1', specimen=Specimen(id='1')),
                 specimen=Specimen(id='1'),
                 storage_directory=Path('foo'),
+                full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
                 equipment_name='MESO.1'
             )
 

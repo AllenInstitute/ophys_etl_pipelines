@@ -5,6 +5,7 @@ import tempfile
 from unittest.mock import Mock, patch
 
 import h5py
+import json
 import numpy as np
 import pandas as pd
 import pytest
@@ -68,7 +69,11 @@ class TestComputeClassifierArtifacts:
                         Channel.MASK.value],
                     'is_training': False,
                     'experiment_id': str(cls.exp_id),
-                    'out_dir': cls.output_path,
+                    'thumbnails_out_dir': cls.output_path,
+                    'roi_meta_out_dir': cls.output_path,
+                    'motion_correction_shifts_path': (
+                            str(pathlib.Path(__file__).parent / 'resources' /
+                                'rigid_motion_shifts.csv')),
                     'low_quantile': 0.2,
                     'high_quantile': 0.99,
                     'cutout_size': 128}
@@ -120,6 +125,13 @@ class TestComputeClassifierArtifacts:
                     test = Image.open(test_file)
                     np.testing.assert_array_equal(np.array(image),
                                                   np.array(test))
+
+        roi_meta_path = \
+            pathlib.Path(self.output_path) / f'roi_meta_{self.exp_id}.json'
+        with open(roi_meta_path) as f:
+            roi_meta = json.load(f)
+        assert len(roi_meta) == 1 and \
+               not roi_meta['1']['is_inside_motion_border']
 
     def test_write_thumbnails(self):
         """Test that artifact thumbnails are written.
@@ -217,7 +229,8 @@ class TestComputeClassifierArtifacts:
             roi.get_centered_cutout(
                 image=mov[3],
                 height=self.args['cutout_size'],
-                width=self.args['cutout_size']
+                width=self.args['cutout_size'],
+                pad_mode='symmetric'
             )
         )
         np.testing.assert_array_equal(

@@ -199,6 +199,7 @@ class OphysExperiment:
     storage_directory: Path
     raw_movie_filename: Path
     movie_frame_rate_hz: float
+    full_genotype: str
     equipment_name: str
     imaging_plane_group: Optional[ImagingPlaneGroup] = None
 
@@ -237,17 +238,21 @@ class OphysExperiment:
                 oipg.group_order as imaging_plane_group_order,
                 images.jp2 as raw_movie_filename,
                 oevbec.visual_behavior_experiment_container_id as ophys_container_id,
+                dr.full_genotype as full_genotype,
                 equipment.name as equipment_name
             FROM ophys_experiments oe
             JOIN images on images.id = oe.ophys_primary_image_id
             JOIN ophys_sessions os on os.id = oe.ophys_session_id
+            JOIN specimens sp on sp.id = os.specimen_id
+            JOIN donors dr on dr.id = sp.donor_id
             LEFT JOIN ophys_experiments_visual_behavior_experiment_containers oevbec 
                 ON oevbec.ophys_experiment_id = oe.id
             LEFT JOIN ophys_imaging_plane_groups oipg on
                 oipg.id = oe.ophys_imaging_plane_group_id
-            JOIN equipment ON equipment.id = os.equipment_id
+            LEFT OUTER JOIN equipment ON equipment.id = os.equipment_id
             WHERE oe.id = {id}
         """     # noqa E402
+
         lims_db = LIMSDB()
         res = lims_db.query(query=query)
 
@@ -273,8 +278,9 @@ class OphysExperiment:
             id=id,
             storage_directory=Path(res["storage_directory"]),
             movie_frame_rate_hz=res["movie_frame_rate_hz"],
-            raw_movie_filename=res["raw_movie_filename"],
+            full_genotype=res["full_genotype"],
             equipment_name=res["equipment_name"],
+            raw_movie_filename=res["raw_movie_filename"],
             session=session,
             specimen=specimen,
             imaging_plane_group=imaging_plane_group

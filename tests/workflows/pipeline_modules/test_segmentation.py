@@ -59,6 +59,7 @@ class TestSegmentation(MockSQLiteDB):
                 specimen=Specimen(id='1'),
                 session=OphysSession(id='1', specimen=Specimen(id='1')),
                 storage_directory=Path('foo'),
+                full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
                 equipment_name='MESO.1'
             )
 

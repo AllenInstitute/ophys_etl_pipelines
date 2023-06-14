@@ -3,6 +3,8 @@ import contextlib
 import pytest
 from unittest.mock import Mock
 import sys
+
+import ophys_etl.modules.event_detection.exeptions
 from ophys_etl.modules.event_detection import utils
 from ophys_etl.modules.event_detection.resources.event_decay_time_lookup \
         import event_decay_lookup_dict as decay_lookup
@@ -45,7 +47,8 @@ def test_EventDetectionSchema_multiplier(tmp_path, rate, expected,
         [
             (False, contextlib.nullcontext()),
             (True, pytest.raises(
-                utils.EventDetectionException,
+                ophys_etl.modules.event_detection.exeptions
+                .EventDetectionException,
                 match=r".*does not have the key 'roi_names'.*"))])
 def test_EventDetectionSchema_missing_name(tmp_path, missing_field, context):
     fpath = tmp_path / "junk_input.h5"
@@ -97,13 +100,13 @@ def test_EventDetectionSchema_decay_time(tmp_path):
     # non-existent genotype exception
     args['full_genotype'] = 'non-existent-genotype'
     with pytest.raises(
-            utils.EventDetectionException,
+            ophys_etl.modules.event_detection.exeptions.EventDetectionException,
             match=r".*not available.*"):
         parser = emod.EventDetection(input_data=args, args=[])
 
     # neither arg supplied
     args.pop('full_genotype')
     with pytest.raises(
-            utils.EventDetectionException,
+            ophys_etl.modules.event_detection.exeptions.EventDetectionException,
             match=r"Must provide either.*"):
         parser = emod.EventDetection(input_data=args, args=[])

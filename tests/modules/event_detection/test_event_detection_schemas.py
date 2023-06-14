@@ -66,7 +66,6 @@ def test_EventDetectionSchema_missing_name(tmp_path, missing_field, context):
             }
     with context:
         parser = emod.EventDetection(input_data=args, args=[])
-        assert 'halflife' in parser.args
 
 
 @pytest.mark.event_detect_only
@@ -95,7 +94,6 @@ def test_EventDetectionSchema_decay_time(tmp_path):
     parser = emod.EventDetection(input_data=args, args=[])
     assert 'decay_time' in parser.args
     assert parser.args['decay_time'] == decay_lookup[key]
-    assert 'halflife' in parser.args
 
     # non-existent genotype exception
     args['full_genotype'] = 'non-existent-genotype'

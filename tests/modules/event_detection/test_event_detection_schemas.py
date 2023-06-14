@@ -65,7 +65,7 @@ def test_EventDetectionSchema_missing_name(tmp_path, missing_field, context):
             'decay_time': 1.234
             }
     with context:
-        parser = emod.EventDetection(input_data=args, args=[])
+        emod.EventDetection(input_data=args, args=[])
 
 
 @pytest.mark.event_detect_only
@@ -99,10 +99,10 @@ def test_EventDetectionSchema_decay_time(tmp_path):
     args['full_genotype'] = 'non-existent-genotype'
     with pytest.raises(EventDetectionException,
                        match=r".*not available.*"):
-        parser = emod.EventDetection(input_data=args, args=[])
+        emod.EventDetection(input_data=args, args=[])
 
     # neither arg supplied
     args.pop('full_genotype')
     with pytest.raises(EventDetectionException,
                        match=r"Must provide either.*"):
-        parser = emod.EventDetection(input_data=args, args=[])
+        emod.EventDetection(input_data=args, args=[])

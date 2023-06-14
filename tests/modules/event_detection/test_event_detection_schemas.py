@@ -99,7 +99,7 @@ def test_EventDetectionSchema_decay_time(tmp_path):
 
     # non-existent genotype exception
     args['full_genotype'] = 'non-existent-genotype'
-    with pytest.raises(EventDetectionException, 
+    with pytest.raises(EventDetectionException,
                        match=r".*not available.*"):
         parser = emod.EventDetection(input_data=args, args=[])
 

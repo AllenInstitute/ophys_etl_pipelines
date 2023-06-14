@@ -60,7 +60,7 @@ def get_container_experiment_id_map(
             oe.id as ophys_experiment_id
         FROM  ophys_experiments_visual_behavior_experiment_containers oevbec
         JOIN ophys_experiments oe ON oe.id = oevbec.ophys_experiment_id
-        WHERE oevbec.visual_behavior_experiment_container_id = (
+        WHERE oevbec.visual_behavior_experiment_container_id IN (
             SELECT oevbec.visual_behavior_experiment_container_id as container_id
             FROM  ophys_experiments_visual_behavior_experiment_containers oevbec
             JOIN ophys_experiments oe ON oe.id = oevbec.ophys_experiment_id

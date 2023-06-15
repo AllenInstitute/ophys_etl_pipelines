@@ -42,8 +42,7 @@ def _get_multiplane_experiments(ophys_experiment_ids: List[str]) -> List[str]:
         JOIN ophys_sessions os ON oe.ophys_session_id = os.id
         JOIN  equipment
             ON equipment.id = os.equipment_id
-        WHERE {oe_ids_clause}
-        ) AND
+        WHERE {oe_ids_clause} AND
             equipment.name in ('MESO.1', 'MESO.2')
     '''
     res = lims_db.query(query=query)

@@ -65,7 +65,7 @@ def get_container_experiment_id_map(
             FROM  ophys_experiments_visual_behavior_experiment_containers oevbec
             JOIN ophys_experiments oe ON oe.id = oevbec.ophys_experiment_id
             WHERE {oe_ids_clause}
-        ) {"AND oe.workflow_state in ('passed', 'qc')" if exclude_failed_experiments else ""}
+                {"AND oe.workflow_state in ('passed', 'qc')" if exclude_failed_experiments else ""}
     ''' # noqa E402
     res = lims_db.query(query=query)
     return res

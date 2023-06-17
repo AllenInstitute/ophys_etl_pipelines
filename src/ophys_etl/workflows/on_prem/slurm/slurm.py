@@ -143,11 +143,19 @@ class SlurmJob:
                                f'{len(response["jobs"])} were returned)')
         job = response['jobs'][0]
 
+        # slurm records datetimes in local time (Pacific). Convert to UTC
+        start = datetime.fromtimestamp(job['time']['start'],
+                                       tz=pytz.timezone('US/Pacific'))
+        start = start.astimezone(tz=pytz.UTC)
+        end = datetime.fromtimestamp(job['time']['end'],
+                                     tz=pytz.timezone('US/Pacific'))
+        end = end.astimezone(tz=pytz.UTC)
+
         return cls(
             id=job_id,
             state=SlurmState(job['state']['current']),
-            start=datetime.fromtimestamp(job['time']['start'], tz=pytz.UTC),
-            end=datetime.fromtimestamp(job['time']['end'], tz=pytz.UTC)
+            start=start,
+            end=end
         )
 
     def is_done(self) -> bool:

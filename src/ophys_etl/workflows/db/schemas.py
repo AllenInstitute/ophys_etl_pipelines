@@ -52,13 +52,13 @@ class WorkflowStepRun(SQLModel, table=True):
                     'is associated with. None if not associated with a '
                     'specific experiment'
     )
-    ophys_session_id: Optional[str] = Field(
+    ophys_session_id: Optional[int] = Field(
         index=True,
         description='Ophys session id from LIMS that this workflow step run'
                     'is associated with. None if not associated with a '
                     'specific session'
     )
-    ophys_container_id: Optional[str] = Field(
+    ophys_container_id: Optional[int] = Field(
         index=True,
         description='Ophys container id from LIMS that this workflow step run'
                     'is associated with. None if not associated with a '

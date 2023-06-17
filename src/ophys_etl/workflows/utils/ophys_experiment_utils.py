@@ -21,7 +21,7 @@ def get_session_experiment_id_map(
         SELECT oe.id as ophys_experiment_id, os.id as ophys_session_id
         FROM  ophys_experiments oe
         JOIN ophys_sessions os ON oe.ophys_session_id = os.id
-        WHERE os.id = (
+        WHERE os.id IN (
             SELECT oe.ophys_session_id
             FROM ophys_experiments oe
             WHERE {oe_ids_clause}
@@ -66,6 +66,7 @@ def get_container_experiment_id_map(
             JOIN ophys_experiments oe ON oe.id = oevbec.ophys_experiment_id
             WHERE {oe_ids_clause}
                 {"AND oe.workflow_state in ('passed', 'qc')" if exclude_failed_experiments else ""}
+        )
     ''' # noqa E402
     res = lims_db.query(query=query)
     return res

@@ -34,7 +34,7 @@ def get_well_known_file_for_latest_run(
     workflow_step: WorkflowStepEnum,
     workflow_name: WorkflowNameEnum,
     well_known_file_type: WellKnownFileTypeEnum,
-    ophys_experiment_id: Optional[str] = None,
+    ophys_experiment_id: Optional[int] = None
 ):
     """
     Gets the latest well_known_file_type path for `ophys_experiment_id`
@@ -91,8 +91,8 @@ def get_latest_workflow_step_run(
     session: Session,
     workflow_step: WorkflowStepEnum,
     workflow_name: WorkflowNameEnum,
-    ophys_experiment_id: Optional[str] = None,
-    ophys_session_id: Optional[str] = None
+    ophys_experiment_id: Optional[int] = None,
+    ophys_session_id: Optional[int] = None
 ) -> int:
     """
     Gets the latest workflow step run id for `workflow_step` as part of
@@ -199,7 +199,7 @@ def get_runs_completed_since(
 
 
 def get_completed(
-    ophys_experiment_ids: List[str],
+    ophys_experiment_ids: List[int],
     workflow_step: WorkflowStepEnum,
     level: str = 'ophys_session',
 

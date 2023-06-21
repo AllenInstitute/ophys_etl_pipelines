@@ -17,7 +17,7 @@ class TestDecrosstalkTrigger(MockSQLiteDB):
         super().setup()
 
         with Session(self._engine) as session:
-            mock_completed_segmentation = ['a', 'b', 'c']
+            mock_completed_segmentation = [1, 2, 3]
             for oe_id in mock_completed_segmentation:
                 save_job_run_to_db(
                     start=datetime.datetime.now(),
@@ -36,16 +36,16 @@ class TestDecrosstalkTrigger(MockSQLiteDB):
     def test__get_completed_ophys_sessions(
             self, mock_session_exp_map):
         mock_session_exp_map.return_value = [
-            {'ophys_session_id': 1, 'ophys_experiment_id': 'a'},
-            {'ophys_session_id': 1, 'ophys_experiment_id': 'b'},
-            {'ophys_session_id': 2, 'ophys_experiment_id': 'c'},
-            {'ophys_session_id': 2, 'ophys_experiment_id': 'd'},
+            {'ophys_session_id': 1, 'ophys_experiment_id': 1},
+            {'ophys_session_id': 1, 'ophys_experiment_id': 2},
+            {'ophys_session_id': 2, 'ophys_experiment_id': 3},
+            {'ophys_session_id': 2, 'ophys_experiment_id': 4},
         ]
 
         with patch('ophys_etl.workflows.workflow_step_runs.engine',
                    new=self._engine):
             completed_sessions = get_completed(
-                ophys_experiment_ids=['a', 'c'],
+                ophys_experiment_ids=[1, 3],
                 workflow_step=WorkflowStepEnum.SEGMENTATION
             )
         assert completed_sessions == [1]
@@ -55,14 +55,14 @@ class TestDecrosstalkTrigger(MockSQLiteDB):
     def test__get_completed_ophys_sessions_none_complete(
             self, mock_session_exp_map):
         mock_session_exp_map.return_value = [
-            {'ophys_session_id': 2, 'ophys_experiment_id': 'c'},
-            {'ophys_session_id': 2, 'ophys_experiment_id': 'd'},
+            {'ophys_session_id': 2, 'ophys_experiment_id': 3},
+            {'ophys_session_id': 2, 'ophys_experiment_id': 4},
         ]
 
         with patch('ophys_etl.workflows.workflow_step_runs.engine',
                    new=self._engine):
             completed_sessions = get_completed(
-                ophys_experiment_ids=['c'],
+                ophys_experiment_ids=[3],
                 workflow_step=WorkflowStepEnum.SEGMENTATION
             )
         assert completed_sessions == []
@@ -72,15 +72,15 @@ class TestDecrosstalkTrigger(MockSQLiteDB):
     def test__get_completed_ophys_sessions_all_complete(
             self, mock_session_exp_map):
         mock_session_exp_map.return_value = [
-            {'ophys_session_id': 1, 'ophys_experiment_id': 'a'},
-            {'ophys_session_id': 1, 'ophys_experiment_id': 'b'},
-            {'ophys_session_id': 2, 'ophys_experiment_id': 'c'},
+            {'ophys_session_id': 1, 'ophys_experiment_id': 1},
+            {'ophys_session_id': 1, 'ophys_experiment_id': 2},
+            {'ophys_session_id': 2, 'ophys_experiment_id': 3},
         ]
 
         with patch('ophys_etl.workflows.workflow_step_runs.engine',
                    new=self._engine):
             completed_sessions = get_completed(
-                ophys_experiment_ids=['a', 'c'],
+                ophys_experiment_ids=[1, 3],
                 workflow_step=WorkflowStepEnum.SEGMENTATION
             )
         assert completed_sessions == [1, 2]

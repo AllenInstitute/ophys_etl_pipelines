@@ -6,6 +6,8 @@ import json
 
 from sqlmodel import Session
 
+from ophys_etl.modules.decrosstalk.decrosstalk_schema import \
+    DecrosstalkInputSchema
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -40,7 +42,7 @@ class DecrosstalkModule(PipelineModule):
     @property
     def inputs(self) -> Dict:
         ophys_experiments = [
-            OphysExperiment.from_id(id=str(ophys_experiment_id)) for
+            OphysExperiment.from_id(id=ophys_experiment_id) for
             ophys_experiment_id in self.ophys_session.ophys_experiment_ids
         ]
         ipg_ophys_experiment_map: Dict[
@@ -52,9 +54,9 @@ class DecrosstalkModule(PipelineModule):
                 ophys_experiment.imaging_plane_group] \
                 .append(ophys_experiment)
 
-        return {
+        return DecrosstalkInputSchema().load(data={
             'ophys_session_id': self.ophys_session.id,
-            'qc_output_dir': self.output_path,
+            'qc_output_dir': str(self.output_path),
             'coupled_planes': [{
                 'ophys_imaging_plane_group_id': imaging_plane_group.id,
                 'group_order': imaging_plane_group.group_order,
@@ -66,7 +68,7 @@ class DecrosstalkModule(PipelineModule):
                         imaging_plane_group]
                 ]
             } for imaging_plane_group in ipg_ophys_experiment_map]
-        }
+        })
 
     @property
     def outputs(self) -> List[OutputFile]:
@@ -153,10 +155,10 @@ class DecrosstalkModule(PipelineModule):
                     workflow_step=WorkflowStepEnum.MOTION_CORRECTION
                 )
             ),
-            'output_roi_trace_file': (
+            'output_roi_trace_file': str(
                     self.output_path /
                     f'ophys_experiment_{ophys_experiment.id}_roi_traces.h5'),
-            'output_neuropil_trace_file': (
+            'output_neuropil_trace_file': str(
                     self.output_path /
                     f'ophys_experiment_{ophys_experiment.id}_'
                     f'neuropil_traces.h5'),

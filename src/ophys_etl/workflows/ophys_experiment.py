@@ -35,11 +35,11 @@ class ImagingPlaneGroup:
 class OphysSession:
     """Container for an ophys session"""
 
-    id: str
+    id: int
     specimen: Specimen
 
     @classmethod
-    def from_id(cls, id: str) -> "OphysSession":
+    def from_id(cls, id: int) -> "OphysSession":
         """Returns an `OphysSession` given a LIMS id for an
         ophys session
 
@@ -102,11 +102,11 @@ class OphysSession:
 @dataclass
 class OphysContainer:
     """Ophys experiment container"""
-    id: str
+    id: int
     specimen: Specimen
 
     @classmethod
-    def from_id(cls, id: str) -> "OphysContainer":
+    def from_id(cls, id: int) -> "OphysContainer":
         """Returns an `OphysContainer` given a LIMS id for an
         ophys container
 
@@ -193,7 +193,7 @@ class OphysContainer:
 class OphysExperiment:
     """Container for an ophys experiment"""
 
-    id: str
+    id: int
     session: OphysSession
     specimen: Specimen
     storage_directory: Path
@@ -218,7 +218,7 @@ class OphysExperiment:
         return output_dir
 
     @classmethod
-    def from_id(cls, id: str) -> "OphysExperiment":
+    def from_id(cls, id: int) -> "OphysExperiment":
         """Returns an `OphysExperiment` given a LIMS id for an
         ophys experiment
 
@@ -332,7 +332,7 @@ class OphysExperiment:
                 session=session,
                 workflow_step=WorkflowStepEnum.SEGMENTATION,
                 workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-                ophys_experiment_id=self.id,
+                ophys_experiment_id=self.id
             )
             rois: List[OphysROI] = session.execute(
                 select(OphysROI)

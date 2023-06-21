@@ -55,8 +55,11 @@ class _DummyMod(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> str:
-        return "foo.bar"
+    def executable(self) -> str:
+        class DummyModule:
+            def __name__(self):
+                return 'foo.bar'
+        return DummyModule
 
 
 class TestPipelineModule:
@@ -76,8 +79,8 @@ class TestPipelineModule:
             mock_dt.now.return_value = cls._now
             cls._dummy_mod = _DummyMod(
                 ophys_experiment=OphysExperiment(
-                    id="1",
-                    session=OphysSession(id="2", specimen=Specimen("1")),
+                    id=1,
+                    session=OphysSession(id=2, specimen=Specimen("1")),
                     specimen=Specimen(id="3"),
                     storage_directory=Path("/storage_dir"),
                     raw_movie_filename=Path("mov.h5"),

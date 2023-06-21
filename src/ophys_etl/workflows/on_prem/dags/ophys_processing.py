@@ -6,6 +6,7 @@ from airflow.models import Param
 from airflow.models.dag import dag
 
 from ophys_etl.workflows.app_config.app_config import app_config
+from ophys_etl.workflows.on_prem.dags._misc import INT_PARAM_DEFAULT_VALUE
 from ophys_etl.workflows.on_prem.workflow_utils import run_workflow_step
 from ophys_etl.workflows.pipeline_modules.denoising.denoising_finetuning import (  # noqa E501
     DenoisingFinetuningModule,
@@ -47,19 +48,16 @@ WORKFLOW_NAME = WorkflowNameEnum.OPHYS_PROCESSING
     schedule=None,
     catchup=False,
     start_date=datetime.datetime.now(),
-    # For required arguments, need to pass default of None due to
-    # https://github.com/apache/airflow/issues/28940
-    # This makes the argument optional. Unfortunately it is impossible to
-    # make it required.
-    # TODO once fixed, remove default
     params={
         "ophys_experiment_id": Param(
-            description="identifier for ophys experiment", default=None
+            description="identifier for ophys experiment",
+            type="integer",
+            default=INT_PARAM_DEFAULT_VALUE
         ),
         "prevent_file_overwrites": Param(
             description="If True, will fail job run if a file output by "
             "module already exists",
-            default=True,
+            default=True
         ),
     },
 )
@@ -72,7 +70,6 @@ def ophys_processing():
             module=MotionCorrectionModule,
             workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
             workflow_name=WORKFLOW_NAME,
-            docker_tag=app_config.pipeline_steps.docker_tag,
             additional_db_inserts=MotionCorrectionModule.save_metadata_to_db,
         )
         return module_outputs[
@@ -138,7 +135,6 @@ def ophys_processing():
             module=SegmentationModule,
             workflow_step_name=WorkflowStepEnum.SEGMENTATION,
             workflow_name=WORKFLOW_NAME,
-            docker_tag=app_config.pipeline_steps.docker_tag,
             additional_db_inserts=SegmentationModule.save_rois_to_db,
             module_kwargs={
                 "denoised_ophys_movie_file": denoised_ophys_movie_file
@@ -156,7 +152,6 @@ def ophys_processing():
                 module=TraceExtractionModule,
                 workflow_step_name=WorkflowStepEnum.TRACE_EXTRACTION,
                 workflow_name=WORKFLOW_NAME,
-                docker_tag=app_config.pipeline_steps.docker_tag,  # noqa E501
                 module_kwargs={
                     "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
                     "rois_file": rois_file
@@ -172,7 +167,6 @@ def ophys_processing():
                 module=DemixTracesModule,
                 workflow_step_name=WorkflowStepEnum.DEMIX_TRACES,
                 workflow_name=WORKFLOW_NAME,
-                docker_tag=app_config.pipeline_steps.docker_tag,
                 module_kwargs={
                     "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
                     "roi_traces_file": roi_traces_file
@@ -191,7 +185,6 @@ def ophys_processing():
                 module=NeuropilCorrection,
                 workflow_step_name=WorkflowStepEnum.NEUROPIL_CORRECTION,
                 workflow_name=WORKFLOW_NAME,
-                docker_tag=app_config.pipeline_steps.docker_tag,  # noqa E501
                 module_kwargs={
                     "demixed_roi_traces_file": demixed_roi_traces_file,
                     "neuropil_traces_file": neuropil_traces_file
@@ -207,7 +200,6 @@ def ophys_processing():
                 module=DFOverFCalculation,
                 workflow_step_name=WorkflowStepEnum.DFF,
                 workflow_name=WORKFLOW_NAME,
-                docker_tag=app_config.pipeline_steps.docker_tag,
                 module_kwargs={
                     "neuropil_corrected_traces": neuropil_corrected_traces,
                 }
@@ -221,7 +213,6 @@ def ophys_processing():
                 module=EventDetection,
                 workflow_step_name=WorkflowStepEnum.EVENT_DETECTION,
                 workflow_name=WORKFLOW_NAME,
-                docker_tag=app_config.pipeline_steps.event_detection.docker_tag,  # noqa E501
                 module_kwargs={
                     "dff_traces": dff_traces,
                 }

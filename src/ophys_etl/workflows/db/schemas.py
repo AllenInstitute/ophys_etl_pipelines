@@ -46,7 +46,7 @@ class WorkflowStepRun(SQLModel, table=True):
     __tablename__ = "workflow_step_run"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    ophys_experiment_id: Optional[str] = Field(
+    ophys_experiment_id: Optional[int] = Field(
         index=True,
         description='Ophys experiment id from LIMS that this workflow step run'
                     'is associated with. None if not associated with a '

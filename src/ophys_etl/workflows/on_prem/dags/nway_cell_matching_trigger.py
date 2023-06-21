@@ -70,3 +70,6 @@ def nway_cell_matching_trigger():
 
 
 nway_cell_matching_trigger()
+
+if __name__ == '__main__':
+    nway_cell_matching_trigger().test()

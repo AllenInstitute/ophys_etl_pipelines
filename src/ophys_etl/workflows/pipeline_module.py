@@ -23,7 +23,7 @@ class ModuleOutputFileExistsError(Exception):
 logger = logging.getLogger(__name__)
 
 
-class PipelineModule:
+class PipelineModule(abc.ABC):
     """Pipeline module"""
 
     def __init__(
@@ -33,6 +33,7 @@ class PipelineModule:
         ophys_session: Optional[OphysSession] = None,
         ophys_container: Optional[OphysContainer] = None,
         prevent_file_overwrites: bool = True,
+        conda_env_path: str = '/envs/ophys_etl',
         **module_args,
     ):
         """
@@ -55,6 +56,8 @@ class PipelineModule:
             Whether to allow files output by module to be overwritten
         docker_tag
             What docker tag to use to run module.
+        conda_env_path
+            Path to conda environment to use to run module
         """
 
         self._ophys_experiment = ophys_experiment
@@ -62,6 +65,7 @@ class PipelineModule:
         self._ophys_container = ophys_container
         self._docker_tag = docker_tag
         self._now = datetime.datetime.now()
+        self._conda_env_path = conda_env_path
 
         os.makedirs(self.output_path, exist_ok=True)
 
@@ -96,6 +100,11 @@ class PipelineModule:
         """The `OphysContainer` we are running the module on.
         None if not running on a specific ophys container"""
         return self._ophys_container
+
+    @property
+    def conda_env_path(self) -> str:
+        """Path to conda environment to use to run module"""
+        return self._conda_env_path
 
     @property
     @abc.abstractmethod

@@ -153,9 +153,13 @@ def get_latest_workflow_step_run(
     try:
         workflow_step_run_id = res.one()
     except NoResultFound:
+        msg_level = 'ophys experiment' if ophys_experiment_id is not None \
+            else 'ophys session'
+        msg_id = ophys_experiment_id if ophys_experiment_id is not None else \
+            ophys_session_id
         logger.error(
-            f"No workflow step run found for "
-            f"ophys experiment {ophys_experiment_id}: "
+            f"No {workflow_step.name} run found for "
+            f"{msg_level} {msg_id}: "
             f"{workflow_step}, {workflow_name}"
         )
         raise
@@ -250,11 +254,14 @@ def get_completed(
         ophys_experiment_ids = session.exec(statement).all()
 
     level_exp_map = pd.DataFrame(level_exp_map)
-    level_exp_map['has_completed'] = \
-        level_exp_map['ophys_experiment_id'].apply(
-            lambda x: x in ophys_experiment_ids)
-    has_completed = \
-        level_exp_map.groupby(f'{level}_id')['has_completed']\
-        .all()
-    completed = has_completed[has_completed].index
-    return completed.tolist()
+    if level_exp_map.empty:
+        completed = []
+    else:
+        level_exp_map['has_completed'] = \
+            level_exp_map['ophys_experiment_id'].apply(
+                lambda x: x in ophys_experiment_ids)
+        has_completed = \
+            level_exp_map.groupby(f'{level}_id')['has_completed']\
+            .all()
+        completed = has_completed[has_completed].index.tolist()
+    return completed

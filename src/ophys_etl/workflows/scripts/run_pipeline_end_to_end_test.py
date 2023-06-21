@@ -30,10 +30,10 @@ def main():
 
     # getting all ophys experiments either in session with
     # `ophys_experiment_id` or container
-    ophys_experiments = set(
+    ophys_experiments = list(set(
         [x['ophys_experiment_id'] for x in oe_session_map] +
         [x['ophys_experiment_id'] for x in oe_container_map]
-    )
+    ))
 
     for oe in ophys_experiments:
         rest_api_username = \
@@ -54,7 +54,7 @@ def main():
                 'logical_date': (
                         datetime.datetime.utcnow()
                         .strftime('%Y-%m-%dT%H:%M:%S%z') + '+00:00'),
-                'conf': {'ophys_experiment_id': str(oe)}
+                'conf': {'ophys_experiment_id': oe}
             })
         )
         print(r.json())

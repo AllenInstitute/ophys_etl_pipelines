@@ -145,9 +145,18 @@ def submit_job(
             'Expected one of  ophys_session_id, ophys_experiment_id, '
             f'ophys_container_id. Got {ids_passed}')
 
+    if sum([ophys_session is None,
+            ophys_experiment is None,
+            ophys_container is None]
+           ) == 0:
+        raise ValueError(
+            'Expected one of ophys_session_id, ophys_experiment_id, '
+            'ophys_container_id to be passed as a DAG param')
+
     mod = module(
         ophys_experiment=ophys_experiment,
         ophys_session=ophys_session,
+        ophys_container=ophys_container,
         docker_tag=docker_tag,
         **module_kwargs,
     )

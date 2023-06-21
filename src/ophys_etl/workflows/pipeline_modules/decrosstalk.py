@@ -155,12 +155,11 @@ class DecrosstalkModule(PipelineModule):
             ),
             'output_roi_trace_file': (
                     self.output_path /
-                    f'ophys_experiment_{ophys_experiment.id}' /
-                    'roi_traces.h5'),
+                    f'ophys_experiment_{ophys_experiment.id}_roi_traces.h5'),
             'output_neuropil_trace_file': (
                     self.output_path /
-                    f'ophys_experiment_{ophys_experiment.id}' /
-                    'neuropil_traces.h5'),
+                    f'ophys_experiment_{ophys_experiment.id}_'
+                    f'neuropil_traces.h5'),
             'motion_border': ophys_experiment.motion_border.to_dict(),
             'rois': [x.to_dict() for x in ophys_experiment.rois]
         }

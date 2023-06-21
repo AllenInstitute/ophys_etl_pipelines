@@ -61,7 +61,7 @@ class DenoisingInferenceModule(_DenoisingModule):
                 ),
                 "steps_per_epoch": 0
             },
-            "run_uid": self.ophys_experiment.id,
+            "run_uid": str(self.ophys_experiment.id),
         }
 
     @property

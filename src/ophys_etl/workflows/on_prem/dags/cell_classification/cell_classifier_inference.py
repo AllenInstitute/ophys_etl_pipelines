@@ -1,8 +1,11 @@
 import datetime
 
-from airflow.decorators import task_group
+from airflow.decorators import task_group, task
 from airflow.models import Param
 from airflow.models.dag import dag
+from ophys_etl.workflows.output_file import OutputFile
+
+from ophys_etl.workflows.on_prem.dags._misc import INT_PARAM_DEFAULT_VALUE
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.on_prem.dags.cell_classification.utils import \
@@ -16,10 +19,12 @@ from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.schemas import ROIClassifierEnsemble
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
-from ophys_etl.workflows.workflow_step_runs import get_latest_workflow_step_run
+from ophys_etl.workflows.workflow_step_runs import \
+    get_latest_workflow_step_run, get_well_known_file_for_latest_run
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 
+@task
 def _get_roi_classifier() -> int:
     with Session(engine) as session:
         roi_classifier_training_run = get_latest_workflow_step_run(
@@ -36,6 +41,21 @@ def _get_roi_classifier() -> int:
         return ensemble_id
 
 
+@task
+def _get_motion_correction_shifts_file(**context) -> OutputFile:
+    motion_correction_shifts_path = get_well_known_file_for_latest_run(
+        engine=engine,
+        workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+        workflow_step=WorkflowStepEnum.MOTION_CORRECTION,
+        well_known_file_type=WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA,
+        ophys_experiment_id=context['params']['ophys_experiment_id']
+    )
+    return OutputFile(
+        well_known_file_type=WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA,
+        path=motion_correction_shifts_path
+    )
+
+
 @dag(
     dag_id="cell_classifier_inference",
     schedule=None,
@@ -43,7 +63,9 @@ def _get_roi_classifier() -> int:
     start_date=datetime.datetime.now(),
     params={
         "ophys_experiment_id": Param(
-            description="identifier for ophys experiment", default=None
+            description="identifier for ophys experiment",
+            type="integer",
+            default=INT_PARAM_DEFAULT_VALUE
         )
     }
 )
@@ -59,9 +81,6 @@ def cell_classifier_inference():
                 WorkflowStepEnum.ROI_CLASSIFICATION_GENERATE_CORRELATION_PROJECTION_GRAPH # noqa E501
             ),
             workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-            docker_tag=(
-                app_config.pipeline_steps.docker_tag # noqa E501
-            ),
             module_kwargs={
                 "denoised_ophys_movie_file": denoised_ophys_movie_file
             },
@@ -72,6 +91,8 @@ def cell_classifier_inference():
 
     @task_group
     def generate_thumbnails(rois_file, correlation_graph_file):
+        motion_correction_shifts_file = _get_motion_correction_shifts_file()
+
         module_outputs = run_workflow_step(
             slurm_config_filename="correlation_projection.yml",
             module=roi_classification.GenerateThumbnailsModule,
@@ -79,14 +100,12 @@ def cell_classifier_inference():
                 WorkflowStepEnum.ROI_CLASSIFICATION_GENERATE_THUMBNAILS
             ),
             workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-            docker_tag=(
-                app_config.pipeline_steps.docker_tag # noqa E501
-            ),
             module_kwargs={
                 "denoised_ophys_movie_file": denoised_ophys_movie_file,
                 "rois_file": rois_file,
                 "correlation_projection_graph_file": correlation_graph_file, # noqa E501
-                "is_training": False
+                "is_training": False,
+                "motion_correction_shifts_file": motion_correction_shifts_file
             },
         )
         return module_outputs[
@@ -102,9 +121,6 @@ def cell_classifier_inference():
                 WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE
             ),
             workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-            docker_tag=(
-                app_config.pipeline_steps.docker_tag # noqa E501
-            ),
             module_kwargs={
                 "ensemble_id": ensemble_id,
                 "thumbnails_dir": thumbnails_dir

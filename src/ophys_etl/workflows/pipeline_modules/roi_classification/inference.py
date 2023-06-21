@@ -72,7 +72,7 @@ class InferenceModule(PipelineModule):
             "model_load_path": self._ensemble[1],
             "save_path": self.output_path,
             "mode": "production",
-            "experiment_id": self.ophys_experiment.id,
+            "experiment_id": str(self.ophys_experiment.id),
             "classification_threshold": (
                 self._ensemble[0].classification_threshold)
         }

@@ -18,7 +18,7 @@ def run_workflow_step(
     module: Type[PipelineModule],
     workflow_name: WorkflowNameEnum,
     workflow_step_name: WorkflowStepEnum,
-    docker_tag: Optional[str] = None,
+    docker_tag: str = app_config.pipeline_steps.docker_tag,
     slurm_config_filename: Optional[str] = None,
     module_kwargs: Optional[Dict] = None,
     additional_db_inserts: Optional[Callable] = None,

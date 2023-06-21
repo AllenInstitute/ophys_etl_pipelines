@@ -37,8 +37,8 @@ class EventDetection(PipelineModule):
         return event_detection
 
     @property
-    def conda_env_path(self) -> str:
-        return '/envs/event_detection'
+    def python_interpreter_path(self) -> str:
+        return '/envs/event_detection/bin/python'
 
     @property
     def queue_name(self) -> WorkflowStepEnum:

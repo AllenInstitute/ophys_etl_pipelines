@@ -248,8 +248,9 @@ export SINGULARITY_DOCKER_PASSWORD={singularity_password}
 SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
     --bind /allen:/allen,/scratch/fast/${{SLURM_JOB_ID}}:/tmp \
     {"--nv" if request_gpu else ""} \
-    docker://alleninstitutepika/ophys_etl_pipelines:{docker_tag} \
-    {self._pipeline_module.conda_env_path}/bin/python -m \
+    docker://alleninstitutepika/\
+{self._pipeline_module.dockerhub_repository_name}:{docker_tag} \
+    {self._pipeline_module.python_interpreter_path} -m \
 {self._pipeline_module.executable.__name__} {args} {kwargs}'''
 
         if not self._slurm_settings.request_additional_tmp_storage:

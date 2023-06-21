@@ -3,7 +3,6 @@ import datetime
 from airflow.decorators import task_group
 from airflow.models import Param
 from airflow.models.dag import dag
-from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.on_prem.dags._misc import INT_PARAM_DEFAULT_VALUE
 
 from ophys_etl.workflows.on_prem.workflow_utils import run_workflow_step

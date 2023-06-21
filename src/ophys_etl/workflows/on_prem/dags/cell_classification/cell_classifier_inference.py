@@ -7,7 +7,6 @@ from ophys_etl.workflows.output_file import OutputFile
 
 from ophys_etl.workflows.on_prem.dags._misc import INT_PARAM_DEFAULT_VALUE
 
-from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.on_prem.dags.cell_classification.utils import \
     get_denoised_movie_for_experiment, get_rois_for_experiment
 from ophys_etl.workflows.pipeline_modules import roi_classification

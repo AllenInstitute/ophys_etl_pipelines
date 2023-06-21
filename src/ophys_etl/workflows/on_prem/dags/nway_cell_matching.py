@@ -8,7 +8,6 @@ from ophys_etl.workflows.on_prem.dags._misc import INT_PARAM_DEFAULT_VALUE
 from ophys_etl.workflows.pipeline_modules.nway_cell_matching import \
     NwayCellMatchingModule
 
-from ophys_etl.workflows.app_config.app_config import app_config
 
 from ophys_etl.workflows.on_prem.workflow_utils import run_workflow_step
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum

@@ -12,6 +12,7 @@ from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port, \
 
 logger = logging.getLogger(__name__)
 
+
 def get_latest_dag_run(
         dag_id: str,
         state: str = 'success'

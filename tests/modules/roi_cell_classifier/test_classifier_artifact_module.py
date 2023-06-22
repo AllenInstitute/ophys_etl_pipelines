@@ -41,9 +41,10 @@ class TestComputeClassifierArtifacts:
                                      width=cls.x0_y0_width_height,
                                      height=cls.x0_y0_width_height,
                                      valid=True,
-                                     mask=np.ones(
-                                         (cls.x0_y0_width_height,
-                                          cls.x0_y0_width_height)).tolist())
+                                     mask=(np.ones(
+                                            (cls.x0_y0_width_height,
+                                             cls.x0_y0_width_height)
+                                     ).astype('bool').tolist()))
 
         cls.data = cls.rng.integers(low=0,
                                     high=2,
@@ -61,7 +62,7 @@ class TestComputeClassifierArtifacts:
             h5_file.create_dataset(name='data', data=cls.data)
 
         cls.args = {'video_path': cls.video_path,
-                    'roi_path': cls.video_path,
+                    'rois': [cls.extract_roi],
                     'graph_path': cls.video_path,
                     'channels': [
                         Channel.CORRELATION_PROJECTION.value,

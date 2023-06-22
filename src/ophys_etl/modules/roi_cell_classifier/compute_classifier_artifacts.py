@@ -17,7 +17,7 @@ from deepcell.cli.schemas.data import ChannelField
 from deepcell.datasets.channel import Channel, channel_filename_prefix_map
 from marshmallow import validates_schema, ValidationError
 from marshmallow.validate import OneOf
-from ophys_etl.schemas._roi_schema import DenseROISchema
+from ophys_etl.schemas._roi_schema import ExtractROISchema
 
 from ophys_etl.modules.segmentation.graph_utils.conversion import \
     graph_to_img
@@ -42,7 +42,8 @@ class ClassifierArtifactsInputSchema(ArgSchema):
         description="Path to motion corrected(+denoised) video.",
     )
     rois = fields.Nested(
-        DenseROISchema,
+        ExtractROISchema,
+        many=True,
         required=True,
         description="Detected ROIs"
     )
@@ -116,14 +117,14 @@ class ClassifierArtifactsInputSchema(ArgSchema):
     )
 
     @validates_schema
-    def validate_graph_path(self, data):
+    def validate_graph_path(self, data, **kwargs):
         if Channel.CORRELATION_PROJECTION.value in data['channels']:
             if data['graph_path'] is None:
                 raise ValidationError('graph_path needs to be provided if '
                                       'passed as a channel')
 
     @validates_schema
-    def validate_cell_labeling_app_host(self, data):
+    def validate_cell_labeling_app_host(self, data, **kwargs):
         if data['is_training'] and data['cell_labeling_app_host'] is None:
             raise ValidationError('Must provide cell_labeling_app_host if '
                                   'is_training')
@@ -235,6 +236,7 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         motion_border = motion_border_from_max_shift(
             max_shift=motion_shifts
         )
+        roi = roi.copy()
         roi['max_correction_up'] = motion_border.top
         roi['max_correction_down'] = motion_border.bottom
         roi['max_correction_left'] = motion_border.left_side

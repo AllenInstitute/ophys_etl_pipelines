@@ -5,9 +5,9 @@ from typing import List
 from airflow.decorators import task
 from airflow.models.dag import dag
 from airflow.operators.python import get_current_context
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from ophys_etl.workflows.app_config.app_config import app_config
-from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run
+from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run, \
+    trigger_dag_run
 
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 
@@ -78,13 +78,14 @@ def ophys_processing_trigger():
         for ophys_experiment_id in ophys_experiment_ids:
             logger.info(f'Triggering ophys_processing DAG for '
                         f'{ophys_experiment_id}')
-            TriggerDagRunOperator(
+            trigger_dag_run(
                 task_id='trigger_ophys_processing_for_ophys_experiment',
                 trigger_dag_id='ophys_processing',
                 conf={
                     'ophys_experiment_id': ophys_experiment_id
-                }
-            ).execute(context=get_current_context())
+                },
+                context=get_current_context()
+            )
     trigger()
 
 

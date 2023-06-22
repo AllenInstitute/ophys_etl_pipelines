@@ -2,9 +2,10 @@ import base64
 import datetime
 import logging
 import time
-from typing import Optional
+from typing import Optional, Dict
 
 import requests
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port, \
@@ -71,3 +72,37 @@ def get_latest_dag_run(
             last_run_datetime = datetime.datetime.strptime(
                 last_dag_run['logical_date'], '%Y-%m-%dT%H:%M:%S%z')
     return last_run_datetime
+
+
+def trigger_dag_run(
+    task_id: str,
+    trigger_dag_id: str,
+    context: Dict,
+    conf: Dict
+):
+    """Triggers dag run for `trigger_dag_id`
+
+    Parameters
+    ----------
+    task_id
+        See `TriggerDagRunOperator`
+    trigger_dag_id
+        See `TriggerDagRunOperator`
+    context
+        Context in which trigger is running (as returned by
+        `get_current_context`)
+    conf
+        See `TriggerDagRunOperator`
+    """
+    now = datetime.datetime.now().astimezone(
+        tz=datetime.timezone.utc).strftime(f'%Y-%m-%dT%H:%M:%s%z')
+
+    trigger_run_id = f'{now}_triggered_by_' \
+                     f'{context["dag_run"].dag_id}_' \
+                     f'{context["dag_run"].run_id}'
+    TriggerDagRunOperator(
+        task_id=task_id,
+        trigger_dag_id=trigger_dag_id,
+        conf=conf,
+        trigger_run_id=trigger_run_id
+    ).execute(context=context)

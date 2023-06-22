@@ -4,12 +4,12 @@ import logging
 from airflow.decorators import task
 from airflow.models.dag import dag
 from airflow.operators.python import get_current_context
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 from ophys_etl.workflows.db import engine
 from sqlmodel import Session
 
-from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run
+from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run, \
+    trigger_dag_run
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_runs_completed_since
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
@@ -49,16 +49,20 @@ def cell_classifier_inference_trigger():
             logger.info(
                 f'Triggering cell classifier inference for ophys experiment '
                 f'{ophys_experiment_id}')
-            TriggerDagRunOperator(
+            trigger_dag_run(
                 task_id='trigger_cell_classifier_inference_for_ophys_'
                         'experiment',
                 trigger_dag_id='cell_classifier_inference',
                 conf={
                     'ophys_experiment_id': ophys_experiment_id
-                }
-            ).execute(context=get_current_context())
+                },
+                context=get_current_context()
+            )
 
     trigger()
 
 
 cell_classifier_inference_trigger()
+
+if __name__ == '__main__':
+    cell_classifier_inference_trigger().test()

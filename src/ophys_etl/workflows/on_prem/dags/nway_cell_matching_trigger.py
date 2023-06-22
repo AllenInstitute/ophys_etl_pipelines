@@ -4,12 +4,12 @@ import logging
 from airflow.decorators import task
 from airflow.models.dag import dag
 from airflow.operators.python import get_current_context
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 from ophys_etl.workflows.db import engine
 from sqlmodel import Session
 
-from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run
+from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run, \
+    trigger_dag_run
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_runs_completed_since, \
     get_completed
@@ -58,13 +58,14 @@ def nway_cell_matching_trigger():
             logger.info(
                 f'Triggering nway cell matching for ophys container '
                 f'{ophys_container_id}')
-            TriggerDagRunOperator(
+            trigger_dag_run(
                 task_id='trigger_nway_cell_matching_for_ophys_container',
                 trigger_dag_id='nway_cell_matching',
                 conf={
                     'ophys_container_id': ophys_container_id
-                }
-            ).execute(context=get_current_context())
+                },
+                context=get_current_context()
+            )
 
     trigger()
 

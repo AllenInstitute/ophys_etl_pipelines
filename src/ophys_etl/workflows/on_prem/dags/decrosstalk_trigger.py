@@ -5,14 +5,14 @@ import logging
 from airflow.decorators import task
 from airflow.models.dag import dag
 from airflow.operators.python import get_current_context
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 
 from ophys_etl.workflows.db import engine
 from sqlmodel import Session
 
-from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run
+from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run, \
+    trigger_dag_run
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_runs_completed_since, \
     get_completed
@@ -21,7 +21,7 @@ from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 logger = logging.getLogger('airflow.task')
 
 
-def _get_multiplane_experiments(ophys_experiment_ids: List[str]) -> List[str]:
+def _get_multiplane_experiments(ophys_experiment_ids: List[int]) -> List[int]:
     """Returns only those experiments from ophys_experiment_ids which are
     multiplane. Currently only checks if it is mesoscope"""
     if len(ophys_experiment_ids) == 0:
@@ -92,14 +92,14 @@ def decrosstalk_trigger():
         for ophys_session_id in completed_ophys_sessions:
             logger.info(
                 f'Triggering decrosstalk for ophys session {ophys_session_id}')
-            TriggerDagRunOperator(
+            trigger_dag_run(
                 task_id='trigger_decrosstalk_for_ophys_session',
                 trigger_dag_id='decrosstalk',
                 conf={
                     'ophys_session_id': ophys_session_id
-                }
-            ).execute(context=get_current_context())
-
+                },
+                context=get_current_context()
+            )
     trigger()
 
 

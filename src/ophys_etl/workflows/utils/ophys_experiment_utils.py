@@ -4,7 +4,7 @@ from ophys_etl.workflows.utils.lims_utils import LIMSDB
 
 
 def get_session_experiment_id_map(
-        ophys_experiment_ids: List[str]
+        ophys_experiment_ids: List[int]
 ) -> List[Dict]:
     """Get full list of experiment ids for each ophys session that each
     ophys_experiment_id belongs to"""
@@ -32,7 +32,7 @@ def get_session_experiment_id_map(
 
 
 def get_container_experiment_id_map(
-    ophys_experiment_ids: List[str],
+    ophys_experiment_ids: List[int],
     exclude_failed_experiments: bool = True
 ) -> List[Dict]:
     """Get full list of experiment ids for each ophys container that each

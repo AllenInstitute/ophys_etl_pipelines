@@ -16,6 +16,11 @@ export AIRFLOW__CORE__EXECUTOR="LocalExecutor"
 export AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT=120.0
 export AIRFLOW__CORE__DAG_FILE_PROCESSOR_TIMEOUT=180
 
+export AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG=1000
+export AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG=1000
+
+
+
 # Set REST API auth to username/password auth
 export AIRFLOW__API__AUTH_BACKENDS="airflow.api.auth.backend.basic_auth"
 

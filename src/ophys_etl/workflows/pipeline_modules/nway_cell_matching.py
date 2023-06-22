@@ -51,7 +51,7 @@ class NwayCellMatchingModule(PipelineModule):
     @property
     def executable(self) -> ModuleType:
         return nway_matching
-    
+
     @property
     def dockerhub_repository_name(self):
         return 'ophys_nway_matching'

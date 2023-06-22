@@ -1,8 +1,6 @@
 from types import ModuleType
 from typing import Dict, List
 
-from ophys_etl.workflows.db.schemas import OphysROI
-
 from ophys_etl.modules.roi_cell_classifier import compute_classifier_artifacts
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.ophys_experiment import OphysExperiment

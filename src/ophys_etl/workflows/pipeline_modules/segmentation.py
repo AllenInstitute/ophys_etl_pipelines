@@ -2,6 +2,8 @@ import json
 from types import ModuleType
 from typing import Dict, List
 
+import numpy as np
+
 from ophys_etl.workflows.app_config.app_config import app_config
 from sqlmodel import Session
 
@@ -89,6 +91,11 @@ class SegmentationModule(PipelineModule):
         with open(rois_file_path) as f:
             rois = json.load(f)
 
+        if app_config.is_debug:
+            # replacing rois with dummy rois since we want to ensure at least
+            # 1 roi was detected for testing
+            rois = SegmentationModule._create_dummy_rois()
+
         for roi in rois:
             # 1. Add ROI
             mask = roi['mask_matrix']
@@ -125,3 +132,19 @@ class SegmentationModule(PipelineModule):
                             ophys_roi_id=roi.id, row_index=i, col_index=j
                         )
                         session.add(mask_val)
+
+    @staticmethod
+    def _create_dummy_rois() -> List[Dict]:
+        """Returns a list of dummy rois to be used for testing purposes"""
+        roi = {
+            'x': 100,
+            'y': 100,
+            'width': 10,
+            'height': 10
+        }
+        mask = np.zeros((roi['height'], roi['width']), dtype='uint8')
+        for i in range(5, 8):
+            for j in range(5, 8):
+                mask[i, j] = 1
+        roi['mask_matrix'] = mask
+        return [roi]

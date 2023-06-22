@@ -205,7 +205,10 @@ class TestDecrosstalk(MockSQLiteDB):
                             'motion_border': (
                                 mock_motion_border.return_value.to_dict()),
                             'rois': [
-                                x.to_dict() for x in mock_rois.return_value]
+                                {'mask_matrix' if k == 'mask' else k: v
+                                 for k, v in x.to_dict().items()
+                                 }
+                                for x in mock_rois.return_value]
                         }
                     ]
                 }

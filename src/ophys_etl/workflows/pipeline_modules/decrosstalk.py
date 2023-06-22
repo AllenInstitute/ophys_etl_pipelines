@@ -131,6 +131,10 @@ class DecrosstalkModule(PipelineModule):
             ophys_experiment: OphysExperiment
     ):
         """Gets the inputs for a single plane"""
+        rois = [x.to_dict() for x in ophys_experiment.rois]
+        for roi in rois:
+            roi['mask_matrix'] = roi.pop('mask')
+
         return {
             'ophys_experiment_id': ophys_experiment.id,
             'motion_corrected_stack': str(
@@ -163,5 +167,5 @@ class DecrosstalkModule(PipelineModule):
                     f'ophys_experiment_{ophys_experiment.id}_'
                     f'neuropil_traces.h5'),
             'motion_border': ophys_experiment.motion_border.to_dict(),
-            'rois': [x.to_dict() for x in ophys_experiment.rois]
+            'rois': rois
         }

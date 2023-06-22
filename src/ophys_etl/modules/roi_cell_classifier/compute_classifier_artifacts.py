@@ -17,6 +17,7 @@ from deepcell.cli.schemas.data import ChannelField
 from deepcell.datasets.channel import Channel, channel_filename_prefix_map
 from marshmallow import validates_schema, ValidationError
 from marshmallow.validate import OneOf
+from ophys_etl.schemas._roi_schema import DenseROISchema
 
 from ophys_etl.modules.segmentation.graph_utils.conversion import \
     graph_to_img
@@ -40,9 +41,10 @@ class ClassifierArtifactsInputSchema(ArgSchema):
         required=True,
         description="Path to motion corrected(+denoised) video.",
     )
-    roi_path = fields.InputFile(
+    rois = fields.Nested(
+        DenseROISchema,
         required=True,
-        description="Path to json file containing detected ROIs",
+        description="Detected ROIs"
     )
     channels = fields.List(
         ChannelField(),
@@ -147,7 +149,6 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         video_path = pathlib.Path(self.args["video_path"])
         exp_id = video_path.name.split("_")[0]
 
-        roi_path = pathlib.Path(self.args["roi_path"])
         graph_path = pathlib.Path(self.args["graph_path"]) \
             if self.args["graph_path"] is not None else None
 
@@ -175,9 +176,8 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
 
         self.logger.info("Normalized images...")
 
-        with open(roi_path, "rb") as in_file:
-            extract_roi_list = sanitize_extract_roi_list(
-                json.load(in_file))
+        extract_roi_list = sanitize_extract_roi_list(
+            input_roi_list=self.args['rois'])
 
         if self.args['is_training']:
             selected_rois = self._get_labeled_rois_for_experiment()

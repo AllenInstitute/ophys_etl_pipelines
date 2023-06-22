@@ -1,6 +1,7 @@
 from typing import Optional
 
 from airflow.decorators import task
+from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
 from ophys_etl.workflows.output_file import OutputFile
 
@@ -44,14 +45,5 @@ def get_rois_for_experiment(
     if experiment_id is None:
         experiment_id = context['params']['ophys_experiment_id']
 
-    rois_file = get_well_known_file_for_latest_run(
-        engine=engine,
-        well_known_file_type=WellKnownFileTypeEnum.OPHYS_ROIS,
-        workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-        workflow_step=WorkflowStepEnum.SEGMENTATION,
-        ophys_experiment_id=experiment_id,
-    )
-    return OutputFile(
-        path=rois_file,
-        well_known_file_type=WellKnownFileTypeEnum.OPHYS_ROIS
-    )
+    exp = OphysExperiment.from_id(id=experiment_id)
+    return [x.to_dict() for x in exp.rois]

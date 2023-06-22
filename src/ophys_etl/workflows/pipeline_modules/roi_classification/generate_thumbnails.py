@@ -1,6 +1,8 @@
 from types import ModuleType
 from typing import Dict, List
 
+from ophys_etl.workflows.db.schemas import OphysROI
+
 from ophys_etl.modules.roi_cell_classifier import compute_classifier_artifacts
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
@@ -28,7 +30,7 @@ class GenerateThumbnailsModule(PipelineModule):
         denoised_ophys_movie_file: OutputFile = kwargs[
             "denoised_ophys_movie_file"
         ]
-        rois_file: OutputFile = kwargs["rois_file"]
+        rois: List[Dict] = kwargs["rois"]
         correlation_projection_graph_file: OutputFile = kwargs[
             "correlation_projection_graph_file"
         ]
@@ -38,7 +40,7 @@ class GenerateThumbnailsModule(PipelineModule):
         ]
 
         self._denoised_ophys_movie_file = str(denoised_ophys_movie_file.path)
-        self._rois_file = str(rois_file.path)
+        self._rois = rois
         self._correlation_graph_file = \
             str(correlation_projection_graph_file.path)
         self._is_training = is_training
@@ -54,7 +56,7 @@ class GenerateThumbnailsModule(PipelineModule):
         d = {
             "experiment_id": str(self._ophys_experiment.id),
             "video_path": self._denoised_ophys_movie_file,
-            "roi_path": self._rois_file,
+            "rois": self._rois,
             "graph_path": self._correlation_graph_file,
             "channels": (
                 app_config.pipeline_steps.roi_classification.input_channels

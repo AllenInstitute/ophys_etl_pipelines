@@ -89,7 +89,7 @@ def cell_classifier_inference():
         ]
 
     @task_group
-    def generate_thumbnails(rois_file, correlation_graph_file):
+    def generate_thumbnails(rois, correlation_graph_file):
         motion_correction_shifts_file = _get_motion_correction_shifts_file()
 
         module_outputs = run_workflow_step(
@@ -101,7 +101,7 @@ def cell_classifier_inference():
             workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
             module_kwargs={
                 "denoised_ophys_movie_file": denoised_ophys_movie_file,
-                "rois_file": rois_file,
+                "rois": rois,
                 "correlation_projection_graph_file": correlation_graph_file, # noqa E501
                 "is_training": False,
                 "motion_correction_shifts_file": motion_correction_shifts_file
@@ -132,9 +132,9 @@ def cell_classifier_inference():
         denoised_ophys_movie_file=denoised_ophys_movie_file
     )
 
-    rois_file = get_rois_for_experiment()
+    rois = get_rois_for_experiment()
     thumbnail_dir = generate_thumbnails(
-        rois_file=rois_file,
+        rois=rois,
         correlation_graph_file=correlation_graph_file
     )
     thumbnail_dir >> run_inference(thumbnails_dir=thumbnail_dir)

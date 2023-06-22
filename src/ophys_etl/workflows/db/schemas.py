@@ -4,7 +4,7 @@ from typing import Optional, List, Dict
 
 import numpy as np
 from pydantic import PrivateAttr
-from sqlalchemy import Column, Enum, UniqueConstraint
+from sqlalchemy import Column, Enum, UniqueConstraint, DateTime
 from sqlmodel import Field, SQLModel
 
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
@@ -67,8 +67,10 @@ class WorkflowStepRun(SQLModel, table=True):
     workflow_step_id: int = Field(foreign_key="workflow_step.id")
     log_path: str
     storage_directory: str
-    start: datetime.datetime
-    end: datetime.datetime
+    start: datetime.datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False))
+    end: datetime.datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False))
 
 
 class MotionCorrectionRun(SQLModel, table=True):

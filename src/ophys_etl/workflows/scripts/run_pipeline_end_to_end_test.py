@@ -20,20 +20,31 @@ from ophys_etl.workflows.utils.ophys_experiment_utils import \
 
 
 def main():
-    ophys_experiment_id = '1274961379'  # mesoscope experiment
+    ophys_experiment_id = 1274961379
     oe_session_map = get_session_experiment_id_map(
         ophys_experiment_ids=[ophys_experiment_id]
     )
     oe_container_map = get_container_experiment_id_map(
-        ophys_experiment_ids=[ophys_experiment_id]
+        ophys_experiment_ids=[x['ophys_experiment_id'] for x in oe_session_map]
+    )
+
+    # get oe_session_map again to get all sessions for all containers
+    oe_session_map = get_session_experiment_id_map(
+        ophys_experiment_ids=[x['ophys_experiment_id'] for x in oe_container_map]
     )
 
     # getting all ophys experiments either in session with
-    # `ophys_experiment_id` or container
+    # `ophys_experiment_ids` or container
     ophys_experiments = list(set(
         [x['ophys_experiment_id'] for x in oe_session_map] +
         [x['ophys_experiment_id'] for x in oe_container_map]
     ))
+
+    print(f'Total number of ophys processing jobs: {len(ophys_experiments)}')
+    print(f'Total number of containers: '
+          f'{len(set([x["ophys_container_id"] for x in oe_container_map]))}')
+    print(f'Total number of sessions: '
+          f'{len(set([x["ophys_session_id"] for x in oe_session_map]))}')
 
     for oe in ophys_experiments:
         rest_api_username = \

@@ -4,6 +4,7 @@
 # overriding default airflow configs
 ##############
 
+##############
 # disable loading example DAGs
 export AIRFLOW__CORE__LOAD_EXAMPLES=false
 
@@ -18,8 +19,13 @@ export AIRFLOW__CORE__DAG_FILE_PROCESSOR_TIMEOUT=180
 
 export AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG=1000
 export AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG=1000
+##############
 
 
+##############
+# parse DAGs every 3 hours instead of 30 seconds
+export AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL=10800
+##############
 
 # Set REST API auth to username/password auth
 export AIRFLOW__API__AUTH_BACKENDS="airflow.api.auth.backend.basic_auth"

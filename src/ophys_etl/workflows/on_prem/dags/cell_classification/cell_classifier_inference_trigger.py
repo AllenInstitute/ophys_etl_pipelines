@@ -58,6 +58,3 @@ def cell_classifier_inference_trigger():
 
 
 cell_classifier_inference_trigger()
-
-if __name__ == '__main__':
-    cell_classifier_inference_trigger().test()

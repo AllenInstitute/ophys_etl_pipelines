@@ -95,7 +95,7 @@ def trigger_dag_run(
         See `TriggerDagRunOperator`
     """
     now = datetime.datetime.now().astimezone(
-        tz=datetime.timezone.utc).strftime(f'%Y-%m-%dT%H:%M:%s%z')
+        tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%s%z')
 
     trigger_run_id = f'{now}_triggered_by_' \
                      f'{context["dag_run"].dag_id}_' \

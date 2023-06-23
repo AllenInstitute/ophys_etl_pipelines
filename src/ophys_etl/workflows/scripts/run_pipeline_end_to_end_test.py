@@ -30,7 +30,8 @@ def main():
 
     # get oe_session_map again to get all sessions for all containers
     oe_session_map = get_session_experiment_id_map(
-        ophys_experiment_ids=[x['ophys_experiment_id'] for x in oe_container_map]
+        ophys_experiment_ids=[x['ophys_experiment_id']
+                              for x in oe_container_map]
     )
 
     # getting all ophys experiments either in session with

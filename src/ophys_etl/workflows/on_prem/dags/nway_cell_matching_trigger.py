@@ -9,7 +9,7 @@ from ophys_etl.workflows.db import engine
 from sqlmodel import Session
 
 from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run, \
-    trigger_dag_run
+    trigger_dag_runs
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_runs_completed_since, \
     get_completed
@@ -54,18 +54,13 @@ def nway_cell_matching_trigger():
             workflow_step=WorkflowStepEnum.SEGMENTATION,
             level='ophys_container'
         )
-        for ophys_container_id in completed_ophys_containers:
-            logger.info(
-                f'Triggering nway cell matching for ophys container '
-                f'{ophys_container_id}')
-            trigger_dag_run(
-                task_id='trigger_nway_cell_matching_for_ophys_container',
-                trigger_dag_id='nway_cell_matching',
-                conf={
-                    'ophys_container_id': ophys_container_id
-                },
-                context=get_current_context()
-            )
+        trigger_dag_runs(
+            key_name='ophys_container_id',
+            values=completed_ophys_containers,
+            task_id='trigger_nway_cell_matching_for_ophys_container',
+            trigger_dag_id='nway_cell_matching',
+            context=get_current_context()
+        )
 
     trigger()
 

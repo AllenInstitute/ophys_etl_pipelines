@@ -2,7 +2,7 @@ import base64
 import datetime
 import logging
 import time
-from typing import Optional, Dict
+from typing import Optional, Dict, List, Any
 
 import requests
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
@@ -100,9 +100,46 @@ def trigger_dag_run(
     trigger_run_id = f'{now}_triggered_by_' \
                      f'{context["dag_run"].dag_id}_' \
                      f'{context["dag_run"].run_id}'
+    logger.info(f'Triggering {trigger_dag_id} for {conf}')
     TriggerDagRunOperator(
         task_id=task_id,
         trigger_dag_id=trigger_dag_id,
         conf=conf,
         trigger_run_id=trigger_run_id
     ).execute(context=context)
+
+
+def trigger_dag_runs(
+    key_name: str,
+    values: List[Any],
+    task_id: str,
+    trigger_dag_id: str,
+    context: Dict
+):
+    """Triggers dag runs for `trigger_dag_id` for all of `values`
+
+    Parameters
+    ----------
+    task_id
+        See `TriggerDagRunOperator`
+    trigger_dag_id
+        See `TriggerDagRunOperator`
+    context
+        Context in which trigger is running (as returned by
+        `get_current_context`)
+    key_name
+        The value type (ophys_experiment_id, etc)
+    values
+        The values to submit dag runs for
+    """
+    for value in values:
+        trigger_dag_run(
+            task_id=task_id,
+            trigger_dag_id=trigger_dag_id,
+            conf={
+                key_name: value
+            },
+            context=context
+        )
+        # Sleeping so that we get a unique dag run id
+        time.sleep(1)

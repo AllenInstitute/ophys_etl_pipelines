@@ -9,7 +9,7 @@ from ophys_etl.workflows.db import engine
 from sqlmodel import Session
 
 from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run, \
-    trigger_dag_run
+    trigger_dag_runs
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_runs_completed_since
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
@@ -45,19 +45,14 @@ def cell_classifier_inference_trigger():
         ophys_experiment_ids = \
             [x.ophys_experiment_id for x in segmentation_runs]
 
-        for ophys_experiment_id in ophys_experiment_ids:
-            logger.info(
-                f'Triggering cell classifier inference for ophys experiment '
-                f'{ophys_experiment_id}')
-            trigger_dag_run(
-                task_id='trigger_cell_classifier_inference_for_ophys_'
-                        'experiment',
-                trigger_dag_id='cell_classifier_inference',
-                conf={
-                    'ophys_experiment_id': ophys_experiment_id
-                },
-                context=get_current_context()
-            )
+        trigger_dag_runs(
+            key_name='ophys_experiment_id',
+            values=ophys_experiment_ids,
+            task_id='trigger_cell_classifier_inference_for_ophys_'
+                    'experiment',
+            trigger_dag_id='cell_classifier_inference',
+            context=get_current_context()
+        )
 
     trigger()
 

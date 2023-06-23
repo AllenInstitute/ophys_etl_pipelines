@@ -203,7 +203,7 @@ def get_completed(
     workflow_step: WorkflowStepEnum,
     level: str = 'ophys_session',
 
-) -> pd.DataFrame:
+) -> List:
     """Gets `level` from the list of `ophys_experiment_ids`
     that have completed `workflow_step`. i.e. all experiments in `level`
     have completed `workflow_step`

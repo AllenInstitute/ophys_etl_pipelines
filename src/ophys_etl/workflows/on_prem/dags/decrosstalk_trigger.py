@@ -12,7 +12,7 @@ from ophys_etl.workflows.db import engine
 from sqlmodel import Session
 
 from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run, \
-    trigger_dag_run
+    trigger_dag_runs
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_runs_completed_since, \
     get_completed
@@ -89,17 +89,13 @@ def decrosstalk_trigger():
             workflow_step=WorkflowStepEnum.SEGMENTATION,
             level='ophys_session'
         )
-        for ophys_session_id in completed_ophys_sessions:
-            logger.info(
-                f'Triggering decrosstalk for ophys session {ophys_session_id}')
-            trigger_dag_run(
-                task_id='trigger_decrosstalk_for_ophys_session',
-                trigger_dag_id='decrosstalk',
-                conf={
-                    'ophys_session_id': ophys_session_id
-                },
-                context=get_current_context()
-            )
+        trigger_dag_runs(
+            key_name='ophys_session_id',
+            values=completed_ophys_sessions,
+            task_id='trigger_decrosstalk_for_ophys_session',
+            trigger_dag_id='decrosstalk',
+            context=get_current_context()
+        )
     trigger()
 
 

@@ -7,7 +7,7 @@ from airflow.models.dag import dag
 from airflow.operators.python import get_current_context
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run, \
-    trigger_dag_run
+    trigger_dag_runs
 
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 
@@ -75,17 +75,13 @@ def ophys_processing_trigger():
         ophys_experiment_ids = _get_all_ophys_experiments_completed_since(
             since=last_run_datetime
         )
-        for ophys_experiment_id in ophys_experiment_ids:
-            logger.info(f'Triggering ophys_processing DAG for '
-                        f'{ophys_experiment_id}')
-            trigger_dag_run(
-                task_id='trigger_ophys_processing_for_ophys_experiment',
-                trigger_dag_id='ophys_processing',
-                conf={
-                    'ophys_experiment_id': ophys_experiment_id
-                },
-                context=get_current_context()
-            )
+        trigger_dag_runs(
+            key_name='ophys_experiment_id',
+            values=ophys_experiment_ids,
+            task_id='trigger_ophys_processing_for_ophys_experiment',
+            trigger_dag_id='ophys_processing',
+            context=get_current_context()
+        )
     trigger()
 
 

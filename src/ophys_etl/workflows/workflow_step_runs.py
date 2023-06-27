@@ -17,8 +17,6 @@ from ophys_etl.workflows.db.schemas import (
     WorkflowStep,
     WorkflowStepRun
 )
-from ophys_etl.workflows.utils.ophys_experiment_utils import \
-    get_session_experiment_id_map, get_container_experiment_id_map
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
@@ -161,63 +159,6 @@ def get_latest_workflow_step_run(
         )
         raise
     return workflow_step_run_id
-
-
-def is_level_complete(
-    ophys_experiment_id: int,
-    workflow_step: WorkflowStepEnum,
-    level: str = 'ophys_session'
-) -> bool:
-    """Returns whether all ophys experiments in same `level` as
-    `ophys_experiment_id`have completed `workflow_step`
-
-    Parameters
-    ----------
-    ophys_experiment_id
-        Ophys experiment id
-    workflow_step
-        Workflow step to check for completion
-    level
-        The level at which to group experiments. Can be one of:
-        - ophys_session
-        - ophys_container
-
-    Returns
-    -------
-    bool
-        Whether all ophys experiments in same `level` as
-        `ophys_experiment_id`have completed `workflow_step`
-    """
-    if level == 'ophys_session':
-        level_exp_map = get_session_experiment_id_map(
-            ophys_experiment_ids=[ophys_experiment_id]
-        )
-    elif level == 'ophys_container':
-        level_exp_map = get_container_experiment_id_map(
-            ophys_experiment_ids=[ophys_experiment_id]
-        )
-    else:
-        valid_levels = ('ophys_session', 'ophys_container')
-        raise ValueError(f'{level} is invalid. Must be on of {valid_levels}')
-
-    with Session(engine) as session:
-        step = get_workflow_step_by_name(
-            name=workflow_step,
-            workflow=WorkflowNameEnum.OPHYS_PROCESSING,
-            session=session
-        )
-        statement = (
-            select(WorkflowStepRun.ophys_experiment_id)
-            .where(WorkflowStepRun.workflow_step_id == step.id)
-        )
-        completed_ophys_experiment_ids = session.exec(statement).all()
-
-    all_ophys_experiment_ids = [
-        x['ophys_experiment_id'] for x in level_exp_map]
-    for ophys_experiment_id in all_ophys_experiment_ids:
-        if ophys_experiment_id not in completed_ophys_experiment_ids:
-            return False
-    return True
 
 
 def get_most_recent_run(

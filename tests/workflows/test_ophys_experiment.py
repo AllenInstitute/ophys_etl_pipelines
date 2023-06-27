@@ -1,6 +1,8 @@
+import datetime
 from pathlib import Path
 from unittest.mock import patch
 
+from ophys_etl.workflows.db.db_utils import save_job_run_to_db
 from sqlmodel import Session
 
 from ophys_etl.workflows.db.schemas import (
@@ -136,3 +138,61 @@ class TestOphysExperiment(MockSQLiteDB):
             assert motion_border["x1"] == 20
             assert motion_border["y0"] == 30
             assert motion_border["y1"] == 40
+
+
+class TestOphysExperimentGroup(MockSQLiteDB):
+    def setup(self):
+        super().setup()
+
+        with Session(self._engine) as session:
+            mock_completed_segmentation = [1, 2, 3]
+            for oe_id in mock_completed_segmentation:
+                save_job_run_to_db(
+                    start=datetime.datetime.now(),
+                    end=datetime.datetime.now(),
+                    module_outputs=[],
+                    sqlalchemy_session=session,
+                    ophys_experiment_id=oe_id,
+                    storage_directory="foo",
+                    log_path="foo",
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                    workflow_step_name=WorkflowStepEnum.SEGMENTATION
+                )
+
+        self.ophys_experiment = OphysExperiment(
+            id=1,
+            session=OphysSession(id=2, specimen=Specimen("1")),
+            container=OphysContainer(id=1, specimen=Specimen("1")),
+            specimen=Specimen(id="3"),
+            storage_directory=Path("/storage_dir"),
+            raw_movie_filename=Path("mov.h5"),
+            movie_frame_rate_hz=11.0,
+            equipment_name='MESO.1',
+            full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt"
+        )
+
+    @patch.object(OphysSession, 'get_ophys_experiment_ids')
+    def test_has_completed_workflow_step(
+            self, mock_exp_ids):
+        mock_exp_ids.return_value = [1, 2]
+
+        with patch('ophys_etl.workflows.ophys_experiment.engine',
+                   new=self._engine):
+            is_complete = \
+                self.ophys_experiment.session.has_completed_workflow_step(
+                    workflow_step=WorkflowStepEnum.SEGMENTATION
+                )
+        assert is_complete
+
+    @patch.object(OphysSession, 'get_ophys_experiment_ids')
+    def test_has_not_completed_workflow_step(
+            self, mock_exp_ids):
+        mock_exp_ids.return_value = [3, 4]
+
+        with patch('ophys_etl.workflows.ophys_experiment.engine',
+                   new=self._engine):
+            is_complete = \
+                self.ophys_experiment.session.has_completed_workflow_step(
+                    workflow_step=WorkflowStepEnum.SEGMENTATION
+                )
+        assert not is_complete

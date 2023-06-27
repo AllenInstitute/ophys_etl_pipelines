@@ -10,45 +10,44 @@ import json
 import time
 
 import requests
+from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
 from ophys_etl.workflows.app_config.app_config import app_config
 
 from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port
 
-from ophys_etl.workflows.utils.ophys_experiment_utils import \
-    get_session_experiment_id_map, get_container_experiment_id_map
-
 
 def main():
-    ophys_experiment_id = 1274961379
-    oe_session_map = get_session_experiment_id_map(
-        ophys_experiment_ids=[ophys_experiment_id]
-    )
-    oe_container_map = get_container_experiment_id_map(
-        ophys_experiment_ids=[x['ophys_experiment_id'] for x in oe_session_map]
-    )
+    ophys_experiment = OphysExperiment.from_id(id=1274961379)
+    experiments_in_session = ophys_experiment.session\
+        .get_ophys_experiment_ids()
+    experiments_in_container = ophys_experiment.container\
+        .get_ophys_experiment_ids()
 
-    # get oe_session_map again to get all sessions for all containers
-    oe_session_map = get_session_experiment_id_map(
-        ophys_experiment_ids=[x['ophys_experiment_id']
-                              for x in oe_container_map]
+    # getting all ophys experiments associated with ophys_experiment
+    ophys_experiments = set(
+        experiments_in_session +
+        experiments_in_container
     )
 
-    # getting all ophys experiments either in session with
-    # `ophys_experiment_ids` or container
-    ophys_experiments = list(set(
-        [x['ophys_experiment_id'] for x in oe_session_map] +
-        [x['ophys_experiment_id'] for x in oe_container_map]
-    ))
+    # need to get all experiments from all sessions so that decrosstalk is
+    # run
+    for ophys_experiment_id in experiments_in_container:
+        for other_experiment_id in OphysExperiment.from_id(
+                id=ophys_experiment_id).session.get_ophys_experiment_ids():
+            ophys_experiments.add(other_experiment_id)
 
-    containers = get_container_experiment_id_map(
-        ophys_experiment_ids=ophys_experiments)
-    n_containers = len(set([x['ophys_container_id'] for x in containers]))
+    ophys_experiments = list(ophys_experiments)
 
-    sessions = get_session_experiment_id_map(
-        ophys_experiment_ids=ophys_experiments
-    )
-    n_sessions = len(set([x['ophys_session_id'] for x in sessions]))
+    containers = [
+        OphysExperiment.from_id(id=ophys_experiment_id).container
+        for ophys_experiment_id in ophys_experiments]
+    n_containers = len(set([x.id for x in containers if x.id is not None]))
+
+    sessions = [
+        OphysExperiment.from_id(id=ophys_experiment_id).session
+        for ophys_experiment_id in ophys_experiments]
+    n_sessions = len(set([x.id for x in sessions]))
 
     print(f'Total number of ophys processing jobs: {len(ophys_experiments)}')
     print(f'Total number of containers: {n_containers}')

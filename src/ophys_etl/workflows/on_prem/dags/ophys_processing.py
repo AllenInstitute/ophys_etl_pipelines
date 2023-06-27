@@ -41,8 +41,7 @@ from ophys_etl.workflows.tasks import wait_for_decrosstalk_to_finish
 from ophys_etl.workflows.utils.dag_utils import trigger_dag_run
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
-from ophys_etl.workflows.workflow_step_runs import is_level_complete, \
-    get_most_recent_run
+from ophys_etl.workflows.workflow_step_runs import get_most_recent_run
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 WORKFLOW_NAME = WorkflowNameEnum.OPHYS_PROCESSING
@@ -181,11 +180,10 @@ def ophys_processing():
                 .get_ophys_experiment_ids())
         )
 
-        is_session_complete = is_level_complete(
-            ophys_experiment_id=ophys_experiment.id,
-            level='ophys_session',
-            workflow_step=WorkflowStepEnum.SEGMENTATION
-        )
+        is_session_complete = \
+            ophys_experiment.session.has_completed_workflow_step(
+                workflow_step=WorkflowStepEnum.SEGMENTATION
+            )
 
         return ophys_experiment.is_multiplane and \
             is_session_complete and \
@@ -222,11 +220,10 @@ def ophys_processing():
             )
         )
 
-        is_container_complete = is_level_complete(
-            ophys_experiment_id=ophys_experiment.id,
-            level='ophys_container',
-            workflow_step=WorkflowStepEnum.SEGMENTATION
-        )
+        is_container_complete = \
+            ophys_experiment.container.has_completed_workflow_step(
+                workflow_step=WorkflowStepEnum.SEGMENTATION
+            )
 
         return is_container_complete and is_most_recent
 

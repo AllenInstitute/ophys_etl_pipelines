@@ -1,16 +1,18 @@
+import abc
 import os
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from ophys_etl.workflows.db.db_utils import get_workflow_step_by_name
 from sqlmodel import Session, select
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.schemas import (
     MotionCorrectionRun,
-    OphysROI, OphysROIMaskValue, ROIClassifierInferenceResults
+    OphysROI, OphysROIMaskValue, ROIClassifierInferenceResults, WorkflowStepRun
 )
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -31,8 +33,52 @@ class ImagingPlaneGroup:
     group_order: int
 
 
+class OphysExperimentGroup(abc.ABC):
+    """Group of experiments (session, container)"""
+
+    @abc.abstractmethod
+    def get_ophys_experiment_ids(self) -> List[int]:
+        raise NotImplementedError
+
+    def has_completed_workflow_step(
+        self,
+        workflow_step: WorkflowStepEnum
+    ) -> bool:
+        """
+        Returns whether the ophys experiment group has completed
+        `workflow_step` (all experiments in group have run)
+
+        Parameters
+        ----------
+        workflow_step
+
+        Returns
+        -------
+        bool
+            whether the ophys experiment group has completed
+            `workflow_step` (all experiments in group have run)
+        """
+        all_ophys_experiment_ids = self.get_ophys_experiment_ids()
+        with Session(engine) as session:
+            step = get_workflow_step_by_name(
+                name=workflow_step,
+                workflow=WorkflowNameEnum.OPHYS_PROCESSING,
+                session=session
+            )
+            statement = (
+                select(WorkflowStepRun.ophys_experiment_id)
+                .where(WorkflowStepRun.workflow_step_id == step.id)
+            )
+            completed_ophys_experiment_ids = session.exec(statement).all()
+
+        for ophys_experiment_id in all_ophys_experiment_ids:
+            if ophys_experiment_id not in completed_ophys_experiment_ids:
+                return False
+        return True
+
+
 @dataclass
-class OphysSession:
+class OphysSession(OphysExperimentGroup):
     """Container for an ophys session"""
 
     id: int
@@ -115,7 +161,7 @@ class OphysSession:
 
 
 @dataclass
-class OphysContainer:
+class OphysContainer(OphysExperimentGroup):
     """Ophys experiment container"""
     id: int
     specimen: Specimen

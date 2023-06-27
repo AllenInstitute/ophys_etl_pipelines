@@ -4,7 +4,8 @@ import datetime
 from airflow.decorators import task_group, task
 from airflow.models import Param
 from airflow.models.dag import dag
-from ophys_etl.workflows.ophys_experiment import OphysExperiment
+from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
+    OphysContainer, OphysSession
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.on_prem.dags._misc import INT_PARAM_DEFAULT_VALUE
@@ -38,8 +39,6 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.event_detection impor
 )
 from ophys_etl.workflows.tasks import wait_for_decrosstalk_to_finish
 from ophys_etl.workflows.utils.dag_utils import trigger_dag_run
-from ophys_etl.workflows.utils.ophys_experiment_utils import \
-    get_session_experiment_id_map, get_container_experiment_id_map
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import is_level_complete, \
@@ -178,10 +177,8 @@ def ophys_processing():
         is_most_recent = ophys_experiment.id == get_most_recent_run(
             workflow_step=WorkflowStepEnum.SEGMENTATION,
             ophys_experiment_ids=(
-                [x['ophys_experiment_id'] for x in
-                 get_session_experiment_id_map(
-                     ophys_experiment_ids=[ophys_experiment.id])]
-            )
+                OphysSession.from_id(id=ophys_experiment.session.id)
+                .get_ophys_experiment_ids())
         )
 
         is_session_complete = is_level_complete(
@@ -190,7 +187,9 @@ def ophys_processing():
             workflow_step=WorkflowStepEnum.SEGMENTATION
         )
 
-        return is_session_complete and is_most_recent
+        return ophys_experiment.is_multiplane and \
+            is_session_complete and \
+            is_most_recent
 
     @task
     def run_decrosstalk(do_run: bool, **context):
@@ -208,14 +207,18 @@ def ophys_processing():
     def check_run_nway_cell_matching(**context):
         ophys_experiment = OphysExperiment.from_id(
             id=context['params']['ophys_experiment_id'])
+
+        # some experiments are not assigned to a container
+        if ophys_experiment.container.id is None:
+            return False
+
         # avoiding a race condition. Only want to return true for a single
         # ophys experiment within container
         is_most_recent = ophys_experiment.id == get_most_recent_run(
             workflow_step=WorkflowStepEnum.SEGMENTATION,
             ophys_experiment_ids=(
-                [x['ophys_experiment_id'] for x in
-                 get_container_experiment_id_map(
-                     ophys_experiment_ids=[ophys_experiment.id])]
+                OphysContainer.from_id(ophys_experiment.container.id)
+                .get_ophys_experiment_ids()
             )
         )
 

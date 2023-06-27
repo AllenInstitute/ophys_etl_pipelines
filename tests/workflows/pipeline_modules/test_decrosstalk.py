@@ -103,8 +103,7 @@ class TestDecrosstalk(MockSQLiteDB):
                     f.write('')
 
     @patch.object(OphysExperiment, 'from_id')
-    @patch.object(OphysSession, 'ophys_experiment_ids',
-                  new_callable=PropertyMock)
+    @patch.object(OphysSession, 'get_ophys_experiment_ids')
     @patch.object(OphysExperiment, 'motion_border',
                   new_callable=PropertyMock)
     @patch.object(OphysExperiment, 'rois',

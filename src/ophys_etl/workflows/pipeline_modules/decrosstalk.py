@@ -43,7 +43,8 @@ class DecrosstalkModule(PipelineModule):
     def inputs(self) -> Dict:
         ophys_experiments = [
             OphysExperiment.from_id(id=ophys_experiment_id) for
-            ophys_experiment_id in self.ophys_session.ophys_experiment_ids
+            ophys_experiment_id in
+            self.ophys_session.get_ophys_experiment_ids()
         ]
         ipg_ophys_experiment_map: Dict[
             ImagingPlaneGroup, List[OphysExperiment]] = \

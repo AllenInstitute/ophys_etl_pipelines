@@ -66,14 +66,19 @@ def ophys_processing_trigger():
 
     @task
     def trigger():
-        last_run_datetime = get_latest_dag_run(
-            dag_id='ophys_processing_trigger')
-        if last_run_datetime is None:
-            # this DAG hasn't been successfully run before
-            # nothing to do
+        most_recent_dag_run = get_latest_dag_run(
+            dag_id='ophys_processing_trigger',
+            states=['running', 'queued', 'success']
+        )
+        if most_recent_dag_run['state'] in ('running', 'queued'):
+            # Don't want to trigger if already running or queued to run
             return None
+        else:
+            last_success_dag_run_datetime = \
+                datetime.datetime.now() if most_recent_dag_run is None \
+                else most_recent_dag_run['logical_date']
         ophys_experiment_ids = _get_all_ophys_experiments_completed_since(
-            since=last_run_datetime
+            since=last_success_dag_run_datetime
         )
         trigger_dag_runs(
             key_name='ophys_experiment_id',

@@ -1,5 +1,6 @@
 import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from sqlmodel import Session
@@ -10,7 +11,7 @@ from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import (
     get_latest_workflow_step_run,
-    get_well_known_file_for_latest_run,
+    get_well_known_file_for_latest_run, is_level_complete,
 )
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from tests.workflows.conftest import MockSQLiteDB
@@ -91,3 +92,59 @@ class TestWorkflowStepRuns(MockSQLiteDB):
             ophys_experiment_id=ophys_experiment_id,
         )
         assert path == paths[-1]
+
+
+class TestIsLevelComplete(MockSQLiteDB):
+    def setup(self):
+        super().setup()
+
+        with Session(self._engine) as session:
+            mock_completed_segmentation = [1, 2, 3]
+            for oe_id in mock_completed_segmentation:
+                save_job_run_to_db(
+                    start=datetime.datetime.now(),
+                    end=datetime.datetime.now(),
+                    module_outputs=[],
+                    sqlalchemy_session=session,
+                    ophys_experiment_id=oe_id,
+                    storage_directory="foo",
+                    log_path="foo",
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                    workflow_step_name=WorkflowStepEnum.SEGMENTATION,
+                )
+
+    @patch('ophys_etl.workflows.workflow_step_runs.'
+           'get_session_experiment_id_map')
+    def test__is_level_complete(
+            self, mock_session_exp_map):
+        mock_session_exp_map.return_value = [
+            {'ophys_session_id': 1, 'ophys_experiment_id': 1},
+            {'ophys_session_id': 1, 'ophys_experiment_id': 2}
+        ]
+
+        with patch('ophys_etl.workflows.workflow_step_runs.engine',
+                   new=self._engine):
+            is_complete = is_level_complete(
+                ophys_experiment_id=1,
+                workflow_step=WorkflowStepEnum.SEGMENTATION,
+                level='ophys_session'
+            )
+        assert is_complete
+
+    @patch('ophys_etl.workflows.workflow_step_runs.'
+           'get_session_experiment_id_map')
+    def test__is_level_complete_not_complete(
+            self, mock_session_exp_map):
+        mock_session_exp_map.return_value = [
+            {'ophys_session_id': 2, 'ophys_experiment_id': 3},
+            {'ophys_session_id': 2, 'ophys_experiment_id': 4},
+        ]
+
+        with patch('ophys_etl.workflows.workflow_step_runs.engine',
+                   new=self._engine):
+            is_complete = is_level_complete(
+                ophys_experiment_id=3,
+                workflow_step=WorkflowStepEnum.SEGMENTATION,
+                level='ophys_session'
+            )
+        assert is_complete is False

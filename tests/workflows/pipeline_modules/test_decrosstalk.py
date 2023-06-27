@@ -17,7 +17,7 @@ from ophys_etl.workflows.db.db_utils import save_job_run_to_db
 from sqlmodel import Session, select
 
 from ophys_etl.workflows.ophys_experiment import OphysSession, Specimen, \
-    OphysExperiment, ImagingPlaneGroup
+    OphysExperiment, ImagingPlaneGroup, OphysContainer
 
 from ophys_etl.workflows.pipeline_modules.decrosstalk import \
     DecrosstalkModule, DECROSSTALK_FLAGS
@@ -150,6 +150,7 @@ class TestDecrosstalk(MockSQLiteDB):
                 movie_frame_rate_hz=1,
                 raw_movie_filename=Path('foo'),
                 session=ophys_session,
+                container=OphysContainer(id=1, specimen=Specimen(id='1')),
                 specimen=ophys_session.specimen,
                 storage_directory=Path('foo'),
                 imaging_plane_group=ImagingPlaneGroup(
@@ -232,6 +233,8 @@ class TestDecrosstalk(MockSQLiteDB):
                 movie_frame_rate_hz=1,
                 raw_movie_filename=Path('foo'),
                 session=ophys_session,
+                container=OphysContainer(
+                    id=1, specimen=ophys_session.specimen),
                 specimen=ophys_session.specimen,
                 storage_directory=Path('foo'),
                 full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",

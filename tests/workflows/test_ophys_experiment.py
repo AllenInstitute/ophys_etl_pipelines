@@ -13,6 +13,7 @@ from ophys_etl.workflows.ophys_experiment import (
     OphysExperiment,
     OphysSession,
     Specimen,
+    OphysContainer
 )
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_workflow_step_by_name
@@ -99,14 +100,15 @@ class TestOphysExperiment(MockSQLiteDB):
         self._initializeDB()
         self._create_mock_data()
         self.ophys_experiment = OphysExperiment(
-            id="1",
-            session=OphysSession(id="2", specimen=Specimen("1")),
+            id=1,
+            session=OphysSession(id=2, specimen=Specimen("1")),
+            container=OphysContainer(id=1, specimen=Specimen("1")),
             specimen=Specimen(id="3"),
             storage_directory=Path("/storage_dir"),
             raw_movie_filename=Path("mov.h5"),
             movie_frame_rate_hz=11.0,
             equipment_name='MESO.1',
-            full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
+            full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt"
         )
 
     def test__roi_metadata(self):

@@ -165,7 +165,7 @@ def wait_for_decrosstalk_to_finish(timeout: float) -> Callable:
         # values. So we are waiting for the running dag to finish
         is_running = get_latest_dag_run(
             dag_id='decrosstalk',
-            state='running'
+            states=['running']
         ) is not None
 
         return PokeReturnValue(is_done=is_done and not is_running)

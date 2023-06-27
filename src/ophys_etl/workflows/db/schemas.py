@@ -71,6 +71,10 @@ class WorkflowStepRun(SQLModel, table=True):
         sa_column=Column(DateTime(timezone=True), nullable=False))
     end: datetime.datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False))
+    insertion_time: datetime.datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False),
+        default_factory=datetime.datetime.utcnow
+    )
 
 
 class MotionCorrectionRun(SQLModel, table=True):

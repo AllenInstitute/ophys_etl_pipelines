@@ -24,7 +24,7 @@ from ophys_etl.workflows.on_prem.slurm.slurm import SlurmJob, SlurmState
 from ophys_etl.workflows.ophys_experiment import (
     OphysExperiment,  # noqa #402
     OphysSession,
-    Specimen,
+    Specimen, OphysContainer
 )
 from ophys_etl.workflows.pipeline_modules.motion_correction import (
     MotionCorrectionModule,
@@ -114,14 +114,15 @@ class TestSlurm:
     def setup_class(cls):
         mod = MotionCorrectionModule(
             ophys_experiment=OphysExperiment(
-                id="1",
-                session=OphysSession(id="1", specimen=Specimen("1")),
+                id=1,
+                session=OphysSession(id=1, specimen=Specimen("1")),
+                container=OphysContainer(id=1, specimen=Specimen("1")),
                 specimen=Specimen(id="1"),
                 storage_directory=Path("/foo"),
                 raw_movie_filename=Path("mov.h5"),
                 movie_frame_rate_hz=11.0,
                 equipment_name='MESO.1',
-                full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
+                full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt"
             ),
             docker_tag=app_config.pipeline_steps.motion_correction.docker_tag,
         )

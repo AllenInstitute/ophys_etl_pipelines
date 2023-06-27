@@ -1,9 +1,10 @@
 """Ophys processing DAG"""
 import datetime
 
-from airflow.decorators import task_group
+from airflow.decorators import task_group, task
 from airflow.models import Param
 from airflow.models.dag import dag
+from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.on_prem.dags._misc import INT_PARAM_DEFAULT_VALUE
@@ -36,8 +37,13 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.event_detection impor
     EventDetection,
 )
 from ophys_etl.workflows.tasks import wait_for_decrosstalk_to_finish
+from ophys_etl.workflows.utils.dag_utils import trigger_dag_run
+from ophys_etl.workflows.utils.ophys_experiment_utils import \
+    get_session_experiment_id_map, get_container_experiment_id_map
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
+from ophys_etl.workflows.workflow_step_runs import is_level_complete, \
+    get_most_recent_run
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 WORKFLOW_NAME = WorkflowNameEnum.OPHYS_PROCESSING
@@ -59,6 +65,11 @@ WORKFLOW_NAME = WorkflowNameEnum.OPHYS_PROCESSING
             "module already exists",
             default=True
         ),
+        "run_cell_classification": Param(
+            description='Whether to run cell classification',
+            default=True,
+            type="boolean"
+        )
     },
 )
 def ophys_processing():
@@ -130,7 +141,7 @@ def ophys_processing():
 
     @task_group
     def segmentation(denoised_ophys_movie_file):
-        module_outputs = run_workflow_step(
+        run_workflow_step(
             slurm_config_filename="segmentation.yml",
             module=SegmentationModule,
             workflow_step_name=WorkflowStepEnum.SEGMENTATION,
@@ -140,22 +151,105 @@ def ophys_processing():
                 "denoised_ophys_movie_file": denoised_ophys_movie_file
             },
         )
-        return module_outputs[WellKnownFileTypeEnum.OPHYS_ROIS.value]
+
+    @task
+    def check_run_cell_classification(**context):
+        return context['params']['run_cell_classification']
+
+    @task
+    def run_cell_classification(do_run: bool, **context):
+        if do_run:
+            trigger_dag_run(
+                conf={
+                    'ophys_experiment_id':
+                        context['params']['ophys_experiment_id']
+                },
+                context=context,
+                task_id='run_cell_classification',
+                trigger_dag_id='cell_classifier_inference'
+            )
+
+    @task
+    def check_run_decrosstalk(**context):
+        ophys_experiment = OphysExperiment.from_id(
+            id=context['params']['ophys_experiment_id'])
+        # avoiding a race condition. Only want to return true for a single
+        # ophys experiment within session
+        is_most_recent = ophys_experiment.id == get_most_recent_run(
+            workflow_step=WorkflowStepEnum.SEGMENTATION,
+            ophys_experiment_ids=(
+                [x['ophys_experiment_id'] for x in
+                 get_session_experiment_id_map(
+                     ophys_experiment_ids=[ophys_experiment.id])]
+            )
+        )
+
+        is_session_complete = is_level_complete(
+            ophys_experiment_id=ophys_experiment.id,
+            level='ophys_session',
+            workflow_step=WorkflowStepEnum.SEGMENTATION
+        )
+
+        return is_session_complete and is_most_recent
+
+    @task
+    def run_decrosstalk(do_run: bool, **context):
+        if do_run:
+            ophys_experiment = OphysExperiment.from_id(
+                id=context['params']['ophys_experiment_id'])
+            trigger_dag_run(
+                conf={'ophys_session_id': ophys_experiment.session.id},
+                context=context,
+                task_id='trigger_decrosstalk_for_ophys_session',
+                trigger_dag_id='decrosstalk'
+            )
+
+    @task
+    def check_run_nway_cell_matching(**context):
+        ophys_experiment = OphysExperiment.from_id(
+            id=context['params']['ophys_experiment_id'])
+        # avoiding a race condition. Only want to return true for a single
+        # ophys experiment within container
+        is_most_recent = ophys_experiment.id == get_most_recent_run(
+            workflow_step=WorkflowStepEnum.SEGMENTATION,
+            ophys_experiment_ids=(
+                [x['ophys_experiment_id'] for x in
+                 get_container_experiment_id_map(
+                     ophys_experiment_ids=[ophys_experiment.id])]
+            )
+        )
+
+        is_container_complete = is_level_complete(
+            ophys_experiment_id=ophys_experiment.id,
+            level='ophys_container',
+            workflow_step=WorkflowStepEnum.SEGMENTATION
+        )
+
+        return is_container_complete and is_most_recent
+
+    @task
+    def run_nway_cell_matching(do_run: bool, **context):
+        if do_run:
+            ophys_experiment = OphysExperiment.from_id(
+                id=context['params']['ophys_experiment_id'])
+            trigger_dag_run(
+                conf={'ophys_container_id': ophys_experiment.container.id},
+                context=context,
+                task_id='trigger_nway_cell_matching_for_ophys_container',
+                trigger_dag_id='nway_cell_matching'
+            )
 
     @task_group
-    def trace_processing(motion_corrected_ophys_movie_file,
-                         rois_file):
+    def trace_processing(motion_corrected_ophys_movie_file):
         @task_group
-        def trace_extraction(motion_corrected_ophys_movie_file,
-                             rois_file):
+        def trace_extraction(motion_corrected_ophys_movie_file):
             module_outputs = run_workflow_step(
                 module=TraceExtractionModule,
                 workflow_step_name=WorkflowStepEnum.TRACE_EXTRACTION,
                 workflow_name=WORKFLOW_NAME,
                 module_kwargs={
                     "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
-                    "rois_file": rois_file
-                },
+                }
             )
 
             return module_outputs
@@ -220,7 +314,6 @@ def ophys_processing():
 
         trace_outputs = trace_extraction(
             motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file,  # noqa E501
-            rois_file=rois_file
         )
         demixed_traces = demix_traces(
             motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file,  # noqa E501
@@ -239,10 +332,21 @@ def ophys_processing():
     denoised_movie_file = denoising(
         motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file
     )
-    rois_file = segmentation(denoised_ophys_movie_file=denoised_movie_file)
-    trace_processing(
-        motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file,
-        rois_file=rois_file)
+    segmentation_run = segmentation(
+        denoised_ophys_movie_file=denoised_movie_file)
+
+    do_run_cell_classification = check_run_cell_classification()
+    do_run_decrosstalk = check_run_decrosstalk()
+    do_run_nway_cell_matching = check_run_nway_cell_matching()
+    segmentation_run >> [do_run_cell_classification,
+                         do_run_decrosstalk,
+                         do_run_nway_cell_matching]
+
+    run_cell_classification(do_run=do_run_cell_classification)
+    run_decrosstalk(do_run=do_run_decrosstalk)
+    run_nway_cell_matching(do_run=do_run_nway_cell_matching)
+    segmentation_run >> trace_processing(
+        motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file)
 
 
 ophys_processing()

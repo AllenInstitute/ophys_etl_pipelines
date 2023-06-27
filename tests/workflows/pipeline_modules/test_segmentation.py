@@ -6,7 +6,7 @@ from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment, Specimen, \
-    OphysSession
+    OphysSession, OphysContainer
 from sqlmodel import Session, select
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db
@@ -53,11 +53,12 @@ class TestSegmentation(MockSQLiteDB):
     def test_save_metadata_to_db(self, mock_ophys_experiment_from_id):
         mock_ophys_experiment_from_id.return_value = \
             OphysExperiment(
-                id='1',
+                id=1,
                 movie_frame_rate_hz=1,
                 raw_movie_filename=Path('foo'),
                 specimen=Specimen(id='1'),
-                session=OphysSession(id='1', specimen=Specimen(id='1')),
+                session=OphysSession(id=1, specimen=Specimen(id='1')),
+                container=OphysContainer(id=1, specimen=Specimen(id='1')),
                 storage_directory=Path('foo'),
                 full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
                 equipment_name='MESO.1'

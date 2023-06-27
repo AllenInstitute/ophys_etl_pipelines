@@ -25,7 +25,7 @@ from typing import Dict, List  # noqa #402
 from ophys_etl.workflows.ophys_experiment import (
     OphysExperiment,  # noqa #402
     OphysSession,
-    Specimen,
+    Specimen, OphysContainer,
 )
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import (
@@ -81,6 +81,7 @@ class TestPipelineModule:
                 ophys_experiment=OphysExperiment(
                     id=1,
                     session=OphysSession(id=2, specimen=Specimen("1")),
+                    container=OphysContainer(id=1, specimen=Specimen("1")),
                     specimen=Specimen(id="3"),
                     storage_directory=Path("/storage_dir"),
                     raw_movie_filename=Path("mov.h5"),

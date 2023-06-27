@@ -195,6 +195,7 @@ class OphysExperiment:
 
     id: int
     session: OphysSession
+    container: OphysContainer
     specimen: Specimen
     storage_directory: Path
     raw_movie_filename: Path
@@ -266,6 +267,10 @@ class OphysExperiment:
 
         specimen = Specimen(id=res["specimen_id"])
         session = OphysSession(id=res["session_id"], specimen=specimen)
+        container = OphysContainer(
+            id=res['ophys_container_id'],
+            specimen=specimen
+        )
         if res['ophys_imaging_plane_group_id'] is not None:
             imaging_plane_group = ImagingPlaneGroup(
                 id=res['ophys_imaging_plane_group_id'],
@@ -282,6 +287,7 @@ class OphysExperiment:
             equipment_name=res["equipment_name"],
             raw_movie_filename=res["raw_movie_filename"],
             session=session,
+            container=container,
             specimen=specimen,
             imaging_plane_group=imaging_plane_group
         )

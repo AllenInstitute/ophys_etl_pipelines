@@ -16,18 +16,22 @@ logger = logging.getLogger(__name__)
 
 def get_latest_dag_run(
         dag_id: str,
-        state: str = 'success'
-) -> Optional[datetime.datetime]:
-    """Gets the most recent run of this DAG, or None if not run before
+        states: Optional[List[str]] = None
+) -> Optional[Dict]:
+    """Gets the most recent run of this DAG with a state in `states`, or None
 
     Parameters
     ----------
     dag_id
         Gets most recent run for this dag id
-    state
-        Filter by dag runs with this state
+    states
+        Filter by dag runs with any of these states
 
     """
+    if states is None:
+        states = ['success']
+    states_query = '&'.join([f'state={x}' for x in states])
+
     rest_api_username = \
         app_config.airflow_rest_api_credentials.username.get_secret_value()
     rest_api_password = \
@@ -38,7 +42,7 @@ def get_latest_dag_run(
 
     num_tries = 0
     url = f'http://0.0.0.0:{rest_api_port}/api/v1/dags/{dag_id}/' \
-          f'dagRuns?limit=1&order_by=-execution_date&state={state}'
+          f'dagRuns?limit=1&order_by=-execution_date&{states_query}'
 
     while True:
         try:
@@ -61,17 +65,17 @@ def get_latest_dag_run(
 
     response = r.json()
     if len(response['dag_runs']) == 0:
-        last_run_datetime = None
+        last_dag_run = None
     else:
         last_dag_run = response['dag_runs'][0]
         try:
-            last_run_datetime = datetime.datetime.strptime(
+            last_dag_run['logical_date'] = datetime.datetime.strptime(
                 last_dag_run['logical_date'], '%Y-%m-%dT%H:%M:%S.%f%z')
         except ValueError:
             # try without fractional seconds
-            last_run_datetime = datetime.datetime.strptime(
+            last_dag_run['logical_date'] = datetime.datetime.strptime(
                 last_dag_run['logical_date'], '%Y-%m-%dT%H:%M:%S%z')
-    return last_run_datetime
+    return last_dag_run
 
 
 def trigger_dag_run(

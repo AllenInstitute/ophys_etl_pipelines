@@ -101,11 +101,13 @@ class TestNwayCellMatching(MockSQLiteDB):
                 with patch.object(OphysExperiment,
                                   'from_id') as mock_oe_from_id:
                     mock_oe_from_id.return_value = OphysExperiment(
-                        id=str(oe_id),
+                        id=oe_id,
                         movie_frame_rate_hz=11.0,
                         raw_movie_filename=Path('foo'),
-                        session=OphysSession(id='1',
+                        session=OphysSession(id=1,
                                              specimen=Specimen(id='1')),
+                        container=OphysContainer(
+                            id=1, specimen=Specimen(id='1')),
                         specimen=Specimen(id='1'),
                         storage_directory=Path('foo'),
                         full_genotype="abcd",
@@ -145,7 +147,8 @@ class TestNwayCellMatching(MockSQLiteDB):
                 id=id,
                 movie_frame_rate_hz=1,
                 raw_movie_filename=Path('foo'),
-                session=OphysSession(id='1', specimen=Specimen(id='1')),
+                session=OphysSession(id=1, specimen=Specimen(id='1')),
+                container=OphysContainer(id=1, specimen=Specimen(id='1')),
                 specimen=Specimen(id='1'),
                 storage_directory=Path('foo'),
                 full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",

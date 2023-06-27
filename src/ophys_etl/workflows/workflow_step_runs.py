@@ -1,10 +1,7 @@
 """Functions relating to workflow step runs"""
-import datetime
 import logging
 from pathlib import Path
 from typing import Optional, List
-
-import pandas as pd
 
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import NoResultFound
@@ -166,52 +163,18 @@ def get_latest_workflow_step_run(
     return workflow_step_run_id
 
 
-def get_runs_completed_since(
-        session: Session,
-        since: datetime.datetime,
-        workflow_step: WorkflowStepEnum,
-        workflow_name: WorkflowNameEnum
-) -> List[WorkflowStepRun]:
-    """Gets all `WorkflowStepRun` for `WorkflowStep`
-    that have completed `since`
-
-    Parameters
-    ----------
-    session
-        sqlalchemy session
-    since
-        Check since this datetime
-    workflow_step
-        Check for this WorkflowStep
-    workflow_name
-        Check for this workflow
-    """
-    workflow_step = get_workflow_step_by_name(
-        session=session, name=workflow_step, workflow=workflow_name
-    )
-    statement = (
-        select(WorkflowStepRun)
-        .where(WorkflowStepRun.workflow_step_id == workflow_step.id,
-               WorkflowStepRun.end >= since)
-    )
-    res = session.exec(statement)
-    return res.all()
-
-
-def get_completed(
-    ophys_experiment_ids: List[int],
+def is_level_complete(
+    ophys_experiment_id: int,
     workflow_step: WorkflowStepEnum,
-    level: str = 'ophys_session',
-
-) -> List:
-    """Gets `level` from the list of `ophys_experiment_ids`
-    that have completed `workflow_step`. i.e. all experiments in `level`
-    have completed `workflow_step`
+    level: str = 'ophys_session'
+) -> bool:
+    """Returns whether all ophys experiments in same `level` as
+    `ophys_experiment_id`have completed `workflow_step`
 
     Parameters
     ----------
-    ophys_experiment_ids
-        List of ophys experiment ids
+    ophys_experiment_id
+        Ophys experiment id
     workflow_step
         Workflow step to check for completion
     level
@@ -221,21 +184,17 @@ def get_completed(
 
     Returns
     -------
-    pd.DataFrame
-        A dataframe containing all experiments in `level` for all `level`
-        that have completed
-
-        Columns:
-        - `level`_id
-        - ophys_experiment_id
+    bool
+        Whether all ophys experiments in same `level` as
+        `ophys_experiment_id`have completed `workflow_step`
     """
     if level == 'ophys_session':
         level_exp_map = get_session_experiment_id_map(
-            ophys_experiment_ids=ophys_experiment_ids
+            ophys_experiment_ids=[ophys_experiment_id]
         )
     elif level == 'ophys_container':
         level_exp_map = get_container_experiment_id_map(
-            ophys_experiment_ids=ophys_experiment_ids
+            ophys_experiment_ids=[ophys_experiment_id]
         )
     else:
         valid_levels = ('ophys_session', 'ophys_container')
@@ -251,17 +210,48 @@ def get_completed(
             select(WorkflowStepRun.ophys_experiment_id)
             .where(WorkflowStepRun.workflow_step_id == step.id)
         )
-        ophys_experiment_ids = session.exec(statement).all()
+        completed_ophys_experiment_ids = session.exec(statement).all()
 
-    level_exp_map = pd.DataFrame(level_exp_map)
-    if level_exp_map.empty:
-        completed = []
-    else:
-        level_exp_map['has_completed'] = \
-            level_exp_map['ophys_experiment_id'].apply(
-                lambda x: x in ophys_experiment_ids)
-        has_completed = \
-            level_exp_map.groupby(f'{level}_id')['has_completed']\
-            .all()
-        completed = has_completed[has_completed].index.tolist()
-    return completed
+    all_ophys_experiment_ids = [
+        x['ophys_experiment_id'] for x in level_exp_map]
+    for ophys_experiment_id in all_ophys_experiment_ids:
+        if ophys_experiment_id not in completed_ophys_experiment_ids:
+            return False
+    return True
+
+
+def get_most_recent_run(
+    workflow_step: WorkflowStepEnum,
+    ophys_experiment_ids: List[int]
+) -> int:
+    """Gets the most recent `ophys_experiment_id` that has completed
+    `workflow_step` from the list of `ophys_experiment_ids`
+
+    Parameters
+    ----------
+    workflow_step
+        The workflow step to get most recent run for
+    ophys_experiment_ids
+        List of ophys experiment ids to filter by
+
+    Returns
+    -------
+    int
+        ophys experiment id that has most recently completed `workflow_step`
+        from the list of `ophys_experiment_ids`
+    """
+    with Session(engine) as session:
+        step = get_workflow_step_by_name(
+            name=workflow_step,
+            workflow=WorkflowNameEnum.OPHYS_PROCESSING,
+            session=session
+        )
+        statement = (
+            select(WorkflowStepRun.ophys_experiment_id)
+            .where(WorkflowStepRun.workflow_step_id == step.id,
+                   col(WorkflowStepRun.ophys_experiment_id)
+                   .in_(ophys_experiment_ids))
+            .order_by(col(WorkflowStepRun.insertion_time).desc())
+            .limit(1)
+        )
+        return session.exec(statement).one()

@@ -41,11 +41,18 @@ def main():
         [x['ophys_experiment_id'] for x in oe_container_map]
     ))
 
+    containers = get_container_experiment_id_map(
+        ophys_experiment_ids=ophys_experiments)
+    n_containers = len(set([x['ophys_container_id'] for x in containers]))
+
+    sessions = get_session_experiment_id_map(
+        ophys_experiment_ids=ophys_experiments
+    )
+    n_sessions = len(set([x['ophys_session_id'] for x in sessions]))
+
     print(f'Total number of ophys processing jobs: {len(ophys_experiments)}')
-    print(f'Total number of containers: '
-          f'{len(set([x["ophys_container_id"] for x in oe_container_map]))}')
-    print(f'Total number of sessions: '
-          f'{len(set([x["ophys_session_id"] for x in oe_session_map]))}')
+    print(f'Total number of containers: {n_containers}')
+    print(f'Total number of sessions: {n_sessions}')
 
     for oe in ophys_experiments:
         rest_api_username = \

@@ -20,9 +20,9 @@ from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port
 def main():
     ophys_experiment = OphysExperiment.from_id(id=1274961379)
     experiments_in_session = ophys_experiment.session\
-        .get_ophys_experiment_ids()
+        .get_ophys_experiment_ids(passed_or_qc_only=False)
     experiments_in_container = ophys_experiment.container\
-        .get_ophys_experiment_ids()
+        .get_ophys_experiment_ids(passed_or_qc_only=False)
 
     # getting all ophys experiments associated with ophys_experiment
     ophys_experiments = set(
@@ -34,7 +34,8 @@ def main():
     # run
     for ophys_experiment_id in experiments_in_container:
         for other_experiment_id in OphysExperiment.from_id(
-                id=ophys_experiment_id).session.get_ophys_experiment_ids():
+                id=ophys_experiment_id).session.get_ophys_experiment_ids(
+                passed_or_qc_only=False):
             ophys_experiments.add(other_experiment_id)
 
     ophys_experiments = list(ophys_experiments)

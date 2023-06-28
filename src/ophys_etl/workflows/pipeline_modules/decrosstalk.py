@@ -44,7 +44,8 @@ class DecrosstalkModule(PipelineModule):
         ophys_experiments = [
             OphysExperiment.from_id(id=ophys_experiment_id) for
             ophys_experiment_id in
-            self.ophys_session.get_ophys_experiment_ids()
+            self.ophys_session.get_ophys_experiment_ids(
+                passed_or_qc_only=False)
         ]
         ipg_ophys_experiment_map: Dict[
             ImagingPlaneGroup, List[OphysExperiment]] = \

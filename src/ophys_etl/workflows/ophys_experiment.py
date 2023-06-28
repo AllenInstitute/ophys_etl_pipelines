@@ -37,7 +37,10 @@ class OphysExperimentGroup(abc.ABC):
     """Group of experiments (session, container)"""
 
     @abc.abstractmethod
-    def get_ophys_experiment_ids(self) -> List[int]:
+    def get_ophys_experiment_ids(
+        self,
+        passed_or_qc_only: bool = True
+    ) -> List[int]:
         raise NotImplementedError
 
     def has_completed_workflow_step(
@@ -134,15 +137,16 @@ class OphysSession(OphysExperimentGroup):
 
     def get_ophys_experiment_ids(
         self,
-        exclude_failed_experiments: bool = True
+        passed_or_qc_only: bool = True
     ) -> List[int]:
         """
         Gets all ophys experiment ids in this session
 
         Parameters
         ----------
-        exclude_failed_experiments
-            Exclude any ophys experiments not marked as "passed" or "qc"
+        passed_or_qc_only
+            Whether to only return experiments with workflow_state of
+            "passed" or "qc"
 
         Returns
         -------
@@ -153,7 +157,7 @@ class OphysSession(OphysExperimentGroup):
                 oe.id as ophys_experiment_id
             FROM ophys_experiments oe
             WHERE oe.ophys_session_id = {self.id}
-                {"AND oe.workflow_state in ('passed', 'qc')" if exclude_failed_experiments else ""}
+                {"AND oe.workflow_state in ('passed', 'qc')" if passed_or_qc_only else ""}
         """ # noqa E402
         lims_db = LIMSDB()
         res = lims_db.query(query=query)

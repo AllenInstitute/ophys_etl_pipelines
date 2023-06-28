@@ -177,7 +177,7 @@ def ophys_processing():
             workflow_step=WorkflowStepEnum.SEGMENTATION,
             ophys_experiment_ids=(
                 OphysSession.from_id(id=ophys_experiment.session.id)
-                .get_ophys_experiment_ids())
+                .get_ophys_experiment_ids(passed_or_qc_only=False))
         )
 
         is_session_complete = \

@@ -4,7 +4,6 @@ from typing import Dict
 from airflow.decorators import task_group, task
 from airflow.models import Param
 from airflow.models.dag import dag
-from ophys_etl.workflows.output_file import OutputFile
 
 from ophys_etl.workflows.on_prem.dags._misc import INT_PARAM_DEFAULT_VALUE
 

@@ -3,8 +3,6 @@ from typing import Optional
 from airflow.decorators import task
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
-from ophys_etl.workflows.output_file import OutputFile
-
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum

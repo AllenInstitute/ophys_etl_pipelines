@@ -5,6 +5,7 @@ from typing import Callable, Dict, List, Optional, Type
 
 from airflow.decorators import task
 from airflow.models import TaskInstance
+from airflow.operators.python import get_current_context
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from paramiko import AuthenticationException
@@ -19,7 +20,45 @@ from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
     OphysSession, OphysContainer
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
+from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port, \
+    call_endpoint_with_retries
 from ophys_etl.workflows.utils.json_utils import EnhancedJSONEncoder
+
+
+def update_task_state(
+    dag_id: str,
+    dag_run_id: str,
+    task_id: str,
+    new_state: str
+):
+    """Update task state
+
+    Parameters
+    ----------
+    dag_id
+        Dag in which task to be updated is
+    dag_run_id
+        Run id of task to update
+    task_id
+        Task id to update
+    new_state
+        State to update `task_id` to
+    """
+    valid_states = ('success', 'failed')
+    if new_state not in valid_states:
+        raise ValueError(f'new state must be one of {valid_states}. '
+                         f'Got {new_state}')
+    rest_api_port = get_rest_api_port()
+    url = f'http://0.0.0.0:{rest_api_port}/api/v1/dags/{dag_id}/' \
+          f'dagRuns/{dag_run_id}/taskInstances/{task_id}'
+    response = call_endpoint_with_retries(
+        url=url,
+        http_method='POST',
+        http_body={
+            'new_state': new_state
+        }
+    )
+    return response
 
 
 def wait_for_job_to_finish(timeout: float) -> Callable:
@@ -47,8 +86,10 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
         job_id: str,
         module_outputs: List[OutputFile],
         storage_directory: str,
-        log_path: str,
+        log_path: str
     ):
+        context = get_current_context()
+
         try:
             job = SlurmJob.from_job_id(job_id=job_id)
         except AuthenticationException as e:
@@ -61,7 +102,14 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
         logger.info(msg)
 
         if job.is_failed():
-            raise SlurmJobFailedException(msg)
+            update_task_state(
+                dag_id=context["dag_run"].dag_id,
+                dag_run_id=context["dag_run"].run_id,
+                task_id=(context['task'].task_id.replace(
+                    'wait_for_job_to_finish', 'submit_jpb')),
+                new_state='failed'
+            )
+            return PokeReturnValue(is_done=True, xcom_value=None)
 
         if job.is_done():
             xcom_value = {

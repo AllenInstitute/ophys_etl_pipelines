@@ -19,12 +19,20 @@ export AIRFLOW__CORE__DAG_FILE_PROCESSOR_TIMEOUT=180
 
 export AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG=1000
 export AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG=1000
+
+# allow for retrying a failed task up to 5 times
+export AIRFLOW__CORE__DEFAULT_TASK_RETRIES=5
 ##############
 
 
 ##############
 # parse DAGs every 3 hours instead of 30 seconds
 export AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL=10800
+export AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL=10800
+
+# increase number of processing for parsing dags
+export AIRFLOW__SCHEDULER__PARSING_PROCESSES=16
+
 ##############
 
 # Set REST API auth to username/password auth

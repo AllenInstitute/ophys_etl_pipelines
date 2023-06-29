@@ -71,7 +71,8 @@ def call_endpoint_with_retries(
                 r = requests.get(
                     url=url,
                     headers={
-                        'Authorization': f'Basic {auth.decode()}'
+                        'Authorization': f'Basic {auth.decode()}',
+                        'Accept': 'application/json'
                     }
                 )
             elif http_method == 'POST':
@@ -80,7 +81,7 @@ def call_endpoint_with_retries(
                     data=http_body,
                     headers={
                         'Authorization': f'Basic {auth.decode()}',
-                        'Content-type': 'application/json'
+                        'Content-Type': 'application/json'
                     }
                 )
             else:

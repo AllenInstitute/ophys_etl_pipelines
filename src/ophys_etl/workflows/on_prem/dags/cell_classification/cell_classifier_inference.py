@@ -1,4 +1,5 @@
 import datetime
+from typing import Dict
 
 from airflow.decorators import task_group, task
 from airflow.models import Param
@@ -41,7 +42,7 @@ def _get_roi_classifier() -> int:
 
 
 @task
-def _get_motion_correction_shifts_file(**context) -> OutputFile:
+def _get_motion_correction_shifts_file(**context) -> Dict:
     motion_correction_shifts_path = get_well_known_file_for_latest_run(
         engine=engine,
         workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
@@ -49,10 +50,11 @@ def _get_motion_correction_shifts_file(**context) -> OutputFile:
         well_known_file_type=WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA,
         ophys_experiment_id=context['params']['ophys_experiment_id']
     )
-    return OutputFile(
-        well_known_file_type=WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA,
-        path=motion_correction_shifts_path
-    )
+    return {
+        'path': str(motion_correction_shifts_path),
+        'well_known_file_type': (
+            WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA.value)
+    }
 
 
 @dag(

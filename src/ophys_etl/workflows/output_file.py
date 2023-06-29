@@ -10,3 +10,11 @@ class OutputFile:
 
     path: Path
     well_known_file_type: WellKnownFileTypeEnum
+
+    @classmethod
+    def from_dict(cls, x) -> "OutputFile":
+        return OutputFile(
+            path=Path(x['path']),
+            well_known_file_type=WellKnownFileTypeEnum(
+                x['well_known_file_type'])
+        )

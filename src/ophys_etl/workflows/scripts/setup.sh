@@ -14,8 +14,8 @@ export AIRFLOW__CORE__ALLOWED_DESERIALIZATION_CLASSES="airflow\..* ophys_etl.wor
 export AIRFLOW__CORE__EXECUTOR="LocalExecutor"
 
 # Increasing these since had issues with DAG import taking longer than default
-export AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT=120.0
-export AIRFLOW__CORE__DAG_FILE_PROCESSOR_TIMEOUT=180
+export AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT=5400
+export AIRFLOW__CORE__DAG_FILE_PROCESSOR_TIMEOUT=5400
 
 export AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG=1000
 export AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG=1000
@@ -26,18 +26,21 @@ export AIRFLOW__CORE__DEFAULT_TASK_RETRIES=5
 
 
 ##############
-# parse DAGs every 3 hours instead of 30 seconds
-export AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL=10800
-export AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL=10800
-
-# increase number of processing for parsing dags
-export AIRFLOW__SCHEDULER__PARSING_PROCESSES=16
+# parse DAGs every 3 years instead of 30 seconds (basically disable it since
+# I am seeing too many issues from parsing dags -- dag cannot be found)
+export AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL=94670000
+export AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL=94670000
 
 ##############
 
 # Set REST API auth to username/password auth
 export AIRFLOW__API__AUTH_BACKENDS="airflow.api.auth.backend.basic_auth"
 
+##############
+
+
+##############
+export AIRFLOW__WEBSERVER__EXPOSE_CONFIG=true
 ##############
 
 nohup airflow scheduler &

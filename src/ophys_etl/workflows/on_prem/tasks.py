@@ -3,17 +3,16 @@ import json
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Type
 
+import jinja2
 from airflow.decorators import task
 from airflow.models import TaskInstance
 from airflow.operators.python import get_current_context
 from airflow.sensors.base import PokeReturnValue
-from airflow.utils.log.file_task_handler import FileTaskHandler
 from paramiko import AuthenticationException
 
 from ophys_etl.workflows.on_prem.slurm.slurm import (
     Slurm,
     SlurmJob,
-    SlurmJobFailedException,
     logger,
 )
 from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
@@ -84,7 +83,7 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
     @task.sensor(mode="reschedule", timeout=timeout)
     def wait_for_job_to_finish(
         job_id: str,
-        module_outputs: List[OutputFile],
+        module_outputs: List[Dict],
         storage_directory: str,
         log_path: str
     ):
@@ -201,6 +200,12 @@ def submit_job(
             'Expected one of ophys_session_id, ophys_experiment_id, '
             'ophys_container_id to be passed as a DAG param')
 
+    for k, v in module_kwargs.items():
+        if isinstance(v, Dict) and 'path' in v and 'well_known_file_type' in v:
+            # serialize to OutputFile
+            # needed because unable to pass around OutputFile in tasks
+            module_kwargs[k] = OutputFile.from_dict(x=v)
+
     mod = module(
         ophys_experiment=ophys_experiment,
         ophys_session=ophys_session,
@@ -222,9 +227,18 @@ def submit_job(
         *mod.executable_args["args"], **mod.executable_args["kwargs"]
     )
 
+    # deserialize OutputFile to dict.
+    # needed because unable to pass around OutputFile in tasks
+    module_outputs = [
+        {
+            'path': str(output.path),
+            'well_known_file_type': output.well_known_file_type.value
+        }
+        for output in mod.outputs]
+
     return {
         "job_id": slurm.job.id,
-        "module_outputs": mod.outputs,
+        "module_outputs": module_outputs,
         "storage_directory": str(mod.output_path),
         "log_path": str(log_path),
     }
@@ -236,9 +250,24 @@ def _get_log_path(
     """Returns the path that the current task is writing logs to, so that
     we can write slurm job logs to the same file and view the slurm logs in
     the UI"""
-    file_handler: FileTaskHandler = logger.handlers[0]
-    log_dir = Path(file_handler.local_base)
-    log_filename = file_handler._render_filename(
-        ti=task_instance, try_number=task_instance.try_number
+    rest_api_port = get_rest_api_port()
+    url = f'http://0.0.0.0:{rest_api_port}/api/v1/config'
+    config = call_endpoint_with_retries(
+        url=url,
+        http_method='GET'
     )
-    return log_dir / log_filename
+    logging_section = \
+        [x for x in config['sections'] if x['name'] == 'logging'][0]
+    base_log_folder = [
+        x['value'] for x in logging_section['options'] if
+        x['key'] == 'base_log_folder'][0]
+    log_filename_template = [
+        x['value'] for x in logging_section['options'] if
+        x['key'] == 'log_filename_template'][0]
+
+    environment = jinja2.Environment()
+    template = environment.from_string(log_filename_template)
+    log_filename = template.render(
+        ti=task_instance,
+        try_number=task_instance.try_number)
+    return Path(base_log_folder) / log_filename

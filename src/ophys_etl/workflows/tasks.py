@@ -116,7 +116,13 @@ def save_job_run_to_db(
             additional_steps=additional_steps,
             additional_steps_kwargs=additional_steps_kwargs,
         )
-    return {x.well_known_file_type.value: x for x in module_outputs}
+    return {
+        x.well_known_file_type.value: {
+            'path': str(x.path),
+            'well_known_file_type': x.well_known_file_type.value
+        }
+        for x in module_outputs
+    }
 
 
 def wait_for_decrosstalk_to_finish(timeout: float) -> Callable:

@@ -30,11 +30,11 @@ def get_denoised_movie_for_experiment(
         workflow_step=WorkflowStepEnum.DENOISING_INFERENCE,
         ophys_experiment_id=experiment_id,
     )
-    return OutputFile(
-        path=denoised_ophys_movie_file,
-        well_known_file_type=(
-            WellKnownFileTypeEnum.DEEPINTERPOLATION_DENOISED_MOVIE)
-    )
+    return {
+        'path': str(denoised_ophys_movie_file),
+        'well_known_file_type': (
+            WellKnownFileTypeEnum.DEEPINTERPOLATION_DENOISED_MOVIE.value)
+    }
 
 
 @task

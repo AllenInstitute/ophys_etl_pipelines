@@ -37,3 +37,41 @@ Initialize ophys workflow db using `python -m ophys_etl.workflows.db.initialize_
 ### start airflow
 
 `./scripts/setup.sh`
+
+## Testing
+
+A script that can be used for testing is `ophys_etl/workflows/scrips/run_pipeline_end_to_end_test.py`
+
+To run script from scratch:
+
+`pkill airflow`
+
+Reset airflow db
+```bash
+airflow db reset
+airflow db init
+airflow users create ...
+```
+
+
+Then reset the ophys processing db
+
+Postgres 
+
+- Delete db by right clicking on db in pgadmin and clicking "Delete/drop"
+- Create the db again in pgadmin
+
+Sqlite
+- `rm` db file
+
+Then
+- `rm` model file passed to `initialize_db`
+- Run `initialize_db` again
+
+Finally 
+
+run `ophys_etl/workflows/scripts/setup.sh`
+
+Start dags in airlflow UI
+
+run `run_pipeline_end_to_end_test.py`

@@ -7,6 +7,7 @@ from pathlib import Path
 import base64
 from typing import Any, Optional, Dict
 
+import json
 import requests
 
 from ophys_etl.workflows.app_config.app_config import app_config
@@ -45,9 +46,9 @@ def call_endpoint_with_retries(
     url
         API endpoint
     http_method
-        GET or POST
+        GET or POST or PATCH
     http_body
-        if POST, the http body
+        if POST or PATCH, the http body
     max_retries
         Max number of retries to make when attempting to query airflow rest api
     retry_seconds
@@ -78,14 +79,25 @@ def call_endpoint_with_retries(
             elif http_method == 'POST':
                 r = requests.post(
                     url=url,
-                    data=http_body,
+                    data=json.dumps(http_body),
                     headers={
                         'Authorization': f'Basic {auth.decode()}',
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    }
+                )
+            elif http_method == 'PATCH':
+                r = requests.patch(
+                    url=url,
+                    data=json.dumps(http_body),
+                    headers={
+                        'Authorization': f'Basic {auth.decode()}',
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     }
                 )
             else:
-                raise ValueError(f'Only GET and POST supported, gave '
+                raise ValueError(f'Only GET,POST,PATCH supported, gave '
                                  f'{http_method}')
             break
         # This error is sporadically thrown

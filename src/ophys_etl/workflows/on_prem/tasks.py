@@ -5,15 +5,16 @@ from typing import Callable, Dict, List, Optional, Type
 
 import jinja2
 from airflow.decorators import task
-from airflow.models import TaskInstance
+from airflow.models import TaskInstance, clear_task_instances
 from airflow.operators.python import get_current_context
 from airflow.sensors.base import PokeReturnValue
+from airflow.utils.session import provide_session
 from paramiko import AuthenticationException
 
 from ophys_etl.workflows.on_prem.slurm.slurm import (
     Slurm,
     SlurmJob,
-    logger,
+    logger, SlurmJobFailedException,
 )
 from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
     OphysSession, OphysContainer
@@ -24,40 +25,28 @@ from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port, \
 from ophys_etl.workflows.utils.json_utils import EnhancedJSONEncoder
 
 
-def update_task_state(
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    new_state: str
-):
-    """Update task state
+@provide_session
+def _clear_task(task_instance: TaskInstance, session=None):
+    """Clears (retries) a task instance"""
+    clear_task_instances(tis=[task_instance], session=session)
 
-    Parameters
-    ----------
-    dag_id
-        Dag in which task to be updated is
-    dag_run_id
-        Run id of task to update
-    task_id
-        Task id to update
-    new_state
-        State to update `task_id` to
-    """
-    valid_states = ('success', 'failed')
-    if new_state not in valid_states:
-        raise ValueError(f'new state must be one of {valid_states}. '
-                         f'Got {new_state}')
+
+def _can_retry_task_instance(task_instance: TaskInstance):
+    """Return whether the task instance has reached the max number of tries
+    as defined in the config"""
     rest_api_port = get_rest_api_port()
-    url = f'http://0.0.0.0:{rest_api_port}/api/v1/dags/{dag_id}/' \
-          f'dagRuns/{dag_run_id}/taskInstances/{task_id}'
-    response = call_endpoint_with_retries(
+    url = f'http://0.0.0.0:{rest_api_port}/api/v1/config'
+    config = call_endpoint_with_retries(
         url=url,
-        http_method='POST',
-        http_body={
-            'new_state': new_state
-        }
+        http_method='GET'
     )
-    return response
+    core_section = \
+        [x for x in config['sections'] if x['name'] == 'core'][0]
+    default_task_tries = [
+        x['value'] for x in core_section['options'] if
+        x['key'] == 'default_task_retries'][0]
+    default_task_tries = int(default_task_tries)
+    return task_instance.try_number < default_task_tries
 
 
 def wait_for_job_to_finish(timeout: float) -> Callable:
@@ -101,14 +90,15 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
         logger.info(msg)
 
         if job.is_failed():
-            update_task_state(
-                dag_id=context["dag_run"].dag_id,
-                dag_run_id=context["dag_run"].run_id,
-                task_id=(context['task'].task_id.replace(
-                    'wait_for_job_to_finish', 'submit_jpb')),
-                new_state='failed'
-            )
-            return PokeReturnValue(is_done=True, xcom_value=None)
+            all_tasks = context["dag_run"].get_task_instances()
+            submit_job_instance: TaskInstance = \
+                [x for x in all_tasks if 'submit_job' in x.task_id][0]
+            if _can_retry_task_instance(task_instance=submit_job_instance):
+                logger.info(f'Clearing {submit_job_instance.task_id}')
+                _clear_task(task_instance=submit_job_instance)
+            else:
+                logger.info('Reached max number of tries.')
+            raise SlurmJobFailedException(msg)
 
         if job.is_done():
             xcom_value = {

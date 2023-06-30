@@ -20,8 +20,8 @@ export AIRFLOW__CORE__DAG_FILE_PROCESSOR_TIMEOUT=5400
 export AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG=1000
 export AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG=1000
 
-# allow for retrying a failed task up to 5 times
-export AIRFLOW__CORE__DEFAULT_TASK_RETRIES=5
+# allow for retrying a failed task
+export AIRFLOW__CORE__DEFAULT_TASK_RETRIES=3
 ##############
 
 

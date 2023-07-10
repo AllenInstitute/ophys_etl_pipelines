@@ -22,7 +22,7 @@ def main():
     experiments_in_session = ophys_experiment.session\
         .get_ophys_experiment_ids(passed_or_qc_only=False)
     experiments_in_container = ophys_experiment.container\
-        .get_ophys_experiment_ids(passed_or_qc_only=False)
+        .get_ophys_experiment_ids(passed_or_qc_only=True)
 
     # getting all ophys experiments associated with ophys_experiment
     ophys_experiments = set(

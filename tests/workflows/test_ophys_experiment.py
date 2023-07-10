@@ -2,6 +2,8 @@ import datetime
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db
 from sqlmodel import Session
 
@@ -172,27 +174,49 @@ class TestOphysExperimentGroup(MockSQLiteDB):
         )
 
     @patch.object(OphysSession, 'get_ophys_experiment_ids')
+    @patch.object(OphysContainer, 'get_ophys_experiment_ids')
+    @pytest.mark.parametrize('experiment_group_name', ('session', 'container'))
     def test_has_completed_workflow_step(
-            self, mock_exp_ids):
-        mock_exp_ids.return_value = [1, 2]
+            self,
+            mock_container_exp_ids,
+            mock_session_exp_ids,
+            experiment_group_name
+    ):
+        mock_container_exp_ids.return_value = [1, 2]
+        mock_session_exp_ids.return_value = [1, 2]
 
         with patch('ophys_etl.workflows.ophys_experiment.engine',
                    new=self._engine):
+            if experiment_group_name == 'session':
+                experiment_group = self.ophys_experiment.session
+            else:
+                experiment_group = self.ophys_experiment.container
             is_complete = \
-                self.ophys_experiment.session.has_completed_workflow_step(
+                experiment_group.has_completed_workflow_step(
                     workflow_step=WorkflowStepEnum.SEGMENTATION
                 )
         assert is_complete
 
     @patch.object(OphysSession, 'get_ophys_experiment_ids')
+    @patch.object(OphysContainer, 'get_ophys_experiment_ids')
+    @pytest.mark.parametrize('experiment_group_name', ('session', 'container'))
     def test_has_not_completed_workflow_step(
-            self, mock_exp_ids):
-        mock_exp_ids.return_value = [3, 4]
+            self,
+            mock_container_exp_ids,
+            mock_session_exp_ids,
+            experiment_group_name
+    ):
+        mock_container_exp_ids.return_value = [3, 4]
+        mock_session_exp_ids.return_value = [3, 4]
 
         with patch('ophys_etl.workflows.ophys_experiment.engine',
                    new=self._engine):
+            if experiment_group_name == 'session':
+                experiment_group = self.ophys_experiment.session
+            else:
+                experiment_group = self.ophys_experiment.container
             is_complete = \
-                self.ophys_experiment.session.has_completed_workflow_step(
+                experiment_group.has_completed_workflow_step(
                     workflow_step=WorkflowStepEnum.SEGMENTATION
                 )
         assert not is_complete

@@ -44,34 +44,38 @@ A script that can be used for testing is `ophys_etl/workflows/scrips/run_pipelin
 
 To run script from scratch:
 
-`pkill airflow`
+1. stop airflow services
 
-Reset airflow db
-```bash
-airflow db reset
-airflow db init
-airflow users create ...
-```
+    `pkill airflow`
+
+2. Reset airflow db
+    ```bash
+    airflow db reset
+    airflow db init
+    airflow users create ...
+    ```
 
 
-Then reset the ophys processing db
+3. Reset the ophys processing db
 
-Postgres 
+    **Postgres** 
 
-- Delete db by right clicking on db in pgadmin and clicking "Delete/drop"
-- Create the db again in pgadmin
+    - Delete db by right clicking on db in pgadmin and clicking "Delete/drop"
+    - Create the db again in pgadmin
+   
+    **Sqlite**
+    - `rm` db file
 
-Sqlite
-- `rm` db file
+4. Initialize the ophys db
 
-Then
-- `rm` model file passed to `initialize_db`
-- Run `initialize_db` again
+    - `rm` model file passed to `initialize_db`
+    - Run `initialize_db` again
 
-Finally 
 
-run `ophys_etl/workflows/scripts/setup.sh`
+5. start airflow
 
-Start dags in airlflow UI
+    run `ophys_etl/workflows/scripts/setup.sh`
 
-run `run_pipeline_end_to_end_test.py`
+6. Start dags in airlflow UI
+
+7. run `run_pipeline_end_to_end_test.py`

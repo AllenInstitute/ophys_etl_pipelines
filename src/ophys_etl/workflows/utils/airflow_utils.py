@@ -49,6 +49,9 @@ def call_endpoint_with_retries(
         GET or POST or PATCH
     http_body
         if POST or PATCH, the http body
+        https://developer.mozilla.org/en-US/docs/Web/HTTP/Messages#body
+
+        it can be an arbitrary json-encodable dictionary
     max_retries
         Max number of retries to make when attempting to query airflow rest api
     retry_seconds

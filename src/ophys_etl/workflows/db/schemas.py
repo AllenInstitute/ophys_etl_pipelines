@@ -215,11 +215,8 @@ class OphysROI(SQLModel, table=True):
 
         Parameters
         ----------
-        include_decrosstalk : bool Optional
-            Check decrosstalk flags for is_valid. Decrosstalk is required
-            for mesoscope experiments imaging multiple experiments at once.
-            Other experiments using different equipment do not require
-            decrosstalk.
+        equipment
+            equipment type that imaged the imaging plane
 
         Returns
         -------

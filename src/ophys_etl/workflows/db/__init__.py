@@ -12,11 +12,9 @@ def _fk_pragma_on_connect(dbapi_con, con_record):
 def get_engine(
         db_conn: str = app_config.app_db.conn_string
 ):
+    engine = create_engine(db_conn)
     if db_conn.startswith('sqlite'):
-        engine = create_engine(db_conn)
         event.listen(engine, 'connect', _fk_pragma_on_connect)
-    else:
-        raise NotImplementedError('only sqlite currently supported')
     return engine
 
 

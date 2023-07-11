@@ -65,5 +65,5 @@ class CreateTrainTestSplitModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return create_dataset

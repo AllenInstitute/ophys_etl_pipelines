@@ -16,7 +16,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
     """Denoising Finetuning module"""
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return fine_tuning
 
     @property
@@ -27,7 +27,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
     def inputs(self):
         return {
             "data_split_params": {
-                "ophys_experiment_id": self.ophys_experiment.id,
+                "ophys_experiment_id": str(self.ophys_experiment.id),
                 "dataset_output_dir": str(self.output_path),
                 "movie_path": self._motion_corrected_path,
                 "downsample_frac": (
@@ -60,6 +60,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "post_frame": 30,
                 "pre_frame": 30,
                 "pre_post_omission": 0,
+                "seed": 1234
             },
             "log_level": "INFO",
             "output_full_args": True,
@@ -69,8 +70,9 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "post_frame": 30,
                 "pre_frame": 30,
                 "pre_post_omission": 0,
+                "seed": 1234
             },
-            "run_uid": self.ophys_experiment.id,
+            "run_uid": str(self.ophys_experiment.id),
         }
 
     @property

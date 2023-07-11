@@ -1,6 +1,8 @@
 from types import ModuleType
 from typing import List
 
+from ophys_etl.workflows.app_config.app_config import app_config
+
 from ophys_etl.modules import dff
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
@@ -30,7 +32,7 @@ class DFOverFCalculation(PipelineModule):
         self._neuropil_corrected_traces = str(neuropil_corrected_traces.path)
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return dff
 
     @property
@@ -40,10 +42,13 @@ class DFOverFCalculation(PipelineModule):
     @property
     def inputs(self):
         module_args = {
-            "input_file": self._motion_corrected_ophys_movie_file,
+            "input_file": self._neuropil_corrected_traces,
             "output_file": str(self._output_file_path),
             "movie_frame_rate_hz": self.ophys_experiment.movie_frame_rate_hz
         }
+        if app_config.is_debug:
+            # Making smaller due to short movie, otherwise it crashes
+            module_args['long_baseline_filter_s'] = 6
         return module_args
 
     @property

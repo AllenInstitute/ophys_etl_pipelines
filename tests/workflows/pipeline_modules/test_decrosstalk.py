@@ -17,7 +17,7 @@ from ophys_etl.workflows.db.db_utils import save_job_run_to_db
 from sqlmodel import Session, select
 
 from ophys_etl.workflows.ophys_experiment import OphysSession, Specimen, \
-    OphysExperiment, ImagingPlaneGroup
+    OphysExperiment, ImagingPlaneGroup, OphysContainer
 
 from ophys_etl.workflows.pipeline_modules.decrosstalk import \
     DecrosstalkModule, DECROSSTALK_FLAGS
@@ -30,7 +30,7 @@ from tests.workflows.conftest import MockSQLiteDB
 class TestDecrosstalk(MockSQLiteDB):
     @classmethod
     def setup_class(cls):
-        cls._experiment_ids = ['oe_1', 'oe_2']
+        cls._experiment_ids = [1, 2]
 
     def setup(self):
         super().setup()
@@ -50,14 +50,15 @@ class TestDecrosstalk(MockSQLiteDB):
                                 WellKnownFileTypeEnum.
                                 MOTION_CORRECTED_IMAGE_STACK
                             ),
-                            path=Path(f'{oe_id}_motion_correction.h5'),
+                            path=(self._tmp_dir /
+                                  f'{oe_id}_motion_correction.h5'),
                         ),
                         OutputFile(
                             well_known_file_type=(
                                 WellKnownFileTypeEnum.
                                 MAX_INTENSITY_PROJECTION_IMAGE
                             ),
-                            path=Path(f'{oe_id}_max_proj.png'),
+                            path=self._tmp_dir / f'{oe_id}_max_proj.png',
                         ),
                         OutputFile(
                             well_known_file_type=(
@@ -95,9 +96,14 @@ class TestDecrosstalk(MockSQLiteDB):
                     validate_files_exist=False
                 )
 
+                with open(self._tmp_dir / f'{oe_id}_max_proj.png', 'w') as f:
+                    f.write('')
+                with open(self._tmp_dir / f'{oe_id}_motion_correction.h5',
+                          'w') as f:
+                    f.write('')
+
     @patch.object(OphysExperiment, 'from_id')
-    @patch.object(OphysSession, 'ophys_experiment_ids',
-                  new_callable=PropertyMock)
+    @patch.object(OphysSession, 'get_ophys_experiment_ids')
     @patch.object(OphysExperiment, 'motion_border',
                   new_callable=PropertyMock)
     @patch.object(OphysExperiment, 'rois',
@@ -109,7 +115,7 @@ class TestDecrosstalk(MockSQLiteDB):
                     mock_ophys_experiment_from_id
                     ):
         ophys_session = OphysSession(
-            id='session_1',
+            id=1,
             specimen=Specimen(id='specimen_1')
         )
 
@@ -143,11 +149,12 @@ class TestDecrosstalk(MockSQLiteDB):
                 movie_frame_rate_hz=1,
                 raw_movie_filename=Path('foo'),
                 session=ophys_session,
+                container=OphysContainer(id=1, specimen=Specimen(id='1')),
                 specimen=ophys_session.specimen,
                 storage_directory=Path('foo'),
                 imaging_plane_group=ImagingPlaneGroup(
-                    id=0 if id == 'oe_1' else 1,
-                    group_order=0 if id == 'oe_1' else 1
+                    id=0 if id == 1 else 1,
+                    group_order=0 if id == 1 else 1
                 ),
                 full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
                 equipment_name='MESO.1'
@@ -163,39 +170,45 @@ class TestDecrosstalk(MockSQLiteDB):
             obtained_inputs = mod.inputs
 
         expected_inputs = {
+            'log_level': 'INFO',
             'ophys_session_id': ophys_session.id,
-            'qc_output_dir': (
+            'qc_output_dir': str(
                     ophys_session.output_dir / 'DECROSSTALK' / mod.now_str),
             'coupled_planes': [
                 {
                     'ophys_imaging_plane_group_id': (
-                        0 if self._experiment_ids[i] == 'oe_1' else 1),
+                        0 if self._experiment_ids[i] == 1 else 1),
                     'group_order': (
-                        0 if self._experiment_ids[i] == 'oe_1' else 1
+                        0 if self._experiment_ids[i] == 1 else 1
                     ),
                     'planes': [
                         {
                             'ophys_experiment_id': self._experiment_ids[i],
-                            'motion_corrected_stack': (
+                            'motion_corrected_stack': str(
+                                self._tmp_dir /
                                 f'{self._experiment_ids[i]}_'
                                 f'motion_correction.h5'),
-                            'maximum_projection_image_file': (
+                            'maximum_projection_image_file': str(
+                                self._tmp_dir /
                                 f'{self._experiment_ids[i]}_max_proj.png'
                             ),
-                            'output_roi_trace_file': (
+                            'output_roi_trace_file': str(
                                 mod.output_path /
-                                f'ophys_experiment_{self._experiment_ids[i]}' /
-                                'roi_traces.h5'
+                                f'ophys_experiment_{self._experiment_ids[i]}_'
+                                f'roi_traces.h5'
                             ),
-                            'output_neuropil_trace_file': (
+                            'output_neuropil_trace_file': str(
                                 mod.output_path /
-                                f'ophys_experiment_{self._experiment_ids[i]}' /
+                                f'ophys_experiment_{self._experiment_ids[i]}_'
                                 'neuropil_traces.h5'
                             ),
                             'motion_border': (
                                 mock_motion_border.return_value.to_dict()),
                             'rois': [
-                                x.to_dict() for x in mock_rois.return_value]
+                                {'mask_matrix' if k == 'mask' else k: v
+                                 for k, v in x.to_dict().items()
+                                 }
+                                for x in mock_rois.return_value]
                         }
                     ]
                 }
@@ -209,7 +222,7 @@ class TestDecrosstalk(MockSQLiteDB):
             mock_ophys_experiment_from_id
     ):
         ophys_session = OphysSession(
-            id='session_1',
+            id=1,
             specimen=Specimen(id='specimen_1')
         )
 
@@ -219,6 +232,8 @@ class TestDecrosstalk(MockSQLiteDB):
                 movie_frame_rate_hz=1,
                 raw_movie_filename=Path('foo'),
                 session=ophys_session,
+                container=OphysContainer(
+                    id=1, specimen=ophys_session.specimen),
                 specimen=ophys_session.specimen,
                 storage_directory=Path('foo'),
                 full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
@@ -242,7 +257,7 @@ class TestDecrosstalk(MockSQLiteDB):
                                 well_known_file_type=(
                                     WellKnownFileTypeEnum.OPHYS_ROIS
                                 ),
-                                path=_rois_path,
+                                path=_rois_path
                             )
                         ],
                         ophys_experiment_id=oe_id,
@@ -250,7 +265,7 @@ class TestDecrosstalk(MockSQLiteDB):
                         storage_directory="/foo",
                         log_path="/foo",
                         additional_steps=SegmentationModule.save_rois_to_db,
-                        workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                        workflow_name=WorkflowNameEnum.OPHYS_PROCESSING
                     )
 
         # 2. Save decrosstalk run
@@ -274,7 +289,7 @@ class TestDecrosstalk(MockSQLiteDB):
                 log_path="/foo",
                 additional_steps=(
                     DecrosstalkModule.save_decrosstalk_flags_to_db),
-                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING
             )
 
         # 3. Try fetch decrosstalk flags

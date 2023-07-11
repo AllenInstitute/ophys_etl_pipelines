@@ -49,16 +49,24 @@ class NwayCellMatchingModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return nway_matching
+
+    @property
+    def dockerhub_repository_name(self):
+        return 'ophys_nway_matching'
+
+    @property
+    def python_interpreter_path(self) -> str:
+        return 'python'
 
     def _get_container_experiments_input(self):
         experiments = []
         experiment_ids = self.ophys_container.get_ophys_experiment_ids()
         for exp_id in experiment_ids:
-            oe = OphysExperiment.from_id(id=str(exp_id))
+            oe = OphysExperiment.from_id(id=exp_id)
             avg_projection_path = get_well_known_file_for_latest_run(
-                ophys_experiment_id=str(exp_id),
+                ophys_experiment_id=exp_id,
                 engine=engine,
                 well_known_file_type=(
                     WellKnownFileTypeEnum.AVG_INTENSITY_PROJECTION_IMAGE),

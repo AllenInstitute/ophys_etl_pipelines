@@ -1,4 +1,5 @@
 import json
+from ast import literal_eval
 from pathlib import Path
 from types import ModuleType
 from typing import Dict, List, Tuple
@@ -21,7 +22,7 @@ from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
 from ophys_etl.workflows.pipeline_modules.roi_classification.utils.mlflow_utils import ( # noqa E501
-    MLFlowRun,
+    MLFlowRun
 )
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -62,7 +63,7 @@ class InferenceModule(PipelineModule):
     def inputs(self) -> Dict:
         model_params = self._get_mlflow_model_params()
         return {
-            "model_inputs_path": self._model_inputs_path,
+            "model_inputs_paths": [self._model_inputs_path],
             "model_params": {
                 "use_pretrained_model": model_params["use_pretrained_model"],
                 "model_architecture": model_params["model_architecture"],
@@ -71,7 +72,7 @@ class InferenceModule(PipelineModule):
             "model_load_path": self._ensemble[1],
             "save_path": self.output_path,
             "mode": "production",
-            "experiment_id": self.ophys_experiment.id,
+            "experiment_id": str(self.ophys_experiment.id),
             "classification_threshold": (
                 self._ensemble[0].classification_threshold)
         }
@@ -91,7 +92,7 @@ class InferenceModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return inference
 
     def _write_model_inputs_to_disk(self, thumbnails_dir: Path) -> Path:
@@ -208,15 +209,25 @@ class InferenceModule(PipelineModule):
             mlflow_experiment_name=(
                 app_config.pipeline_steps.roi_classification.training.tracking.mlflow_experiment_name # noqa E501
             ),
-            run_id=self._ensemble[0].mlflow_run_id,
+            run_id=self._ensemble[0].mlflow_run_id
         )
         params = run.run.data.params
 
         model_params = {
-            param["key"].replace("model_params_", ""): param["value"]
-            for param in params
-            if param["key"].startswith("model_params")
+            key.replace("model_params_", ""): value
+            for key, value in params.items()
+            if key.startswith("model_params")
         }
+
+        # mlflow returns all `params` values as strings
+        # Convert to python type
+        for k, v in model_params.items():
+            try:
+                model_params[k] = literal_eval(v)
+            except ValueError:
+                # It's a string that can't be converted to another type
+                pass
+
         return model_params
 
     def _get_rois(self) -> List[OphysROI]:

@@ -5,9 +5,9 @@ from typing import List
 from airflow.decorators import task
 from airflow.models.dag import dag
 from airflow.operators.python import get_current_context
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from ophys_etl.workflows.app_config.app_config import app_config
-from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run
+from ophys_etl.workflows.utils.dag_utils import get_latest_dag_run, \
+    trigger_dag_runs
 
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 
@@ -66,25 +66,27 @@ def ophys_processing_trigger():
 
     @task
     def trigger():
-        last_run_datetime = get_latest_dag_run(
-            dag_id='ophys_processing_trigger')
-        if last_run_datetime is None:
-            # this DAG hasn't been successfully run before
-            # nothing to do
-            return None
-        ophys_experiment_ids = _get_all_ophys_experiments_completed_since(
-            since=last_run_datetime
+        most_recent_dag_run = get_latest_dag_run(
+            dag_id='ophys_processing_trigger',
+            states=['running', 'queued', 'success']
         )
-        for ophys_experiment_id in ophys_experiment_ids:
-            logger.info(f'Triggering ophys_processing DAG for '
-                        f'{ophys_experiment_id}')
-            TriggerDagRunOperator(
-                task_id='trigger_ophys_processing_for_ophys_experiment',
-                trigger_dag_id='ophys_processing',
-                conf={
-                    'ophys_experiment_id': ophys_experiment_id
-                }
-            ).execute(context=get_current_context())
+        if most_recent_dag_run['state'] in ('running', 'queued'):
+            # Don't want to trigger if already running or queued to run
+            return None
+        else:
+            last_success_dag_run_datetime = \
+                datetime.datetime.now() if most_recent_dag_run is None \
+                else most_recent_dag_run['logical_date']
+        ophys_experiment_ids = _get_all_ophys_experiments_completed_since(
+            since=last_success_dag_run_datetime
+        )
+        trigger_dag_runs(
+            key_name='ophys_experiment_id',
+            values=ophys_experiment_ids,
+            task_id='trigger_ophys_processing_for_ophys_experiment',
+            trigger_dag_id='ophys_processing',
+            context=get_current_context()
+        )
     trigger()
 
 

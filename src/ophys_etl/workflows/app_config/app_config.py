@@ -12,7 +12,7 @@ from pydantic import (
     SecretStr,
     StrictFloat,
     StrictInt,
-    StrictStr,
+    StrictStr
 )
 
 from ophys_etl.workflows.app_config._ophys_processing_trigger import \
@@ -75,9 +75,8 @@ class _PipelineStep(ImmutableBaseModel):
     """A pipeline step config"""
 
     docker_tag: StrictStr = Field(
-        default="main",
-        description="Docker tag to use to run pipeline step. Defaults to "
-        '"main"',
+        default='main',
+        description="Docker tag to use to run pipeline step",
     )
 
 
@@ -144,7 +143,7 @@ class _EventDetection(_PipelineStep):
 
 
 class _GenerateCorrelationProjection(_PipelineStep):
-    n_workers: int
+    n_workers: int = 4
 
 
 class _GenerateThumbnails(_PipelineStep):
@@ -223,7 +222,9 @@ class _ROIClassifierInference(_PipelineStep):
 class _ROIClassification(ImmutableBaseModel):
     input_channels: List[Channel]
     cell_labeling_app_host: StrictStr
-    generate_correlation_projection: _GenerateCorrelationProjection
+    generate_correlation_projection: _GenerateCorrelationProjection = Field(
+        default=_GenerateCorrelationProjection()
+    )
     generate_thumbnails: _GenerateThumbnails = Field(
         default=_GenerateThumbnails()
     )
@@ -235,7 +236,11 @@ class _ROIClassification(ImmutableBaseModel):
 
 class _PipelineSteps(ImmutableBaseModel):
     """All pipeline steps configs"""
-
+    docker_tag: StrictStr = Field(
+        default="main",
+        description="Docker tag to use to run pipeline step. Defaults to "
+        '"main"',
+    )
     denoising: _Denoising
     motion_correction: _MotionCorrection = Field(default=_MotionCorrection())
     segmentation: _Segmentation = Field(default=_Segmentation())

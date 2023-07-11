@@ -33,8 +33,12 @@ class EventDetection(PipelineModule):
         )
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return event_detection
+
+    @property
+    def python_interpreter_path(self) -> str:
+        return '/envs/event_detection/bin/python'
 
     @property
     def queue_name(self) -> WorkflowStepEnum:

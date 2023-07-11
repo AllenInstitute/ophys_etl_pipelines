@@ -44,7 +44,7 @@ class GenerateCorrelationProjectionModule(PipelineModule):
                 self.output_path
                 / f"{self._ophys_experiment.id}_correlation_graph.pkl"
             ),
-            "attribute": "filtered_hnc_Gaussian",
+            "attribute_name": "filtered_hnc_Gaussian",
             "neighborhood_radius": 7,
             "n_parallel_workers": (
                 app_config.pipeline_steps.roi_classification.generate_correlation_projection.n_workers # noqa E501
@@ -66,5 +66,5 @@ class GenerateCorrelationProjectionModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return calculate_edges

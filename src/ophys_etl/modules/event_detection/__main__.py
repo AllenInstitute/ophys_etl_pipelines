@@ -5,6 +5,7 @@ import numpy as np
 
 from ophys_etl.modules.event_detection.schemas import EventDetectionInputSchema
 from ophys_etl.modules.event_detection import utils
+from ophys_etl.modules.event_detection.utils import calculate_halflife
 
 
 class EventDetection(argschema.ArgSchemaParser):
@@ -46,8 +47,11 @@ class EventDetection(argschema.ArgSchemaParser):
                     dff,
                     noise_filter_size=noise_filter_samples,
                     trace_filter_size=trace_filter_samples)
-            gamma = utils.calculate_gamma(self.args['halflife'],
-                                          self.args['movie_frame_rate_hz'])
+            halflife = calculate_halflife(self.args['decay_time'])
+            gamma = utils.calculate_gamma(
+                halflife=halflife,
+                sample_rate=self.args['movie_frame_rate_hz']
+            )
             events, lambdas = utils.get_events(
                     traces=dff,
                     noise_estimates=noise_stds * self.args['noise_multiplier'],

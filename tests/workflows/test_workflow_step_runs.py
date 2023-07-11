@@ -1,5 +1,6 @@
 import datetime
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from sqlmodel import Session
@@ -11,6 +12,7 @@ from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import (
     get_latest_workflow_step_run,
     get_well_known_file_for_latest_run,
+    get_most_recent_run
 )
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from tests.workflows.conftest import MockSQLiteDB
@@ -51,6 +53,28 @@ class TestWorkflowStepRuns(MockSQLiteDB):
                     workflow_step=WorkflowStepEnum.SEGMENTATION,
                 )
                 assert latest_run == segmentation_run_id
+
+    def test_get_most_recent_run(self):
+        oe_ids = [2, 4, 1, 3]
+        with Session(self._engine) as session:
+            for oe_id in oe_ids:
+                save_job_run_to_db(
+                    start=datetime.datetime.now(),
+                    end=datetime.datetime.now(),
+                    module_outputs=[],
+                    sqlalchemy_session=session,
+                    ophys_experiment_id=oe_id,
+                    storage_directory="foo",
+                    log_path="foo",
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                    workflow_step_name=WorkflowStepEnum.SEGMENTATION
+                )
+                with patch('ophys_etl.workflows.workflow_step_runs.engine',
+                           new=self._engine):
+                    assert get_most_recent_run(
+                        workflow_step=WorkflowStepEnum.SEGMENTATION,
+                        ophys_experiment_ids=oe_ids
+                    ) == oe_id
 
     @pytest.mark.parametrize("ophys_experiment_id", (None, "1"))
     def test_get_well_known_file_for_latest_run(self, ophys_experiment_id):

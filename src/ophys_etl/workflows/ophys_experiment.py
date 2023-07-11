@@ -1,16 +1,18 @@
+import abc
 import os
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from ophys_etl.workflows.db.db_utils import get_workflow_step_by_name
 from sqlmodel import Session, select
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.schemas import (
     MotionCorrectionRun,
-    OphysROI, OphysROIMaskValue, ROIClassifierInferenceResults
+    OphysROI, OphysROIMaskValue, ROIClassifierInferenceResults, WorkflowStepRun
 )
 from ophys_etl.workflows.utils.lims_utils import LIMSDB
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -31,15 +33,62 @@ class ImagingPlaneGroup:
     group_order: int
 
 
+class OphysExperimentGroup(abc.ABC):
+    """Group of experiments (session, container)"""
+
+    @abc.abstractmethod
+    def get_ophys_experiment_ids(
+        self,
+        passed_or_qc_only: bool = True
+    ) -> List[int]:
+        raise NotImplementedError
+
+    def has_completed_workflow_step(
+        self,
+        workflow_step: WorkflowStepEnum
+    ) -> bool:
+        """
+        Returns whether the ophys experiment group has completed
+        `workflow_step` (all experiments in group have run)
+
+        Parameters
+        ----------
+        workflow_step
+
+        Returns
+        -------
+        bool
+            whether the ophys experiment group has completed
+            `workflow_step` (all experiments in group have run)
+        """
+        all_ophys_experiment_ids = self.get_ophys_experiment_ids()
+        with Session(engine) as session:
+            step = get_workflow_step_by_name(
+                name=workflow_step,
+                workflow=WorkflowNameEnum.OPHYS_PROCESSING,
+                session=session
+            )
+            statement = (
+                select(WorkflowStepRun.ophys_experiment_id)
+                .where(WorkflowStepRun.workflow_step_id == step.id)
+            )
+            completed_ophys_experiment_ids = session.exec(statement).all()
+
+        for ophys_experiment_id in all_ophys_experiment_ids:
+            if ophys_experiment_id not in completed_ophys_experiment_ids:
+                return False
+        return True
+
+
 @dataclass
-class OphysSession:
+class OphysSession(OphysExperimentGroup):
     """Container for an ophys session"""
 
-    id: str
+    id: int
     specimen: Specimen
 
     @classmethod
-    def from_id(cls, id: str) -> "OphysSession":
+    def from_id(cls, id: int) -> "OphysSession":
         """Returns an `OphysSession` given a LIMS id for an
         ophys session
 
@@ -86,27 +135,43 @@ class OphysSession:
         os.makedirs(output_dir, exist_ok=True)
         return output_dir
 
-    @property
-    def ophys_experiment_ids(self) -> List[int]:
+    def get_ophys_experiment_ids(
+        self,
+        passed_or_qc_only: bool = True
+    ) -> List[int]:
+        """
+        Gets all ophys experiment ids in this session
+
+        Parameters
+        ----------
+        passed_or_qc_only
+            Whether to only return experiments with workflow_state of
+            "passed" or "qc"
+
+        Returns
+        -------
+        List of ophys experiment ids in this session
+        """
         query = f"""
             SELECT
                 oe.id as ophys_experiment_id
             FROM ophys_experiments oe
             WHERE oe.ophys_session_id = {self.id}
-        """
+                {"AND oe.workflow_state in ('passed', 'qc')" if passed_or_qc_only else ""}
+        """ # noqa E402
         lims_db = LIMSDB()
         res = lims_db.query(query=query)
         return [x['ophys_experiment_id'] for x in res]
 
 
 @dataclass
-class OphysContainer:
+class OphysContainer(OphysExperimentGroup):
     """Ophys experiment container"""
-    id: str
+    id: int
     specimen: Specimen
 
     @classmethod
-    def from_id(cls, id: str) -> "OphysContainer":
+    def from_id(cls, id: int) -> "OphysContainer":
         """Returns an `OphysContainer` given a LIMS id for an
         ophys container
 
@@ -193,8 +258,9 @@ class OphysContainer:
 class OphysExperiment:
     """Container for an ophys experiment"""
 
-    id: str
+    id: int
     session: OphysSession
+    container: OphysContainer
     specimen: Specimen
     storage_directory: Path
     raw_movie_filename: Path
@@ -218,7 +284,7 @@ class OphysExperiment:
         return output_dir
 
     @classmethod
-    def from_id(cls, id: str) -> "OphysExperiment":
+    def from_id(cls, id: int) -> "OphysExperiment":
         """Returns an `OphysExperiment` given a LIMS id for an
         ophys experiment
 
@@ -266,6 +332,10 @@ class OphysExperiment:
 
         specimen = Specimen(id=res["specimen_id"])
         session = OphysSession(id=res["session_id"], specimen=specimen)
+        container = OphysContainer(
+            id=res['ophys_container_id'],
+            specimen=specimen
+        )
         if res['ophys_imaging_plane_group_id'] is not None:
             imaging_plane_group = ImagingPlaneGroup(
                 id=res['ophys_imaging_plane_group_id'],
@@ -282,6 +352,7 @@ class OphysExperiment:
             equipment_name=res["equipment_name"],
             raw_movie_filename=res["raw_movie_filename"],
             session=session,
+            container=container,
             specimen=specimen,
             imaging_plane_group=imaging_plane_group
         )
@@ -313,6 +384,11 @@ class OphysExperiment:
             return motion_border
 
     @property
+    def is_multiplane(self) -> bool:
+        """Is this a multiplane experiment"""
+        return self.equipment_name.startswith('MESO')
+
+    @property
     def rois(self) -> List[OphysROI]:
         """
         ROIs for ophys experiment
@@ -327,7 +403,7 @@ class OphysExperiment:
                 session=session,
                 workflow_step=WorkflowStepEnum.SEGMENTATION,
                 workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-                ophys_experiment_id=self.id,
+                ophys_experiment_id=self.id
             )
             rois: List[OphysROI] = session.execute(
                 select(OphysROI)

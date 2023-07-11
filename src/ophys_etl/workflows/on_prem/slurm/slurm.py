@@ -143,11 +143,19 @@ class SlurmJob:
                                f'{len(response["jobs"])} were returned)')
         job = response['jobs'][0]
 
+        # slurm records datetimes in local time (Pacific). Convert to UTC
+        start = datetime.fromtimestamp(job['time']['start'],
+                                       tz=pytz.timezone('US/Pacific'))
+        start = start.astimezone(tz=pytz.UTC)
+        end = datetime.fromtimestamp(job['time']['end'],
+                                     tz=pytz.timezone('US/Pacific'))
+        end = end.astimezone(tz=pytz.UTC)
+
         return cls(
             id=job_id,
             state=SlurmState(job['state']['current']),
-            start=datetime.fromtimestamp(job['time']['start'], tz=pytz.UTC),
-            end=datetime.fromtimestamp(job['time']['end'], tz=pytz.UTC)
+            start=start,
+            end=end
         )
 
     def is_done(self) -> bool:
@@ -222,17 +230,15 @@ class Slurm:
         """
         args = ' '.join([f'{x}' for x in args])
         kwargs = ' '.join([f'--{k} {v}' for k, v in kwargs.items()])
-        if app_config.is_debug:
-            script = f'{self._pipeline_module.executable} {args} {kwargs}'
-        else:
-            docker_tag = self._pipeline_module.docker_tag
-            singularity_username = \
-                app_config.singularity.username.get_secret_value()
-            singularity_password = \
-                app_config.singularity.password.get_secret_value()
 
-            request_gpu = self._slurm_settings.gpus > 0
-            script = f'''#! /bin/bash
+        docker_tag = self._pipeline_module.docker_tag
+        singularity_username = \
+            app_config.singularity.username.get_secret_value()
+        singularity_password = \
+            app_config.singularity.password.get_secret_value()
+
+        request_gpu = self._slurm_settings.gpus > 0
+        script = f'''#! /bin/bash
 # Adds mksquashfs (needed for singularity) to $PATH
 source /etc/profile
 
@@ -242,29 +248,28 @@ export SINGULARITY_DOCKER_PASSWORD={singularity_password}
 SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
     --bind /allen:/allen,/scratch/fast/${{SLURM_JOB_ID}}:/tmp \
     {"--nv" if request_gpu else ""} \
-    docker://alleninstitutepika/ophys_etl_pipelines:{docker_tag} \
-    /envs/ophys_etl/bin/python -m {self._pipeline_module.executable} {args} \
-    {kwargs}
-            '''
+    docker://alleninstitutepika/\
+{self._pipeline_module.dockerhub_repository_name}:{docker_tag} \
+    {self._pipeline_module.python_interpreter_path} -m \
+{self._pipeline_module.executable.__name__} {args} {kwargs}'''
 
-        if app_config.is_debug or \
-                not self._slurm_settings.request_additional_tmp_storage:
+        if not self._slurm_settings.request_additional_tmp_storage:
             tmp = 0
         else:
             tmp = self._get_tmp_storage(
                 adjustment_factor=tmp_storage_adjustment_factor)
         cpus_per_task = \
-            1 if app_config.is_debug else \
+            4 if app_config.is_debug else \
             self._slurm_settings.cpus_per_task
         mem = \
-            1 if app_config.is_debug else self._slurm_settings.mem
+            16 if app_config.is_debug else self._slurm_settings.mem
         time = \
-            10 if app_config.is_debug else \
+            30 if app_config.is_debug else \
             self._slurm_settings.time
         gpus = \
             0 if app_config.is_debug else \
             self._slurm_settings.gpus
-
+        standard_error = self._log_path.parent / f'{self._log_path.stem}.err'
         job = {
             'job': {
                 'qos': 'production',
@@ -277,7 +282,7 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
                 'name': self._pipeline_module.queue_name.value,
                 'temporary_disk_per_node': f'{tmp}G',
                 'standard_output': str(self._log_path),
-                'standard_error': str(self._log_path),
+                'standard_error': str(standard_error),
                 "environment": {
                     "PATH": "/bin:/usr/bin/:/usr/local/bin/",
                     "LD_LIBRARY_PATH": "/lib/:/lib64/:/usr/local/lib"

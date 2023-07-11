@@ -28,16 +28,22 @@ class GenerateThumbnailsModule(PipelineModule):
         denoised_ophys_movie_file: OutputFile = kwargs[
             "denoised_ophys_movie_file"
         ]
-        rois_file: OutputFile = kwargs["rois_file"]
+        rois: List[Dict] = kwargs["rois"]
         correlation_projection_graph_file: OutputFile = kwargs[
             "correlation_projection_graph_file"
         ]
         is_training: bool = kwargs["is_training"]
+        motion_correction_shifts_file: OutputFile = kwargs[
+            "motion_correction_shifts_file"
+        ]
 
         self._denoised_ophys_movie_file = str(denoised_ophys_movie_file.path)
-        self._rois_file = str(rois_file.path)
-        self._correlation_graph_file = correlation_projection_graph_file
+        self._rois = rois
+        self._correlation_graph_file = \
+            str(correlation_projection_graph_file.path)
         self._is_training = is_training
+        self._motion_correction_shifts_file = str(
+            motion_correction_shifts_file.path)
 
     @property
     def queue_name(self) -> WorkflowStepEnum:
@@ -46,16 +52,18 @@ class GenerateThumbnailsModule(PipelineModule):
     @property
     def inputs(self) -> Dict:
         d = {
-            "experiment_id": self._ophys_experiment.id,
+            "experiment_id": str(self._ophys_experiment.id),
             "video_path": self._denoised_ophys_movie_file,
-            "roi_path": self._rois_file,
+            "rois": self._rois,
             "graph_path": self._correlation_graph_file,
             "channels": (
                 app_config.pipeline_steps.roi_classification.input_channels
             ),
             "thumbnails_out_dir": self.output_path / "thumbnails",
             "roi_meta_out_dir": self.output_path / 'roi_meta',
-            "is_training": self._is_training
+            "is_training": self._is_training,
+            "motion_correction_shifts_path": (
+                self._motion_correction_shifts_file)
         }
         if self._is_training:
             d[
@@ -70,10 +78,10 @@ class GenerateThumbnailsModule(PipelineModule):
                 well_known_file_type=(
                     WellKnownFileTypeEnum.ROI_CLASSIFICATION_THUMBNAIL_IMAGES
                 ),
-                path=self.inputs["thumbnails_out_dir"],
+                path=self.output_path / "thumbnails"
             )
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return compute_classifier_artifacts

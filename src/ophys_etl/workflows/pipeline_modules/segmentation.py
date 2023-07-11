@@ -1,7 +1,8 @@
 import json
-import logging
 from types import ModuleType
 from typing import Dict, List
+
+import numpy as np
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from sqlmodel import Session
@@ -43,14 +44,13 @@ class SegmentationModule(PipelineModule):
     @property
     def inputs(self) -> Dict:
         return {
-            "log_level": logging.DEBUG,
             "suite2p_args": {
                 "h5py": self._denoised_ophys_movie_file,
                 "movie_frame_rate_hz": (
                     self.ophys_experiment.movie_frame_rate_hz
-                ),
+                )
             },
-            "postprocess_args": {},
+            "postprocess_args": {}
         }
 
     @property
@@ -63,7 +63,7 @@ class SegmentationModule(PipelineModule):
         ]
 
     @property
-    def _executable(self) -> ModuleType:
+    def executable(self) -> ModuleType:
         return segment_postprocess
 
     @staticmethod
@@ -90,6 +90,11 @@ class SegmentationModule(PipelineModule):
         ].path
         with open(rois_file_path) as f:
             rois = json.load(f)
+
+        if app_config.is_debug:
+            # replacing rois with dummy rois since we want to ensure at least
+            # 1 roi was detected for testing
+            rois = SegmentationModule._create_dummy_rois()
 
         for roi in rois:
             # 1. Add ROI
@@ -127,3 +132,19 @@ class SegmentationModule(PipelineModule):
                             ophys_roi_id=roi.id, row_index=i, col_index=j
                         )
                         session.add(mask_val)
+
+    @staticmethod
+    def _create_dummy_rois() -> List[Dict]:
+        """Returns a list of dummy rois to be used for testing purposes"""
+        roi = {
+            'x': 100,
+            'y': 100,
+            'width': 10,
+            'height': 10
+        }
+        mask = np.zeros((roi['height'], roi['width']), dtype='uint8')
+        for i in range(5, 8):
+            for j in range(5, 8):
+                mask[i, j] = 1
+        roi['mask_matrix'] = mask
+        return [roi]

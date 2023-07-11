@@ -12,7 +12,7 @@ from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
 
 from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
-    OphysSession, Specimen
+    OphysSession, Specimen, OphysContainer
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
 from tests.workflows.conftest import MockSQLiteDB
@@ -169,14 +169,15 @@ class TestInference(MockSQLiteDB):
                 )
 
             oe = OphysExperiment(
-                id="1",
+                id=1,
                 movie_frame_rate_hz=11.0,
                 raw_movie_filename=Path('foo'),
-                session=OphysSession(id='1', specimen=Specimen(id='1')),
+                session=OphysSession(id=1, specimen=Specimen(id='1')),
+                container=OphysContainer(id=1, specimen=Specimen(id='1')),
                 specimen=Specimen(id='1'),
                 storage_directory=Path('foo'),
                 equipment_name='MESO.1',
-                full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
+                full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt"
             )
 
             with patch('ophys_etl.workflows.ophys_experiment.engine',
@@ -196,10 +197,11 @@ class TestInference(MockSQLiteDB):
 
         with patch.object(OphysExperiment, 'from_id') as mock_oe_from_id:
             mock_oe_from_id.return_value = OphysExperiment(
-                id="1",
+                id=1,
                 movie_frame_rate_hz=11.0,
                 raw_movie_filename=Path('foo'),
-                session=OphysSession(id='1', specimen=Specimen(id='1')),
+                session=OphysSession(id=1, specimen=Specimen(id='1')),
+                container=OphysContainer(id=1, specimen=Specimen(id='1')),
                 specimen=Specimen(id='1'),
                 storage_directory=Path('foo'),
                 equipment_name='MESO.1',

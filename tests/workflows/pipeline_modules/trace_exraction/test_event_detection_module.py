@@ -11,7 +11,7 @@ from sqlmodel import Session
 from ophys_etl.workflows.ophys_experiment import (
     OphysExperiment,
     OphysSession,
-    Specimen)
+    Specimen, OphysContainer)
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db
 from ophys_etl.workflows.output_file import OutputFile
@@ -85,7 +85,8 @@ class TestEventDetectionModule(MockSQLiteDB):
             id=self._experiment_id,
             movie_frame_rate_hz=31.0,
             raw_movie_filename=Path('foo'),
-            session=OphysSession(id='1', specimen=Specimen(id='1')),
+            session=OphysSession(id=1, specimen=Specimen(id='1')),
+            container=OphysContainer(id=1, specimen=Specimen(id='1')),
             specimen=Specimen(id='1'),
             storage_directory=Path('foo'),
             equipment_name='DEEPSCOPE',

@@ -23,5 +23,6 @@ event_decay_lookup_dict = \
       "Emx1-IRES-Cre/wt;Camk2a-tTA/wt;Ai93(TITL-GCaMP6f)/Ai93(TITL-GCaMP6f)": 0.365,
       "Slc17a7-IRES2-Cre/wt;Camk2a-tTA/wt;Ai94(TITL-GCaMP6s)/wt": 0.738,
       "Gad2-IRES-Cre/wt;Slc32a1-T2A-FlpO/wt;Ai195(TIT2L-GC7s-ICF-IRES-tTA2)-hyg/wt": 0.715,
-      "Gad2-IRES-Cre/wt;Slc32a1-T2A-FlpO/wt;Ai210(TITL-GC7f-ICF-IRES-tTA2)-hyg/wt": 0.715
+      "Gad2-IRES-Cre/wt;Slc32a1-T2A-FlpO/wt;Ai210(TITL-GC7f-ICF-IRES-tTA2)-hyg/wt": 0.715,
+      "Gad2-IRES-Cre/wt;Slc32a1-T2A-FlpO/wt;TIGRE-jGCaMP8s-IRES-tTA2_A8/wt":  0.715
     }

@@ -3,7 +3,8 @@ FROM apache/airflow:2.6.3
 USER root
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
-        git
+  git, \
+  libgl1  # needed for some dependencies to load properly
 USER airflow
 
 # TODO remove workflows_v2 tag when merged into main branch

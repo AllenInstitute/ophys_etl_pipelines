@@ -1,7 +1,13 @@
 FROM apache/airflow:2.6.3
 
+USER root
+RUN apt-get update
+RUN apt-get install -y --no-install-recommends \
+        git
+USER airflow
+
 # TODO remove workflows_v2 tag when merged into main branch
-RUN git clone -b workflows_v2 https://github.com/AllenInstitute/ophys_etl_pipelines
+RUN git clone -b workflow_v2 https://github.com/AllenInstitute/ophys_etl_pipelines
 
 RUN pip install ./ophys_etl_pipelines[workflow]
 
@@ -9,7 +15,7 @@ RUN pip install ./ophys_etl_pipelines[workflow]
 RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}"
 
 # Copy dags into expected place
-COPY --chown=airflow:root ophys_etl_pipelines/src/ophys_etl/workflows/on_prem/dags/ /opt/airflow/dags
+COPY --chown=airflow:root on_prem/dags/ /opt/airflow/dags
 
 # copying the app config into the container. Expects this file to be
 # downloaded from s3 into the cwd

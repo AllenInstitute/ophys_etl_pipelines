@@ -15,10 +15,12 @@ RUN pip install ./ophys_etl_pipelines[workflow,pytorch_deps,deepinterpolation]
 # installing airflow again as best practice according to https://airflow.apache.org/docs/docker-stack/build.html#adding-packages-from-requirements-txt
 RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}"
 
+RUN pip install awscli
+
 # Copy dags into expected place
 COPY --chown=airflow:root on_prem/dags/ /opt/airflow/dags
 
 # copying the app config into the container. Expects this file to be
 # downloaded from s3 into the cwd
-COPY app_config.yml /
+RUN aws s3 cp s3://ophys-processing-airflow.alleninstitute.org/app_config.yml .
 ENV OPHYS_WORKFLOW_APP_CONFIG_PATH=/app_config.yml

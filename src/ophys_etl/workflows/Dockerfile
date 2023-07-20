@@ -4,7 +4,7 @@ USER root
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
   git \
-  libgl1  # needed for some dependencies to load properly
+  libgl1 libglib2.0-0  # needed for some dependencies to load properly
 USER airflow
 
 # TODO remove workflows_v2 tag when merged into main branch

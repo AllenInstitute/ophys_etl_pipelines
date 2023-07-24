@@ -79,3 +79,19 @@ To run script from scratch:
 6. Start dags in airlflow UI
 
 7. run `run_pipeline_end_to_end_test.py`
+
+## Deployment
+
+### Prerequisites
+
+docker
+```bash
+sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+```
+
+[minikube](https://minikube.sigs.k8s.io/docs/start/)
+
+[helm](https://helm.sh/docs/intro/install/)
+
+
+

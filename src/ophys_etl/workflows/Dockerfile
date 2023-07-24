@@ -3,8 +3,20 @@ FROM apache/airflow:2.6.3
 ARG aws_access_key_id
 ARG aws_secret_access_key
 
+# Set this to true to initialize app db. Only needed if it does not exist
+ARG initialize_app_db=false
+
+# Optional args only needed if initialize_app_db is true
+ARG app_db_username=null
+ARG app_db_password=null
+ARG app_db_host=null
+ARG app_db_port=null
+ARG app_db_name=null
+ARG cell_classifier_mlflow_parent_run_name=null
+
 ENV AWS_ACCESS_KEY_ID=$aws_access_key_id
 ENV AWS_SECRET_ACCESS_KEY=$aws_secret_access_key
+ENV AWS_DEFAULT_REGION=us-west-2
 
 USER root
 RUN apt-get update
@@ -32,3 +44,12 @@ ENV OPHYS_WORKFLOW_APP_CONFIG_PATH=/opt/airflow/app_config.yml
 
 # copying deepinterpolation model into the container
 RUN aws s3 cp s3://ophys-processing-airflow.alleninstitute.org/prod/ensemble_ssf_model_even_smaller_validation_mean_squared_error-0120-0.9622.h5 /opt/airflow/
+
+# initialize app database
+RUN if [ "$initialize_app_db" = true ] ; then \
+    python -m ophys_etl.workflows.initialize_db \
+        --db_url postgresql+psycopg2://$app_db_username:$app_db_password@$app_db_host:$app_db_port/$app_db_name \
+        --add_roi_classifier_training_run True \
+        --roi_classifier_args.trained_model_dest /opt/airflow/cell_classifier_model/ \
+        --roi_classifier_args.mlflow_parent_run_name $cell_classifier_mlflow_parent_run_name
+    fi

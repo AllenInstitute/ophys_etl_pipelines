@@ -52,7 +52,7 @@ RUN aws s3 cp s3://ophys-processing-airflow.alleninstitute.org/prod/ensemble_ssf
 
 # initialize app database
 RUN if [ $initialize_app_db = true ] ; then \
-    python -m ophys_etl.workflows.initialize_db \
+    python -m ophys_etl.workflows.db.initialize_db \
         --db_url postgresql+psycopg2://$app_db_username:$app_db_password@$app_db_host:$app_db_port/$app_db_name \
         --add_roi_classifier_training_run True \
         --roi_classifier_args.trained_model_dest /opt/airflow/cell_classifier_model/ \

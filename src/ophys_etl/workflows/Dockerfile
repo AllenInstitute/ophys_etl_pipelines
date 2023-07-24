@@ -51,5 +51,5 @@ RUN if [ "$initialize_app_db" = true ] ; then \
         --db_url postgresql+psycopg2://$app_db_username:$app_db_password@$app_db_host:$app_db_port/$app_db_name \
         --add_roi_classifier_training_run True \
         --roi_classifier_args.trained_model_dest /opt/airflow/cell_classifier_model/ \
-        --roi_classifier_args.mlflow_parent_run_name $cell_classifier_mlflow_parent_run_name
+        --roi_classifier_args.mlflow_parent_run_name $cell_classifier_mlflow_parent_run_name \
     fi

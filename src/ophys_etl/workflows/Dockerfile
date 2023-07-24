@@ -14,6 +14,12 @@ ARG app_db_port=null
 ARG app_db_name=null
 ARG cell_classifier_mlflow_parent_run_name=null
 
+RUN if [ $initialize_app_db = true ] && [ $app_db_username = null || $app_db_password = null || $app_db_host = null || $app_db_port = null || $app_db_name = null || $cell_classifier_mlflow_parent_run_name = null ] ; then \
+    RUN echo "if initialize_app_db is true then pass required arguments" \
+    RUN exit 1
+
+    fi
+
 ENV AWS_ACCESS_KEY_ID=$aws_access_key_id
 ENV AWS_SECRET_ACCESS_KEY=$aws_secret_access_key
 ENV AWS_DEFAULT_REGION=us-west-2

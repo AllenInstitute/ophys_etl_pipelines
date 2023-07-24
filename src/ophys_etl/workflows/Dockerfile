@@ -15,8 +15,8 @@ ARG app_db_name=null
 ARG cell_classifier_mlflow_parent_run_name=null
 
 RUN if [ $initialize_app_db = true ] && [ $app_db_username = null || $app_db_password = null || $app_db_host = null || $app_db_port = null || $app_db_name = null || $cell_classifier_mlflow_parent_run_name = null ] ; then \
-    RUN echo "if initialize_app_db is true then pass required arguments" \
-    RUN exit 1 \
+    echo "if initialize_app_db is true then pass required arguments"; \
+    exit 1; \
     fi
 
 ENV AWS_ACCESS_KEY_ID=$aws_access_key_id
@@ -56,5 +56,5 @@ RUN if [ "$initialize_app_db" = true ] ; then \
         --db_url postgresql+psycopg2://$app_db_username:$app_db_password@$app_db_host:$app_db_port/$app_db_name \
         --add_roi_classifier_training_run True \
         --roi_classifier_args.trained_model_dest /opt/airflow/cell_classifier_model/ \
-        --roi_classifier_args.mlflow_parent_run_name $cell_classifier_mlflow_parent_run_name \
+        --roi_classifier_args.mlflow_parent_run_name $cell_classifier_mlflow_parent_run_name; \
     fi

@@ -51,7 +51,7 @@ ENV OPHYS_WORKFLOW_APP_CONFIG_PATH=/opt/airflow/app_config.yml
 RUN aws s3 cp s3://ophys-processing-airflow.alleninstitute.org/prod/ensemble_ssf_model_even_smaller_validation_mean_squared_error-0120-0.9622.h5 /opt/airflow/
 
 # initialize app database
-RUN if [ "$initialize_app_db" = true ] ; then \
+RUN if [ $initialize_app_db = true ] ; then \
     python -m ophys_etl.workflows.initialize_db \
         --db_url postgresql+psycopg2://$app_db_username:$app_db_password@$app_db_host:$app_db_port/$app_db_name \
         --add_roi_classifier_training_run True \

@@ -18,7 +18,7 @@ class LIMSDB:
             drivername='postgresql+pg8000',
             username=app_config.lims_db.username.get_secret_value(),
             password=app_config.lims_db.password.get_secret_value(),
-            host='limsdb2',
+            host='limsdb2.corp.alleninstitute.org',
             database='lims2',
         )
         engine = create_engine(url=url)

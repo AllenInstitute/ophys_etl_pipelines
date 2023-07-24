@@ -122,7 +122,8 @@ class SlurmJob:
 
         """
         r = requests.get(
-            url=f'http://slurm/api/slurmdb/v0.0.36/job/{job_id}',
+            url=f'http://slurm.corp.alleninstitute.org/api/slurmdb/v0.0.36/'
+                f'job/{job_id}',
             headers={
                 'X-SLURM-USER-NAME': app_config.slurm.username,
                 'X-SLURM-USER-TOKEN': (
@@ -322,7 +323,8 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
             data = json.load(f)
 
         r = requests.post(
-            url='http://slurm/api/slurm/v0.0.36/job/submit',
+            url='http://slurm.corp.alleninstitute.org/api/slurm/v0.0.36/'
+                'job/submit',
             headers={
                 'X-SLURM-USER-NAME': app_config.slurm.username,
                 'X-SLURM-USER-TOKEN': (

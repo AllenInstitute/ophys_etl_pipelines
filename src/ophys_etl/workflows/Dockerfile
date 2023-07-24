@@ -14,7 +14,7 @@ ARG app_db_port=null
 ARG app_db_name=null
 ARG cell_classifier_mlflow_parent_run_name=null
 
-RUN if [ $initialize_app_db = true ] && [ $app_db_username = null || $app_db_password = null || $app_db_host = null || $app_db_port = null || $app_db_name = null || $cell_classifier_mlflow_parent_run_name = null ] ; then \
+RUN if [ $initialize_app_db = true ] && [[ $app_db_username = null || $app_db_password = null || $app_db_host = null || $app_db_port = null || $app_db_name = null || $cell_classifier_mlflow_parent_run_name = null ]] ; then \
     echo "if initialize_app_db is true then pass required arguments"; \
     exit 1; \
     fi

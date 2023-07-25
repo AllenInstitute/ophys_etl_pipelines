@@ -174,6 +174,7 @@ def ophys_processing():
 
     @task
     def check_run_decrosstalk(**context):
+        run_decrosstalk = context['params']['run_decrosstalk']
         ophys_experiment = OphysExperiment.from_id(
             id=context['params']['ophys_experiment_id'])
         # avoiding a race condition. Only want to return true for a single
@@ -190,7 +191,8 @@ def ophys_processing():
                 workflow_step=WorkflowStepEnum.SEGMENTATION
             )
 
-        return ophys_experiment.is_multiplane and \
+        return run_decrosstalk and \
+            ophys_experiment.is_multiplane and \
             is_session_complete and \
             is_most_recent
 

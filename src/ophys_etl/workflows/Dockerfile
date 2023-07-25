@@ -14,6 +14,8 @@ ARG app_db_port=null
 ARG app_db_name=null
 ARG cell_classifier_mlflow_parent_run_name=null
 
+ARG ophys_etl_branch=main
+
 RUN if [ $initialize_app_db = true ] && [[ $app_db_username = null || $app_db_password = null || $app_db_host = null || $app_db_port = null || $app_db_name = null || $cell_classifier_mlflow_parent_run_name = null ]] ; then \
     echo "if initialize_app_db is true then pass required arguments"; \
     exit 1; \
@@ -30,8 +32,7 @@ RUN apt-get install -y --no-install-recommends \
   libgl1 libglib2.0-0  # needed for some dependencies to load properly
 USER airflow
 
-# TODO remove workflows_v2 tag when merged into main branch
-RUN git clone -b workflow_v2 https://github.com/AllenInstitute/ophys_etl_pipelines
+RUN git clone -b $ophys_etl_branch https://github.com/AllenInstitute/ophys_etl_pipelines
 
 RUN pip install ./ophys_etl_pipelines[workflow,pytorch_deps,deepinterpolation]
 

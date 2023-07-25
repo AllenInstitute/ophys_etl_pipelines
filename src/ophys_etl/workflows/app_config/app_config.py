@@ -20,10 +20,14 @@ from ophys_etl.workflows.app_config._ophys_processing_trigger import \
 from ophys_etl.workflows.utils.pydantic_model_utils import ImmutableBaseModel
 
 
-class _AirflowRESTAPIConfig(ImmutableBaseModel):
+class _AirflowWebserverConfig(ImmutableBaseModel):
     """
-    Config to use Airflow REST API
+    Config for airflow webserver
     """
+    ip_address: StrictStr = Field(
+        description='ip address for web server',
+        default='0.0.0.0'
+    )
     username: SecretStr = Field(
         description='Username to authenticate with REST API. Generate by '
                     'creating user using the Airflow UI')
@@ -261,7 +265,7 @@ class _PipelineSteps(ImmutableBaseModel):
 class AppConfig(ImmutableBaseModel):
     """Workflow config"""
 
-    airflow_rest_api_credentials: _AirflowRESTAPIConfig
+    webserver: _AirflowWebserverConfig
     is_debug: bool = Field(
         default=False,
         description="If True, will not actually run the modules, but "

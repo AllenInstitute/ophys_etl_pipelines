@@ -4,9 +4,9 @@ import time
 from typing import Optional, Dict, List, Any
 
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from ophys_etl.workflows.app_config.app_config import app_config
 
-from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port, \
-    call_endpoint_with_retries
+from ophys_etl.workflows.utils.airflow_utils import call_endpoint_with_retries
 
 logger = logging.getLogger(__name__)
 
@@ -29,10 +29,8 @@ def get_latest_dag_run(
         states = ['success']
     states_query = '&'.join([f'state={x}' for x in states])
 
-    rest_api_port = get_rest_api_port()
-
-    url = f'http://0.0.0.0:{rest_api_port}/api/v1/dags/{dag_id}/' \
-          f'dagRuns?limit=1&order_by=-execution_date&{states_query}'
+    url = f'http://{app_config.webserver.ip_address}:8080/api/v1/dags/' \
+          f'{dag_id}/dagRuns?limit=1&order_by=-execution_date&{states_query}'
 
     response = call_endpoint_with_retries(
         url=url,

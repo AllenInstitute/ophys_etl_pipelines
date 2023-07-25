@@ -9,6 +9,7 @@ from airflow.models import TaskInstance, clear_task_instances
 from airflow.operators.python import get_current_context
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.session import provide_session
+from ophys_etl.workflows.app_config.app_config import app_config
 from paramiko import AuthenticationException
 
 from ophys_etl.workflows.on_prem.slurm.slurm import (
@@ -20,8 +21,7 @@ from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
     OphysSession, OphysContainer
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
-from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port, \
-    call_endpoint_with_retries
+from ophys_etl.workflows.utils.airflow_utils import call_endpoint_with_retries
 from ophys_etl.workflows.utils.json_utils import EnhancedJSONEncoder
 
 
@@ -34,8 +34,7 @@ def _clear_task(task_instance: TaskInstance, session=None):
 def _can_retry_task_instance(task_instance: TaskInstance):
     """Return whether the task instance has reached the max number of tries
     as defined in the config"""
-    rest_api_port = get_rest_api_port()
-    url = f'http://0.0.0.0:{rest_api_port}/api/v1/config'
+    url = f'http://{app_config.webserver.ip_address}:8080/api/v1/config'
     config = call_endpoint_with_retries(
         url=url,
         http_method='GET'
@@ -240,8 +239,7 @@ def _get_log_path(
     """Returns the path that the current task is writing logs to, so that
     we can write slurm job logs to the same file and view the slurm logs in
     the UI"""
-    rest_api_port = get_rest_api_port()
-    url = f'http://0.0.0.0:{rest_api_port}/api/v1/config'
+    url = f'http://{app_config.webserver.ip_address}:8080/api/v1/config'
     config = call_endpoint_with_retries(
         url=url,
         http_method='GET'

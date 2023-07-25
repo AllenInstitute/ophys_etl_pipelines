@@ -15,22 +15,6 @@ from ophys_etl.workflows.app_config.app_config import app_config
 logger = logging.getLogger(__name__)
 
 
-def get_rest_api_port() -> str:
-    """Get web server port defined in airflow cfg
-
-    Raises
-    ------
-    ValueError
-        if AIRFLOW_HOME not set
-    """
-    airflow_home = os.getenv('AIRFLOW_HOME', None)
-    if airflow_home is None:
-        raise ValueError('Env var AIRFLOW_HOME not set')
-    config = configparser.ConfigParser()
-    config.read(f'{Path(airflow_home)}/airflow.cfg')
-    return config['webserver']['web_server_port']
-
-
 def call_endpoint_with_retries(
     url: str,
     http_method: str,
@@ -61,9 +45,9 @@ def call_endpoint_with_retries(
     API response
     """
     rest_api_username = \
-        app_config.airflow_rest_api_credentials.username.get_secret_value()
+        app_config.webserver.username.get_secret_value()
     rest_api_password = \
-        app_config.airflow_rest_api_credentials.password.get_secret_value()
+        app_config.webserver.password.get_secret_value()
     auth = base64.b64encode(
         f'{rest_api_username}:{rest_api_password}'.encode('utf-8'))
 

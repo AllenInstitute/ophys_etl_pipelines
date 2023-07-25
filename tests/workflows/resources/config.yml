@@ -1,4 +1,4 @@
-airflow_rest_api_credentials:
+webserver:
   username: 'admin'
   password: '123'
 app_db:

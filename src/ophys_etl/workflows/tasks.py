@@ -148,6 +148,12 @@ def wait_for_decrosstalk_to_finish(timeout: float) -> Callable:
         context = get_current_context()
         ophys_experiment_id = context['params']['ophys_experiment_id']
         ophys_experiment = OphysExperiment.from_id(id=ophys_experiment_id)
+
+        if ophys_experiment.run_decrosstalk is False:
+            logger.info(f'Experiment {ophys_experiment.id} is not set to'
+                        f'run_decrosstalk. Skipping decrosstalk.')
+            return PokeReturnValue(is_done=True)
+        
         if not ophys_experiment.is_multiplane:
             logger.info(f'Experiment {ophys_experiment.id} is not multiplane. '
                         f'Equipment type: {ophys_experiment.equipment_name}. '

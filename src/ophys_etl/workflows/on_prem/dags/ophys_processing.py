@@ -67,7 +67,12 @@ WORKFLOW_NAME = WorkflowNameEnum.OPHYS_PROCESSING
             description='Whether to run cell classification',
             default=True,
             type="boolean"
-        )
+        ),
+        "run_decrosstalk": Param(
+            description='Whether to run decrosstalk',
+            default=True,
+            type="boolean"
+        ),
     },
 )
 def ophys_processing():

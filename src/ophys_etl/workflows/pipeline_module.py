@@ -63,8 +63,6 @@ class PipelineModule(abc.ABC):
         self._docker_tag = docker_tag
         self._now = datetime.datetime.now()
 
-        os.makedirs(self.output_path, exist_ok=True)
-
         if prevent_file_overwrites:
             self._validate_file_overwrite()
 

@@ -16,7 +16,7 @@ ARG cell_classifier_mlflow_parent_run_name=null
 
 ARG ophys_etl_branch=main
 
-ARG app_config_s3_version_id
+ARG app_config_s3_version_id=null
 
 RUN if [ $initialize_app_db = true ] && [[ $app_db_username = null || $app_db_password = null || $app_db_host = null || $app_db_port = null || $app_db_name = null || $cell_classifier_mlflow_parent_run_name = null ]] ; then \
     echo "if initialize_app_db is true then pass required arguments"; \
@@ -49,7 +49,11 @@ RUN pip install awscli
 COPY --chown=airflow:root on_prem/dags/ /opt/airflow/dags
 
 # copying the app config into the container
-RUN aws s3api get-object --bucket ophys-processing-airflow.alleninstitute.org --key prod/app_config.yml /opt/airflow/ --version-id $app_config_s3_version_id
+RUN if [ $app_config_s3_version_id = null ] ; then \
+      aws s3api get-object --bucket ophys-processing-airflow.alleninstitute.org --key prod/app_config.yml /opt/airflow/ \
+    else \
+      aws s3api get-object --bucket ophys-processing-airflow.alleninstitute.org --key prod/app_config.yml /opt/airflow/ --version-id $app_config_s3_version_id \
+    fi
 ENV OPHYS_WORKFLOW_APP_CONFIG_PATH=/opt/airflow/app_config.yml
 
 # copying deepinterpolation model into the container

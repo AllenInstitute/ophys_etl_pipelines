@@ -163,6 +163,11 @@ class PipelineModule(abc.ABC):
         return path
 
     @property
+    def log_path(self) -> Path:
+        """Where to write logs to"""
+        return self.output_path / f'{self.queue_name.value}.log'
+
+    @property
     def input_args_path(self) -> Path:
         """Path to input arguments json file on disk"""
         args_path = (

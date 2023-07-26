@@ -24,8 +24,8 @@ class _AirflowWebserverConfig(ImmutableBaseModel):
     """
     Config for airflow webserver
     """
-    ip_address: StrictStr = Field(
-        description='ip address for web server',
+    host_name: StrictStr = Field(
+        description='Host name for web server',
         default='0.0.0.0'
     )
     username: SecretStr = Field(

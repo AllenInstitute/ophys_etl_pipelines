@@ -52,7 +52,7 @@ def main():
 
     for oe in ophys_experiments:
         response = call_endpoint_with_retries(
-            url=f'http://{app_config.webserver.ip_address}:8080/api/v1/dags/'
+            url=f'http://{app_config.webserver.host_name}:8080/api/v1/dags/'
                 f'ophys_processing/dagRuns',
             http_method='POST',
             http_body={

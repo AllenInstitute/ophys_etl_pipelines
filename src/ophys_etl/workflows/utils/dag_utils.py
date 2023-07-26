@@ -29,7 +29,7 @@ def get_latest_dag_run(
         states = ['success']
     states_query = '&'.join([f'state={x}' for x in states])
 
-    url = f'http://{app_config.webserver.ip_address}:8080/api/v1/dags/' \
+    url = f'http://{app_config.webserver.host_name}:8080/api/v1/dags/' \
           f'{dag_id}/dagRuns?limit=1&order_by=-execution_date&{states_query}'
 
     response = call_endpoint_with_retries(

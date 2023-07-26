@@ -34,7 +34,7 @@ def _clear_task(task_instance: TaskInstance, session=None):
 def _can_retry_task_instance(task_instance: TaskInstance):
     """Return whether the task instance has reached the max number of tries
     as defined in the config"""
-    url = f'http://{app_config.webserver.ip_address}:8080/api/v1/config'
+    url = f'http://{app_config.webserver.host_name}:8080/api/v1/config'
     config = call_endpoint_with_retries(
         url=url,
         http_method='GET'
@@ -239,7 +239,7 @@ def _get_log_path(
     """Returns the path that the current task is writing logs to, so that
     we can write slurm job logs to the same file and view the slurm logs in
     the UI"""
-    url = f'http://{app_config.webserver.ip_address}:8080/api/v1/config'
+    url = f'http://{app_config.webserver.host_name}:8080/api/v1/config'
     config = call_endpoint_with_retries(
         url=url,
         http_method='GET'

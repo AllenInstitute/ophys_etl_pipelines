@@ -63,8 +63,6 @@ class PipelineModule(abc.ABC):
         self._docker_tag = docker_tag
         self._now = datetime.datetime.now()
 
-        os.makedirs(self.output_path, exist_ok=True)
-
         if prevent_file_overwrites:
             self._validate_file_overwrite()
 
@@ -161,6 +159,11 @@ class PipelineModule(abc.ABC):
         """Where to write output metadata to"""
         path = self.output_path / f'{self.queue_name.value}_output.json'
         return path
+
+    @property
+    def log_path(self) -> Path:
+        """Where to write logs to"""
+        return self.output_path / f'{self.queue_name.value}.log'
 
     @property
     def input_args_path(self) -> Path:

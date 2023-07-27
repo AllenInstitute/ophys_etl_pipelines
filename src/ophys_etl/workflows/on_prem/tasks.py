@@ -204,12 +204,12 @@ def submit_job(
     )
     mod.write_input_args()
 
-    log_path = _get_log_path(task_instance=context["task_instance"])
+    log_path = mod.log_path
 
     slurm = Slurm(
         pipeline_module=mod,
         config_path=Path(config_path),
-        log_path=log_path,
+        log_path=log_path
     )
 
     slurm.submit_job(
@@ -231,31 +231,3 @@ def submit_job(
         "storage_directory": str(mod.output_path),
         "log_path": str(log_path),
     }
-
-
-def _get_log_path(
-    task_instance: TaskInstance,
-) -> Path:
-    """Returns the path that the current task is writing logs to, so that
-    we can write slurm job logs to the same file and view the slurm logs in
-    the UI"""
-    url = f'http://{app_config.webserver.host_name}:8080/api/v1/config'
-    config = call_endpoint_with_retries(
-        url=url,
-        http_method='GET'
-    )
-    logging_section = \
-        [x for x in config['sections'] if x['name'] == 'logging'][0]
-    base_log_folder = [
-        x['value'] for x in logging_section['options'] if
-        x['key'] == 'base_log_folder'][0]
-    log_filename_template = [
-        x['value'] for x in logging_section['options'] if
-        x['key'] == 'log_filename_template'][0]
-
-    environment = jinja2.Environment()
-    template = environment.from_string(log_filename_template)
-    log_filename = template.render(
-        ti=task_instance,
-        try_number=task_instance.try_number)
-    return Path(base_log_folder) / log_filename

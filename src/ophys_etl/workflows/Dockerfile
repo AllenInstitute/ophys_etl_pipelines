@@ -39,8 +39,6 @@ RUN pip install ./ophys_etl_pipelines[workflow,pytorch_deps,deepinterpolation]
 # installing airflow again as best practice according to https://airflow.apache.org/docs/docker-stack/build.html#adding-packages-from-requirements-txt
 RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}"
 
-RUN pip install apache-airflow-providers-amazon
-
 RUN pip install awscli
 
 # Copy dags into expected place

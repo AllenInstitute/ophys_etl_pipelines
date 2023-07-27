@@ -280,6 +280,7 @@ class OphysExperiment:
             / f"session_{self.session.id}"
             / f"experiment_{self.id}"
         )
+        os.makedirs(output_dir, exist_ok=True)
         return output_dir
 
     @classmethod

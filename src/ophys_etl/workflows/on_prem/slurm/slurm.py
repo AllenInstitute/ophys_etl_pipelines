@@ -270,6 +270,7 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
         gpus = \
             0 if app_config.is_debug else \
             self._slurm_settings.gpus
+        standard_error = self._log_path.parent / f'{self._log_path.stem}.err'
         job = {
             'job': {
                 'qos': 'production',
@@ -282,7 +283,7 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
                 'name': self._pipeline_module.queue_name.value,
                 'temporary_disk_per_node': f'{tmp}G',
                 'standard_output': str(self._log_path),
-                'standard_error': str(self._log_path),
+                'standard_error': str(standard_error),
                 "environment": {
                     "PATH": "/bin:/usr/bin/:/usr/local/bin/",
                     "LD_LIBRARY_PATH": "/lib/:/lib64/:/usr/local/lib"

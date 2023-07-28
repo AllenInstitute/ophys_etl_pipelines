@@ -2,6 +2,6 @@ sqlmodel
 PyYaml
 paramiko
 mlflow
-psycopg2
+psycopg2-binary
 pg8000
 ophys-nway-matching @ git+https://github.com/AllenInstitute/ophys_nway_matching.git

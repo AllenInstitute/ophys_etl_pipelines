@@ -15,7 +15,8 @@ slurm:
   api_token: 'foo'
 pipeline_steps:
   denoising:
-    base_model_path: ''
+    finetuning:
+      base_model_path: ''
     docker_tag: 'deepinterpolation_develop'
   roi_classification:
     cell_labeling_app_host: 'foo'

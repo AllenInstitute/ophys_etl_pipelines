@@ -40,6 +40,8 @@ def nway_cell_matching():
             workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
             additional_db_inserts=(
                 NwayCellMatchingModule.save_matches_to_db),
+            slurm_config=(app_config.pipeline_steps.nway_cell_matching.
+                          slurm_settings)
         )
     run_nway_cell_matching()
 

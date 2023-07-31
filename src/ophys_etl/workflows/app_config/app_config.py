@@ -17,6 +17,7 @@ from pydantic import (
 
 from ophys_etl.workflows.app_config._ophys_processing_trigger import \
     OphysProcessingTrigger
+from ophys_etl.workflows.app_config.slurm import SlurmSettings
 from ophys_etl.workflows.utils.pydantic_model_utils import ImmutableBaseModel
 
 
@@ -82,11 +83,13 @@ class _PipelineStep(ImmutableBaseModel):
         default='main',
         description="Docker tag to use to run pipeline step",
     )
+    slurm_settings: SlurmSettings = Field(
+        description='Settings to use when running pipeline step on SLURM',
+        default=SlurmSettings()
+    )
 
 
-class _Denoising(_PipelineStep):
-    """Deepinterpolation config"""
-
+class _DenoisingFineTuning(_PipelineStep):
     base_model_path: FilePath = Field(
         description="Path to base deepinterpolation model to use for "
         "finetuning"
@@ -97,11 +100,15 @@ class _Denoising(_PipelineStep):
         "I.e. a downsample frac of 0.1 would randomly sample 10% "
         "of the data",
     )
-    batch_size: StrictInt = Field(
-        default=8,
-        description="Batch size of the generator for fine tuning"
-        "and inference. Set equal to number of workers for multiprocessing"
+    slurm_settings = SlurmSettings(
+        cpus_per_task=17,
+        mem=85,
+        time=480,
+        gpus=1
     )
+
+
+class _DenoisingInference(_PipelineStep):
     normalize_cache: bool = Field(
         default=True,
         description="Whether to normalize the cache data."
@@ -112,14 +119,41 @@ class _Denoising(_PipelineStep):
         description="Whether to use GPU for caching. Enable if GPU"
         "has more RAM than the size of the movie, e.g. A100 48GB"
     )
+    slurm_settings = SlurmSettings(
+        cpus_per_task=32,
+        mem=250,
+        time=480
+    )
+
+
+class _Denoising(_PipelineStep):
+    """Deepinterpolation config"""
+    batch_size: StrictInt = Field(
+        default=8,
+        description="Batch size of the generator for fine tuning"
+        "and inference. Set equal to number of workers for multiprocessing"
+    )
+    finetuning: _DenoisingFineTuning
+    inference: _DenoisingInference = Field(
+        default=_DenoisingInference()
+    )
 
 
 class _MotionCorrection(_PipelineStep):
-    pass
+    slurm_settings = SlurmSettings(
+        cpus_per_task=32,
+        mem=250,
+        time=300,
+        request_additional_tmp_storage=True
+    )
 
 
 class _Segmentation(_PipelineStep):
-    pass
+    slurm_settings = SlurmSettings(
+        cpus_per_task=8,
+        mem=80,
+        time=240
+    )
 
 
 class _TraceExtraction(_PipelineStep):
@@ -131,23 +165,44 @@ class _Decrostalk(_PipelineStep):
 
 
 class _DemixTraces(_PipelineStep):
-    pass
+    slurm_settings = SlurmSettings(
+        cpus_per_task=32,
+        mem=96,
+        time=960
+    )
 
 
 class _NeuropilCorrection(_PipelineStep):
-    pass
+    slurm_settings = SlurmSettings(
+        cpus_per_task=1,
+        mem=4,
+        time=600
+    )
 
 
 class _DFOverFCalculation(_PipelineStep):
-    pass
+    slurm_settings = SlurmSettings(
+        cpus_per_task=24,
+        mem=140,
+        time=120
+    )
 
 
 class _EventDetection(_PipelineStep):
-    pass
+    slurm_settings = SlurmSettings(
+        cpus_per_task=24,
+        mem=90,
+        time=90
+    )
 
 
 class _GenerateCorrelationProjection(_PipelineStep):
     n_workers: int = 4
+    slurm_settings = SlurmSettings(
+        cpus_per_task=4,
+        mem=128,
+        time=480
+    )
 
 
 class _GenerateThumbnails(_PipelineStep):
@@ -246,16 +301,27 @@ class _PipelineSteps(ImmutableBaseModel):
         '"main"',
     )
     denoising: _Denoising
-    motion_correction: _MotionCorrection = Field(default=_MotionCorrection())
-    segmentation: _Segmentation = Field(default=_Segmentation())
+    motion_correction: _MotionCorrection = Field(
+        default=_MotionCorrection()
+    )
+    segmentation: _Segmentation = Field(
+        default=_Segmentation()
+    )
     trace_extraction: _TraceExtraction = Field(default=_TraceExtraction())
-    demix_traces: _DemixTraces = Field(default=_DemixTraces())
+    demix_traces: _DemixTraces = Field(
+        default=_DemixTraces()
+    )
     roi_classification: _ROIClassification
     decrosstalk: _Decrostalk = Field(default=_Decrostalk())
     neuropil_correction: _NeuropilCorrection = Field(
-        default=_NeuropilCorrection())
-    dff: _DFOverFCalculation = Field(default=_DFOverFCalculation())
-    event_detection: _EventDetection = Field(default=_EventDetection())
+        default=_NeuropilCorrection()
+    )
+    dff: _DFOverFCalculation = Field(
+        default=_DFOverFCalculation()
+    )
+    event_detection: _EventDetection = Field(
+        default=_EventDetection()
+    )
     nway_cell_matching: _NwayCellMatching = Field(default=_NwayCellMatching())
 
 
@@ -296,7 +362,8 @@ def load_config() -> AppConfig:
 
     # replace value with env var when testing
     if os.environ.get("TEST_DI_BASE_MODEL_PATH", None) is not None:
-        config["pipeline_steps"]["denoising"]["base_model_path"] = os.environ[
+        denoising_conf = config["pipeline_steps"]["denoising"]
+        denoising_conf['finetuning']["base_model_path"] = os.environ[
             "TEST_DI_BASE_MODEL_PATH"
         ]
 

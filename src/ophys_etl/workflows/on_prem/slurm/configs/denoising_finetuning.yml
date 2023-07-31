@@ -1,4 +1,0 @@
-cpus_per_task: 17
-mem: 85
-time: 480
-gpus: 1

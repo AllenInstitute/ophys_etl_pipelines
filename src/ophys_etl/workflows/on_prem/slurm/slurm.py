@@ -12,13 +12,11 @@ import json
 
 import pytz
 import requests
-import yaml
 from paramiko import SSHClient
-from pydantic import StrictInt, Field, StrictBool
 
 from ophys_etl.workflows.app_config.app_config import app_config
+from ophys_etl.workflows.app_config.slurm import SlurmSettings
 from ophys_etl.workflows.pipeline_module import PipelineModule
-from ophys_etl.workflows.utils.pydantic_model_utils import ImmutableBaseModel
 
 logger = logging.getLogger('airflow.task')
 
@@ -27,20 +25,6 @@ class SlurmRestApiException(RuntimeError):
     """Catch Slurm rest api failures.
     """
     pass
-
-
-class _SlurmSettings(ImmutableBaseModel):
-    cpus_per_task: StrictInt
-    mem: StrictInt = Field(description='Memory per node in GB')
-    time: StrictInt = Field(description='Time limit in minutes')
-    gpus: Optional[StrictInt] = Field(
-        description='Number of GPUs',
-        default=0
-    )
-    request_additional_tmp_storage: StrictBool = Field(
-        default=False,
-        description='If True, creates additional tmp storage'
-    )
 
 
 def _exec_slurm_command(command: str) -> str:
@@ -180,7 +164,7 @@ class Slurm:
     def __init__(
         self,
         pipeline_module: PipelineModule,
-        config_path: Path,
+        config: SlurmSettings,
         log_path: Path
     ):
         """
@@ -188,14 +172,14 @@ class Slurm:
         ----------
         pipeline_module
             `PipelineModule` instance
-        config_path
-            Path to slurm settings
+        config
+            Slurm settings
         log_path
             Where to write slurm job logs to
         """
         self._pipeline_module = pipeline_module
         self._job: Optional[SlurmJob] = None
-        self._slurm_settings = read_config(config_path=config_path)
+        self._slurm_settings = config
         self._log_path = log_path
 
         os.makedirs(log_path.parent, exist_ok=True)
@@ -365,26 +349,3 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
             self._pipeline_module.ophys_experiment.raw_movie_filename
         file_size = (storage_directory / raw_movie_filename).stat().st_size
         return int(file_size / (1024 ** 3) * adjustment_factor)
-
-
-def read_config(config_path: Path) -> _SlurmSettings:
-    """
-    Reads and validates slurm settings
-
-    Parameters
-    ----------
-    config_path
-        Path to slurm settings config
-
-    Raises
-    ------
-    `ValidationError` if config is invalid
-
-    Returns
-    -------
-    _SlurmSettings
-    """
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
-    config = _SlurmSettings(**config)
-    return config

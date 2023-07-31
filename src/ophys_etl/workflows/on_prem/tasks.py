@@ -12,6 +12,7 @@ from airflow.utils.session import provide_session
 from ophys_etl.workflows.app_config.app_config import app_config
 from paramiko import AuthenticationException
 
+from ophys_etl.workflows.app_config.slurm import SlurmSettings
 from ophys_etl.workflows.on_prem.slurm.slurm import (
     Slurm,
     SlurmJob,
@@ -118,7 +119,7 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
 @task
 def submit_job(
     module: Type[PipelineModule],
-    config_path: str,
+    config: SlurmSettings,
     docker_tag: str,
     module_kwargs: Optional[Dict] = None,
     **context,
@@ -129,8 +130,8 @@ def submit_job(
     ----------
     module
         `PipelineModule` to submit job for
-    config_path
-        Path to slurm config for this job
+    config
+        Slurm config for this job
     module_kwargs
         Optional kwargs to send to `PipelineModule`
     docker_tag
@@ -208,7 +209,7 @@ def submit_job(
 
     slurm = Slurm(
         pipeline_module=mod,
-        config_path=Path(config_path),
+        config=config,
         log_path=log_path,
     )
 

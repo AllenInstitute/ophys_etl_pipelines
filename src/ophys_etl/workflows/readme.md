@@ -78,7 +78,7 @@ To run script from scratch:
 
 6. Start dags in airlflow UI
 
-7. run `run_pipeline_end_to_end_test.py`
+7. run `run_pipeline_:xend_to_end_test.py`
 
 ## Deployment
 
@@ -89,9 +89,22 @@ docker
 sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 ```
 
-[minikube](https://minikube.sigs.k8s.io/docs/start/)
+[kind](https://kind.sigs.k8s.io/)
 
 [helm](https://helm.sh/docs/intro/install/)
 
+***
+1. build image 
+```bash
+docker build -t alleninstitutepika/ophys_processing_airflow:<tag> ...
+```
+2. push image
+```bash
+docker push alleninstitutepika/ophys_processing_airflow:<tag>
+```
 
+3. upload and/or download [values.yaml](https://helm.sh/docs/chart_template_guide/values_files/) from s3://ophys-processing-airflow.alleninstitute.org/prod/
 
+4. Follow [airflow kind quickstart guide](https://airflow.apache.org/docs/helm-chart/stable/quick-start.html)
+
+    Make sure to pass `-f values.yaml` to `helm install`/`helm upgrade` commands

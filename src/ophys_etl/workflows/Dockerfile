@@ -28,9 +28,21 @@ ENV AWS_DEFAULT_REGION=us-west-2
 USER root
 RUN apt-get update
 RUN apt-get install -y --no-install-recommends \
-  git \
-  libgl1 libglib2.0-0  # needed for some dependencies to load properly
-USER airflow
+    unzip \
+    git \
+    libgl1 libglib2.0-0  # needed for some dependencies to load properly
+
+# install awscli
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+RUN unzip awscliv2.zip
+RUN ./aws/install
+
+RUN groupadd -g 0 -o svc_ophysprd
+RUN useradd -m -u 19220 -g 0 -o -s /bin/bash svc_ophysprd
+
+USER svc_ophysprd:root
+
+ENV PATH "$PATH:/home/svc_ophysprd/.local/bin"
 
 RUN git clone -b $ophys_etl_branch https://github.com/AllenInstitute/ophys_etl_pipelines
 
@@ -39,10 +51,10 @@ RUN pip install ./ophys_etl_pipelines[workflow,pytorch_deps,deepinterpolation]
 # installing airflow again as best practice according to https://airflow.apache.org/docs/docker-stack/build.html#adding-packages-from-requirements-txt
 RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}"
 
-RUN pip install awscli
+RUN pip install psycopg2-binary
 
 # Copy dags into expected place
-COPY --chown=airflow:root on_prem/dags/ /opt/airflow/dags
+COPY --chown=svc_ophysprd:root on_prem/dags/ /opt/airflow/dags
 
 # copying the app config into the container
 RUN aws s3 cp s3://ophys-processing-airflow.alleninstitute.org/prod/app_config.yml /opt/airflow/

@@ -91,8 +91,11 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
 
         if job.is_failed():
             all_tasks = context["dag_run"].get_task_instances()
+            current_task_id = context["task"].task_id
+            submit_job_task_id = current_task_id.replace(
+                'wait_for_job_to_finish', 'submit_job')
             submit_job_instance: TaskInstance = \
-                [x for x in all_tasks if 'submit_job' in x.task_id][0]
+                [x for x in all_tasks if x.task_id == submit_job_task_id][0]
             if _can_retry_task_instance(task_instance=submit_job_instance):
                 logger.info(f'Clearing {submit_job_instance.task_id}')
                 _clear_task(task_instance=submit_job_instance)

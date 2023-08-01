@@ -54,7 +54,7 @@ RUN pip install --no-cache-dir "apache-airflow==${AIRFLOW_VERSION}"
 RUN pip install psycopg2-binary
 
 # Copy dags into expected place
-COPY --chown=svc_ophysprd:root on_prem/dags/ /opt/airflow/dags
+RUN cp -r ./ophys_etl_pipelines/src/ophys_etl/workflows/on_prem/dags/ /opt/airflow/dags
 
 # copying the app config into the container
 RUN aws s3 cp s3://ophys-processing-airflow.alleninstitute.org/prod/app_config.yml /opt/airflow/

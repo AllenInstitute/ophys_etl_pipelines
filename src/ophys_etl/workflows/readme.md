@@ -123,3 +123,24 @@ Run end to end test.
     ```bash
    python ophys_etl_pipelines/src/ophys_etl/workflows/scripts/run_end_to_end_test.py
    ```
+
+### Debugging deployment
+
+Some useful commands
+```bash
+kubectl get pods
+```
+```bash
+kubectl describe
+```
+```bash
+kubectl logs
+```
+```bash
+kubectl get events
+```
+
+Sometimes docker might get full and deployments will fail because of this. To clean it up:
+```bash
+docker system prune -a -f
+```

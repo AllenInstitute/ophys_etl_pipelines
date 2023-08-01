@@ -60,9 +60,6 @@ RUN cp -r ./ophys_etl_pipelines/src/ophys_etl/workflows/on_prem/dags/ /opt/airfl
 RUN aws s3 cp s3://ophys-processing-airflow.alleninstitute.org/prod/app_config.yml /opt/airflow/
 ENV OPHYS_WORKFLOW_APP_CONFIG_PATH=/opt/airflow/app_config.yml
 
-# copying deepinterpolation model into the container
-RUN aws s3 cp s3://ophys-processing-airflow.alleninstitute.org/prod/ensemble_ssf_model_even_smaller_validation_mean_squared_error-0120-0.9622.h5 /opt/airflow/
-
 # initialize app database
 RUN if [ $initialize_app_db = true ] ; then \
     python -m ophys_etl.workflows.db.initialize_db \

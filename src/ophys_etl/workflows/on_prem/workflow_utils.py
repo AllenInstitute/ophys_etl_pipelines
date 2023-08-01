@@ -1,4 +1,3 @@
-from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Type
 
 from airflow.sensors.base import BaseSensorOperator

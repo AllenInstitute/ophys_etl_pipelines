@@ -1,6 +1,4 @@
 """Ophys processing DAG"""
-import datetime
-
 import pendulum
 from airflow.decorators import task_group, task
 from airflow.models import Param

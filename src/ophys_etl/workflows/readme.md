@@ -82,6 +82,8 @@ To run script from scratch:
 
 ## Deployment
 
+The app is deployed using [airflow helm chart](https://airflow.apache.org/docs/helm-chart/stable/index.html) 
+
 ### Prerequisites
 
 docker
@@ -108,3 +110,16 @@ docker push alleninstitutepika/ophys_processing_airflow:<tag>
 4. Follow [airflow kind quickstart guide](https://airflow.apache.org/docs/helm-chart/stable/quick-start.html)
 
     Make sure to pass `-f values.yaml` to `helm install`/`helm upgrade` commands
+
+### Testing the deployment
+
+Run end to end test.
+
+1. Open shell in arbitrary pod
+    ```bash
+    kubectl exec --namespace $KUBERNETES_NAMESPACE --stdin --tty ophys-processing-scheduler-0 -- /bin/bash
+    ```
+2. Run end to end test
+    ```bash
+   python ophys_etl_pipelines/src/ophys_etl/workflows/scripts/run_end_to_end_test.py
+   ```

@@ -179,6 +179,14 @@ class Slurm:
         """
         self._pipeline_module = pipeline_module
         self._job: Optional[SlurmJob] = None
+
+        if app_config.is_debug:
+            logger.info(f'is debug: {app_config.is_debug}. '
+                        f'Overriding slurm settings')
+            config.cpus_per_task = 4
+            config.mem = 16
+            config.time = 120
+            config.gpus = 0
         self._slurm_settings = config
         self._log_path = log_path
 
@@ -243,27 +251,16 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
         else:
             tmp = self._get_tmp_storage(
                 adjustment_factor=tmp_storage_adjustment_factor)
-        cpus_per_task = \
-            4 if app_config.is_debug else \
-            self._slurm_settings.cpus_per_task
-        mem = \
-            16 if app_config.is_debug else self._slurm_settings.mem
-        time = \
-            30 if app_config.is_debug else \
-            self._slurm_settings.time
-        gpus = \
-            0 if app_config.is_debug else \
-            self._slurm_settings.gpus
         standard_error = self._log_path.parent / f'{self._log_path.stem}.err'
         job = {
             'job': {
                 'qos': 'production',
                 'partition': 'braintv',
                 'nodes': 1,
-                'cpus_per_task': cpus_per_task,
-                'gpus': gpus,
-                'memory_per_node': mem * 1024,  # MB
-                'time_limit': time,
+                'cpus_per_task': self._slurm_settings.cpus_per_task,
+                'gpus': self._slurm_settings.gpus,
+                'memory_per_node': self._slurm_settings.mem * 1024,  # MB
+                'time_limit': self._slurm_settings.time,
                 'name': self._pipeline_module.queue_name.value,
                 'temporary_disk_per_node': f'{tmp}G',
                 'standard_output': str(self._log_path),

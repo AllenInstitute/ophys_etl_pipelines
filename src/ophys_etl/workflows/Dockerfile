@@ -37,6 +37,7 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 RUN unzip awscliv2.zip
 RUN ./aws/install
 
+# Adding the host user to this container
 RUN groupadd -g 0 -o svc_ophysprd
 RUN useradd -m -u 19220 -g 0 -o -s /bin/bash svc_ophysprd
 

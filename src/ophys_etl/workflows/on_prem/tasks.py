@@ -46,7 +46,12 @@ def _can_retry_task_instance(task_instance: TaskInstance):
         x['value'] for x in core_section['options'] if
         x['key'] == 'default_task_retries'][0]
     default_task_tries = int(default_task_tries)
-    return task_instance.try_number < default_task_tries
+    can_retry = task_instance.try_number < default_task_tries
+    if not can_retry:
+        logger.info(f'Max number of tries reached. '
+                    f'Try number {task_instance.try_number}, max tries '
+                    f'{default_task_tries}')
+    return can_retry
 
 
 def wait_for_job_to_finish(timeout: float) -> Callable:
@@ -99,8 +104,6 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
             if _can_retry_task_instance(task_instance=submit_job_instance):
                 logger.info(f'Clearing {submit_job_instance.task_id}')
                 _clear_task(task_instance=submit_job_instance)
-            else:
-                logger.info('Reached max number of tries.')
             raise SlurmJobFailedException(msg)
 
         if job.is_done():

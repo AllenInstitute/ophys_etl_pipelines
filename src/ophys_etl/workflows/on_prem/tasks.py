@@ -46,7 +46,7 @@ def _can_retry_task_instance(task_instance: TaskInstance):
         x['value'] for x in core_section['options'] if
         x['key'] == 'default_task_retries'][0]
     default_task_tries = int(default_task_tries)
-    can_retry = task_instance.try_number < default_task_tries
+    can_retry = task_instance.try_number <= default_task_tries
     if not can_retry:
         logger.info(f'Max number of tries reached. '
                     f'Try number {task_instance.try_number}, max tries '

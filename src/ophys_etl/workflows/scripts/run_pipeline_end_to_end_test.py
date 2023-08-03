@@ -59,7 +59,7 @@ def main():
                 f'ophys_processing/dagRuns',
             http_method='POST',
             http_body={
-                'run_id': f'ophys_experiment_id_{oe}_{logical_date}',
+                'dag_run_id': f'ophys_experiment_id_{oe}_{logical_date}',
                 'logical_date': logical_date,
                 'conf': {'ophys_experiment_id': oe}
             }

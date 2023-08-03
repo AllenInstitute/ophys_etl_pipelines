@@ -167,7 +167,9 @@ def ophys_processing():
                 },
                 context=context,
                 task_id='run_cell_classification',
-                trigger_dag_id='cell_classifier_inference'
+                trigger_dag_id='cell_classifier_inference',
+                object_type='ophys_experiment_id',
+                object_id=context['params']['ophys_experiment_id']
             )
 
     @task
@@ -201,7 +203,9 @@ def ophys_processing():
                 conf={'ophys_session_id': ophys_experiment.session.id},
                 context=context,
                 task_id='trigger_decrosstalk_for_ophys_session',
-                trigger_dag_id='decrosstalk'
+                trigger_dag_id='decrosstalk',
+                object_type='ophys_session_id',
+                object_id=ophys_experiment.session.id
             )
 
     @task
@@ -239,7 +243,9 @@ def ophys_processing():
                 conf={'ophys_container_id': ophys_experiment.container.id},
                 context=context,
                 task_id='trigger_nway_cell_matching_for_ophys_container',
-                trigger_dag_id='nway_cell_matching'
+                trigger_dag_id='nway_cell_matching',
+                object_type='ophys_container_id',
+                object_id=ophys_experiment.container.id
             )
 
     @task_group

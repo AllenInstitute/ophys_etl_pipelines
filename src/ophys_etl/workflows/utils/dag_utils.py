@@ -55,7 +55,9 @@ def trigger_dag_run(
     task_id: str,
     trigger_dag_id: str,
     context: Dict,
-    conf: Dict
+    conf: Dict,
+    object_type: Optional[str] = None,
+    object_id: Optional[int] = None
 ):
     """Triggers dag run for `trigger_dag_id`
 
@@ -70,13 +72,29 @@ def trigger_dag_run(
         `get_current_context`)
     conf
         See `TriggerDagRunOperator`
+    object_type
+        ophys_experiment_id, ophys_session_id or ophys_container_id
+    object_id
+        identifier for object_type
     """
+    if object_type is not None:
+        valid_object_types = ('ophys_experiment_id', 'ophys_session_id',
+                              'ophys_container_id')
+        if object_type not in valid_object_types:
+            raise ValueError(f'object type must be one of '
+                             f'{valid_object_types}. '
+                             f'Gave {object_type}')
+        if object_id is None:
+            raise ValueError('Must give object_id if object_type given')
     now = datetime.datetime.now().astimezone(
         tz=datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%s%z')
 
     trigger_run_id = f'{now}_triggered_by_' \
                      f'{context["dag_run"].dag_id}_' \
                      f'{context["dag_run"].run_id}'
+    if object_type is not None:
+        trigger_run_id = f'{object_type}_{object_id}_{trigger_run_id}'
+
     logger.info(f'Triggering {trigger_dag_id} for {conf}')
     TriggerDagRunOperator(
         task_id=task_id,
@@ -116,7 +134,9 @@ def trigger_dag_runs(
             conf={
                 key_name: value
             },
-            context=context
+            context=context,
+            object_type=key_name,
+            object_id=value
         )
         # Sleeping so that we get a unique dag run id
         time.sleep(1)

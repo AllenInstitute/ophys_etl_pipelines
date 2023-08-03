@@ -51,14 +51,16 @@ def main():
     print(f'Total number of sessions: {n_sessions}')
 
     for oe in ophys_experiments:
+        logical_date = (
+                datetime.datetime.utcnow()
+                .strftime('%Y-%m-%dT%H:%M:%S%z') + '+00:00')
         response = call_endpoint_with_retries(
             url=f'http://{app_config.webserver.host_name}:8080/api/v1/dags/'
                 f'ophys_processing/dagRuns',
             http_method='POST',
             http_body={
-                'logical_date': (
-                        datetime.datetime.utcnow()
-                        .strftime('%Y-%m-%dT%H:%M:%S%z') + '+00:00'),
+                'run_id': f'ophys_experiment_id_{oe}_{logical_date}',
+                'logical_date': logical_date,
                 'conf': {'ophys_experiment_id': oe}
             }
         )

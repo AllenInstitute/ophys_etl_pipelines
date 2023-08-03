@@ -95,6 +95,10 @@ sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 [helm](https://helm.sh/docs/intro/install/)
 
+There need to be 2 databases already created:
+1. airflow db - connection details need to be added to `values.yaml`
+2. ophys app db - connection details need to be added to `app_config.yml`
+
 ***
 1. build image 
 ```bash

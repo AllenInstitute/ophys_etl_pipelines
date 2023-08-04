@@ -42,15 +42,19 @@ def _can_retry_task_instance(task_instance: TaskInstance):
     )
     core_section = \
         [x for x in config['sections'] if x['name'] == 'core'][0]
-    default_task_tries = [
+    default_task_retries = [
         x['value'] for x in core_section['options'] if
         x['key'] == 'default_task_retries'][0]
-    default_task_tries = int(default_task_tries)
-    can_retry = task_instance.try_number <= default_task_tries
-    if not can_retry:
+    max_tries = int(default_task_retries) + 1
+    next_try_number = task_instance.try_number
+    can_retry = next_try_number <= max_tries
+    if can_retry:
+        logger.info(f'Next try number {next_try_number}, '
+                    f'max tries {max_tries}')
+    else:
         logger.info(f'Max number of tries reached. '
-                    f'Try number {task_instance.try_number}, max tries '
-                    f'{default_task_tries}')
+                    f'Next try number {next_try_number}, max tries '
+                    f'{max_tries}')
     return can_retry
 
 

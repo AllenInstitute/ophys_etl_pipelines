@@ -69,6 +69,7 @@ class _Slurm(ImmutableBaseModel):
     api_token: SecretStr = Field(
         description="api token, generated using scontrol token"
     )
+    partition: StrictStr = 'braintv'
 
 
 ##################

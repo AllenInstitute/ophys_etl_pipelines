@@ -255,7 +255,7 @@ SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
         job = {
             'job': {
                 'qos': 'production',
-                'partition': 'braintv',
+                'partition': app_config.slurm.partition,
                 'nodes': 1,
                 'cpus_per_task': self._slurm_settings.cpus_per_task,
                 'gpus': self._slurm_settings.gpus,

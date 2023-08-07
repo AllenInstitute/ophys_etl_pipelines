@@ -1,5 +1,6 @@
 import datetime
 
+import pendulum
 from airflow.decorators import task_group
 from airflow.models import Param
 from airflow.models.dag import dag
@@ -19,7 +20,7 @@ from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
     dag_id="nway_cell_matching",
     schedule=None,
     catchup=False,
-    start_date=datetime.datetime.now(),
+    start_date=pendulum.yesterday(),
     params={
         "ophys_container_id": Param(
             description="identifier for ophys container",

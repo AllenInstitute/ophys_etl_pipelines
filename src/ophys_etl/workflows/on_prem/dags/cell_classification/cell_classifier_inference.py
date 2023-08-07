@@ -1,6 +1,7 @@
 import datetime
 from typing import Dict
 
+import pendulum
 from airflow.decorators import task_group, task
 from airflow.models import Param
 from airflow.models.dag import dag
@@ -61,7 +62,7 @@ def _get_motion_correction_shifts_file(**context) -> Dict:
     dag_id="cell_classifier_inference",
     schedule=None,
     catchup=False,
-    start_date=datetime.datetime.now(),
+    start_date=pendulum.yesterday(),
     params={
         "ophys_experiment_id": Param(
             description="identifier for ophys experiment",

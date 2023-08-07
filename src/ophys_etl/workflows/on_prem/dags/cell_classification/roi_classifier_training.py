@@ -4,6 +4,7 @@ import json
 import time
 from typing import Dict, List
 
+import pendulum
 from airflow.decorators import task, task_group
 from airflow.models import XCom
 from airflow.models.dag import dag
@@ -118,7 +119,7 @@ def _generate_correlation_projections_for_experiments(
     dag_id="roi_classifier_training",
     schedule=None,
     catchup=False,
-    start_date=datetime.datetime.now(),
+    start_date=pendulum.yesterday(),
 )
 def roi_classifier_training():
     @task_group

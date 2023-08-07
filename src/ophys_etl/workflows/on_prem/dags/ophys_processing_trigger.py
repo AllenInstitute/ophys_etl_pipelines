@@ -79,13 +79,16 @@ def ophys_processing_trigger():
         ophys_experiment_ids = _get_all_ophys_experiments_completed_since(
             since=last_success_dag_run_datetime
         )
-        trigger_dag_runs(
-            key_name='ophys_experiment_id',
-            values=ophys_experiment_ids,
-            task_id='trigger_ophys_processing_for_ophys_experiment',
-            trigger_dag_id='ophys_processing',
-            context=get_current_context()
-        )
+        if len(ophys_experiment_ids) == 0:
+            logger.info('No new experiments')
+        else:
+            trigger_dag_runs(
+                key_name='ophys_experiment_id',
+                values=ophys_experiment_ids,
+                task_id='trigger_ophys_processing_for_ophys_experiment',
+                trigger_dag_id='ophys_processing',
+                context=get_current_context()
+            )
     trigger()
 
 

@@ -183,10 +183,12 @@ class Slurm:
         if app_config.is_debug:
             logger.info(f'is debug: {app_config.is_debug}. '
                         f'Overriding slurm settings')
-            config.cpus_per_task = 4
-            config.mem = 16
-            config.time = 120
-            config.gpus = 0
+            config = SlurmSettings(
+                cpus_per_task=4,
+                mem=16,
+                time=120,
+                gpus=0
+            )
         self._slurm_settings = config
         self._log_path = log_path
 

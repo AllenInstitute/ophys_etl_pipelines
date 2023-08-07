@@ -1,5 +1,3 @@
-import datetime
-
 import pendulum
 from airflow.decorators import task_group
 from airflow.models import Param

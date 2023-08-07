@@ -1,5 +1,4 @@
 """ROI classifier training DAG"""
-import datetime
 import json
 import time
 from typing import Dict, List

@@ -4,17 +4,13 @@ processing once all have finished"""
 
 import datetime
 
-import base64
-
-import json
 import time
 
-import requests
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
 from ophys_etl.workflows.app_config.app_config import app_config
 
-from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port
+from ophys_etl.workflows.utils.airflow_utils import call_endpoint_with_retries
 
 
 def main():
@@ -55,28 +51,20 @@ def main():
     print(f'Total number of sessions: {n_sessions}')
 
     for oe in ophys_experiments:
-        rest_api_username = \
-            app_config.airflow_rest_api_credentials.username.get_secret_value()
-        rest_api_password = \
-            app_config.airflow_rest_api_credentials.password.get_secret_value()
-        auth = base64.b64encode(
-            f'{rest_api_username}:{rest_api_password}'.encode('utf-8'))
-        rest_api_port = get_rest_api_port()
-        r = requests.post(
-            url=f'http://0.0.0.0:{rest_api_port}/api/v1/dags/ophys_processing/'
-                f'dagRuns',
-            headers={
-                'Authorization': f'Basic {auth.decode()}',
-                'Content-type': 'application/json'
-            },
-            data=json.dumps({
-                'logical_date': (
-                        datetime.datetime.utcnow()
-                        .strftime('%Y-%m-%dT%H:%M:%S%z') + '+00:00'),
+        logical_date = (
+                datetime.datetime.utcnow()
+                .strftime('%Y-%m-%dT%H:%M:%S%z') + '+00:00')
+        response = call_endpoint_with_retries(
+            url=f'http://{app_config.webserver.host_name}:8080/api/v1/dags/'
+                f'ophys_processing/dagRuns',
+            http_method='POST',
+            http_body={
+                'dag_run_id': f'ophys_experiment_id_{oe}_{logical_date}',
+                'logical_date': logical_date,
                 'conf': {'ophys_experiment_id': oe}
-            })
+            }
         )
-        print(r.json())
+        print(response)
 
         # otherwise run ids are the same and get an error
         time.sleep(1)

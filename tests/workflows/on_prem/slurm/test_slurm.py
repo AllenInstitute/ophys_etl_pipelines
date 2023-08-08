@@ -3,6 +3,7 @@ from pathlib import Path
 import pytz
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
+from ophys_etl.workflows.app_config.slurm import SlurmSettings
 
 setup_app_config(
     ophys_workflow_app_config_path=(
@@ -128,9 +129,12 @@ class TestSlurm:
         )
         cls._slurm = Slurm(
             pipeline_module=mod,
-            config_path=Path(__file__).parent
-            / "test_data"
-            / "slurm_config.yml",
+            config=SlurmSettings(
+                cpus_per_task=32,
+                mem=250,
+                time=300,
+                request_additional_tmp_storage=True
+            ),
             log_path=Path("log_path.log"),
         )
 

@@ -1,9 +1,9 @@
-from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Type
 
 from airflow.sensors.base import BaseSensorOperator
 
 from ophys_etl.workflows.app_config.app_config import app_config
+from ophys_etl.workflows.app_config.slurm import SlurmSettings
 from ophys_etl.workflows.on_prem.tasks import (
     submit_job,
     wait_for_job_to_finish,
@@ -18,8 +18,8 @@ def run_workflow_step(
     module: Type[PipelineModule],
     workflow_name: WorkflowNameEnum,
     workflow_step_name: WorkflowStepEnum,
+    slurm_config: SlurmSettings,
     docker_tag: str = app_config.pipeline_steps.docker_tag,
-    slurm_config_filename: Optional[str] = None,
     module_kwargs: Optional[Dict] = None,
     additional_db_inserts: Optional[Callable] = None,
     pre_submit_sensor: Optional[Callable[[], BaseSensorOperator]] = None
@@ -29,9 +29,8 @@ def run_workflow_step(
 
     Parameters
     ----------
-    slurm_config_filename
-        Slurm settings filename
-        If not provided, will load default
+    slurm_config
+        Slurm settings
     module
         What module to run
     workflow_step_name
@@ -57,7 +56,7 @@ def run_workflow_step(
     job_finish_res = submit_job_and_wait_to_finish(
         module=module,
         docker_tag=docker_tag,
-        slurm_config_filename=slurm_config_filename,
+        slurm_config=slurm_config,
         module_kwargs=module_kwargs,
         pre_submit_sensor=pre_submit_sensor
     )
@@ -73,8 +72,8 @@ def run_workflow_step(
 
 def submit_job_and_wait_to_finish(
     module: Type[PipelineModule],
+    slurm_config: SlurmSettings,
     docker_tag: Optional[str] = None,
-    slurm_config_filename: Optional[str] = None,
     module_kwargs: Optional[Dict] = None,
     pre_submit_sensor: Optional[Callable[[], BaseSensorOperator]] = None
 ) -> str:
@@ -88,7 +87,7 @@ def submit_job_and_wait_to_finish(
         See `run_workflow_step`
     docker_tag
         See `run_workflow_step`
-    slurm_config_filename
+    slurm_config
         See `run_workflow_step`
     module_kwargs
         See `run_workflow_step`
@@ -99,21 +98,9 @@ def submit_job_and_wait_to_finish(
     -------
     See `ophys_etl.workflows.tasks.save_job_run_to_db`
     """
-    slurm_config_filename = (
-        "default.yml"
-        if slurm_config_filename is None
-        else slurm_config_filename
-    )
-    slurm_config = (
-        Path(__file__).parent
-        / "slurm"
-        / "configs"
-        / slurm_config_filename
-    )
-
     job_submit_res = submit_job(
         module=module,
-        config_path=str(slurm_config),
+        config=slurm_config,
         docker_tag=docker_tag,
         module_kwargs=module_kwargs,
     )

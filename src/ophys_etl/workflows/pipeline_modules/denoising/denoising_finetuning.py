@@ -31,7 +31,8 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "dataset_output_dir": str(self.output_path),
                 "movie_path": self._motion_corrected_path,
                 "downsample_frac": (
-                    app_config.pipeline_steps.denoising.downsample_frac
+                    app_config.pipeline_steps.denoising.finetuning.
+                    downsample_frac
                 ),
             },
             "finetuning_params": {
@@ -42,7 +43,8 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "loss": "mean_squared_error",
                 "model_source": {
                     "local_path": (
-                        app_config.pipeline_steps.denoising.base_model_path
+                        app_config.pipeline_steps.denoising.finetuning.
+                        base_model_path
                     )
                 },
                 "model_string": "",

@@ -9,8 +9,10 @@ from airflow.models import TaskInstance, clear_task_instances
 from airflow.operators.python import get_current_context
 from airflow.sensors.base import PokeReturnValue
 from airflow.utils.session import provide_session
+from ophys_etl.workflows.app_config.app_config import app_config
 from paramiko import AuthenticationException
 
+from ophys_etl.workflows.app_config.slurm import SlurmSettings
 from ophys_etl.workflows.on_prem.slurm.slurm import (
     Slurm,
     SlurmJob,
@@ -20,8 +22,7 @@ from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
     OphysSession, OphysContainer
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
-from ophys_etl.workflows.utils.airflow_utils import get_rest_api_port, \
-    call_endpoint_with_retries
+from ophys_etl.workflows.utils.airflow_utils import call_endpoint_with_retries
 from ophys_etl.workflows.utils.json_utils import EnhancedJSONEncoder
 
 
@@ -34,19 +35,27 @@ def _clear_task(task_instance: TaskInstance, session=None):
 def _can_retry_task_instance(task_instance: TaskInstance):
     """Return whether the task instance has reached the max number of tries
     as defined in the config"""
-    rest_api_port = get_rest_api_port()
-    url = f'http://0.0.0.0:{rest_api_port}/api/v1/config'
+    url = f'http://{app_config.webserver.host_name}:8080/api/v1/config'
     config = call_endpoint_with_retries(
         url=url,
         http_method='GET'
     )
     core_section = \
         [x for x in config['sections'] if x['name'] == 'core'][0]
-    default_task_tries = [
+    default_task_retries = [
         x['value'] for x in core_section['options'] if
         x['key'] == 'default_task_retries'][0]
-    default_task_tries = int(default_task_tries)
-    return task_instance.try_number < default_task_tries
+    max_tries = int(default_task_retries) + 1
+    next_try_number = task_instance.try_number
+    can_retry = next_try_number <= max_tries
+    if can_retry:
+        logger.info(f'Next try number {next_try_number}, '
+                    f'max tries {max_tries}')
+    else:
+        logger.info(f'Max number of tries reached. '
+                    f'Next try number {next_try_number}, max tries '
+                    f'{max_tries}')
+    return can_retry
 
 
 def wait_for_job_to_finish(timeout: float) -> Callable:
@@ -91,13 +100,14 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
 
         if job.is_failed():
             all_tasks = context["dag_run"].get_task_instances()
+            current_task_id = context["task"].task_id
+            submit_job_task_id = current_task_id.replace(
+                'wait_for_job_to_finish', 'submit_job')
             submit_job_instance: TaskInstance = \
-                [x for x in all_tasks if 'submit_job' in x.task_id][0]
+                [x for x in all_tasks if x.task_id == submit_job_task_id][0]
             if _can_retry_task_instance(task_instance=submit_job_instance):
                 logger.info(f'Clearing {submit_job_instance.task_id}')
                 _clear_task(task_instance=submit_job_instance)
-            else:
-                logger.info('Reached max number of tries.')
             raise SlurmJobFailedException(msg)
 
         if job.is_done():
@@ -119,7 +129,7 @@ def wait_for_job_to_finish(timeout: float) -> Callable:
 @task
 def submit_job(
     module: Type[PipelineModule],
-    config_path: str,
+    config: SlurmSettings,
     docker_tag: str,
     module_kwargs: Optional[Dict] = None,
     **context,
@@ -130,8 +140,8 @@ def submit_job(
     ----------
     module
         `PipelineModule` to submit job for
-    config_path
-        Path to slurm config for this job
+    config
+        Slurm config for this job
     module_kwargs
         Optional kwargs to send to `PipelineModule`
     docker_tag
@@ -209,7 +219,7 @@ def submit_job(
 
     slurm = Slurm(
         pipeline_module=mod,
-        config_path=Path(config_path),
+        config=config,
         log_path=log_path,
     )
 
@@ -240,8 +250,7 @@ def _get_log_path(
     """Returns the path that the current task is writing logs to, so that
     we can write slurm job logs to the same file and view the slurm logs in
     the UI"""
-    rest_api_port = get_rest_api_port()
-    url = f'http://0.0.0.0:{rest_api_port}/api/v1/config'
+    url = f'http://{app_config.webserver.host_name}:8080/api/v1/config'
     config = call_endpoint_with_retries(
         url=url,
         http_method='GET'

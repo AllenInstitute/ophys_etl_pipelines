@@ -1,6 +1,5 @@
 """Ophys processing DAG"""
-import datetime
-
+import pendulum
 from airflow.decorators import task_group, task
 from airflow.models import Param
 from airflow.models.dag import dag
@@ -51,7 +50,7 @@ WORKFLOW_NAME = WorkflowNameEnum.OPHYS_PROCESSING
     dag_id="ophys_processing",
     schedule=None,
     catchup=False,
-    start_date=datetime.datetime.now(),
+    start_date=pendulum.yesterday(),
     params={
         "ophys_experiment_id": Param(
             description="identifier for ophys experiment",
@@ -75,7 +74,8 @@ def ophys_processing():
     def motion_correction():
         """Motion correct raw ophys movie"""
         module_outputs = run_workflow_step(
-            slurm_config_filename="motion_correction.yml",
+            slurm_config=(app_config.pipeline_steps.motion_correction.
+                          slurm_settings),
             module=MotionCorrectionModule,
             workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
             workflow_name=WORKFLOW_NAME,
@@ -91,7 +91,8 @@ def ophys_processing():
         def denoising_finetuning(motion_corrected_ophys_movie_file):
             """Finetune deepinterpolation model on a single ophys movie"""
             module_outputs = run_workflow_step(
-                slurm_config_filename="denoising_finetuning.yml",
+                slurm_config=(app_config.pipeline_steps.denoising.finetuning.
+                              slurm_settings),
                 module=DenoisingFinetuningModule,
                 workflow_step_name=WorkflowStepEnum.DENOISING_FINETUNING,
                 workflow_name=WORKFLOW_NAME,
@@ -110,7 +111,8 @@ def ophys_processing():
         ):
             """Runs denoising inference on a single ophys movie"""
             module_outputs = run_workflow_step(
-                slurm_config_filename="denoising_inference.yml",
+                slurm_config=(app_config.pipeline_steps.denoising.inference.
+                              slurm_settings),
                 module=DenoisingInferenceModule,
                 workflow_step_name=WorkflowStepEnum.DENOISING_INFERENCE,
                 workflow_name=WORKFLOW_NAME,
@@ -140,7 +142,8 @@ def ophys_processing():
     @task_group
     def segmentation(denoised_ophys_movie_file):
         run_workflow_step(
-            slurm_config_filename="segmentation.yml",
+            slurm_config=(app_config.pipeline_steps.segmentation.
+                          slurm_settings),
             module=SegmentationModule,
             workflow_step_name=WorkflowStepEnum.SEGMENTATION,
             workflow_name=WORKFLOW_NAME,
@@ -164,7 +167,9 @@ def ophys_processing():
                 },
                 context=context,
                 task_id='run_cell_classification',
-                trigger_dag_id='cell_classifier_inference'
+                trigger_dag_id='cell_classifier_inference',
+                object_type='ophys_experiment_id',
+                object_id=context['params']['ophys_experiment_id']
             )
 
     @task
@@ -198,7 +203,9 @@ def ophys_processing():
                 conf={'ophys_session_id': ophys_experiment.session.id},
                 context=context,
                 task_id='trigger_decrosstalk_for_ophys_session',
-                trigger_dag_id='decrosstalk'
+                trigger_dag_id='decrosstalk',
+                object_type='ophys_session_id',
+                object_id=ophys_experiment.session.id
             )
 
     @task
@@ -236,7 +243,9 @@ def ophys_processing():
                 conf={'ophys_container_id': ophys_experiment.container.id},
                 context=context,
                 task_id='trigger_nway_cell_matching_for_ophys_container',
-                trigger_dag_id='nway_cell_matching'
+                trigger_dag_id='nway_cell_matching',
+                object_type='ophys_container_id',
+                object_id=ophys_experiment.container.id
             )
 
     @task_group
@@ -249,7 +258,9 @@ def ophys_processing():
                 workflow_name=WORKFLOW_NAME,
                 module_kwargs={
                     "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
-                }
+                },
+                slurm_config=(app_config.pipeline_steps.trace_extraction.
+                              slurm_settings)
             )
 
             return module_outputs
@@ -257,7 +268,8 @@ def ophys_processing():
         @task_group
         def demix_traces(motion_corrected_ophys_movie_file, roi_traces_file):
             module_outputs = run_workflow_step(
-                slurm_config_filename="demix_traces.yml",
+                slurm_config=(app_config.pipeline_steps.demix_traces.
+                              slurm_settings),
                 module=DemixTracesModule,
                 workflow_step_name=WorkflowStepEnum.DEMIX_TRACES,
                 workflow_name=WORKFLOW_NAME,
@@ -275,7 +287,8 @@ def ophys_processing():
                 demixed_roi_traces_file,
                 neuropil_traces_file):
             module_outputs = run_workflow_step(
-                slurm_config_filename="neuropil_correction.yml",
+                slurm_config=(app_config.pipeline_steps.neuropil_correction.
+                              slurm_settings),
                 module=NeuropilCorrection,
                 workflow_step_name=WorkflowStepEnum.NEUROPIL_CORRECTION,
                 workflow_name=WORKFLOW_NAME,
@@ -290,7 +303,7 @@ def ophys_processing():
         @task_group
         def dff(neuropil_corrected_traces):
             module_outputs = run_workflow_step(
-                slurm_config_filename="dff.yml",
+                slurm_config=app_config.pipeline_steps.dff.slurm_settings,
                 module=DFOverFCalculation,
                 workflow_step_name=WorkflowStepEnum.DFF,
                 workflow_name=WORKFLOW_NAME,
@@ -303,7 +316,8 @@ def ophys_processing():
         @task_group
         def event_detection(dff_traces):
             run_workflow_step(
-                slurm_config_filename="event_detection.yml",
+                slurm_config=(app_config.pipeline_steps.event_detection.
+                              slurm_settings),
                 module=EventDetection,
                 workflow_step_name=WorkflowStepEnum.EVENT_DETECTION,
                 workflow_name=WORKFLOW_NAME,

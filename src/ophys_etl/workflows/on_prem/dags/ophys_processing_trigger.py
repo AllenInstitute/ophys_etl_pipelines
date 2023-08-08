@@ -60,33 +60,35 @@ logger = logging.getLogger('airflow.task')
     dag_id='ophys_processing_trigger',
     schedule='*/5 * * * *',     # every 5 minutes
     catchup=False,
-    start_date=datetime.datetime.now()
+    start_date=datetime.datetime(
+        year=2023, month=8, day=7, hour=1, minute=0, second=0),
+    max_active_runs=1
 )
 def ophys_processing_trigger():
-
+    """Triggers ophys_processing DAG by querying LIMS and looking for any
+    experiments ready to be processed that have not been processed yet"""
     @task
     def trigger():
         most_recent_dag_run = get_latest_dag_run(
             dag_id='ophys_processing_trigger',
-            states=['running', 'queued', 'success']
+            states=['success']
         )
-        if most_recent_dag_run['state'] in ('running', 'queued'):
-            # Don't want to trigger if already running or queued to run
-            return None
-        else:
-            last_success_dag_run_datetime = \
-                datetime.datetime.now() if most_recent_dag_run is None \
-                else most_recent_dag_run['logical_date']
+        last_success_dag_run_datetime = \
+            datetime.datetime.now() if most_recent_dag_run is None \
+            else most_recent_dag_run['start_date']
         ophys_experiment_ids = _get_all_ophys_experiments_completed_since(
             since=last_success_dag_run_datetime
         )
-        trigger_dag_runs(
-            key_name='ophys_experiment_id',
-            values=ophys_experiment_ids,
-            task_id='trigger_ophys_processing_for_ophys_experiment',
-            trigger_dag_id='ophys_processing',
-            context=get_current_context()
-        )
+        if len(ophys_experiment_ids) == 0:
+            logger.info('No new experiments')
+        else:
+            trigger_dag_runs(
+                key_name='ophys_experiment_id',
+                values=ophys_experiment_ids,
+                task_id='trigger_ophys_processing_for_ophys_experiment',
+                trigger_dag_id='ophys_processing',
+                context=get_current_context()
+            )
     trigger()
 
 

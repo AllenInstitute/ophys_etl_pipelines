@@ -78,4 +78,73 @@ To run script from scratch:
 
 6. Start dags in airlflow UI
 
-7. run `run_pipeline_end_to_end_test.py`
+7. run `run_pipeline_:xend_to_end_test.py`
+
+## Deployment
+
+The app is deployed using [airflow helm chart](https://airflow.apache.org/docs/helm-chart/stable/index.html) 
+
+### Prerequisites
+
+docker
+```bash
+sudo dnf -y install docker-ce docker-ce-cli containerd.io docker-compose-plugin
+```
+
+[kind](https://kind.sigs.k8s.io/)
+
+[helm](https://helm.sh/docs/intro/install/)
+
+There need to be 2 databases already created:
+1. airflow db - connection details need to be added to `values.yaml`
+2. ophys app db - connection details need to be added to `app_config.yml`
+
+***
+1. build image 
+```bash
+docker build -t alleninstitutepika/ophys_processing_airflow:<tag> ...
+```
+2. push image
+```bash
+docker push alleninstitutepika/ophys_processing_airflow:<tag>
+```
+
+3. upload and/or download [values.yaml](https://helm.sh/docs/chart_template_guide/values_files/) from s3://ophys-processing-airflow.alleninstitute.org/prod/
+
+4. Follow [airflow kind quickstart guide](https://airflow.apache.org/docs/helm-chart/stable/quick-start.html)
+
+    Make sure to pass `-f values.yaml` to `helm install`/`helm upgrade` commands
+
+### Testing the deployment
+
+Run end to end test.
+
+1. Open shell in arbitrary pod
+    ```bash
+    kubectl exec --namespace $KUBERNETES_NAMESPACE --stdin --tty ophys-processing-scheduler-0 -- /bin/bash
+    ```
+2. Run end to end test
+    ```bash
+   python ophys_etl_pipelines/src/ophys_etl/workflows/scripts/run_end_to_end_test.py
+   ```
+
+### Debugging deployment
+
+Some useful commands
+```bash
+kubectl get pods
+```
+```bash
+kubectl describe
+```
+```bash
+kubectl logs
+```
+```bash
+kubectl get events
+```
+
+Sometimes docker might get full and deployments will fail because of this. To clean it up:
+```bash
+docker system prune -a -f
+```

@@ -1,9 +1,9 @@
 """ROI classifier training DAG"""
-import datetime
 import json
 import time
 from typing import Dict, List
 
+import pendulum
 from airflow.decorators import task, task_group
 from airflow.models import XCom
 from airflow.models.dag import dag
@@ -81,6 +81,8 @@ def _create_thumbnails_for_experiments(
                     correlation_projection_graphs[experiment_id]
                 ),
             },
+            slurm_config=(app_config.pipeline_steps.roi_classification.
+                          generate_thumbnails.slurm_settings)
         )
         thumbnail_dirs[experiment_id] = module_outputs[
             WellKnownFileTypeEnum.ROI_CLASSIFICATION_THUMBNAIL_IMAGES.value
@@ -95,7 +97,8 @@ def _generate_correlation_projections_for_experiments(
         denoised_ophys_movie_file = get_denoised_movie_for_experiment(
             experiment_id=experiment_id)
         module_outputs = run_workflow_step(
-            slurm_config_filename="correlation_projection.yml",
+            slurm_config=(app_config.pipeline_steps.roi_classification.
+                          generate_correlation_projection.slurm_settings),
             module=roi_classification.GenerateCorrelationProjectionModule,
             workflow_step_name=(
                 WorkflowStepEnum.ROI_CLASSIFICATION_GENERATE_CORRELATION_PROJECTION_GRAPH   # noqa E402
@@ -115,7 +118,7 @@ def _generate_correlation_projections_for_experiments(
     dag_id="roi_classifier_training",
     schedule=None,
     catchup=False,
-    start_date=datetime.datetime.now(),
+    start_date=pendulum.yesterday(),
 )
 def roi_classifier_training():
     @task_group
@@ -148,6 +151,8 @@ def roi_classifier_training():
             ),
             workflow_name=WORKFLOW_NAME,
             module_kwargs={"thumbnail_dirs": thumbnail_dirs},
+            slurm_config=(app_config.pipeline_steps.roi_classification.
+                          training.slurm_settings)
         )
         return module_outputs[
             WellKnownFileTypeEnum.ROI_CLASSIFICATION_TRAIN_SET.value
@@ -163,6 +168,8 @@ def roi_classifier_training():
                 "train_set_path": train_set_path,
                 "mlflow_run_name": mlflow_run_name,
             },
+            slurm_config=(app_config.pipeline_steps.roi_classification.
+                          training.slurm_settings)
         )
         _download_trained_model(
             job_finish_res=job_finish_res, mlflow_run_name=mlflow_run_name

@@ -43,8 +43,8 @@ class DenoisingInferenceModule(_DenoisingModule):
                 "name": "InferenceOphysGenerator",
                 "start_frame": 0,
                 "cache_data": True,
-                "normalize_cache": app_config.pipeline_steps.denoising.normalize_cache, # noqa E501
-                "gpu_cache_full": app_config.pipeline_steps.denoising.gpu_cache_full, # noqa E501
+                "normalize_cache": app_config.pipeline_steps.denoising.inference.normalize_cache, # noqa E501
+                "gpu_cache_full": app_config.pipeline_steps.denoising.inference.gpu_cache_full, # noqa E501
                 "data_path": self._motion_corrected_path,
                 "seed": 1234
             },

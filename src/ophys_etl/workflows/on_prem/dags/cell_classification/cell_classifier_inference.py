@@ -1,9 +1,10 @@
-import datetime
 from typing import Dict
 
+import pendulum
 from airflow.decorators import task_group, task
 from airflow.models import Param
 from airflow.models.dag import dag
+from ophys_etl.workflows.app_config.app_config import app_config
 
 from ophys_etl.workflows.on_prem.dags._misc import INT_PARAM_DEFAULT_VALUE
 
@@ -60,7 +61,7 @@ def _get_motion_correction_shifts_file(**context) -> Dict:
     dag_id="cell_classifier_inference",
     schedule=None,
     catchup=False,
-    start_date=datetime.datetime.now(),
+    start_date=pendulum.yesterday(),
     params={
         "ophys_experiment_id": Param(
             description="identifier for ophys experiment",
@@ -75,7 +76,8 @@ def cell_classifier_inference():
     @task_group
     def correlation_projection_generation(denoised_ophys_movie_file):
         module_outputs = run_workflow_step(
-            slurm_config_filename="correlation_projection.yml",
+            slurm_config=(app_config.pipeline_steps.roi_classification.
+                          generate_correlation_projection.slurm_settings),
             module=roi_classification.GenerateCorrelationProjectionModule,
             workflow_step_name=(
                 WorkflowStepEnum.ROI_CLASSIFICATION_GENERATE_CORRELATION_PROJECTION_GRAPH # noqa E501
@@ -94,7 +96,8 @@ def cell_classifier_inference():
         motion_correction_shifts_file = _get_motion_correction_shifts_file()
 
         module_outputs = run_workflow_step(
-            slurm_config_filename="correlation_projection.yml",
+            slurm_config=(app_config.pipeline_steps.roi_classification.
+                          generate_thumbnails.slurm_settings),
             module=roi_classification.GenerateThumbnailsModule,
             workflow_step_name=(
                 WorkflowStepEnum.ROI_CLASSIFICATION_GENERATE_THUMBNAILS
@@ -125,6 +128,8 @@ def cell_classifier_inference():
                 "ensemble_id": ensemble_id,
                 "thumbnails_dir": thumbnails_dir
             },
+            slurm_config=(app_config.pipeline_steps.roi_classification.
+                          inference.slurm_settings)
         )
 
     denoised_ophys_movie_file = get_denoised_movie_for_experiment()

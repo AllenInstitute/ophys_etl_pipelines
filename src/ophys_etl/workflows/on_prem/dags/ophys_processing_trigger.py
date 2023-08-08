@@ -75,7 +75,7 @@ def ophys_processing_trigger():
         )
         last_success_dag_run_datetime = \
             datetime.datetime.now() if most_recent_dag_run is None \
-            else most_recent_dag_run['logical_date']
+            else most_recent_dag_run['start_date']
         ophys_experiment_ids = _get_all_ophys_experiments_completed_since(
             since=last_success_dag_run_datetime
         )

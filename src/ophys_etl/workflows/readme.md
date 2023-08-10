@@ -2,83 +2,48 @@
 
 ## Installation
 
-If airflow not already installed:
+### Set up app DB
 
-`./scripts/install_airflow.sh`
+Use the connection details in section 1.2.1 of [this guide](http://confluence.corp.alleninstitute.org/pages/viewpage.action?pageId=60855687) to setup a db
 
-### Setup environment variables
-    
-Required environment variables:
-
-| Env var                           | Description                                     |
-|-----------------------------------|-------------------------------------------------|
-| AIRFLOW_HOME                      | Should point to root directory containing dags. |
-| OPHYS_WORKFLOW_APP_CONFIG_PATH    | Path to app config                              |
-
-### If from scratch:
-1. Using sqlite db
-
-    Initialize db using `airflow db init`. This populates the airflow database
-
-    Create users using `airflow users create`
-
-2. Using postgres
-
-   1. If For development use the connection details in section 1.2.1 of [this guide](http://confluence.corp.alleninstitute.org/pages/viewpage.action?pageId=60855687) to setup a dev db
-   > **_NOTE:_**  Use port 5412 for the dev postgres server, as the version at the default port 5432 does not work
-
-   2. Create a user using the instructions [here](https://airflow.apache.org/docs/apache-airflow/stable/howto/set-up-database.html#setting-up-a-postgresql-database)
-   3. Modify the variable `sql_alchemy_conn` in `airflow.cfg` found within `AIRFLOW_HOME`
-   4. Run `airflow db init`
-   5. Create users using `airflow users create`
-   
 Initialize ophys workflow db using `python -m ophys_etl.workflows.db.initialize_db`
 
-### start airflow
+### Launch app using docker compose
 
-`./scripts/setup.sh`
+In same dir as `workflows/docker-compose-yaml`, run
+```bash
+AIRFLOW_PROJ_DIR=<directory where you want airflow outputs to be output>
+LOG_DIR=<directory to output logs>
+AIRFLOW_WEBSERVER_HOST_PORT=<port to map webserver to on the host>
+mkdir -p $AIRFLOW_PROJ_DIR/logs $AIRFLOW_PROJ_DIR/config $AIRFLOW_PROJ_DIR/plugins
+
+echo -e "AIRFLOW_UID=$(id -u)" >> .env
+echo -e AIRFLOW_PROJ_DIR=$AIRFLOW_PROJ_DIR >> .env
+echo -e AIRFLOW_WEBSERVER_HOST_PORT=$AIRFLOW_WEBSERVER_HOST_PORT >> .env
+echo -e LOG_DIR=$LOG_DIR >> .env
+
+```
+   > **_IMPORTANT:_**  Use /ifs instead of /allen for `AIRFLOW_PROJ_DIR`
+
+Place app_config_dev.yml in same directory as docker-compose.yaml
+
+Run `docker compose build`. Make sure to pass in the arguments for the `args` as defined in `build.args` in the `docker-compose.yaml` by passing `build-arg <arg>=...`
+
+Run `docker compose up airflow-init`
+
+Run `docker compose up`
+
+### Environment variables
+    
+Required environment variables (only when not running using docker-compose.yaml or in production):
+
+| Env var                           | Description                   |
+|-----------------------------------|-------------------------------|
+| OPHYS_WORKFLOW_APP_CONFIG_PATH    | Path to app config .yaml file |
 
 ## Testing
 
 A script that can be used for testing is `ophys_etl/workflows/scrips/run_pipeline_end_to_end_test.py`
-
-To run script from scratch:
-
-1. stop airflow services
-
-    `pkill airflow`
-
-2. Reset airflow db
-    ```bash
-    airflow db reset
-    airflow db init
-    airflow users create ...
-    ```
-
-
-3. Reset the ophys processing db
-
-    **Postgres** 
-
-    - Delete db by right clicking on db in pgadmin and clicking "Delete/drop"
-    - Create the db again in pgadmin
-   
-    **Sqlite**
-    - `rm` db file
-
-4. Initialize the ophys db
-
-    - `rm` model file passed to `initialize_db`
-    - Run `initialize_db` again
-
-
-5. start airflow
-
-    run `ophys_etl/workflows/scripts/setup.sh`
-
-6. Start dags in airlflow UI
-
-7. run `run_pipeline_:xend_to_end_test.py`
 
 ## Deployment
 

@@ -1,7 +1,5 @@
 FROM apache/airflow:2.6.3
 
-ARG ophys_etl_branch=main
-
 # dev or prod
 ARG env
 
@@ -10,8 +8,6 @@ ARG host_username
 ARG host_userid
 
 ARG app_config_name=app_config.yml
-
-ENV AWS_DEFAULT_REGION=us-west-2
 
 RUN if [ $env != 'dev' ] && [ $env != 'prod' ]; then \
         echo "env must be set to 'dev' or 'prod'"; \
@@ -32,7 +28,7 @@ USER $host_username:root
 
 ENV PATH "$PATH:/home/$host_username/.local/bin"
 
-RUN git clone -b $ophys_etl_branch https://github.com/AllenInstitute/ophys_etl_pipelines /opt/airflow/ophys_etl_pipelines
+COPY --chown=$host_username:root . /opt/airflow/ophys_etl_pipelines
 
 RUN if [ $env = "prod" ]; then \
         pip install /opt/airflow/ophys_etl_pipelines[workflow,pytorch_deps,deepinterpolation]; \
@@ -48,6 +44,6 @@ RUN pip install psycopg2-binary
 # Copy dags into expected place
 RUN cp -r /opt/airflow/ophys_etl_pipelines/src/ophys_etl/workflows/on_prem/dags/* /opt/airflow/dags
 
-ADD $app_config_name /opt/airflow/app_config.yml
+RUN cp /opt/airflow/ophys_etl_pipelines/src/ophys_etl/workflows/$app_config_name /opt/airflow/app_config.yml
 
 ENV OPHYS_WORKFLOW_APP_CONFIG_PATH=/opt/airflow/app_config.yml

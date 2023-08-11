@@ -2,19 +2,15 @@
 ---
 x-airflow-common:
   &airflow-common
-  # In order to add custom dependencies or upgrade provider packages you can use your extended image.
-  # Comment the image line, place your Dockerfile in the directory where you placed the docker-compose.yaml
-  # and uncomment the "build" line below, Then run `docker-compose build` to build the images.
   build:
     context: ../../../
-    dockerfile: ./Dockerfile
+    dockerfile: src/ophys_etl/workflows/Dockerfile
     args:
       - env=dev
       - host_username
       - host_userid
-      - app_config_name=app_config_dev.yml
-      # ophys etl branch to initiate docker container with
-      - ophys_etl_branch
+      # name of app_config.yml (e.g app_config_dev.yml)
+      - app_config_name
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -51,13 +47,13 @@ x-airflow-common:
 
 services:
   postgres:
-    image: postgres:13
+    image: postgres:14
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
       POSTGRES_DB: airflow
     volumes:
-      - postgres-db-volume:/var/lib/postgresql/data
+      - ${AIRFLOW_PROJ_DIR}/postgresql/data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
@@ -67,6 +63,10 @@ services:
 
   airflow-webserver:
     <<: *airflow-common
+    build:
+      context: ../../../
+      dockerfile: src/ophys_etl/workflows/Dockerfile
+    image: "ophys-processing-dev-airflow-webserver-${AIRFLOW_UID}"
     command: webserver
     ports:
       - "${AIRFLOW_WEBSERVER_HOST_PORT}:8080"
@@ -84,6 +84,10 @@ services:
 
   airflow-scheduler:
     <<: *airflow-common
+    build:
+      context: ../../../
+      dockerfile: src/ophys_etl/workflows/Dockerfile
+    image: "ophys-processing-dev-airflow-scheduler-${AIRFLOW_UID}"
     command: scheduler
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
@@ -99,6 +103,10 @@ services:
 
   airflow-triggerer:
     <<: *airflow-common
+    build:
+      context: ../../../
+      dockerfile: src/ophys_etl/workflows/Dockerfile
+    image: "ophys-processing-dev-airflow-triggerer-${AIRFLOW_UID}"
     command: triggerer
     healthcheck:
       test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
@@ -114,6 +122,10 @@ services:
 
   airflow-init:
     <<: *airflow-common
+    build:
+      context: ../../../
+      dockerfile: src/ophys_etl/workflows/Dockerfile
+    image: "ophys-processing-dev-airflow-init-${AIRFLOW_UID}"
     entrypoint: /bin/bash
     # yamllint disable rule:line-length
     command:
@@ -198,7 +210,6 @@ services:
       - airflow
 
 volumes:
-  postgres-db-volume:
   allen:
     driver: local
     driver_opts:

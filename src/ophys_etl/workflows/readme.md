@@ -12,22 +12,17 @@ Initialize ophys workflow db using `python -m ophys_etl.workflows.db.initialize_
 
 In same dir as `workflows/docker-compose-yaml`, run
 ```bash
-AIRFLOW_PROJ_DIR=<directory where you want airflow outputs to be output>
-LOG_DIR=<directory to output logs>
+BASE_DIR=<base directory to store logs in>
 AIRFLOW_WEBSERVER_HOST_PORT=<port to map webserver to on the host>
-mkdir -p $AIRFLOW_PROJ_DIR/logs $AIRFLOW_PROJ_DIR/config $AIRFLOW_PROJ_DIR/plugins
 
 echo -e "AIRFLOW_UID=$(id -u)" >> .env
-echo -e AIRFLOW_PROJ_DIR=$AIRFLOW_PROJ_DIR >> .env
+echo -e BASE_DIR=$BASE_DIR >> .env
 echo -e AIRFLOW_WEBSERVER_HOST_PORT=$AIRFLOW_WEBSERVER_HOST_PORT >> .env
-echo -e LOG_DIR=$LOG_DIR >> .env
-
 ```
-   > **_IMPORTANT:_**  Use /ifs instead of /allen for `AIRFLOW_PROJ_DIR`
 
 Place app_config_dev.yml in same directory as docker-compose.yaml
 
-Run `docker compose build`. Make sure to pass in the arguments for the `args` as defined in `build.args` in the `docker-compose.yaml` by passing `build-arg <arg>=...`
+Run `docker compose build`. Make sure to pass in the arguments for the `args` as defined in `build.args` in the `docker-compose.yaml` by passing `--build-arg <arg>=...`
 
 Run `docker compose up airflow-init`
 

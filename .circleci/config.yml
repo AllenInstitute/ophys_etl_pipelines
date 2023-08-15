@@ -40,8 +40,6 @@ commands:
         default: tests
       coverage_executable_path:
         type: string
-        # will default to /envs/<conda_env>/bin/coverage in run_and_test.sh
-        default: ""
     steps:
       - run:
           name: Run docker image << parameters.test_name >> tests
@@ -84,6 +82,7 @@ commands:
           docker_tag: ${CIRCLE_SHA1}
           pytest_mark: "event_detect_only"
           conda_env: event_detection
+          coverage_executable_path: "/envs/event_detection/bin/coverage"
       - test:
           test_name: "deepinterpolation"
           python_version: <<parameters.python_version>>
@@ -98,7 +97,7 @@ commands:
           docker_tag: ${CIRCLE_SHA1}
           pytest_mark: "not event_detect_only and not deepinterpolation_only"
           conda_env: ophys_etl
-
+          coverage_executable_path: "/envs/ophys_etl/bin/coverage"
   smoke_test_and_push:
     steps:
       - run:

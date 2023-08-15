@@ -3,7 +3,7 @@ PYTHON_VERSION=${2}
 ENV_SPECIFICATION=${3}  # a name to use for coverage output file
 OUTPUT_XML=${4}    # the name of the coverage xml file (not its full path)
 TEST_DIRECTORY=${5}
-COVERAGE_EXE_PATH=${6:-/envs/${ENV_SPECIFICATION}/bin/coverage}  # path to coverage executable
+COVERAGE_EXE_PATH=${6}  # path to coverage executable
 
 echo "mark: "${PYTEST_MARK}
 echo "version: "${PYTHON_VERSION}

@@ -6,7 +6,7 @@ import numpy as np
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from sqlmodel import Session
-
+from ophys_etl.modules.segment_postprocess.schemas import SegmentPostProcessSchema # noqa: E501
 from ophys_etl.modules import segment_postprocess
 from ophys_etl.utils.rois import is_inside_motion_border
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
@@ -43,7 +43,7 @@ class SegmentationModule(PipelineModule):
 
     @property
     def inputs(self) -> Dict:
-        return {
+        return SegmentPostProcessSchema().load(data={
             "suite2p_args": {
                 "h5py": self._denoised_ophys_movie_file,
                 "movie_frame_rate_hz": (
@@ -51,7 +51,7 @@ class SegmentationModule(PipelineModule):
                 )
             },
             "postprocess_args": {}
-        }
+        })
 
     @property
     def outputs(self) -> List[OutputFile]:

@@ -4,6 +4,7 @@ from typing import List
 from ophys_etl.workflows.app_config.app_config import app_config
 
 from ophys_etl.modules import dff
+from ophys_etl.modules.dff.schemas import DffJobSchema
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
@@ -49,7 +50,7 @@ class DFOverFCalculation(PipelineModule):
         if app_config.is_debug:
             # Making smaller due to short movie, otherwise it crashes
             module_args['long_baseline_filter_s'] = 6
-        return module_args
+        return DffJobSchema().load(data=module_args)
 
     @property
     def _output_file_path(self):

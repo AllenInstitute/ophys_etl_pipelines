@@ -2,6 +2,7 @@ from types import ModuleType
 from typing import List
 
 from ophys_etl.modules import neuropil_correction
+from ophys_etl.modules.neuropil_correction.schemas import NeuropilCorrectionJobSchema # noqa: E501
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
@@ -48,7 +49,7 @@ class NeuropilCorrection(PipelineModule):
             "storage_directory": str(self.output_path),
             "neuropil_trace_file": str(self._neuropil_traces_file)
         }
-        return module_args
+        return NeuropilCorrectionJobSchema().load(data=module_args)
 
     @property
     def outputs(self) -> List[OutputFile]:

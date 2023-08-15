@@ -2,6 +2,7 @@ from types import ModuleType
 from typing import Dict, List
 
 from ophys_etl.modules import trace_extraction
+from ophys_etl.modules.trace_extraction.schemas import TraceExtractionInputSchema
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
@@ -37,14 +38,14 @@ class TraceExtractionModule(PipelineModule):
 
     @property
     def inputs(self) -> Dict:
-        return {
+        return TraceExtractionInputSchema().load(data={
             "storage_directory": self.output_path,
             "motion_border": self.ophys_experiment.motion_border.to_dict(),
             "motion_corrected_stack": (
                 self._motion_corrected_ophys_movie_file),
             "rois": [x.to_dict() for x in
                      self.ophys_experiment.rois],
-        }
+        })
 
     @property
     def outputs(self) -> List[OutputFile]:

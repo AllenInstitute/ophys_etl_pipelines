@@ -2,6 +2,7 @@ from types import ModuleType
 from typing import List
 
 from ophys_etl.modules import demix
+from ophys_etl.modules.demix.schemas import DemixJobSchema
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
@@ -57,7 +58,7 @@ class DemixTracesModule(PipelineModule):
             "roi_masks": [x.to_dict(include_exclusion_labels=True)
                           for x in self.ophys_experiment.rois],
         }
-        return module_args
+        return DemixJobSchema().load(data=module_args)
 
     @property
     def outputs(self) -> List[OutputFile]:

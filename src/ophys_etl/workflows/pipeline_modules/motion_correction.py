@@ -9,6 +9,7 @@ from ophys_etl.workflows.app_config.app_config import app_config
 from sqlmodel import Session
 
 from ophys_etl.modules import suite2p_registration
+from ophys_etl.modules.suite2p_registration.schemas import Suite2PRegistrationInputSchema # noqa: E501
 from ophys_etl.utils.motion_border import get_max_correction_from_file
 from ophys_etl.workflows.db.schemas import MotionCorrectionRun
 from ophys_etl.workflows.output_file import OutputFile
@@ -29,7 +30,7 @@ class MotionCorrectionModule(PipelineModule):
         return WorkflowStepEnum.MOTION_CORRECTION
 
     @property
-    def inputs(self):
+    def inputs(self) -> Dict:
         if app_config.is_debug:
             movie_file_path = self._construct_short_movie()
         else:
@@ -78,7 +79,7 @@ class MotionCorrectionModule(PipelineModule):
                 )
             ),
         }
-        return module_args
+        return Suite2PRegistrationInputSchema().load(data=module_args)
 
     @property
     def outputs(self) -> List[OutputFile]:

@@ -41,7 +41,7 @@ commands:
       coverage_executable_path:
         type: string
         # will default to /envs/<conda_env>/bin/coverage in run_and_test.sh
-        default: ""
+        default:
     steps:
       - run:
           name: Run docker image << parameters.test_name >> tests

@@ -38,6 +38,10 @@ commands:
       test_directory:
         type: string
         default: tests
+      coverage_executable_path:
+        type: string
+        # will default to /envs/<conda_env>/bin/coverage in run_and_test.sh
+        default: ""
     steps:
       - run:
           name: Run docker image << parameters.test_name >> tests
@@ -87,6 +91,7 @@ commands:
           pytest_mark: deepinterpolation_only
           conda_env: ophys_etl
           test_directory: tests/modules/denoising/
+          coverage_executable_path: /usr/local/bin/coverage
       - test:
           test_name: "general"
           python_version: <<parameters.python_version>>

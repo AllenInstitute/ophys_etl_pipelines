@@ -26,5 +26,6 @@ class _DenoisingModule(PipelineModule, ABC):
         ]
         self._motion_corrected_path = str(motion_corrected_ophys_movie.path)
 
+    @property
     def python_interpreter_path(self) -> str:
         return '/usr/bin/python3'

@@ -4,7 +4,8 @@ import os
 import shutil
 from pathlib import Path
 from unittest.mock import patch
-
+from argschema import ArgSchema
+from argschema.fields import Int
 import pytest
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
@@ -33,6 +34,9 @@ from ophys_etl.workflows.pipeline_module import (
 )  # noqa #402
 from ophys_etl.workflows.pipeline_module import PipelineModule
 
+class _DummyModArgSchema(ArgSchema):
+    foo = Int(required=True)
+    bar = Int(required=True)
 
 class _DummyMod(PipelineModule):
     _temp_out = tempfile.TemporaryDirectory()
@@ -42,7 +46,11 @@ class _DummyMod(PipelineModule):
         return WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE
 
     @property
-    def inputs(self) -> Dict:
+    def module_argschema(self) -> _DummyModArgSchema:
+        return _DummyModArgSchema()
+
+    @property
+    def module_args(self) -> Dict:
         return {"foo": 1, "bar": 2}
 
     @property

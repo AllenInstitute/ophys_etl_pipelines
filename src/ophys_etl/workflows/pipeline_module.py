@@ -4,6 +4,7 @@ import datetime
 import json
 import logging
 import os
+from argschema import ArgSchema
 from pathlib import Path
 from types import ModuleType
 from typing import Dict, List, Optional
@@ -62,11 +63,18 @@ class PipelineModule(abc.ABC):
         self._ophys_container = ophys_container
         self._docker_tag = docker_tag
         self._now = datetime.datetime.now()
-
         os.makedirs(self.output_path, exist_ok=True)
 
         if prevent_file_overwrites:
             self._validate_file_overwrite()
+
+        if isinstance(self.module_argschema, ArgSchema):
+            self.inputs = self.module_argschema.load(data=self.module_args)
+        else:
+            raise ValueError(
+                f"module_argschema must be subclass of ArgSchema, "
+                f"got {type(self.module_argschema)}"
+            )
 
     @property
     @abc.abstractmethod
@@ -108,8 +116,14 @@ class PipelineModule(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def inputs(self) -> Dict:
-        """Input args to module"""
+    def module_argschema(self) -> ArgSchema:
+        """Argschema to validate module_args"""
+        raise NotImplementedError
+
+    @property
+    @abc.abstractmethod
+    def module_args(self) -> Dict:
+        """Module args"""
         raise NotImplementedError
 
     @property

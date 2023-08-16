@@ -42,8 +42,12 @@ class SegmentationModule(PipelineModule):
         return WorkflowStepEnum.SEGMENTATION
 
     @property
-    def inputs(self) -> Dict:
-        return SegmentPostProcessSchema().load(data={
+    def module_argschema(self) -> SegmentPostProcessSchema:
+        return SegmentPostProcessSchema()
+
+    @property
+    def module_args(self) -> Dict:
+        return {
             "suite2p_args": {
                 "h5py": self._denoised_ophys_movie_file,
                 "movie_frame_rate_hz": (
@@ -51,7 +55,7 @@ class SegmentationModule(PipelineModule):
                 )
             },
             "postprocess_args": {}
-        })
+        }
 
     @property
     def outputs(self) -> List[OutputFile]:

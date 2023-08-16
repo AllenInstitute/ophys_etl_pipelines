@@ -31,10 +31,10 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.neuropil_correction i
     NeuropilCorrection
 )
 from ophys_etl.workflows.pipeline_modules.trace_processing.dff_calculation import (  # noqa E501
-    DFOverFCalculation,
+    DffCalculationModule,
 )
 from ophys_etl.workflows.pipeline_modules.trace_processing.event_detection import (  # noqa E501
-    EventDetection,
+    EventDetectionModule,
 )
 from ophys_etl.workflows.tasks import wait_for_decrosstalk_to_finish
 from ophys_etl.workflows.utils.dag_utils import trigger_dag_run
@@ -304,7 +304,7 @@ def ophys_processing():
         def dff(neuropil_corrected_traces):
             module_outputs = run_workflow_step(
                 slurm_config=app_config.pipeline_steps.dff.slurm_settings,
-                module=DFOverFCalculation,
+                module=DffCalculationModule,
                 workflow_step_name=WorkflowStepEnum.DFF,
                 workflow_name=WORKFLOW_NAME,
                 module_kwargs={
@@ -318,7 +318,7 @@ def ophys_processing():
             run_workflow_step(
                 slurm_config=(app_config.pipeline_steps.event_detection.
                               slurm_settings),
-                module=EventDetection,
+                module=EventDetectionModule,
                 workflow_step_name=WorkflowStepEnum.EVENT_DETECTION,
                 workflow_name=WORKFLOW_NAME,
                 module_kwargs={

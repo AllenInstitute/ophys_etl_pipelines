@@ -1,7 +1,9 @@
 from types import ModuleType
 from typing import Dict, List
+from argschema import ArgSchema
 
 from deepcell.cli.modules import create_dataset
+from deepcell.cli.modules.create_dataset import CreateDatasetInputSchema
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.output_file import OutputFile
@@ -20,7 +22,6 @@ class CreateTrainTestSplitModule(PipelineModule):
             prevent_file_overwrites=prevent_file_overwrites,
             **kwargs
         )
-
         thumbnail_dirs: OutputFile = kwargs["thumbnail_dirs"]
         self._thumbnail_dirs = thumbnail_dirs
 
@@ -29,7 +30,11 @@ class CreateTrainTestSplitModule(PipelineModule):
         return WorkflowStepEnum.ROI_CLASSIFICATION_CREATE_TRAIN_TEST_SPLIT
 
     @property
-    def inputs(self) -> Dict:
+    def module_argschema(self) -> CreateDatasetInputSchema:
+        return CreateDatasetInputSchema()
+
+    @property
+    def module_args(self) -> Dict:
         return {
             "cell_labeling_app_host": (
                 app_config.pipeline_steps.roi_classification.cell_labeling_app_host # noqa E501

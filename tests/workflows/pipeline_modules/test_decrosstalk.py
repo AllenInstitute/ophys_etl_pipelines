@@ -27,7 +27,7 @@ from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from tests.workflows.conftest import MockSQLiteDB
 
 
-class TestDecrosstalk(MockSQLiteDB):
+class TestDecrosstalkModule(MockSQLiteDB):
     @classmethod
     def setup_class(cls):
         cls._experiment_ids = [1, 2]

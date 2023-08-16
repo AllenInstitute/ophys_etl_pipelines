@@ -45,10 +45,14 @@ class DemixTracesModule(PipelineModule):
     @property
     def queue_name(self) -> WorkflowStepEnum:
         return WorkflowStepEnum.DEMIX_TRACES
+    
+    @property
+    def module_argschema(self) -> DemixJobSchema:
+        return DemixJobSchema()
 
     @property
-    def inputs(self):
-        module_args = {
+    def module_args(self):
+        return {
             "movie_h5": self._motion_corrected_ophys_movie_file,
             "traces_h5": self._roi_trace_file,
             "output_file": str(
@@ -58,7 +62,6 @@ class DemixTracesModule(PipelineModule):
             "roi_masks": [x.to_dict(include_exclusion_labels=True)
                           for x in self.ophys_experiment.rois],
         }
-        return DemixJobSchema().load(data=module_args)
 
     @property
     def outputs(self) -> List[OutputFile]:

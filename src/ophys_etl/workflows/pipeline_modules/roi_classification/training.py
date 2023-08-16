@@ -1,6 +1,7 @@
 from types import ModuleType
 from typing import Dict, List
 
+from deepcell.cli.schemas.train import TrainSchema
 from deepcell.cli.modules.cloud import train
 from sqlmodel import Session
 
@@ -34,7 +35,11 @@ class TrainingModule(PipelineModule):
         return WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING
 
     @property
-    def inputs(self) -> Dict:
+    def module_argschema(self) -> TrainSchema:
+        return TrainSchema()
+
+    @property
+    def module_args(self) -> Dict:
         return {
             "train_params": {
                 "model_inputs_path": self._model_inputs_path,

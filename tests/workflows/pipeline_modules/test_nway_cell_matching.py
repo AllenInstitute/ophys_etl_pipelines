@@ -31,7 +31,7 @@ from sqlmodel import Session, select
 from tests.workflows.conftest import MockSQLiteDB
 
 
-class TestNwayCellMatching(MockSQLiteDB):
+class TestNwayCellMatchingModule(MockSQLiteDB):
     def setup(self):
         super().setup()
         self._experiment_ids = [1, 2]

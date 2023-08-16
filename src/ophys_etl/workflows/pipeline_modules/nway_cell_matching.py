@@ -2,6 +2,7 @@ from types import ModuleType
 from typing import List, Dict
 
 import json
+from argschema import ArgSchema
 from nway import nway_matching
 from nway.schemas import OnPremGeneratedInputSchema
 from sqlmodel import Session
@@ -30,13 +31,17 @@ class NwayCellMatchingModule(PipelineModule):
         return WorkflowStepEnum.NWAY_CELL_MATCHING
 
     @property
-    def inputs(self) -> Dict:
-        return OnPremGeneratedInputSchema().load(data={
+    def module_argschema(self) -> OnPremGeneratedInputSchema:
+        return OnPremGeneratedInputSchema()
+
+    @property
+    def module_args(self) -> Dict:
+        return {
             'output_directory': str(self.output_path),
             'experiment_containers': {
                 'ophys_experiments': self._get_container_experiments_input()
             }
-        })
+        }
 
     @property
     def outputs(self) -> List[OutputFile]:

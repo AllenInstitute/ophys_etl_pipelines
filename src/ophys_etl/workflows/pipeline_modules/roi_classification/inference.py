@@ -5,6 +5,8 @@ from types import ModuleType
 from typing import Dict, List, Tuple
 
 import pandas as pd
+
+from deepcell.cli.schemas.inference import InferenceSchema
 from deepcell.cli.modules import inference
 from deepcell.datasets.model_input import ModelInput
 from sqlmodel import Session, select
@@ -60,7 +62,11 @@ class InferenceModule(PipelineModule):
         return WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE
 
     @property
-    def inputs(self) -> Dict:
+    def module_argschema(self) -> InferenceSchema:
+        return InferenceSchema()
+
+    @property
+    def module_args(self) -> Dict:
         model_params = self._get_mlflow_model_params()
         return {
             "model_inputs_paths": [self._model_inputs_path],

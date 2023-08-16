@@ -181,7 +181,7 @@ class _NeuropilCorrection(_PipelineStep):
     )
 
 
-class _DFOverFCalculation(_PipelineStep):
+class _DffCalculationModule(_PipelineStep):
     slurm_settings = SlurmSettings(
         cpus_per_task=24,
         mem=140,
@@ -189,7 +189,7 @@ class _DFOverFCalculation(_PipelineStep):
     )
 
 
-class _EventDetection(_PipelineStep):
+class _EventDetectionModule(_PipelineStep):
     slurm_settings = SlurmSettings(
         cpus_per_task=24,
         mem=90,
@@ -317,11 +317,11 @@ class _PipelineSteps(ImmutableBaseModel):
     neuropil_correction: _NeuropilCorrection = Field(
         default=_NeuropilCorrection()
     )
-    dff: _DFOverFCalculation = Field(
-        default=_DFOverFCalculation()
+    dff: _DffCalculationModule = Field(
+        default=_DffCalculationModule()
     )
-    event_detection: _EventDetection = Field(
-        default=_EventDetection()
+    event_detection: _EventDetectionModule = Field(
+        default=_EventDetectionModule()
     )
     nway_cell_matching: _NwayCellMatching = Field(default=_NwayCellMatching())
 

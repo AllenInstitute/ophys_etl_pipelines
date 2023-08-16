@@ -37,15 +37,19 @@ class TraceExtractionModule(PipelineModule):
         return WorkflowStepEnum.TRACE_EXTRACTION
 
     @property
-    def inputs(self) -> Dict:
-        return TraceExtractionInputSchema().load(data={
+    def module_argschema(self) -> TraceExtractionInputSchema:
+        return TraceExtractionInputSchema()
+
+    @property
+    def module_args(self) -> Dict:
+        return {
             "storage_directory": self.output_path,
             "motion_border": self.ophys_experiment.motion_border.to_dict(),
             "motion_corrected_stack": (
                 self._motion_corrected_ophys_movie_file),
             "rois": [x.to_dict() for x in
-                     self.ophys_experiment.rois],
-        })
+                     self.ophys_experiment.rois]
+                     }
 
     @property
     def outputs(self) -> List[OutputFile]:

@@ -21,7 +21,7 @@ from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from tests.workflows.conftest import MockSQLiteDB
 
 
-class TestSegmentation(MockSQLiteDB):
+class TestSegmentationModule(MockSQLiteDB):
     def setup(self):
         super().setup()
 

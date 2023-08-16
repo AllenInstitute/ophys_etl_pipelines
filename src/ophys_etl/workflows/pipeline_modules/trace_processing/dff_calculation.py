@@ -1,6 +1,8 @@
 from types import ModuleType
 from typing import List
 
+from argschema import ArgSchema
+
 from ophys_etl.workflows.app_config.app_config import app_config
 
 from ophys_etl.modules import dff
@@ -12,7 +14,7 @@ from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 
 
-class DFOverFCalculation(PipelineModule):
+class DffCalculationModule(PipelineModule):
     """Wrapper around df over f module"""
 
     def __init__(
@@ -41,16 +43,20 @@ class DFOverFCalculation(PipelineModule):
         return WorkflowStepEnum.DFF
 
     @property
-    def inputs(self):
-        module_args = {
+    def module_argschema(self) -> DffJobSchema:
+        return DffJobSchema()
+
+    @property
+    def module_args(self):
+        args = {
             "input_file": self._neuropil_corrected_traces,
             "output_file": str(self._output_file_path),
             "movie_frame_rate_hz": self.ophys_experiment.movie_frame_rate_hz
         }
         if app_config.is_debug:
             # Making smaller due to short movie, otherwise it crashes
-            module_args['long_baseline_filter_s'] = 6
-        return DffJobSchema().load(data=module_args)
+            args['long_baseline_filter_s'] = 6
+        return args
 
     @property
     def _output_file_path(self):

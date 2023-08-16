@@ -30,14 +30,18 @@ class MotionCorrectionModule(PipelineModule):
         return WorkflowStepEnum.MOTION_CORRECTION
 
     @property
-    def inputs(self) -> Dict:
+    def module_argschema(self) -> Suite2PRegistrationInputSchema:
+        return Suite2PRegistrationInputSchema()
+
+    @property
+    def module_args(self) -> Dict:
         if app_config.is_debug:
             movie_file_path = self._construct_short_movie()
         else:
             movie_file_path = (
                     self._ophys_experiment.storage_directory /
                     self._ophys_experiment.raw_movie_filename)
-        module_args = {
+        return {
             "movie_frame_rate_hz": self._ophys_experiment.movie_frame_rate_hz,
             "suite2p_args": {
                 "h5py": str(movie_file_path)
@@ -79,7 +83,6 @@ class MotionCorrectionModule(PipelineModule):
                 )
             ),
         }
-        return Suite2PRegistrationInputSchema().load(data=module_args)
 
     @property
     def outputs(self) -> List[OutputFile]:

@@ -1,6 +1,6 @@
 from types import ModuleType
 from typing import Dict, List
-
+from ophys_etl.modules.roi_cell_classifier.compute_classifier_artifacts import ClassifierArtifactsInputSchema # noqa: E501
 from ophys_etl.modules.roi_cell_classifier import compute_classifier_artifacts
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
@@ -50,7 +50,11 @@ class GenerateThumbnailsModule(PipelineModule):
         return WorkflowStepEnum.ROI_CLASSIFICATION_GENERATE_THUMBNAILS
 
     @property
-    def inputs(self) -> Dict:
+    def module_argschema(self) -> ClassifierArtifactsInputSchema:
+        return ClassifierArtifactsInputSchema()
+
+    @property
+    def module_args(self) -> Dict:
         d = {
             "experiment_id": str(self._ophys_experiment.id),
             "video_path": self._denoised_ophys_movie_file,

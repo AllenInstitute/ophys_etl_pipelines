@@ -3,6 +3,7 @@ from types import ModuleType
 from typing import List, Dict
 
 import json
+from argschema import ArgSchema
 
 from sqlmodel import Session
 
@@ -40,7 +41,11 @@ class DecrosstalkModule(PipelineModule):
         return WorkflowStepEnum.DECROSSTALK
 
     @property
-    def inputs(self) -> Dict:
+    def module_argschema(self) -> DecrosstalkInputSchema:
+        return DecrosstalkInputSchema()
+
+    @property
+    def module_args(self) -> Dict:
         ophys_experiments = [
             OphysExperiment.from_id(id=ophys_experiment_id) for
             ophys_experiment_id in
@@ -56,7 +61,7 @@ class DecrosstalkModule(PipelineModule):
                 ophys_experiment.imaging_plane_group] \
                 .append(ophys_experiment)
 
-        return DecrosstalkInputSchema().load(data={
+        return {
             'ophys_session_id': self.ophys_session.id,
             'qc_output_dir': str(self.output_path),
             'coupled_planes': [{
@@ -70,7 +75,7 @@ class DecrosstalkModule(PipelineModule):
                         imaging_plane_group]
                 ]
             } for imaging_plane_group in ipg_ophys_experiment_map]
-        })
+        }
 
     @property
     def outputs(self) -> List[OutputFile]:

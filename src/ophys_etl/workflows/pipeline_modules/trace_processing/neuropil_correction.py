@@ -1,5 +1,5 @@
 from types import ModuleType
-from typing import List
+from typing import List, Dict
 
 from ophys_etl.modules import neuropil_correction
 from ophys_etl.modules.neuropil_correction.schemas import NeuropilCorrectionJobSchema # noqa: E501
@@ -43,13 +43,16 @@ class NeuropilCorrection(PipelineModule):
         return WorkflowStepEnum.NEUROPIL_CORRECTION
 
     @property
-    def inputs(self):
-        module_args = {
+    def module_argschema(self) -> NeuropilCorrectionJobSchema:
+        return NeuropilCorrectionJobSchema()
+
+    @property
+    def module_args(self) -> Dict:
+        return {
             "roi_trace_file": self._demixed_roi_traces_file,
             "storage_directory": str(self.output_path),
             "neuropil_trace_file": str(self._neuropil_traces_file)
         }
-        return NeuropilCorrectionJobSchema().load(data=module_args)
 
     @property
     def outputs(self) -> List[OutputFile]:

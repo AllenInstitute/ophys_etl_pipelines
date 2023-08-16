@@ -2,6 +2,7 @@
 from types import ModuleType
 from typing import Dict, List
 
+from deepinterpolation.cli.schemas import InferenceInputSchema
 from ophys_etl.modules.denoising import inference
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.app_config.app_config import app_config
@@ -36,7 +37,11 @@ class DenoisingInferenceModule(_DenoisingModule):
         return WorkflowStepEnum.DENOISING_INFERENCE
 
     @property
-    def inputs(self) -> Dict:
+    def module_argschema(self) -> InferenceInputSchema:
+        return InferenceInputSchema()
+
+    @property
+    def module_args(self) -> Dict:
         return {
             "generator_params": {
                 "batch_size": app_config.pipeline_steps.denoising.batch_size,

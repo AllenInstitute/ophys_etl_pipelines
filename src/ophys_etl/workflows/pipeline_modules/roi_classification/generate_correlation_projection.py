@@ -1,6 +1,7 @@
 from types import ModuleType
 from typing import Dict, List
 
+from ophys_etl.modules.segmentation.modules.schemas import CalculateEdgesInputSchema # noqa E501
 from ophys_etl.modules.segmentation.modules import calculate_edges
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
@@ -37,7 +38,11 @@ class GenerateCorrelationProjectionModule(PipelineModule):
         )
 
     @property
-    def inputs(self) -> Dict:
+    def module_argschema(self) -> CalculateEdgesInputSchema:
+        return CalculateEdgesInputSchema()
+
+    @property
+    def module_args(self) -> Dict:
         return {
             "video_path": self._denoised_ophys_movie_file,
             "graph_output": (

@@ -18,7 +18,7 @@ from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
-from ophys_etl.workflows.pipeline_modules.trace_processing.event_detection import EventDetection  # noqa E501
+from ophys_etl.workflows.pipeline_modules.trace_processing.event_detection import EventDetectionModule  # noqa E501
 
 
 class TestEventDetectionModule(MockSQLiteDB):
@@ -93,7 +93,7 @@ class TestEventDetectionModule(MockSQLiteDB):
             full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
         )
 
-        mod = EventDetection(
+        mod = EventDetectionModule(
             docker_tag='main',
             ophys_experiment=ophys_experiment,
             dff_traces=OutputFile(

@@ -4,7 +4,7 @@ import datetime
 import json
 import logging
 import os
-from argschema import ArgSchema
+from argschema.schemas import DefaultSchema
 from pathlib import Path
 from types import ModuleType
 from typing import Dict, List, Optional
@@ -68,11 +68,11 @@ class PipelineModule(abc.ABC):
         if prevent_file_overwrites:
             self._validate_file_overwrite()
 
-        if isinstance(self.module_argschema, ArgSchema):
+        if isinstance(self.module_argschema, DefaultSchema):
             self.inputs = self.module_argschema.load(data=self.module_args)
         else:
             raise ValueError(
-                f"module_argschema must be subclass of ArgSchema, "
+                f"module_argschema must be subclass of DefaultSchema, "
                 f"got {type(self.module_argschema)}"
             )
 
@@ -116,7 +116,7 @@ class PipelineModule(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def module_argschema(self) -> ArgSchema:
+    def module_argschema(self) -> DefaultSchema:
         """Argschema to validate module_args"""
         raise NotImplementedError
 

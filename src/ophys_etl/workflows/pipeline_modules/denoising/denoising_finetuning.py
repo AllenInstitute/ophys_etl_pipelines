@@ -55,6 +55,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "output_dir": str(self.output_path),
                 "period_save": 1,
                 "steps_per_epoch": 20,
+                "verbose": 2
             },
             "generator_params": {
                 "batch_size": app_config.pipeline_steps.denoising.batch_size,

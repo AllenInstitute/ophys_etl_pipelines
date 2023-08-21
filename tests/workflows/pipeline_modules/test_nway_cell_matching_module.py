@@ -1,6 +1,7 @@
 import datetime
+import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock
 
 import json
 
@@ -49,7 +50,8 @@ class TestNwayCellMatchingModule(MockSQLiteDB):
                 [x['id'] for x in rois]
             ]
         }
-
+        self.temp_dir_obj = tempfile.TemporaryDirectory()
+        self.temp_dir = Path(self.temp_dir_obj.name)
         with Session(self._engine) as session:
             for oe_id in self._experiment_ids:
                 # create dummy file
@@ -137,8 +139,14 @@ class TestNwayCellMatchingModule(MockSQLiteDB):
                         )
 
     @patch.object(OphysExperiment, 'from_id')
+    @patch.object(OphysSession, 'output_dir',
+                  new_callable=PropertyMock)
+    @patch.object(NwayCellMatchingModule, 'output_path',
+                  new_callable=PropertyMock)
     def test_input(
         self,
+        mock_output_path,
+        mock_output_dir,
         mock_ophys_experiment_from_id
     ):
         """Smoke test that we can construct the inputs"""
@@ -154,11 +162,8 @@ class TestNwayCellMatchingModule(MockSQLiteDB):
                 full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
                 equipment_name='MESO.1'
             )
-
-        mod = NwayCellMatchingModule(
-            docker_tag='main',
-            ophys_container=OphysContainer(id='1', specimen=Specimen(id='1'))
-        )
+        mock_output_dir.return_value = self.temp_dir
+        mock_output_path.return_value = self.temp_dir
 
         with patch('ophys_etl.workflows.pipeline_modules.nway_cell_matching'
                    '.engine', new=self._engine):
@@ -167,6 +172,10 @@ class TestNwayCellMatchingModule(MockSQLiteDB):
                     new=self._engine):
                 with patch.object(OphysContainer, 'get_ophys_experiment_ids',
                                   return_value=self._experiment_ids):
+                    mod = NwayCellMatchingModule(
+                        docker_tag='main',
+                        ophys_container=OphysContainer(id='1', specimen=Specimen(id='1'))
+                    )
                     mod.inputs
 
     def test_save_matches_to_db(self):
@@ -205,3 +214,6 @@ class TestNwayCellMatchingModule(MockSQLiteDB):
             match.match_id == f'{matches[0].nway_cell_matching_run_id}_0'
             for match in matches
         ])
+    
+    def teardown(self):
+        self.temp_dir_obj.cleanup()

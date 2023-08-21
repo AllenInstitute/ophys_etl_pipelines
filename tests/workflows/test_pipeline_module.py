@@ -2,8 +2,9 @@ import datetime
 import json
 import os
 import shutil
+import tempfile
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock
 from argschema import ArgSchema
 from argschema.fields import Int
 import pytest
@@ -82,23 +83,28 @@ class TestPipelineModule:
             second=1,
             microsecond=1,
         )
-
+        cls.temp_dir_obj = tempfile.TemporaryDirectory()
+        cls.temp_dir = Path(cls.temp_dir_obj.name)
         with patch("datetime.datetime", wraps=datetime.datetime) as mock_dt:
-            mock_dt.now.return_value = cls._now
-            cls._dummy_mod = _DummyMod(
-                ophys_experiment=OphysExperiment(
-                    id=1,
-                    session=OphysSession(id=2, specimen=Specimen("1")),
-                    container=OphysContainer(id=1, specimen=Specimen("1")),
-                    specimen=Specimen(id="3"),
-                    storage_directory=Path("/storage_dir"),
-                    raw_movie_filename=Path("mov.h5"),
-                    movie_frame_rate_hz=11.0,
-                    equipment_name='MESO.1',
-                    full_genotype="abcd",
-                ),
-                docker_tag="main",
-            )
+            with patch("ophys_etl.workflows.ophys_experiment.OphysSession",
+                new_callable=PropertyMock) as mock_output_dir:
+                mock_dt.now.return_value = cls._now
+                mock_output_dir.return_value = cls.temp_dir
+                
+                cls._dummy_mod = _DummyMod(
+                    ophys_experiment=OphysExperiment(
+                        id=1,
+                        session=OphysSession(id=2, specimen=Specimen("1")),
+                        container=OphysContainer(id=1, specimen=Specimen("1")),
+                        specimen=Specimen(id="3"),
+                        storage_directory=Path("/storage_dir"),
+                        raw_movie_filename=Path("mov.h5"),
+                        movie_frame_rate_hz=11.0,
+                        equipment_name='MESO.1',
+                        full_genotype="abcd",
+                    ),
+                    docker_tag="main",
+                )
 
     @classmethod
     def teardown_class(cls):

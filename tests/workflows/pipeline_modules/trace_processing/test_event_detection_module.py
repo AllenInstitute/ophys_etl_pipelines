@@ -31,6 +31,8 @@ class TestEventDetectionModule(MockSQLiteDB):
 
         _, dff_trace_path = tempfile.mkstemp(suffix='.h5')
         self.dff_trace_path = Path(dff_trace_path)
+        self.temp_dir = self.dff_trace_path.parent
+
         with h5py.File(self.dff_trace_path, 'w') as h5:
             h5.create_dataset('roi_names', np.arange(10))
 
@@ -55,12 +57,18 @@ class TestEventDetectionModule(MockSQLiteDB):
                 validate_files_exist=False
             )
 
-    def tearDown(self):
+    def teardown(self):
         self.dff_trace_path.unlink()
 
     @patch.object(OphysExperiment, 'rois',
                   new_callable=PropertyMock)
+    @patch.object(OphysSession, 'output_dir',
+                  new_callable=PropertyMock)
+    @patch.object(EventDetectionModule, 'output_path',
+                  new_callable=PropertyMock)
     def test_inputs(self,
+                    mock_output_path,
+                    mock_output_dir,
                     mock_rois):
         """Test that inputs are correctly formated for input into the module.
         """
@@ -81,6 +89,8 @@ class TestEventDetectionModule(MockSQLiteDB):
             )
         ]
         mock_rois.return_value = [mock_roi]
+        mock_output_path.return_value = self.temp_dir
+        mock_output_dir.return_value = self.temp_dir
         ophys_experiment = OphysExperiment(
             id=self._experiment_id,
             movie_frame_rate_hz=31.0,
@@ -105,3 +115,4 @@ class TestEventDetectionModule(MockSQLiteDB):
         )
 
         mod.inputs
+

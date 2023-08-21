@@ -1,4 +1,5 @@
 import datetime
+import tempfile
 from pathlib import Path
 from unittest.mock import patch, PropertyMock
 
@@ -38,6 +39,8 @@ class TestDecrosstalkModule(MockSQLiteDB):
         xy_offset_path = (
             Path(__file__).parent / "resources" / "rigid_motion_transform.csv"
         )
+        self.temp_dir_obj = tempfile.TemporaryDirectory()
+        self.temp_dir = Path(self.temp_dir_obj.name)
         with Session(self._engine) as session:
             for oe_id in self._experiment_ids:
                 save_job_run_to_db(
@@ -108,12 +111,16 @@ class TestDecrosstalkModule(MockSQLiteDB):
                   new_callable=PropertyMock)
     @patch.object(OphysExperiment, 'rois',
                   new_callable=PropertyMock)
+    @patch.object(OphysSession, 'output_dir',
+                  new_callable=PropertyMock)
     def test_inputs(self,
+                    mock_output_dir,
                     mock_rois,
                     mock_motion_border,
                     mock_ophys_session_oe_ids,
-                    mock_ophys_experiment_from_id
+                    mock_ophys_experiment_from_id,
                     ):
+
         ophys_session = OphysSession(
             id=1,
             specimen=Specimen(id='specimen_1')
@@ -159,14 +166,15 @@ class TestDecrosstalkModule(MockSQLiteDB):
                 full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
                 equipment_name='MESO.1'
             )
-
-        mod = DecrosstalkModule(
-            docker_tag='main',
-            ophys_session=ophys_session
-        )
+        mock_output_dir.return_value = self.temp_dir
+        
 
         with patch('ophys_etl.workflows.pipeline_modules.decrosstalk.engine',
                    new=self._engine):
+            mod = DecrosstalkModule(
+                docker_tag='main',
+                ophys_session=ophys_session
+            )
             obtained_inputs = mod.inputs
 
         expected_inputs = {
@@ -311,3 +319,6 @@ class TestDecrosstalkModule(MockSQLiteDB):
                     assert getattr(roi, f'is_{flag}')
                 else:
                     assert getattr(roi, f'is_{flag}') is False
+
+    def teardown(self):
+        self.temp_dir_obj.cleanup()

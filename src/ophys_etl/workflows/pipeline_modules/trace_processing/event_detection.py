@@ -19,17 +19,17 @@ class EventDetectionModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs
-        )
-
         dff_traces: OutputFile = kwargs[
             "dff_traces"
         ]
         self._dff_traces_file = str(
             dff_traces.path
+        )
+    
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs
         )
 
     @property

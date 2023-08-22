@@ -86,25 +86,22 @@ class TestPipelineModule:
         cls.temp_dir_obj = tempfile.TemporaryDirectory()
         cls.temp_dir = Path(cls.temp_dir_obj.name)
         with patch("datetime.datetime", wraps=datetime.datetime) as mock_dt:
-            with patch("ophys_etl.workflows.ophys_experiment.OphysSession",
-                new_callable=PropertyMock) as mock_output_dir:
-                mock_dt.now.return_value = cls._now
-                mock_output_dir.return_value = cls.temp_dir
-                
-                cls._dummy_mod = _DummyMod(
-                    ophys_experiment=OphysExperiment(
-                        id=1,
-                        session=OphysSession(id=2, specimen=Specimen("1")),
-                        container=OphysContainer(id=1, specimen=Specimen("1")),
-                        specimen=Specimen(id="3"),
-                        storage_directory=Path("/storage_dir"),
-                        raw_movie_filename=Path("mov.h5"),
-                        movie_frame_rate_hz=11.0,
-                        equipment_name='MESO.1',
-                        full_genotype="abcd",
-                    ),
-                    docker_tag="main",
-                )
+            mock_dt.now.return_value = cls._now
+            
+            cls._dummy_mod = _DummyMod(
+                ophys_experiment=OphysExperiment(
+                    id=1,
+                    session=OphysSession(id=2, specimen=Specimen("1")),
+                    container=OphysContainer(id=1, specimen=Specimen("1")),
+                    specimen=Specimen(id="3"),
+                    storage_directory=Path("/storage_dir"),
+                    raw_movie_filename=Path("mov.h5"),
+                    movie_frame_rate_hz=11.0,
+                    equipment_name='MESO.1',
+                    full_genotype="abcd",
+                ),
+                docker_tag="main",
+            )
 
     @classmethod
     def teardown_class(cls):
@@ -157,14 +154,30 @@ class TestPipelineModule:
         )
 
     @patch("datetime.datetime", wraps=datetime.datetime)
-    def test_write_input_args(self, mock_dt):
+    @patch.object(OphysExperiment, 'output_dir',
+                  new_callable=PropertyMock)
+    def test_write_input_args(self, mock_output_dir, mock_dt):
+        mock_output_dir.return_value = self.temp_dir
         mock_dt.now.return_value = self._now
+        _dummy_mod = _DummyMod(
+                ophys_experiment=OphysExperiment(
+                    id=1,
+                    session=OphysSession(id=2, specimen=Specimen("1")),
+                    container=OphysContainer(id=1, specimen=Specimen("1")),
+                    specimen=Specimen(id="3"),
+                    storage_directory=Path("/storage_dir"),
+                    raw_movie_filename=Path("mov.h5"),
+                    movie_frame_rate_hz=11.0,
+                    equipment_name='MESO.1',
+                    full_genotype="abcd",
+                ),
+                docker_tag="main",
+            )
 
-        self._dummy_mod.write_input_args()
-        with open(self._dummy_mod.input_args_path) as f:
+        _dummy_mod.write_input_args()
+        with open(_dummy_mod.input_args_path) as f:
             input_args = json.load(f)
-
-        assert input_args == self._dummy_mod.inputs
+        assert input_args == _dummy_mod.inputs
 
     @pytest.mark.parametrize("file_exists", (True, False))
     def test_validate_file_overwrites(self, file_exists):

@@ -37,7 +37,7 @@ class DenoisingInferenceModule(_DenoisingModule):
         return WorkflowStepEnum.DENOISING_INFERENCE
 
     @property
-    def module_argschema(self) -> InferenceInputSchema:
+    def module_schema(self) -> InferenceInputSchema:
         return InferenceInputSchema()
 
     @property

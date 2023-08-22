@@ -41,7 +41,7 @@ class DecrosstalkModule(PipelineModule):
         return WorkflowStepEnum.DECROSSTALK
 
     @property
-    def module_argschema(self) -> DecrosstalkInputSchema:
+    def module_schema(self) -> DecrosstalkInputSchema:
         return DecrosstalkInputSchema()
 
     @property

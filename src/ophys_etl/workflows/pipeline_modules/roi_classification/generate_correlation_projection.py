@@ -38,7 +38,7 @@ class GenerateCorrelationProjectionModule(PipelineModule):
         )
 
     @property
-    def module_argschema(self) -> CalculateEdgesInputSchema:
+    def module_schema(self) -> CalculateEdgesInputSchema:
         return CalculateEdgesInputSchema()
 
     @property

@@ -31,7 +31,7 @@ class NwayCellMatchingModule(PipelineModule):
         return WorkflowStepEnum.NWAY_CELL_MATCHING
 
     @property
-    def module_argschema(self) -> OnPremGeneratedInputSchema:
+    def module_schema(self) -> OnPremGeneratedInputSchema:
         return OnPremGeneratedInputSchema()
 
     @property

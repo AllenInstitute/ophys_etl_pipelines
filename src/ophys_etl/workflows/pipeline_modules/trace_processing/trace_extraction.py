@@ -37,7 +37,7 @@ class TraceExtractionModule(PipelineModule):
         return WorkflowStepEnum.TRACE_EXTRACTION
 
     @property
-    def module_argschema(self) -> TraceExtractionInputSchema:
+    def module_schema(self) -> TraceExtractionInputSchema:
         return TraceExtractionInputSchema()
 
     @property

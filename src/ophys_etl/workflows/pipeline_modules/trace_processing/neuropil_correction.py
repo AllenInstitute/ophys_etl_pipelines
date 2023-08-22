@@ -43,7 +43,7 @@ class NeuropilCorrection(PipelineModule):
         return WorkflowStepEnum.NEUROPIL_CORRECTION
 
     @property
-    def module_argschema(self) -> NeuropilCorrectionJobSchema:
+    def module_schema(self) -> NeuropilCorrectionJobSchema:
         return NeuropilCorrectionJobSchema()
 
     @property

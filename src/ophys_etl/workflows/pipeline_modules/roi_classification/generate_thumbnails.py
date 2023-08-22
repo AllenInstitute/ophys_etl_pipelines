@@ -50,7 +50,7 @@ class GenerateThumbnailsModule(PipelineModule):
         return WorkflowStepEnum.ROI_CLASSIFICATION_GENERATE_THUMBNAILS
 
     @property
-    def module_argschema(self) -> ClassifierArtifactsInputSchema:
+    def module_schema(self) -> ClassifierArtifactsInputSchema:
         return ClassifierArtifactsInputSchema()
 
     @property

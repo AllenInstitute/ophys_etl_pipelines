@@ -43,7 +43,7 @@ class DffCalculationModule(PipelineModule):
         return WorkflowStepEnum.DFF
 
     @property
-    def module_argschema(self) -> DffJobSchema:
+    def module_schema(self) -> DffJobSchema:
         return DffJobSchema()
 
     @property

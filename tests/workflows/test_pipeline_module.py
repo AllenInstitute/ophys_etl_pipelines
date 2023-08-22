@@ -47,7 +47,7 @@ class _DummyMod(PipelineModule):
         return WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE
 
     @property
-    def module_argschema(self) -> _DummyModArgSchema:
+    def module_schema(self) -> _DummyModArgSchema:
         return _DummyModArgSchema()
 
     @property

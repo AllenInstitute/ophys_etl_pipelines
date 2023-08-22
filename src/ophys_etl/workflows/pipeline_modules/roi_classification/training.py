@@ -35,7 +35,7 @@ class TrainingModule(PipelineModule):
         return WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING
 
     @property
-    def module_argschema(self) -> TrainSchema:
+    def module_schema(self) -> TrainSchema:
         return TrainSchema()
 
     @property

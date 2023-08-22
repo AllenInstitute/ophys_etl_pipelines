@@ -62,7 +62,7 @@ class InferenceModule(PipelineModule):
         return WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE
 
     @property
-    def module_argschema(self) -> InferenceSchema:
+    def module_schema(self) -> InferenceSchema:
         return InferenceSchema()
 
     @property

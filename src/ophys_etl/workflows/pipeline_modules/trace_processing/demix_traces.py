@@ -47,7 +47,7 @@ class DemixTracesModule(PipelineModule):
         return WorkflowStepEnum.DEMIX_TRACES
     
     @property
-    def module_argschema(self) -> DemixJobSchema:
+    def module_schema(self) -> DemixJobSchema:
         return DemixJobSchema()
 
     @property

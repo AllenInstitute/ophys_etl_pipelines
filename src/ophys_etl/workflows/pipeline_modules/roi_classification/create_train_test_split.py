@@ -30,7 +30,7 @@ class CreateTrainTestSplitModule(PipelineModule):
         return WorkflowStepEnum.ROI_CLASSIFICATION_CREATE_TRAIN_TEST_SPLIT
 
     @property
-    def module_argschema(self) -> CreateDatasetInputSchema:
+    def module_schema(self) -> CreateDatasetInputSchema:
         return CreateDatasetInputSchema()
 
     @property

@@ -68,12 +68,12 @@ class PipelineModule(abc.ABC):
         if prevent_file_overwrites:
             self._validate_file_overwrite()
 
-        if isinstance(self.module_argschema, DefaultSchema):
-            self.inputs = self.module_argschema.load(data=self.module_args)
+        if isinstance(self.module_schema, DefaultSchema):
+            self.inputs = self.module_schema.load(data=self.module_args)
         else:
             raise ValueError(
-                f"module_argschema must be subclass of DefaultSchema, "
-                f"got {type(self.module_argschema)}"
+                f"module_schema must be subclass of DefaultSchema, "
+                f"got {type(self.module_schema)}"
             )
 
     @property
@@ -116,7 +116,7 @@ class PipelineModule(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def module_argschema(self) -> DefaultSchema:
+    def module_schema(self) -> DefaultSchema:
         """Argschema to validate module_args"""
         raise NotImplementedError
 

@@ -25,7 +25,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
         return WorkflowStepEnum.DENOISING_FINETUNING
 
     @property
-    def module_argschema(self) -> FineTuningInputSchemaPreDataSplit:
+    def module_schema(self) -> FineTuningInputSchemaPreDataSplit:
         return FineTuningInputSchemaPreDataSplit()
 
     @property

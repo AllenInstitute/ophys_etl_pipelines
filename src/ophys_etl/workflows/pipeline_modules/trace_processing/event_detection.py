@@ -45,7 +45,7 @@ class EventDetectionModule(PipelineModule):
         return WorkflowStepEnum.EVENT_DETECTION
 
     @property
-    def module_argschema(self) -> EventDetectionInputSchema:
+    def module_schema(self) -> EventDetectionInputSchema:
         return EventDetectionInputSchema()
 
     @property

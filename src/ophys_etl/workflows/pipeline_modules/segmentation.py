@@ -42,7 +42,7 @@ class SegmentationModule(PipelineModule):
         return WorkflowStepEnum.SEGMENTATION
 
     @property
-    def module_argschema(self) -> SegmentPostProcessSchema:
+    def module_schema(self) -> SegmentPostProcessSchema:
         return SegmentPostProcessSchema()
 
     @property

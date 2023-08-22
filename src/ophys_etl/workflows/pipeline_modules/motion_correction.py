@@ -30,7 +30,7 @@ class MotionCorrectionModule(PipelineModule):
         return WorkflowStepEnum.MOTION_CORRECTION
 
     @property
-    def module_argschema(self) -> Suite2PRegistrationInputSchema:
+    def module_schema(self) -> Suite2PRegistrationInputSchema:
         return Suite2PRegistrationInputSchema()
 
     @property

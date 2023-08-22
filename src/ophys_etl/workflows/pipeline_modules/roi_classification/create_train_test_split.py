@@ -1,6 +1,5 @@
 from types import ModuleType
 from typing import Dict, List
-from argschema import ArgSchema
 
 from deepcell.cli.modules import create_dataset
 from deepcell.cli.modules.create_dataset import CreateDatasetInputSchema

@@ -1,8 +1,6 @@
 from types import ModuleType
 from typing import List
 
-from argschema import ArgSchema
-
 from ophys_etl.workflows.app_config.app_config import app_config
 
 from ophys_etl.modules import dff

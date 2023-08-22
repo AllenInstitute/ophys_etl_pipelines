@@ -2,7 +2,6 @@ from types import ModuleType
 from typing import List, Dict
 
 import json
-from argschema import ArgSchema
 from nway import nway_matching
 from nway.schemas import OnPremGeneratedInputSchema
 from sqlmodel import Session

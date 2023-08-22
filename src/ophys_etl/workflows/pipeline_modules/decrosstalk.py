@@ -3,7 +3,6 @@ from types import ModuleType
 from typing import List, Dict
 
 import json
-from argschema import ArgSchema
 
 from sqlmodel import Session
 

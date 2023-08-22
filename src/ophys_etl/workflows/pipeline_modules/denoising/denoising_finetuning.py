@@ -3,7 +3,7 @@ from types import ModuleType
 from typing import List, Dict
 
 from ophys_etl.modules.denoising import fine_tuning
-from ophys_etl.modules.denoising.fine_tuning.schemas import FineTuningInputSchemaPreDataSplit # noqa: E501
+from ophys_etl.modules.denoising.fine_tuning.schemas import FineTuningInputSchemaPreDataSplit  # noqa: E501
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_modules.denoising._denoising import (

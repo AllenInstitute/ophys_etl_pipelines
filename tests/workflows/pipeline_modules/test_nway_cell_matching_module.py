@@ -174,7 +174,9 @@ class TestNwayCellMatchingModule(MockSQLiteDB):
                                   return_value=self._experiment_ids):
                     mod = NwayCellMatchingModule(
                         docker_tag='main',
-                        ophys_container=OphysContainer(id='1', specimen=Specimen(id='1'))
+                        ophys_container=OphysContainer(
+                            id='1',
+                            specimen=Specimen(id='1'))
                     )
                     mod.inputs
 
@@ -214,6 +216,6 @@ class TestNwayCellMatchingModule(MockSQLiteDB):
             match.match_id == f'{matches[0].nway_cell_matching_run_id}_0'
             for match in matches
         ])
-    
+
     def teardown(self):
         self.temp_dir_obj.cleanup()

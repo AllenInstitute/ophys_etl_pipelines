@@ -2,7 +2,7 @@ from types import ModuleType
 from typing import Dict, List
 
 from ophys_etl.modules import trace_extraction
-from ophys_etl.modules.trace_extraction.schemas import TraceExtractionInputSchema
+from ophys_etl.modules.trace_extraction.schemas import TraceExtractionInputSchema  # noqa: E501
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule

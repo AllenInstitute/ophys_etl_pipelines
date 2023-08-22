@@ -35,9 +35,11 @@ from ophys_etl.workflows.pipeline_module import (
 )  # noqa #402
 from ophys_etl.workflows.pipeline_module import PipelineModule
 
+
 class _DummyModArgSchema(ArgSchema):
     foo = Int(required=True)
     bar = Int(required=True)
+
 
 class _DummyMod(PipelineModule):
     _temp_out = tempfile.TemporaryDirectory()
@@ -87,7 +89,6 @@ class TestPipelineModule:
         cls.temp_dir = Path(cls.temp_dir_obj.name)
         with patch("datetime.datetime", wraps=datetime.datetime) as mock_dt:
             mock_dt.now.return_value = cls._now
-            
             cls._dummy_mod = _DummyMod(
                 ophys_experiment=OphysExperiment(
                     id=1,

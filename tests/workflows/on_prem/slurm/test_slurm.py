@@ -125,7 +125,7 @@ class TestSlurm:
     )
     @patch.object(MotionCorrectionModule, 'output_path',
                   new_callable=PropertyMock)
-    def test_write_job_to_disk(self, 
+    def test_write_job_to_disk(self,
                                mock_output_path,
                                _):
         mock_output_path.return_value = Path(self.tempdir.name)
@@ -168,6 +168,6 @@ class TestSlurm:
             expected_job = f.read()
 
         assert job == expected_job
-    
+
     def teardown(self):
         self.tempdir.cleanup()

@@ -2,7 +2,7 @@ from types import ModuleType
 from typing import List, Dict
 
 from ophys_etl.modules import neuropil_correction
-from ophys_etl.modules.neuropil_correction.schemas import NeuropilCorrectionJobSchema # noqa: E501
+from ophys_etl.modules.neuropil_correction.schemas import NeuropilCorrectionJobSchema  # noqa: E501
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule

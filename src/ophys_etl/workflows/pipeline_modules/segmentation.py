@@ -6,7 +6,7 @@ import numpy as np
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from sqlmodel import Session
-from ophys_etl.modules.segment_postprocess.schemas import SegmentPostProcessSchema # noqa: E501
+from ophys_etl.modules.segment_postprocess.schemas import SegmentPostProcessSchema  # noqa: E501
 from ophys_etl.modules import segment_postprocess
 from ophys_etl.utils.rois import is_inside_motion_border
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue

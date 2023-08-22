@@ -9,7 +9,7 @@ from ophys_etl.workflows.app_config.app_config import app_config
 from sqlmodel import Session
 
 from ophys_etl.modules import suite2p_registration
-from ophys_etl.modules.suite2p_registration.schemas import Suite2PRegistrationInputSchema # noqa: E501
+from ophys_etl.modules.suite2p_registration.schemas import Suite2PRegistrationInputSchema  # noqa: E501
 from ophys_etl.utils.motion_border import get_max_correction_from_file
 from ophys_etl.workflows.db.schemas import MotionCorrectionRun
 from ophys_etl.workflows.output_file import OutputFile

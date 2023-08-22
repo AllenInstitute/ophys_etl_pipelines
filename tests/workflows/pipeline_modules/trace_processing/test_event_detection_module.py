@@ -115,4 +115,3 @@ class TestEventDetectionModule(MockSQLiteDB):
         )
 
         mod.inputs
-

@@ -186,9 +186,11 @@ class TestInference(MockSQLiteDB):
 
             preds = pd.read_csv(self._preds_path).set_index('roi-id')
             for roi in rois:
-                assert roi._is_cell == (preds.loc[roi.id]['y_score'] >
-                       app_config.pipeline_steps.roi_classification.inference.
-                       classification_threshold)
+                assert roi._is_cell == (
+                    preds.loc[roi.id]['y_score'] >
+                    app_config.pipeline_steps.roi_classification.inference.
+                    classification_threshold
+                    )
 
     def _insert_rois(self):
         rois_path = Path(__file__).parent.parent / "resources" / "rois.json"

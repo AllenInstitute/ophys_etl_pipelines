@@ -167,7 +167,6 @@ class TestDecrosstalkModule(MockSQLiteDB):
                 equipment_name='MESO.1'
             )
         mock_output_dir.return_value = self.temp_dir
-        
 
         with patch('ophys_etl.workflows.pipeline_modules.decrosstalk.engine',
                    new=self._engine):

@@ -25,7 +25,7 @@ class EventDetectionModule(PipelineModule):
         self._dff_traces_file = str(
             dff_traces.path
         )
-    
+
         super().__init__(
             ophys_experiment=ophys_experiment,
             prevent_file_overwrites=prevent_file_overwrites,
@@ -51,7 +51,7 @@ class EventDetectionModule(PipelineModule):
     @property
     def module_args(self):
         valid_roi_ids = [roi.id for roi in self.ophys_experiment.rois if
-                            roi.is_valid(self.ophys_experiment.equipment_name)]
+                         roi.is_valid(self.ophys_experiment.equipment_name)]
         return {
                 "movie_frame_rate_hz": self.ophys_experiment.movie_frame_rate_hz,  # noqa 501
                 "full_genotype": self.ophys_experiment.full_genotype,

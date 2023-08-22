@@ -1,4 +1,5 @@
 import logging
+import sys
 from pathlib import Path
 
 import argschema
@@ -39,7 +40,8 @@ class FinetuningRunner(argschema.ArgSchemaParser):
         logging.basicConfig(
             format='%(asctime)s %(name)s %(levelname)-8s %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S',
-            level=self.logger.level
+            level=self.logger.level,
+            stream=sys.stdout
         )
         logger = logging.getLogger(type(self).__name__)
         logger.setLevel(level=self.logger.level)

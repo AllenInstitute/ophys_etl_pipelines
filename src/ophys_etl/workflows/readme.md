@@ -22,13 +22,19 @@ echo -e AIRFLOW_WEBSERVER_HOST_PORT=$AIRFLOW_WEBSERVER_HOST_PORT >> .env
 
 Place app_config_dev.yml in same directory as docker-compose.yaml
 
-> **Note**: webserver.hostname should be "ophys-processing-dev-airflow-webserver" which is the container_name for `airflow-webserver`
+> **Note**: webserver.hostname should be "ophys-processing-dev-airflow-webserver-${UID}" (replace UID with the result of id -u) which is the container_name for the airflow webserver
 
 Run `docker compose build`. Make sure to pass in the arguments for the `args` as defined in `build.args` in the `docker-compose.yaml` by passing `--build-arg <arg>=...`
 
-Run `docker compose up airflow-init`
+Set the directory containing the root dir of the codebase to group read/write/execute with 
 
-Run `docker compose up`
+```chmod ../../../../ g+rwx```
+
+Run `docker compose --project-name <something unique> up airflow-init`
+
+Run `docker compose --project-name <something unique> up`
+
+> **Note**: --project-name is important and allows for running the same docker-compose file at the same time on the same machine by multiple users
 
 ### Environment variables
     

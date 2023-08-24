@@ -65,7 +65,7 @@ services:
       context: ../../../
       dockerfile: src/ophys_etl/workflows/Dockerfile
     image: "ophys-processing-dev-airflow-webserver-${AIRFLOW_UID}"
-    container_name: "ophys-processing-dev-airflow-webserver"
+    container_name: "ophys-processing-dev-airflow-webserver-${AIRFLOW_UID}"
     command: webserver
     ports:
       - "${AIRFLOW_WEBSERVER_HOST_PORT}:8080"
@@ -87,7 +87,7 @@ services:
       context: ../../../
       dockerfile: src/ophys_etl/workflows/Dockerfile
     image: "ophys-processing-dev-airflow-scheduler-${AIRFLOW_UID}"
-    container_name: "ophys-processing-dev-airflow-scheduler"
+    container_name: "ophys-processing-dev-airflow-scheduler-${AIRFLOW_UID}"
     command: scheduler
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
@@ -107,7 +107,7 @@ services:
       context: ../../../
       dockerfile: src/ophys_etl/workflows/Dockerfile
     image: "ophys-processing-dev-airflow-triggerer-${AIRFLOW_UID}"
-    container_name: "ophys-processing-dev-airflow-triggerer"
+    container_name: "ophys-processing-dev-airflow-triggerer-${AIRFLOW_UID}"
     command: triggerer
     healthcheck:
       test: ["CMD-SHELL", 'airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"']
@@ -127,7 +127,7 @@ services:
       context: ../../../
       dockerfile: src/ophys_etl/workflows/Dockerfile
     image: "ophys-processing-dev-airflow-init-${AIRFLOW_UID}"
-    container_name: "ophys-processing-dev-airflow-init"
+    container_name: "ophys-processing-dev-airflow-init-${AIRFLOW_UID}"
     entrypoint: /bin/bash
     # yamllint disable rule:line-length
     command:

@@ -1,11 +1,9 @@
 """Database interface"""
 import datetime
 import logging
-import os
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Union
 
-from ophys_etl.workflows.app_config.app_config import app_config
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select
 

@@ -85,7 +85,6 @@ class TestDBUtils:
             path = self._tmp_dir / "foo.txt"
         else:
             path = self._tmp_dir / "foo"
-            os.makedirs(path)
         files = [
             OutputFile(
                 path=path,

@@ -123,10 +123,7 @@ class SlurmJob:
             return cls(
                 id=job_id
             )
-        elif len(response['jobs']) > 1:
-            raise RuntimeError(f'Expected 1 job to be returned but '
-                               f'{len(response["jobs"])} were returned)')
-        job = response['jobs'][0]
+        job = response['jobs'][-1]
 
         # slurm records datetimes in local time (Pacific). Convert to UTC
         start = datetime.fromtimestamp(job['time']['start'],

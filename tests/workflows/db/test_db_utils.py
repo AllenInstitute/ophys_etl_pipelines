@@ -100,6 +100,7 @@ class TestDBUtils:
             with open(path, "w") as f:
                 f.write("")
         else:
+            os.makedirs(path)
             with open(path / "foo.txt", "w") as f:
                 f.write("")
 

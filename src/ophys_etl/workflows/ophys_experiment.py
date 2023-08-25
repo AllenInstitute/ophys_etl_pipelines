@@ -45,7 +45,8 @@ class OphysExperimentGroup(abc.ABC):
 
     def has_completed_workflow_step(
         self,
-        workflow_step: WorkflowStepEnum
+        workflow_step: WorkflowStepEnum,
+        passed_or_qc_only: bool = True
     ) -> bool:
         """
         Returns whether the ophys experiment group has completed
@@ -54,6 +55,8 @@ class OphysExperimentGroup(abc.ABC):
         Parameters
         ----------
         workflow_step
+        passed_or_qc_only
+            See this argument in `get_ophys_experiment_ids`
 
         Returns
         -------
@@ -61,7 +64,8 @@ class OphysExperimentGroup(abc.ABC):
             whether the ophys experiment group has completed
             `workflow_step` (all experiments in group have run)
         """
-        all_ophys_experiment_ids = self.get_ophys_experiment_ids()
+        all_ophys_experiment_ids = self.get_ophys_experiment_ids(
+            passed_or_qc_only=passed_or_qc_only)
         with Session(engine) as session:
             step = get_workflow_step_by_name(
                 name=workflow_step,

@@ -1,4 +1,6 @@
 import logging
+import os
+import signal
 import sys
 from pathlib import Path
 
@@ -70,6 +72,9 @@ class FinetuningRunner(argschema.ArgSchemaParser):
 
         fine_tuning_runner = FineTuning(input_data=self.args, args=[])
         fine_tuning_runner.run()
+
+        # Manually killing process due to an issue with hanging processes
+        os.kill(os.getpid(), signal.SIGTERM)
 
     def _write_train_val_datasets(
             self,

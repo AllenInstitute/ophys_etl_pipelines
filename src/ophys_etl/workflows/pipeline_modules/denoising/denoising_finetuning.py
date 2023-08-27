@@ -76,6 +76,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "seed": 1234
             },
             "run_uid": str(self.ophys_experiment.id),
+            "manually_kill_process": True
         }
 
     @property

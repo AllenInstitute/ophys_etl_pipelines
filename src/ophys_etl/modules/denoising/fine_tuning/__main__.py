@@ -65,16 +65,18 @@ class FinetuningRunner(argschema.ArgSchemaParser):
 
         del self.args['data_split_params']
 
-        # Removes args added in post_load, since they are not expected in
+        # Removes args added, since they are not expected in
         # the schema when `FineTuning` is called below
         del self.args['generator_params']['steps_per_epoch']
         del self.args['test_generator_params']['steps_per_epoch']
+        manually_kill_process = self.args.pop('manually_kill_process')
 
         fine_tuning_runner = FineTuning(input_data=self.args, args=[])
         fine_tuning_runner.run()
 
-        # Manually killing process due to an issue with hanging processes
-        os.kill(os.getpid(), signal.SIGTERM)
+        if manually_kill_process:
+            # Manually killing process due to an issue with hanging processes
+            os.kill(os.getpid(), signal.SIGTERM)
 
     def _write_train_val_datasets(
             self,

@@ -117,17 +117,17 @@ commands:
             echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
             if [ "$CIRCLE_BRANCH" = "main" ]
             then
-                docker tag alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:main
-                docker push alleninstitutepika/ophys_etl_pipelines:main
+                docker tag alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:main_${CIRCLE_SHA1}
+                docker push alleninstitutepika/ophys_etl_pipelines:main_${CIRCLE_SHA1}
 
-                docker tag alleninstitutepika/ophys_etl_pipelines:deepinterpolation_${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:deepinterpolation_main
-                docker push alleninstitutepika/ophys_etl_pipelines:deepinterpolation_main
+                docker tag alleninstitutepika/ophys_etl_pipelines:deepinterpolation_${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:deepinterpolation_main_${CIRCLE_SHA1}
+                docker push alleninstitutepika/ophys_etl_pipelines:deepinterpolation_main_${CIRCLE_SHA1}
             else
-                docker tag alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:develop
-                docker push alleninstitutepika/ophys_etl_pipelines:develop
+                docker tag alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:develop_${CIRCLE_SHA1}
+                docker push alleninstitutepika/ophys_etl_pipelines:develop_${CIRCLE_SHA1}
 
-                docker tag alleninstitutepika/ophys_etl_pipelines:deepinterpolation_${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:deepinterpolation_develop
-                docker push alleninstitutepika/ophys_etl_pipelines:deepinterpolation_develop
+                docker tag alleninstitutepika/ophys_etl_pipelines:deepinterpolation_${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:deepinterpolation_develop_${CIRCLE_SHA1}
+                docker push alleninstitutepika/ophys_etl_pipelines:deepinterpolation_develop_${CIRCLE_SHA1}
             fi
         
 jobs:

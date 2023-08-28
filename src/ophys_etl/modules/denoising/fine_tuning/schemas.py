@@ -80,10 +80,3 @@ class FineTuningInputSchemaPreDataSplit(FineTuningInputSchema):
         GeneratorSchemaPreDataSplit, default={})
     test_generator_params = argschema.fields.Nested(
         GeneratorSchemaPreDataSplit, default={})
-    manually_kill_process = argschema.fields.Bool(
-        default=False,
-        description='Whether to manually kill the process.'
-                    'Fixes an issue with hanging processes after the '
-                    'program appeared to have finished. Set to false when '
-                    'running in pytest, since that will kill the test runner.'
-    )

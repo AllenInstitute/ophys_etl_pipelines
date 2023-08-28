@@ -1,12 +1,11 @@
 import logging
-import os
-import signal
 import sys
 from pathlib import Path
 
 import argschema
 import h5py
 import json
+from keras import backend as K
 from deepinterpolation.cli.fine_tuning import FineTuning
 
 from ophys_etl.modules.denoising.fine_tuning.schemas import \
@@ -69,14 +68,12 @@ class FinetuningRunner(argschema.ArgSchemaParser):
         # the schema when `FineTuning` is called below
         del self.args['generator_params']['steps_per_epoch']
         del self.args['test_generator_params']['steps_per_epoch']
-        manually_kill_process = self.args.pop('manually_kill_process')
 
         fine_tuning_runner = FineTuning(input_data=self.args, args=[])
         fine_tuning_runner.run()
 
-        if manually_kill_process:
-            # Manually killing process due to an issue with hanging processes
-            os.kill(os.getpid(), signal.SIGTERM)
+        # Manually clean up session due to dangling processes
+        K.clear_session()
 
     def _write_train_val_datasets(
             self,

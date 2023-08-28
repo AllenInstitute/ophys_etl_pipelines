@@ -146,6 +146,10 @@ def wait_for_decrosstalk_to_finish(timeout: float) -> Callable:
     @task.sensor(mode="reschedule", timeout=timeout)
     def wait_for_decrosstalk_to_finish():
         context = get_current_context()
+        run_decrosstalk = context['params']['run_decrosstalk']
+        if not run_decrosstalk:
+            return PokeReturnValue(is_done=True)
+
         ophys_experiment_id = context['params']['ophys_experiment_id']
         ophys_experiment = OphysExperiment.from_id(id=ophys_experiment_id)
         

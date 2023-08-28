@@ -148,6 +148,7 @@ def wait_for_decrosstalk_to_finish(timeout: float) -> Callable:
         context = get_current_context()
         run_decrosstalk = context['params']['run_decrosstalk']
         if not run_decrosstalk:
+            logger.info(f'run_decrosstalk is set to False')
             return PokeReturnValue(is_done=True)
 
         ophys_experiment_id = context['params']['ophys_experiment_id']

@@ -20,7 +20,7 @@ echo -e BASE_DIR=$BASE_DIR >> .env
 echo -e AIRFLOW_WEBSERVER_HOST_PORT=$AIRFLOW_WEBSERVER_HOST_PORT >> .env
 ```
 
-Place app_config_dev.yml in same directory as docker-compose.yaml
+Place app_config_dev.yml in same directory as docker-compose.yaml. An example can be found at `s3://ophys-processing-airflow.alleninstitute.org/dev/app_config_dev.yml`. The schema is `ophys_etl.workflows.app_config.app_config.AppConfig`
 
 > **Note**: webserver.hostname should be "ophys-processing-dev-airflow-webserver-${UID}" (replace UID with the result of id -u) which is the container_name for the airflow webserver
 

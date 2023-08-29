@@ -5,7 +5,6 @@ from pathlib import Path
 import argschema
 import h5py
 import json
-from keras import backend as K
 from deepinterpolation.cli.fine_tuning import FineTuning
 
 from ophys_etl.modules.denoising.fine_tuning.schemas import \
@@ -71,9 +70,6 @@ class FinetuningRunner(argschema.ArgSchemaParser):
 
         fine_tuning_runner = FineTuning(input_data=self.args, args=[])
         fine_tuning_runner.run()
-
-        # Manually clean up session due to dangling processes
-        K.clear_session()
 
     def _write_train_val_datasets(
             self,

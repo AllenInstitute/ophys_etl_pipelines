@@ -55,6 +55,8 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "output_dir": str(self.output_path),
                 "period_save": 1,
                 "steps_per_epoch": 20,
+                # Disabling multiprocessing since issue with zombie processes
+                "use_multiprocessing": False,
                 "verbose": 2
             },
             "generator_params": {

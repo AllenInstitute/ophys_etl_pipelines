@@ -49,7 +49,7 @@ class EventDetectionModule(PipelineModule):
         return EventDetectionInputSchema()
 
     @property
-    def module_args(self):
+    def inputs(self):
         valid_roi_ids = [roi.id for roi in self.ophys_experiment.rois if
                          roi.is_valid(self.ophys_experiment.equipment_name)]
         return {

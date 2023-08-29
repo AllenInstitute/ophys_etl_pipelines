@@ -47,7 +47,7 @@ class NeuropilCorrection(PipelineModule):
         return NeuropilCorrectionJobSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         return {
             "roi_trace_file": self._demixed_roi_traces_file,
             "storage_directory": str(self.output_path),

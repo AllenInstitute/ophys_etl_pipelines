@@ -34,7 +34,7 @@ class NwayCellMatchingModule(PipelineModule):
         return OnPremGeneratedInputSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         return {
             'output_directory': str(self.output_path),
             'experiment_containers': {

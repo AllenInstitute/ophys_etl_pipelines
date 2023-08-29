@@ -34,7 +34,7 @@ class MotionCorrectionModule(PipelineModule):
         return Suite2PRegistrationInputSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         if app_config.is_debug:
             movie_file_path = self._construct_short_movie()
         else:

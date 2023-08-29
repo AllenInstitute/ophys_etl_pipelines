@@ -45,7 +45,7 @@ class DffCalculationModule(PipelineModule):
         return DffJobSchema()
 
     @property
-    def module_args(self):
+    def inputs(self):
         args = {
             "input_file": self._neuropil_corrected_traces,
             "output_file": str(self._output_file_path),

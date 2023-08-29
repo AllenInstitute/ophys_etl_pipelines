@@ -42,7 +42,7 @@ class GenerateCorrelationProjectionModule(PipelineModule):
         return CalculateEdgesInputSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         return {
             "video_path": self._denoised_ophys_movie_file,
             "graph_output": (

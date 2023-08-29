@@ -29,7 +29,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
         return FineTuningInputSchemaPreDataSplit()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         return {
             "data_split_params": {
                 "ophys_experiment_id": str(self.ophys_experiment.id),

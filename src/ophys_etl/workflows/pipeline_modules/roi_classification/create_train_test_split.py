@@ -33,7 +33,7 @@ class CreateTrainTestSplitModule(PipelineModule):
         return CreateDatasetInputSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         return {
             "cell_labeling_app_host": (
                 app_config.pipeline_steps.roi_classification.cell_labeling_app_host # noqa E501

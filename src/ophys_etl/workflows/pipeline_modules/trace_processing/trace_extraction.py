@@ -41,7 +41,7 @@ class TraceExtractionModule(PipelineModule):
         return TraceExtractionInputSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         return {
             "storage_directory": self.output_path,
             "motion_border": self.ophys_experiment.motion_border.to_dict(),

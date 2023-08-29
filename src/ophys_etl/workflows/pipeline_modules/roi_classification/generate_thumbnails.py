@@ -54,7 +54,7 @@ class GenerateThumbnailsModule(PipelineModule):
         return ClassifierArtifactsInputSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         d = {
             "experiment_id": str(self._ophys_experiment.id),
             "video_path": self._denoised_ophys_movie_file,

@@ -66,7 +66,7 @@ class InferenceModule(PipelineModule):
         return InferenceSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         model_params = self._get_mlflow_model_params()
         return {
             "model_inputs_paths": [self._model_inputs_path],

@@ -51,7 +51,7 @@ class DemixTracesModule(PipelineModule):
         return DemixJobSchema()
 
     @property
-    def module_args(self):
+    def inputs(self):
         return {
             "movie_h5": self._motion_corrected_ophys_movie_file,
             "traces_h5": self._roi_trace_file,

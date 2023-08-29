@@ -53,7 +53,7 @@ class _DummyMod(PipelineModule):
         return _DummyModArgSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         return {"foo": 1, "bar": 2}
 
     @property

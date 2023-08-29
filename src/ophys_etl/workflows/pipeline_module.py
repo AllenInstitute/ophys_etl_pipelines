@@ -69,7 +69,7 @@ class PipelineModule(abc.ABC):
             self._validate_file_overwrite()
 
         if isinstance(self.module_schema, DefaultSchema):
-            self._inputs = self.module_schema.load(data=self.module_args)
+            self.module_schema.load(data=self.inputs)
         else:
             raise ValueError(
                 f"module_schema must be subclass of DefaultSchema, "
@@ -122,14 +122,9 @@ class PipelineModule(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         """Module args"""
         raise NotImplementedError
-
-    @property
-    def inputs(self) -> Dict:
-        """Module inputs"""
-        return self._inputs
 
     @property
     @abc.abstractmethod

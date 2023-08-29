@@ -39,7 +39,7 @@ class TrainingModule(PipelineModule):
         return TrainSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         return {
             "train_params": {
                 "model_inputs_path": self._model_inputs_path,

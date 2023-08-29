@@ -46,7 +46,7 @@ class SegmentationModule(PipelineModule):
         return SegmentPostProcessSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         return {
             "suite2p_args": {
                 "h5py": self._denoised_ophys_movie_file,

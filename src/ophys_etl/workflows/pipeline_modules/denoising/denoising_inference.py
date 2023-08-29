@@ -41,7 +41,7 @@ class DenoisingInferenceModule(_DenoisingModule):
         return InferenceInputSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         return {
             "generator_params": {
                 "batch_size": app_config.pipeline_steps.denoising.batch_size,

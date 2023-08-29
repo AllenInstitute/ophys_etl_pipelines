@@ -44,7 +44,7 @@ class DecrosstalkModule(PipelineModule):
         return DecrosstalkInputSchema()
 
     @property
-    def module_args(self) -> Dict:
+    def inputs(self) -> Dict:
         ophys_experiments = [
             OphysExperiment.from_id(id=ophys_experiment_id) for
             ophys_experiment_id in

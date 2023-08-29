@@ -35,3 +35,7 @@ class MockSQLiteDB:
     @classmethod
     def teardown_class(cls):
         shutil.rmtree(cls._tmp_dir)
+
+class TestInputs:
+    @classmethod
+    def setup_class(cls):

@@ -27,7 +27,7 @@ setup(
         ],
         'deepinterpolation': [
             'tensorflow==2.11.0',
-            'deepinterpolation @ git+https://github.com/AllenInstitute/deepinterpolation@refactor'   # noqa E401
+            'deepinterpolation @ git+https://github.com/AllenInstitute/deepinterpolation_ai_internal@refactor'   # noqa E401
         ],
         'workflow': workflow_required
     }

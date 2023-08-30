@@ -51,7 +51,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "multi_gpus": False,
                 "name": "transfer_trainer",
                 "nb_times_through_data": 1,
-                "nb_workers": 15,
+                "nb_workers": 1,
                 "output_dir": str(self.output_path),
                 "period_save": 1,
                 "steps_per_epoch": 20,

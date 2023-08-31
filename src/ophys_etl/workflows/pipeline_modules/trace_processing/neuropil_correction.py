@@ -19,12 +19,6 @@ class NeuropilCorrection(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs
-        )
-
         demixed_roi_traces_file: OutputFile = kwargs[
             "demixed_roi_traces_file"
         ]
@@ -34,6 +28,11 @@ class NeuropilCorrection(PipelineModule):
         ]
         self._neuropil_traces_file = str(neuropil_traces_file.path)
 
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs
+        )
     @property
     def executable(self) -> ModuleType:
         return neuropil_correction

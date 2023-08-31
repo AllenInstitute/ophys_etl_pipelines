@@ -19,11 +19,6 @@ class DemixTracesModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs
-        )
 
         motion_corrected_ophys_movie_file: OutputFile = kwargs[
             "motion_corrected_ophys_movie_file"
@@ -36,6 +31,12 @@ class DemixTracesModule(PipelineModule):
         ]
         self._roi_trace_file = str(
             roi_traces_file.path
+        )
+
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs
         )
 
     @property

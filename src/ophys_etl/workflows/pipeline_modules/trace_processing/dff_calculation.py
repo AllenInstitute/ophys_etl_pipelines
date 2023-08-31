@@ -21,16 +21,17 @@ class DffCalculationModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs
-        )
 
         neuropil_corrected_traces: OutputFile = kwargs[
             "neuropil_corrected_traces"
         ]
         self._neuropil_corrected_traces = str(neuropil_corrected_traces.path)
+
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs
+        )
 
     @property
     def executable(self) -> ModuleType:

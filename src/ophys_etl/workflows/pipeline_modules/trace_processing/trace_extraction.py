@@ -19,17 +19,16 @@ class TraceExtractionModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs
-        )
-
         motion_corrected_ophys_movie_file: OutputFile = kwargs[
             "motion_corrected_ophys_movie_file"
         ]
         self._motion_corrected_ophys_movie_file = str(
             motion_corrected_ophys_movie_file.path
+        )
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs
         )
 
     @property
@@ -43,7 +42,7 @@ class TraceExtractionModule(PipelineModule):
     @property
     def inputs(self) -> Dict:
         return {
-            "storage_directory": self.output_path,
+            "storage_directory": str(self.output_path),
             "motion_border": self.ophys_experiment.motion_border.to_dict(),
             "motion_corrected_stack": (
                 self._motion_corrected_ophys_movie_file),

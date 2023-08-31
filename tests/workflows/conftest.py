@@ -16,7 +16,6 @@ setup_app_config(
 
 from ophys_etl.workflows.db.initialize_db import InitializeDBRunner
 
-
 class MockSQLiteDB:
     @classmethod
     def _initializeDB(cls):
@@ -35,7 +34,3 @@ class MockSQLiteDB:
     @classmethod
     def teardown_class(cls):
         shutil.rmtree(cls._tmp_dir)
-
-class TestInputs:
-    @classmethod
-    def setup_class(cls):

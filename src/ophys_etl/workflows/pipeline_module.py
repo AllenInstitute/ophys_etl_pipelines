@@ -25,7 +25,15 @@ logger = logging.getLogger(__name__)
 
 
 class PipelineModule(abc.ABC):
-    """Pipeline module"""
+    """Pipeline module
+    
+    This is an abstract base class for creating pipeline modules. When
+    subclassing, developers should:
+    - Implement the required abstract properties and methods.
+    - Ensure any required instance-specific attributes are set before 
+      calling this class's `__init__`.
+    
+    See `DffCalculationModule` for an example subclass."""
 
     def __init__(
         self,
@@ -37,6 +45,9 @@ class PipelineModule(abc.ABC):
         **module_args,
     ):
         """
+        
+        NOTE: When subclassing, ensure any required instance-specific attributes 
+        are set before calling this method. 
 
         Parameters
         ----------

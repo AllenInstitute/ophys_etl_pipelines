@@ -41,11 +41,6 @@ class InferenceModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs,
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs,
-        )
 
         thumbnails_dir: OutputFile = kwargs["thumbnails_dir"]
 
@@ -55,6 +50,11 @@ class InferenceModule(PipelineModule):
 
         self._model_inputs_path = self._write_model_inputs_to_disk(
             thumbnails_dir=thumbnails_dir.path
+        )
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs,
         )
 
     @property

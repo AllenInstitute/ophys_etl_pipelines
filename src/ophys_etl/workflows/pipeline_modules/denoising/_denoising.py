@@ -15,13 +15,14 @@ class _DenoisingModule(PipelineModule, ABC):
         docker_tag: str = "main",
         **kwargs
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            docker_tag=docker_tag,
-        )
 
         motion_corrected_ophys_movie: OutputFile = kwargs[
             "motion_corrected_ophys_movie_file"
         ]
         self._motion_corrected_path = str(motion_corrected_ophys_movie.path)
+
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            docker_tag=docker_tag,
+        )

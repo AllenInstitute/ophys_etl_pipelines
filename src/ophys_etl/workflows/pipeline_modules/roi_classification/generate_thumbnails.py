@@ -19,11 +19,6 @@ class GenerateThumbnailsModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs
-        )
 
         denoised_ophys_movie_file: OutputFile = kwargs[
             "denoised_ophys_movie_file"
@@ -44,6 +39,11 @@ class GenerateThumbnailsModule(PipelineModule):
         self._is_training = is_training
         self._motion_correction_shifts_file = str(
             motion_correction_shifts_file.path)
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs
+        )
 
     @property
     def queue_name(self) -> WorkflowStepEnum:

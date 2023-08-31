@@ -16,13 +16,13 @@ class CreateTrainTestSplitModule(PipelineModule):
     with these splits"""
 
     def __init__(self, prevent_file_overwrites: bool = True, **kwargs):
+        thumbnail_dirs: OutputFile = kwargs["thumbnail_dirs"]
+        self._thumbnail_dirs = thumbnail_dirs
         super().__init__(
             ophys_experiment=None,
             prevent_file_overwrites=prevent_file_overwrites,
             **kwargs
         )
-        thumbnail_dirs: OutputFile = kwargs["thumbnail_dirs"]
-        self._thumbnail_dirs = thumbnail_dirs
 
     @property
     def queue_name(self) -> WorkflowStepEnum:

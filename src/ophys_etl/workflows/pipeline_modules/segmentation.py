@@ -26,16 +26,17 @@ class SegmentationModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs
-        )
 
         denoised_ophys_movie_file: OutputFile = kwargs[
             "denoised_ophys_movie_file"
         ]
         self._denoised_ophys_movie_file = str(denoised_ophys_movie_file.path)
+
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs
+        )
 
     @property
     def queue_name(self) -> WorkflowStepEnum:

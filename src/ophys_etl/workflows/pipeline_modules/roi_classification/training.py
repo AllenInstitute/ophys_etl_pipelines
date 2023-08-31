@@ -21,14 +21,14 @@ from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 class TrainingModule(PipelineModule):
     def __init__(self, prevent_file_overwrites: bool = True, **kwargs):
+
+        self._model_inputs_path: OutputFile = kwargs["train_set_path"]
+        self._mlflow_run_name = kwargs["mlflow_run_name"]
         super().__init__(
             ophys_experiment=None,
             prevent_file_overwrites=prevent_file_overwrites,
             **kwargs
         )
-
-        self._model_inputs_path: OutputFile = kwargs["train_set_path"]
-        self._mlflow_run_name = kwargs["mlflow_run_name"]
 
     @property
     def queue_name(self) -> WorkflowStepEnum:

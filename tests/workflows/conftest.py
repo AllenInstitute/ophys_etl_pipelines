@@ -33,6 +33,8 @@ from ophys_etl.workflows.ophys_experiment import (
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue, MotionCorrectionRun
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
+from ophys_etl.workflows.pipeline_modules.segmentation import \
+    SegmentationModule
 
 class MockSQLiteDB:
     @classmethod
@@ -124,7 +126,7 @@ def mock_rois():
 
 @pytest.fixture
 def mock_motion_border_run(workflow_step_run_id):
-    MotionCorrectionRun(
+    return MotionCorrectionRun(
                 workflow_step_run_id=workflow_step_run_id,
                 max_correction_up=0.1,
                 max_correction_down=0.1,
@@ -205,29 +207,6 @@ class BaseTestPipelineModule(MockSQLiteDB):
                     validate_files_exist=False,
                     additional_steps=MotionCorrectionModule.save_metadata_to_db
                 )
-                
-                with patch(
-                        'ophys_etl.workflows.ophys_experiment.engine',
-                        new=self._engine):
-                    save_job_run_to_db(
-                        workflow_step_name=WorkflowStepEnum.SEGMENTATION,
-                        start=datetime.datetime.now(),
-                        end=datetime.datetime.now(),
-                        module_outputs=[
-                            OutputFile(
-                                well_known_file_type=(
-                                    WellKnownFileTypeEnum.OPHYS_ROIS
-                                ),
-                                path=rois_path
-                            )
-                        ],
-                        ophys_experiment_id=oe_id,
-                        sqlalchemy_session=session,
-                        storage_directory="/foo",
-                        log_path="/foo",
-                        additional_steps=SegmentationModule.save_rois_to_db,
-                        workflow_name=WorkflowNameEnum.OPHYS_PROCESSING
-                    )
 
                 save_job_run_to_db(
                     workflow_step_name=WorkflowStepEnum.TRACE_EXTRACTION,

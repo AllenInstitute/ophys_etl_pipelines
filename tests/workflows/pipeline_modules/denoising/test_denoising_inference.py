@@ -13,7 +13,7 @@ from ophys_etl.workflows.pipeline_modules.denoising.denoising_inference import D
 class TestDenoisingFinetuningModule(BaseTestPipelineModule):
 
     def setup(self):
-        super().setup_method()
+        super().setup()
 
     @patch.object(OphysExperiment, 'rois',
                   new_callable=PropertyMock)

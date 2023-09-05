@@ -33,9 +33,8 @@ from ophys_etl.workflows.ophys_experiment import (
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue, MotionCorrectionRun
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
-from ophys_etl.workflows.pipeline_modules.segmentation import \
-    SegmentationModule
 
+MOCK_EXPERIMENT_IDS = [1, 2]
 class MockSQLiteDB:
     @classmethod
     def _initializeDB(cls):
@@ -57,7 +56,7 @@ class MockSQLiteDB:
 
 @pytest.fixture
 def experiment_ids():
-    return [1, 2]
+    return MOCK_EXPERIMENT_IDS
 
 @pytest.fixture
 def workflow_step_run_id():
@@ -144,12 +143,17 @@ def xy_offset_path():
 def rois_path():
     return Path(__file__).parent / "resources" / "rois.json"
 class BaseTestPipelineModule(MockSQLiteDB):
-
-    def setup_method(self, experiment_ids,
-              ):
+    
+    @property
+    def experiment_ids(self):
+        return MOCK_EXPERIMENT_IDS
+    
+    def setup(self):
         super().setup()
+        self.db_setup()
 
-        with Session(self._engine) as session:
+    def db_setup(self):
+         with Session(self._engine) as session:
             
             save_job_run_to_db(
                 workflow_step_name=WorkflowStepEnum.DEMIX_TRACES,
@@ -163,7 +167,7 @@ class BaseTestPipelineModule(MockSQLiteDB):
                         path=trace_path,
                     )
                 ],
-                ophys_experiment_id=str(experiment_ids[0]),
+                ophys_experiment_id=str(self.experiment_ids[0]),
                 sqlalchemy_session=session,
                 storage_directory="/foo",
                 log_path="/foo",
@@ -171,7 +175,7 @@ class BaseTestPipelineModule(MockSQLiteDB):
                 validate_files_exist=False
             )
 
-            for oe_id in experiment_ids:
+            for oe_id in self.experiment_ids:
                 save_job_run_to_db(
                     workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
                     start=datetime.datetime.now(),

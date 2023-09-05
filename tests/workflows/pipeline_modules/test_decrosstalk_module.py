@@ -3,9 +3,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch, PropertyMock
 
-from ophys_etl.workflows.pipeline_modules.motion_correction import \
-    MotionCorrectionModule
-
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue, \
     MotionCorrectionRun
 
@@ -36,75 +33,6 @@ class TestDecrosstalkModule(MockSQLiteDB):
     def setup(self):
         super().setup()
 
-        xy_offset_path = (
-            Path(__file__).parent / "resources" / "rigid_motion_transform.csv"
-        )
-        self.temp_dir_obj = tempfile.TemporaryDirectory()
-        self.temp_dir = Path(self.temp_dir_obj.name)
-        with Session(self._engine) as session:
-            for oe_id in self._experiment_ids:
-                save_job_run_to_db(
-                    workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
-                    start=datetime.datetime.now(),
-                    end=datetime.datetime.now(),
-                    module_outputs=[
-                        OutputFile(
-                            well_known_file_type=(
-                                WellKnownFileTypeEnum.
-                                MOTION_CORRECTED_IMAGE_STACK
-                            ),
-                            path=(self._tmp_dir /
-                                  f'{oe_id}_motion_correction.h5'),
-                        ),
-                        OutputFile(
-                            well_known_file_type=(
-                                WellKnownFileTypeEnum.
-                                MAX_INTENSITY_PROJECTION_IMAGE
-                            ),
-                            path=self._tmp_dir / f'{oe_id}_max_proj.png',
-                        ),
-                        OutputFile(
-                            well_known_file_type=(
-                                WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA
-                            ),
-                            path=xy_offset_path
-                        )
-                    ],
-                    ophys_experiment_id=oe_id,
-                    sqlalchemy_session=session,
-                    storage_directory="/foo",
-                    log_path="/foo",
-                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-                    validate_files_exist=False,
-                    additional_steps=MotionCorrectionModule.save_metadata_to_db
-                )
-
-                save_job_run_to_db(
-                    workflow_step_name=WorkflowStepEnum.TRACE_EXTRACTION,
-                    start=datetime.datetime.now(),
-                    end=datetime.datetime.now(),
-                    module_outputs=[
-                        OutputFile(
-                            well_known_file_type=(
-                                WellKnownFileTypeEnum.ROI_TRACE
-                            ),
-                            path=Path(f'{oe_id}_roi_traces.h5'),
-                        )
-                    ],
-                    ophys_experiment_id=oe_id,
-                    sqlalchemy_session=session,
-                    storage_directory="/foo",
-                    log_path="/foo",
-                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-                    validate_files_exist=False
-                )
-
-                with open(self._tmp_dir / f'{oe_id}_max_proj.png', 'w') as f:
-                    f.write('')
-                with open(self._tmp_dir / f'{oe_id}_motion_correction.h5',
-                          'w') as f:
-                    f.write('')
-
     @patch.object(OphysExperiment, 'from_id')
     @patch.object(OphysSession, 'get_ophys_experiment_ids')
     @patch.object(OphysExperiment, 'motion_border',
@@ -115,49 +43,27 @@ class TestDecrosstalkModule(MockSQLiteDB):
                   new_callable=PropertyMock)
     def test_inputs(self,
                     mock_output_dir,
-                    mock_rois,
+                    mock_oe_rois,
                     mock_motion_border,
                     mock_ophys_session_oe_ids,
                     mock_ophys_experiment_from_id,
+                    temp_dir,
+                    mock_motion_border_run,
+                    mock_rois,
+                    mock_ophys_session
                     ):
 
-        ophys_session = OphysSession(
-            id=1,
-            specimen=Specimen(id='specimen_1')
-        )
-
-        mock_roi = OphysROI(
-                    id=1,
-                    x=0,
-                    y=0,
-                    width=2,
-                    height=1,
-                    is_in_motion_border=False
-                )
-        mock_roi._mask_values = [
-            OphysROIMaskValue(
-                id=1,
-                ophys_roi_id=1,
-                row_index=0,
-                col_index=0
-            )
-        ]
-        mock_rois.return_value = [mock_roi]
-        mock_motion_border.return_value = MotionCorrectionRun(
-            max_correction_left=1,
-            max_correction_right=3,
-            max_correction_up=2,
-            max_correction_down=4
-        )
+        mock_oe_rois.return_value = mock_rois
+        mock_motion_border.return_value = mock_motion_border_run
         mock_ophys_session_oe_ids.return_value = self._experiment_ids
         mock_ophys_experiment_from_id.side_effect = \
             lambda id: OphysExperiment(
                 id=id,
                 movie_frame_rate_hz=1,
                 raw_movie_filename=Path('foo'),
-                session=ophys_session,
+                session=mock_ophys_session,
                 container=OphysContainer(id=1, specimen=Specimen(id='1')),
-                specimen=ophys_session.specimen,
+                specimen=mock_ophys_session.specimen,
                 storage_directory=Path('foo'),
                 imaging_plane_group=ImagingPlaneGroup(
                     id=0 if id == 1 else 1,
@@ -166,21 +72,21 @@ class TestDecrosstalkModule(MockSQLiteDB):
                 full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
                 equipment_name='MESO.1'
             )
-        mock_output_dir.return_value = self.temp_dir
+        mock_output_dir.return_value = temp_dir
 
         with patch('ophys_etl.workflows.pipeline_modules.decrosstalk.engine',
                    new=self._engine):
             mod = DecrosstalkModule(
                 docker_tag='main',
-                ophys_session=ophys_session
+                ophys_session=mock_ophys_session
             )
             obtained_inputs = mod.inputs
 
         expected_inputs = {
             'log_level': 'INFO',
-            'ophys_session_id': ophys_session.id,
+            'ophys_session_id': mock_ophys_session.id,
             'qc_output_dir': str(
-                    ophys_session.output_dir / 'DECROSSTALK' / mod.now_str),
+                    mock_ophys_session.output_dir / 'DECROSSTALK' / mod.now_str),
             'coupled_planes': [
                 {
                     'ophys_imaging_plane_group_id': (

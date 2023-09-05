@@ -7,19 +7,19 @@ from ophys_etl.workflows.ophys_experiment import (
     OphysSession)
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
-from ophys_etl.workflows.pipeline_modules.trace_processing.demix_traces import DemixTracesModule  # noqa E501
+from ophys_etl.workflows.pipeline_modules.denoising.denoising_inference import DenoisingInferenceModule  # noqa E501
 
 
 class TestDenoisingFinetuningModule(BaseTestPipelineModule):
 
     def setup(self):
-        super().setup()
+        super().setup_method()
 
     @patch.object(OphysExperiment, 'rois',
                   new_callable=PropertyMock)
     @patch.object(OphysSession, 'output_dir',
                   new_callable=PropertyMock)
-    @patch.object(DemixTracesModule, 'output_path',
+    @patch.object(DenoisingInferenceModule, 'output_path',
                   new_callable=PropertyMock)
     def test_inputs(self,
                     mock_output_path,
@@ -35,7 +35,7 @@ class TestDenoisingFinetuningModule(BaseTestPipelineModule):
         mock_output_dir.return_value = temp_dir
 
 
-        mod = DemixTracesModule(
+        mod = DenoisingInferenceModule(
             docker_tag='main',
             ophys_experiment=mock_ophys_experiment,
             motion_corrected_ophys_movie_file=OutputFile(

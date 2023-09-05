@@ -145,8 +145,8 @@ def rois_path():
     return Path(__file__).parent / "resources" / "rois.json"
 class BaseTestPipelineModule(MockSQLiteDB):
 
-    def setup(self, experiment_ids,
-              rois_path):
+    def setup_method(self, experiment_ids,
+              ):
         super().setup()
 
         with Session(self._engine) as session:

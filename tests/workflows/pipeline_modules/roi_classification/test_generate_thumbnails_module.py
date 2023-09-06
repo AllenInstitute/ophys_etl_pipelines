@@ -26,8 +26,9 @@ class TestGenerateThumbnailsModule(BaseTestPipelineModule):
     def test_inputs(self,
                     mock_output_path,
                     mock_output_dir,
-                    mock_rois,
+                    mock_oe_rois,
                     is_training,
+                    mock_rois,
                     temp_dir, mock_ophys_experiment,
                     motion_corrected_ophys_movie_path,
                     trace_path):
@@ -36,7 +37,7 @@ class TestGenerateThumbnailsModule(BaseTestPipelineModule):
 
         mock_output_path.return_value = temp_dir
         mock_output_dir.return_value = temp_dir
-
+        mock_oe_rois.return_value = mock_rois
 
         mod = GenerateThumbnailsModule(
             docker_tag='main',
@@ -47,12 +48,7 @@ class TestGenerateThumbnailsModule(BaseTestPipelineModule):
                 ),
                 path=motion_corrected_ophys_movie_path,
             ),
-            rois=OutputFile(
-                well_known_file_type=(
-                    WellKnownFileTypeEnum.OPHYS_ROIS
-                ),
-                path=trace_path,
-            ),
+            rois= [x.to_dict() for x in mock_rois],
             correlation_projection_graph_file=OutputFile(
                 well_known_file_type=(
                     WellKnownFileTypeEnum.ROI_CLASSIFICATION_CORRELATION_PROJECTION_GRAPH

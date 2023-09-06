@@ -72,7 +72,7 @@ class GenerateThumbnailsModule(PipelineModule):
         if self._is_training:
             d[
                 "cell_labeling_app_host"
-            ] = app_config.pipeline_steps.roi_classification
+            ] = app_config.pipeline_steps.roi_classification.cell_labeling_app_host # noqa E501
         return d
 
     @property

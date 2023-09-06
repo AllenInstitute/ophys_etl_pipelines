@@ -33,6 +33,7 @@ from ophys_etl.workflows.ophys_experiment import (
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue, MotionCorrectionRun
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
+from ophys_etl.schemas._roi_schema import ExtractROISchema
 
 MOCK_EXPERIMENT_IDS = [1, 2]
 
@@ -123,6 +124,12 @@ def mock_rois():
         )
     ]
     return [mock_roi]
+
+@pytest.fixture
+def mock_thumbnails_dir(temp_dir):
+    return {
+        "1": temp_dir,
+    }
 
 @pytest.fixture
 def mock_motion_border_run(workflow_step_run_id):

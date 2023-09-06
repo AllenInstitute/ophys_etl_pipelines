@@ -123,10 +123,7 @@ class SlurmJob:
             return cls(
                 id=job_id
             )
-        elif len(response['jobs']) > 1:
-            raise RuntimeError(f'Expected 1 job to be returned but '
-                               f'{len(response["jobs"])} were returned)')
-        job = response['jobs'][0]
+        job = response['jobs'][-1]
 
         # slurm records datetimes in local time (Pacific). Convert to UTC
         start = datetime.fromtimestamp(job['time']['start'],
@@ -233,6 +230,9 @@ class Slurm:
             app_config.singularity.password.get_secret_value()
 
         request_gpu = self._slurm_settings.gpus > 0
+
+        # Note: downloading image to tmprdir and disabling caching due to
+        # cryptic errors, i.e. stale NFS file mount, bus error, etc.
         script = f'''#! /bin/bash
 # Adds mksquashfs (needed for singularity) to $PATH
 source /etc/profile
@@ -240,7 +240,10 @@ source /etc/profile
 export SINGULARITY_DOCKER_USERNAME={singularity_username}
 export SINGULARITY_DOCKER_PASSWORD={singularity_password}
 
-SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} singularity run \
+SINGULARITY_TMPDIR=/scratch/fast/${{SLURM_JOB_ID}} \
+SINGULARITY_PULLFOLDER=/scratch/fast/${{SLURM_JOB_ID}} \
+SINGULARITY_DISABLE_CACHE=True \
+singularity run \
     --bind /allen:/allen,/scratch/fast/${{SLURM_JOB_ID}}:/tmp \
     {"--nv" if request_gpu else ""} \
     docker://alleninstitutepika/\

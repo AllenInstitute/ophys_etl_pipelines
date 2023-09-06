@@ -85,7 +85,6 @@ class TestDBUtils:
             path = self._tmp_dir / "foo.txt"
         else:
             path = self._tmp_dir / "foo"
-            os.makedirs(path)
         files = [
             OutputFile(
                 path=path,
@@ -101,6 +100,7 @@ class TestDBUtils:
             with open(path, "w") as f:
                 f.write("")
         else:
+            os.makedirs(path)
             with open(path / "foo.txt", "w") as f:
                 f.write("")
 

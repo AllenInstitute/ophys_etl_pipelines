@@ -104,7 +104,7 @@ class _DenoisingFineTuning(_PipelineStep):
     slurm_settings = SlurmSettings(
         cpus_per_task=17,
         mem=85,
-        time=480,
+        time=12 * 60,
         gpus=1
     )
 

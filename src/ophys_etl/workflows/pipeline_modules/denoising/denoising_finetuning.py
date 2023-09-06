@@ -51,10 +51,13 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "multi_gpus": False,
                 "name": "transfer_trainer",
                 "nb_times_through_data": 1,
-                "nb_workers": 15,
+                "nb_workers": 1,
                 "output_dir": str(self.output_path),
                 "period_save": 1,
                 "steps_per_epoch": 20,
+                # Disabling multiprocessing since issue with zombie processes
+                "use_multiprocessing": False,
+                "verbose": 2
             },
             "generator_params": {
                 "batch_size": app_config.pipeline_steps.denoising.batch_size,
@@ -74,7 +77,7 @@ class DenoisingFinetuningModule(_DenoisingModule):
                 "pre_post_omission": 0,
                 "seed": 1234
             },
-            "run_uid": str(self.ophys_experiment.id),
+            "run_uid": str(self.ophys_experiment.id)
         }
 
     @property

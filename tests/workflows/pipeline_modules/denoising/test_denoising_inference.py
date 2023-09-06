@@ -10,13 +10,11 @@ from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.pipeline_modules.denoising.denoising_inference import DenoisingInferenceModule  # noqa E501
 
 
-class TestDenoisingFinetuningModule(BaseTestPipelineModule):
+class TestDenoisingInferencegModule(BaseTestPipelineModule):
 
     def setup(self):
         super().setup()
 
-    @patch.object(OphysExperiment, 'rois',
-                  new_callable=PropertyMock)
     @patch.object(OphysSession, 'output_dir',
                   new_callable=PropertyMock)
     @patch.object(DenoisingInferenceModule, 'output_path',
@@ -24,7 +22,6 @@ class TestDenoisingFinetuningModule(BaseTestPipelineModule):
     def test_inputs(self,
                     mock_output_path,
                     mock_output_dir,
-                    mock_rois,
                     temp_dir, mock_ophys_experiment,
                     motion_corrected_ophys_movie_path,
                     trace_path):
@@ -44,9 +41,9 @@ class TestDenoisingFinetuningModule(BaseTestPipelineModule):
                 ),
                 path=motion_corrected_ophys_movie_path,
             ),
-            roi_traces_file=OutputFile(
+            trained_denoising_model_file=OutputFile(
                 well_known_file_type=(
-                    WellKnownFileTypeEnum.ROI_TRACE
+                    WellKnownFileTypeEnum.DEEPINTERPOLATION_FINETUNED_MODEL
                 ),
                 path=trace_path,
             )

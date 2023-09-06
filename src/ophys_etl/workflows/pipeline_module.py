@@ -80,7 +80,7 @@ class PipelineModule(abc.ABC):
             self._validate_file_overwrite()
 
         if isinstance(self.module_schema, DefaultSchema):
-            self.module_schema.load(data=self.inputs)
+            self.validate_input_args()
         else:
             raise ValueError(
                 f"module_schema must be subclass of DefaultSchema, "
@@ -195,6 +195,13 @@ class PipelineModule(abc.ABC):
         )
         return args_path
 
+    def validate_input_args(self) -> None:
+        """Validates module input args after it's been processed by
+        EnhancedJSONEncoder"""
+        encoded_json = json.dumps(self.inputs, cls=EnhancedJSONEncoder)
+        preprocessed_inputs = json.loads(encoded_json)
+        self.module_schema.load(data=preprocessed_inputs)
+        
     def write_input_args(self):
         """Writes module input args to disk"""
         with open(self.input_args_path, "w") as f:

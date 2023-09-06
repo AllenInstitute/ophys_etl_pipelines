@@ -15,8 +15,6 @@ class TestDenoisingFinetuningModule(BaseTestPipelineModule):
     def setup(self):
         super().setup()
 
-    @patch.object(OphysExperiment, 'rois',
-                  new_callable=PropertyMock)
     @patch.object(OphysSession, 'output_dir',
                   new_callable=PropertyMock)
     @patch.object(DenoisingFinetuningModule, 'output_path',
@@ -24,10 +22,8 @@ class TestDenoisingFinetuningModule(BaseTestPipelineModule):
     def test_inputs(self,
                     mock_output_path,
                     mock_output_dir,
-                    mock_rois,
                     temp_dir, mock_ophys_experiment,
-                    motion_corrected_ophys_movie_path,
-                    trace_path):
+                    motion_corrected_ophys_movie_path):
         """Test that inputs are correctly formatted for input into the module.
         """
 
@@ -43,12 +39,6 @@ class TestDenoisingFinetuningModule(BaseTestPipelineModule):
                     WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK
                 ),
                 path=motion_corrected_ophys_movie_path,
-            ),
-            roi_traces_file=OutputFile(
-                well_known_file_type=(
-                    WellKnownFileTypeEnum.ROI_TRACE
-                ),
-                path=trace_path,
             )
         )
 

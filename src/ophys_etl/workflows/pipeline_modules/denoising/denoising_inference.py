@@ -23,14 +23,15 @@ class DenoisingInferenceModule(_DenoisingModule):
         prevent_file_overwrites: bool = True,
         **kwargs,
     ):
+
+        trained_model_file: OutputFile = kwargs["trained_denoising_model_file"]
+        self._trained_model_path = str(trained_model_file.path)
         super().__init__(
             ophys_experiment=ophys_experiment,
             prevent_file_overwrites=prevent_file_overwrites,
             **kwargs,
         )
 
-        trained_model_file: OutputFile = kwargs["trained_denoising_model_file"]
-        self._trained_model_path = str(trained_model_file.path)
 
     @property
     def queue_name(self) -> WorkflowStepEnum:

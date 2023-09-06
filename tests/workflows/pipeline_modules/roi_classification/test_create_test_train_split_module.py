@@ -10,13 +10,11 @@ from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.pipeline_modules.roi_classification.create_train_test_split import CreateTrainTestSplitModule  # noqa E501
 
 
-class TestDenoisingFinetuningModule(BaseTestPipelineModule):
+class TestCreateTrainTestSplitModule(BaseTestPipelineModule):
 
     def setup(self):
-        super().setup_method()
+        super().setup()
 
-    @patch.object(OphysExperiment, 'rois',
-                  new_callable=PropertyMock)
     @patch.object(OphysSession, 'output_dir',
                   new_callable=PropertyMock)
     @patch.object(CreateTrainTestSplitModule, 'output_path',
@@ -24,10 +22,7 @@ class TestDenoisingFinetuningModule(BaseTestPipelineModule):
     def test_inputs(self,
                     mock_output_path,
                     mock_output_dir,
-                    mock_rois,
-                    temp_dir, mock_ophys_experiment,
-                    motion_corrected_ophys_movie_path,
-                    trace_path):
+                    temp_dir):
         """Test that inputs are correctly formatted for input into the module.
         """
 
@@ -37,18 +32,11 @@ class TestDenoisingFinetuningModule(BaseTestPipelineModule):
 
         mod = CreateTrainTestSplitModule(
             docker_tag='main',
-            ophys_experiment=mock_ophys_experiment,
-            motion_corrected_ophys_movie_file=OutputFile(
+            thumbnail_dirs=OutputFile(
                 well_known_file_type=(
-                    WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK
+                    WellKnownFileTypeEnum.ROI_CLASSIFICATION_THUMBNAIL_IMAGES
                 ),
-                path=motion_corrected_ophys_movie_path,
-            ),
-            roi_traces_file=OutputFile(
-                well_known_file_type=(
-                    WellKnownFileTypeEnum.ROI_TRACE
-                ),
-                path=trace_path,
+                path=Path("/foo"),
             )
         )
 

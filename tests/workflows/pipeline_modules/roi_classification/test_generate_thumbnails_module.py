@@ -1,6 +1,7 @@
 from unittest.mock import patch, PropertyMock
 
 from tests.workflows.conftest import *
+import pytest
 
 from ophys_etl.workflows.ophys_experiment import (
     OphysExperiment,
@@ -10,11 +11,12 @@ from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.pipeline_modules.roi_classification.generate_thumbnails import GenerateThumbnailsModule  # noqa E501
 
 
-class TestDenoisingFinetuningModule(BaseTestPipelineModule):
+class TestGenerateThumbnailsModule(BaseTestPipelineModule):
 
     def setup(self):
-        super().setup_method()
+        super().setup()
 
+    @pytest.mark.parametrize("is_training", [True, False])
     @patch.object(OphysExperiment, 'rois',
                   new_callable=PropertyMock)
     @patch.object(OphysSession, 'output_dir',
@@ -25,6 +27,7 @@ class TestDenoisingFinetuningModule(BaseTestPipelineModule):
                     mock_output_path,
                     mock_output_dir,
                     mock_rois,
+                    is_training,
                     temp_dir, mock_ophys_experiment,
                     motion_corrected_ophys_movie_path,
                     trace_path):
@@ -38,19 +41,31 @@ class TestDenoisingFinetuningModule(BaseTestPipelineModule):
         mod = GenerateThumbnailsModule(
             docker_tag='main',
             ophys_experiment=mock_ophys_experiment,
-            motion_corrected_ophys_movie_file=OutputFile(
+            denoised_ophys_movie_file=OutputFile(
                 well_known_file_type=(
-                    WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK
+                    WellKnownFileTypeEnum.DEEPINTERPOLATION_DENOISED_MOVIE
                 ),
                 path=motion_corrected_ophys_movie_path,
             ),
-            roi_traces_file=OutputFile(
+            rois=OutputFile(
                 well_known_file_type=(
-                    WellKnownFileTypeEnum.ROI_TRACE
+                    WellKnownFileTypeEnum.OPHYS_ROIS
+                ),
+                path=trace_path,
+            ),
+            correlation_projection_graph_file=OutputFile(
+                well_known_file_type=(
+                    WellKnownFileTypeEnum.ROI_CLASSIFICATION_CORRELATION_PROJECTION_GRAPH
+                ),
+                path=trace_path,
+            ),
+            is_training=is_training,
+            motion_correction_shifts_file=OutputFile(
+                well_known_file_type=(
+                    WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA
                 ),
                 path=trace_path,
             )
-        )
-
+                )
         mod.inputs
 

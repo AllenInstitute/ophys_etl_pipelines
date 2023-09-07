@@ -38,6 +38,8 @@ commands:
       test_directory:
         type: string
         default: tests
+      coverage_executable_path:
+        type: string
     steps:
       - run:
           name: Run docker image << parameters.test_name >> tests
@@ -55,7 +57,7 @@ commands:
               --tmpfs /tmp \
               -v $PWD/coverage_outputs_<<parameters.python_version>>:/coverage_outputs_<<parameters.python_version>> \
               alleninstitutepika/ophys_etl_pipelines:<<parameters.docker_tag>> \
-              /repos/ophys_etl/.circleci/scripts/run_and_test.sh "<<parameters.pytest_mark>>" <<parameters.python_version>> <<parameters.conda_env>> <<parameters.test_name>>.xml <<parameters.test_directory>>
+              /repos/ophys_etl/.circleci/scripts/run_and_test.sh "<<parameters.pytest_mark>>" <<parameters.python_version>> <<parameters.conda_env>> <<parameters.test_name>>.xml <<parameters.test_directory>> <<parameters.coverage_executable_path>>
 
 
   build_and_test:
@@ -80,6 +82,7 @@ commands:
           docker_tag: ${CIRCLE_SHA1}
           pytest_mark: "event_detect_only"
           conda_env: event_detection
+          coverage_executable_path: "/envs/event_detection/bin/coverage"
       - test:
           test_name: "deepinterpolation"
           python_version: <<parameters.python_version>>
@@ -87,13 +90,14 @@ commands:
           pytest_mark: deepinterpolation_only
           conda_env: ophys_etl
           test_directory: tests/modules/denoising/ tests/workflows/pipeline_modules/denoising
+          coverage_executable_path: "/usr/local/bin/coverage"
       - test:
           test_name: "general"
           python_version: <<parameters.python_version>>
           docker_tag: ${CIRCLE_SHA1}
           pytest_mark: "not event_detect_only and not deepinterpolation_only"
           conda_env: ophys_etl
-
+          coverage_executable_path: "/envs/ophys_etl/bin/coverage"
   smoke_test_and_push:
     steps:
       - run:
@@ -117,17 +121,17 @@ commands:
             echo "$DOCKER_PASS" | docker login --username $DOCKER_USER --password-stdin
             if [ "$CIRCLE_BRANCH" = "main" ]
             then
-                docker tag alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:main
-                docker push alleninstitutepika/ophys_etl_pipelines:main
+                docker tag alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:main_${CIRCLE_SHA1}
+                docker push alleninstitutepika/ophys_etl_pipelines:main_${CIRCLE_SHA1}
 
-                docker tag alleninstitutepika/ophys_etl_pipelines:deepinterpolation_${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:deepinterpolation_main
-                docker push alleninstitutepika/ophys_etl_pipelines:deepinterpolation_main
+                docker tag alleninstitutepika/ophys_etl_pipelines:deepinterpolation_${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:deepinterpolation_main_${CIRCLE_SHA1}
+                docker push alleninstitutepika/ophys_etl_pipelines:deepinterpolation_main_${CIRCLE_SHA1}
             else
-                docker tag alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:develop
-                docker push alleninstitutepika/ophys_etl_pipelines:develop
+                docker tag alleninstitutepika/ophys_etl_pipelines:${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:develop_${CIRCLE_SHA1}
+                docker push alleninstitutepika/ophys_etl_pipelines:develop_${CIRCLE_SHA1}
 
-                docker tag alleninstitutepika/ophys_etl_pipelines:deepinterpolation_${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:deepinterpolation_develop
-                docker push alleninstitutepika/ophys_etl_pipelines:deepinterpolation_develop
+                docker tag alleninstitutepika/ophys_etl_pipelines:deepinterpolation_${CIRCLE_SHA1} alleninstitutepika/ophys_etl_pipelines:deepinterpolation_develop_${CIRCLE_SHA1}
+                docker push alleninstitutepika/ophys_etl_pipelines:deepinterpolation_develop_${CIRCLE_SHA1}
             fi
         
 jobs:

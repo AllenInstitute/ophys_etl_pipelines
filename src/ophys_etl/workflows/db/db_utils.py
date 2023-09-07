@@ -1,11 +1,9 @@
 """Database interface"""
 import datetime
 import logging
-import os
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Union
 
-from ophys_etl.workflows.app_config.app_config import app_config
 from sqlalchemy.exc import NoResultFound
 from sqlmodel import Session, select
 
@@ -249,12 +247,3 @@ def _validate_files_exist(output_files: List[OutputFile]):
                 f"Expected {out.well_known_file_type} to "
                 f"exist at {out.path} but it did not"
             )
-        if Path(out.path).is_dir():
-            if len(os.listdir(out.path)) == 0:
-                if app_config.is_debug:
-                    # Skipping in debug mode as it's possible for no files to
-                    #  get written, which is expected
-                    return
-                raise ModuleOutputFileDoesNotExistException(
-                    f"Directory {out.path} is empty"
-                )

@@ -1,4 +1,4 @@
-FROM tensorflow/tensorflow:2.5.1-gpu
+FROM tensorflow/tensorflow:2.11.0-gpu
 
 LABEL maintainer="pika@alleninstitute.onmicrosoft.com"
 LABEL version=1.0
@@ -27,21 +27,12 @@ RUN apt-get -y update --allow-releaseinfo-change
 
 RUN apt-get -y install git
 RUN apt-get -y install wget
-
-# install conda
-RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
-RUN bash ~/miniconda.sh -b -p ~/miniconda
-
-# activate conda
-RUN eval "$(~/miniconda/bin/conda shell.bash hook)"
-ENV PATH="~/miniconda/bin:${PATH}"
-ARG PATH="~/miniconda/bin:${PATH}"
-RUN conda init
-
+RUN apt-get -y install "python${PYTHON_VERSION}"
+RUN apt-get -y install python3-pip
+RUN ln -sf /usr/bin/python${PYTHON_VERSION} /usr/bin/python3
 
 RUN git clone -b ${OPHYS_ETL_TAG} https://github.com/AllenInstitute/ophys_etl_pipelines ./ophys_etl
-RUN conda create --prefix ${CONDA_ENV} python=${PYTHON_VERSION} && \
-    conda run --prefix ${CONDA_ENV} pip install --no-cache ./ophys_etl[deepinterpolation] && \
-    conda run --prefix ${CONDA_ENV} pip install coverage
+RUN /usr/bin/python3 -m pip install --no-cache ./ophys_etl[deepinterpolation] && \
+    /usr/bin/python3 -m pip install coverage
 
 ENTRYPOINT ["/bin/bash", "-c", "$@", "--"]

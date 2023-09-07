@@ -187,7 +187,8 @@ def ophys_processing():
 
         is_session_complete = \
             ophys_experiment.session.has_completed_workflow_step(
-                workflow_step=WorkflowStepEnum.SEGMENTATION
+                workflow_step=WorkflowStepEnum.SEGMENTATION,
+                passed_or_qc_only=False
             )
 
         return ophys_experiment.is_multiplane and \

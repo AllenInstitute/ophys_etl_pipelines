@@ -10,6 +10,11 @@ from ophys_etl.workflows.utils.airflow_utils import call_endpoint_with_retries
 
 logger = logging.getLogger(__name__)
 
+# See https://airflow.apache.org/docs/apache-airflow/stable/faq.html#
+# what-s-the-deal-with-start-date
+START_DATE = datetime.datetime(
+        year=1900, month=1, day=1, hour=1, minute=1, second=1)
+
 
 def get_latest_dag_run(
         dag_id: str,

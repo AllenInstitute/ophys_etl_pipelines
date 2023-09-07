@@ -1,5 +1,4 @@
 """Ophys processing DAG"""
-import pendulum
 from airflow.decorators import task_group, task
 from airflow.models import Param
 from airflow.models.dag import dag
@@ -37,7 +36,7 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.event_detection impor
     EventDetection,
 )
 from ophys_etl.workflows.tasks import wait_for_decrosstalk_to_finish
-from ophys_etl.workflows.utils.dag_utils import trigger_dag_run
+from ophys_etl.workflows.utils.dag_utils import trigger_dag_run, START_DATE
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import get_most_recent_run
@@ -50,7 +49,7 @@ WORKFLOW_NAME = WorkflowNameEnum.OPHYS_PROCESSING
     dag_id="ophys_processing",
     schedule=None,
     catchup=False,
-    start_date=pendulum.yesterday(),
+    start_date=START_DATE,
     params={
         "ophys_experiment_id": Param(
             description="identifier for ophys experiment",

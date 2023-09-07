@@ -86,7 +86,7 @@ commands:
           docker_tag: deepinterpolation_${CIRCLE_SHA1}
           pytest_mark: deepinterpolation_only
           conda_env: ophys_etl
-          test_directory: tests/modules/denoising/
+          test_directory: tests/modules/denoising/ tests/workflows/pipeline_modules/denoising
       - test:
           test_name: "general"
           python_version: <<parameters.python_version>>

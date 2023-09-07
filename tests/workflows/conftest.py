@@ -7,7 +7,6 @@ import os
 import pytest
 from pathlib import Path
 from sqlmodel import Session
-from unittest.mock import patch
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
 
@@ -31,9 +30,6 @@ from ophys_etl.workflows.ophys_experiment import (
     OphysSession,
     Specimen, OphysContainer)
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue, MotionCorrectionRun
-from ophys_etl.workflows.pipeline_modules.motion_correction import \
-    MotionCorrectionModule
-from ophys_etl.schemas._roi_schema import ExtractROISchema
 
 MOCK_EXPERIMENT_IDS = [1, 2]
 

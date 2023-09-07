@@ -1,6 +1,6 @@
 from unittest.mock import patch, PropertyMock
 
-from tests.workflows.conftest import *
+from tests.workflows.conftest import BaseTestPipelineModule
 
 from ophys_etl.workflows.ophys_experiment import (
     OphysExperiment,
@@ -26,6 +26,8 @@ class TestDenoisingInferencegModule(BaseTestPipelineModule):
                     motion_corrected_ophys_movie_path,
                     trace_path):
         """Test that inputs are correctly formatted for input into the module.
+        The inputs are validated during object instantiation and will fail
+        if the format is not correctly formatted.
         """
 
         mock_output_path.return_value = temp_dir
@@ -48,6 +50,4 @@ class TestDenoisingInferencegModule(BaseTestPipelineModule):
                 path=trace_path,
             )
         )
-
-        mod.inputs
 

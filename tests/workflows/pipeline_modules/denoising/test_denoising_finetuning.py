@@ -1,10 +1,8 @@
 from unittest.mock import patch, PropertyMock
 
-from tests.workflows.conftest import *
+from tests.workflows.conftest import BaseTestPipelineModule
 
-from ophys_etl.workflows.ophys_experiment import (
-    OphysExperiment,
-    OphysSession)
+from ophys_etl.workflows.ophys_experiment import OphysSession
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.pipeline_modules.denoising.denoising_finetuning import DenoisingFinetuningModule  # noqa E501
@@ -41,6 +39,4 @@ class TestDenoisingFinetuningModule(BaseTestPipelineModule):
                 path=motion_corrected_ophys_movie_path,
             )
         )
-
-        mod.inputs
 

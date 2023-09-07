@@ -1,14 +1,13 @@
 import datetime
-import tempfile
 from pathlib import Path
 from unittest.mock import patch, PropertyMock
 
-from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue, \
-    MotionCorrectionRun
-
+from ophys_etl.workflows.pipeline_modules.motion_correction import \
+    MotionCorrectionModule
 from ophys_etl.workflows.pipeline_modules.segmentation import \
     SegmentationModule
 
+from ophys_etl.workflows.db.schemas import OphysROI
 from ophys_etl.workflows.output_file import OutputFile
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db
@@ -32,6 +31,74 @@ class TestDecrosstalkModule(MockSQLiteDB):
 
     def setup(self):
         super().setup()
+        
+        xy_offset_path = (
+            Path(__file__).parent / "resources" / "rigid_motion_transform.csv"
+        )
+
+        with Session(self._engine) as session:
+            for oe_id in self._experiment_ids:
+                save_job_run_to_db(
+                    workflow_step_name=WorkflowStepEnum.MOTION_CORRECTION,
+                    start=datetime.datetime.now(),
+                    end=datetime.datetime.now(),
+                    module_outputs=[
+                        OutputFile(
+                            well_known_file_type=(
+                                WellKnownFileTypeEnum.
+                                MOTION_CORRECTED_IMAGE_STACK
+                            ),
+                            path=(self._tmp_dir /
+                                  f'{oe_id}_motion_correction.h5'),
+                        ),
+                        OutputFile(
+                            well_known_file_type=(
+                                WellKnownFileTypeEnum.
+                                MAX_INTENSITY_PROJECTION_IMAGE
+                            ),
+                            path=self._tmp_dir / f'{oe_id}_max_proj.png',
+                        ),
+                        OutputFile(
+                            well_known_file_type=(
+                                WellKnownFileTypeEnum.MOTION_X_Y_OFFSET_DATA
+                            ),
+                            path=xy_offset_path
+                        )
+                    ],
+                    ophys_experiment_id=oe_id,
+                    sqlalchemy_session=session,
+                    storage_directory="/foo",
+                    log_path="/foo",
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                    validate_files_exist=False,
+                    additional_steps=MotionCorrectionModule.save_metadata_to_db
+                )
+
+                save_job_run_to_db(
+                    workflow_step_name=WorkflowStepEnum.TRACE_EXTRACTION,
+                    start=datetime.datetime.now(),
+                    end=datetime.datetime.now(),
+                    module_outputs=[
+                        OutputFile(
+                            well_known_file_type=(
+                                WellKnownFileTypeEnum.ROI_TRACE
+                            ),
+                            path=Path(f'{oe_id}_roi_traces.h5'),
+                        )
+                    ],
+                    ophys_experiment_id=oe_id,
+                    sqlalchemy_session=session,
+                    storage_directory="/foo",
+                    log_path="/foo",
+                    workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                    validate_files_exist=False
+                )
+
+                with open(self._tmp_dir / f'{oe_id}_max_proj.png', 'w') as f:
+                    f.write('')
+                with open(self._tmp_dir / f'{oe_id}_motion_correction.h5',
+                          'w') as f:
+                    f.write('')
 
     @patch.object(OphysExperiment, 'from_id')
     @patch.object(OphysSession, 'get_ophys_experiment_ids')
@@ -83,7 +150,6 @@ class TestDecrosstalkModule(MockSQLiteDB):
             obtained_inputs = mod.inputs
 
         expected_inputs = {
-            'log_level': 'INFO',
             'ophys_session_id': mock_ophys_session.id,
             'qc_output_dir': str(
                     mock_ophys_session.output_dir / 'DECROSSTALK' / mod.now_str),
@@ -121,7 +187,7 @@ class TestDecrosstalkModule(MockSQLiteDB):
                                 {'mask_matrix' if k == 'mask' else k: v
                                  for k, v in x.to_dict().items()
                                  }
-                                for x in mock_rois.return_value]
+                                for x in mock_oe_rois.return_value]
                         }
                     ]
                 }
@@ -225,5 +291,3 @@ class TestDecrosstalkModule(MockSQLiteDB):
                 else:
                     assert getattr(roi, f'is_{flag}') is False
 
-    def teardown(self):
-        self.temp_dir_obj.cleanup()

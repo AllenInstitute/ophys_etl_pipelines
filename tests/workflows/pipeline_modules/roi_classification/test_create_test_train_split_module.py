@@ -1,7 +1,7 @@
 # TODO: This test needs to be completed when the CreateTestTrainSplitModule is completed. See ticket PSB-192 for more details.
 # from unittest.mock import patch, PropertyMock
 
-# from tests.workflows.conftest import *
+# from tests.workflows.conftest import BaseTestPipelineModule
 
 # from ophys_etl.workflows.ophys_experiment import (
 #     OphysExperiment,

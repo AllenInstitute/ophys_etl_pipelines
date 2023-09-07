@@ -1,6 +1,6 @@
 from unittest.mock import patch, PropertyMock
 
-from tests.workflows.conftest import *
+from tests.workflows.conftest import BaseTestPipelineModule
 import pytest
 
 from ophys_etl.workflows.ophys_experiment import (

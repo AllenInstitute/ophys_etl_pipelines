@@ -1,10 +1,10 @@
+import logging
+import sys
 from pathlib import Path
-from typing import Dict
 
 import argschema
 import h5py
 import json
-import numpy as np
 from deepinterpolation.cli.fine_tuning import FineTuning
 
 from ophys_etl.modules.denoising.fine_tuning.schemas import \
@@ -19,12 +19,35 @@ class FinetuningRunner(argschema.ArgSchemaParser):
     Wrapper around `FineTuning` interface,
     this also splits the data into train/val splits before passing it to
     that interface"""
-    default_schema = FineTuningInputSchemaPreDataSplit
-    args: Dict
+    def __init__(self, **kwargs):
+        """
+
+        Parameters
+        ----------
+        kwargs
+            kwargs to sent to `ArgSchemaParser` constructor
+        """
+        super().__init__(
+            schema_type=FineTuningInputSchemaPreDataSplit,
+            **kwargs
+        )
+
+        # this removes the logger set by `ArgSchemaParser`. We want to add
+        # a timestamp to the logger
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
+
+        logging.basicConfig(
+            format='%(asctime)s %(name)s %(levelname)-8s %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+            level=self.logger.level,
+            stream=sys.stdout
+        )
+        logger = logging.getLogger(type(self).__name__)
+        logger.setLevel(level=self.logger.level)
+        self.logger = logger
 
     def run(self):
-        self.logger.name = type(self).__name__
-
         train_out_path = Path(
             self.args['data_split_params']['dataset_output_dir']) / \
             'train.json'
@@ -40,7 +63,7 @@ class FinetuningRunner(argschema.ArgSchemaParser):
 
         del self.args['data_split_params']
 
-        # Removes args added in post_load, since they are not expected in
+        # Removes args added, since they are not expected in
         # the schema when `FineTuning` is called below
         del self.args['generator_params']['steps_per_epoch']
         del self.args['test_generator_params']['steps_per_epoch']
@@ -76,8 +99,10 @@ class FinetuningRunner(argschema.ArgSchemaParser):
         with h5py.File(self.args['data_split_params']['movie_path']) as f:
             # Only evaluating mean, std on train set to not leak any signal
             # to validation
-            mean = f['data'][np.sort(train)].mean()
-            std = f['data'][np.sort(train)].std()
+            self.logger.info('Calculating train movie statistics')
+            mov = f['data'][()]
+            mean = mov[train].mean()
+            std = mov[train].std()
 
         for ds_out_path, ds, ds_name in zip(
                 (train_out_path, val_out_path),

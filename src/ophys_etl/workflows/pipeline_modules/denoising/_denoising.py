@@ -26,8 +26,7 @@ class _DenoisingModule(PipelineModule, ABC):
             prevent_file_overwrites=prevent_file_overwrites,
             docker_tag=docker_tag,
         )
- 
+
     @property
     def python_interpreter_path(self) -> str:
         return '/usr/bin/python3'
-

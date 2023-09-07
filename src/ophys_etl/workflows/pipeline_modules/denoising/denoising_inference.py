@@ -32,7 +32,6 @@ class DenoisingInferenceModule(_DenoisingModule):
             **kwargs,
         )
 
-
     @property
     def queue_name(self) -> WorkflowStepEnum:
         return WorkflowStepEnum.DENOISING_INFERENCE

@@ -1,4 +1,6 @@
-# TODO: This test needs to be completed when the CreateTestTrainSplitModule is completed. See ticket PSB-192 for more details.
+# TODO: This test needs to be completed when the CreateTestTrainSplitModule
+# is completed. See ticket PSB-192 for more details.
+
 # from unittest.mock import patch, PropertyMock
 
 # from tests.workflows.conftest import BaseTestPipelineModule
@@ -25,7 +27,8 @@
 #                     mock_output_dir,
 #                     mock_thumbnails_dir,
 #                     temp_dir):
-#         """Test that inputs are correctly formatted for input into the module.
+#         """Test that inputs are correctly formatted
+#         for input into the module.
 #         """
 
 #         mock_output_path.return_value = temp_dir
@@ -38,4 +41,3 @@
 #         )
 
 #         mod.inputs
-

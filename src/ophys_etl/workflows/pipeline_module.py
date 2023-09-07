@@ -26,13 +26,13 @@ logger = logging.getLogger(__name__)
 
 class PipelineModule(abc.ABC):
     """Pipeline module
-    
+
     This is an abstract base class for creating pipeline modules. When
     subclassing, developers should:
     - Implement the required abstract properties and methods.
-    - Ensure any required instance-specific attributes are set before 
+    - Ensure any required instance-specific attributes are set before
       calling this class's `__init__`.
-    
+
     See `DffCalculationModule` for an example subclass."""
 
     def __init__(
@@ -45,9 +45,8 @@ class PipelineModule(abc.ABC):
         **module_args,
     ):
         """
-        
-        NOTE: When subclassing, ensure any required instance-specific attributes 
-        are set before calling this method. 
+        NOTE: When subclassing, ensure any required instance-specific
+        attributes are set before calling this method.
 
         Parameters
         ----------
@@ -201,7 +200,7 @@ class PipelineModule(abc.ABC):
         encoded_json = json.dumps(self.inputs, cls=EnhancedJSONEncoder)
         preprocessed_inputs = json.loads(encoded_json)
         self.module_schema.load(data=preprocessed_inputs)
-        
+
     def write_input_args(self):
         """Writes module input args to disk"""
         with open(self.input_args_path, "w") as f:

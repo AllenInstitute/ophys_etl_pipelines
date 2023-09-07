@@ -33,6 +33,7 @@ class NeuropilCorrection(PipelineModule):
             prevent_file_overwrites=prevent_file_overwrites,
             **kwargs
         )
+
     @property
     def executable(self) -> ModuleType:
         return neuropil_correction

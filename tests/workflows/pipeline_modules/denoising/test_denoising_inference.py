@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import PropertyMock, patch
 
 from ophys_etl.workflows.ophys_experiment import OphysSession
@@ -13,6 +14,7 @@ class TestDenoisingInferencegModule(BaseTestPipelineModule):
     def setup(self):
         super().setup()
 
+    @pytest.mark.deepinterpolation_only
     @patch.object(OphysSession, "output_dir", new_callable=PropertyMock)
     @patch.object(
         DenoisingInferenceModule, "output_path", new_callable=PropertyMock

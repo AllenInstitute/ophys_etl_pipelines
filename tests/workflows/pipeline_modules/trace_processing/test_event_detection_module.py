@@ -1,3 +1,4 @@
+import pytest
 from unittest.mock import patch, PropertyMock
 
 from tests.workflows.conftest import MockSQLiteDB
@@ -15,6 +16,7 @@ class TestEventDetectionModule(MockSQLiteDB):
     def setup(self):
         super().setup()
 
+    @pytest.mark.event_detect_only
     @patch.object(OphysExperiment, 'rois',
                   new_callable=PropertyMock)
     @patch.object(OphysSession, 'output_dir',

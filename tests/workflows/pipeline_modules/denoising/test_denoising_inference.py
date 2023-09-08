@@ -3,11 +3,15 @@ from unittest.mock import PropertyMock, patch
 
 from ophys_etl.workflows.ophys_experiment import OphysSession
 from ophys_etl.workflows.output_file import OutputFile
-from ophys_etl.workflows.pipeline_modules.denoising.denoising_inference import ( # noqa E501
-    DenoisingInferenceModule,
-)
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from tests.workflows.conftest import BaseTestPipelineModule
+try:
+    from ophys_etl.workflows.pipeline_modules.denoising.denoising_inference import ( # noqa E501
+        DenoisingInferenceModule,
+    )
+except ModuleNotFoundError:
+    # even though we might skip tests, pytest tries these imports
+    pass
 
 
 class TestDenoisingInferencegModule(BaseTestPipelineModule):

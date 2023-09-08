@@ -141,6 +141,9 @@ class _Denoising(_PipelineStep):
 
 
 class _MotionCorrection(_PipelineStep):
+    nonrigid: bool = Field(
+        default=False,
+        description='Whether to turn on nonrigid motion correction')
     slurm_settings = SlurmSettings(
         cpus_per_task=32,
         mem=250,

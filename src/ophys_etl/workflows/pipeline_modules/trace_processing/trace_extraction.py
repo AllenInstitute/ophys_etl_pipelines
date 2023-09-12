@@ -48,7 +48,7 @@ class TraceExtractionModule(PipelineModule):
                 self._motion_corrected_ophys_movie_file),
             "rois": [x.to_dict() for x in
                      self.ophys_experiment.rois]
-                     }
+        }
 
     @property
     def outputs(self) -> List[OutputFile]:

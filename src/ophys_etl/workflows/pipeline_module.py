@@ -31,7 +31,7 @@ class PipelineModule(abc.ABC):
     subclassing, developers should:
     - Implement the required abstract properties and methods.
     - Ensure any required instance-specific attributes are set before
-      calling this class's `__init__`.
+      calling the constructor.
 
     See `DffCalculationModule` for an example subclass."""
 
@@ -46,7 +46,7 @@ class PipelineModule(abc.ABC):
     ):
         """
         NOTE: When subclassing, ensure any required instance-specific
-        attributes are set before calling this method.
+        attributes are set before calling this constructor.
 
         Parameters
         ----------
@@ -195,8 +195,10 @@ class PipelineModule(abc.ABC):
         return args_path
 
     def validate_input_args(self) -> None:
-        """Validates module input args after it's been processed by
-        EnhancedJSONEncoder"""
+        """Validates module input args. Inputs are first processed by
+        EnhancedJSONEncoder to convert path and enum objects to str as
+        expected by the schema.
+        """
         encoded_json = json.dumps(self.inputs, cls=EnhancedJSONEncoder)
         preprocessed_inputs = json.loads(encoded_json)
         self.module_schema.load(data=preprocessed_inputs)

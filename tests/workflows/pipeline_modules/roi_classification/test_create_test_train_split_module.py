@@ -13,7 +13,7 @@ class TestCreateTrainTestSplitModule(BaseTestPipelineModule):
     def setup(self):
         super().setup()
 
-    @pytest.skip(
+    @pytest.mark.skip(
         reason="this test needs to be completed when the"
         "CreateTestTrainSplitModule is completed. See ticket"
         "PSB-192 for more details."

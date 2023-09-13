@@ -17,7 +17,7 @@ pipeline_steps:
   denoising:
     finetuning:
       base_model_path: ''
-    docker_tag: 'deepinterpolation_develop'
+      docker_tag: 'deepinterpolation_develop'
     inference:
       slurm_settings:
         time: 720

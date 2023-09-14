@@ -6,7 +6,6 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.demix_traces import (
     DemixTracesModule,
 )
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
-from tests.workflows.conftest import MockSQLiteDB
 
 
 class TestDemixTracesModule:

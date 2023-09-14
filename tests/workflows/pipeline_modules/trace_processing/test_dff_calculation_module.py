@@ -1,7 +1,5 @@
 from unittest.mock import patch, PropertyMock
 
-from tests.workflows.conftest import MockSQLiteDB
-
 from ophys_etl.workflows.ophys_experiment import OphysSession
 
 from ophys_etl.workflows.output_file import OutputFile

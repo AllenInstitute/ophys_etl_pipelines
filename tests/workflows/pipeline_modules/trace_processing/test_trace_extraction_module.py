@@ -6,7 +6,6 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.trace_extraction impo
     TraceExtractionModule,
 )
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
-from tests.workflows.conftest import MockSQLiteDB
 
 
 class TestTraceExtractionModule:

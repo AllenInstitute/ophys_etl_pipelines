@@ -9,9 +9,7 @@ from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from tests.workflows.conftest import MockSQLiteDB
 
 
-class TestTraceExtractionModule(MockSQLiteDB):
-    def setup(self):
-        super().setup()
+class TestTraceExtractionModule:
 
     @patch.object(OphysExperiment, "motion_border", new_callable=PropertyMock)
     @patch.object(OphysExperiment, "rois", new_callable=PropertyMock)
@@ -38,18 +36,15 @@ class TestTraceExtractionModule(MockSQLiteDB):
         mock_output_path.return_value = temp_dir
         mock_output_dir.return_value = temp_dir
 
-        with patch(
-            "ophys_etl.workflows.ophys_experiment.engine", new=self._engine
-        ):
-            mod = TraceExtractionModule(
-                docker_tag="main",
-                ophys_experiment=mock_ophys_experiment,
-                motion_corrected_ophys_movie_file=OutputFile(
-                    well_known_file_type=(
-                        WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK
-                    ),
-                    path=motion_corrected_ophys_movie_path,
+        mod = TraceExtractionModule(
+            docker_tag="main",
+            ophys_experiment=mock_ophys_experiment,
+            motion_corrected_ophys_movie_file=OutputFile(
+                well_known_file_type=(
+                    WellKnownFileTypeEnum.MOTION_CORRECTED_IMAGE_STACK
                 ),
-            )
+                path=motion_corrected_ophys_movie_path,
+            ),
+        )
 
         mod.inputs

@@ -11,10 +11,7 @@ from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.pipeline_modules.trace_processing.event_detection import EventDetectionModule  # noqa E501
 
 
-class TestEventDetectionModule(MockSQLiteDB):
-
-    def setup(self):
-        super().setup()
+class TestEventDetectionModule:
 
     @pytest.mark.event_detect_only
     @patch.object(OphysExperiment, 'rois',

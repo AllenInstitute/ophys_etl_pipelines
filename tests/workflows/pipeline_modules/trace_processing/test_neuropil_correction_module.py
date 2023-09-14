@@ -8,10 +8,7 @@ from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.pipeline_modules.trace_processing.neuropil_correction import NeuropilCorrection  # noqa E501
 
 
-class TestNeuropilCorrection(MockSQLiteDB):
-
-    def setup(self):
-        super().setup()
+class TestNeuropilCorrection:
 
     @patch.object(OphysSession, 'output_dir',
                   new_callable=PropertyMock)

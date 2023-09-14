@@ -9,10 +9,7 @@ from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.pipeline_modules.trace_processing.dff_calculation import DffCalculationModule  # noqa E501
 
 
-class TestDffCalculationModule(MockSQLiteDB):
-
-    def setup(self):
-        super().setup()
+class TestDffCalculationModule():
 
     @patch.object(OphysSession, 'output_dir',
                   new_callable=PropertyMock)

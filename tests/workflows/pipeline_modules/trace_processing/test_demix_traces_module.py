@@ -9,9 +9,7 @@ from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from tests.workflows.conftest import MockSQLiteDB
 
 
-class TestDemixTracesModule(MockSQLiteDB):
-    def setup(self):
-        super().setup()
+class TestDemixTracesModule:
 
     @patch.object(OphysExperiment, "rois", new_callable=PropertyMock)
     @patch.object(OphysSession, "output_dir", new_callable=PropertyMock)

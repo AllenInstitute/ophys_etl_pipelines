@@ -18,6 +18,9 @@ pipeline_steps:
     finetuning:
       base_model_path: ''
     docker_tag: 'deepinterpolation_develop'
+    inference:
+      slurm_settings:
+        time: 720
   roi_classification:
     cell_labeling_app_host: 'foo'
     input_channels: ['MASK', 'MAX_PROJECTION']

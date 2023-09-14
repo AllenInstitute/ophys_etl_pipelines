@@ -3,7 +3,6 @@ import json
 import time
 from typing import Dict, List
 
-import pendulum
 from airflow.decorators import task, task_group
 from airflow.models import XCom
 from airflow.models.dag import dag
@@ -22,6 +21,7 @@ from ophys_etl.workflows.pipeline_modules.roi_classification.utils.model_utils i
     download_trained_model,
 )
 from ophys_etl.workflows.tasks import save_job_run_to_db
+from ophys_etl.workflows.utils.dag_utils import START_DATE
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
@@ -118,7 +118,7 @@ def _generate_correlation_projections_for_experiments(
     dag_id="roi_classifier_training",
     schedule=None,
     catchup=False,
-    start_date=pendulum.yesterday(),
+    start_date=START_DATE,
 )
 def roi_classifier_training():
     @task_group

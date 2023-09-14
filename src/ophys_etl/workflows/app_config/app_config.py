@@ -12,7 +12,7 @@ from pydantic import (
     SecretStr,
     StrictFloat,
     StrictInt,
-    StrictStr
+    StrictStr, validator
 )
 
 from ophys_etl.workflows.app_config._ophys_processing_trigger import \
@@ -88,6 +88,21 @@ class _PipelineStep(ImmutableBaseModel):
         description='Settings to use when running pipeline step on SLURM',
         default=SlurmSettings()
     )
+    _default_slurm_settings = slurm_settings
+
+    @validator('slurm_settings', pre=True, always=True)
+    @classmethod
+    def set_slurm_settings(cls, v):
+        """Overrides the default settings with the ones passed by the user.
+        Allows to only override some of the settings and takes the rest
+        from the defaults defined in the `_default_slurm_settings`"""
+        if isinstance(v, SlurmSettings):
+            v = v.dict()
+        default = cls._default_slurm_settings
+        if getattr(default, 'default', None) is not None:
+            default = getattr(default, 'default')
+        updated = {**default.dict(), **v}
+        return updated
 
 
 class _DenoisingFineTuning(_PipelineStep):
@@ -107,6 +122,7 @@ class _DenoisingFineTuning(_PipelineStep):
         time=12 * 60,
         gpus=1
     )
+    _default_slurm_settings = slurm_settings
 
 
 class _DenoisingInference(_PipelineStep):
@@ -125,6 +141,7 @@ class _DenoisingInference(_PipelineStep):
         mem=250,
         time=480
     )
+    _default_slurm_settings = slurm_settings
 
 
 class _Denoising(_PipelineStep):
@@ -141,12 +158,16 @@ class _Denoising(_PipelineStep):
 
 
 class _MotionCorrection(_PipelineStep):
+    nonrigid: bool = Field(
+        default=False,
+        description='Whether to turn on nonrigid motion correction')
     slurm_settings = SlurmSettings(
         cpus_per_task=32,
         mem=250,
         time=300,
         request_additional_tmp_storage=True
     )
+    _default_slurm_settings = slurm_settings
 
 
 class _Segmentation(_PipelineStep):
@@ -155,6 +176,7 @@ class _Segmentation(_PipelineStep):
         mem=80,
         time=240
     )
+    _default_slurm_settings = slurm_settings
 
 
 class _TraceExtraction(_PipelineStep):
@@ -171,6 +193,7 @@ class _DemixTraces(_PipelineStep):
         mem=96,
         time=960
     )
+    _default_slurm_settings = slurm_settings
 
 
 class _NeuropilCorrection(_PipelineStep):
@@ -179,6 +202,7 @@ class _NeuropilCorrection(_PipelineStep):
         mem=4,
         time=600
     )
+    _default_slurm_settings = slurm_settings
 
 
 class _DffCalculationModule(_PipelineStep):
@@ -187,6 +211,7 @@ class _DffCalculationModule(_PipelineStep):
         mem=140,
         time=120
     )
+    _default_slurm_settings = slurm_settings
 
 
 class _EventDetectionModule(_PipelineStep):
@@ -195,6 +220,7 @@ class _EventDetectionModule(_PipelineStep):
         mem=90,
         time=90
     )
+    _default_slurm_settings = slurm_settings
 
 
 class _GenerateCorrelationProjection(_PipelineStep):
@@ -204,6 +230,7 @@ class _GenerateCorrelationProjection(_PipelineStep):
         mem=128,
         time=480
     )
+    _default_slurm_settings = slurm_settings
 
 
 class _GenerateThumbnails(_PipelineStep):

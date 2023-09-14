@@ -1,6 +1,5 @@
 from typing import Dict
 
-import pendulum
 from airflow.decorators import task_group, task
 from airflow.models import Param
 from airflow.models.dag import dag
@@ -17,6 +16,7 @@ from sqlmodel import Session, select
 
 from ophys_etl.workflows.db import engine
 from ophys_etl.workflows.db.schemas import ROIClassifierEnsemble
+from ophys_etl.workflows.utils.dag_utils import START_DATE
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_step_runs import \
@@ -61,7 +61,7 @@ def _get_motion_correction_shifts_file(**context) -> Dict:
     dag_id="cell_classifier_inference",
     schedule=None,
     catchup=False,
-    start_date=pendulum.yesterday(),
+    start_date=START_DATE,
     params={
         "ophys_experiment_id": Param(
             description="identifier for ophys experiment",

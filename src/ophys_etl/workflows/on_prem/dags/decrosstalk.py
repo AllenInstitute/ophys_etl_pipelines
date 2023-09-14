@@ -1,4 +1,3 @@
-import pendulum
 from airflow.decorators import task_group
 from airflow.models import Param
 from airflow.models.dag import dag
@@ -8,6 +7,7 @@ from ophys_etl.workflows.on_prem.dags._misc import INT_PARAM_DEFAULT_VALUE
 
 from ophys_etl.workflows.on_prem.workflow_utils import run_workflow_step
 from ophys_etl.workflows.pipeline_modules.decrosstalk import DecrosstalkModule
+from ophys_etl.workflows.utils.dag_utils import START_DATE
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
@@ -16,7 +16,7 @@ from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
     dag_id="decrosstalk",
     schedule=None,
     catchup=False,
-    start_date=pendulum.yesterday(),
+    start_date=START_DATE,
     params={
         "ophys_session_id": Param(
             description="identifier for ophys session",

@@ -44,7 +44,9 @@ class MotionCorrectionModule(PipelineModule):
         return {
             "movie_frame_rate_hz": self._ophys_experiment.movie_frame_rate_hz,
             "suite2p_args": {
-                "h5py": str(movie_file_path)
+                "h5py": str(movie_file_path),
+                "nonrigid": (
+                    app_config.pipeline_steps.motion_correction.nonrigid)
             },
             "motion_corrected_output": (
                 str(

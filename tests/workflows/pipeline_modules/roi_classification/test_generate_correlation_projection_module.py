@@ -6,12 +6,9 @@ from ophys_etl.workflows.pipeline_modules.roi_classification.generate_correlatio
     GenerateCorrelationProjectionModule,
 )
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
-from tests.workflows.conftest import BaseTestPipelineModule
 
 
-class TestGenerateCorrelationProjectionModule(BaseTestPipelineModule):
-    def setup(self):
-        super().setup()
+class TestGenerateCorrelationProjectionModule:
 
     @patch.object(OphysSession, "output_dir", new_callable=PropertyMock)
     @patch.object(

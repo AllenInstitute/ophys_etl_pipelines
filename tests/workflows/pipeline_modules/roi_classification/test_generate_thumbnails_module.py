@@ -8,12 +8,9 @@ from ophys_etl.workflows.pipeline_modules.roi_classification.generate_thumbnails
     GenerateThumbnailsModule,
 )
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
-from tests.workflows.conftest import BaseTestPipelineModule
 
 
-class TestGenerateThumbnailsModule(BaseTestPipelineModule):
-    def setup(self):
-        super().setup()
+class TestGenerateThumbnailsModule:
 
     @pytest.mark.parametrize("is_training", [True, False])
     @patch.object(OphysExperiment, "rois", new_callable=PropertyMock)

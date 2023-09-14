@@ -6,12 +6,9 @@ from ophys_etl.workflows.ophys_experiment import OphysSession
 from ophys_etl.workflows.pipeline_modules.roi_classification.create_train_test_split import ( # noqa E501
     CreateTrainTestSplitModule,
 )
-from tests.workflows.conftest import BaseTestPipelineModule
 
 
-class TestCreateTrainTestSplitModule(BaseTestPipelineModule):
-    def setup(self):
-        super().setup()
+class TestCreateTrainTestSplitModule:
 
     @pytest.mark.skip(
         reason="this test needs to be completed when the"

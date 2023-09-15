@@ -1,4 +1,3 @@
-import datetime
 import os
 import shutil
 import tempfile
@@ -7,7 +6,6 @@ from pathlib import Path
 import h5py
 import numpy as np
 import pytest
-from sqlmodel import Session
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
 
@@ -20,7 +18,6 @@ setup_app_config(
     ),
 )
 
-from ophys_etl.workflows.db.db_utils import save_job_run_to_db
 from ophys_etl.workflows.db.initialize_db import InitializeDBRunner
 from ophys_etl.workflows.db.schemas import (
     MotionCorrectionRun,
@@ -33,10 +30,6 @@ from ophys_etl.workflows.ophys_experiment import (
     OphysSession,
     Specimen,
 )
-from ophys_etl.workflows.output_file import OutputFile
-from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
-from ophys_etl.workflows.workflow_names import WorkflowNameEnum
-from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 MOCK_EXPERIMENT_IDS = [1, 2]
 
@@ -151,35 +144,3 @@ def xy_offset_path():
 @pytest.fixture
 def rois_path():
     return Path(__file__).parent / "resources" / "rois.json"
-
-
-class BaseTestPipelineModule(MockSQLiteDB):
-    @property
-    def experiment_ids(self):
-        return MOCK_EXPERIMENT_IDS
-
-    def setup(self):
-        super().setup()
-        self.db_setup()
-
-    def db_setup(self):
-        with Session(self._engine) as session:
-            save_job_run_to_db(
-                workflow_step_name=WorkflowStepEnum.DEMIX_TRACES,
-                start=datetime.datetime.now(),
-                end=datetime.datetime.now(),
-                module_outputs=[
-                    OutputFile(
-                        well_known_file_type=(
-                            WellKnownFileTypeEnum.DEMIXED_TRACES
-                        ),
-                        path=trace_path,
-                    )
-                ],
-                ophys_experiment_id=str(self.experiment_ids[0]),
-                sqlalchemy_session=session,
-                storage_directory="/foo",
-                log_path="/foo",
-                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
-                validate_files_exist=False,
-            )

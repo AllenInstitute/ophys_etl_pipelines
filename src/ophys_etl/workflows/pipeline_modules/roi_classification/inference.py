@@ -41,7 +41,7 @@ class InferenceModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs,
     ):
-
+        self._ophys_experiment = ophys_experiment
         thumbnails_dir: OutputFile = kwargs["thumbnails_dir"]
 
         self._ensemble = self._get_model_ensemble(

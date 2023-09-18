@@ -16,8 +16,8 @@ class CreateTrainTestSplitModule(PipelineModule):
     with these splits"""
 
     def __init__(self, prevent_file_overwrites: bool = True, **kwargs):
-        thumbnail_dirs: OutputFile = kwargs["thumbnail_dirs"]
-        self._thumbnail_dirs = thumbnail_dirs
+        thumbnails_dir: OutputFile = kwargs["thumbnails_dir"]
+        self._thumbnails_dir = thumbnails_dir
         super().__init__(
             ophys_experiment=None,
             prevent_file_overwrites=prevent_file_overwrites,
@@ -44,7 +44,7 @@ class CreateTrainTestSplitModule(PipelineModule):
             "channels": (
                 app_config.pipeline_steps.roi_classification.input_channels
             ),
-            "artifact_dir": self._thumbnail_dirs,
+            "artifact_dir": self._thumbnails_dir,
             "test_size": (
                 app_config.pipeline_steps.roi_classification.training.train_test_split.test_size # noqa E501
             ),

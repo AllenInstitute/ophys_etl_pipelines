@@ -30,8 +30,8 @@ from ophys_etl.workflows.ophys_experiment import (
     OphysSession,
     Specimen,
 )
-
-MOCK_EXPERIMENT_IDS = [1, 2]
+from ophys_etl.workflows.output_file import OutputFile
+from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 
 
 class MockSQLiteDB:
@@ -55,8 +55,8 @@ class MockSQLiteDB:
 
 
 @pytest.fixture
-def experiment_ids():
-    return MOCK_EXPERIMENT_IDS
+def experiment_id():
+    return 1
 
 
 @pytest.fixture
@@ -93,9 +93,9 @@ def mock_ophys_session():
 
 
 @pytest.fixture
-def mock_ophys_experiment(experiment_ids):
+def mock_ophys_experiment(experiment_id):
     return OphysExperiment(
-        id=experiment_ids[0],
+        id=experiment_id,
         movie_frame_rate_hz=31.0,
         raw_movie_filename=Path("foo"),
         session=OphysSession(id=1, specimen=Specimen(id="1")),
@@ -119,10 +119,25 @@ def mock_rois():
 
 
 @pytest.fixture
-def mock_thumbnails_dir(temp_dir):
-    return {
-        "1": temp_dir,
-    }
+def mock_thumbnails_dir(temp_dir, experiment_id, mock_rois):
+    roi_id = mock_rois[0].id
+    thumbnails_dir_path = temp_dir / "thumbnails"
+    os.makedirs(thumbnails_dir_path, exist_ok=True)
+    channels_mask_path = thumbnails_dir_path / f"mask_{experiment_id}_{roi_id}.png" # noqa E501
+    channels_mask_path.parent.mkdir(exist_ok=True)
+    with open(channels_mask_path, "w") as f:
+        f.write("foo")
+    channels_max_projection_path = thumbnails_dir_path / f"max_{experiment_id}_{roi_id}.png" # noqa E501
+    channels_max_projection_path.parent.mkdir(exist_ok=True)
+    with open(channels_max_projection_path, "w") as f:
+        f.write("foo")
+
+    return OutputFile(
+        well_known_file_type=(
+            WellKnownFileTypeEnum.ROI_CLASSIFICATION_THUMBNAIL_IMAGES
+        ),
+        path=thumbnails_dir_path
+    )
 
 
 @pytest.fixture

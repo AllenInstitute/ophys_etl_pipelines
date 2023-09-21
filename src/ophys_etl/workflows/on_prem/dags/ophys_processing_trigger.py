@@ -58,7 +58,7 @@ logger = logging.getLogger('airflow.task')
 
 @dag(
     dag_id='ophys_processing_trigger',
-    schedule='*/5 * * * *',     # every 5 minutes
+    schedule='*/60 * * * *',     # every 60 minutes
     catchup=False,
     start_date=datetime.datetime(
         year=2023, month=8, day=7, hour=1, minute=0, second=0),

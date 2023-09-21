@@ -55,7 +55,8 @@ class SegmentationModule(PipelineModule):
                     self.ophys_experiment.movie_frame_rate_hz
                 )
             },
-            "postprocess_args": {}
+            "postprocess_args": {},
+            "output_json": self.output_metadata_path
         }
 
     @property

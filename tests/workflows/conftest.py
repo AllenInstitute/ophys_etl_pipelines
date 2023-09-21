@@ -77,7 +77,6 @@ def motion_corrected_ophys_movie_path():
         f.create_dataset("dummy_data", data=[1.0, 2.0, 3.0])
     yield motion_corrected_ophys_movie_path
 
-
 @pytest.fixture
 def trace_path():
     _, trace_path = tempfile.mkstemp(suffix=".h5")
@@ -93,15 +92,15 @@ def mock_ophys_session():
 
 
 @pytest.fixture
-def mock_ophys_experiment(experiment_id):
+def mock_ophys_experiment(motion_corrected_ophys_movie_path, experiment_id):
     return OphysExperiment(
         id=experiment_id,
         movie_frame_rate_hz=31.0,
-        raw_movie_filename=Path("foo"),
+        raw_movie_filename=motion_corrected_ophys_movie_path.name,
         session=OphysSession(id=1, specimen=Specimen(id="1")),
         container=OphysContainer(id=1, specimen=Specimen(id="1")),
         specimen=Specimen(id="1"),
-        storage_directory=Path("foo"),
+        storage_directory=motion_corrected_ophys_movie_path.parent,
         equipment_name="DEEPSCOPE",
         full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
     )

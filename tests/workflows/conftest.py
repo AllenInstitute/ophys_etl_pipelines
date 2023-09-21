@@ -77,6 +77,7 @@ def motion_corrected_ophys_movie_path():
         f.create_dataset("dummy_data", data=[1.0, 2.0, 3.0])
     yield motion_corrected_ophys_movie_path
 
+
 @pytest.fixture
 def trace_path():
     _, trace_path = tempfile.mkstemp(suffix=".h5")

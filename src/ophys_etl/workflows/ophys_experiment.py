@@ -374,9 +374,10 @@ class OphysExperiment:
 
         with Session(engine) as session:
             workflow_step_run_id = get_latest_workflow_step_run(
-                session,
-                WorkflowStepEnum.MOTION_CORRECTION,
-                WorkflowNameEnum.OPHYS_PROCESSING,
+                session=session,
+                workflow_step=WorkflowStepEnum.MOTION_CORRECTION,
+                workflow_name=WorkflowNameEnum.OPHYS_PROCESSING,
+                ophys_experiment_id=self.id
             )
             query = select(MotionCorrectionRun,).where(
                 MotionCorrectionRun.workflow_step_run_id

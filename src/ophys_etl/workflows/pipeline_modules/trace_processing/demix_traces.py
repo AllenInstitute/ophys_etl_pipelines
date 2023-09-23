@@ -2,6 +2,7 @@ from types import ModuleType
 from typing import List
 
 from ophys_etl.modules import demix
+from ophys_etl.modules.demix.schemas import DemixJobSchema
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_module import PipelineModule
@@ -18,11 +19,6 @@ class DemixTracesModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs
-        )
 
         motion_corrected_ophys_movie_file: OutputFile = kwargs[
             "motion_corrected_ophys_movie_file"
@@ -37,6 +33,12 @@ class DemixTracesModule(PipelineModule):
             roi_traces_file.path
         )
 
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs
+        )
+
     @property
     def executable(self) -> ModuleType:
         return demix
@@ -46,8 +48,12 @@ class DemixTracesModule(PipelineModule):
         return WorkflowStepEnum.DEMIX_TRACES
 
     @property
+    def module_schema(self) -> DemixJobSchema:
+        return DemixJobSchema()
+
+    @property
     def inputs(self):
-        module_args = {
+        return {
             "movie_h5": self._motion_corrected_ophys_movie_file,
             "traces_h5": self._roi_trace_file,
             "output_file": str(
@@ -57,7 +63,6 @@ class DemixTracesModule(PipelineModule):
             "roi_masks": [x.to_dict(include_exclusion_labels=True)
                           for x in self.ophys_experiment.rois],
         }
-        return module_args
 
     @property
     def outputs(self) -> List[OutputFile]:

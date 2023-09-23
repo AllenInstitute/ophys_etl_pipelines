@@ -30,13 +30,17 @@ class NwayCellMatchingModule(PipelineModule):
         return WorkflowStepEnum.NWAY_CELL_MATCHING
 
     @property
+    def module_schema(self) -> OnPremGeneratedInputSchema:
+        return OnPremGeneratedInputSchema()
+
+    @property
     def inputs(self) -> Dict:
-        return OnPremGeneratedInputSchema().load(data={
+        return {
             'output_directory': str(self.output_path),
             'experiment_containers': {
                 'ophys_experiments': self._get_container_experiments_input()
             }
-        })
+        }
 
     @property
     def outputs(self) -> List[OutputFile]:

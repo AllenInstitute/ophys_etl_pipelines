@@ -132,7 +132,7 @@ class TestComputeClassifierArtifacts:
         with open(roi_meta_path) as f:
             roi_meta = json.load(f)
         assert len(roi_meta) == 1 and \
-               not roi_meta['1']['is_inside_motion_border']
+            not roi_meta['1']['is_inside_motion_border']
 
     def test_write_thumbnails(self):
         """Test that artifact thumbnails are written.

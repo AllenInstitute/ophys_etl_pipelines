@@ -2,6 +2,7 @@
 from types import ModuleType
 from typing import Dict, List
 
+from deepinterpolation.cli.schemas import InferenceInputSchema
 from ophys_etl.modules.denoising import inference
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.app_config.app_config import app_config
@@ -22,18 +23,22 @@ class DenoisingInferenceModule(_DenoisingModule):
         prevent_file_overwrites: bool = True,
         **kwargs,
     ):
+
+        trained_model_file: OutputFile = kwargs["trained_denoising_model_file"]
+        self._trained_model_path = str(trained_model_file.path)
         super().__init__(
             ophys_experiment=ophys_experiment,
             prevent_file_overwrites=prevent_file_overwrites,
             **kwargs,
         )
 
-        trained_model_file: OutputFile = kwargs["trained_denoising_model_file"]
-        self._trained_model_path = str(trained_model_file.path)
-
     @property
     def queue_name(self) -> WorkflowStepEnum:
         return WorkflowStepEnum.DENOISING_INFERENCE
+
+    @property
+    def module_schema(self) -> InferenceInputSchema:
+        return InferenceInputSchema()
 
     @property
     def inputs(self) -> Dict:

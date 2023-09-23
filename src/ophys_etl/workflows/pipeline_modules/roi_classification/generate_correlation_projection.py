@@ -1,6 +1,7 @@
 from types import ModuleType
 from typing import Dict, List
 
+from ophys_etl.modules.segmentation.modules.schemas import CalculateEdgesInputSchema # noqa E501
 from ophys_etl.modules.segmentation.modules import calculate_edges
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
@@ -19,22 +20,25 @@ class GenerateCorrelationProjectionModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs,
     ):
+        denoised_ophys_movie_file: OutputFile = kwargs[
+            "denoised_ophys_movie_file"
+        ]
+        self._denoised_ophys_movie_file = str(denoised_ophys_movie_file.path)
         super().__init__(
             ophys_experiment=ophys_experiment,
             prevent_file_overwrites=prevent_file_overwrites,
             **kwargs,
         )
 
-        denoised_ophys_movie_file: OutputFile = kwargs[
-            "denoised_ophys_movie_file"
-        ]
-        self._denoised_ophys_movie_file = str(denoised_ophys_movie_file.path)
-
     @property
     def queue_name(self) -> WorkflowStepEnum:
         return (
             WorkflowStepEnum.ROI_CLASSIFICATION_GENERATE_CORRELATION_PROJECTION_GRAPH # noqa E501
         )
+
+    @property
+    def module_schema(self) -> CalculateEdgesInputSchema:
+        return CalculateEdgesInputSchema()
 
     @property
     def inputs(self) -> Dict:

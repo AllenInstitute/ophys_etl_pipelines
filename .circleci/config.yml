@@ -82,6 +82,7 @@ commands:
           docker_tag: ${CIRCLE_SHA1}
           pytest_mark: "event_detect_only"
           conda_env: event_detection
+          test_directory: tests/modules/event_detection/
           coverage_executable_path: "/envs/event_detection/bin/coverage"
       - test:
           test_name: "deepinterpolation"

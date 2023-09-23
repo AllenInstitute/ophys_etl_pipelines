@@ -1,6 +1,6 @@
 from types import ModuleType
 from typing import Dict, List
-
+from ophys_etl.modules.roi_cell_classifier.compute_classifier_artifacts import ClassifierArtifactsInputSchema  # noqa: E501
 from ophys_etl.modules.roi_cell_classifier import compute_classifier_artifacts
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
@@ -19,11 +19,6 @@ class GenerateThumbnailsModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs
-        )
 
         denoised_ophys_movie_file: OutputFile = kwargs[
             "denoised_ophys_movie_file"
@@ -44,10 +39,19 @@ class GenerateThumbnailsModule(PipelineModule):
         self._is_training = is_training
         self._motion_correction_shifts_file = str(
             motion_correction_shifts_file.path)
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs
+        )
 
     @property
     def queue_name(self) -> WorkflowStepEnum:
         return WorkflowStepEnum.ROI_CLASSIFICATION_GENERATE_THUMBNAILS
+
+    @property
+    def module_schema(self) -> ClassifierArtifactsInputSchema:
+        return ClassifierArtifactsInputSchema()
 
     @property
     def inputs(self) -> Dict:
@@ -68,7 +72,7 @@ class GenerateThumbnailsModule(PipelineModule):
         if self._is_training:
             d[
                 "cell_labeling_app_host"
-            ] = app_config.pipeline_steps.roi_classification
+            ] = app_config.pipeline_steps.roi_classification.cell_labeling_app_host # noqa E501
         return d
 
     @property

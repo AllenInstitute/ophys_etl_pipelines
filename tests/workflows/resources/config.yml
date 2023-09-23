@@ -32,3 +32,5 @@ pipeline_steps:
       tracking:
         mlflow_server_uri: 'foo'
         mlflow_experiment_name: 'foo'
+      train_test_split:
+        test_size: 0.2

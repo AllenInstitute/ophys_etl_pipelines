@@ -2,6 +2,7 @@ from types import ModuleType
 from typing import Dict, List
 
 from deepcell.cli.modules import create_dataset
+from deepcell.cli.modules.create_dataset import CreateDatasetInputSchema
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.output_file import OutputFile
@@ -15,18 +16,21 @@ class CreateTrainTestSplitModule(PipelineModule):
     with these splits"""
 
     def __init__(self, prevent_file_overwrites: bool = True, **kwargs):
+        thumbnails_dir: OutputFile = kwargs["thumbnails_dir"]
+        self._thumbnails_dir = thumbnails_dir
         super().__init__(
             ophys_experiment=None,
             prevent_file_overwrites=prevent_file_overwrites,
             **kwargs
         )
 
-        thumbnail_dirs: OutputFile = kwargs["thumbnail_dirs"]
-        self._thumbnail_dirs = thumbnail_dirs
-
     @property
     def queue_name(self) -> WorkflowStepEnum:
         return WorkflowStepEnum.ROI_CLASSIFICATION_CREATE_TRAIN_TEST_SPLIT
+
+    @property
+    def module_schema(self) -> CreateDatasetInputSchema:
+        return CreateDatasetInputSchema()
 
     @property
     def inputs(self) -> Dict:
@@ -40,7 +44,7 @@ class CreateTrainTestSplitModule(PipelineModule):
             "channels": (
                 app_config.pipeline_steps.roi_classification.input_channels
             ),
-            "artifact_dir": self._thumbnail_dirs,
+            "artifact_dir": self._thumbnails_dir,
             "test_size": (
                 app_config.pipeline_steps.roi_classification.training.train_test_split.test_size # noqa E501
             ),

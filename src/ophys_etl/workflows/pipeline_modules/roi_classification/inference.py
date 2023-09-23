@@ -5,6 +5,8 @@ from types import ModuleType
 from typing import Dict, List, Tuple
 
 import pandas as pd
+
+from deepcell.cli.schemas.inference import InferenceSchema
 from deepcell.cli.modules import inference
 from deepcell.datasets.model_input import ModelInput
 from sqlmodel import Session, select
@@ -39,12 +41,7 @@ class InferenceModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs,
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs,
-        )
-
+        self._ophys_experiment = ophys_experiment
         thumbnails_dir: OutputFile = kwargs["thumbnails_dir"]
 
         self._ensemble = self._get_model_ensemble(
@@ -54,10 +51,19 @@ class InferenceModule(PipelineModule):
         self._model_inputs_path = self._write_model_inputs_to_disk(
             thumbnails_dir=thumbnails_dir.path
         )
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs,
+        )
 
     @property
     def queue_name(self) -> WorkflowStepEnum:
         return WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE
+
+    @property
+    def module_schema(self) -> InferenceSchema:
+        return InferenceSchema()
 
     @property
     def inputs(self) -> Dict:

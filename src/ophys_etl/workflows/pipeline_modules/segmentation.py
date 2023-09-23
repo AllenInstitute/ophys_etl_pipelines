@@ -6,7 +6,7 @@ import numpy as np
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from sqlmodel import Session
-
+from ophys_etl.modules.segment_postprocess.schemas import SegmentPostProcessSchema  # noqa: E501
 from ophys_etl.modules import segment_postprocess
 from ophys_etl.utils.rois import is_inside_motion_border
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
@@ -26,20 +26,25 @@ class SegmentationModule(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs
-        )
 
         denoised_ophys_movie_file: OutputFile = kwargs[
             "denoised_ophys_movie_file"
         ]
         self._denoised_ophys_movie_file = str(denoised_ophys_movie_file.path)
 
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs
+        )
+
     @property
     def queue_name(self) -> WorkflowStepEnum:
         return WorkflowStepEnum.SEGMENTATION
+
+    @property
+    def module_schema(self) -> SegmentPostProcessSchema:
+        return SegmentPostProcessSchema()
 
     @property
     def inputs(self) -> Dict:
@@ -50,7 +55,8 @@ class SegmentationModule(PipelineModule):
                     self.ophys_experiment.movie_frame_rate_hz
                 )
             },
-            "postprocess_args": {}
+            "postprocess_args": {},
+            "output_json": self.output_metadata_path
         }
 
     @property

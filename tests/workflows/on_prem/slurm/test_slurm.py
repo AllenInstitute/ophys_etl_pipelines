@@ -15,7 +15,9 @@ setup_app_config(
 )
 
 import datetime  # noqa #402
-from unittest.mock import patch  # noqa #402
+import tempfile # noqa #402
+
+from unittest.mock import patch, PropertyMock  # noqa #402
 
 import pytest  # noqa #402
 
@@ -111,15 +113,29 @@ class TestSlurmJob:
 
 
 class TestSlurm:
-    @classmethod
-    def setup_class(cls):
+    def setup(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        raw_movie_path = Path(self.tempdir.name) / "mov.h5"
+
+        with open(raw_movie_path, "w") as f:
+            f.write("foo")
+
+    @patch.object(
+        Slurm, "_get_tmp_storage", wraps=lambda adjustment_factor: 55
+    )
+    @patch.object(MotionCorrectionModule, 'output_path',
+                  new_callable=PropertyMock)
+    def test_write_job_to_disk(self,
+                               mock_output_path,
+                               _):
+        mock_output_path.return_value = Path(self.tempdir.name)
         mod = MotionCorrectionModule(
             ophys_experiment=OphysExperiment(
                 id=1,
                 session=OphysSession(id=1, specimen=Specimen("1")),
                 container=OphysContainer(id=1, specimen=Specimen("1")),
                 specimen=Specimen(id="1"),
-                storage_directory=Path("/foo"),
+                storage_directory=Path(self.tempdir.name),
                 raw_movie_filename=Path("mov.h5"),
                 movie_frame_rate_hz=11.0,
                 equipment_name='MESO.1',
@@ -127,7 +143,7 @@ class TestSlurm:
             ),
             docker_tag=app_config.pipeline_steps.motion_correction.docker_tag,
         )
-        cls._slurm = Slurm(
+        slurm = Slurm(
             pipeline_module=mod,
             config=SlurmSettings(
                 cpus_per_task=32,
@@ -137,17 +153,12 @@ class TestSlurm:
             ),
             log_path=Path("log_path.log"),
         )
-
-    @patch.object(
-        Slurm, "_get_tmp_storage", wraps=lambda adjustment_factor: 55
-    )
-    def test_write_job_to_disk(self, _):
-        self._slurm._write_job_to_disk(
+        slurm._write_job_to_disk(
             input_json="input.json",
             output_json="output.json"
         )
         with open(
-            self._slurm._pipeline_module.output_path / "slurm_job.json"
+            slurm._pipeline_module.output_path / "slurm_job.json"
         ) as f:
             job = f.read()
 
@@ -157,3 +168,6 @@ class TestSlurm:
             expected_job = f.read()
 
         assert job == expected_job
+
+    def teardown(self):
+        self.tempdir.cleanup()

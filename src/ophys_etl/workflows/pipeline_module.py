@@ -4,6 +4,7 @@ import datetime
 import json
 import logging
 import os
+from argschema.schemas import DefaultSchema
 from pathlib import Path
 from types import ModuleType
 from typing import Dict, List, Optional
@@ -24,7 +25,15 @@ logger = logging.getLogger(__name__)
 
 
 class PipelineModule(abc.ABC):
-    """Pipeline module"""
+    """Pipeline module
+
+    This is an abstract base class for creating pipeline modules. When
+    subclassing, developers should:
+    - Implement the required abstract properties and methods.
+    - Ensure any required instance-specific attributes are set before
+      calling the constructor.
+
+    See `DffCalculationModule` for an example subclass."""
 
     def __init__(
         self,
@@ -36,6 +45,8 @@ class PipelineModule(abc.ABC):
         **module_args,
     ):
         """
+        NOTE: When subclassing, ensure any required instance-specific
+        attributes are set before calling this constructor.
 
         Parameters
         ----------
@@ -62,11 +73,18 @@ class PipelineModule(abc.ABC):
         self._ophys_container = ophys_container
         self._docker_tag = docker_tag
         self._now = datetime.datetime.now()
-
         os.makedirs(self.output_path, exist_ok=True)
 
         if prevent_file_overwrites:
             self._validate_file_overwrite()
+
+        if isinstance(self.module_schema, DefaultSchema):
+            self.validate_input_args()
+        else:
+            raise ValueError(
+                f"module_schema must be subclass of DefaultSchema, "
+                f"got {type(self.module_schema)}"
+            )
 
     @property
     @abc.abstractmethod
@@ -108,8 +126,14 @@ class PipelineModule(abc.ABC):
 
     @property
     @abc.abstractmethod
+    def module_schema(self) -> DefaultSchema:
+        """Argschema to validate module_args"""
+        raise NotImplementedError
+
+    @property
+    @abc.abstractmethod
     def inputs(self) -> Dict:
-        """Input args to module"""
+        """Module args"""
         raise NotImplementedError
 
     @property
@@ -169,6 +193,15 @@ class PipelineModule(abc.ABC):
             self.output_path / f"{self.queue_name.value}_input.json"
         )
         return args_path
+
+    def validate_input_args(self) -> None:
+        """Validates module input args. Inputs are first processed by
+        EnhancedJSONEncoder to convert path and enum objects to str as
+        expected by the schema.
+        """
+        encoded_json = json.dumps(self.inputs, cls=EnhancedJSONEncoder)
+        preprocessed_inputs = json.loads(encoded_json)
+        self.module_schema.load(data=preprocessed_inputs)
 
     def write_input_args(self):
         """Writes module input args to disk"""

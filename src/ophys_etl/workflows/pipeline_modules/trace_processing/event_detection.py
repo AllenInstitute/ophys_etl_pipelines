@@ -10,7 +10,7 @@ from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 
 
-class EventDetection(PipelineModule):
+class EventDetectionModule(PipelineModule):
     """Wrapper the event detection module"""
 
     def __init__(
@@ -19,17 +19,17 @@ class EventDetection(PipelineModule):
         prevent_file_overwrites: bool = True,
         **kwargs
     ):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs
-        )
-
         dff_traces: OutputFile = kwargs[
             "dff_traces"
         ]
         self._dff_traces_file = str(
             dff_traces.path
+        )
+
+        super().__init__(
+            ophys_experiment=ophys_experiment,
+            prevent_file_overwrites=prevent_file_overwrites,
+            **kwargs
         )
 
     @property
@@ -45,18 +45,20 @@ class EventDetection(PipelineModule):
         return WorkflowStepEnum.EVENT_DETECTION
 
     @property
+    def module_schema(self) -> EventDetectionInputSchema:
+        return EventDetectionInputSchema()
+
+    @property
     def inputs(self):
         valid_roi_ids = [roi.id for roi in self.ophys_experiment.rois if
                          roi.is_valid(self.ophys_experiment.equipment_name)]
-        module_args = EventDetectionInputSchema().load(data={
+        return {
                 "movie_frame_rate_hz": self.ophys_experiment.movie_frame_rate_hz,  # noqa 501
                 "full_genotype": self.ophys_experiment.full_genotype,
                 "ophysdfftracefile": self._dff_traces_file,
                 "valid_roi_ids": valid_roi_ids,
                 "output_event_file": str(self._output_file_path)
             }
-        )
-        return module_args
 
     @property
     def _output_file_path(self):

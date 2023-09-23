@@ -40,6 +40,10 @@ class DecrosstalkModule(PipelineModule):
         return WorkflowStepEnum.DECROSSTALK
 
     @property
+    def module_schema(self) -> DecrosstalkInputSchema:
+        return DecrosstalkInputSchema()
+
+    @property
     def inputs(self) -> Dict:
         ophys_experiments = [
             OphysExperiment.from_id(id=ophys_experiment_id) for
@@ -56,7 +60,7 @@ class DecrosstalkModule(PipelineModule):
                 ophys_experiment.imaging_plane_group] \
                 .append(ophys_experiment)
 
-        return DecrosstalkInputSchema().load(data={
+        return {
             'ophys_session_id': self.ophys_session.id,
             'qc_output_dir': str(self.output_path),
             'coupled_planes': [{
@@ -70,7 +74,7 @@ class DecrosstalkModule(PipelineModule):
                         imaging_plane_group]
                 ]
             } for imaging_plane_group in ipg_ophys_experiment_map]
-        })
+        }
 
     @property
     def outputs(self) -> List[OutputFile]:

@@ -2,10 +2,11 @@ import datetime
 import json
 import os
 import pickle
+import pytest
 import random
 import shutil
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock
 
 import pandas as pd
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
@@ -130,6 +131,38 @@ class TestInference(MockSQLiteDB):
     def teardown_class(cls):
         shutil.rmtree(cls._tmp_dir)
 
+    @pytest.mark.skip(reason="TODO: handle _get_mlflow_model_params")
+    @patch.object(OphysSession, "output_dir", new_callable=PropertyMock)
+    @patch.object(
+        InferenceModule, "output_path", new_callable=PropertyMock
+    )
+    @patch.object(
+        InferenceModule, "_write_model_inputs_to_disk"
+    )
+    def test_inputs(
+        self, mock_write_module_inputs_to_disk,
+        mock_output_path, mock_output_dir,
+        mock_ophys_experiment, mock_thumbnails_dir, temp_dir
+    ):
+        """Test that inputs are correctly formatted
+        for input into the module.
+        """
+        mock_write_module_inputs_to_disk.return_value = temp_dir / 'model_inputs.json' # noqa E501
+        with open(temp_dir/'model_inputs.json', 'w') as f:
+            f.write(json.dumps([{'foo': 'bar'}]))
+
+        mock_output_path.return_value = temp_dir
+        mock_output_dir.return_value = temp_dir
+        with patch('ophys_etl.workflows.pipeline_modules.roi_classification.'
+                   'inference.engine', new=self._engine):
+            mod = InferenceModule(
+                docker_tag="main",
+                ophys_experiment=mock_ophys_experiment,
+                thumbnails_dir=mock_thumbnails_dir,
+                ensemble_id=1,
+            )
+        mod.inputs
+
     @patch("mlflow.search_runs")
     @patch.object(
         MLFlowRun,
@@ -186,9 +219,11 @@ class TestInference(MockSQLiteDB):
 
             preds = pd.read_csv(self._preds_path).set_index('roi-id')
             for roi in rois:
-                assert roi._is_cell == (preds.loc[roi.id]['y_score'] >
-                       app_config.pipeline_steps.roi_classification.inference.
-                       classification_threshold)
+                assert roi._is_cell == (
+                    preds.loc[roi.id]['y_score'] >
+                    app_config.pipeline_steps.roi_classification.inference.
+                    classification_threshold
+                    )
 
     def _insert_rois(self):
         rois_path = Path(__file__).parent.parent / "resources" / "rois.json"

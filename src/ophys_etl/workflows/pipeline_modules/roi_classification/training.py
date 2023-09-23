@@ -1,6 +1,7 @@
 from types import ModuleType
 from typing import Dict, List
 
+from deepcell.cli.schemas.cloud.train import CloudKFoldTrainSchema
 from deepcell.cli.modules.cloud import train
 from sqlmodel import Session
 
@@ -20,18 +21,22 @@ from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 class TrainingModule(PipelineModule):
     def __init__(self, prevent_file_overwrites: bool = True, **kwargs):
+
+        self._model_inputs_path: OutputFile = kwargs["train_set_path"]
+        self._mlflow_run_name = kwargs["mlflow_run_name"]
         super().__init__(
             ophys_experiment=None,
             prevent_file_overwrites=prevent_file_overwrites,
             **kwargs
         )
 
-        self._model_inputs_path: OutputFile = kwargs["train_set_path"]
-        self._mlflow_run_name = kwargs["mlflow_run_name"]
-
     @property
     def queue_name(self) -> WorkflowStepEnum:
         return WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING
+
+    @property
+    def module_schema(self) -> CloudKFoldTrainSchema:
+        return CloudKFoldTrainSchema()
 
     @property
     def inputs(self) -> Dict:

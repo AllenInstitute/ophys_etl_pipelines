@@ -2,9 +2,11 @@ import datetime
 import json
 import os
 import shutil
+import tempfile
 from pathlib import Path
-from unittest.mock import patch
-
+from unittest.mock import patch, PropertyMock
+from argschema import ArgSchema
+from argschema.fields import Int
 import pytest
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
@@ -34,12 +36,21 @@ from ophys_etl.workflows.pipeline_module import (
 from ophys_etl.workflows.pipeline_module import PipelineModule
 
 
+class _DummyModArgSchema(ArgSchema):
+    foo = Int(required=True)
+    bar = Int(required=True)
+
+
 class _DummyMod(PipelineModule):
     _temp_out = tempfile.TemporaryDirectory()
 
     @property
     def queue_name(self) -> WorkflowStepEnum:
         return WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE
+
+    @property
+    def module_schema(self) -> _DummyModArgSchema:
+        return _DummyModArgSchema()
 
     @property
     def inputs(self) -> Dict:
@@ -74,7 +85,8 @@ class TestPipelineModule:
             second=1,
             microsecond=1,
         )
-
+        cls.temp_dir_obj = tempfile.TemporaryDirectory()
+        cls.temp_dir = Path(cls.temp_dir_obj.name)
         with patch("datetime.datetime", wraps=datetime.datetime) as mock_dt:
             mock_dt.now.return_value = cls._now
             cls._dummy_mod = _DummyMod(
@@ -143,14 +155,30 @@ class TestPipelineModule:
         )
 
     @patch("datetime.datetime", wraps=datetime.datetime)
-    def test_write_input_args(self, mock_dt):
+    @patch.object(OphysExperiment, 'output_dir',
+                  new_callable=PropertyMock)
+    def test_write_input_args(self, mock_output_dir, mock_dt):
+        mock_output_dir.return_value = self.temp_dir
         mock_dt.now.return_value = self._now
+        _dummy_mod = _DummyMod(
+                ophys_experiment=OphysExperiment(
+                    id=1,
+                    session=OphysSession(id=2, specimen=Specimen("1")),
+                    container=OphysContainer(id=1, specimen=Specimen("1")),
+                    specimen=Specimen(id="3"),
+                    storage_directory=Path("/storage_dir"),
+                    raw_movie_filename=Path("mov.h5"),
+                    movie_frame_rate_hz=11.0,
+                    equipment_name='MESO.1',
+                    full_genotype="abcd",
+                ),
+                docker_tag="main",
+            )
 
-        self._dummy_mod.write_input_args()
-        with open(self._dummy_mod.input_args_path) as f:
+        _dummy_mod.write_input_args()
+        with open(_dummy_mod.input_args_path) as f:
             input_args = json.load(f)
-
-        assert input_args == self._dummy_mod.inputs
+        assert input_args == _dummy_mod.inputs
 
     @pytest.mark.parametrize("file_exists", (True, False))
     def test_validate_file_overwrites(self, file_exists):

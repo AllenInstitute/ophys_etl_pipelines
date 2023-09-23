@@ -1,6 +1,6 @@
 import datetime
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, PropertyMock
 
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
@@ -21,7 +21,7 @@ from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 from tests.workflows.conftest import MockSQLiteDB
 
 
-class TestSegmentation(MockSQLiteDB):
+class TestSegmentationModule(MockSQLiteDB):
     def setup(self):
         super().setup()
 
@@ -105,3 +105,41 @@ class TestSegmentation(MockSQLiteDB):
         mask2 = [x for x in masks if x.ophys_roi_id == 2]
         assert {(x.row_index, x.col_index) for x in mask1} == {(0, 0)}
         assert {(x.row_index, x.col_index) for x in mask2} == {(0, 1)}
+
+    @patch.object(OphysExperiment, "motion_border", new_callable=PropertyMock)
+    @patch.object(OphysExperiment, "rois", new_callable=PropertyMock)
+    @patch.object(OphysSession, "output_dir", new_callable=PropertyMock)
+    @patch.object(
+        SegmentationModule, "output_path", new_callable=PropertyMock
+    )
+    def test_inputs(
+        self,
+        mock_output_path,
+        mock_output_dir,
+        mock_oe_rois,
+        mock_motion_border,
+        temp_dir,
+        mock_ophys_experiment,
+        mock_motion_border_run,
+        motion_corrected_ophys_movie_path,
+        mock_rois,
+    ):
+        """Test that inputs are correctly formatted
+        for input into the module."""
+        mock_motion_border.return_value = mock_motion_border_run
+        mock_oe_rois.return_value = mock_rois
+        mock_output_path.return_value = temp_dir
+        mock_output_dir.return_value = temp_dir
+
+        mod = SegmentationModule(
+            docker_tag="main",
+            ophys_experiment=mock_ophys_experiment,
+            denoised_ophys_movie_file=OutputFile(
+                well_known_file_type=(
+                    WellKnownFileTypeEnum.DEEPINTERPOLATION_DENOISED_MOVIE
+                ),
+                path=motion_corrected_ophys_movie_path,
+            ),
+        )
+
+        mod.inputs

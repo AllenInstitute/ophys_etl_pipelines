@@ -21,16 +21,6 @@ from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 class MotionCorrectionModule(PipelineModule):
     """Wrapper around motion correction module"""
 
-    def __init__(self,
-                 ophys_experiment,
-                 prevent_file_overwrites: bool = True,
-                 **kwargs):
-        super().__init__(
-            ophys_experiment=ophys_experiment,
-            prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs,
-        )
-
     @property
     def executable(self) -> ModuleType:
         return suite2p_registration

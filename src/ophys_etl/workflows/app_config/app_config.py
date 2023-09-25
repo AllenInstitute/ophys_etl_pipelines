@@ -127,7 +127,7 @@ class _DenoisingFineTuning(_PipelineStep):
 
 class _DenoisingInference(_PipelineStep):
     normalize_cache: bool = Field(
-        default=True,
+        default=False,
         description="Whether to normalize the cache data."
         "Generally disable if RAM is less than 128GB"
     )
@@ -137,9 +137,10 @@ class _DenoisingInference(_PipelineStep):
         "has more RAM than the size of the movie, e.g. A100 48GB"
     )
     slurm_settings = SlurmSettings(
-        cpus_per_task=32,
+        cpus_per_task=17,
         mem=250,
-        time=480
+        time=480,
+        gpus=1
     )
     _default_slurm_settings = slurm_settings
 

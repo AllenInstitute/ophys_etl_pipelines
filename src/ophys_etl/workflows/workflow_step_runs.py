@@ -87,14 +87,14 @@ def get_latest_workflow_step_run(
     workflow_step: WorkflowStepEnum,
     workflow_name: WorkflowNameEnum,
     ophys_experiment_id: Optional[int] = None,
-    ophys_session_id: Optional[int] = None
+    ophys_session_id: Optional[int] = None,
+    ophys_container_id: Optional[int] = None
 ) -> int:
     """
     Gets the latest workflow step run id for `workflow_step` as part of
-    `workflow_name` for `ophys_experiment_id` if associated with an
-    ophys_experiment_id, or `ophys_session_id` if associated with an
-    ophys_session_id, or neither if not associated with either.
-
+    `workflow_name` associated with either `ophys_experiment_id`,
+    `ophys_session_id`, `ophys_container_id`, or none of not associated with
+    any
 
     Parameters
     ----------
@@ -108,6 +108,8 @@ def get_latest_workflow_step_run(
         Optional ophys experiment id
     ophys_session_id
         Optional ophys session id
+    ophys_container_id
+        Optional ophys container id
     Returns
     -------
     int
@@ -118,9 +120,11 @@ def get_latest_workflow_step_run(
     NoResultFound
         If workflow step run cannot be found
     """
-    if ophys_experiment_id is not None and ophys_session_id is not None:
-        raise ValueError('Provide either ophys_experiment_id or '
-                         'ophys_session_id, not both')
+    if sum([ophys_experiment_id is not None,
+           ophys_session_id is not None,
+           ophys_container_id is not None]) > 1:
+        raise ValueError('Provide one of ophys_experiment_id, '
+                         'ophys_session_id, ophys_container_id, not multiple')
     workflow_step = get_workflow_step_by_name(
         session=session, name=workflow_step, workflow=workflow_name
     )
@@ -134,7 +138,10 @@ def get_latest_workflow_step_run(
         statement = statement.where(
             WorkflowStepRun.ophys_session_id == ophys_session_id
         )
-
+    elif ophys_container_id is not None:
+        statement = statement.where(
+            WorkflowStepRun.ophys_container_id == ophys_container_id
+        )
     statement = (
         statement.join(
             WorkflowStep,
@@ -148,10 +155,18 @@ def get_latest_workflow_step_run(
     try:
         workflow_step_run_id = res.one()
     except NoResultFound:
-        msg_level = 'ophys experiment' if ophys_experiment_id is not None \
-            else 'ophys session'
-        msg_id = ophys_experiment_id if ophys_experiment_id is not None else \
-            ophys_session_id
+        if ophys_experiment_id is not None:
+            msg_level = 'ophys experiment'
+            msg_id = ophys_experiment_id
+        elif ophys_session_id is not None:
+            msg_level = 'ophys session'
+            msg_id = ophys_session_id
+        elif ophys_container_id is not None:
+            msg_level = 'ophys container'
+            msg_id = ophys_container_id
+        else:
+            msg_level = ''
+            msg_id = ''
         logger.error(
             f"No {workflow_step.name} run found for "
             f"{msg_level} {msg_id}: "

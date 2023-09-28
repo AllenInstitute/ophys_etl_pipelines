@@ -1,5 +1,10 @@
-import datetime
+import os
 from pathlib import Path
+
+from ophys_etl.workflows import on_prem
+os.environ['AIRFLOW_HOME'] = str(Path(on_prem.__file__).parent)
+
+import datetime
 from unittest import mock
 
 import pytest

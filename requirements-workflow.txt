@@ -1,3 +1,4 @@
+apache-airflow==2.6.3
 sqlmodel
 PyYaml
 paramiko

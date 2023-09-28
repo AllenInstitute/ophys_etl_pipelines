@@ -35,7 +35,7 @@ from ophys_etl.workflows.pipeline_modules.trace_processing.dff_calculation impor
 from ophys_etl.workflows.pipeline_modules.trace_processing.event_detection import (  # noqa E501
     EventDetectionModule,
 )
-from ophys_etl.workflows.tasks import wait_for_decrosstalk_to_finish
+from ophys_etl.workflows.tasks import wait_for_dag_to_finish
 from ophys_etl.workflows.utils.dag_utils import trigger_dag_run, START_DATE
 from ophys_etl.workflows.well_known_file_types import WellKnownFileTypeEnum
 from ophys_etl.workflows.workflow_names import WorkflowNameEnum
@@ -277,8 +277,11 @@ def ophys_processing():
                     "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
                     "roi_traces_file": roi_traces_file
                 },
-                pre_submit_sensor=wait_for_decrosstalk_to_finish(
-                    timeout=app_config.job_timeout)
+                pre_submit_sensor=wait_for_dag_to_finish(
+                    dag_id='decrosstalk',
+                    workflow_step=WorkflowStepEnum.DECROSSTALK,
+                    level='session'
+                )
             )
             return module_outputs[WellKnownFileTypeEnum.DEMIXED_TRACES.value]
 
@@ -356,9 +359,19 @@ def ophys_processing():
                          do_run_decrosstalk,
                          do_run_nway_cell_matching]
 
-    run_cell_classification(do_run=do_run_cell_classification)
+    run_cell_classification(do_run=do_run_cell_classification) >> \
+        wait_for_dag_to_finish(
+            dag_id='cell_classifier_inference',
+            workflow_step=WorkflowStepEnum.ROI_CLASSIFICATION_INFERENCE,
+            level='experiment'
+        )()
     run_decrosstalk(do_run=do_run_decrosstalk)
-    run_nway_cell_matching(do_run=do_run_nway_cell_matching)
+    run_nway_cell_matching(do_run=do_run_nway_cell_matching) >> \
+        wait_for_dag_to_finish(
+            dag_id='nway_cell_matching',
+            workflow_step=WorkflowStepEnum.NWAY_CELL_MATCHING,
+            level='container'
+        )()
     segmentation_run >> trace_processing(
         motion_corrected_ophys_movie_file=motion_corrected_ophys_movie_file)
 

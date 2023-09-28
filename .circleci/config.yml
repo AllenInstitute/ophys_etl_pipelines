@@ -70,7 +70,7 @@ commands:
           build_name: "General+suite2p"
           python_version: <<parameters.python_version>>
           tag: ${CIRCLE_SHA1}
-          dockerfile_name: "Dockerfile_no_deepinterpolation"
+          dockerfile_name: "Dockerfile"
       - build_docker:
           build_name: "DeepInterpolation only"
           python_version: <<parameters.python_version>>

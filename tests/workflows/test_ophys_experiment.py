@@ -36,7 +36,8 @@ class TestOphysExperiment(MockSQLiteDB):
                 workflow=WorkflowNameEnum.OPHYS_PROCESSING.value,
                 name=WorkflowStepEnum.MOTION_CORRECTION.value,
             )
-            motion_correction_run = WorkflowStepRun(
+
+            motion_correction_run1 = WorkflowStepRun(
                 ophys_experiment_id=ophys_experiment_id,
                 workflow_step_id=motion_correction_workflow_step.id,
                 log_path="log_path",
@@ -44,7 +45,17 @@ class TestOphysExperiment(MockSQLiteDB):
                 start="2023-04-01 00:00:00",
                 end="2023-04-01 01:00:00",
             )
-            session.add(motion_correction_run)
+            session.add(motion_correction_run1)
+
+            motion_correction_run2 = WorkflowStepRun(
+                ophys_experiment_id="2",
+                workflow_step_id=motion_correction_workflow_step.id,
+                log_path="log_path",
+                storage_directory="storage_directory",
+                start="2023-05-01 00:00:00",
+                end="2023-05-01 01:00:00",
+            )
+            session.add(motion_correction_run2)
 
             # add segmentation run
             segmentation_workflow_step = get_workflow_step_by_name(
@@ -64,11 +75,20 @@ class TestOphysExperiment(MockSQLiteDB):
 
             session.flush()
             motion_correction = MotionCorrectionRun(
-                workflow_step_run_id=motion_correction_run.id,
+                workflow_step_run_id=motion_correction_run1.id,
                 max_correction_left=10,
                 max_correction_right=20,
                 max_correction_up=30,
                 max_correction_down=40,
+            )
+            session.add(motion_correction)
+
+            motion_correction = MotionCorrectionRun(
+                workflow_step_run_id=motion_correction_run2.id,
+                max_correction_left=100,
+                max_correction_right=200,
+                max_correction_up=300,
+                max_correction_down=400,
             )
             session.add(motion_correction)
 

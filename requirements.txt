@@ -2,7 +2,7 @@ numpy<=1.23.3
 scipy
 imageio-ffmpeg
 pytest
-argschema==2.0.2
+argschema
 h5py
 matplotlib
 pandas

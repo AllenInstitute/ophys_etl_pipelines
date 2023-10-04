@@ -1,3 +1,5 @@
+from airflow.sensors.base import PokeReturnValue
+from ophys_etl.workflows.tasks import wait_for_dag_to_finish
 from pathlib import Path
 
 import datetime
@@ -14,11 +16,10 @@ from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
 
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
-from tests.workflows.airflow_test import AirflowTest
 from tests.workflows.conftest import MockSQLiteDB
 
 
-class TestTasks(MockSQLiteDB, AirflowTest):
+class TestTasks(MockSQLiteDB):
     @mock.patch('ophys_etl.workflows.tasks.get_current_context')
     @mock.patch.object(OphysExperiment, 'from_id')
     @mock.patch('ophys_etl.workflows.tasks.get_latest_dag_run')
@@ -60,9 +61,6 @@ class TestTasks(MockSQLiteDB, AirflowTest):
         workflow_step,
         level
     ):
-        from airflow.sensors.base import PokeReturnValue
-        from ophys_etl.workflows.tasks import wait_for_dag_to_finish
-
         mock_get_running_dag_run.return_value = None
         mock_ophys_experiment.return_value = OphysExperiment(
             id=1,

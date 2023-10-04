@@ -7,10 +7,8 @@ ARG host_username
 # id -u
 ARG host_userid
 
-ARG app_config_name=app_config.yml
-
-RUN if [ $env != 'dev' ] && [ $env != 'prod' ]; then \
-        echo "env must be set to 'dev' or 'prod'"; \
+RUN if [ $env != 'dev' ] && [ $env != 'prod' ] && [ $env != 'staging' ]; then \
+        echo "env must be set to 'dev', 'prod' or 'staging'"; \
         exit 1; \
     fi
 
@@ -44,6 +42,6 @@ RUN pip install psycopg2-binary
 # Copy dags into expected place
 RUN cp -r /opt/airflow/ophys_etl_pipelines/src/ophys_etl/workflows/on_prem/dags/* /opt/airflow/dags
 
-RUN cp /opt/airflow/ophys_etl_pipelines/src/ophys_etl/workflows/$app_config_name /opt/airflow/app_config.yml
+RUN cp /opt/airflow/ophys_etl_pipelines/src/ophys_etl/workflows/app_config/$env.app_config.yml /opt/airflow/app_config.yml
 
 ENV OPHYS_WORKFLOW_APP_CONFIG_PATH=/opt/airflow/app_config.yml

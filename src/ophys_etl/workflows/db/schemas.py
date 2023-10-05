@@ -124,6 +124,8 @@ class OphysROI(SQLModel, table=True):
     width: int
     height: int
     is_in_motion_border: bool  # Set at by segmentation
+    empty_roi_mask: bool # Set at trace extraction
+    empty_neuropil_mask: bool # Set at trace extraction
     is_decrosstalk_invalid_raw: Optional[bool] = None
     is_decrosstalk_invalid_raw_active: Optional[bool] = None
     is_decrosstalk_invalid_unmixed: Optional[bool] = None
@@ -172,6 +174,10 @@ class OphysROI(SQLModel, table=True):
         exclusion_labels = []
         if self.is_in_motion_border:
             exclusion_labels.append("motion_border")
+        if self.empty_roi_mask:
+            exclusion_labels.append("empty_roi_mask")
+        if self.empty_neuropil_mask:
+            exclusion_labels.append("empty_neuropil_mask")
         if self.is_decrosstalk_ghost:
             exclusion_labels.append("decrosstalk_ghost")
         if self.is_decrosstalk_invalid_raw_active:
@@ -210,7 +216,7 @@ class OphysROI(SQLModel, table=True):
         return mask.tolist()
 
     def is_valid(self, equipment: str = "") -> bool:
-        """Return True if no processing flags (motion_border, decrosstalk)
+        """Return True if no processing flags (motion_border, empty_mask, decrosstalk)
         flags are set.
 
         Parameters
@@ -224,7 +230,11 @@ class OphysROI(SQLModel, table=True):
             Composite flag that returns True if no processing flags are set.
             False if any flag is set.
         """
-        flag_set = [self.is_in_motion_border]
+        flag_set = [
+            self.is_in_motion_border,
+            self.empty_neuropil_mask,
+            self.empty_roi_mask
+            ]
         if equipment.startswith("MESO"):
             decrosstalk_set = [
                 self.is_decrosstalk_ghost,

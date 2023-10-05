@@ -86,8 +86,8 @@ class DeployRunner(argschema.ArgSchemaParser):
         new_commit = self._get_new_commit()
 
         text = ('Ophys processing was deployed!\n'
-               f'*Tag*: {tag}\n'
-               f'https://github.com/AllenInstitute/ophys_etl_pipelines/compare/{current_commit}...{new_commit}')    # noqa E402
+                f'*Tag*: {tag}\n'
+                f'https://github.com/AllenInstitute/ophys_etl_pipelines/compare/{current_commit}...{new_commit}')    # noqa E402
 
         client = WebClient(token=self.args['slack_token'])
 

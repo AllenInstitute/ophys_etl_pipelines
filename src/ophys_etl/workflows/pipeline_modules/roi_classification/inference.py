@@ -48,14 +48,21 @@ class InferenceModule(PipelineModule):
             ensemble_id=kwargs["ensemble_id"]
         )
 
-        self._model_inputs_path = self._write_model_inputs_to_disk(
-            thumbnails_dir=thumbnails_dir.path
-        )
         super().__init__(
             ophys_experiment=ophys_experiment,
             prevent_file_overwrites=prevent_file_overwrites,
+            # Passing False here since self._model_inputs_path needs to be set
+            # but in order to set that, the superclass constructor needs to be
+            # called. `self.validate_input_args()` is called afterwards
+            validate_input_args=False,
             **kwargs,
         )
+
+        self._model_inputs_path = self._write_model_inputs_to_disk(
+            thumbnails_dir=thumbnails_dir.path
+        )
+
+        self.validate_input_args()
 
     @property
     def queue_name(self) -> WorkflowStepEnum:

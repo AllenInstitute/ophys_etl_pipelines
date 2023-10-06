@@ -5,8 +5,8 @@ from unittest.mock import patch, PropertyMock
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
 
-from ophys_etl.workflows.ophys_experiment import OphysExperiment, Specimen, \
-    OphysSession, OphysContainer
+from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
+    OphysSession
 from sqlmodel import Session, select
 
 from ophys_etl.workflows.db.db_utils import save_job_run_to_db

@@ -5,11 +5,10 @@ import pickle
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pytest
 import random
 import shutil
 from pathlib import Path
-from unittest.mock import patch, PropertyMock
+from unittest.mock import patch
 
 import pandas as pd
 from deepcell.datasets.channel import channel_filename_prefix_map

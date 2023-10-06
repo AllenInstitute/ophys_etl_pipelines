@@ -50,19 +50,9 @@ class TestSegmentationModule(MockSQLiteDB):
             )
 
     @patch.object(OphysExperiment, 'from_id')
-    def test_save_metadata_to_db(self, mock_ophys_experiment_from_id):
-        mock_ophys_experiment_from_id.return_value = \
-            OphysExperiment(
-                id=1,
-                movie_frame_rate_hz=1,
-                raw_movie_filename=Path('foo'),
-                specimen=Specimen(id='1'),
-                session=OphysSession(id=1, specimen=Specimen(id='1')),
-                container=OphysContainer(id=1, specimen=Specimen(id='1')),
-                storage_directory=Path('foo'),
-                full_genotype="Vip-IRES-Cre/wt;Ai148(TIT2L-GC6f-ICL-tTA2)/wt",
-                equipment_name='MESO.1'
-            )
+    def test_save_metadata_to_db(self, mock_ophys_experiment_from_id,
+                                 mock_ophys_experiment):
+        mock_ophys_experiment_from_id.return_value = mock_ophys_experiment
 
         _rois_path = Path(__file__).parent / "resources" / "rois.json"
         with patch('ophys_etl.workflows.ophys_experiment.engine',

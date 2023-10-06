@@ -124,8 +124,8 @@ class OphysROI(SQLModel, table=True):
     width: int
     height: int
     is_in_motion_border: bool  # Set at by segmentation
-    empty_roi_mask: bool # Set at trace extraction
-    empty_neuropil_mask: bool # Set at trace extraction
+    empty_roi_mask: bool = False # Set at trace extraction
+    empty_neuropil_mask: bool = False # Set at trace extraction
     is_decrosstalk_invalid_raw: Optional[bool] = None
     is_decrosstalk_invalid_raw_active: Optional[bool] = None
     is_decrosstalk_invalid_unmixed: Optional[bool] = None

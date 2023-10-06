@@ -1,0 +1,38 @@
+env: "staging"
+pipeline_steps:
+  docker_tag: "develop_8ce37b3af6964792eaf476bd75d077b9ffcef1e5"
+  motion_correction:
+    nonrigid: true
+  denoising:
+    batch_size: 5
+    finetuning:
+      downsample_frac: 0.1
+      slurm_settings:
+        time: 1440
+        mem: 150
+    inference:
+      slurm_settings:
+        time: 1440
+    docker_tag: 'deepinterpolation_develop_9c81805e636a559ef21b93c30fd05dc80009e394'
+  decrosstalk:
+    slurm_settings:
+      time: 900
+      mem: 160
+  roi_classification:
+    generate_correlation_projection:
+      n_workers: 32
+      slurm_settings:
+        time: 600
+        cpus_per_task: 32
+        mem: 175
+    generate_thumbnails:
+      slurm_settings:
+        mem: 125
+    input_channels: ["CORRELATION_PROJECTION", "MAX_PROJECTION", "MASK"]
+    training:
+      s3:
+        bucket_name: 'dev.deepcell.alleninstitute.org'
+      tracking:
+        mlflow_experiment_name: 'deepcell-train'
+  nway_cell_matching:
+    docker_tag: 'main'

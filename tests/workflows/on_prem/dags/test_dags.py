@@ -1,14 +1,12 @@
 from pathlib import Path
+from airflow.models import DagBag
 
 from ophys_etl.workflows import on_prem
-from tests.workflows.airflow_test import AirflowTest
 
 
-class TestDags(AirflowTest):
+class TestDags:
     @classmethod
     def setup_class(cls):
-        super().setup_class()
-        from airflow.models import DagBag
         cls._dag_bag = DagBag(
             dag_folder=str(Path(on_prem.__file__).parent / 'dags'),
             include_examples=False

@@ -9,8 +9,6 @@ x-airflow-common:
       - env=dev
       - host_username
       - host_userid
-      # name of app_config.yml (e.g app_config_dev.yml)
-      - app_config_name
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor

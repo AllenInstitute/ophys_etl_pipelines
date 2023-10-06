@@ -1,9 +1,11 @@
 """App config"""
 import os
+from enum import Enum
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 
 import yaml
+from airflow.models import Variable, Connection
 from deepcell.cli.modules.create_dataset import VoteTallyingStrategy
 from deepcell.datasets.channel import Channel
 from pydantic import (
@@ -19,6 +21,13 @@ from ophys_etl.workflows.app_config._ophys_processing_trigger import \
     OphysProcessingTrigger
 from ophys_etl.workflows.app_config.slurm import SlurmSettings
 from ophys_etl.workflows.utils.pydantic_model_utils import ImmutableBaseModel
+
+
+class Environment(Enum):
+    """What environment we are running in"""
+    DEV = 'dev'
+    STAGING = 'staging'
+    PROD = 'prod'
 
 
 class _AirflowWebserverConfig(ImmutableBaseModel):
@@ -67,7 +76,8 @@ class _Slurm(ImmutableBaseModel):
 
     username: StrictStr = Field(description="Username to run jobs under")
     api_token: SecretStr = Field(
-        description="api token, generated using scontrol token"
+        description="api token, generated using "
+                    "scontrol token lifespan=94610000"
     )
     partition: StrictStr = 'braintv'
 
@@ -360,6 +370,7 @@ class _PipelineSteps(ImmutableBaseModel):
 class AppConfig(ImmutableBaseModel):
     """Workflow config"""
 
+    env: Environment = Environment.DEV
     webserver: _AirflowWebserverConfig
     is_debug: bool = Field(
         default=False,
@@ -383,6 +394,49 @@ class AppConfig(ImmutableBaseModel):
     fov_shape: Tuple[int, int] = (512, 512)
 
 
+def _set_sensitive_configs(config: Dict):
+    """
+    Sets sensitive configs from Variable store. For staging or production,
+    we are using AWS secrets manager. See
+    https://airflow.apache.org/docs/apache-airflow-providers-amazon/stable/secrets-backends/aws-secrets-manager.html
+
+    Parameters
+    ----------
+    config:
+        The config parsed from yaml
+
+    Returns
+    -------
+    Dict
+        The config with sensitive configs set
+    """
+    webserver = Variable.get('webserver', deserialize_json=True)
+    lims = Variable.get('lims', deserialize_json=True)
+    slurm = Variable.get('slurm', deserialize_json=True)
+    singularity = Variable.get('singularity', deserialize_json=True)
+
+    config['webserver'] = webserver
+    config['lims_db'] = lims
+    config['slurm'] = slurm
+    config['singularity'] = singularity
+
+    config['output_dir'] = Variable.get('output_dir')
+
+    config['pipeline_steps']['roi_classification']['cell_labeling_app_host'] = (    # noqa E402
+        Variable.get('cell_labeling_app_host'))
+    config['pipeline_steps']['roi_classification']['training']['tracking']['mlflow_server_uri'] = ( # noqa E402
+        Variable.get('mlflow_server_uri'))
+    config['pipeline_steps']['denoising']['finetuning']['base_model_path'] = (
+        Variable.get('base_deepinterpolation_model_path'))
+
+    config['app_db'] = {
+        'conn_string': Connection.get_connection_from_secrets(
+            conn_id='app_db').get_uri()
+    }
+
+    return config
+
+
 def load_config() -> AppConfig:
     config_path = os.environ["OPHYS_WORKFLOW_APP_CONFIG_PATH"]
 
@@ -395,6 +449,10 @@ def load_config() -> AppConfig:
         denoising_conf['finetuning']["base_model_path"] = os.environ[
             "TEST_DI_BASE_MODEL_PATH"
         ]
+
+    if 'env' in config and config['env'] in (
+            Environment.STAGING.value, Environment.PROD.value):
+        config = _set_sensitive_configs(config=config)
 
     # serialize to AppConfig
     config = AppConfig(**config)

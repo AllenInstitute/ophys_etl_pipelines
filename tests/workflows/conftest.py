@@ -18,6 +18,10 @@ setup_app_config(
     ),
 )
 
+airflow_home = tempfile.TemporaryDirectory()
+os.environ['AIRFLOW_HOME'] = airflow_home.name
+
+
 from ophys_etl.workflows.db.initialize_db import InitializeDBRunner
 from ophys_etl.workflows.db.schemas import (
     MotionCorrectionRun,
@@ -159,3 +163,7 @@ def xy_offset_path():
 @pytest.fixture
 def rois_path():
     return Path(__file__).parent / "resources" / "rois.json"
+
+
+def pytest_sessionfinish(session, exitstatus):
+    airflow_home.cleanup()

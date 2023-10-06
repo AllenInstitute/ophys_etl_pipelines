@@ -79,9 +79,11 @@ docker push alleninstitutepika/ophys_processing_airflow:<tag>
 
 3. upload and/or download [values.yaml](https://helm.sh/docs/chart_template_guide/values_files/) from s3://ophys-processing-airflow.alleninstitute.org/prod/
 
-4. Follow [airflow kind quickstart guide](https://airflow.apache.org/docs/helm-chart/stable/quick-start.html)
-
-    Make sure to pass `-f values.yaml` to `helm install`/`helm upgrade` commands
+4. deploy app
+```bash
+python ophys_etl_pipelines/src/ophys_etl/workflows/deploy.py
+```
+For more details: [airflow kind quickstart guide](https://airflow.apache.org/docs/helm-chart/stable/quick-start.html)
 
 ### Testing the deployment
 

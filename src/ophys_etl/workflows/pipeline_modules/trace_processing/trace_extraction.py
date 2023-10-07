@@ -5,8 +5,9 @@ from typing import Dict, List
 from sqlmodel import Session, select
 
 from ophys_etl.modules import trace_extraction
-from ophys_etl.modules.trace_extraction.schemas import \
-    TraceExtractionInputSchema  # noqa: E501
+from ophys_etl.modules.trace_extraction.schemas import (
+    TraceExtractionInputSchema,
+)  # noqa: E501
 from ophys_etl.workflows.db.schemas import OphysROI
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
@@ -22,7 +23,7 @@ class TraceExtractionModule(PipelineModule):
         self,
         ophys_experiment: OphysExperiment,
         prevent_file_overwrites: bool = True,
-        **kwargs
+        **kwargs,
     ):
         motion_corrected_ophys_movie_file: OutputFile = kwargs[
             "motion_corrected_ophys_movie_file"
@@ -33,7 +34,7 @@ class TraceExtractionModule(PipelineModule):
         super().__init__(
             ophys_experiment=ophys_experiment,
             prevent_file_overwrites=prevent_file_overwrites,
-            **kwargs
+            **kwargs,
         )
 
     @property
@@ -49,30 +50,28 @@ class TraceExtractionModule(PipelineModule):
         return {
             "storage_directory": str(self.output_path),
             "motion_border": self.ophys_experiment.motion_border.to_dict(),
-            "motion_corrected_stack": (
-                self._motion_corrected_ophys_movie_file),
-            "rois": [x.to_dict() for x in
-                     self.ophys_experiment.rois]
+            "motion_corrected_stack": (self._motion_corrected_ophys_movie_file), # noqa E501
+            "rois": [x.to_dict() for x in self.ophys_experiment.rois],
         }
 
     @property
     def outputs(self) -> List[OutputFile]:
         return [
             OutputFile(
-                well_known_file_type=WellKnownFileTypeEnum.TRACE_EXTRACTION_EXCLUSION_LABELS, # noqa E501
+                well_known_file_type=WellKnownFileTypeEnum.TRACE_EXTRACTION_EXCLUSION_LABELS,  # noqa E501
                 path=self.output_metadata_path,
             ),
             OutputFile(
                 well_known_file_type=WellKnownFileTypeEnum.ROI_TRACE,
-                path=self.output_path / 'roi_traces.h5',
+                path=self.output_path / "roi_traces.h5",
             ),
             OutputFile(
                 well_known_file_type=WellKnownFileTypeEnum.NEUROPIL_TRACE,
-                path=self.output_path / 'neuropil_traces.h5',
+                path=self.output_path / "neuropil_traces.h5",
             ),
             OutputFile(
                 well_known_file_type=WellKnownFileTypeEnum.NEUROPIL_MASK,
-                path=self.output_path / 'neuropil_masks.json',
+                path=self.output_path / "neuropil_masks.json",
             ),
         ]
 
@@ -81,7 +80,8 @@ class TraceExtractionModule(PipelineModule):
         output_files: Dict[str, OutputFile],
         session: Session,
         run_id: int,
-        **kwargs):
+        **kwargs
+    ):
         """
         Saves trace extract exclusion labels to rois in the db
 
@@ -99,25 +99,27 @@ class TraceExtractionModule(PipelineModule):
         ].path
         with open(exclusion_labels_file_path) as f:
             output_json = json.load(f)
-        
+
         # exclusion_labels: List[Dict]
         # e.g. {"roi_id": 123, "exclusion_label_name": "name"}
-        exclusion_labels = output_json['exclusion_labels']
-        
+        exclusion_labels = output_json["exclusion_labels"]
+
         for exclusion_label in exclusion_labels:
             # 1. Get ROI
             try:
-                roi = session.exec(select(OphysROI).where(
-                    OphysROI.id == exclusion_label['roi_id']
-                )).first()
-            except:
-                raise Exception(f"ROI with id {exclusion_label['roi_id']}"
-                                "not found in db")
+                roi = session.exec(
+                    select(OphysROI).where(OphysROI.id == exclusion_label["roi_id"]) # noqa E501
+                ).first()
+            except Exception as e:
+                raise Exception(
+                    f"ROI with id {exclusion_label['roi_id']}"
+                    "not found in db"
+                ) from e
 
             # 2. Add exclusion label
             if "empty_roi_mask" in exclusion_label["exclusion_label_name"]:
                 roi.empty_roi_mask = True
-            if "empty_neuropil_mask" in exclusion_label["exclusion_label_name"]:
+            if "empty_neuropil_mask" in exclusion_label["exclusion_label_name"]: # noqa E501
                 roi.empty_neuropil_mask = True
 
             # 3. Save updated roi to db

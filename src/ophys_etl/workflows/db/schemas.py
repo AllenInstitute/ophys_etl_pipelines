@@ -216,7 +216,8 @@ class OphysROI(SQLModel, table=True):
         return mask.tolist()
 
     def is_valid(self, equipment: str = "") -> bool:
-        """Return True if no processing flags (motion_border, empty_mask, decrosstalk)
+        """Return True if no processing flags
+        (motion_border, empty_mask, decrosstalk)
         flags are set.
 
         Parameters

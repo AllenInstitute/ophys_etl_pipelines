@@ -18,6 +18,9 @@ pipeline_steps:
     slurm_settings:
       time: 900
       mem: 160
+  dff:
+    slurm_settings:
+      time: 240
   roi_classification:
     generate_correlation_projection:
       n_workers: 32

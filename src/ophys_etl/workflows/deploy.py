@@ -48,6 +48,7 @@ class DeployRunner(argschema.ArgSchemaParser):
         super().__init__(**kwargs)
 
         self.logger.setLevel(level=logging.INFO)
+        self._current_commit = self._get_current_commit()
 
     def run(self):
         self._deploy_app()
@@ -82,12 +83,11 @@ class DeployRunner(argschema.ArgSchemaParser):
     def _notify_slack_channel(self):
         """Sends slack channel a message"""
         tag = self._get_tag_to_deploy()
-        current_commit = self._get_current_commit()
         new_commit = self._get_new_commit()
 
         text = ('Ophys processing was deployed!\n'
                 f'*Tag*: {tag}\n'
-                f'https://github.com/AllenInstitute/ophys_etl_pipelines/compare/{current_commit}...{new_commit}')    # noqa E402
+                f'https://github.com/AllenInstitute/ophys_etl_pipelines/compare/{self._current_commit}...{new_commit}')    # noqa E402
 
         client = WebClient(token=self.args['slack_token'])
 

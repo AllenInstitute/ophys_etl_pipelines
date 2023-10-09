@@ -17,7 +17,7 @@ pipeline_steps:
   decrosstalk:
     slurm_settings:
       time: 900
-      mem: 160
+      mem: 256
   dff:
     slurm_settings:
       time: 240

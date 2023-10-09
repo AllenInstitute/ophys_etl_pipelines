@@ -1,4 +1,4 @@
-FROM apache/airflow:2.6.3
+FROM apache/airflow:2.6.3-python3.8
 
 # dev or prod
 ARG env

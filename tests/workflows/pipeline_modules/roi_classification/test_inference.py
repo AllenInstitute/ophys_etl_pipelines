@@ -2,13 +2,17 @@ import datetime
 import json
 import os
 import pickle
-import pytest
+
+import matplotlib.pyplot as plt
+import numpy as np
 import random
 import shutil
 from pathlib import Path
-from unittest.mock import patch, PropertyMock
+from unittest.mock import patch
 
 import pandas as pd
+from deepcell.datasets.channel import channel_filename_prefix_map
+
 from ophys_etl.workflows.pipeline_modules.motion_correction import \
     MotionCorrectionModule
 
@@ -127,39 +131,62 @@ class TestInference(MockSQLiteDB):
         ).to_csv(self._preds_path, index=False)
         self._insert_model()
 
+        self._thumbnails_dir = self._write_dummy_thumbnails()
+
+    def _write_dummy_thumbnails(self):
+        rois_path = Path(__file__).parent.parent / "resources" / "rois.json"
+        thumbnails_dir = self._tmp_dir / 'thumbnails'
+        os.makedirs(thumbnails_dir, exist_ok=True)
+
+        with open(rois_path) as f:
+            rois = json.load(f)
+
+        for roi in rois:
+            roi_id = roi["id"]
+            for channel in (
+                    app_config.pipeline_steps.roi_classification.
+                    input_channels):
+                filename = (
+                    f'{channel_filename_prefix_map[channel]}_'
+                    f'{self._ophys_experiment_id}_{roi_id}.png')
+                path = thumbnails_dir / filename
+                plt.imsave(path, np.random.random((10, 10)))
+
+        return OutputFile(
+            path=thumbnails_dir,
+            well_known_file_type=(
+                WellKnownFileTypeEnum.ROI_CLASSIFICATION_THUMBNAIL_IMAGES)
+        )
+
     @classmethod
     def teardown_class(cls):
         shutil.rmtree(cls._tmp_dir)
 
-    @pytest.mark.skip(reason="TODO: handle _get_mlflow_model_params")
-    @patch.object(OphysSession, "output_dir", new_callable=PropertyMock)
-    @patch.object(
-        InferenceModule, "output_path", new_callable=PropertyMock
-    )
-    @patch.object(
-        InferenceModule, "_write_model_inputs_to_disk"
-    )
+    @patch.object(InferenceModule, "_get_mlflow_model_params")
     def test_inputs(
-        self, mock_write_module_inputs_to_disk,
-        mock_output_path, mock_output_dir,
-        mock_ophys_experiment, mock_thumbnails_dir, temp_dir
+        self,
+        mock_get_mlflow_model_params,
+        mock_ophys_experiment
     ):
         """Test that inputs are correctly formatted
         for input into the module.
         """
-        mock_write_module_inputs_to_disk.return_value = temp_dir / 'model_inputs.json' # noqa E501
-        with open(temp_dir/'model_inputs.json', 'w') as f:
+        mock_get_mlflow_model_params.return_value = {
+            'use_pretrained_model': True,
+            'model_architecture': 'foo',
+            'truncate_to_layer': None
+        }
+        with open(self._tmp_dir / 'model_inputs.json', 'w') as f:
             f.write(json.dumps([{'foo': 'bar'}]))
 
-        mock_output_path.return_value = temp_dir
-        mock_output_dir.return_value = temp_dir
         with patch('ophys_etl.workflows.pipeline_modules.roi_classification.'
                    'inference.engine', new=self._engine):
             mod = InferenceModule(
                 docker_tag="main",
                 ophys_experiment=mock_ophys_experiment,
-                thumbnails_dir=mock_thumbnails_dir,
+                thumbnails_dir=self._thumbnails_dir,
                 ensemble_id=1,
+                prevent_file_overwrites=False
             )
         mod.inputs
 

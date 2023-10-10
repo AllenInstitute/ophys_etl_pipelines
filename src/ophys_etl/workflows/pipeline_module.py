@@ -42,6 +42,7 @@ class PipelineModule(abc.ABC):
         ophys_session: Optional[OphysSession] = None,
         ophys_container: Optional[OphysContainer] = None,
         prevent_file_overwrites: bool = True,
+        validate_input_args: bool = True,
         **module_args,
     ):
         """
@@ -66,6 +67,9 @@ class PipelineModule(abc.ABC):
             Whether to allow files output by module to be overwritten
         docker_tag
             What docker tag to use to run module.
+        validate_input_args
+            Validates that `self.inputs` can be loaded into
+            `self.module_schema`
         """
 
         self._ophys_experiment = ophys_experiment
@@ -78,13 +82,8 @@ class PipelineModule(abc.ABC):
         if prevent_file_overwrites:
             self._validate_file_overwrite()
 
-        if isinstance(self.module_schema, DefaultSchema):
+        if validate_input_args:
             self.validate_input_args()
-        else:
-            raise ValueError(
-                f"module_schema must be subclass of DefaultSchema, "
-                f"got {type(self.module_schema)}"
-            )
 
     @property
     @abc.abstractmethod
@@ -199,6 +198,12 @@ class PipelineModule(abc.ABC):
         EnhancedJSONEncoder to convert path and enum objects to str as
         expected by the schema.
         """
+        if not isinstance(self.module_schema, DefaultSchema):
+            raise ValueError(
+                f"module_schema must be subclass of DefaultSchema, "
+                f"got {type(self.module_schema)}"
+            )
+
         encoded_json = json.dumps(self.inputs, cls=EnhancedJSONEncoder)
         preprocessed_inputs = json.loads(encoded_json)
         self.module_schema.load(data=preprocessed_inputs)

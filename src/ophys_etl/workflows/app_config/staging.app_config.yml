@@ -18,6 +18,9 @@ pipeline_steps:
     slurm_settings:
       time: 900
       mem: 256
+  trace_extraction:
+    slurm_settings:
+      time: 240
   dff:
     slurm_settings:
       time: 240

@@ -30,7 +30,7 @@ pipeline_steps:
       slurm_settings:
         time: 600
         cpus_per_task: 32
-        mem: 175
+        mem: 256
     generate_thumbnails:
       slurm_settings:
         mem: 125

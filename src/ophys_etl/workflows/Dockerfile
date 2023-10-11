@@ -43,13 +43,13 @@ RUN pip install "apache-airflow-providers-amazon"
 
 RUN pip install psycopg2-binary
 
-RUN if [ $create_app_db = "true" ]; then \
-      python -m ophys_etl.workflows.db.initialize_db --add_roi_classifier_training_run True; \
-    fi
-
 # Copy dags into expected place
 RUN cp -r /opt/airflow/ophys_etl_pipelines/src/ophys_etl/workflows/on_prem/dags/* /opt/airflow/dags
 
 RUN cp /opt/airflow/ophys_etl_pipelines/src/ophys_etl/workflows/app_config/$env.app_config.yml /opt/airflow/app_config.yml
 
 ENV OPHYS_WORKFLOW_APP_CONFIG_PATH=/opt/airflow/app_config.yml
+
+RUN if [ $create_app_db = "true" ]; then \
+      python -m ophys_etl.workflows.db.initialize_db --add_roi_classifier_training_run True; \
+    fi

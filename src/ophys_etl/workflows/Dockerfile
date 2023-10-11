@@ -7,9 +7,6 @@ ARG host_username
 # id -u
 ARG host_userid
 
-# Only set to true if the app database does not yet exist
-ARG create_app_db=false
-
 RUN if [ $env != 'dev' ] && [ $env != 'prod' ] && [ $env != 'staging' ]; then \
         echo "env must be set to 'dev', 'prod' or 'staging'"; \
         exit 1; \
@@ -49,7 +46,3 @@ RUN cp -r /opt/airflow/ophys_etl_pipelines/src/ophys_etl/workflows/on_prem/dags/
 RUN cp /opt/airflow/ophys_etl_pipelines/src/ophys_etl/workflows/app_config/$env.app_config.yml /opt/airflow/app_config.yml
 
 ENV OPHYS_WORKFLOW_APP_CONFIG_PATH=/opt/airflow/app_config.yml
-
-RUN if [ $create_app_db = "true" ]; then \
-      python -m ophys_etl.workflows.db.initialize_db --add_roi_classifier_training_run True; \
-    fi

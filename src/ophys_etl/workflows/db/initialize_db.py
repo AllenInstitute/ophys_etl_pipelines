@@ -63,7 +63,9 @@ class InitializeDBSchema(argschema.ArgSchema):
             if data["roi_classifier_args"] is None:
                 data["roi_classifier_args"] = {
                     "trained_model_dest": (
-                            app_config.output_dir / "cell_classifier_model")
+                            str(app_config.output_dir /
+                                "cell_classifier_model")
+                    )
                 }
         return data
 

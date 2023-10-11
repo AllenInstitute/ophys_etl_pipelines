@@ -2,7 +2,7 @@
     "exclusion_labels": [
         {
             "roi_id": 1,
-            "exclusion_label_name": ["empty_roi_mask", "empty_neuropil_mask"]
+            "exclusion_label_name": ["empty_neuropil_mask"]
         },
         {
             "roi_id": 2,

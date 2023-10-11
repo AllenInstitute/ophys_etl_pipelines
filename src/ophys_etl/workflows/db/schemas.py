@@ -124,7 +124,6 @@ class OphysROI(SQLModel, table=True):
     width: int
     height: int
     is_in_motion_border: bool  # Set at by segmentation
-    empty_roi_mask: bool = False  # Set at trace extraction
     empty_neuropil_mask: bool = False  # Set at trace extraction
     is_decrosstalk_invalid_raw: Optional[bool] = None
     is_decrosstalk_invalid_raw_active: Optional[bool] = None
@@ -174,8 +173,6 @@ class OphysROI(SQLModel, table=True):
         exclusion_labels = []
         if self.is_in_motion_border:
             exclusion_labels.append("motion_border")
-        if self.empty_roi_mask:
-            exclusion_labels.append("empty_roi_mask")
         if self.empty_neuropil_mask:
             exclusion_labels.append("empty_neuropil_mask")
         if self.is_decrosstalk_ghost:
@@ -234,7 +231,6 @@ class OphysROI(SQLModel, table=True):
         flag_set = [
             self.is_in_motion_border,
             self.empty_neuropil_mask,
-            self.empty_roi_mask
             ]
         if equipment.startswith("MESO"):
             decrosstalk_set = [

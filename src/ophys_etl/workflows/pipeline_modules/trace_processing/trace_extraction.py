@@ -117,8 +117,6 @@ class TraceExtractionModule(PipelineModule):
                 ) from e
 
             # 2. Add exclusion label
-            if "empty_roi_mask" in exclusion_label["exclusion_label_name"]:
-                roi.empty_roi_mask = True
             if "empty_neuropil_mask" in exclusion_label["exclusion_label_name"]: # noqa E501
                 roi.empty_neuropil_mask = True
 

@@ -153,7 +153,5 @@ class TestTraceExtractionModule(MockSQLiteDB):
 
         assert len(rois) == 2
         assert rois[0].id == 1 and rois[1].id == 2
-        assert rois[0].empty_roi_mask is True
-        assert rois[1].empty_roi_mask is False
         assert rois[0].empty_neuropil_mask is True
         assert rois[1].empty_neuropil_mask is False

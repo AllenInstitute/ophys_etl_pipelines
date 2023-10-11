@@ -471,7 +471,7 @@ def _add_roi_classifier_training_run(
             app_config.pipeline_steps.roi_classification.inference.
             mlflow_parent_run_name)
 
-    if not trained_model_dest.path.is_file():
+    if not trained_model_dest.path.is_dir():
         logger.info(
             f"Downloading trained roi classifier model to "
             f"{trained_model_dest.path}"

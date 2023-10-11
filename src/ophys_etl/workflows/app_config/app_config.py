@@ -315,6 +315,10 @@ class _ROIClassifierInference(_PipelineStep):
     classification_threshold: float = Field(
         default=0.5, description='classification threshold'
     )
+    mlflow_parent_run_name: StrictStr = Field(
+        default='CV-1685968029',
+        description='MLFlow parent run name used for tracking during training'
+    )
 
 
 class _ROIClassification(ImmutableBaseModel):

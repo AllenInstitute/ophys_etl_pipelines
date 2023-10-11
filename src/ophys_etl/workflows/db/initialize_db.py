@@ -1,10 +1,13 @@
 """Script to create and populate tables"""
 import datetime
+import os
 from pathlib import Path
 from typing import Dict, Optional
 
 import argschema
 import marshmallow
+
+from ophys_etl.workflows.app_config.app_config import app_config
 from sqlmodel import Session, SQLModel
 
 from ophys_etl.workflows.db import get_engine
@@ -32,10 +35,6 @@ class _TrainedROIClassifierSchema(argschema.ArgSchema):
     an roi classifier training run manually by specifying values for this
     schema"""
 
-    mlflow_parent_run_name = argschema.fields.String(
-        required=True,
-        description="MLFlow parent run name for the training run",
-    )
     trained_model_dest = argschema.fields.OutputDir(
         required=True, description="Where to save trained model"
     )
@@ -43,9 +42,12 @@ class _TrainedROIClassifierSchema(argschema.ArgSchema):
 
 class InitializeDBSchema(argschema.ArgSchema):
     db_url = argschema.fields.String(
-        required=True,
+        required=False,
+        default=None,
+        allow_none=True,
         description="db url, see "
-        "https://docs.sqlalchemy.org/en/20/core/engines.html",
+        "https://docs.sqlalchemy.org/en/20/core/engines.html. If not provided,"
+                    "uses the value from app_config.app_db.conn_string",
     )
     add_roi_classifier_training_run = argschema.fields.Boolean(
         default=False,
@@ -60,11 +62,10 @@ class InitializeDBSchema(argschema.ArgSchema):
     def validate_roi_classifier_args(self, data: dict, **kwargs):
         if data["add_roi_classifier_training_run"]:
             if data["roi_classifier_args"] is None:
-                raise ValueError(
-                    "If `add_roi_classifier_training_run`, then "
-                    "this is a dev database. Specify `roi_classifier_args` "
-                    "to manually add an roi classifier training run"
-                )
+                data["roi_classifier_args"] = {
+                    "trained_model_dest": (
+                            app_config.output_dir / "cell_classifier_model")
+                }
         return data
 
 
@@ -453,7 +454,6 @@ def _create_event_detection_well_known_file_types(
 
 def _add_roi_classifier_training_run(
     session: Session,
-    mlflow_parent_run_name: str,
     trained_model_dest: OutputFile,
     logger,
 ):
@@ -461,8 +461,6 @@ def _add_roi_classifier_training_run(
 
     Parameters
     ----------
-    mlflow_parent_run_name
-        MLFlow parent run name for the training run
     trained_model_dest
         Where to save trained model
     logger
@@ -472,8 +470,15 @@ def _add_roi_classifier_training_run(
         f"Downloading trained roi classifier model to "
         f"{trained_model_dest.path}"
     )
+    if trained_model_dest.path.is_file():
+        os.remove(trained_model_dest.path)
+
+    mlflow_parent_run_name = (
+            app_config.pipeline_steps.roi_classification.inference.
+            mlflow_parent_run_name)
     download_trained_model(
-        mlflow_run_name=mlflow_parent_run_name, model_dest=trained_model_dest
+        model_dest=trained_model_dest,
+        mlflow_run_name=mlflow_parent_run_name
     )
     save_job_run_to_db(
         workflow_name=WorkflowNameEnum.ROI_CLASSIFIER_TRAINING,
@@ -498,7 +503,6 @@ def _populate_db(
     engine,
     logger,
     add_roi_classifier_training_run: bool = False,
-    mlflow_parent_run_name: Optional[str] = None,
     trained_model_dest: Optional[OutputFile] = None,
 ):
     """Populates tables
@@ -511,20 +515,12 @@ def _populate_db(
         Logger
     add_roi_classifier_training_run
         Whether to add roi classifier training run (needed for development)
-    mlflow_parent_run_name
-        MLFlow parent run name for the training run. Only needed if
-        `add_roi_classifier_training_run`
     trained_model_dest
         Where to save trained model. Only needed if
         `add_roi_classifier_training_run`
 
     """
     if add_roi_classifier_training_run:
-        if mlflow_parent_run_name is None:
-            raise ValueError(
-                "Specify mlflow_parent_run_name if "
-                "add_roi_classifier_training_run"
-            )
         if trained_model_dest is None:
             raise ValueError(
                 "Specify trained_model_dest if "
@@ -560,7 +556,6 @@ def _populate_db(
         if add_roi_classifier_training_run:
             _add_roi_classifier_training_run(
                 session=session,
-                mlflow_parent_run_name=mlflow_parent_run_name,
                 trained_model_dest=trained_model_dest,
                 logger=logger,
             )
@@ -570,7 +565,11 @@ class InitializeDBRunner(argschema.ArgSchemaParser):
     default_schema = InitializeDBSchema
 
     def run(self):
-        engine = get_engine(db_conn=self.args["db_url"])
+        if self.args["db_url"] is None:
+            db_conn = app_config.app_db.conn_string
+        else:
+            db_conn = self.args["db_url"]
+        engine = get_engine(db_conn=db_conn)
         create_db_and_tables(engine)
         if self.args["roi_classifier_args"] is None:
             roi_classifier_args = {}
@@ -581,9 +580,6 @@ class InitializeDBRunner(argschema.ArgSchemaParser):
             engine,
             add_roi_classifier_training_run=(
                 self.args["add_roi_classifier_training_run"]
-            ),
-            mlflow_parent_run_name=(
-                roi_classifier_args.get("mlflow_parent_run_name")
             ),
             trained_model_dest=OutputFile(
                 path=(

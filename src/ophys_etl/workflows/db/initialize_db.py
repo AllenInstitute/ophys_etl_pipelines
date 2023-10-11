@@ -466,20 +466,22 @@ def _add_roi_classifier_training_run(
     logger
         Logger
     """
-    logger.info(
-        f"Downloading trained roi classifier model to "
-        f"{trained_model_dest.path}"
-    )
-    if trained_model_dest.path.is_file():
-        os.remove(trained_model_dest.path)
-
     mlflow_parent_run_name = (
             app_config.pipeline_steps.roi_classification.inference.
             mlflow_parent_run_name)
-    download_trained_model(
-        model_dest=trained_model_dest,
-        mlflow_run_name=mlflow_parent_run_name
-    )
+
+    if not trained_model_dest.path.is_file():
+        logger.info(
+            f"Downloading trained roi classifier model to "
+            f"{trained_model_dest.path}"
+        )
+        download_trained_model(
+            model_dest=trained_model_dest,
+            mlflow_run_name=mlflow_parent_run_name
+        )
+    else:
+        logger.info(f'Trained model already exists locally at '
+                    f'{trained_model_dest.path}')
     save_job_run_to_db(
         workflow_name=WorkflowNameEnum.ROI_CLASSIFIER_TRAINING,
         workflow_step_name=WorkflowStepEnum.ROI_CLASSIFICATION_TRAINING,

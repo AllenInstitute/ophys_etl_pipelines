@@ -256,6 +256,7 @@ def ophys_processing():
                 module=TraceExtractionModule,
                 workflow_step_name=WorkflowStepEnum.TRACE_EXTRACTION,
                 workflow_name=WORKFLOW_NAME,
+                additional_db_inserts=TraceExtractionModule.save_exclusion_labels_to_db, # noqa E501
                 module_kwargs={
                     "motion_corrected_ophys_movie_file": motion_corrected_ophys_movie_file,  # noqa E501
                 },

@@ -3,7 +3,7 @@ from types import ModuleType
 from typing import Dict, List
 
 from sqlmodel import Session, select
-
+from sqlalchemy.orm.exc import NoResultFound
 from ophys_etl.modules import trace_extraction
 from ophys_etl.modules.trace_extraction.schemas import (
     TraceExtractionInputSchema,
@@ -101,7 +101,7 @@ class TraceExtractionModule(PipelineModule):
             output_json = json.load(f)
 
         # exclusion_labels: List[Dict]
-        # e.g. {"roi_id": 123, "exclusion_label_name": "name"}
+        # e.g. {"roi_id": 123, "exclusion_label_name": ["name"]}
         exclusion_labels = output_json["exclusion_labels"]
 
         for exclusion_label in exclusion_labels:
@@ -110,15 +110,14 @@ class TraceExtractionModule(PipelineModule):
                 roi = session.exec(
                     select(OphysROI).where(OphysROI.id == exclusion_label["roi_id"]) # noqa E501
                 ).first()
-            except Exception as e:
+            except NoResultFound as e:
                 raise Exception(
                     f"ROI with id {exclusion_label['roi_id']}"
                     "not found in db"
                 ) from e
 
             # 2. Add exclusion label
-            if "empty_neuropil_mask" in exclusion_label["exclusion_label_name"]: # noqa E501
-                roi.empty_neuropil_mask = True
+            roi.has_empty_neuropil_mask = "empty_neuropil_mask" in exclusion_label["exclusion_label_name"] # noqa E501
 
             # 3. Save updated roi to db
             session.add(roi)

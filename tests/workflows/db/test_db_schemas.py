@@ -33,5 +33,5 @@ class TestOphysROI:
             with pytest.raises(TypeError, match=r"Decrosstalk flags not"):
                 mock_roi.is_valid(equipment="MESO.1")
         else:
-            assert mock_roi.is_valid(equipment="MESO.1") is not sum([
+            assert mock_roi.is_valid(equipment="MESO.1") is not any([
                 motion_border, empty_neuropil_mask])

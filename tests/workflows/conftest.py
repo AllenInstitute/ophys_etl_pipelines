@@ -110,7 +110,8 @@ def mock_ophys_experiment(motion_corrected_ophys_movie_path, experiment_id):
 @pytest.fixture
 def mock_rois():
     mock_roi = OphysROI(
-        id=1, x=0, y=0, width=2, height=1, is_in_motion_border=False
+        id=1, x=0, y=0, width=2, height=1, is_in_motion_border=False,
+        has_empty_neuropil_mask=False
     )
     mock_roi._mask_values = [
         OphysROIMaskValue(id=1, ophys_roi_id=1, row_index=0, col_index=0)

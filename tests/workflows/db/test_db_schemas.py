@@ -6,9 +6,11 @@ class TestOphysROI:
 
     @pytest.mark.parametrize("motion_border", [True, False])
     @pytest.mark.parametrize("decrosstalk_none", [True, False])
+    @pytest.mark.parametrize("empty_neuropil_mask", [True, False])
     def test_is_valid(self,
                       motion_border: bool,
-                      decrosstalk_none: bool):
+                      decrosstalk_none: bool,
+                      empty_neuropil_mask: bool):
         """
         Test all possibilities for is_valid function in ROI.
         """
@@ -19,6 +21,7 @@ class TestOphysROI:
             width=2,
             height=1,
             is_in_motion_border=motion_border,
+            has_empty_neuropil_mask=empty_neuropil_mask,
             is_decrosstalk_ghost=None if decrosstalk_none else False,
             is_decrosstalk_invalid_raw_active=False,
             is_decrosstalk_invalid_raw=False,
@@ -30,4 +33,5 @@ class TestOphysROI:
             with pytest.raises(TypeError, match=r"Decrosstalk flags not"):
                 mock_roi.is_valid(equipment="MESO.1")
         else:
-            assert mock_roi.is_valid(equipment="MESO.1") is not motion_border
+            assert mock_roi.is_valid(equipment="MESO.1") is not sum([
+                motion_border, empty_neuropil_mask])

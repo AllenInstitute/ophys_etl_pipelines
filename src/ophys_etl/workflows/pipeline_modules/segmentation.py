@@ -8,7 +8,7 @@ from ophys_etl.workflows.app_config.app_config import app_config
 from sqlmodel import Session
 from ophys_etl.modules.segment_postprocess.schemas import SegmentPostProcessSchema  # noqa: E501
 from ophys_etl.modules import segment_postprocess
-from ophys_etl.utils.rois import is_inside_motion_border
+from ophys_etl.utils.rois import is_not_inside_motion_border
 from ophys_etl.workflows.db.schemas import OphysROI, OphysROIMaskValue
 from ophys_etl.workflows.ophys_experiment import OphysExperiment
 from ophys_etl.workflows.output_file import OutputFile
@@ -113,7 +113,7 @@ class SegmentationModule(PipelineModule):
             roi['max_correction_up'] = motion_border.max_correction_up
             roi['max_correction_down'] = motion_border.max_correction_down
 
-            is_in_motion_border = not is_inside_motion_border(
+            is_in_motion_border = not is_not_inside_motion_border(
                 roi=roi,
                 movie_shape=app_config.fov_shape
             )

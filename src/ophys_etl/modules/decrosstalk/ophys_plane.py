@@ -3,6 +3,7 @@ import h5py
 import copy
 import numpy as np
 import logging
+from pathlib import Path
 
 from ophys_etl.types import OphysROI
 from ophys_etl.utils.roi_masks import RoiMask
@@ -119,6 +120,48 @@ class OphysMovie(object):
             trace = dc_types.ROIChannels()
             trace['signal'] = neuropil_traces[i_roi]
             output['neuropil'][roi.roi_id] = trace
+
+        return output
+
+    def get_trace_from_path(self, roi_trace_path = Union[str, Path],
+                  neuropil_trace_path = Union[str, Path]
+                  ) -> dc_types.ROISetDict:
+        """
+        Load the traces from the specified files
+
+        Parameters
+        ----------
+        roi_trace_path -- path to the file containing the ROI traces
+
+        neuropil_trace_path -- path to the file containing the neuropil
+                                 traces
+
+        Returns
+        -------
+        output -- a decrosstalk_types.ROISetDict containing the ROI and
+                    neuropil traces associated with roi_list. For each ROI
+                    in the ROISetDict, only the 'signal' channel will be
+                    populated, this with the trace extracted from the movie.
+        """
+        roi_traces = {}
+        neuropil_traces = {}
+        with h5py.File(roi_trace_path, mode='r') as in_file:
+            for key in in_file.keys():
+                roi_traces[key] = in_file[key][()]
+        with h5py.File(neuropil_trace_path, mode='r') as in_file:
+            for key in in_file.keys():
+                neuropil_traces[key] = in_file[key][()]
+
+        output = dc_types.ROISetDict()
+        for roi_id in roi_traces.keys():
+
+            trace = dc_types.ROIChannels()
+            trace['signal'] = roi_traces[roi_id]
+            output['roi'][roi_id] = trace
+
+            trace = dc_types.ROIChannels()
+            trace['signal'] = neuropil_traces[roi_id]
+            output['neuropil'][roi_id] = trace
 
         return output
 

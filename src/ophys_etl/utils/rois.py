@@ -395,9 +395,9 @@ def is_inside_motion_border(
     b_inset = math.floor(movie_shape[0] - max_correction_up)
 
     is_in_border = ((left < l_inset)
-             & (right > r_inset)
-             & (top < t_inset)
-             & (bottom > b_inset))
+             | (right > r_inset)
+             | (top < t_inset)
+             | (bottom > b_inset))
     return is_in_border
     
 

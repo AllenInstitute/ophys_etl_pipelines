@@ -23,7 +23,7 @@ pipeline_steps:
         time: 720
   roi_classification:
     cell_labeling_app_host: 'foo'
-    input_channels: ['MASK', 'MAX_PROJECTION']
+    input_channels: ['MASK', 'MAX_PROJECTION', 'AVG_PROJECTION']
     generate_correlation_projection:
       n_workers: 1
     training:

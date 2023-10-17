@@ -2,24 +2,13 @@ import datetime
 import json
 import os
 import shutil
-import tempfile
 from pathlib import Path
 from unittest.mock import patch, PropertyMock
 from argschema import ArgSchema
 from argschema.fields import Int
 import pytest
 
-from ophys_etl.test_utils.workflow_utils import setup_app_config
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
-
-setup_app_config(
-    ophys_workflow_app_config_path=(
-        Path(__file__).parent / "resources" / "config.yml"
-    ),
-    test_di_base_model_path=Path(__file__).parent
-    / "resources"
-    / "di_model.h5",
-)
 
 import tempfile  # noqa #402
 from typing import Dict, List  # noqa #402

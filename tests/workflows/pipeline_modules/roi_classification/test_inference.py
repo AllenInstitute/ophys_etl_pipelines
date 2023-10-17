@@ -19,17 +19,7 @@ from ophys_etl.workflows.pipeline_modules.motion_correction import \
 from ophys_etl.workflows.ophys_experiment import OphysExperiment, \
     OphysSession, Specimen, OphysContainer
 
-from ophys_etl.test_utils.workflow_utils import setup_app_config
 from tests.workflows.conftest import MockSQLiteDB
-
-setup_app_config(
-    ophys_workflow_app_config_path=(
-        Path(__file__).parent.parent.parent / "resources" / "config.yml"
-    ),
-    test_di_base_model_path=Path(__file__).parent.parent.parent
-    / "resources"
-    / "di_model.h5",
-)
 
 from sqlmodel import Session
 

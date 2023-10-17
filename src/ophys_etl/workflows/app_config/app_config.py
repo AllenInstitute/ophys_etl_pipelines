@@ -449,6 +449,8 @@ def load_config() -> AppConfig:
         denoising_conf['finetuning']["base_model_path"] = os.environ[
             "TEST_DI_BASE_MODEL_PATH"
         ]
+    if os.environ.get("TEST_OUTPUT_DIR", None) is not None:
+        config['output_dir'] = os.environ["TEST_OUTPUT_DIR"]
 
     if 'env' in config and config['env'] in (
             Environment.STAGING.value, Environment.PROD.value):

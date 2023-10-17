@@ -4,7 +4,6 @@ from types import ModuleType
 from typing import Dict, List
 
 from sqlmodel import Session, select
-from sqlalchemy.orm.exc import NoResultFound
 from ophys_etl.modules import trace_extraction
 from ophys_etl.modules.trace_extraction.schemas import (
     TraceExtractionInputSchema,
@@ -80,7 +79,8 @@ class TraceExtractionModule(PipelineModule):
 
     @staticmethod
     def save_exclusion_labels_to_db(
-        output_files: Dict[str, OutputFile], session: Session, run_id: int, **kwargs
+        output_files: Dict[str, OutputFile],
+        session: Session, run_id: int, **kwargs
     ):
         """
         Saves trace extract exclusion labels to rois in the db
@@ -103,7 +103,8 @@ class TraceExtractionModule(PipelineModule):
         # e.g. {"roi_id": 123, "exclusion_label_name": "name"}
         exclusion_labels = output_json["exclusion_labels"]
 
-        roi_traces_file_path = output_files[WellKnownFileTypeEnum.ROI_TRACE.value].path
+        roi_traces_file_path = output_files[
+            WellKnownFileTypeEnum.ROI_TRACE.value].path
 
         with h5py.File(roi_traces_file_path, "r") as f:
             roi_ids = [int(rid) for rid in f["roi_names"][()]]
@@ -123,7 +124,8 @@ class TraceExtractionModule(PipelineModule):
                 raise Exception(f"ROI with id {id} not found in db")
 
             # 2. Add exclusion label
-            roi.has_empty_neuropil_mask = roi_empty_neuropil_mask.get(id, False)
+            roi.has_empty_neuropil_mask = roi_empty_neuropil_mask.get(
+                id, False)
 
             # 3. Save updated roi to db
             session.add(roi)

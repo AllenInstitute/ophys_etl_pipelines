@@ -348,6 +348,7 @@ def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix
         max_correction_right=-1)
     return compatible_roi
 
+
 def is_inside_motion_border(
         left: int,
         right: int,
@@ -395,11 +396,11 @@ def is_inside_motion_border(
     b_inset = math.floor(movie_shape[0] - max_correction_up)
 
     is_in_border = ((left < l_inset)
-             | (right > r_inset)
-             | (top < t_inset)
-             | (bottom > b_inset))
+                    | (right > r_inset)
+                    | (top < t_inset)
+                    | (bottom > b_inset))
     return is_in_border
-    
+
 
 def is_not_inside_motion_border(
         roi: DenseROI,
@@ -427,11 +428,11 @@ def is_not_inside_motion_border(
     top = roi['y']
     bottom = roi['y'] + roi['height']
     valid = not is_inside_motion_border(left, right, top, bottom,
-                                     roi['max_correction_right'],
-                                     roi['max_correction_left'],
-                                     roi['max_correction_up'],
-                                     roi['max_correction_down'],
-                                     movie_shape)
+                                        roi['max_correction_right'],
+                                        roi['max_correction_left'],
+                                        roi['max_correction_up'],
+                                        roi['max_correction_down'],
+                                        movie_shape)
     return valid
 
 

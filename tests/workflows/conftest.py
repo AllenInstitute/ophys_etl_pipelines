@@ -88,7 +88,7 @@ def trace_path():
     trace_path = Path(trace_path)
     with h5py.File(trace_path, "w") as h5:
         # Create the data to be stored
-        data = [str(i).encode() for i in [1,2]]
+        data = [str(i).encode() for i in [1, 2]]
         # Save data to dataset 'roi_names'
         h5.create_dataset('roi_names', data=np.array(data, dtype=object))
     yield trace_path

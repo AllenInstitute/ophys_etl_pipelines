@@ -391,9 +391,9 @@ def is_inside_motion_border(
     # A rightward shift increases the min 'valid' left border of the movie
     l_inset = math.ceil(max_correction_right)
     # Conversely, a leftward shift reduces the 'valid' right border
-    r_inset = math.floor(movie_shape[1] - max_correction_left)
+    r_inset = math.floor(movie_shape[1] - max_correction_left) - 1
     t_inset = math.ceil(max_correction_down)
-    b_inset = math.floor(movie_shape[0] - max_correction_up)
+    b_inset = math.floor(movie_shape[0] - max_correction_up) - 1
 
     is_in_border = ((left < l_inset)
                     | (right > r_inset)

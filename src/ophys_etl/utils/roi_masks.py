@@ -150,11 +150,11 @@ class RoiMask(Mask):
         (top, left), (bottom, right) = px.min(0), px.max(0)
 
         # check if ROI is inside motion border
-        if is_inside_motion_border(border, left, right, top, bottom,
+        if is_inside_motion_border(left, right, top, bottom,
                                    border[RIGHT_SHIFT],
                                    border[LEFT_SHIFT],
                                    border[UP_SHIFT],
-                                   border[DOWN_SHIFT]
+                                   border[DOWN_SHIFT],
                                    (self.img_rows, self.img_cols)):
             self.flags.add('overlaps_motion_border')
 

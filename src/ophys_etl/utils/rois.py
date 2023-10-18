@@ -428,11 +428,11 @@ def is_inside_motion_border(
     top = roi['y']
     bottom = roi['y'] + roi['height']
     valid = not is_in_motion_border(left, right, top, bottom,
-                                        roi['max_correction_right'],
-                                        roi['max_correction_left'],
-                                        roi['max_correction_up'],
-                                        roi['max_correction_down'],
-                                        movie_shape)
+                                    roi['max_correction_right'],
+                                    roi['max_correction_left'],
+                                    roi['max_correction_up'],
+                                    roi['max_correction_down'],
+                                    movie_shape)
     return valid
 
 

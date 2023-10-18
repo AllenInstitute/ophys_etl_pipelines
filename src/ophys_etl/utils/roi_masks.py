@@ -4,7 +4,7 @@ import scipy.ndimage.morphology as morphology
 from typing import List
 
 from ophys_etl.types import ExtractROI
-from ophys_etl.utils.rois import is_inside_motion_border
+from ophys_etl.utils.rois import is_in_motion_border
 
 # constants used for accessing border array
 RIGHT_SHIFT = 0
@@ -150,7 +150,7 @@ class RoiMask(Mask):
         (top, left), (bottom, right) = px.min(0), px.max(0)
 
         # check if ROI is inside motion border
-        if is_inside_motion_border(left, right, top, bottom,
+        if is_in_motion_border(left, right, top, bottom,
                                    border[RIGHT_SHIFT],
                                    border[LEFT_SHIFT],
                                    border[UP_SHIFT],

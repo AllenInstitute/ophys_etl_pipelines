@@ -388,7 +388,7 @@ def test_motion_exclusion(dense_mask, max_correction_vals, expected):
     roi['max_correction_right'] = max_correction_vals.right
     roi['max_correction_left'] = max_correction_vals.left
 
-    valid = rois_utils.is_not_inside_motion_border(roi, coo.shape)
+    valid = rois_utils.is_inside_motion_border(roi, coo.shape)
 
     assert valid == expected
 

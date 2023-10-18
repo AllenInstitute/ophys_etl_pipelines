@@ -28,7 +28,7 @@ from ophys_etl.utils.motion_border import get_max_correction_from_file, \
 from ophys_etl.utils.video_utils import get_max_and_avg
 from ophys_etl.utils.rois import (
     sanitize_extract_roi_list,
-    extract_roi_to_ophys_roi, is_not_inside_motion_border)
+    extract_roi_to_ophys_roi, is_inside_motion_border)
 
 
 class ClassifierArtifactsInputSchema(ArgSchema):
@@ -196,7 +196,7 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
             if str(roi['id']) not in selected_rois:
                 continue
             roi_meta[roi['id']] = {
-                'is_not_inside_motion_border': (
+                'is_inside_motion_border': (
                     self._calc_is_roi_inside_motion_border(
                         roi=roi,
                         motion_shifts=maximum_motion_shift
@@ -242,7 +242,7 @@ class ClassifierArtifactsGenerator(ArgSchemaParser):
         roi['max_correction_left'] = motion_border.left_side
         roi['max_correction_right'] = motion_border.right_side
 
-        return is_not_inside_motion_border(
+        return is_inside_motion_border(
             roi=roi,
             movie_shape=self.args['fov_shape']
         )

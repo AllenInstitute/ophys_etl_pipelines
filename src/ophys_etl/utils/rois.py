@@ -349,7 +349,7 @@ def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix
     return compatible_roi
 
 
-def is_inside_motion_border(
+def is_in_motion_border(
         left: int,
         right: int,
         top: int,
@@ -402,7 +402,7 @@ def is_inside_motion_border(
     return is_in_border
 
 
-def is_not_inside_motion_border(
+def is_inside_motion_border(
         roi: DenseROI,
         movie_shape: Tuple[int, int]
 ) -> bool:
@@ -427,7 +427,7 @@ def is_not_inside_motion_border(
     right = roi['x'] + roi['width']
     top = roi['y']
     bottom = roi['y'] + roi['height']
-    valid = not is_inside_motion_border(left, right, top, bottom,
+    valid = not is_in_motion_border(left, right, top, bottom,
                                         roi['max_correction_right'],
                                         roi['max_correction_left'],
                                         roi['max_correction_up'],
@@ -482,7 +482,7 @@ def _check_exclusion(compatible_roi: DenseROI,
     """
     exclusion_labels = []
 
-    if not is_not_inside_motion_border(compatible_roi, movie_shape):
+    if not is_inside_motion_border(compatible_roi, movie_shape):
         exclusion_labels.append('motion_border')
 
     if not _small_size_exclusion(compatible_roi, npixel_threshold):

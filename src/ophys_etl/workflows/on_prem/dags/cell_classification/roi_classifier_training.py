@@ -1,7 +1,7 @@
 """ROI classifier training DAG"""
 import json
 import time
-from typing import Dict, List
+from typing import Dict, List, Any
 
 from airflow.decorators import task, task_group
 from airflow.models import XCom
@@ -54,7 +54,7 @@ def _get_labeled_experiment_ids():
             .voting_strategy
         )
     )
-    experiment_ids = labels["experiment_id"].tolist()
+    experiment_ids = labels["experiment_id"].astype(int).tolist()
     return experiment_ids
 
 
@@ -115,10 +115,9 @@ def _generate_correlation_projections_for_experiments(
         return runs
 
 
-@task
 def _get_roi_meta_for_experiment_ids(
-    experiment_ids: List[str]
-):
+    experiment_ids: List[int]
+) -> Dict[str, Dict[str, Dict[Any, Any]]]:
     """
 
     Parameters
@@ -140,8 +139,17 @@ def _get_roi_meta_for_experiment_ids(
             roi_meta[str(roi.id)] = {
                 'is_inside_motion_border': not roi.is_in_motion_border
             }
-        exp_rois_meta[exp_id] = roi_meta
+        exp_rois_meta[str(exp_id)] = roi_meta
     return exp_rois_meta
+
+
+@task(task_id='_get_roi_meta_for_experiment_ids')
+def _get_roi_meta_for_experiment_ids_task(
+    experiment_ids: List[int]
+):
+    return _get_roi_meta_for_experiment_ids(
+        experiment_ids=experiment_ids
+    )
 
 
 @dag(
@@ -178,7 +186,7 @@ def roi_classifier_training():
         experiment_ids
     ):
         """Create train/test split"""
-        exp_roi_meta_map = _get_roi_meta_for_experiment_ids(
+        exp_roi_meta_map = _get_roi_meta_for_experiment_ids_task(
             experiment_ids=experiment_ids
         )
         module_outputs = run_workflow_step(

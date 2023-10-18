@@ -8,6 +8,7 @@ from argschema import ArgSchema
 from argschema.fields import Int
 import pytest
 
+from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.workflow_steps import WorkflowStepEnum
 
 import tempfile  # noqa #402
@@ -105,7 +106,7 @@ class TestPipelineModule:
 
         assert (
             self._dummy_mod.output_path
-            == Path("/tmp")
+            == app_config.output_dir
             / "specimen_3"
             / "session_2"
             / "experiment_1"
@@ -119,7 +120,7 @@ class TestPipelineModule:
 
         assert (
             self._dummy_mod.output_metadata_path
-            == Path("/tmp")
+            == app_config.output_dir
             / "specimen_3"
             / "session_2"
             / "experiment_1"
@@ -134,7 +135,7 @@ class TestPipelineModule:
 
         assert (
             self._dummy_mod.input_args_path
-            == Path("/tmp")
+            == app_config.output_dir
             / "specimen_3"
             / "session_2"
             / "experiment_1"

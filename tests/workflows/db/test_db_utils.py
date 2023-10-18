@@ -6,17 +6,6 @@ from pathlib import Path
 
 import pytest
 
-from ophys_etl.test_utils.workflow_utils import setup_app_config
-
-setup_app_config(
-    ophys_workflow_app_config_path=(
-        Path(__file__).parent.parent / "resources" / "config.yml"
-    ),
-    test_di_base_model_path=(
-        Path(__file__).parent.parent / "resources" / "di_model.h5"
-    ),
-)
-
 from sqlmodel import Session, select  # noqa #402
 
 from ophys_etl.workflows.db.db_utils import (  # noqa #402

@@ -26,9 +26,10 @@ from tests.workflows.conftest import MockSQLiteDB
 
 
 class TestOphysExperiment(MockSQLiteDB):
-    def _create_mock_data(self):
+    @staticmethod
+    def create_mock_data(engine):
         ophys_experiment_id = "1"
-        with Session(self._engine) as session:
+        with Session(engine) as session:
 
             # add motion correction run
             motion_correction_workflow_step = get_workflow_step_by_name(
@@ -122,7 +123,7 @@ class TestOphysExperiment(MockSQLiteDB):
 
     def setup(self):
         self._initializeDB()
-        self._create_mock_data()
+        self.create_mock_data(engine=self._engine)
         self.ophys_experiment = OphysExperiment(
             id=1,
             session=OphysSession(id=2, specimen=Specimen("1")),

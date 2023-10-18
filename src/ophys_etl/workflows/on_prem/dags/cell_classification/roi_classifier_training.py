@@ -1,12 +1,13 @@
 """ROI classifier training DAG"""
 import json
 import time
-from typing import Dict, List
+from typing import Dict, List, Any
 
 from airflow.decorators import task, task_group
 from airflow.models import XCom
 from airflow.models.dag import dag
 from deepcell.cli.modules.create_dataset import construct_dataset
+from ophys_etl.workflows.ophys_experiment import OphysExperiment
 
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.on_prem.dags.cell_classification.utils import \
@@ -53,7 +54,7 @@ def _get_labeled_experiment_ids():
             .voting_strategy
         )
     )
-    experiment_ids = labels["experiment_id"].tolist()
+    experiment_ids = labels["experiment_id"].astype(int).tolist()
     return experiment_ids
 
 
@@ -114,6 +115,43 @@ def _generate_correlation_projections_for_experiments(
         return runs
 
 
+def _get_roi_meta_for_experiment_ids(
+    experiment_ids: List[int]
+) -> Dict[str, Dict[str, Dict[Any, Any]]]:
+    """
+
+    Parameters
+    ----------
+    experiment_ids
+
+    Returns
+    -------
+    Map from experiment id to dict
+        keys: roi id
+        values:
+            - is_inside_motion_border: whether roi is inside the motion border
+    """
+    exp_rois_meta = {}
+    for exp_id in experiment_ids:
+        oe = OphysExperiment.from_id(id=int(exp_id))
+        roi_meta = {}
+        for roi in oe.rois:
+            roi_meta[str(roi.id)] = {
+                'is_inside_motion_border': not roi.is_in_motion_border
+            }
+        exp_rois_meta[str(exp_id)] = roi_meta
+    return exp_rois_meta
+
+
+@task(task_id='_get_roi_meta_for_experiment_ids')
+def _get_roi_meta_for_experiment_ids_task(
+    experiment_ids: List[int]
+):
+    return _get_roi_meta_for_experiment_ids(
+        experiment_ids=experiment_ids
+    )
+
+
 @dag(
     dag_id="roi_classifier_training",
     schedule=None,
@@ -122,19 +160,20 @@ def _generate_correlation_projections_for_experiments(
 )
 def roi_classifier_training():
     @task_group
-    def generate_correlation_projections():
+    def generate_correlation_projections(experiment_ids):
         """Create correlation projections for all experiments in training
         set"""
-        experiment_ids = _get_labeled_experiment_ids()
         runs = _generate_correlation_projections_for_experiments(
             experiment_ids=experiment_ids)
 
         return runs
 
     @task_group
-    def create_thumbnails(correlation_projection_graphs: Dict[str, XCom]):
+    def create_thumbnails(
+        correlation_projection_graphs: Dict[str, XCom],
+        experiment_ids
+    ):
         """Create training thumbnails for all ROIs in training set"""
-        experiment_ids = _get_labeled_experiment_ids()
         thumbnail_dirs = _create_thumbnails_for_experiments(
             correlation_projection_graphs=correlation_projection_graphs,
             experiment_ids=experiment_ids)
@@ -142,15 +181,24 @@ def roi_classifier_training():
         return thumbnail_dirs
 
     @task_group
-    def create_train_test_split(thumbnail_dirs):
+    def create_train_test_split(
+        thumbnail_dirs,
+        experiment_ids
+    ):
         """Create train/test split"""
+        exp_roi_meta_map = _get_roi_meta_for_experiment_ids_task(
+            experiment_ids=experiment_ids
+        )
         module_outputs = run_workflow_step(
             module=roi_classification.CreateTrainTestSplitModule,
             workflow_step_name=(
                 WorkflowStepEnum.ROI_CLASSIFICATION_CREATE_TRAIN_TEST_SPLIT
             ),
             workflow_name=WORKFLOW_NAME,
-            module_kwargs={"thumbnail_dirs": thumbnail_dirs},
+            module_kwargs={
+                "thumbnail_dirs": thumbnail_dirs,
+                "exp_roi_meta_map": exp_roi_meta_map
+            },
             slurm_config=(app_config.pipeline_steps.roi_classification.
                           training.slurm_settings)
         )
@@ -187,11 +235,17 @@ def roi_classifier_training():
             },
         )
 
-    correlation_projection_graphs = generate_correlation_projections()
+    experiment_ids = _get_labeled_experiment_ids()
+    correlation_projection_graphs = generate_correlation_projections(
+        experiment_ids=experiment_ids)
     thumbnail_dirs = create_thumbnails(
-        correlation_projection_graphs=correlation_projection_graphs
+        correlation_projection_graphs=correlation_projection_graphs,
+        experiment_ids=experiment_ids
     )
-    train_set_path = create_train_test_split(thumbnail_dirs=thumbnail_dirs)
+    train_set_path = create_train_test_split(
+        thumbnail_dirs=thumbnail_dirs,
+        experiment_ids=experiment_ids
+    )
     train_model(train_set_path=train_set_path)
 
 

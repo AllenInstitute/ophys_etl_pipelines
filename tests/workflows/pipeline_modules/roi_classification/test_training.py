@@ -6,17 +6,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from ophys_etl.test_utils.workflow_utils import setup_app_config
-
-setup_app_config(
-    ophys_workflow_app_config_path=(
-        Path(__file__).parent.parent.parent / "resources" / "config.yml"
-    ),
-    test_di_base_model_path=Path(__file__).parent.parent.parent
-    / "resources"
-    / "di_model.h5",
-)
-
 from sqlmodel import Session, select
 
 from ophys_etl.workflows.app_config.app_config import app_config

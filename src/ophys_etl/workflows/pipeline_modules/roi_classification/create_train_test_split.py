@@ -1,5 +1,5 @@
 from types import ModuleType
-from typing import Dict, List
+from typing import Dict, List, Any
 
 from deepcell.cli.modules import create_dataset
 from deepcell.cli.modules.create_dataset import CreateDatasetInputSchema
@@ -16,8 +16,11 @@ class CreateTrainTestSplitModule(PipelineModule):
     with these splits"""
 
     def __init__(self, prevent_file_overwrites: bool = True, **kwargs):
-        thumbnails_dir: OutputFile = kwargs["thumbnails_dir"]
+        thumbnails_dir: Dict[int, OutputFile] = kwargs["thumbnails_dir"]
+        exp_roi_meta_map: Dict[int, Dict[int, Any]] = (
+            kwargs["exp_roi_meta_map"])
         self._thumbnails_dir = thumbnails_dir
+        self._exp_roi_meta_map = exp_roi_meta_map
         super().__init__(
             ophys_experiment=None,
             prevent_file_overwrites=prevent_file_overwrites,
@@ -42,13 +45,18 @@ class CreateTrainTestSplitModule(PipelineModule):
             "lims_db_password": app_config.lims_db.password.get_secret_value(),
             "output_dir": self.output_path,
             "channels": (
-                app_config.pipeline_steps.roi_classification.input_channels
+                [x.value for x in
+                 app_config.pipeline_steps.roi_classification.input_channels]
             ),
-            "artifact_dir": self._thumbnails_dir,
+            "artifact_dir": {
+                str(exp_id): str(artifact_dir.path)
+                for exp_id, artifact_dir in self._thumbnails_dir.items()
+            },
             "test_size": (
                 app_config.pipeline_steps.roi_classification.training.train_test_split.test_size # noqa E501
             ),
             "seed": 1234,
+            "exp_roi_meta_map": self._exp_roi_meta_map
         }
 
     @property

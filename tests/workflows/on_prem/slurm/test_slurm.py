@@ -2,17 +2,7 @@ from pathlib import Path
 
 import pytz
 
-from ophys_etl.test_utils.workflow_utils import setup_app_config
 from ophys_etl.workflows.app_config.slurm import SlurmSettings
-
-setup_app_config(
-    ophys_workflow_app_config_path=(
-        Path(__file__).parent.parent.parent / "resources" / "config.yml"
-    ),
-    test_di_base_model_path=(
-        Path(__file__).parent.parent.parent / "resources" / "di_model.h5"
-    ),
-)
 
 import datetime  # noqa #402
 import tempfile # noqa #402

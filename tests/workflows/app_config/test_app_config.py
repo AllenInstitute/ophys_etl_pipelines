@@ -1,9 +1,7 @@
 import os
-from pathlib import Path
 
 import yaml
 
-from ophys_etl.test_utils.workflow_utils import setup_app_config
 from ophys_etl.workflows.app_config.app_config import AppConfig, \
     _DenoisingInference
 from ophys_etl.workflows.app_config.slurm import SlurmSettings
@@ -11,14 +9,6 @@ from ophys_etl.workflows.app_config.slurm import SlurmSettings
 
 class TestAppConfig:
     def setup_method(self):
-        setup_app_config(
-            ophys_workflow_app_config_path=(
-                    Path(__file__).parent.parent / "resources" / "config.yml"
-            ),
-            test_di_base_model_path=(
-                    Path(__file__).parent.parent / "resources" / "di_model.h5"
-            ),
-        )
         config_path = os.environ["OPHYS_WORKFLOW_APP_CONFIG_PATH"]
         with open(config_path) as f:
             config = yaml.safe_load(f)

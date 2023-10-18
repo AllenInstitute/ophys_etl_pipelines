@@ -9,18 +9,18 @@ import pytest
 
 from ophys_etl.test_utils.workflow_utils import setup_app_config
 
+airflow_home = tempfile.TemporaryDirectory()
+os.environ['AIRFLOW_HOME'] = airflow_home.name
+os.environ['TEST_OUTPUT_DIR'] = airflow_home.name
+
 setup_app_config(
     ophys_workflow_app_config_path=(
         Path(__file__).parent / "resources" / "config.yml"
     ),
     test_di_base_model_path=(
         Path(__file__).parent / "resources" / "di_model.h5"
-    ),
+    )
 )
-
-airflow_home = tempfile.TemporaryDirectory()
-os.environ['AIRFLOW_HOME'] = airflow_home.name
-
 
 from ophys_etl.workflows.db.initialize_db import InitializeDBRunner
 from ophys_etl.workflows.db.schemas import (

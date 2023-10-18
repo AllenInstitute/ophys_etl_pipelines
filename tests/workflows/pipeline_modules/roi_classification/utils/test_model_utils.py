@@ -6,19 +6,6 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
-from ophys_etl.test_utils.workflow_utils import setup_app_config
-
-setup_app_config(
-    ophys_workflow_app_config_path=(
-        Path(__file__).parent.parent.parent.parent / "resources" / "config.yml"
-    ),
-    test_di_base_model_path=(
-        Path(__file__).parent.parent.parent.parent
-        / "resources"
-        / "di_model.h5"
-    ),
-)
-
 from ophys_etl.workflows.app_config.app_config import app_config
 from ophys_etl.workflows.output_file import OutputFile
 from ophys_etl.workflows.pipeline_modules.roi_classification.utils.mlflow_utils import ( # noqa E501

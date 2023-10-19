@@ -217,14 +217,14 @@ def ophys_processing():
         if ophys_experiment.container.id is None:
             return False
 
+        container_experiment_ids = OphysContainer.from_id(
+            id=ophys_experiment.container.id).get_ophys_experiment_ids()
+
         # avoiding a race condition. Only want to return true for a single
         # ophys experiment within container
         is_most_recent = ophys_experiment.id == get_most_recent_run(
             workflow_step=WorkflowStepEnum.SEGMENTATION,
-            ophys_experiment_ids=(
-                OphysContainer.from_id(ophys_experiment.container.id)
-                .get_ophys_experiment_ids()
-            )
+            ophys_experiment_ids=container_experiment_ids
         )
 
         is_container_complete = \
@@ -232,7 +232,9 @@ def ophys_processing():
                 workflow_step=WorkflowStepEnum.SEGMENTATION
             )
 
-        return is_container_complete and is_most_recent
+        return (is_container_complete and
+                is_most_recent and
+                len(container_experiment_ids) > 1)
 
     @task
     def run_nway_cell_matching(do_run: bool, **context):

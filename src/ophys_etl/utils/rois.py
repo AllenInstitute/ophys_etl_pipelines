@@ -361,6 +361,10 @@ def is_in_motion_border(
         movie_shape: Tuple[int, int]
         ):
     """
+    Checks if the ROI intersects with the motion border. Note that ROIs that
+    are touching but not crossing into the border are considered not
+    considered to be in the border.
+
     Parameters
     ----------
     left: int
@@ -386,7 +390,9 @@ def is_in_motion_border(
     Returns
     -------
     is_in_border: bool
-        True if the ROI is inside the motion border, False if not.
+        True if the ROI intersects the motion border, False if not. Note that
+        ROIs that are touching but not crossing into the border are considered
+        not considered to be in the border.
     """
     # A rightward shift increases the min 'valid' left border of the movie
     l_inset = math.ceil(max_correction_right)

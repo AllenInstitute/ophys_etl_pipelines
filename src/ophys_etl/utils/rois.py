@@ -349,6 +349,65 @@ def _coo_mask_to_LIMS_compatible_format(coo_mask: coo_matrix
     return compatible_roi
 
 
+def is_in_motion_border(
+        left: int,
+        right: int,
+        top: int,
+        bottom: int,
+        max_correction_right: int,
+        max_correction_left: int,
+        max_correction_up: int,
+        max_correction_down: int,
+        movie_shape: Tuple[int, int]
+        ):
+    """
+    Checks if the ROI intersects with the motion border. Note that ROIs that
+    are touching but not crossing into the border are considered not
+    considered to be in the border.
+
+    Parameters
+    ----------
+    left: int
+        The left border of the ROI
+    right: int
+        The right border of the ROI
+    top: int
+        The top border of the ROI
+    bottom: int
+        The bottom border of the ROI
+    max_correction_right: int
+        The maximum rightward shift of the movie
+    max_correction_left: int
+        The maximum leftward shift of the movie
+    max_correction_up: int
+        The maximum upward shift of the movie
+    max_correction_down: int
+        The maximum downward shift of the movie
+    movie_shape: Tuple[int, int]
+        The frame shape of the movie from which ROIs were extracted in order
+        of: (height, width).
+
+    Returns
+    -------
+    is_in_border: bool
+        True if the ROI intersects the motion border, False if not. Note that
+        ROIs that are touching but not crossing into the border are considered
+        not considered to be in the border.
+    """
+    # A rightward shift increases the min 'valid' left border of the movie
+    l_inset = math.ceil(max_correction_right)
+    # Conversely, a leftward shift reduces the 'valid' right border
+    r_inset = math.floor(movie_shape[1] - max_correction_left)
+    t_inset = math.ceil(max_correction_down)
+    b_inset = math.floor(movie_shape[0] - max_correction_up)
+
+    is_in_border = ((left < l_inset)
+                    | (right > r_inset)
+                    | (top < t_inset)
+                    | (bottom > b_inset))
+    return is_in_border
+
+
 def is_inside_motion_border(
         roi: DenseROI,
         movie_shape: Tuple[int, int]
@@ -369,18 +428,17 @@ def is_inside_motion_border(
         exclusion area. False if it does.
 
     """
-    # A rightward shift increases the min 'valid' left border of the movie
-    l_inset = math.ceil(roi['max_correction_right'])
-    # Conversely, a leftward shift reduces the 'valid' right border
-    r_inset = math.floor(movie_shape[1] - roi['max_correction_left'])
-    t_inset = math.ceil(roi['max_correction_down'])
-    b_inset = math.floor(movie_shape[0] - roi['max_correction_up'])
 
-    valid = ((roi['x'] >= l_inset)
-             & (roi['x'] + roi['width'] <= r_inset)
-             & (roi['y'] >= t_inset)
-             & (roi['y'] + roi['height'] <= b_inset))
-
+    left = roi['x']
+    right = roi['x'] + roi['width']
+    top = roi['y']
+    bottom = roi['y'] + roi['height']
+    valid = not is_in_motion_border(left, right, top, bottom,
+                                    roi['max_correction_right'],
+                                    roi['max_correction_left'],
+                                    roi['max_correction_up'],
+                                    roi['max_correction_down'],
+                                    movie_shape)
     return valid
 
 

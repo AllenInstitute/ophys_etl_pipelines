@@ -1,9 +1,9 @@
+import h5py
 import json
 from types import ModuleType
 from typing import Dict, List
 
 from sqlmodel import Session, select
-from sqlalchemy.orm.exc import NoResultFound
 from ophys_etl.modules import trace_extraction
 from ophys_etl.modules.trace_extraction.schemas import (
     TraceExtractionInputSchema,
@@ -50,7 +50,9 @@ class TraceExtractionModule(PipelineModule):
         return {
             "storage_directory": str(self.output_path),
             "motion_border": self.ophys_experiment.motion_border.to_dict(),
-            "motion_corrected_stack": (self._motion_corrected_ophys_movie_file), # noqa E501
+            "motion_corrected_stack": (
+                self._motion_corrected_ophys_movie_file
+            ),  # noqa E501
             "rois": [x.to_dict() for x in self.ophys_experiment.rois],
         }
 
@@ -78,9 +80,7 @@ class TraceExtractionModule(PipelineModule):
     @staticmethod
     def save_exclusion_labels_to_db(
         output_files: Dict[str, OutputFile],
-        session: Session,
-        run_id: int,
-        **kwargs
+        session: Session, run_id: int, **kwargs
     ):
         """
         Saves trace extract exclusion labels to rois in the db
@@ -99,25 +99,33 @@ class TraceExtractionModule(PipelineModule):
         ].path
         with open(exclusion_labels_file_path) as f:
             output_json = json.load(f)
-
         # exclusion_labels: List[Dict]
-        # e.g. {"roi_id": 123, "exclusion_label_name": ["name"]}
+        # e.g. {"roi_id": 123, "exclusion_label_name": "name"}
         exclusion_labels = output_json["exclusion_labels"]
 
-        for exclusion_label in exclusion_labels:
+        roi_traces_file_path = output_files[
+            WellKnownFileTypeEnum.ROI_TRACE.value].path
+
+        with h5py.File(roi_traces_file_path, "r") as f:
+            roi_ids = [int(rid) for rid in f["roi_names"][()]]
+
+        roi_empty_neuropil_mask = {
+            exclusion_label["roi_id"]: True
+            for exclusion_label in exclusion_labels
+            if exclusion_label["exclusion_label_name"] == "empty_neuropil_mask"
+        }
+
+        for id in roi_ids:
             # 1. Get ROI
-            try:
-                roi = session.exec(
-                    select(OphysROI).where(OphysROI.id == exclusion_label["roi_id"]) # noqa E501
-                ).first()
-            except NoResultFound as e:
-                raise Exception(
-                    f"ROI with id {exclusion_label['roi_id']}"
-                    "not found in db"
-                ) from e
+            roi = session.exec(
+                select(OphysROI).where(OphysROI.id == id)  # noqa E501
+            ).first()
+            if roi is None:
+                raise Exception(f"ROI with id {id} not found in db")
 
             # 2. Add exclusion label
-            roi.has_empty_neuropil_mask = "empty_neuropil_mask" in exclusion_label["exclusion_label_name"] # noqa E501
+            roi.has_empty_neuropil_mask = roi_empty_neuropil_mask.get(
+                id, False)
 
             # 3. Save updated roi to db
             session.add(roi)

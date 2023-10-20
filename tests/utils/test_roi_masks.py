@@ -23,16 +23,40 @@ def test_init_by_pixels():
     assert m.height == 2
 
 
-def test_init_by_pixels_with_border():
-    a = np.array([[1, 1], [2, 1]])
-
-    m = RoiMask.create_roi_mask(3, 3, [1, 1, 1, 1], pix_list=a)
-
-    assert m.x == 1
-    assert m.width == 2
-    assert m.y == 1
-    assert m.height == 1
-    assert m.overlaps_motion_border is True
+@pytest.mark.parametrize(
+    "pix_list, expected_x,"
+    "expected_width, expected_y,"
+    "expected_height, expected_flag",
+    [
+        # Crosses the left border
+        (np.array([[0, 3], [1, 3]]), 0, 2, 3, 1, True),
+        # Crosses the right border
+        (np.array([[6, 3], [5, 3]]), 5, 2, 3, 1, True),
+        # Crosses the top border
+        (np.array([[3, 0], [3, 1]]), 3, 1, 0, 2, True),
+        # Crosses the bottom border
+        (np.array([[3, 6], [3, 5]]), 3, 1, 5, 2, True),
+        # Touches the left border
+        (np.array([[2, 3], [3, 3]]), 2, 2, 3, 1, False),
+        # Touches the right border
+        (np.array([[4, 3], [5, 3]]), 4, 2, 3, 1, False),
+        # Touches the top border
+        (np.array([[3, 2], [3, 3]]), 3, 1, 2, 2, False),
+        # Touches the bottom border
+        (np.array([[3, 4], [3, 5]]), 3, 1, 4, 2, False),
+        # Neither touches nor crosses any border
+        (np.array([[3, 3], [4, 3]]), 3, 2, 3, 1, False),
+    ],
+)
+def test_init_by_pixels_with_border(
+    pix_list, expected_x, expected_width, expected_y, expected_height, expected_flag # noqa 501
+):
+    m = RoiMask.create_roi_mask(7, 7, [2, 2, 2, 2], pix_list)
+    assert m.x == expected_x
+    assert m.width == expected_width
+    assert m.y == expected_y
+    assert m.height == expected_height
+    assert m.overlaps_motion_border is expected_flag
 
 
 def test_init_by_pixels_large():

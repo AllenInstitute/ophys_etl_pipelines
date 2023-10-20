@@ -104,7 +104,7 @@ def find_movie_start_end_empty_frames(
                           np.arange(0, lowside, dtype=start_idxs.dtype)):
         lowside = 0
         if logger is not None:
-            logger(f"{n_sigma} sigma discrepant frames found outside the "
+            logger(f"{n_sigma} sigma discrepant frames found outside of the "
                    "beginning of the movie. Please inspect the movie for data "
                    "quality. Not trimming frames from the movie beginning.")
     if not np.array_equal(end_idxs,
@@ -113,9 +113,9 @@ def find_movie_start_end_empty_frames(
                                     dtype=end_idxs.dtype)):
         highside = 0
         if logger is not None:
-            logger(f"{n_sigma} sigma discrepant frames found outside the end "
-                   "of the movie. Please inspect the movie for data quality. "
-                   "Not trimming frames from the movie end.")
+            logger(f"{n_sigma} sigma discrepant frames found outside of the "
+                   "end of the movie. Please inspect the movie for data "
+                   "quality. Not trimming frames from the movie end.")
 
     return (lowside, highside)
 

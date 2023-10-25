@@ -57,9 +57,12 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
             )
             self.args["trim_frames_start"] = lowside
             self.args["trim_frames_end"] = highside
-            self.logger.info(
-                f"Found ({lowside}, {highside}) at the "
-                "start/end of the movie."
+            self.logger.warning(
+                "Found frames that are 5 sigma low in mean intensity at the"
+                f"start/end of the movie (n_start_frames={lowside}, "
+                f"n_end_frames={highside}). Please check the movie for data "
+                "quality. Ignoring these frames when producing a reference "
+                "image."
             )
 
         if suite2p_args["force_refImg"] and len(suite2p_args["refImg"]) == 0:
@@ -239,20 +242,15 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                 dy = delta_y[frame_index] - ops.item()["yoff"][frame_index]
                 data[frame_index] = shift_frame(data[frame_index], dy, dx)
 
-        # If we found frames that are empty at the end and beginning of the
-        # movie, we reset their motion shift and set their shifts to 0.
-        utils.reset_frame_shift(
-            data,
-            delta_y,
-            delta_x,
-            self.args["trim_frames_start"],
-            self.args["trim_frames_end"],
-        )
-        # Create a boolean lookup of frames we reset as they were found
-        # to be empty.
-        is_valid = np.ones(len(data), dtype="bool")
-        is_valid[: self.args["trim_frames_start"]] = False
-        is_valid[len(data) - self.args["trim_frames_end"]:] = False
+        # Create a boolean lookup of frames that have 5 sigma low intensity
+        # at the start or end of the movie.
+        is_low_intensity_start_end_frame = np.zeros(len(data), dtype="bool")
+        is_low_intensity_start_end_frame[
+            :self.args["trim_frames_start"]
+        ] = True
+        is_low_intensity_start_end_frame[
+            len(data) - self.args["trim_frames_end"]:
+        ] = True
 
         # write the hdf5
         with h5py.File(self.args["motion_corrected_output"], "w") as f:
@@ -336,7 +334,8 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                     "x_pre_clip": ops.item()["xoff"],
                     "y_pre_clip": ops.item()["yoff"],
                     "correlation": ops.item()["corrXY"],
-                    "is_valid": is_valid,
+                    "is_low_intensity_start_end_frame":
+                        is_low_intensity_start_end_frame,
                     "nonrigid_x": nonrigid_x,
                     "nonrigid_y": nonrigid_y,
                     "nonrigid_corr": nonrigid_corr,
@@ -351,7 +350,8 @@ class Suite2PRegistration(argschema.ArgSchemaParser):
                     "x_pre_clip": ops.item()["xoff"],
                     "y_pre_clip": ops.item()["yoff"],
                     "correlation": ops.item()["corrXY"],
-                    "is_valid": is_valid,
+                    "is_low_intensity_start_end_frame":
+                        is_low_intensity_start_end_frame,
                 }
             )
         motion_offset_df.to_csv(

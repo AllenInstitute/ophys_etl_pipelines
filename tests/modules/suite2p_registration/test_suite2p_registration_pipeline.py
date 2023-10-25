@@ -142,7 +142,7 @@ def test_suite2p_motion_correction(
         "x_pre_clip",
         "y_pre_clip",
         "correlation",
-        "is_valid",
+        "is_low_intensity_start_end_frame",
     ]
     if nonrigid:
         expected_cols.extend(["nonrigid_x", "nonrigid_y", "nonrigid_corr"])

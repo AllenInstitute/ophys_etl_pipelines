@@ -6,10 +6,13 @@ from pathlib import Path
 import tempfile
 import warnings
 
-from ophys_etl.modules.suite2p_registration.utils import (
-    identify_and_clip_outliers, check_movie_against_raw, reset_frame_shift,
-    find_movie_start_end_empty_frames, check_and_warn_on_datatype
-)
+try:
+    from ophys_etl.modules.suite2p_registration.utils import (
+        identify_and_clip_outliers, check_movie_against_raw, reset_frame_shift,
+        find_movie_start_end_empty_frames, check_and_warn_on_datatype
+    )
+except ImportError:
+    pass
 
 
 @pytest.mark.parametrize(

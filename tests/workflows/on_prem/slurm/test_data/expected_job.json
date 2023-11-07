@@ -1,0 +1,20 @@
+{
+  "job": {
+    "qos": "production",
+    "partition": "braintv",
+    "nodes": 1,
+    "cpus_per_task": 32,
+    "gpus": 0,
+    "memory_per_node": 256000,
+    "time_limit": 300,
+    "name": "MOTION_CORRECTION",
+    "temporary_disk_per_node": "55G",
+    "standard_output": "log_path.log",
+    "standard_error": "log_path.err",
+    "environment": {
+      "PATH": "/bin:/usr/bin/:/usr/local/bin/",
+      "LD_LIBRARY_PATH": "/lib/:/lib64/:/usr/local/lib"
+    }
+  },
+  "script": "#! /bin/bash\n# Adds mksquashfs (needed for singularity) to $PATH\nsource /etc/profile\n\nexport SINGULARITY_DOCKER_USERNAME=foo\nexport SINGULARITY_DOCKER_PASSWORD=bar\n\nSINGULARITY_TMPDIR=/scratch/fast/${SLURM_JOB_ID} SINGULARITY_PULLFOLDER=/scratch/fast/${SLURM_JOB_ID} SINGULARITY_DISABLE_CACHE=True singularity run     --bind /allen:/allen,/scratch/fast/${SLURM_JOB_ID}:/tmp          docker://alleninstitutepika/ophys_etl_pipelines:main     /envs/ophys_etl/bin/python -m ophys_etl.modules.suite2p_registration  --input_json input.json --output_json output.json"
+}

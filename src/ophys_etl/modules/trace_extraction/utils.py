@@ -120,7 +120,15 @@ def calculate_roi_and_neuropil_traces(
     # a combined binary mask for all ROIs (this is used to
     #   subtracted ROIs from annuli
     mask_array = create_roi_mask_array(roi_mask_list)
-    combined_mask = mask_array.max(axis=0)
+    if mask_array is None:
+        if isinstance(movie_h5, np.ndarray):
+            fov_shape = movie_h5.shape[1:]
+        else:
+            with h5py.File(movie_h5, 'r') as f:
+                fov_shape = f['data'].shape[1:]
+        combined_mask = np.zeros(fov_shape)
+    else:
+        combined_mask = mask_array.max(axis=0)
 
     logging.info("%d total ROIs" % len(roi_mask_list))
 

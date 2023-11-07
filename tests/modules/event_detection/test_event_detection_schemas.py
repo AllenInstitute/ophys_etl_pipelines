@@ -3,7 +3,10 @@ import contextlib
 import pytest
 from unittest.mock import Mock
 import sys
-from ophys_etl.modules.event_detection import utils
+
+
+from ophys_etl.modules.event_detection.exceptions import \
+    EventDetectionException
 from ophys_etl.modules.event_detection.resources.event_decay_time_lookup \
         import event_decay_lookup_dict as decay_lookup
 sys.modules['FastLZeroSpikeInference'] = Mock()
@@ -45,7 +48,7 @@ def test_EventDetectionSchema_multiplier(tmp_path, rate, expected,
         [
             (False, contextlib.nullcontext()),
             (True, pytest.raises(
-                utils.EventDetectionException,
+                EventDetectionException,
                 match=r".*does not have the key 'roi_names'.*"))])
 def test_EventDetectionSchema_missing_name(tmp_path, missing_field, context):
     fpath = tmp_path / "junk_input.h5"
@@ -62,8 +65,7 @@ def test_EventDetectionSchema_missing_name(tmp_path, missing_field, context):
             'decay_time': 1.234
             }
     with context:
-        parser = emod.EventDetection(input_data=args, args=[])
-        assert 'halflife' in parser.args
+        emod.EventDetection(input_data=args, args=[])
 
 
 @pytest.mark.event_detect_only
@@ -92,18 +94,15 @@ def test_EventDetectionSchema_decay_time(tmp_path):
     parser = emod.EventDetection(input_data=args, args=[])
     assert 'decay_time' in parser.args
     assert parser.args['decay_time'] == decay_lookup[key]
-    assert 'halflife' in parser.args
 
     # non-existent genotype exception
     args['full_genotype'] = 'non-existent-genotype'
-    with pytest.raises(
-            utils.EventDetectionException,
-            match=r".*not available.*"):
-        parser = emod.EventDetection(input_data=args, args=[])
+    with pytest.raises(EventDetectionException,
+                       match=r".*not available.*"):
+        emod.EventDetection(input_data=args, args=[])
 
     # neither arg supplied
     args.pop('full_genotype')
-    with pytest.raises(
-            utils.EventDetectionException,
-            match=r"Must provide either.*"):
-        parser = emod.EventDetection(input_data=args, args=[])
+    with pytest.raises(EventDetectionException,
+                       match=r"Must provide either.*"):
+        emod.EventDetection(input_data=args, args=[])

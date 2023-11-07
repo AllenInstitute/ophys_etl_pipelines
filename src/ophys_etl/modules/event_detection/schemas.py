@@ -9,8 +9,8 @@ import marshmallow as mm
 from ophys_etl.modules.event_detection.resources.event_decay_time_lookup \
         import event_decay_lookup_dict as decay_lookup
 from ophys_etl.schemas.fields import H5InputFile
-from ophys_etl.modules.event_detection.utils import (
-        calculate_halflife, EventDetectionException)
+from ophys_etl.modules.event_detection.exceptions import \
+    EventDetectionException
 
 
 class EventDetectionInputSchema(argschema.ArgSchema):
@@ -124,5 +124,4 @@ class EventDetectionInputSchema(argschema.ArgSchema):
                               "overridden by a lookup by genotype to give "
                               f"a decay time of {lookup}.")
             data['decay_time'] = lookup
-        data['halflife'] = calculate_halflife(data['decay_time'])
         return data

@@ -122,7 +122,7 @@ def xdewarp(imgin: np.ndarray,
     imgout[:, (int(xtable['aL'])):(512-(int(xtable['aR'])))] = \
         imgin[:, (int(xtable['aL'])):(512-(int(xtable['aR'])))]
 
-    col = np.zeros(imgin.shape[0], np.float)
+    col = np.zeros(imgin.shape[0], float)
 
     # Left side
     for j in range(0, int(xtable['aL'])):
@@ -219,8 +219,8 @@ def get_xindex(warped_pixels: float, scale: float) -> np.ndarray:
     xindexB: np.ndarray
         Array of indices of the input image to be used for the output image.
     """
-    xindex = np.zeros(256, np.int)
-    xindexB = np.zeros(256, np.float)  # between pixels
+    xindex = np.zeros(256, 'int')
+    xindexB = np.zeros(256, 'float')  # between pixels
 
     for j in range(0, int(warped_pixels)):
         xindex[j] = (

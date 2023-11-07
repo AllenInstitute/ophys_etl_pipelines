@@ -5,9 +5,14 @@ from unittest.mock import patch
 import h5py
 import json
 import numpy as np
-from deepinterpolation.cli.inference import Inference
+import pytest
 
-from ophys_etl.modules.denoising.inference.__main__ import InferenceRunner
+try:
+    from deepinterpolation.cli.inference import Inference
+
+    from ophys_etl.modules.denoising.inference.__main__ import InferenceRunner
+except ImportError:
+    pass
 
 
 class TestInferenceRunner:
@@ -49,6 +54,7 @@ class TestInferenceRunner:
             runner.args = inference_input
         return runner
 
+    @pytest.mark.deepinterpolation_only
     def test_run(self):
         """Smoke test that the Inference interface can be called with
         test arguments"""

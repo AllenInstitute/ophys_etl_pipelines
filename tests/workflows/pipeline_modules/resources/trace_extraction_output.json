@@ -1,0 +1,12 @@
+{
+    "exclusion_labels": [
+        {
+            "roi_id": 1,
+            "exclusion_label_name": "empty_neuropil_mask"
+        },
+        {
+            "roi_id": 1,
+            "exclusion_label_name": "motion_border"
+        }
+    ]
+}

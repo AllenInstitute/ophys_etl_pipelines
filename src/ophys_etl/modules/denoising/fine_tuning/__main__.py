@@ -1,10 +1,10 @@
-import tempfile
+import logging
+import sys
 from pathlib import Path
-from typing import Dict
 
 import argschema
 import h5py
-import numpy as np
+import json
 from deepinterpolation.cli.fine_tuning import FineTuning
 
 from ophys_etl.modules.denoising.fine_tuning.schemas import \
@@ -19,30 +19,57 @@ class FinetuningRunner(argschema.ArgSchemaParser):
     Wrapper around `FineTuning` interface,
     this also splits the data into train/val splits before passing it to
     that interface"""
-    default_schema = FineTuningInputSchemaPreDataSplit
-    args: Dict
+    def __init__(self, **kwargs):
+        """
+
+        Parameters
+        ----------
+        kwargs
+            kwargs to sent to `ArgSchemaParser` constructor
+        """
+        super().__init__(
+            schema_type=FineTuningInputSchemaPreDataSplit,
+            **kwargs
+        )
+
+        # this removes the logger set by `ArgSchemaParser`. We want to add
+        # a timestamp to the logger
+        for handler in logging.root.handlers[:]:
+            logging.root.removeHandler(handler)
+
+        logging.basicConfig(
+            format='%(asctime)s %(name)s %(levelname)-8s %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S',
+            level=self.logger.level,
+            stream=sys.stdout
+        )
+        logger = logging.getLogger(type(self).__name__)
+        logger.setLevel(level=self.logger.level)
+        self.logger = logger
 
     def run(self):
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            train_out_path = Path(tmp_dir) / 'train.json'
-            val_out_path = Path(tmp_dir) / 'val.json'
+        train_out_path = Path(
+            self.args['data_split_params']['dataset_output_dir']) / \
+            'train.json'
+        val_out_path = Path(
+            self.args['data_split_params']['dataset_output_dir']) / 'val.json'
 
-            self._write_train_val_datasets(
-                train_out_path=train_out_path,
-                val_out_path=val_out_path
-            )
-            self.args['generator_params']['data_path'] = str(train_out_path)
-            self.args['test_generator_params']['data_path'] = str(val_out_path)
+        self._write_train_val_datasets(
+            train_out_path=train_out_path,
+            val_out_path=val_out_path
+        )
+        self.args['generator_params']['data_path'] = str(train_out_path)
+        self.args['test_generator_params']['data_path'] = str(val_out_path)
 
-            del self.args['data_split_params']
+        del self.args['data_split_params']
 
-            # Removes args added in post_load, since they are not expected in
-            # the schema when `FineTuning` is called below
-            del self.args['generator_params']['steps_per_epoch']
-            del self.args['test_generator_params']['steps_per_epoch']
+        # Removes args added, since they are not expected in
+        # the schema when `FineTuning` is called below
+        del self.args['generator_params']['steps_per_epoch']
+        del self.args['test_generator_params']['steps_per_epoch']
 
-            fine_tuning_runner = FineTuning(input_data=self.args, args=[])
-            fine_tuning_runner.run()
+        fine_tuning_runner = FineTuning(input_data=self.args, args=[])
+        fine_tuning_runner.run()
 
     def _write_train_val_datasets(
             self,
@@ -60,7 +87,8 @@ class FinetuningRunner(argschema.ArgSchemaParser):
         """
         data_splitter = DataSplitter(
             movie_path=self.args['data_split_params']['movie_path'],
-            seed=self.args['data_split_params']['seed']
+            seed=self.args['data_split_params']['seed'],
+            downsample_frac=self.args['data_split_params']['downsample_frac']
         )
         train, val = data_splitter.get_train_val_split(
             train_frac=self.args['data_split_params']['train_frac'],
@@ -71,18 +99,28 @@ class FinetuningRunner(argschema.ArgSchemaParser):
         with h5py.File(self.args['data_split_params']['movie_path']) as f:
             # Only evaluating mean, std on train set to not leak any signal
             # to validation
-            mean = f['data'][np.sort(train)].mean()
-            std = f['data'][np.sort(train)].std()
+            self.logger.info('Calculating train movie statistics')
+            mov = f['data'][()]
+            mean = mov[train].mean()
+            std = mov[train].std()
 
-        for ds_out_path, ds in zip((train_out_path, val_out_path),
-                                   (train, val)):
+        for ds_out_path, ds, ds_name in zip(
+                (train_out_path, val_out_path),
+                (train, val),
+                ('train', 'val')
+        ):
+            out = {
+                self.args['data_split_params']['ophys_experiment_id']:
+                    DataSplitterOutputSchema().load({
+                        'mean': mean,
+                        'std': std,
+                        'path': self.args['data_split_params']['movie_path'],
+                        'frames': list(ds)
+                    })
+            }
             with open(ds_out_path, 'w') as f:
-                f.write(DataSplitterOutputSchema().dumps({
-                    'mean': mean,
-                    'std': std,
-                    'path': self.args['data_split_params']['movie_path'],
-                    'frames': list(ds)
-                }, indent=2))
+                f.write(json.dumps(out, indent=2))
+            self.logger.info(f'Wrote {ds_name} set to {ds_out_path}')
 
 
 def main():

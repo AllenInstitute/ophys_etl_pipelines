@@ -1,16 +1,15 @@
-numpy
+numpy<=1.23.3
 scipy
 imageio-ffmpeg
 pytest
-argschema==2.0.2
+argschema
 h5py
 matplotlib
 pandas
 moto
 typing_extensions
 tifffile
-scikit-image
+scikit-image~=0.19.3
 networkx<=2.8.8
-suite2p==0.10.2
-torch==1.13.1
-deepinterpolation @ git+https://github.com/danielsf/deepinterpolation@staging/cleaner/ophys_etl
+scikit-learn
+pydantic

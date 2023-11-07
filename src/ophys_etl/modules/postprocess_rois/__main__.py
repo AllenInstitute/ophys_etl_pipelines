@@ -89,6 +89,13 @@ class PostProcessROIs(ArgSchemaParser):
             self.logger.info("morphological transform reduced number of "
                              f"ROIs from {n_rois} to {n_rois_morphed}")
 
+        # Remove empty ROIs
+        compatible_rois = [
+            roi for roi in compatible_rois if np.sum(roi['mask_matrix']) > 0]
+        self.logger.info(
+            f"Removed {len(binarized_coo_rois) - len(compatible_rois)}"
+            "empty ROIs.")
+
         # validate ROIs
         errors = DenseROISchema(many=True).validate(compatible_rois)
         if any(errors):

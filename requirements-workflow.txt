@@ -1,0 +1,7 @@
+apache-airflow==2.6.3
+sqlmodel
+PyYaml
+paramiko
+mlflow
+pg8000
+ophys-nway-matching @ git+https://github.com/AllenInstitute/ophys_nway_matching.git

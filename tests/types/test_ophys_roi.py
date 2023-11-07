@@ -1,3 +1,5 @@
+import pytest
+
 from ophys_etl.types import OphysROI
 import numpy as np
 
@@ -56,7 +58,8 @@ def test_get_bound_box_cutout():
                                   image[y0:y0 + height, x0:x0 + width])
 
 
-def test_get_centered_cutout():
+@pytest.mark.parametrize('pad_mode', ('constant', 'symmetric'))
+def test_get_centered_cutout(pad_mode):
     """Test getting a cutout of arbitrary size centered on the roi
     bounding box center.
     """
@@ -78,7 +81,8 @@ def test_get_centered_cutout():
                    mask_matrix=mask)
 
     cutout_size = 128
-    cutout = roi.get_centered_cutout(image, cutout_size, cutout_size)
+    cutout = roi.get_centered_cutout(image, cutout_size, cutout_size,
+                                     pad_mode=pad_mode)
     np.testing.assert_array_equal(
         cutout,
         image[roi.bounding_box_center_y - cutout_size // 2:

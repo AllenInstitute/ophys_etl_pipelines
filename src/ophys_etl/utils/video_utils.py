@@ -388,14 +388,13 @@ def video_bounds_from_ROI(
     return (rowmin, colmin), (rowmax-rowmin, colmax-colmin)
 
 
-def get_max_and_avg(video_path: Path) -> Dict[str, np.ndarray]:
+def get_max_and_avg(video: np.ndarray) -> Dict[str, np.ndarray]:
     """Compute the mean and max projection from a movie on disk.
 
     Parameters
     ----------
-    video_path : pathlib.Path
-        Path to HDF5 file containing full movie. Movie is assume to be
-        stored in a dataset named "data".
+    video : np.ndarray
+        ophys movie
 
     Returns
     -------
@@ -405,9 +404,7 @@ def get_max_and_avg(video_path: Path) -> Dict[str, np.ndarray]:
         "mean" : Mean projection of the movie.
         "max" : Max projection of the movie.
     """
-    with h5py.File(video_path, "r") as in_file:
-        video_data = in_file["data"][()]
-    max_img = np.max(video_data, axis=0)
-    avg_img = np.mean(video_data, axis=0)
+    max_img = np.max(video, axis=0)
+    avg_img = np.mean(video, axis=0)
 
     return {"max": max_img, "avg": avg_img}

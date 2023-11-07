@@ -1,0 +1,2 @@
+class EventDetectionException(Exception):
+    pass

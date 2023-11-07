@@ -78,7 +78,7 @@ def json_data_fixture1():
                 ['_-Inf_', 'c', 'd'],
                 4]
 
-    return (json_data, expected)
+    return json_data, expected
 
 
 @pytest.fixture

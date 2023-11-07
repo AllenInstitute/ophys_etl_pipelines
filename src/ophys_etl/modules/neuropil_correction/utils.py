@@ -107,7 +107,7 @@ def fill_unconverged_r(
     )
     rmse = []
     for F_M, F_N, r in zip(roi_traces, neuropil_traces, r_array):
-        if any(np.isnan(roi_traces)) or any(np.isnan(neuropil_traces)):
+        if np.isnan(F_M).any() or np.isnan(F_N).any():
             rmse.append(float('nan'))
         else:
             ns = NeuropilSubtract()

@@ -9,9 +9,12 @@ import pandas as pd
 import pytest
 import tifffile
 
-from ophys_etl.modules.suite2p_wrapper.schemas import \
-        Suite2PWrapperSchema, Suite2PWrapperOutputSchema  # noqa: E402
-import ophys_etl.modules.suite2p_registration.__main__ as s2preg  # noqa
+try:
+    from ophys_etl.modules.suite2p_wrapper.schemas import \
+            Suite2PWrapperSchema, Suite2PWrapperOutputSchema  # noqa: E402
+    import ophys_etl.modules.suite2p_registration.__main__ as s2preg  # noqa
+except ImportError:
+    pass
 
 
 class MockSuite2PWrapper(argschema.ArgSchemaParser):

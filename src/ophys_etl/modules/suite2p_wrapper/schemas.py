@@ -16,8 +16,9 @@ class Suite2PWrapperSchema(argschema.ArgSchema):
     # s2p IO settings (file paths)
     h5py = argschema.fields.InputFile(
             required=True,
-            description=("Path to input video. In Allen production case, "
-                         "assumed to be motion-corrected."))
+            description=("Path to input video. For motion correction, "
+                         "this is the raw video. In all other cases this "
+                         "will be the motion corrected video."))
     h5py_key = argschema.fields.Str(
             required=False,
             missing="data",

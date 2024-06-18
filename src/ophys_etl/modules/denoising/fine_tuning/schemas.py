@@ -6,6 +6,14 @@ from ophys_etl.schemas.fields import H5InputFile
 
 
 class DataSplitterInputSchema(argschema.ArgSchema):
+    ophys_experiment_id = argschema.fields.String(
+        required=True,
+        description='Identifier for the ophys experiment'
+    )
+    dataset_output_dir = argschema.fields.OutputDir(
+        required=True,
+        description='Where to write the train/val dataset metadata'
+    )
     movie_path = H5InputFile(
         required=True,
         description='Path to ophys movie'
@@ -15,6 +23,14 @@ class DataSplitterInputSchema(argschema.ArgSchema):
         description='Amount of data to set aside for training. The rest will '
                     'be used for validation'
     )
+    downsample_frac = argschema.fields.Float(
+        default=None,
+        allow_none=True,
+        description='Amount to downsample the data by. I.e. a downsample frac '
+                    'of 0.1 would randomly sample 10% of the data. The '
+                    'default is no downsampling'
+    )
+
     seed = argschema.fields.Int(
         default=1234,
         allow_none=True,
@@ -56,6 +72,7 @@ class GeneratorSchemaPreDataSplit(GeneratorSchema):
 class FineTuningInputSchemaPreDataSplit(FineTuningInputSchema):
     """Same as `FineTuningInputSchema` except the data hasn't been split
     into train/val yet"""
+    log_level = argschema.fields.LogLevel(default="INFO")
     data_split_params = argschema.fields.Nested(
         DataSplitterInputSchema, default={}
     )

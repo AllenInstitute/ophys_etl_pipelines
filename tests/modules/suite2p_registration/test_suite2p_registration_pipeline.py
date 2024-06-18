@@ -6,7 +6,12 @@ import h5py
 import numpy as np
 import pandas as pd
 import pytest
-from ophys_etl.modules.suite2p_registration.__main__ import Suite2PRegistration
+
+try:
+    from ophys_etl.modules.suite2p_registration.__main__ import (
+            Suite2PRegistration)
+except ImportError:
+    pass
 
 
 @pytest.fixture(scope="session")

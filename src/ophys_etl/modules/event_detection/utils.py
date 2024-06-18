@@ -7,10 +7,6 @@ from scipy.stats import median_abs_deviation
 from FastLZeroSpikeInference import fast
 
 
-class EventDetectionException(Exception):
-    pass
-
-
 def fast_lzero(penalty: float, dat: np.ndarray, gamma: float,
                constraint: bool) -> np.ndarray:
     """runs fast spike inference and returns an array like the input trace

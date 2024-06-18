@@ -107,9 +107,12 @@ def fill_unconverged_r(
     )
     rmse = []
     for F_M, F_N, r in zip(roi_traces, neuropil_traces, r_array):
-        ns = NeuropilSubtract()
-        ns.set_F(F_M, F_N)
-        rmse.append(ns.estimate_error(r))
+        if np.isnan(F_M).any() or np.isnan(F_N).any():
+            rmse.append(float('nan'))
+        else:
+            ns = NeuropilSubtract()
+            ns.set_F(F_M, F_N)
+            rmse.append(ns.estimate_error(r))
     return corrected_neuropil_traces, r_array, np.array(rmse)
 
 

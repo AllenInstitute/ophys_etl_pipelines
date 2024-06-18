@@ -5,16 +5,15 @@ from unittest.mock import MagicMock, Mock, patch
 
 import h5py
 import numpy as np
-from ophys_etl.modules.suite2p_registration.suite2p_utils import (
-    add_modify_required_parameters,
-    compute_acutance,
-    compute_reference,
-    create_ave_image,
-    load_initial_frames,
-    load_representative_sub_frames,
-    optimize_motion_parameters,
-    remove_extrema_frames,
-)
+
+try:
+    from ophys_etl.modules.suite2p_registration.suite2p_utils import (  # noqa: E402, E501
+        compute_reference, load_initial_frames, compute_acutance,
+        add_modify_required_parameters, create_ave_image,
+        optimize_motion_parameters, remove_extrema_frames,
+        load_representative_sub_frames)
+except ImportError:
+    pass
 
 
 # Mock function to return just the first frame as the reference. We

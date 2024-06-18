@@ -73,7 +73,6 @@ class ExtractROISchema(Schema):
                         f"{k1} and {k2} provided, " "but they differ"
                     )
 
-        check("valid_roi", "valid")
         check("mask_matrix", "mask")
         return data
 
@@ -110,7 +109,7 @@ class DenseROISchema(Schema):
     width = Int(required=True, description="Width of the ROI in pixels")
     height = Int(required=True, description="Height of the ROI in pixels")
     valid_roi = Bool(
-        required=True,
+        required=False,
         description=("Boolean indicating if the ROI is a valid cell or not"),
     )
     mask_matrix = List(

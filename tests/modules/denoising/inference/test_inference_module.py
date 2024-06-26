@@ -10,6 +10,7 @@ from deepinterpolation.cli.inference import Inference
 from ophys_etl.modules.denoising.inference.__main__ import InferenceRunner
 import pytest
 
+
 class TestInferenceRunner:
     @classmethod
     def setup(cls):
@@ -22,7 +23,7 @@ class TestInferenceRunner:
             cls.runner = cls._create_dummy_runner()
 
     @classmethod
-    @pytest.mark.skip(reason="module not used in production.  test failure blocking pipeline")
+    @pytest.mark.skip(reason="module not used in production")
     def teardown_class(cls):
         cls.tmpdir.cleanup()
 
@@ -49,7 +50,8 @@ class TestInferenceRunner:
             runner = InferenceRunner()
             runner.args = inference_input
         return runner
-    @pytest.mark.skip(reason="module not used in production.  test failure blocking pipeline")
+    
+    @pytest.mark.skip(reason="module not used in production")
     def test_run(self):
         """Smoke test that the Inference interface can be called with
         test arguments"""

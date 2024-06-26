@@ -50,7 +50,7 @@ class TestInferenceRunner:
             runner = InferenceRunner()
             runner.args = inference_input
         return runner
-    
+
     @pytest.mark.skip(reason="module not used in production")
     def test_run(self):
         """Smoke test that the Inference interface can be called with

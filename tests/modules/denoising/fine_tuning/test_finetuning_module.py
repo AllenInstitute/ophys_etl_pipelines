@@ -70,7 +70,7 @@ class TestFinetuningRunner:
                 train_out_path=train_path, val_out_path=val_path)
             assert train_path.exists()
             assert val_path.exists()
-            
+
     @pytest.mark.skip(reason="module not used in production")
     def test_run(self):
         """Smoke test that the FineTuning interface can be called with

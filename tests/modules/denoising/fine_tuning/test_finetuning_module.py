@@ -8,7 +8,7 @@ import numpy as np
 from deepinterpolation.cli.fine_tuning import FineTuning
 
 from ophys_etl.modules.denoising.fine_tuning.__main__ import FinetuningRunner
-
+import pytest
 
 class TestFinetuningRunner:
     @classmethod

@@ -8,6 +8,7 @@ import numpy as np
 from deepinterpolation.cli.fine_tuning import FineTuning
 
 from ophys_etl.modules.denoising.fine_tuning.__main__ import FinetuningRunner
+import pytest
 
 
 class TestFinetuningRunner:
@@ -56,10 +57,11 @@ class TestFinetuningRunner:
         return runner
 
     @classmethod
-    @pytest.mark.skip(reason="module not used in production.  test failure blocking pipeline")
+    @pytest.mark.skip(reason="module not used in production")
     def teardown_class(cls):
         cls.tmpdir.cleanup()
-    @pytest.mark.skip(reason="module not used in production.  test failure blocking pipeline")
+
+    @pytest.mark.skip(reason="module not used in production")
     def test_write_train_val_datasets(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             train_path = Path(tmpdir) / 'train.json'
@@ -68,7 +70,8 @@ class TestFinetuningRunner:
                 train_out_path=train_path, val_out_path=val_path)
             assert train_path.exists()
             assert val_path.exists()
-    @pytest.mark.skip(reason="module not used in production.  test failure blocking pipeline")
+
+    @pytest.mark.skip(reason="module not used in production")
     def test_run(self):
         """Smoke test that the FineTuning interface can be called with
         test arguments"""

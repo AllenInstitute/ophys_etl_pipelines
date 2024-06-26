@@ -8,7 +8,7 @@ import numpy as np
 from deepinterpolation.cli.inference import Inference
 
 from ophys_etl.modules.denoising.inference.__main__ import InferenceRunner
-
+import pytest
 
 class TestInferenceRunner:
     @classmethod

@@ -30,7 +30,7 @@ event_decay_lookup_dict = {
     "Slc32a1-IRES-Cre/wt;TIGRE-jGCaMP8s-IRES-tTA2_A8/wt": 0.7,
     "Slc32a1-IRES-Cre/wt;Oi1(TIT2L-jGCaMP8s-WPRE-ICL-IRES-tTA2)/wt": 0.7,
     "Gad2-IRES-Cre/wt;Slc32a1-T2A-FlpO/wt;Oi3(TIT2L-jGCaMP8m-WPRE-ICL-IRES-tTA2-WPRE)/wt": 0.4,
-    "Slc32a1-IRES-Cre/wt;Oi4(TIT2L-jGCaMP8s-RiboL1-WPRE-ICL-IRES-tTA2-WPRE)/wt ": 0.7,
+    "Slc32a1-IRES-Cre/wt;Oi4(TIT2L-jGCaMP8s-RiboL1-WPRE-ICL-IRES-tTA2-WPRE)/wt": 0.7,
     "Snap25-IRES2-Cre/wt;Oi4(TIT2L-jGCaMP8s-RiboL1-WPRE-ICL-IRES-tTA2-WPRE)/wt": 0.7,
     "Cux2-CreERT2/wt;Oi3(TIT2L-jGCaMP8m-WPRE-ICL-IRES-tTA2-WPRE)/wt": 0.4,
     "wt/wt": 0.7

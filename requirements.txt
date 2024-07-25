@@ -12,5 +12,5 @@ tifffile
 scikit-image
 networkx<=2.8.8
 suite2p==0.10.2
-torch==1.13.1
+torch==2.2.0
 deepinterpolation @ git+https://github.com/danielsf/deepinterpolation@staging/cleaner/ophys_etl
